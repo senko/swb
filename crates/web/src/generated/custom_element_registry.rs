@@ -22,7 +22,7 @@ pub trait CustomElementRegistryImpl: b::Host {
     fn when_defined(cx: &mut b::Cx<'_>, this: b::Platform, name: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
     /// `undefined upgrade(Node root)`.
-    fn upgrade(cx: &mut b::Cx<'_>, this: b::Platform, root: b::NodeId) -> b::Result<()>;
+    fn upgrade(cx: &mut b::Cx<'_>, this: b::Platform, root: b::NodeRef) -> b::Result<()>;
 
 }
 
@@ -79,7 +79,7 @@ fn op_upgrade<H: CustomElementRegistryImpl>(rt: &mut swb_js::Runtime, call: &swb
         let this = b::glue::this_platform(rt, call, super::CUSTOM_ELEMENT_REGISTRY)?;
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
-        let a0 = b::convert::node(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        let a0 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
         b::ce::scope(rt, |rt| <H as CustomElementRegistryImpl>::upgrade(&mut b::Cx::new(rt, call, super::CUSTOM_ELEMENT_REGISTRY), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })

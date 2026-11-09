@@ -53,13 +53,19 @@ pub(crate) enum Args {
         new: Option<String>,
         namespace: Option<String>,
     },
+    /// `adoptedCallback(oldDocument, newDocument)`: the document nodes (the
+    /// two documents may be in different arenas).
+    Adopted {
+        old: Place,
+        new: Place,
+    },
 }
 
 impl Args {
     /// The bytes of argument text, for the budget.
     fn bytes(&self) -> usize {
         match self {
-            Args::None => 0,
+            Args::None | Args::Adopted { .. } => 0,
             Args::Attribute {
                 local,
                 old,
@@ -75,6 +81,25 @@ impl Args {
     }
 }
 
+/// Who enqueued a callback reaction (only for the debug log, so that tests
+/// can tell the callbacks of the sink from those of upgrades).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Origin {
+    /// "Upgrade an element" (attributes and `connectedCallback`).
+    Upgrade,
+    /// The mutation sink: a DOM change.
+    Sink,
+}
+
+impl Origin {
+    fn name(self) -> &'static str {
+        match self {
+            Origin::Upgrade => "upgrade",
+            Origin::Sink => "sink",
+        }
+    }
+}
+
 /// A custom element reaction.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Reaction {
@@ -82,7 +107,7 @@ pub(crate) enum Reaction {
     Upgrade(u32),
     /// A callback reaction. The function is looked up in the element's
     /// definition when it runs (definitions do not change).
-    Callback(Callback, Args),
+    Callback(Callback, Args, Origin),
 }
 
 /// The reaction queue of one element. Most elements have one reaction at a
@@ -90,7 +115,7 @@ pub(crate) enum Reaction {
 /// `VecDeque` costs an allocation of four reactions (ADR 0035 "4a
 /// implementation notes": 100,000 upgrades).
 #[derive(Debug)]
-enum Pending {
+pub(super) enum Pending {
     One(Reaction),
     Many(VecDeque<Reaction>),
 }
@@ -110,12 +135,15 @@ pub(crate) enum Enqueued {
 /// The reaction state of the agent.
 #[derive(Debug, Default)]
 pub(crate) struct Reactions {
-    queues: HashMap<Place, Pending>,
+    pub(super) queues: HashMap<Place, Pending>,
+    /// How many elements of each document have an entry in `queues` (so
+    /// that a transplant from a document with nothing queued costs O(1)).
+    pub(super) queued_docs: HashMap<DocKey, usize>,
     /// The elements of all element queues of the stack, oldest first.
-    stack: Vec<Place>,
+    pub(super) stack: Vec<Place>,
     /// The start of each element queue in `stack`.
     marks: Vec<usize>,
-    backup: Vec<Place>,
+    pub(super) backup: Vec<Place>,
     /// HTML "processing the backup element queue" flag.
     backup_processing: bool,
     /// The nested invocations.
@@ -125,6 +153,18 @@ pub(crate) struct Reactions {
     queued: usize,
     bytes: usize,
     warned: bool,
+    /// What the sink needs of the definitions, by number minus one
+    /// (`sink.rs`).
+    pub(super) defs: Vec<super::sink::DefInfo>,
+    /// The registry of each window's document: local name to definition
+    /// number (a copy of `DocState::custom.by_name`, so that the sink
+    /// decides without the runtime).
+    pub(super) names: HashMap<DocKey, HashMap<LocalName, u32>>,
+    /// Work units (nodes visited) since the host last charged them.
+    pub(super) work: usize,
+    /// The sink put an element on the backup queue and its microtask is not
+    /// queued yet.
+    pub(super) microtask_wanted: bool,
 }
 
 impl Reactions {
@@ -152,7 +192,7 @@ impl Reactions {
     /// appropriate element queue").
     pub(crate) fn enqueue(&mut self, place: Place, reaction: Reaction) -> Enqueued {
         let bytes = match &reaction {
-            Reaction::Callback(_, args) => args.bytes(),
+            Reaction::Callback(_, args, _) => args.bytes(),
             Reaction::Upgrade(_) => 0,
         };
         if self.queued + 2 > MAX_QUEUED || self.bytes + bytes > MAX_QUEUED_BYTES {
@@ -167,6 +207,7 @@ impl Reactions {
         match self.queues.entry(place) {
             Entry::Vacant(slot) => {
                 slot.insert(Pending::One(reaction));
+                *self.queued_docs.entry(place.0).or_default() += 1;
             }
             Entry::Occupied(mut slot) => {
                 let pending = slot.get_mut();
@@ -197,24 +238,39 @@ impl Reactions {
     pub(crate) fn take(&mut self, place: Place) -> Option<Reaction> {
         let reaction = match self.queues.get_mut(&place)? {
             Pending::One(_) => match self.queues.remove(&place) {
-                Some(Pending::One(reaction)) => Some(reaction),
+                Some(Pending::One(reaction)) => {
+                    self.forget_queue(place.0);
+                    Some(reaction)
+                }
                 _ => None,
             },
             Pending::Many(queue) => {
                 let reaction = queue.pop_front();
                 if queue.is_empty() {
                     self.queues.remove(&place);
+                    self.forget_queue(place.0);
                 }
                 reaction
             }
         };
         if let Some(reaction) = &reaction {
             self.queued = self.queued.saturating_sub(1);
-            if let Reaction::Callback(_, args) = reaction {
+            if let Reaction::Callback(_, args, _) = reaction {
                 self.bytes = self.bytes.saturating_sub(args.bytes());
             }
         }
         reaction
+    }
+
+    /// One entry of `queues` of `document` is gone.
+    fn forget_queue(&mut self, document: DocKey) {
+        if let Entry::Occupied(mut count) = self.queued_docs.entry(document) {
+            if *count.get() <= 1 {
+                count.remove();
+            } else {
+                *count.get_mut() -= 1;
+            }
+        }
     }
 
     /// Empties the reaction queue of `place` (a failed upgrade).
@@ -296,6 +352,27 @@ pub(crate) fn flush_backup(rt: &mut Runtime) -> VmResult<()> {
     invoke(rt, &queue)
 }
 
+/// The end of a call into the sink's walks from the web layer: queues the
+/// backup queue's microtask if a reaction went there, and checks the time
+/// limit if the walk was long.
+pub(crate) fn after_sink(rt: &mut Runtime, attention: bool) -> VmResult<()> {
+    if !attention {
+        return Ok(());
+    }
+    let (microtask, overdue) = {
+        let reactions = shared(rt)?;
+        let mut reactions = reactions.borrow_mut();
+        (reactions.take_microtask_wanted(), reactions.take_overdue())
+    };
+    if microtask {
+        queue_backup_microtask(rt)?;
+    }
+    if overdue {
+        rt.check_time()?;
+    }
+    Ok(())
+}
+
 /// Enqueues `reaction` for `place`, and the backup queue's microtask if it
 /// needs one.
 pub(crate) fn enqueue(rt: &mut Runtime, place: Place, reaction: Reaction) -> VmResult<()> {
@@ -325,7 +402,7 @@ pub(crate) fn invoke(rt: &mut Runtime, queue: &[Place]) -> VmResult<()> {
     Ok(())
 }
 
-fn invoke_element(rt: &mut Runtime, place: Place) -> VmResult<()> {
+fn invoke_element(rt: &mut Runtime, mut place: Place) -> VmResult<()> {
     let reactions = shared(rt)?;
     loop {
         let reaction = reactions.borrow_mut().take(place);
@@ -338,8 +415,14 @@ fn invoke_element(rt: &mut Runtime, place: Place) -> VmResult<()> {
             continue;
         }
         let result = match reaction {
-            Reaction::Upgrade(number) => super::upgrade::upgrade_reaction(rt, place, number),
-            Reaction::Callback(callback, args) => call_callback(rt, place, callback, args),
+            // A constructor can move its element to another arena: go on
+            // with its queue there.
+            Reaction::Upgrade(number) => {
+                super::upgrade::upgrade_reaction(rt, place, number).map(|moved| place = moved)
+            }
+            Reaction::Callback(callback, args, origin) => {
+                call_callback(rt, place, callback, args, origin)
+            }
         };
         reactions.borrow_mut().leave();
         result?;
@@ -350,9 +433,15 @@ fn invoke_element(rt: &mut Runtime, place: Place) -> VmResult<()> {
 /// the element as `this`; an exception is reported for the callback's
 /// realm, and the microtasks run if no script is on the stack (HTML "clean
 /// up after running a callback").
-fn call_callback(rt: &mut Runtime, place: Place, callback: Callback, args: Args) -> VmResult<()> {
+fn call_callback(
+    rt: &mut Runtime,
+    place: Place,
+    callback: Callback,
+    args: Args,
+    origin: Origin,
+) -> VmResult<()> {
     let entered = crate::state::switch_if_other(rt, place.0)?;
-    let result = call_callback_here(rt, place.1, callback, args);
+    let result = call_callback_here(rt, place.1, callback, args, origin);
     crate::state::leave(rt, entered);
     result
 }
@@ -362,6 +451,7 @@ fn call_callback_here(
     element: NodeId,
     callback: Callback,
     args: Args,
+    origin: Origin,
 ) -> VmResult<()> {
     let (_, number) = crate::state::dom(rt)?.custom_element_state(element);
     if number == 0 {
@@ -370,6 +460,15 @@ fn call_callback_here(
     let Some(function) = super::definition(rt, number)?.callback(callback) else {
         return Ok(());
     };
+    if super::window_gone(rt, number)? {
+        return Ok(());
+    }
+    log::debug!(
+        "custom element callback {} ({}): {}",
+        callback.name(),
+        origin.name(),
+        super::definition(rt, number)?.name
+    );
     let this = crate::state::wrap_node_with_proto(rt, element, None)?;
     let values = match args {
         Args::None => Vec::new(),
@@ -391,6 +490,18 @@ fn call_callback_here(
             }
             values
         }
+        Args::Adopted { old, new } => {
+            let mut values = Vec::with_capacity(2);
+            for (key, node) in [old, new] {
+                let entered = crate::state::switch_if_other(rt, key)?;
+                let wrapper = crate::state::wrap_node_with_proto(rt, node, None);
+                crate::state::leave(rt, entered);
+                let wrapper = Value::Object(wrapper?);
+                crate::bindings::keep(rt, wrapper);
+                values.push(wrapper);
+            }
+            values
+        }
     };
     match rt.call_function(Value::Object(function), Value::Object(this), &values) {
         Ok(_) => {}
@@ -405,7 +516,7 @@ fn call_callback_here(
 }
 
 /// Queues the microtask of the backup element queue.
-fn queue_backup_microtask(rt: &mut Runtime) -> VmResult<()> {
+pub(crate) fn queue_backup_microtask(rt: &mut Runtime) -> VmResult<()> {
     let function = if let Some(function) = state(rt)?.custom.backup_fn {
         function
     } else {
@@ -450,7 +561,7 @@ mod tests {
     }
 
     fn connected() -> Reaction {
-        Reaction::Callback(Callback::Connected, Args::None)
+        Reaction::Callback(Callback::Connected, Args::None, Origin::Sink)
     }
 
     /// The suffix after the last mark is the current element queue; a nested
@@ -504,6 +615,7 @@ mod tests {
                 new: Some("1".to_owned()),
                 namespace: None,
             },
+            Origin::Sink,
         );
         r.enqueue(place(1), Reaction::Upgrade(1));
         r.enqueue(place(2), connected());
@@ -548,6 +660,7 @@ mod tests {
                     new: Some(value.to_owned()),
                     namespace: None,
                 },
+                Origin::Sink,
             )
         };
         assert_eq!(r.enqueue(place(1), attribute(&big)), Enqueued::Done);

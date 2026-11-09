@@ -194,12 +194,21 @@ impl Document {
             .is_some_and(|names| names.contains(local))
     }
 
-    /// Notes the name of a new element in the state `undefined` (the caller
-    /// tested the state: this is the rare path).
+    /// True if the arena ever held an element with a custom element name
+    /// (any state but `uncustomized`): the filter of the custom element
+    /// reactions of the mutation sink. Without one, no inserted or removed
+    /// subtree can hold a custom element.
+    #[inline]
+    pub fn has_custom_names(&self) -> bool {
+        self.custom_names.is_some()
+    }
+
+    /// Notes the name of a new element whose state is not `uncustomized` (the
+    /// caller tested the state: this is the rare path).
     #[cold]
     pub(crate) fn note_custom_name(&mut self, data: &NodeData) {
         if let NodeData::Element(e) = data
-            && e.custom_state == CustomElementState::Undefined
+            && e.custom_state != CustomElementState::Uncustomized
         {
             self.note_name(&e.name.local);
         }

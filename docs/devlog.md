@@ -4,6 +4,36 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-09: M10 feature 4b: custom element reactions of DOM operations
+
+- The mutation sink of a document is now a dispatcher: the mutation
+  observer registry and the custom element reactions, installed at the
+  first `observe()` or `define`. Without either no sink exists.
+- Reactions (ADR 0035 section 7): `connectedCallback` and upgrades at
+  insertion, `disconnectedCallback` at removal (removals before additions),
+  `attributeChangedCallback` through every attribute API, `adoptedCallback`
+  through a new sink report, also for moves between the arenas of frames
+  (queued elements are re-keyed); upgrades of clones, `importNode` and the
+  fragment parser's copy. `[CEReactions]` now also wraps the named setter
+  of `CSSStyleDeclaration`.
+- Probe file: 53 cases, 134 queries, three equal Chromium runs; all match
+  except the 4 `parser-sync*` cases (4c) and the departures. Until 4c the
+  parser's elements with a defined name are upgraded from the backup
+  queue.
+- GitHub: 12 connected and 7 attribute callbacks, all from upgrades;
+  Chromium's replay has 35 and 76. The difference is the 23
+  `relative-time` elements, which fail at `attachShadow` (feature 5).
+  Scores unchanged everywhere.
+- Review: no crash, the reactions matched Chromium in every measured
+  case. Fixes: a constructor that moves its own element to another arena
+  (the construction stack is re-keyed), a quadratic re-key (a per-document
+  count), no callbacks for definitions of a navigated-away window (HTML's
+  "check if we can run script"), `Runtime::stop()` closes the reactions,
+  `upgrade()` of a node of another document returns as in Chromium,
+  tests for the work count and the backup queue, the origin of each
+  callback in the log. A style write that changes nothing is a departure.
+- Next: feature 5, shadow DOM (new ADR); 4c after feature 8.
+
 ## 2026-11-09: M10 feature 4a: custom element definitions and upgrades
 
 - `customElements` (ADR 0035 sections 1 to 6): `define` with Chromium's

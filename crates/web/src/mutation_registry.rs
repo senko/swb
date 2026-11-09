@@ -174,12 +174,21 @@ pub(crate) struct Registry {
 /// The registry as the document's sink and the binding state share it.
 pub(crate) type Shared = Rc<RefCell<Registry>>;
 
-/// The mutation sink of the document: reports to the registry.
+/// The mutation sink of a document: a dispatcher. It reports each change to
+/// the registry of mutation observers (which returns at once while no node is
+/// observed) and to the custom element reactions of the agent (which act
+/// only while the agent has a definition and the arena has held an element
+/// with a custom element name). ADR 0035 section 7.
 pub(crate) struct Sink {
     /// The registry of the agent.
     pub(crate) registry: Shared,
+    /// The custom element reactions of the agent.
+    pub(crate) reactions: Rc<RefCell<crate::custom_elements::Reactions>>,
     /// The key of the document.
     pub(crate) document: u32,
+    /// The cell that asks the host to look at the registry and the
+    /// reactions after the current call.
+    pub(crate) request: Rc<Cell<bool>>,
 }
 
 impl MutationSink for Sink {
@@ -187,6 +196,36 @@ impl MutationSink for Sink {
         self.registry
             .borrow_mut()
             .change(self.document, doc, change);
+        let mut reactions = self.reactions.borrow_mut();
+        if !reactions.has_definitions() {
+            return;
+        }
+        let attention = match *change {
+            Change::Children {
+                parent,
+                added,
+                removed,
+                ..
+            } => reactions.on_children(self.document, doc, parent, added, removed),
+            Change::Attribute {
+                element,
+                name,
+                old_value,
+            } => reactions.on_attribute(self.document, doc, element, name, old_value),
+            Change::Text { .. } => false,
+        };
+        if attention {
+            self.request.set(true);
+        }
+    }
+
+    fn adopted(&mut self, doc: &Document, node: NodeId, old_document: NodeId) {
+        let mut reactions = self.reactions.borrow_mut();
+        if reactions.has_definitions()
+            && reactions.on_adopted(self.document, doc, node, old_document)
+        {
+            self.request.set(true);
+        }
     }
 }
 
@@ -197,6 +236,12 @@ impl Registry {
             request,
             ..Registry::default()
         }
+    }
+
+    /// The cell that asks the host to look at the registry (and, for the
+    /// document's sink, at the custom element reactions) after the call.
+    pub(crate) fn request(&self) -> Rc<Cell<bool>> {
+        Rc::clone(&self.request)
     }
 
     /// Counts the bytes of the waiting records in the budget of the page's frames.

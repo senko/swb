@@ -211,8 +211,11 @@ pub(crate) struct DocState {
     /// the old id finds the node through it. An id does not come back into use
     /// (a taken node stays an empty comment in the arena).
     moved: HashMap<NodeId, (DocKey, NodeId)>,
-    /// True once the mutation registry is the document's sink.
+    /// True once the dispatcher (`mutation_registry::Sink`) is the document's sink.
     pub(crate) mutation_sink: bool,
+    /// True once a mutation observer observes a node of the document (the sink
+    /// is installed for the custom element reactions as well).
+    pub(crate) observing: bool,
     /// The wrapper of each node that a script has seen, by node index.
     wrappers: Vec<Option<Gc<Object>>>,
     /// The `[SameObject]` objects of nodes.

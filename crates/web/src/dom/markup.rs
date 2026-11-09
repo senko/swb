@@ -68,7 +68,19 @@ pub(super) fn outer_html(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
 /// `context`.
 fn parse_in(cx: &mut Cx<'_>, context: NodeId, markup: &str) -> b::Result<NodeId> {
     let result = swb_dom::parse_fragment(dom_mut(cx.rt)?, context, markup);
-    dom_result(cx.rt, result)
+    let fragment = dom_result(cx.rt, result)?;
+    // HTML "create an element for the token" for the fragment parser: an
+    // upgrade reaction for each element with a defined name, in tree order,
+    // before the insertion (measured: `outerHTML`).
+    // The nodes of a `template`'s `innerHTML` go to its contents, whose
+    // document has no registry (measured: no upgrade).
+    if dom(cx.rt)?
+        .element(context)
+        .is_none_or(|e| e.template_contents.is_none())
+    {
+        crate::custom_elements::upgrade::enqueue_copies(cx.rt, fragment)?;
+    }
+    Ok(fragment)
 }
 
 /// `Element.innerHTML` (setter): "replace all" with the parsed fragment,

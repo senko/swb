@@ -68,7 +68,7 @@ mod tests {
     use super::*;
     use crate::clock::{ClockMode, PageClock};
     use crate::custom_elements::Callback;
-    use crate::custom_elements::reactions::{Args, Reaction, enqueue};
+    use crate::custom_elements::reactions::{Args, Origin, Reaction, enqueue};
     use crate::runtime::ScriptRuntime;
     use crate::state::state;
 
@@ -93,7 +93,7 @@ mod tests {
             enqueue(
                 rt,
                 place,
-                Reaction::Callback(Callback::Connected, Args::None),
+                Reaction::Callback(Callback::Connected, Args::None, Origin::Upgrade),
             )?;
             during = backup_len(rt);
             Ok(())
@@ -101,5 +101,30 @@ mod tests {
         assert_eq!(during, 1);
         assert_eq!(backup_len(rt), 0);
         rt.heap_mut().close_scope(handles).unwrap();
+    }
+
+    /// A stopped runtime closes the reactions: the sinks of its documents
+    /// queue nothing that nobody invokes (as `Drop for Agent`).
+    #[test]
+    fn stopping_the_scripts_closes_the_reactions() {
+        use std::collections::HashSet;
+        use std::rc::Rc;
+
+        use swb_dom::LocalName;
+
+        use crate::custom_elements::sink::DefInfo;
+
+        let mut runtime = ScriptRuntime::new(PageClock::new(ClockMode::Virtual, None)).unwrap();
+        let reactions = Rc::clone(&state(&runtime.rt).unwrap().custom.reactions);
+        let info = DefInfo {
+            callbacks: 0,
+            observed: Rc::new(HashSet::new()),
+        };
+        reactions
+            .borrow_mut()
+            .add_definition(0, LocalName::from("x-a"), 1, info);
+        assert!(reactions.borrow().has_definitions());
+        runtime.stop_scripts();
+        assert!(!reactions.borrow().has_definitions());
     }
 }

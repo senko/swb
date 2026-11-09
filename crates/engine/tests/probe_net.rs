@@ -638,8 +638,25 @@ const SCOPED_REGISTRIES: &str = "swb has no scoped custom element registries (no
      `CustomElementRegistry` constructor, no `initialize`, no `customElementRegistry`), no \
      `ElementInternals`, `CustomStateSet` and `moveBefore` (ADR 0035 section 9; backlog)";
 
+const STYLE_NOOP: &str = "Chromium calls `attributeChangedCallback('style', current, current)` for a \
+     write to `style` that changes nothing (an invalid value, an empty value, `removeProperty` of \
+     a property that is not set, the same value), with no `MutationObserver` record and no new \
+     attribute; swb calls nothing (measured, ADR 0035 \"4b implementation notes\")";
+
 /// The departures of the custom element probe (ADR 0035 sub-feature 4a).
 const CE_DEPARTURES: &[Departure] = &[
+    (
+        "style-noop",
+        0,
+        r#""attr:x-a:style:null:color: red; red:style=null:\"color: red;\" bad::\"color: red;\" attr:x-a:style:color: red;:color: red; cssSame:style=color: red;:\"color: red;\" attr:x-a:style:color: red;: css0:style=color: red;:\"\" attr:x-a:style:: css0b:style=:\"\" empty::\"\" setEmpty::\"\" remove::\"\" setBad::\"\" attr:x-a:style::color: red; red2:style=:\"color: red;\" red3::\"color: red;\" set3::\"color: red;\" bg::\"color: red;\" float::\"color: red;\" custom::\"color: red;\"""#,
+        STYLE_NOOP,
+    ),
+    (
+        "style-noop-absent",
+        0,
+        r#""bad::null setEmpty::null remove::null attr:x-a:style:null: css0:style=null:\"\" attr:x-a:style:: css0b:style=:\"\" attr:x-a:style:: setAttr:style=:\"\" attr:x-a:style:: setAttrSame:style=:\"\"""#,
+        STYLE_NOOP,
+    ),
     (
         "api-surface",
         0,
@@ -678,40 +695,15 @@ const CE_DEPARTURES: &[Departure] = &[
     ),
 ];
 
-const SUB_4B: &str = "ADR 0035 sub-feature 4b: the reactions of DOM operations (insertion, \
-     removal, attribute changes, adoption, clones, `importNode`, fragment parsing)";
 const SUB_4C: &str = "ADR 0035 sub-feature 4c: synchronous construction in the parser";
 
-/// The cases of the custom element probe that ADR 0035 sub-features 4b
-/// (the reactions of DOM operations) and 4c (synchronous construction in
-/// the parser) run.
+/// The cases of the custom element probe that ADR 0035 sub-feature 4c
+/// (synchronous construction in the parser) runs.
 const CE_LATER: &[Later] = &[
-    // `importNode` of template contents upgrades the copies.
-    ("upgrade-at-define", None, SUB_4B),
-    // The constructor's insertion of `b` upgrades it.
-    ("upgrade-reentrant", None, SUB_4B),
     ("parser-sync", None, SUB_4C),
     ("parser-sync-document-write", None, SUB_4C),
     ("parser-sync-dynamic-markup", None, SUB_4C),
     ("parser-sync-failures", None, SUB_4C),
-    ("fragment-parsing", None, SUB_4B),
-    ("clone-and-import", None, SUB_4B),
-    ("reactions-subtree", None, SUB_4B),
-    ("reactions-queue-order", None, SUB_4B),
-    ("reactions-nested", None, SUB_4B),
-    ("reactions-attributes", None, SUB_4B),
-    ("reactions-adopted", None, SUB_4B),
-    ("reactions-callback-throws", None, SUB_4B),
-    ("reactions-recursion-count", None, SUB_4B),
-    ("reactions-append-several", None, SUB_4B),
-    ("reactions-reinsert-loop", None, SUB_4B),
-    // `setAttribute` on a custom element.
-    ("derived-classes", Some(0), SUB_4B),
-    // The connected and attribute rows (the constructor row runs in 4a).
-    ("reactions-recursion-depth", Some(0), SUB_4B),
-    ("reactions-recursion-depth", Some(2), SUB_4B),
-    ("reactions-depth-limit", Some(1), SUB_4B),
-    ("reactions-depth-limit", Some(4), SUB_4B),
 ];
 
 #[test]

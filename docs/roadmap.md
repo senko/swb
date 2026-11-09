@@ -4728,7 +4728,24 @@ Steps:
         `relative-time` constructions stop at `attachShadow` (feature 5).
       - 4b reactions of DOM operations (`implementer`): insertion,
         removal, attributes, adoption, clones, fragment parsing. GitHub's
-        elements are upgraded and their callbacks run after 4b.
+        elements are upgraded and their callbacks run after 4b. Done
+        (2026-11-09): the document's mutation sink is a dispatcher (the
+        observer registry and the reactions); connected, disconnected,
+        attribute (every API, also `style`, `classList`, `dataset`) and
+        adopted callbacks (also between the arenas of frames); upgrades of
+        clones, `importNode` and fragment parsing; a constructor that moves
+        its own element to another arena; no callbacks for definitions of
+        a navigated-away window; `upgrade()` of a node of another document
+        does nothing, as in Chromium. Parsed elements with a defined name
+        are upgraded from the backup queue until 4c. Probe file: 53 cases,
+        134 queries; only the 4 `parser-sync*` cases wait (4c); a style
+        write that changes nothing is a departure (Chromium calls the
+        attribute callback without a mutation record). Binding rows without
+        a definition within +1 %.
+      Exit after 4b: met, except the callback counts of the 23
+      `relative-time` elements, whose constructor calls `attachShadow`
+      (feature 5): swb runs 12 connected and 7 attribute callbacks, the
+      replay 35 and 76; every other element matches the replay.
       - 4c synchronous construction in the parser (`implementer-hard`):
         after features 5 to 8 (GitHub's first load does not need it).
       Exit (after 4b): GitHub's 74 definitions succeed, its 10 elements
@@ -4800,8 +4817,16 @@ Steps:
   form-associated custom elements and `:state()`; `moveBefore` and
   `connectedMoveCallback`. GitHub uses none of them. Found in 4a:
   `Element.ariaNotify` (without it GitHub loads a polyfill that defines
-  one more custom element than in Chromium); `customElements.upgrade(root)`
-  takes only nodes of the current document.
+  one more custom element than in Chromium). Found in 4b: swb has no
+  `Range` (`document.createRange`), and `Attr` is not a `Node`; a style
+  write that changes nothing (`style.color = 'notacolor'`) calls no
+  attribute callback (Chromium calls it, with no mutation record);
+  `customElements.upgrade(node)` of a node whose own window has the
+  definition is not measured (swb does nothing); a generator marker could
+  skip the post-body flag test (about 12 instructions) on `[CEReactions]`
+  members that cannot run script; page totals under callgrind vary by up
+  to 30 % (Craigslist, tasks at the time limit), so the page budget of
+  +0.3 % needs a measurement without time limits.
 - Modules (ADR 0034): JSON and CSS modules (import attributes with
   `type`; GitHub uses none; swb rejects them with `TypeError: Unsupported
   module type 'json'`, a text that Chromium has no reason to give). The

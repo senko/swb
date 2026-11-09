@@ -208,7 +208,7 @@ fn legacy_named_get<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, th
 
 fn legacy_named_set<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, name: String, v: swb_js::Value) -> b::Result<()> {
     let value = b::convert::dom_string_null_empty(rt, v).map_err(|e| e.argument(1))?;
-    <H as CSSStyleDeclarationImpl>::named_setter(&mut b::Cx::without_call(rt, realm, super::CSS_STYLE_DECLARATION), this, name, value)
+    b::ce::scope(rt, |rt| <H as CSSStyleDeclarationImpl>::named_setter(&mut b::Cx::without_call(rt, realm, super::CSS_STYLE_DECLARATION), this, name, value))
 }
 
 /// The indexed and named properties of `CSSStyleDeclaration` (Web IDL §3.9).

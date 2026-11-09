@@ -1062,4 +1062,268 @@ nothing new, and the JS-off snapshot is byte-identical.
 Backlog: `Element.ariaNotify` (GitHub loads a polyfill that defines a custom
 element without it); `customElements.upgrade(root)` with a node of another
 document of the runtime (the conversion takes only nodes of the current
-document).
+document; done in the fix round of 4b).
+
+## 4b implementation notes
+
+Facts of sub-feature 4b (the reactions of DOM operations) that differ from
+section 7 or that 4c and later features need. Code: `crates/web/src/
+custom_elements/sink.rs` (new), `reactions.rs`, `upgrade.rs`, `mod.rs`,
+`registry.rs`; `crates/web/src/mutation_registry.rs` (`Sink`),
+`mutation_observer.rs` (`install_sink`, `make_sink`, `after_request`),
+`state/documents.rs` (`install_reaction_sink(s)`), `state/moved.rs`,
+`dom/adopt.rs`, `dom/mod.rs` (`clone`), `dom/markup.rs` (`parse_in`);
+`crates/dom/src/journal.rs` (`MutationSink::adopted`), `mutation.rs`
+(`adopt_into`), `custom.rs` (`has_custom_names`).
+
+**The dispatcher.** `mutation_registry::Sink` stays the one sink of a
+document. It calls the mutation observer registry (which returns at once
+while no node is observed) and then the agent's `Reactions` (which act only
+while the agent has a definition and the arena has held an element with a
+custom element name: `Document::has_custom_names`). `Document::push_node`
+now notes the name of every element whose state is not `uncustomized` (4a
+noted only `undefined`): an element made by a constructor or moved from
+another arena has no earlier note. The sink is installed in two cases: the
+first `observe()` of a node of the document (as before, `install_sink(rt,
+true)`; `DocState::observing` records it, and the "no change when the text
+is equal" shortcut of `textContent` keeps testing that flag and not the
+presence of a sink), and the agent's first definition (`define` installs it
+in the current document and in every lent document; a document that is lent
+later gets it in `borrow_document`). Without observers and definitions no
+sink exists and a DOM change costs what it cost in 4a. `Agent::close` empties
+the reaction state (with `try_borrow_mut`, as `MutationState::close` does for
+the registry); `Drop for Agent` and `Runtime::stop()` call it: the sinks
+outlive the runtime and a stopped runtime, and must not queue what nobody
+invokes.
+
+**What the sink knows.** The sink has no runtime, so `Reactions` keeps a Rust
+copy of what it needs: for each definition the bit mask of its callbacks and
+its observed names (`DefInfo`; the `Definition` shares the set by `Rc`), and
+for each window's document the map from local name to definition number
+(`names`, filled by `define`). The reaction is decided there:
+`on_children` (removed subtrees first, then added ones, only when the parent
+is connected: `connectedCallback` for a `custom` element, an upgrade reaction
+for an `undefined` HTML element whose node document is the window's document
+and whose name is defined), `on_attribute` (`custom` element, callback
+present, local name observed; the new value is read from the document, so an
+unchanged value still enqueues), `on_adopted_from` (`adoptedCallback`).
+`Reactions::sink_enqueue` is `enqueue`; when the reactions stack is empty
+(no `[CEReactions]` scope: the parser, the engine's own changes) the element
+goes to the backup queue and the sink sets `microtask_wanted` and the
+runtime's signal cell, and `after_request` (the glue's check after every
+native, and the microtask checkpoint) queues the backup queue's microtask.
+The nodes that a walk visits count as work (`take_overdue`, 4,096 units) and
+`after_request` checks the time limit.
+
+**Adoption.** `MutationSink::adopted(doc, node, old_document)` has a default
+body that does nothing. `swb_dom::Document::adopt_into` calls it after
+`set_node_document` when the node document changed (a cold function; `remove`
+came first, so the removal's disconnected callbacks are queued before the
+adopted ones: measured `disc adopt conn`). A move between arenas
+(`dom/adopt.rs::move_detached`) does not come through the sink of the new
+arena: the web layer calls `custom_elements::adopted_from` with the old
+document node `(DocKey, NodeId)` after `put_subtree`, and `adoptedCallback`
+gets the document objects of both arenas (`Args::Adopted`). `move_node_state`
+re-keys the queued reactions of the moved elements (`Reactions::rekey`: the
+queues, the stack and the backup queue) and the construction stacks of the
+definitions (`Definition::rekey_stack`): the disconnected callback that the
+removal queued in the old arena runs for the element in the new one.
+`Reactions` counts the elements with a queue per document (`queued_docs`), so
+a transplant from a document with nothing queued returns at once; else the
+scan of the queues, the stack and the backup queue counts as work.
+
+**Copies.** `cloneNode`, `importNode` (both paths) and the fragment parser
+call `upgrade::enqueue_copies(root)`: an upgrade reaction for each element of
+the copy, in tree order, whose name the registry of its node document
+defines. `innerHTML` of a `template` skips it (the nodes go to the template
+contents, which have no registry: measured). The sink's insertion does the
+same again for connected elements and the second upgrade reaction finds the
+element `custom` and does nothing; this gives the measured `outerHTML`
+order (the new element's upgrade and connected callback, then the old
+element's disconnected callback).
+
+**CSSOM.** `style.color = 'red'` went through the legacy named setter of
+`CSSStyleDeclaration`, which had no `[CEReactions]` in `cssom.idl`: its
+attribute reaction ran from the backup queue, one microtask late. The setter
+has `[CEReactions]` now (measured: Chromium runs the callback inside the
+call).
+
+**Measured cases** (Chromium 148, three equal runs, each with a control
+query): `reactions-dom-methods` (`remove`, `append`, `replaceWith`,
+`insertAdjacentElement`, `before`, `after`, `replaceChild`, `removeChild`,
+fragment insertion, `replaceChildren`, `innerHTML`, `insertAdjacentHTML`,
+moves), `reactions-attribute-apis` (`removeAttributeNode`,
+`setAttributeNode`, `setNamedItem`, `removeNamedItem`, `Attr.value`, reflected
+attributes `title hidden lang dir tabIndex`, `style.cssText`, `setProperty`,
+`removeProperty`, `cssFloat`, `style = ...`, `classList`, `dataset`,
+`setAttributeNS`, `toggleAttribute`) and `reactions-frames` (adoption between
+the arenas of a document and an iframe's: `disc adopt conn`, an element of the
+iframe is upgraded when it enters the window's document, not before). All
+three, the 4b rows of `CE_LATER` and `fragment-parsing`, `clone-and-import`,
+`reactions-*` match with no departure. The probe file has 53 cases and 134
+queries (the fix round added 12 cases, section "The fix round"). Two things the cases could not use: swb has no `Range`
+(`document.createRange`), and `Attr` is not a `Node` in swb (`nodeValue`,
+`textContent` of an `Attr`: no effect); both are backlog items, outside 4b.
+
+**The parser before 4c.** An element that the parser creates with a defined
+name is inserted `undefined`; the sink queues its upgrade on the backup queue,
+which runs at the next microtask checkpoint (after the parse step and before
+the next script): the constructor sees the attributes and the parent
+(known difference, `parser-sync*` stay in `CE_LATER`).
+
+**GitHub** (`crates/automation/tests/github.rs`, JavaScript on, the debug
+line `custom element callback NAME (ORIGIN): ELEMENT` of `reactions.rs`, where
+the origin is `upgrade` or `sink`): 12
+`connectedCallback` and 7 `attributeChangedCallback`, no disconnected and no
+adopted callback. Chromium's replay has 35 and 76. The difference is the 23
+`relative-time` elements (connected 23, attributeChanged 69): their
+constructor calls `attachShadow` (feature 5), so in swb `createElement`
+returns a failed `HTMLUnknownElement`, which gets no callbacks. The other
+callbacks match element by element: `tool-tip` 1 and 4, `ghcc-consent` 1 and
+3, `react-partial` 4, `react-app` 1, `turbo-frame` 1, `cookie-consent-link` 2,
+`clipboard-copy` 2. All 19 callbacks (12 + 7) come from the upgrades (4a's
+code); the page defines its elements after the parser made them and changes
+none of their attributes, so the sink enqueues none (the test asserts the
+split, 0 from the sink). The sink's reactions are what `relative-time` needs,
+so the test confirms them with feature 5. The console is unchanged (24 warnings, 23 of
+them the `relative-time` constructors). Scores with JavaScript on and off are
+the base's (GitHub JS 0.8904 geometry, 0.9884 pixels; off 0.9221, 0.9939);
+Ars Technica's pixel score was 0.9891 in this tree and 0.9901 in the base.
+
+**Hostile cases** (all with JavaScript on, `ok`): `ce-connected-recursion`
+(44 elements, the limit of 43 nested reactions), `ce-reinsert-loop` (43
+runs), `ce-attribute-flood` (30,000 `setAttribute` calls with 10 KB values on
+an element with 100 observed attributes, then an `innerHTML` of 100 elements
+with 100 attributes of 1 KB: 40,000 callbacks, 1.9 s, 85 MiB),
+`ce-disconnect-100000` (100,000 disconnected callbacks in tree order, 0.8 s,
+108 MiB), `ce-transplant-100000` (100,000 upgrades whose constructors move
+a new element of an iframe's document into the page's document: 100,000
+transplants, 1.1 s, 299 MiB; with the scan of all queue keys at each transplant
+it ran into the time limit, 5.9 s). The ADR's text for `ce-attribute-flood` (10,000 elements with 100
+attributes of 10 KB in one `innerHTML`) cannot be built: the page would need
+10 GB of markup, and no operation queues many attribute reactions in one
+scope (each upgrade runs its attribute reactions before the next element), so
+the byte budget of section 10 is reached only by the callbacks' own nested
+writes, which the nesting limit bounds.
+
+**Performance (section 11).** Bindings under callgrind as in 4a (`swb
+--headless --js`, instructions per iteration as the difference of 40,000 and
+20,000 iterations; release builds; base bd1b5c5, which is 4a):
+
+| Binding | base | 4b | 4b / base | 4b with one definition | / base |
+|---|---|---|---|---|---|
+| `x = i` (the loop) | 651 | 646 | 0.992 | 650 | 0.998 |
+| `e.setAttribute('a', i)` | 4,404 | 4,415 | 1.002 | 4,659 | 1.058 |
+| `e.id = i` | 3,878 | 3,886 | 1.002 | 4,112 | 1.060 |
+| `t.appendChild(n); n.remove()` | 4,401 | 4,394 | 0.998 | 4,832 | 1.098 |
+| `e.textContent = 'x'` | 1,956 | 1,952 | 0.998 | 2,099 | 1.073 |
+| `e.innerHTML = '<b></b>'` | 17,017 | 17,118 | 1.006 | 17,556 | 1.032 |
+| `document.createElement('div')` | 4,232 | 4,220 | 0.997 | 4,507 | 1.065 |
+| `e.classList.add('c')` | 8,419 | 8,421 | 1.000 | 8,633 | 1.025 |
+
+Without a definition every row is within the 1 % budget (no sink exists: the
+page has no observer and no definition; measured again after the fix round:
+655 → 659, 4,410 → 4,402, 3,866 → 3,891, 4,385 → 4,398, 1,955 → 1,938,
+17,021 → 17,112, 4,229 → 4,227, 8,410 → 8,421, at most +0.65 %). With one definition of a name that
+the page does not use, the rows are 2.5 to 10 % over the base and 1 to 2 %
+over 4a's one-definition rows (4a: 1.043 to 1.078): each change now calls the
+dispatcher, which borrows the reaction state and returns because the arena
+has no custom element name. Reported, not a gate.
+
+The pages (`--bench 3`, JavaScript on, callgrind, total instructions, base →
+4b): Ars Technica 7,911.7 M → 7,915.8 M (+0.05 %), BBC 5,036.9 M → 4,937.1 M,
+Craigslist posting 2,913.5 M / 3,845.2 M / 2,901.5 M / 2,889.4 M (four runs of
+the base) → 2,941.8 M / 2,951.1 M / 2,900.4 M / 2,889.5 M (four runs of 4b).
+The totals of one binary move by 1 to 2 % between runs (BBC) and once by 30 %
+(Craigslist, 3,845 M): a task that reaches the time limit under callgrind does
+a different amount of work. The minimum of four runs is equal for Craigslist
+(2,889.4 M and 2,889.5 M); the +0.3 % budget cannot be checked closer than the
+noise with this measurement (backlog: a measurement without time limits).
+
+**Not done.** The generator marker that would remove the post-body flag test
+from `[CEReactions]` members that cannot run script: the test costs about 12
+instructions per call, and a marker needs a proof per member that no
+inserted `script`, event or `toString` can run; the measured rows are inside
+the budget without it.
+
+Backlog: `Range` (`document.createRange`); `Attr` as a `Node`; the parser's
+reactions for elements that are already custom (the adoption agency) run
+from the backup queue until 4c.
+
+### The fix round of 4b
+
+The review of 4b found nine things; their fixes and the measurements. Cases
+in `tools/probes/web-custom-elements.json`, each measured three times in
+Chromium 148 with equal results.
+
+**The construction stack and the place of an upgraded element.** A
+constructor can move its own element to another arena (`ctor() {
+iframeDocument.adoptNode(this) }`), also away and back. The entries of a
+construction stack (`StackEntry`) name an element by `(DocKey, NodeId)`, so
+`move_node_state` re-keys them with the queues (`Definition::rekey_stack`),
+and `AlreadyConstructed` keeps the place for the same purpose. After the
+constructor, `upgrade` reads the final place from the popped entry, enters
+that document for the steps that follow (`finish`: the check that `super()`
+returned the element, state `custom` or the failure steps) and returns the
+place to `invoke_element`, which goes on with the queue of the element there:
+the reactions that the upgrade queued (the attributes, `connectedCallback`)
+run before the next element's upgrade, as in Chromium (`stale-a` to
+`stale-e`: the upgrade succeeds, the element is `:defined`, later
+`attributeChangedCallback` calls fire; a constructor that throws after the
+move gives the failure steps in the new arena).
+
+**The cost of a transplant.** `Reactions::queued_docs` counts the elements
+with a queue per document, kept by `enqueue`, `take`, `close` and `rekey`. A
+transplant from a document with nothing queued is O(1) (100,000 transplants:
+before, the 5 s limit; now 1.1 s with the page's other work); a transplant
+from a document with queued reactions scans the queues, the stack and the
+backup queue and counts the scan as work (`take_overdue`). Hostile case
+`ce-transplant-100000`.
+
+**Style writes that change nothing.** Chromium calls
+`attributeChangedCallback('style', current, current)` for `style.color =
+'notacolor'`, `style.color = ''`, `setProperty('color', '')`,
+`removeProperty` of a property that is not set, `setProperty` with the value
+it has, a property that the declaration does not know, `cssFloat = ''`, with
+or without a `style` attribute (then `null, null`). It makes no
+`MutationObserver` record and no attribute for these writes (`style-noop`,
+`style-noop-absent`; the control is `setAttribute('style', '')`, which makes a
+record and a callback, and the writes that change the value, which match).
+Departure: swb calls nothing, because it calls the callback only for a write
+to the attribute and the attribute is not written. Writing the attribute with
+its value to get the callback would add a record that Chromium does not make.
+Both cases are in `CE_DEPARTURES`.
+
+**Definitions of a window that is gone.** A frame defines `x-a`, navigates
+(or is removed), and a node of the old document is moved into the main
+document: Chromium runs no callback, upgrade or `adoptedCallback` of the
+frame's definition (`retired2`; a removed frame, `retired3`, matched). The
+reaction of a definition whose window has no active document does nothing:
+`Definition::window` is the key of the defining window, and `window_gone`
+asks `task_document` (the document is retired and no document took its window
+over). HTML rule: a callback runs script in the callback function's realm; the
+settings object of that realm has scripting disabled when its responsible
+document is not fully active, and then "check if we can run script" gives
+"do not run"
+(<https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-scripting-disabled>,
+<https://html.spec.whatwg.org/multipage/webappapis.html#check-if-we-can-run-script>).
+The check is in `call_callback_here` and `upgrade_reaction`; the sink still
+queues the reactions.
+
+**`Runtime::stop()`** closes the reactions (`Agent::close`) like the mutation
+registry; test `stopping_the_scripts_closes_the_reactions`.
+
+**`customElements.upgrade(node)` with a node of another document** returns
+without an error and upgrades nothing (`up-other`; the control reads the node
+afterwards: not defined, other document, not connected). The parameter is
+`[SwbAnyDocument] Node` and the native tests `NodeRef::here`. This closes the
+4a backlog item "`upgrade(root)` takes only nodes of the current document".
+
+**Tests that were missing.** `walks_count_their_nodes_as_work` (the work count
+of the walks), `a_transplant_rekeys_the_backup_queue`,
+`a_transplant_from_a_document_with_nothing_queued_is_free` (the per-document
+count), and the cases `tc-plain` and `tc-def`: `textContent` set to the text
+that the only child already has keeps the text node when a definition exists
+and no observer does (Chromium: `true,true` in both), which only the
+`DocState::observing` flag gets right. Mutation checks: each test fails when
+its fix is removed.

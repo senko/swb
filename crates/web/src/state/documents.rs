@@ -74,7 +74,38 @@ pub(super) fn borrow_document(state: &mut WebState, record: &mut DocState) {
         record.host = Some(host);
         record.note_storage_key();
         state.lent.push(record.key);
+        install_reaction_sink(state, record);
     }
+}
+
+/// Gives the lent document `record` the dispatcher as its mutation sink if
+/// the agent has custom element definitions and the document has none yet
+/// (ADR 0035 section 7): the reactions of its changes need it.
+pub(crate) fn install_reaction_sink(state: &WebState, record: &mut DocState) {
+    if record.mutation_sink || !state.custom.reactions.borrow().has_definitions() {
+        return;
+    }
+    let sink = crate::mutation_observer::make_sink(state, record.key);
+    if let Some(host) = record.host.as_mut() {
+        host.dom_mut().set_mutation_sink(Some(Box::new(sink)));
+        record.mutation_sink = true;
+    }
+}
+
+/// The first definition of the agent: every lent document gets the dispatcher.
+pub(crate) fn install_reaction_sinks(rt: &mut Runtime) -> VmResult<()> {
+    crate::mutation_observer::install_sink(rt, false)?;
+    let state = state_mut(rt)?;
+    for index in 0..state.docs.len() {
+        let Some(mut record) = state.docs.get_mut(index).and_then(Option::take) else {
+            continue;
+        };
+        install_reaction_sink(state, &mut record);
+        if let Some(slot) = state.docs.get_mut(index) {
+            *slot = Some(record);
+        }
+    }
+    Ok(())
 }
 
 /// The current document gets its host from the registry if it has none: a
@@ -99,6 +130,9 @@ pub(crate) fn ensure_current_lent(rt: &mut Runtime) {
         state.doc.host = Some(host);
         state.doc.note_storage_key();
         state.lent.push(key);
+        let mut record = std::mem::take(&mut state.doc);
+        install_reaction_sink(state, &mut record);
+        state.doc = record;
     }
 }
 

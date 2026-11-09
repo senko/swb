@@ -32,6 +32,7 @@ pub(crate) mod constructor;
 pub(crate) mod create;
 pub(crate) mod reactions;
 mod registry;
+pub(crate) mod sink;
 pub(crate) mod upgrade;
 
 use std::cell::RefCell;
@@ -97,11 +98,31 @@ impl Callback {
 }
 
 /// An entry of a construction stack: an element that waits for its
-/// constructor, or the "already constructed" marker.
+/// constructor, or the "already constructed" marker (which keeps the place
+/// of the element). The place follows the element when a constructor moves
+/// it to another arena ([`Definition::rekey_stack`]).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum StackEntry {
     Element(DocKey, NodeId),
-    AlreadyConstructed,
+    AlreadyConstructed(DocKey, NodeId),
+}
+
+impl StackEntry {
+    /// The element of the entry.
+    pub(crate) fn place(self) -> reactions::Place {
+        match self {
+            StackEntry::Element(key, node) | StackEntry::AlreadyConstructed(key, node) => {
+                (key, node)
+            }
+        }
+    }
+
+    fn with_place(self, (key, node): reactions::Place) -> StackEntry {
+        match self {
+            StackEntry::Element(..) => StackEntry::Element(key, node),
+            StackEntry::AlreadyConstructed(..) => StackEntry::AlreadyConstructed(key, node),
+        }
+    }
 }
 
 /// HTML "custom element definition" (autonomous custom elements only).
@@ -111,7 +132,7 @@ pub(crate) struct Definition {
     pub(crate) constructor: Gc<Object>,
     /// The lifecycle callbacks in the order of [`Callback::ALL`].
     pub(crate) callbacks: [Option<Gc<Object>>; 5],
-    pub(crate) observed: HashSet<LocalName>,
+    pub(crate) observed: Rc<HashSet<LocalName>>,
     /// Read and kept; swb has no `ElementInternals` (ADR 0035 section 9).
     #[allow(dead_code, reason = "kept for ElementInternals (backlog)")]
     pub(crate) form_associated: bool,
@@ -123,9 +144,25 @@ pub(crate) struct Definition {
     )]
     pub(crate) disable_shadow: bool,
     pub(crate) construction_stack: Vec<StackEntry>,
+    /// The document of the window whose registry holds the definition.
+    pub(crate) window: DocKey,
 }
 
 impl Definition {
+    /// The elements of `pairs` (old id, new id) went from the document
+    /// `from` to the document `to` (ADR 0031 transplant): the entries of the
+    /// construction stack follow them.
+    pub(crate) fn rekey_stack(&mut self, from: DocKey, to: DocKey, pairs: &[(NodeId, NodeId)]) {
+        for entry in &mut self.construction_stack {
+            let (key, node) = entry.place();
+            if key == from
+                && let Some(&(_, new)) = pairs.iter().find(|(old, _)| *old == node)
+            {
+                *entry = entry.with_place((to, new));
+            }
+        }
+    }
+
     /// The function of a lifecycle callback, if the prototype had one.
     pub(crate) fn callback(&self, callback: Callback) -> Option<Gc<Object>> {
         let index = Callback::ALL.iter().position(|&c| c == callback)?;
@@ -153,7 +190,24 @@ pub(crate) struct Agent {
     pub(crate) backup_fn: Option<Gc<Object>>,
 }
 
+impl Drop for Agent {
+    /// The sinks of the documents outlive the runtime: they must queue no
+    /// more reactions that nobody invokes.
+    fn drop(&mut self) {
+        self.close();
+    }
+}
+
 impl Agent {
+    /// The runtime is gone or stopped: the sinks of the documents queue
+    /// nothing more. Does nothing while the state is in use (as
+    /// `MutationState::close`).
+    pub(crate) fn close(&self) {
+        if let Ok(mut reactions) = self.reactions.try_borrow_mut() {
+            reactions.close();
+        }
+    }
+
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
         for definition in &self.definitions {
             tracer.object(definition.constructor);
@@ -208,6 +262,18 @@ pub(crate) fn definition(rt: &Runtime, number: u32) -> VmResult<&Definition> {
         ))
 }
 
+/// True if the window that defined the definition `number` has no active
+/// document any more (its frame navigated or went): the reactions of the
+/// definition do nothing. HTML: the callback would run script in a realm
+/// whose settings object has scripting disabled, because its responsible
+/// document is not fully active
+/// (<https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-scripting-disabled>,
+/// "check if we can run script").
+pub(crate) fn window_gone(rt: &Runtime, number: u32) -> VmResult<bool> {
+    let window = definition(rt, number)?.window;
+    Ok(crate::state::task_document(state(rt)?, window).is_none())
+}
+
 /// The definition with this number, for changes.
 pub(crate) fn definition_mut(rt: &mut Runtime, number: u32) -> VmResult<&mut Definition> {
     let index = (number as usize).wrapping_sub(1);
@@ -234,6 +300,22 @@ pub(crate) fn look_up(rt: &Runtime, document: NodeId, local: &LocalName) -> Opti
         return None;
     }
     state.doc.custom.by_name.get(local).copied()
+}
+
+/// DOM "adopt" for a subtree that came from the document node `old` (of
+/// another arena): `adoptedCallback` reactions for its custom elements.
+pub(crate) fn adopted_from(rt: &mut Runtime, root: NodeId, old: reactions::Place) -> VmResult<()> {
+    if !any_definitions(rt) {
+        return Ok(());
+    }
+    let key = crate::state::document_key(rt)?;
+    let web = state(rt)?;
+    let attention =
+        web.custom
+            .reactions
+            .borrow_mut()
+            .on_adopted_from(key, crate::state::dom(rt)?, root, old);
+    reactions::after_sink(rt, attention)
 }
 
 /// True if the agent has a custom element definition.

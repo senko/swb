@@ -163,11 +163,20 @@ pub(crate) fn move_node_state(
         *slot = Some(from);
     }
     let registered = state_now.mutation.move_nodes(source, target, pairs);
+    // The reactions that are queued for the moved elements follow them.
+    state_now
+        .custom
+        .reactions
+        .borrow_mut()
+        .rekey(source, target, pairs);
+    for definition in &mut state_now.custom.definitions {
+        definition.rekey_stack(source, target, pairs);
+    }
     for (object, word) in words {
         rt.set_host_word(object, word)?;
     }
     if registered {
-        crate::mutation_observer::install_sink(rt)?;
+        crate::mutation_observer::install_sink(rt, true)?;
     }
     Ok(())
 }

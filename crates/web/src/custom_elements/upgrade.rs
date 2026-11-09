@@ -7,7 +7,7 @@
 use swb_dom::{CustomElementState, LocalName, NodeId, ns};
 use swb_js::{ScriptError, ThrowKind, Value, VmError, VmResult};
 
-use super::reactions::{self, Args, Place, Reaction};
+use super::reactions::{self, Args, Origin, Place, Reaction};
 use super::{Callback, StackEntry, definition, definition_mut};
 use crate::state::{dom, dom_mut};
 use swb_js::Runtime;
@@ -35,12 +35,34 @@ pub(crate) fn enqueue_callback(
     {
         return Ok(());
     }
-    reactions::enqueue(rt, place, Reaction::Callback(callback, args))
+    reactions::enqueue(
+        rt,
+        place,
+        Reaction::Callback(callback, args, Origin::Upgrade),
+    )
 }
 
 /// HTML "enqueue a custom element upgrade reaction".
 pub(crate) fn enqueue_upgrade(rt: &mut Runtime, place: Place, number: u32) -> VmResult<()> {
     reactions::enqueue(rt, place, Reaction::Upgrade(number))
+}
+
+/// Upgrade reactions for the elements of the subtree of `root` (of the
+/// current document) whose names the registry of their node document
+/// defines, in tree order: the copies of a clone or an import, the nodes of
+/// a parsed fragment (ADR 0035 section 7).
+pub(crate) fn enqueue_copies(rt: &mut Runtime, root: NodeId) -> VmResult<()> {
+    if !super::any_definitions(rt) {
+        return Ok(());
+    }
+    let key = crate::state::document_key(rt)?;
+    let web = crate::state::state(rt)?;
+    let attention = web
+        .custom
+        .reactions
+        .borrow_mut()
+        .on_copies(key, dom(rt)?, root);
+    reactions::after_sink(rt, attention)
 }
 
 /// HTML "try to upgrade an element" for an element of the current
@@ -122,11 +144,17 @@ fn charge_walk(rt: &mut Runtime, visited: usize) -> VmResult<()> {
 }
 
 /// Runs an upgrade reaction: upgrades the element and reports an error.
-pub(crate) fn upgrade_reaction(rt: &mut Runtime, place: Place, number: u32) -> VmResult<()> {
+/// Returns the place where the element is afterwards: the reactions that
+/// the upgrade queued are in its queue, and run in the same loop (as the
+/// element queue of the element in HTML).
+pub(crate) fn upgrade_reaction(rt: &mut Runtime, place: Place, number: u32) -> VmResult<Place> {
+    if super::window_gone(rt, number)? {
+        return Ok(place);
+    }
     let entered = crate::state::switch_if_other(rt, place.0)?;
     let result = upgrade(rt, place.1, number);
     crate::state::leave(rt, entered);
-    result
+    Ok(result?.unwrap_or(place))
 }
 
 /// Why an upgrade failed.
@@ -139,17 +167,20 @@ enum Failure {
 
 /// HTML "upgrade an element" of an element of the current document.
 /// <https://html.spec.whatwg.org/multipage/custom-elements.html#concept-upgrade-an-element>
-fn upgrade(rt: &mut Runtime, element: NodeId, number: u32) -> VmResult<()> {
+///
+/// Returns the element's place after the constructor (the constructor can
+/// move it to another arena), or `None` if no constructor ran.
+fn upgrade(rt: &mut Runtime, element: NodeId, number: u32) -> VmResult<Option<Place>> {
     let dom = dom(rt)?;
     let Some(data) = dom.element(element) else {
-        return Ok(());
+        return Ok(None);
     };
     // Step 1.
     if !matches!(
         data.custom_element_state(),
         CustomElementState::Undefined | CustomElementState::Uncustomized
     ) {
-        return Ok(());
+        return Ok(None);
     }
     let wanted = definition(rt, number)?;
     let attributes = observed_attributes(
@@ -175,34 +206,17 @@ fn upgrade(rt: &mut Runtime, element: NodeId, number: u32) -> VmResult<()> {
     dom_mut(rt)?.set_custom_element_state(element, CustomElementState::Precustomized, None);
     let constructor = definition(rt, number)?.constructor;
     let result = rt.construct_function(Value::Object(constructor), &[]);
-    definition_mut(rt, number)?.construction_stack.pop();
-    let failure = match result {
-        Ok(value) => {
-            let wrapper = crate::state::existing_wrapper(rt, element)?;
-            (wrapper.map(Value::Object) != Some(value)).then_some(Failure::NotTheElement)
-        }
-        Err(error) => Some(Failure::Thrown(error)),
+    // A constructor can move its element to another arena: the stack entry
+    // followed it (`Definition::rekey_stack`).
+    let end = definition_mut(rt, number)?.construction_stack.pop();
+    let place = end.map_or(place, StackEntry::place);
+    let entered = crate::state::switch_if_other(rt, place.0)?;
+    let failure = finish(rt, place, number, result);
+    crate::state::leave(rt, entered);
+    let Some(failure) = failure? else {
+        return Ok(Some(place));
     };
-    let Some(failure) = failure else {
-        // Step 11.
-        dom_mut(rt)?.set_custom_element_state(element, CustomElementState::Custom, None);
-        log::debug!(
-            "upgraded a custom element: {}",
-            definition(rt, number)?.name
-        );
-        return Ok(());
-    };
-    log::debug!(
-        "the upgrade of a custom element failed: {}",
-        definition(rt, number)?.name
-    );
-    // The failure steps: no definition, no reactions; the state stays
-    // `failed` or `precustomized` (measured: not `:defined`, never upgraded
-    // again).
-    let (state, _) = crate::state::dom(rt)?.custom_element_state(element);
-    dom_mut(rt)?.set_custom_element_state(element, state, Some(0));
-    reactions::shared(rt)?.borrow_mut().clear(place);
-    match failure {
+    let reported = match failure {
         Failure::Thrown(ScriptError::Terminated(termination)) => {
             Err(VmError::Terminated(termination))
         }
@@ -218,7 +232,47 @@ fn upgrade(rt: &mut Runtime, element: NodeId, number: u32) -> VmResult<()> {
             )?;
             crate::errors::report_host_error(rt, Value::Object(error), false)
         }
-    }
+    };
+    reported.map(|()| Some(place))
+}
+
+/// The steps after the constructor of an upgrade (10 and 11, or the failure
+/// steps) for the element at `place`, which is in the current document:
+/// `None` if it succeeded.
+fn finish(
+    rt: &mut Runtime,
+    place: Place,
+    number: u32,
+    result: Result<Value, ScriptError>,
+) -> VmResult<Option<Failure>> {
+    let element = place.1;
+    let failure = match result {
+        Ok(value) => {
+            let wrapper = crate::state::existing_wrapper(rt, element)?;
+            (wrapper.map(Value::Object) != Some(value)).then_some(Failure::NotTheElement)
+        }
+        Err(error) => Some(Failure::Thrown(error)),
+    };
+    let Some(failure) = failure else {
+        // Step 11.
+        dom_mut(rt)?.set_custom_element_state(element, CustomElementState::Custom, None);
+        log::debug!(
+            "upgraded a custom element: {}",
+            definition(rt, number)?.name
+        );
+        return Ok(None);
+    };
+    log::debug!(
+        "the upgrade of a custom element failed: {}",
+        definition(rt, number)?.name
+    );
+    // The failure steps: no definition, no reactions; the state stays
+    // `failed` or `precustomized` (measured: not `:defined`, never upgraded
+    // again).
+    let (state, _) = dom(rt)?.custom_element_state(element);
+    dom_mut(rt)?.set_custom_element_state(element, state, Some(0));
+    reactions::shared(rt)?.borrow_mut().clear(place);
+    Ok(Some(failure))
 }
 
 /// The `attributeChangedCallback` arguments of the upgrade for the attributes

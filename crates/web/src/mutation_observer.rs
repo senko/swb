@@ -215,8 +215,19 @@ pub(crate) fn after_request(rt: &mut Runtime) -> VmResult<()> {
     if microtask {
         queue_microtask(rt);
     }
+    // The custom element reactions that the sink queued with no scope active
+    // wait on the backup element queue, which needs its microtask; the nodes
+    // that the sink visited count as work.
+    let reactions = state(rt)?.custom.reactions.clone();
+    let (backup, reactions_overdue) = {
+        let mut reactions = reactions.borrow_mut();
+        (reactions.take_microtask_wanted(), reactions.take_overdue())
+    };
+    if backup {
+        crate::custom_elements::reactions::queue_backup_microtask(rt)?;
+    }
     // The work of the pre-removing steps of the node iterators counts too.
-    if crate::node_iterator::take_overdue(rt) || overdue {
+    if crate::node_iterator::take_overdue(rt) || overdue || reactions_overdue {
         rt.check_time()?;
     }
     Ok(())
@@ -362,16 +373,32 @@ fn records_to_js(
     }
 }
 
-/// Makes the registry the mutation sink of the current document, once.
-pub(crate) fn install_sink(rt: &mut Runtime) -> VmResult<()> {
+/// Makes the dispatcher the mutation sink of the current document, once: for
+/// a mutation observer (`observing`) or because the agent has a custom
+/// element definition.
+pub(crate) fn install_sink(rt: &mut Runtime, observing: bool) -> VmResult<()> {
+    if observing {
+        state_mut(rt)?.doc.observing = true;
+    }
     if state(rt)?.doc.mutation_sink {
         return Ok(());
     }
-    let registry = state(rt)?.mutation.registry.clone();
-    let document = crate::state::document_key(rt)?;
-    dom_mut(rt)?.set_mutation_sink(Some(Box::new(Sink { registry, document })));
+    let sink = make_sink(state(rt)?, crate::state::document_key(rt)?);
+    dom_mut(rt)?.set_mutation_sink(Some(Box::new(sink)));
     state_mut(rt)?.doc.mutation_sink = true;
     Ok(())
+}
+
+/// The dispatcher for the document `document` of the agent.
+pub(crate) fn make_sink(web: &WebState, document: u32) -> Sink {
+    let registry = web.mutation.registry.clone();
+    let request = registry.borrow().request();
+    Sink {
+        registry,
+        reactions: Rc::clone(&web.custom.reactions),
+        document,
+        request,
+    }
 }
 
 /// The options of `observe()` (DOM §4.3.2 steps 1 to 6; Chromium checks
@@ -438,7 +465,7 @@ impl g::mutation_observer::MutationObserverImpl for WebState {
         let id = observer_data(cx.rt, this)?.id;
         let options = options_of(options)?;
         let entered = crate::state::switch_if_other(cx.rt, target.document)?;
-        let installed = install_sink(cx.rt);
+        let installed = install_sink(cx.rt, true);
         crate::state::leave(cx.rt, entered);
         installed?;
         let mutation = &mut state_mut(cx.rt)?.mutation;

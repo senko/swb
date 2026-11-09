@@ -898,6 +898,7 @@ impl ScriptRuntime {
         self.rt.clear_jobs();
         if let Ok(state) = state_mut(&mut self.rt) {
             state.mutation.close();
+            state.custom.close();
             state.doc.messages = crate::messaging::Messages::default();
             for doc in state.docs.iter_mut().flatten() {
                 doc.messages = crate::messaging::Messages::default();

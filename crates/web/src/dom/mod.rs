@@ -129,7 +129,7 @@ pub(crate) fn string_replace_all_in(
     // With a mutation observer installed it replaces the node like the
     // standard says (measured, feature 9a: the record names the old and the
     // new node).
-    let observed = dom_mut(rt)?.mutation_sink_mut().is_some();
+    let observed = crate::state::state(rt)?.doc.observing;
     let same = !observed && {
         let dom = dom(rt)?;
         let mut children = dom.children(parent);
@@ -480,6 +480,9 @@ pub(super) fn clone(
 ) -> b::Result<NodeId> {
     let result = dom_mut(cx.rt)?.clone_node(node, document, deep);
     let cloned = dom_result(cx.rt, result)?;
+    // The copies of defined names get an upgrade reaction (DOM "clone a
+    // node" creates them without the synchronous custom elements flag).
+    crate::custom_elements::upgrade::enqueue_copies(cx.rt, cloned.root)?;
     for (original, copy) in cloned.scripts {
         if crate::scripts::has_started(cx.rt, original)? {
             dom_mut(cx.rt)?.mark_script_started(copy);

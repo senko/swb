@@ -69,7 +69,7 @@ interface CSSStyleDeclaration {
   [CEReactions] attribute [LegacyNullToEmptyString] CSSOMString cssFloat;
 
   getter CSSOMString (DOMString name);
-  setter undefined (DOMString name, [LegacyNullToEmptyString] CSSOMString value);
+  [CEReactions] setter undefined (DOMString name, [LegacyNullToEmptyString] CSSOMString value);
 };
 
 interface mixin ElementCSSInlineStyle {

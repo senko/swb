@@ -66,7 +66,7 @@ pub(crate) fn construct(rt: &mut Runtime, call: &NativeCall, class: ClassId) -> 
         .construction_stack
         .last_mut()
     {
-        *entry = StackEntry::AlreadyConstructed;
+        *entry = StackEntry::AlreadyConstructed(key, element);
     }
     Ok(Value::Object(wrapper))
 }

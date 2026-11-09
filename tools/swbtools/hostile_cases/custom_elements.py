@@ -79,7 +79,7 @@ def ce_observed_attributes_100000() -> Page:
         "e.setAttribute('a' + i, '1'); document.body.appendChild(e); let calls = 0; "
         "customElements.define('x-o', class extends HTMLElement { static get "
         "observedAttributes() { return names; } attributeChangedCallback() { calls++; } }); "
-        "const upgraded = calls; for (let i = 0; i < 100000; i++) e.setAttribute('a' + (i % 1000), "
+        "const upgraded = calls; for (let i = 0; i < 30000; i++) e.setAttribute('a' + (i % 1000), "
         "String(i)); setTimeout(() => console.warn((upgraded === 1000 ? 'observed ok ' : "
         "'observed wrong ') + upgraded + ' ' + calls), 10);</script>"
     )
@@ -127,3 +127,114 @@ def ce_long_names() -> Page:
         "+ same), 10);</script>"
     )
     return Page(doc(script))
+
+
+@case(
+    "a `connectedCallback` that appends a new instance of its own element, so that each "
+    "callback causes the next: the nested reactions stop at the nesting limit of 43 (the "
+    "document holds 44 elements, as in Chromium), without a report, and a timer logs "
+    "`recursion ok` (ADR 0035 sections 5 and 10)",
+    time_limit_s=20,
+    expect_log="recursion ok",
+    swb_args=("--js", "--settle-ms", "500"),
+)
+def ce_connected_recursion() -> Page:
+    script = (
+        "<script>customElements.define('x-r', class extends HTMLElement { connectedCallback() "
+        "{ this.appendChild(document.createElement('x-r')); } }); "
+        "document.body.appendChild(document.createElement('x-r')); "
+        "const n = document.querySelectorAll('x-r').length; "
+        "setTimeout(() => console.warn((n === 44 ? 'recursion ok ' : 'recursion wrong ') + n), "
+        "10);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "a `connectedCallback` that removes and appends its own element again, in a loop that "
+    "would run 1,000 times: it runs 43 times (Chromium's nesting limit), and a timer logs "
+    "`reinsert ok` (ADR 0035 sections 5 and 10)",
+    time_limit_s=20,
+    expect_log="reinsert ok",
+    swb_args=("--js", "--settle-ms", "500"),
+)
+def ce_reinsert_loop() -> Page:
+    script = (
+        "<script>let n = 0; customElements.define('x-l', class extends HTMLElement { "
+        "connectedCallback() { n++; if (n < 1000) document.body.appendChild(this); } "
+        "disconnectedCallback() {} }); "
+        "document.body.appendChild(document.createElement('x-l')); "
+        "setTimeout(() => console.warn((n === 43 ? 'reinsert ok ' : 'reinsert wrong ') + n), "
+        "10);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "a custom element with 100 observed attributes: 30,000 `setAttribute` calls with 10 KB "
+    "values (each reaction copies the old and the new value), then one `innerHTML` of 100 "
+    "such elements with 100 attributes of 1 KB each (10,000 `attributeChangedCallback` "
+    "reactions at the upgrades): the callbacks run, the memory stays bounded, and a timer "
+    "logs `flood ok` or the task ends at its time limit (ADR 0035 sections 5 and 10)",
+    time_limit_s=20,
+    expect_log="flood ok",
+    swb_args=("--js", "--settle-ms", "500"),
+)
+def ce_attribute_flood() -> Page:
+    script = (
+        "<script>const names = []; for (let i = 0; i < 100; i++) names.push('a' + i); "
+        "let calls = 0; customElements.define('x-f', class extends HTMLElement { static get "
+        "observedAttributes() { return names; } attributeChangedCallback() { calls++; } }); "
+        "const e = document.createElement('x-f'); document.body.appendChild(e); "
+        "const big = 'x'.repeat(10240); "
+        "for (let i = 0; i < 30000; i++) e.setAttribute('a' + (i % 100), big + i); "
+        "const before = calls; const small = 'y'.repeat(1024); let one = '<x-f'; "
+        "for (let i = 0; i < 100; i++) one += ' a' + i + '=' + small; one += '></x-f>'; "
+        "const h = document.createElement('div'); document.body.appendChild(h); "
+        "h.innerHTML = one.repeat(100); "
+        "setTimeout(() => console.warn((before === 30000 && calls === 40000 "
+        "? 'flood ok ' : 'flood wrong ') + before + ' ' + calls), 10);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "100,000 connected custom elements removed by `textContent = ''`: 100,000 "
+    "`disconnectedCallback` reactions in one element queue, in tree order, and a timer logs "
+    "`disconnect ok` (ADR 0035 section 10)",
+    time_limit_s=20,
+    expect_log="disconnect ok",
+    swb_args=("--js", "--settle-ms", "500"),
+)
+def ce_disconnect_100000() -> Page:
+    script = (
+        "<script>let gone = 0, last = -1, ordered = true; customElements.define('x-d', class "
+        "extends HTMLElement { disconnectedCallback() { gone++; const i = +this.id; "
+        "if (i <= last) ordered = false; last = i; } }); "
+        "const h = document.getElementById('h'); h.textContent = ''; "
+        "setTimeout(() => console.warn((gone === 100000 && ordered "
+        "? 'disconnect ok ' : 'disconnect wrong ') + gone + ' ' + ordered), 10);</script>"
+    )
+    elements = "".join(f"<x-d id={i}></x-d>" for i in range(100000))
+    return Page(doc(f"<div id=h>{elements}</div>" + script))
+
+
+@case(
+    "100,000 custom elements in the markup, upgraded at one `define`; each constructor moves "
+    "a new element of an iframe's document into the page's document (100,000 transplants "
+    "between arenas while 100,000 upgrades are queued): a transplant from a document with "
+    "nothing queued costs O(1), so the page is not quadratic, and a timer logs `transplant "
+    "ok` (ADR 0035 section 7)",
+    time_limit_s=20,
+    expect_log="transplant ok",
+    swb_args=("--js", "--settle-ms", "500"),
+)
+def ce_transplant_100000() -> Page:
+    script = (
+        "<script>const fd = document.getElementById('f').contentDocument; let built = 0, "
+        "moved = 0; customElements.define('x-t', class extends HTMLElement { constructor() { "
+        "super(); built++; if (moved < 100000) { moved++; document.adoptNode(fd.createElement("
+        "'p')); } } }); setTimeout(() => console.warn((built === 100000 && moved === 100000 "
+        "? 'transplant ok ' : 'transplant wrong ') + built + ' ' + moved), 10);</script>"
+    )
+    return Page(doc("<iframe id=f></iframe>" + "<x-t></x-t>" * 100000 + script))

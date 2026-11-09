@@ -60,14 +60,17 @@ fn move_detached(
         let room = state::dom_of(rt, target)?.check_subtree_room(size);
         dom_result(rt, room)?;
         let controls = engine_mut(rt)?.take_control_snapshots(node);
+        let old_owner = dom(rt)?.node_document(node);
         let subtree = dom_mut(rt)?.take_subtree(node);
-        Ok((controls, subtree))
+        Ok((controls, subtree, old_owner))
     })();
     state::leave(rt, entered);
-    let (controls, subtree) = taken?;
+    let (controls, subtree, old_owner) = taken?;
     let result = dom_mut(rt)?.put_subtree(owner, subtree);
     let placed = dom_result(rt, result)?;
     state::move_node_state(rt, document, &placed.pairs)?;
+    // DOM "adopt": the callbacks of the nodes that came from another arena.
+    crate::custom_elements::adopted_from(rt, placed.root, (document, old_owner))?;
     put_controls(rt, controls, &placed.pairs)?;
     rt.check_time()?;
     Ok(placed.root)
@@ -203,6 +206,7 @@ pub(crate) fn import_here(
     for script in started {
         dom_mut(rt)?.mark_script_started(script);
     }
+    crate::custom_elements::upgrade::enqueue_copies(rt, placed.root)?;
     put_controls(rt, controls, &placed.pairs)?;
     rt.check_time()?;
     Ok(placed.root)

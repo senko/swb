@@ -6,6 +6,7 @@
 //! (measured, cases `define-errors` and `define-read-order`).
 
 use std::collections::HashSet;
+use std::rc::Rc;
 
 use swb_dom::{LocalName, is_valid_custom_element_name};
 use swb_js::{Gc, Object, Runtime, Value};
@@ -178,7 +179,12 @@ impl g::custom_element_registry::CustomElementRegistryImpl for WebState {
         Ok(promise)
     }
 
-    fn upgrade(cx: &mut Cx<'_>, _this: Platform, root: b::NodeId) -> b::Result<()> {
+    fn upgrade(cx: &mut Cx<'_>, _this: Platform, root: b::NodeRef) -> b::Result<()> {
+        // A node of another document: its node document's registry is not
+        // this one, so nothing is upgraded (measured: no error).
+        let Some(root) = root.here(cx.rt) else {
+            return Ok(());
+        };
         Ok(super::upgrade::upgrade_subtree(cx.rt, root)?)
     }
 }
@@ -267,31 +273,49 @@ fn add_definition(
     web.custom.observed_names += read.observed.len();
     web.custom.observed_bytes += bytes;
     web.custom.name_bytes += local.len();
-    let observed: HashSet<LocalName> = read
-        .observed
-        .iter()
-        .map(|name| LocalName::from(name.as_str()))
-        .collect();
+    let observed: Rc<HashSet<LocalName>> = Rc::new(
+        read.observed
+            .iter()
+            .map(|name| LocalName::from(name.as_str()))
+            .collect(),
+    );
     web.custom.definitions.push(Definition {
         name: local.clone(),
         constructor,
         callbacks: read.callbacks,
-        observed,
+        observed: Rc::clone(&observed),
         form_associated: read.form_associated,
         disable_internals: read.disabled.iter().any(|f| f == "internals"),
         disable_shadow: read.disabled.iter().any(|f| f == "shadow"),
         construction_stack: Vec::new(),
+        window: web.doc.key,
     });
     let number = u32::try_from(web.custom.definitions.len())
         .map_err(|_| Exception::range_error("too many custom element definitions"))?;
     web.doc.custom.by_name.insert(local.clone(), number);
     web.doc.custom.by_constructor.insert(constructor, number);
+    let mask = read
+        .callbacks
+        .iter()
+        .enumerate()
+        .fold(0u8, |mask, (i, c)| mask | (u8::from(c.is_some()) << i));
+    let key = web.doc.key;
+    web.custom.reactions.borrow_mut().add_definition(
+        key,
+        local.clone(),
+        number,
+        super::sink::DefInfo {
+            callbacks: mask,
+            observed,
+        },
+    );
     let promise = web.doc.custom.when_defined.remove(&**local);
     if promise.is_some() {
         let registry = &mut web.doc.custom;
         registry.when_defined_bytes = registry.when_defined_bytes.saturating_sub(local.len());
     }
     rt.set_host_flag_bit(b::ce::DEFINITIONS_BIT, true);
+    crate::state::install_reaction_sinks(rt)?;
     // `define` has `[CEReactions]`: the upgrades run before it returns. The
     // queue is pushed here too, as the glue's scope was not pushed if this
     // is the agent's first definition.

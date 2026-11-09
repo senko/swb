@@ -99,6 +99,13 @@ pub enum Change<'a> {
 pub trait MutationSink: Any {
     /// Reports one change of `doc`.
     fn change(&mut self, doc: &Document, change: &Change<'_>);
+
+    /// Reports that the subtree of `node` got a new node document (DOM
+    /// "adopt", after the removal from its parent): `old_document` was the
+    /// node document of `node`; the new one is `doc.node_document(node)`.
+    /// Custom element reactions need it (`adoptedCallback`, ADR 0035
+    /// section 7). The default does nothing.
+    fn adopted(&mut self, _doc: &Document, _node: NodeId, _old_document: NodeId) {}
 }
 
 /// A range in [`Journal::nodes`].

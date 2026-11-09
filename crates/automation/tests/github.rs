@@ -16,6 +16,11 @@
 //! (`scripts/modules.rs`); the test installs a logger that keeps those lines.
 //! The expected order is the order of the `script type=module src` elements in
 //! the document. The test skips when the fixture is missing.
+//!
+//! The same load also counts the custom element callbacks (ADR 0035
+//! sub-feature 4b; `custom_elements/reactions.rs` logs each callback at the
+//! `debug` level) and compares them with Chromium's replay. One test does
+//! both: the logger is global, and two loads at once would mix their lines.
 
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
@@ -32,12 +37,15 @@ static LINES: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 struct Capture;
 
-/// The module path of the logger calls that the test keeps.
+/// The module path of the logger calls that the module test keeps.
 const MODULE_LOG: &str = "swb_web::scripts::modules";
+
+/// The module path prefix of the custom element logs.
+const CUSTOM_LOG: &str = "swb_web::custom_elements";
 
 impl log::Log for Capture {
     fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
-        metadata.target() == MODULE_LOG
+        metadata.target() == MODULE_LOG || metadata.target().starts_with(CUSTOM_LOG)
     }
 
     fn log(&self, record: &log::Record<'_>) {
@@ -60,7 +68,7 @@ const MODULE_MESSAGES: &[&str] = &[
 ];
 
 #[test]
-fn github_module_scripts_run_in_document_order() {
+fn github_module_scripts_run_in_document_order_and_custom_element_callbacks_match() {
     let Some(dir) = fixture("github-swb") else {
         eprintln!("skipped: fixtures/js/github-swb is missing");
         return;
@@ -97,5 +105,57 @@ fn github_module_scripts_run_in_document_order() {
             module_errors.is_empty(),
             "console errors about modules: {module_errors:?}"
         );
+        custom_element_callbacks(&lines);
     });
+}
+
+/// The number of callback lines that start with `prefix`.
+fn count(callbacks: &[&str], prefix: &str) -> usize {
+    callbacks.iter().filter(|l| l.starts_with(prefix)).count()
+}
+
+/// Chromium's replay of the page (ADR 0035 "What GitHub needs") has 35
+/// `connectedCallback` and 76 `attributeChangedCallback` calls. 23 and 69 of
+/// them belong to the 23 `relative-time` elements, whose constructor calls
+/// `attachShadow`; swb has no shadow roots until M10 feature 5, so those
+/// constructions fail and the elements get no callbacks. The other elements
+/// match: 12 `connectedCallback` and 7 `attributeChangedCallback` (`tool-tip`
+/// 1 and 4, `ghcc-consent` 1 and 3, `react-partial` 4, `react-app` 1,
+/// `turbo-frame` 1, `cookie-consent-link` 2, `clipboard-copy` 2). No
+/// disconnected or adopted callback.
+fn custom_element_callbacks(lines: &[String]) {
+    let callbacks: Vec<&str> = lines
+        .iter()
+        .filter_map(|l| l.strip_prefix("custom element callback "))
+        .collect();
+    assert_eq!(
+        count(&callbacks, "disconnectedCallback"),
+        0,
+        "{callbacks:?}"
+    );
+    assert_eq!(count(&callbacks, "adoptedCallback"), 0, "{callbacks:?}");
+    let (connected, changed) = (
+        count(&callbacks, "connectedCallback "),
+        count(&callbacks, "attributeChangedCallback "),
+    );
+    assert_eq!(connected, 12, "{callbacks:?}");
+    assert_eq!(changed, 7, "{callbacks:?}");
+    // The origin of the callbacks: an upgrade enqueues the attributes and
+    // the connected callback of an element that was in the document before
+    // its definition; the sink enqueues what the DOM changes cause later.
+    // The page defines its elements after the parser made them and changes
+    // none of their attributes afterwards, so all 19 come from upgrades and
+    // the sink enqueues none (measured). The unit tests and the probe cases
+    // cover the sink; this assertion fails when the sink starts to enqueue
+    // callbacks that Chromium does not have for this page.
+    assert_eq!(count(&callbacks, "connectedCallback (upgrade)"), 12);
+    assert_eq!(count(&callbacks, "attributeChangedCallback (upgrade)"), 7);
+    assert_eq!(count(&callbacks, "connectedCallback (sink)"), 0);
+    assert_eq!(count(&callbacks, "attributeChangedCallback (sink)"), 0);
+    assert_eq!(
+        count(&callbacks, "connectedCallback (upgrade): relative-time")
+            + count(&callbacks, "connectedCallback (sink): relative-time"),
+        0,
+        "relative-time needs attachShadow (feature 5)"
+    );
 }

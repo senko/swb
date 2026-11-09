@@ -131,7 +131,7 @@ impl Document {
         let (is_template, undefined) = match &data {
             NodeData::Element(e) => (
                 e.is_html_named(&local_name!("template")),
-                e.custom_state == crate::CustomElementState::Undefined,
+                e.custom_state != crate::CustomElementState::Uncustomized,
             ),
             _ => (false, false),
         };
@@ -470,8 +470,20 @@ impl Document {
         if self.node(node).parent.is_some() {
             self.remove_node(node, false);
         }
-        if self.node(node).owner != document {
+        let old = self.node(node).owner;
+        if old != document {
             self.set_node_document(node, document);
+            self.report_adopted(node, old);
+        }
+    }
+
+    /// Tells the mutation sink that `node` and its subtree changed their
+    /// node document from `old`.
+    #[cold]
+    fn report_adopted(&mut self, node: NodeId, old: NodeId) {
+        if let Some(mut sink) = self.mutation_sink.take() {
+            sink.adopted(self, node, old);
+            self.mutation_sink = Some(sink);
         }
     }
 
