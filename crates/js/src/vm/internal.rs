@@ -261,6 +261,18 @@ impl Runtime {
         })
     }
 
+    /// `[[SetPrototypeOf]]` from the host (HTML's `[HTMLConstructor]` steps
+    /// give the wrapper of an upgraded element its prototype): false if the
+    /// object refused (not extensible, immutable prototype, a cycle, a
+    /// proxy's trap).
+    pub fn set_prototype(
+        &mut self,
+        object: Gc<Object>,
+        proto: Option<Gc<Object>>,
+    ) -> VmResult<bool> {
+        Ok(self.set_prototype_of(object, proto)? == ProtoSet::Done)
+    }
+
     /// The `TypeError` of a refused `[[SetPrototypeOf]]` (V8's wording).
     pub(crate) fn set_prototype_failure(&self, object: Gc<Object>, why: ProtoSet) -> VmError {
         match why {

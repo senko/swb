@@ -262,7 +262,7 @@ impl Runtime {
     }
 
     /// `IsConstructor` (§7.2.4).
-    pub(crate) fn is_constructor(&self, value: Value) -> VmResult<bool> {
+    pub fn is_constructor(&self, value: Value) -> VmResult<bool> {
         match value {
             Value::Object(object) => Ok(is_constructor_kind(&self.heap.object(object)?.kind)),
             _ => Ok(false),

@@ -26,7 +26,7 @@ fn set_width<H: HTMLCanvasElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_CANVAS_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_CANVAS_ELEMENT), this, "width", b::reflect::UnsignedLimit::None, Some(300), value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_CANVAS_ELEMENT), this, "width", b::reflect::UnsignedLimit::None, Some(300), value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -44,13 +44,18 @@ fn set_height<H: HTMLCanvasElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_CANVAS_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_CANVAS_ELEMENT), this, "height", b::reflect::UnsignedLimit::None, Some(150), value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_CANVAS_ELEMENT), this, "height", b::reflect::UnsignedLimit::None, Some(150), value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
 
 pub(super) fn construct<H: HTMLCanvasElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLCanvasElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLCanvasElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_CANVAS_ELEMENT)
+    })
 }
 
 /// Creates the interface object and the prototype of `HTMLCanvasElement` in `realm`

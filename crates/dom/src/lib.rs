@@ -10,6 +10,7 @@
 
 mod activation;
 mod algorithms;
+mod custom;
 mod dump;
 mod encoding;
 mod id_index;
@@ -24,6 +25,10 @@ mod tree;
 
 pub use activation::{ClickRole, ClickTarget, LabelMemo, click_target};
 pub use algorithms::{Cloned, position};
+pub use custom::{
+    CustomElementState, element_local_name_hyphen, is_valid_custom_element_name,
+    is_valid_element_local_name,
+};
 pub use dump::dump_tree;
 pub use html5ever::{LocalName, Namespace, QualName, local_name, ns};
 pub use iterator::{DeadIterators, IteratorPosition, IteratorWork, Spot, WORK_PER_CHECK};

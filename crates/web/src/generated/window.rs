@@ -108,6 +108,9 @@ pub trait WindowImpl: b::Host {
     /// `readonly attribute boolean originAgentCluster`.
     fn origin_agent_cluster(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<bool>;
 
+    /// `readonly attribute CustomElementRegistry customElements`.
+    fn custom_elements(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `readonly attribute Performance performance`.
     fn performance(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
@@ -672,6 +675,14 @@ fn get_origin_agent_cluster<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_
         let this = b::glue::this_platform(rt, call, super::WINDOW)?;
         let result = <H as WindowImpl>::origin_agent_cluster(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn get_custom_elements<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Window", "customElements"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let result = <H as WindowImpl>::custom_elements(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
 
@@ -2948,6 +2959,7 @@ pub fn define<H: WindowImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::Vm
     rt.define_accessor(realm, target, "devicePixelRatio", (Some(get_device_pixel_ratio::<H> as swb_js::NativeFn), Some(set_device_pixel_ratio::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "event", (Some(get_event::<H> as swb_js::NativeFn), Some(set_event::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "originAgentCluster", (Some(get_origin_agent_cluster::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "customElements", (Some(get_custom_elements::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "performance", (Some(get_performance::<H> as swb_js::NativeFn), Some(set_performance::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "crypto", (Some(get_crypto::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "onabort", (Some(get_onabort::<H> as swb_js::NativeFn), Some(set_onabort::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;

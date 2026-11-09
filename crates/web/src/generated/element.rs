@@ -263,7 +263,7 @@ fn set_id<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -
         let this = b::glue::this_node(rt, call, super::ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::ELEMENT), this, "id", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::ELEMENT), this, "id", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -281,7 +281,7 @@ fn set_class_name<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nativ
         let this = b::glue::this_node(rt, call, super::ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::ELEMENT), this, "class", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::ELEMENT), this, "class", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -324,7 +324,7 @@ fn set_inner_html<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nativ
         let this = b::glue::this_node(rt, call, super::ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string_null_empty(rt, v).map_err(b::Exception::nested)?;
-        <H as ElementImpl>::set_inner_html(&mut b::Cx::new(rt, call, super::ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as ElementImpl>::set_inner_html(&mut b::Cx::new(rt, call, super::ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -342,7 +342,7 @@ fn set_outer_html<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nativ
         let this = b::glue::this_node(rt, call, super::ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string_null_empty(rt, v).map_err(b::Exception::nested)?;
-        <H as ElementImpl>::set_outer_html(&mut b::Cx::new(rt, call, super::ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as ElementImpl>::set_outer_html(&mut b::Cx::new(rt, call, super::ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -527,7 +527,7 @@ fn op_set_attribute<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nat
         let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
         let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
-        <H as ElementImpl>::set_attribute(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1)?;
+        b::ce::scope(rt, |rt| <H as ElementImpl>::set_attribute(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -542,7 +542,7 @@ fn op_set_attribute_ns<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
         let v = rt.arg(call, 2);
         let a2 = b::convert::dom_string(rt, v).map_err(|e| e.argument(2))?;
-        <H as ElementImpl>::set_attribute_ns(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1, a2)?;
+        b::ce::scope(rt, |rt| <H as ElementImpl>::set_attribute_ns(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1, a2))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -553,7 +553,7 @@ fn op_remove_attribute<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
         let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
-        <H as ElementImpl>::remove_attribute(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as ElementImpl>::remove_attribute(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -566,7 +566,7 @@ fn op_remove_attribute_ns<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let a0 = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
         let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
-        <H as ElementImpl>::remove_attribute_ns(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1)?;
+        b::ce::scope(rt, |rt| <H as ElementImpl>::remove_attribute_ns(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -579,7 +579,7 @@ fn op_toggle_attribute<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
         let a1 = if v.is_undefined() { None } else { Some(b::convert::boolean(rt, v).map_err(|e| e.argument(1))?) };
-        let result = <H as ElementImpl>::toggle_attribute(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1)?;
+        let result = b::ce::scope(rt, |rt| <H as ElementImpl>::toggle_attribute(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1))?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
     })
 }
@@ -638,7 +638,7 @@ fn op_set_attribute_node<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
         let a0 = b::convert::platform(rt, v, super::ATTR, "Attr").map_err(|e| e.argument(0))?;
-        let result = <H as ElementImpl>::set_attribute_node(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        let result = b::ce::scope(rt, |rt| <H as ElementImpl>::set_attribute_node(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0))?;
         Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
 }
@@ -649,7 +649,7 @@ fn op_set_attribute_node_ns<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
         let a0 = b::convert::platform(rt, v, super::ATTR, "Attr").map_err(|e| e.argument(0))?;
-        let result = <H as ElementImpl>::set_attribute_node_ns(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        let result = b::ce::scope(rt, |rt| <H as ElementImpl>::set_attribute_node_ns(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0))?;
         Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
 }
@@ -660,7 +660,7 @@ fn op_remove_attribute_node<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
         let a0 = b::convert::platform(rt, v, super::ATTR, "Attr").map_err(|e| e.argument(0))?;
-        let result = <H as ElementImpl>::remove_attribute_node(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        let result = b::ce::scope(rt, |rt| <H as ElementImpl>::remove_attribute_node(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0))?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
@@ -741,7 +741,7 @@ fn op_insert_adjacent_element<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &s
         let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
         let a1 = b::convert::node_ref(rt, v, super::ELEMENT, "Element").map_err(|e| e.argument(1))?;
-        let result = <H as ElementImpl>::insert_adjacent_element(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1)?;
+        let result = b::ce::scope(rt, |rt| <H as ElementImpl>::insert_adjacent_element(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1))?;
         Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
 }
@@ -767,7 +767,7 @@ fn op_insert_adjacent_html<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_
         let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
         let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
-        <H as ElementImpl>::insert_adjacent_html(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1)?;
+        b::ce::scope(rt, |rt| <H as ElementImpl>::insert_adjacent_html(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -890,7 +890,7 @@ fn op_prepend<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCal
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as ElementImpl>::prepend(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as ElementImpl>::prepend(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -903,7 +903,7 @@ fn op_append<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as ElementImpl>::append(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as ElementImpl>::append(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -916,7 +916,7 @@ fn op_replace_children<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as ElementImpl>::replace_children(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as ElementImpl>::replace_children(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -951,7 +951,7 @@ fn op_before<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as ElementImpl>::before(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as ElementImpl>::before(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -964,7 +964,7 @@ fn op_after<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall)
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as ElementImpl>::after(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as ElementImpl>::after(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -977,7 +977,7 @@ fn op_replace_with<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nati
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as ElementImpl>::replace_with(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as ElementImpl>::replace_with(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -985,7 +985,7 @@ fn op_replace_with<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nati
 fn op_remove<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Element", "remove"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::ELEMENT)?;
-        <H as ElementImpl>::remove(&mut b::Cx::new(rt, call, super::ELEMENT), this)?;
+        b::ce::scope(rt, |rt| <H as ElementImpl>::remove(&mut b::Cx::new(rt, call, super::ELEMENT), this))?;
         Ok(swb_js::Value::Undefined)
     })
 }

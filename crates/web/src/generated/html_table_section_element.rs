@@ -29,7 +29,12 @@ fn get_rows<H: HTMLTableSectionElementImpl>(rt: &mut swb_js::Runtime, call: &swb
 }
 
 pub(super) fn construct<H: HTMLTableSectionElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLTableSectionElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLTableSectionElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_TABLE_SECTION_ELEMENT)
+    })
 }
 
 fn op_insert_row<H: HTMLTableSectionElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -48,7 +53,7 @@ fn op_delete_row<H: HTMLTableSectionElementImpl>(rt: &mut swb_js::Runtime, call:
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
         let a0 = b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(0))?;
-        <H as HTMLTableSectionElementImpl>::delete_row(&mut b::Cx::new(rt, call, super::HTML_TABLE_SECTION_ELEMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as HTMLTableSectionElementImpl>::delete_row(&mut b::Cx::new(rt, call, super::HTML_TABLE_SECTION_ELEMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }

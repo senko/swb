@@ -168,7 +168,7 @@ fn op_before<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nati
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as CharacterDataImpl>::before(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this, a0)?;
+        b::ce::scope(rt, |rt| <H as CharacterDataImpl>::before(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -181,7 +181,7 @@ fn op_after<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nativ
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as CharacterDataImpl>::after(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this, a0)?;
+        b::ce::scope(rt, |rt| <H as CharacterDataImpl>::after(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -194,7 +194,7 @@ fn op_replace_with<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as CharacterDataImpl>::replace_with(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this, a0)?;
+        b::ce::scope(rt, |rt| <H as CharacterDataImpl>::replace_with(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -202,7 +202,7 @@ fn op_replace_with<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js
 fn op_remove<H: CharacterDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("CharacterData", "remove"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::CHARACTER_DATA)?;
-        <H as CharacterDataImpl>::remove(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this)?;
+        b::ce::scope(rt, |rt| <H as CharacterDataImpl>::remove(&mut b::Cx::new(rt, call, super::CHARACTER_DATA), this))?;
         Ok(swb_js::Value::Undefined)
     })
 }

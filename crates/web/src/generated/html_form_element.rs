@@ -76,7 +76,7 @@ fn set_accept_charset<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &s
         let this = b::glue::this_node(rt, call, super::HTML_FORM_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "accept-charset", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "accept-charset", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -94,7 +94,7 @@ fn set_action<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_FORM_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "action", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "action", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -112,7 +112,7 @@ fn set_autocomplete<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb
         let this = b::glue::this_node(rt, call, super::HTML_FORM_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "autocomplete", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "autocomplete", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -130,7 +130,7 @@ fn set_enctype<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_FORM_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "enctype", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "enctype", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -148,7 +148,7 @@ fn set_encoding<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_FORM_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "enctype", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "enctype", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -166,7 +166,7 @@ fn set_method<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_FORM_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "method", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "method", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -184,7 +184,7 @@ fn set_name<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nat
         let this = b::glue::this_node(rt, call, super::HTML_FORM_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "name", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "name", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -202,7 +202,7 @@ fn set_no_validate<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb_
         let this = b::glue::this_node(rt, call, super::HTML_FORM_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "novalidate", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "novalidate", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -220,7 +220,7 @@ fn set_target<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_FORM_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "target", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "target", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -238,7 +238,7 @@ fn set_rel<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nati
         let this = b::glue::this_node(rt, call, super::HTML_FORM_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "rel", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, "rel", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -277,7 +277,12 @@ fn get_length<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
 }
 
 pub(super) fn construct<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLFormElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLFormElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_FORM_ELEMENT)
+    })
 }
 
 fn op_submit<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -301,7 +306,7 @@ fn op_request_submit<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &sw
 fn op_reset<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("HTMLFormElement", "reset"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::HTML_FORM_ELEMENT)?;
-        <H as HTMLFormElementImpl>::reset(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this)?;
+        b::ce::scope(rt, |rt| <H as HTMLFormElementImpl>::reset(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this))?;
         Ok(swb_js::Value::Undefined)
     })
 }

@@ -48,7 +48,7 @@ fn set_alt<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nat
         let this = b::glue::this_node(rt, call, super::HTML_IMAGE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "alt", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "alt", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -66,7 +66,7 @@ fn set_src<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nat
         let this = b::glue::this_node(rt, call, super::HTML_IMAGE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "src", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "src", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -84,7 +84,7 @@ fn set_srcset<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_IMAGE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "srcset", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "srcset", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -102,7 +102,7 @@ fn set_sizes<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_IMAGE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "sizes", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "sizes", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -120,7 +120,7 @@ fn set_cross_origin<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, call: &sw
         let this = b::glue::this_node(rt, call, super::HTML_IMAGE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(b::Exception::nested)?;
-        b::reflect::set_nullable_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "crossorigin", value.as_deref())?;
+        b::ce::scope(rt, |rt| b::reflect::set_nullable_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "crossorigin", value.as_deref()))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -138,7 +138,7 @@ fn set_use_map<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_IMAGE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "usemap", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "usemap", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -156,7 +156,7 @@ fn set_is_map<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_IMAGE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "ismap", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "ismap", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -174,7 +174,7 @@ fn set_width<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_IMAGE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "width", b::reflect::UnsignedLimit::Range(0, 4294967295), None, value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "width", b::reflect::UnsignedLimit::Range(0, 4294967295), None, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -192,7 +192,7 @@ fn set_height<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_IMAGE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "height", b::reflect::UnsignedLimit::Range(0, 4294967295), None, value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "height", b::reflect::UnsignedLimit::Range(0, 4294967295), None, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -242,7 +242,7 @@ fn set_referrer_policy<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, call: 
         let this = b::glue::this_node(rt, call, super::HTML_IMAGE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "referrerpolicy", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "referrerpolicy", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -260,7 +260,7 @@ fn set_decoding<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js
         let this = b::glue::this_node(rt, call, super::HTML_IMAGE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "decoding", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "decoding", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -278,7 +278,7 @@ fn set_loading<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_IMAGE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "loading", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "loading", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -296,13 +296,18 @@ fn set_fetch_priority<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, call: &
         let this = b::glue::this_node(rt, call, super::HTML_IMAGE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "fetchpriority", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_IMAGE_ELEMENT), this, "fetchpriority", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
 
 pub(super) fn construct<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLImageElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLImageElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_IMAGE_ELEMENT)
+    })
 }
 
 fn op_decode<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {

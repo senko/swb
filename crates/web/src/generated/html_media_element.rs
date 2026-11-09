@@ -26,7 +26,7 @@ fn set_src<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nat
         let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "src", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "src", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -44,7 +44,7 @@ fn set_preload<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "preload", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "preload", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -62,7 +62,7 @@ fn set_cross_origin<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &sw
         let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(b::Exception::nested)?;
-        b::reflect::set_nullable_string::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "crossorigin", value.as_deref())?;
+        b::ce::scope(rt, |rt| b::reflect::set_nullable_string::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "crossorigin", value.as_deref()))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -80,7 +80,7 @@ fn set_autoplay<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js
         let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "autoplay", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "autoplay", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -98,7 +98,7 @@ fn set_loop<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Na
         let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "loop", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "loop", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -116,7 +116,7 @@ fn set_controls<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js
         let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "controls", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "controls", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -134,7 +134,7 @@ fn set_default_muted<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &s
         let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "muted", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "muted", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }

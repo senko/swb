@@ -45,7 +45,7 @@ fn set_data<H: HTMLObjectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_OBJECT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_OBJECT_ELEMENT), this, "data", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_OBJECT_ELEMENT), this, "data", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -63,7 +63,7 @@ fn set_type<H: HTMLObjectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_OBJECT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_OBJECT_ELEMENT), this, "type", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_OBJECT_ELEMENT), this, "type", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -81,7 +81,7 @@ fn set_name<H: HTMLObjectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_OBJECT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_OBJECT_ELEMENT), this, "name", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_OBJECT_ELEMENT), this, "name", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -107,7 +107,7 @@ fn set_width<H: HTMLObjectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_OBJECT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_OBJECT_ELEMENT), this, "width", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_OBJECT_ELEMENT), this, "width", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -125,7 +125,7 @@ fn set_height<H: HTMLObjectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_OBJECT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_OBJECT_ELEMENT), this, "height", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_OBJECT_ELEMENT), this, "height", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -155,7 +155,12 @@ fn get_validation_message<H: HTMLObjectElementImpl>(rt: &mut swb_js::Runtime, ca
 }
 
 pub(super) fn construct<H: HTMLObjectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLObjectElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLObjectElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_OBJECT_ELEMENT)
+    })
 }
 
 fn op_check_validity<H: HTMLObjectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {

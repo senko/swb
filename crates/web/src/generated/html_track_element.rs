@@ -26,7 +26,7 @@ fn set_kind<H: HTMLTrackElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Na
         let this = b::glue::this_node(rt, call, super::HTML_TRACK_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TRACK_ELEMENT), this, "kind", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TRACK_ELEMENT), this, "kind", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -44,7 +44,7 @@ fn set_src<H: HTMLTrackElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nat
         let this = b::glue::this_node(rt, call, super::HTML_TRACK_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TRACK_ELEMENT), this, "src", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TRACK_ELEMENT), this, "src", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -62,7 +62,7 @@ fn set_srclang<H: HTMLTrackElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_TRACK_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TRACK_ELEMENT), this, "srclang", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TRACK_ELEMENT), this, "srclang", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -80,7 +80,7 @@ fn set_label<H: HTMLTrackElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_TRACK_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TRACK_ELEMENT), this, "label", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TRACK_ELEMENT), this, "label", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -98,13 +98,18 @@ fn set_default<H: HTMLTrackElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_TRACK_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_TRACK_ELEMENT), this, "default", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_TRACK_ELEMENT), this, "default", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
 
 pub(super) fn construct<H: HTMLTrackElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLTrackElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLTrackElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_TRACK_ELEMENT)
+    })
 }
 
 /// Creates the interface object and the prototype of `HTMLTrackElement` in `realm`

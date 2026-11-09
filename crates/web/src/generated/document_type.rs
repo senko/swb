@@ -64,7 +64,7 @@ fn op_before<H: DocumentTypeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nativ
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as DocumentTypeImpl>::before(&mut b::Cx::new(rt, call, super::DOCUMENT_TYPE), this, a0)?;
+        b::ce::scope(rt, |rt| <H as DocumentTypeImpl>::before(&mut b::Cx::new(rt, call, super::DOCUMENT_TYPE), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -77,7 +77,7 @@ fn op_after<H: DocumentTypeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Native
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as DocumentTypeImpl>::after(&mut b::Cx::new(rt, call, super::DOCUMENT_TYPE), this, a0)?;
+        b::ce::scope(rt, |rt| <H as DocumentTypeImpl>::after(&mut b::Cx::new(rt, call, super::DOCUMENT_TYPE), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -90,7 +90,7 @@ fn op_replace_with<H: DocumentTypeImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as DocumentTypeImpl>::replace_with(&mut b::Cx::new(rt, call, super::DOCUMENT_TYPE), this, a0)?;
+        b::ce::scope(rt, |rt| <H as DocumentTypeImpl>::replace_with(&mut b::Cx::new(rt, call, super::DOCUMENT_TYPE), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -98,7 +98,7 @@ fn op_replace_with<H: DocumentTypeImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
 fn op_remove<H: DocumentTypeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("DocumentType", "remove"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::DOCUMENT_TYPE)?;
-        <H as DocumentTypeImpl>::remove(&mut b::Cx::new(rt, call, super::DOCUMENT_TYPE), this)?;
+        b::ce::scope(rt, |rt| <H as DocumentTypeImpl>::remove(&mut b::Cx::new(rt, call, super::DOCUMENT_TYPE), this))?;
         Ok(swb_js::Value::Undefined)
     })
 }

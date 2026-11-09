@@ -26,7 +26,7 @@ fn set_cite<H: HTMLModElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nati
         let this = b::glue::this_node(rt, call, super::HTML_MOD_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_MOD_ELEMENT), this, "cite", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_MOD_ELEMENT), this, "cite", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -44,13 +44,18 @@ fn set_date_time<H: HTMLModElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_MOD_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_MOD_ELEMENT), this, "datetime", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_MOD_ELEMENT), this, "datetime", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
 
 pub(super) fn construct<H: HTMLModElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLModElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLModElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_MOD_ELEMENT)
+    })
 }
 
 /// Creates the interface object and the prototype of `HTMLModElement` in `realm`

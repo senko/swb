@@ -14,7 +14,12 @@ pub trait HTMLTableCaptionElementImpl: b::Host {
 impl<T: b::Host> HTMLTableCaptionElementImpl for T {}
 
 pub(super) fn construct<H: HTMLTableCaptionElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLTableCaptionElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLTableCaptionElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_TABLE_CAPTION_ELEMENT)
+    })
 }
 
 /// Creates the interface object and the prototype of `HTMLTableCaptionElement` in `realm`

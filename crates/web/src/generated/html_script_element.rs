@@ -42,7 +42,7 @@ fn set_src<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Na
         let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "src", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "src", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -60,7 +60,7 @@ fn set_type<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "type", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "type", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -78,7 +78,7 @@ fn set_no_module<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_
         let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "nomodule", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "nomodule", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -96,7 +96,7 @@ fn set_async<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLScriptElementImpl>::set_async(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLScriptElementImpl>::set_async(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -114,7 +114,7 @@ fn set_defer<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "defer", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "defer", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -149,7 +149,7 @@ fn set_cross_origin<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &s
         let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(b::Exception::nested)?;
-        b::reflect::set_nullable_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "crossorigin", value.as_deref())?;
+        b::ce::scope(rt, |rt| b::reflect::set_nullable_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "crossorigin", value.as_deref()))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -167,7 +167,7 @@ fn set_referrer_policy<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call:
         let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(b::Exception::nested)?;
-        b::reflect::set_nullable_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "referrerpolicy", value.as_deref())?;
+        b::ce::scope(rt, |rt| b::reflect::set_nullable_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "referrerpolicy", value.as_deref()))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -185,7 +185,7 @@ fn set_integrity<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_
         let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "integrity", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "integrity", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -203,7 +203,7 @@ fn set_fetch_priority<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: 
         let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "fetchpriority", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, "fetchpriority", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -221,13 +221,18 @@ fn set_text<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_SCRIPT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLScriptElementImpl>::set_text(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLScriptElementImpl>::set_text(&mut b::Cx::new(rt, call, super::HTML_SCRIPT_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
 
 pub(super) fn construct<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLScriptElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLScriptElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_SCRIPT_ELEMENT)
+    })
 }
 
 fn op_supports<H: HTMLScriptElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {

@@ -96,7 +96,7 @@ impl ErrorData {
 
 /// The source offset of the call or throw in a frame (its first
 /// instruction before it ran).
-fn frame_offset(frame: &crate::vm::Frame) -> Option<u32> {
+pub(crate) fn frame_offset(frame: &crate::vm::Frame) -> Option<u32> {
     (frame.pc as usize)
         .checked_sub(1)
         .and_then(|pc| frame.compiled.source_offset(pc))

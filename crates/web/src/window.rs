@@ -267,6 +267,11 @@ impl g::window::WindowImpl for WebState {
         crate::navigator::navigator_object(cx)
     }
 
+    /// `customElements` (HTML §4.13.4): the window's registry.
+    fn custom_elements(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
+        crate::custom_elements::registry_object(cx)
+    }
+
     /// `localStorage` (HTML §12.2.3): one object per window; a
     /// `SecurityError` for a document without storage.
     fn local_storage(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {

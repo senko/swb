@@ -93,7 +93,7 @@ pub(crate) use promise::{ContinuationFn, PromiseState};
 pub use promise::{PromiseStatus, ReactionKind};
 pub(crate) use property::{Lookup, SetOutcome};
 pub(crate) use realm::{Intrinsic, Realm, TYPED_ARRAY_TYPES, error_prototype};
-pub(crate) use stack::{ErrorData, StackFrame};
+pub(crate) use stack::{ErrorData, StackFrame, frame_offset};
 pub(crate) use stack::{capture_stack_trace, stack_getter, stack_setter};
 pub(crate) use symbols::{Symbols, WELL_KNOWN, WellKnown};
 pub(crate) use time::TIME_CHECK_INTERVAL;

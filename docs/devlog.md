@@ -4,6 +4,37 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-09: M10 feature 4a: custom element definitions and upgrades
+
+- `customElements` (ADR 0035 sections 1 to 6): `define` with Chromium's
+  checks, order of reads and messages; `get`, `getName`, `whenDefined`,
+  `upgrade`; `HTMLElement` as a constructor base with the construction
+  stack; `createElement` runs the constructor inside the call and reports
+  a failure with Chromium's `HTMLUnknownElement` fallback; upgrades at
+  `define`; the element queues, the reactions stack, the backup queue and
+  Chromium's limit of 43 nested invocations; `[CEReactions]` in the
+  generated glue with a fast path; `:defined` from the element state, also
+  with JavaScript off. The engine only made `construct`,
+  `is_constructor`, `set_prototype` and a host flag public.
+- Probe file `web-custom-elements.json` in `probe_net`: 70 queries match
+  Chromium, 6 departures (scoped registries, customized built-ins,
+  `ElementInternals`, `moveBefore`, `toolFillCallback`), 39 wait for 4b and
+  4c.
+- GitHub with JavaScript on: geometry 0.79 to 0.89, pixels 0.975 to 0.988;
+  the 10 elements on the page are upgraded at their `define`; the console
+  errors now come from the missing `attachShadow` (feature 5). Other
+  targets unchanged; JS-off snapshot byte-identical.
+- Cost without a definition (callgrind, seven binding rows): within +1 %.
+  The fix round brought `createElement` from +1.3 % to -1.3 % (the hyphen
+  comes from the name check; no lowercase copy for a lowercase name) and
+  omits `[CEReactions]` on `createElement`, which enqueues nothing itself.
+- Review: correct on 19 more Chromium cases. Fixes: a byte budget for
+  definition names and `whenDefined` keys (1 MiB names reached 6.4 GiB);
+  a fast-path scope whose body makes the first definition (an inserted
+  inline script) now runs the backup queue before it returns; one state
+  lookup per scope. I measured two messages the implementer had not.
+- Next: 4b (the reactions of DOM operations).
+
 ## 2026-11-08: M10 feature 4: ADR 0035 (custom elements)
 
 - ADR 0035 decides the design of custom elements before the code. The

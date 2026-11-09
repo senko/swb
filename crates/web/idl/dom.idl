@@ -212,8 +212,13 @@ interface Document : Node {
 
   [SameObject] readonly attribute DOMImplementation implementation;
 
-  [CEReactions, NewObject] Element createElement(DOMString localName, optional (DOMString or ElementCreationOptions) options = {});
-  [CEReactions, NewObject] Element createElementNS(DOMString? namespace, DOMString qualifiedName, optional (DOMString or ElementCreationOptions) options = {});
+  // DOM has [CEReactions] on these two, but "create an element" with the
+  // synchronous custom elements flag enqueues no reaction of its own (the
+  // constructor's calls have their scopes), so the scope would push and
+  // pop an empty queue: omitted for the cost (ADR 0035 "4a implementation
+  // notes").
+  [NewObject] Element createElement(DOMString localName, optional (DOMString or ElementCreationOptions) options = {});
+  [NewObject] Element createElementNS(DOMString? namespace, DOMString qualifiedName, optional (DOMString or ElementCreationOptions) options = {});
   [NewObject] DocumentFragment createDocumentFragment();
   [NewObject] Text createTextNode(DOMString data);
   [NewObject] Comment createComment(DOMString data);

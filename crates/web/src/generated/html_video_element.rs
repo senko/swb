@@ -26,7 +26,7 @@ fn set_width<H: HTMLVideoElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_VIDEO_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_VIDEO_ELEMENT), this, "width", b::reflect::UnsignedLimit::None, None, value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_VIDEO_ELEMENT), this, "width", b::reflect::UnsignedLimit::None, None, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -44,7 +44,7 @@ fn set_height<H: HTMLVideoElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_VIDEO_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_VIDEO_ELEMENT), this, "height", b::reflect::UnsignedLimit::None, None, value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_VIDEO_ELEMENT), this, "height", b::reflect::UnsignedLimit::None, None, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -62,7 +62,7 @@ fn set_poster<H: HTMLVideoElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_VIDEO_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_VIDEO_ELEMENT), this, "poster", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_VIDEO_ELEMENT), this, "poster", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -80,13 +80,18 @@ fn set_plays_inline<H: HTMLVideoElementImpl>(rt: &mut swb_js::Runtime, call: &sw
         let this = b::glue::this_node(rt, call, super::HTML_VIDEO_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_VIDEO_ELEMENT), this, "playsinline", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_VIDEO_ELEMENT), this, "playsinline", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
 
 pub(super) fn construct<H: HTMLVideoElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLVideoElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLVideoElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_VIDEO_ELEMENT)
+    })
 }
 
 /// Creates the interface object and the prototype of `HTMLVideoElement` in `realm`

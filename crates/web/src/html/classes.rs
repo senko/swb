@@ -3,9 +3,8 @@
 //! measured in Chromium, `tools/probes/web-html-elements.json`).
 //!
 //! An element whose name is not in the table gets `HTMLElement` if the name
-//! is a valid custom element name, else `HTMLUnknownElement`
-//! (<https://html.spec.whatwg.org/multipage/custom-elements.html#valid-custom-element-name>,
-//! "create an element" step 7).
+//! is a valid custom element name (`swb_dom::is_valid_custom_element_name`),
+//! else `HTMLUnknownElement` (DOM "create an element" step 7).
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -167,60 +166,16 @@ pub(crate) fn class_of_html(local: &LocalName) -> ClassId {
     if let Some(class) = table().get(local) {
         return *class;
     }
-    if is_valid_custom_element_name(local) {
+    if swb_dom::is_valid_custom_element_name(local) {
         g::HTML_ELEMENT
     } else {
         g::HTML_UNKNOWN_ELEMENT
     }
 }
 
-/// HTML "valid custom element name": a lowercase ASCII letter, then
-/// `PCENChar`s, with a hyphen, and not one of the names of `SVG` and `MathML`
-/// elements that have hyphens.
-pub(crate) fn is_valid_custom_element_name(name: &str) -> bool {
-    const RESERVED: [&str; 8] = [
-        "annotation-xml",
-        "color-profile",
-        "font-face",
-        "font-face-src",
-        "font-face-uri",
-        "font-face-format",
-        "font-face-name",
-        "missing-glyph",
-    ];
-    let mut chars = name.chars();
-    if !chars.next().is_some_and(|c| c.is_ascii_lowercase()) {
-        return false;
-    }
-    name.contains('-') && !RESERVED.contains(&name) && name.chars().all(is_pcen_char)
-}
-
-/// `PCENChar` of the custom element name production.
-fn is_pcen_char(c: char) -> bool {
-    matches!(c,
-        '-' | '.' | '0'..='9' | '_' | 'a'..='z' | '\u{B7}'
-        | '\u{C0}'..='\u{D6}' | '\u{D8}'..='\u{F6}' | '\u{F8}'..='\u{37D}'
-        | '\u{37F}'..='\u{1FFF}' | '\u{200C}'..='\u{200D}' | '\u{203F}'..='\u{2040}'
-        | '\u{2070}'..='\u{218F}' | '\u{2C00}'..='\u{2FEF}' | '\u{3001}'..='\u{D7FF}'
-        | '\u{F900}'..='\u{FDCF}' | '\u{FDF0}'..='\u{FFFD}' | '\u{10000}'..='\u{EFFFF}')
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn custom_element_names() {
-        assert!(is_valid_custom_element_name("foo-bar"));
-        assert!(is_valid_custom_element_name("x-\u{e9}"));
-        assert!(is_valid_custom_element_name("a-"));
-        assert!(!is_valid_custom_element_name("foo"));
-        assert!(!is_valid_custom_element_name("-foo"));
-        assert!(!is_valid_custom_element_name("Foo-bar"));
-        assert!(!is_valid_custom_element_name("font-face"));
-        assert!(!is_valid_custom_element_name("\u{e9}"));
-        assert!(!is_valid_custom_element_name("a-B"));
-    }
 
     #[test]
     fn classes_by_name() {

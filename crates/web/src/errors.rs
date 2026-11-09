@@ -182,6 +182,32 @@ pub(crate) fn report_value(rt: &mut Runtime, value: Value) -> VmResult<()> {
     result
 }
 
+/// Reports an error object that the host made and did not throw, at the
+/// place of the running script (the failures of custom element
+/// constructors, ADR 0035 section 4). Chromium's message of a
+/// `DOMException` reported this way is `Uncaught ` without the exception's
+/// text (measured, case `create-element-failures`); the console line has the
+/// text.
+pub(crate) fn report_host_error(
+    rt: &mut Runtime,
+    value: Value,
+    dom_exception: bool,
+) -> VmResult<()> {
+    crate::runtime::pin(rt, value);
+    let text = format!("Uncaught {}", crate::runtime::thrown_value_text(rt, value));
+    let message = if dom_exception { "Uncaught " } else { &text };
+    let location = rt.script_location();
+    let result = report_exception_with(
+        rt,
+        "a custom element constructor",
+        value,
+        (message, &text),
+        location,
+    );
+    crate::runtime::unpin(rt);
+    result
+}
+
 /// Reports a thrown value at `location` (the error of a module graph or of
 /// a module's evaluation, `scripts/modules.rs`); `name` names it in the
 /// log.
@@ -206,6 +232,18 @@ fn report_exception(
     message: &str,
     location: Option<SourceLocation>,
 ) -> VmResult<()> {
+    report_exception_with(rt, name, value, (message, message), location)
+}
+
+/// [`report_exception`] with the message of the event and the text of the
+/// console line.
+fn report_exception_with(
+    rt: &mut Runtime,
+    name: &str,
+    value: Value,
+    (message, console): (&str, &str),
+    location: Option<SourceLocation>,
+) -> VmResult<()> {
     let state = state_mut(rt)?;
     let mut not_handled = true;
     // A window whose frame is gone gets no event (measured, case
@@ -222,7 +260,7 @@ fn report_exception(
         not_handled = fired?;
     }
     if not_handled {
-        crate::runtime::report_line(rt, name, message);
+        crate::runtime::report_line(rt, name, console);
     }
     Ok(())
 }

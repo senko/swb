@@ -205,6 +205,7 @@ impl DocumentState {
             return;
         }
         let journal = self.dom.take_journal();
+        let defined_changed = self.dom.take_defined_changed();
         self.drained = Some(generation);
         if self.retired {
             // A document that left its frame starts nothing.
@@ -214,6 +215,12 @@ impl DocumentState {
             self.rediscover();
         } else if !journal.is_empty() {
             self.apply_journal(&journal);
+        }
+        // A connected element became defined or undefined (ADR 0035
+        // section 1): `:defined` may match differently, and no selector
+        // analysis tells which rules, so the styles are dirty.
+        if defined_changed {
+            self.invalidate_styles();
         }
     }
 

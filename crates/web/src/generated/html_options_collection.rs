@@ -45,7 +45,7 @@ fn set_length<H: HTMLOptionsCollectionImpl>(rt: &mut swb_js::Runtime, call: &swb
         let this = b::glue::this_platform(rt, call, super::HTML_OPTIONS_COLLECTION)?;
         let v = rt.arg(call, 0);
         let value = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        <H as HTMLOptionsCollectionImpl>::set_length(&mut b::Cx::new(rt, call, super::HTML_OPTIONS_COLLECTION), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLOptionsCollectionImpl>::set_length(&mut b::Cx::new(rt, call, super::HTML_OPTIONS_COLLECTION), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -76,7 +76,7 @@ fn op_add<H: HTMLOptionsCollectionImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let a0 = super::types::HTMLOptionElementOrHTMLOptGroupElement::from_js(rt, call.realm(), v).map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
         let a1 = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { super::types::HTMLElementOrLong::from_js(rt, call.realm(), v).map(Some) }).map_err(|e| e.argument(1))? };
-        <H as HTMLOptionsCollectionImpl>::add(&mut b::Cx::new(rt, call, super::HTML_OPTIONS_COLLECTION), this, a0, a1)?;
+        b::ce::scope(rt, |rt| <H as HTMLOptionsCollectionImpl>::add(&mut b::Cx::new(rt, call, super::HTML_OPTIONS_COLLECTION), this, a0, a1))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -87,7 +87,7 @@ fn op_remove<H: HTMLOptionsCollectionImpl>(rt: &mut swb_js::Runtime, call: &swb_
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
         let a0 = b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(0))?;
-        <H as HTMLOptionsCollectionImpl>::remove(&mut b::Cx::new(rt, call, super::HTML_OPTIONS_COLLECTION), this, a0)?;
+        b::ce::scope(rt, |rt| <H as HTMLOptionsCollectionImpl>::remove(&mut b::Cx::new(rt, call, super::HTML_OPTIONS_COLLECTION), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -107,7 +107,7 @@ fn legacy_indexed_get<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, 
 
 fn legacy_indexed_set<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, index: u32, v: swb_js::Value) -> b::Result<()> {
     let value = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::HTML_OPTION_ELEMENT, "HTMLOptionElement").map(Some) }).map_err(|e| e.argument(1))?;
-    <H as HTMLOptionsCollectionImpl>::indexed_setter(&mut b::Cx::without_call(rt, realm, super::HTML_OPTIONS_COLLECTION), this, index, value)
+    b::ce::scope(rt, |rt| <H as HTMLOptionsCollectionImpl>::indexed_setter(&mut b::Cx::without_call(rt, realm, super::HTML_OPTIONS_COLLECTION), this, index, value))
 }
 
 fn legacy_names<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform) -> b::Result<Vec<String>> {

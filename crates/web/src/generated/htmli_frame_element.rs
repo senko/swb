@@ -33,7 +33,7 @@ fn set_src<H: HTMLIFrameElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Na
         let this = b::glue::this_node(rt, call, super::HTMLI_FRAME_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "src", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "src", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -51,7 +51,7 @@ fn set_srcdoc<H: HTMLIFrameElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTMLI_FRAME_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "srcdoc", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "srcdoc", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -69,7 +69,7 @@ fn set_name<H: HTMLIFrameElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTMLI_FRAME_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "name", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "name", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -104,7 +104,7 @@ fn set_allow<H: HTMLIFrameElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTMLI_FRAME_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "allow", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "allow", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -122,7 +122,7 @@ fn set_allow_fullscreen<H: HTMLIFrameElementImpl>(rt: &mut swb_js::Runtime, call
         let this = b::glue::this_node(rt, call, super::HTMLI_FRAME_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "allowfullscreen", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "allowfullscreen", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -140,7 +140,7 @@ fn set_width<H: HTMLIFrameElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTMLI_FRAME_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "width", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "width", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -158,7 +158,7 @@ fn set_height<H: HTMLIFrameElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTMLI_FRAME_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "height", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "height", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -176,7 +176,7 @@ fn set_referrer_policy<H: HTMLIFrameElementImpl>(rt: &mut swb_js::Runtime, call:
         let this = b::glue::this_node(rt, call, super::HTMLI_FRAME_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "referrerpolicy", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "referrerpolicy", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -194,7 +194,7 @@ fn set_loading<H: HTMLIFrameElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js
         let this = b::glue::this_node(rt, call, super::HTMLI_FRAME_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "loading", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLI_FRAME_ELEMENT), this, "loading", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -216,7 +216,12 @@ fn get_content_window<H: HTMLIFrameElementImpl>(rt: &mut swb_js::Runtime, call: 
 }
 
 pub(super) fn construct<H: HTMLIFrameElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLIFrameElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLIFrameElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTMLI_FRAME_ELEMENT)
+    })
 }
 
 /// Creates the interface object and the prototype of `HTMLIFrameElement` in `realm`

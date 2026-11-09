@@ -298,7 +298,7 @@ pub(crate) fn microtask_checkpoint(rt: &mut Runtime) -> Result<(), ScriptError> 
             // microtask that `after_call` queued before the time check)
             // would run in the next task without its time.
             rt.clear_jobs();
-            crate::mutation_observer::jobs_cleared(rt);
+            jobs_cleared(rt);
             Err(crate::runtime::task_error(error))
         }
     };
@@ -307,6 +307,13 @@ pub(crate) fn microtask_checkpoint(rt: &mut Runtime) -> Result<(), ScriptError> 
     }
     result?;
     note_rejections(rt).map_err(crate::runtime::task_error)
+}
+
+/// The job queue was cleared (a termination): the microtasks of the mutation
+/// observers and of the backup element queue are gone.
+fn jobs_cleared(rt: &mut Runtime) {
+    crate::mutation_observer::jobs_cleared(rt);
+    crate::custom_elements::reactions::jobs_cleared(rt);
 }
 
 /// Runs the jobs until the queue is empty; reports each exception.
@@ -318,13 +325,13 @@ fn run_jobs(rt: &mut Runtime) -> Result<(), ScriptError> {
                 // The jobs that are left would run in the next task without
                 // its time.
                 rt.clear_jobs();
-                crate::mutation_observer::jobs_cleared(rt);
+                jobs_cleared(rt);
                 return Err(error);
             }
             Err(error) => {
                 if let Err(error) = report_job_error(rt, &error) {
                     rt.clear_jobs();
-                    crate::mutation_observer::jobs_cleared(rt);
+                    jobs_cleared(rt);
                     return Err(crate::runtime::task_error(error));
                 }
             }

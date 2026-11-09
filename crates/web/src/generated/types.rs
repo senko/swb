@@ -1172,6 +1172,33 @@ impl WindowPostMessageOptions {
     }
 }
 
+/// The dictionary `ElementDefinitionOptions`.
+#[derive(Clone, Debug)]
+pub struct ElementDefinitionOptions {
+    /// `extends`.
+    pub extends: Option<String>,
+}
+
+impl ElementDefinitionOptions {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<ElementDefinitionOptions> {
+        let object = b::convert::dictionary_object(value, "ElementDefinitionOptions")?;
+        let v = b::convert::member(rt, object, "extends")?;
+        let extends = if v.is_undefined() { None } else { Some(b::convert::dom_string(rt, v).map_err(|e| e.member("extends", "ElementDefinitionOptions"))?) };
+        Ok(ElementDefinitionOptions { extends })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        if let Some(x) = &self.extends {
+            let value = b::to_js::string(rt, &x.clone())?;
+            b::to_js::dictionary_member(rt, object, "extends", value)?;
+        }
+        Ok(object.into())
+    }
+}
+
 /// The dictionary `FocusOptions`.
 #[derive(Clone, Debug)]
 pub struct FocusOptions {
@@ -4570,6 +4597,26 @@ impl MutationCallback {
         let result = rt.call(self.0.into(), this, &args)?;
         let _ = result;
         Ok(())
+    }
+
+}
+
+/// The callback function type `CustomElementConstructor`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CustomElementConstructor(pub swb_js::Gc<swb_js::Object>);
+
+impl CustomElementConstructor {
+    /// Converts a JavaScript value (Web IDL §3.2.19).
+    pub fn from_js(rt: &mut swb_js::Runtime, value: swb_js::Value) -> b::Result<CustomElementConstructor> {
+        Ok(CustomElementConstructor(b::convert::callback_function(rt, value)?))
+    }
+
+    /// Invokes the function (Web IDL §3.11, "invoke a callback function") with
+    /// `this`. Call it inside a handle scope that keeps the results alive.
+    pub fn invoke<H: b::Host>(self, rt: &mut swb_js::Runtime, _realm: u32, this: swb_js::Value) -> b::Result<b::NodeId> {
+        let args: Vec<swb_js::Value> = Vec::new();
+        let result = rt.call(self.0.into(), this, &args)?;
+        b::convert::node(rt, result, super::HTML_ELEMENT, "HTMLElement")
     }
 
 }

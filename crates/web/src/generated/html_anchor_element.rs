@@ -93,7 +93,7 @@ fn set_download<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "download", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "download", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -111,7 +111,7 @@ fn set_ping<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "ping", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "ping", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -129,7 +129,7 @@ fn set_rel<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Na
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "rel", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "rel", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -164,7 +164,7 @@ fn set_hreflang<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "hreflang", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "hreflang", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -182,7 +182,7 @@ fn set_type<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "type", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "type", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -200,7 +200,7 @@ fn set_text<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLAnchorElementImpl>::set_text(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLAnchorElementImpl>::set_text(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -218,7 +218,7 @@ fn set_referrer_policy<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call:
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "referrerpolicy", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "referrerpolicy", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -244,7 +244,7 @@ fn set_protocol<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLAnchorElementImpl>::set_protocol(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLAnchorElementImpl>::set_protocol(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -262,7 +262,7 @@ fn set_username<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLAnchorElementImpl>::set_username(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLAnchorElementImpl>::set_username(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -280,7 +280,7 @@ fn set_password<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLAnchorElementImpl>::set_password(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLAnchorElementImpl>::set_password(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -298,7 +298,7 @@ fn set_host<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLAnchorElementImpl>::set_host(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLAnchorElementImpl>::set_host(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -316,7 +316,7 @@ fn set_hostname<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLAnchorElementImpl>::set_hostname(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLAnchorElementImpl>::set_hostname(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -334,7 +334,7 @@ fn set_port<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLAnchorElementImpl>::set_port(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLAnchorElementImpl>::set_port(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -352,7 +352,7 @@ fn set_pathname<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLAnchorElementImpl>::set_pathname(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLAnchorElementImpl>::set_pathname(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -370,7 +370,7 @@ fn set_search<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLAnchorElementImpl>::set_search(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLAnchorElementImpl>::set_search(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -388,7 +388,7 @@ fn set_hash<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLAnchorElementImpl>::set_hash(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLAnchorElementImpl>::set_hash(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -406,7 +406,7 @@ fn set_href<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "href", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "href", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -424,13 +424,18 @@ fn set_target<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_ANCHOR_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "target", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ANCHOR_ELEMENT), this, "target", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
 
 pub(super) fn construct<H: HTMLAnchorElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLAnchorElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLAnchorElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_ANCHOR_ELEMENT)
+    })
 }
 
 /// Creates the interface object and the prototype of `HTMLAnchorElement` in `realm`

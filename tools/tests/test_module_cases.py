@@ -8,6 +8,8 @@ import pytest
 from swbtools import paths
 from swbtools.module_cases import (
     CASES_FILE,
+    CE_CASES_FILE,
+    CE_PROBE_FILE,
     GRAPH_CASES_FILE,
     GRAPH_PROBE_FILE,
     PROBE_FILE,
@@ -88,3 +90,30 @@ def test_committed_graph_cases_are_those_of_the_probe_file() -> None:
     rust = (root / GRAPH_CASES_FILE).read_text()
     written = re.findall(r'^        name: r?"([^"]+)",$', rust, re.MULTILINE)
     assert written == [c["name"] for c in probe["cases"]]
+
+
+def test_render_leaves_out_the_cases_with_javascript_off() -> None:
+    probe = {
+        **PROBE,
+        "cases": [
+            *PROBE["cases"],
+            {
+                "name": "off",
+                "javascript": False,
+                "html": "",
+                "measure": [{"style": "p", "props": ["color"]}],
+            },
+        ],
+    }
+    text = render(probe, CHROMIUM, CE_PROBE_FILE)
+    assert 'name: r"off",' not in text
+    assert "ce-cases" in text
+    assert "Custom element tests" in text
+
+
+def test_committed_ce_cases_are_those_of_the_probe_file() -> None:
+    root = paths.repo_root()
+    probe = json.loads((root / CE_PROBE_FILE).read_text())
+    rust = (root / CE_CASES_FILE).read_text()
+    written = re.findall(r'^        name: r?"([^"]+)",$', rust, re.MULTILINE)
+    assert written == [c["name"] for c in probe["cases"] if c.get("javascript", True)]

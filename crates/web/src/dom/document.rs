@@ -12,7 +12,10 @@
 //! those of `DOMParser`, which have the URL of the window's document.
 //! The queries, the document collections and `implementation` are here too.
 
-use swb_dom::{Document, ElementData, NodeData, NodeId, QualName, QuirksMode, local_name, ns};
+use swb_dom::{
+    Document, ElementData, NodeData, NodeId, QualName, QuirksMode, element_local_name_hyphen,
+    local_name, ns,
+};
 
 use super::attrs::{self, validate_and_extract};
 use super::lists::{self, DocCollection};
@@ -295,19 +298,21 @@ impl g::document::DocumentImpl for WebState {
         local_name: String,
         _options: DomStringOrElementCreationOptions,
     ) -> b::Result<NodeId> {
-        if !is_valid_element_local_name(&local_name) {
+        let Some(hyphen) = element_local_name_hyphen(&local_name) else {
             return Err(Exception::dom(
                 "InvalidCharacterError",
                 format!("The tag name provided ('{local_name}') is not a valid name."),
             ));
-        }
-        let name = QualName::new(
-            None,
-            ns!(html),
-            swb_dom::LocalName::from(local_name.to_ascii_lowercase()),
-        );
+        };
+        // The name in ASCII lowercase; most names are, and need no new string.
+        let local = if local_name.bytes().any(|b| b.is_ascii_uppercase()) {
+            swb_dom::LocalName::from(local_name.to_ascii_lowercase())
+        } else {
+            swb_dom::LocalName::from(local_name.as_str())
+        };
+        let name = QualName::new(None, ns!(html), local);
         // The `is` option is accepted and ignored: Chromium sets no attribute.
-        create_element(cx, this, name)
+        crate::custom_elements::create::create_element(cx.rt, this, name, hyphen, "createElement")
     }
 
     /// <https://dom.spec.whatwg.org/#dom-document-createelementns>
@@ -319,13 +324,14 @@ impl g::document::DocumentImpl for WebState {
         _options: DomStringOrElementCreationOptions,
     ) -> b::Result<NodeId> {
         let parts = validate_and_extract(namespace, &qualified_name, false)?;
+        let hyphen = parts.local.contains('-');
         let name = QualName::new(
             parts.prefix.map(Into::into),
             swb_dom::Namespace::from(parts.namespace.unwrap_or_default()),
             swb_dom::LocalName::from(parts.local),
         );
         // The `is` option is accepted and ignored: Chromium sets no attribute.
-        create_element(cx, this, name)
+        crate::custom_elements::create::create_element(cx.rt, this, name, hyphen, "createElementNS")
     }
 
     fn create_document_fragment(cx: &mut Cx<'_>, this: NodeId) -> b::Result<NodeId> {
@@ -615,24 +621,6 @@ impl g::document::DocumentImpl for WebState {
     }
 }
 
-/// DOM "valid element local name"
-/// (<https://dom.spec.whatwg.org/#valid-element-local-name>).
-fn is_valid_element_local_name(name: &str) -> bool {
-    let mut chars = name.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-    if first.is_ascii_alphabetic() {
-        return !name
-            .chars()
-            .any(|c| c.is_ascii_whitespace() || matches!(c, '\0' | '/' | '>'));
-    }
-    (first == ':' || first == '_' || first >= '\u{80}')
-        && chars.all(|c| {
-            c.is_ascii_alphanumeric() || matches!(c, '-' | '.' | ':' | '_') || c >= '\u{80}'
-        })
-}
-
 /// A new element of the document `doc`.
 fn create_element(cx: &mut Cx<'_>, doc: NodeId, name: QualName) -> b::Result<NodeId> {
     let data = NodeData::Element(ElementData::new(name, Vec::new()));
@@ -643,25 +631,6 @@ fn create_element(cx: &mut Cx<'_>, doc: NodeId, name: QualName) -> b::Result<Nod
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn element_local_names() {
-        for name in [
-            "a",
-            "my-element",
-            "a@b",
-            "a:b",
-            "\u{e9}t\u{e9}",
-            "_x",
-            ":x",
-            "A",
-        ] {
-            assert!(is_valid_element_local_name(name), "{name}");
-        }
-        for name in ["", "1a", "a b", "a/b", "a>", "-x", "_x@", "a\0"] {
-            assert!(!is_valid_element_local_name(name), "{name:?}");
-        }
-    }
 
     #[test]
     fn strips_and_collapses_ascii_whitespace() {

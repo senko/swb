@@ -51,7 +51,7 @@ fn set_disabled<H: HTMLFieldSetElementImpl>(rt: &mut swb_js::Runtime, call: &swb
         let this = b::glue::this_node(rt, call, super::HTML_FIELD_SET_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_FIELD_SET_ELEMENT), this, "disabled", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_FIELD_SET_ELEMENT), this, "disabled", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -77,7 +77,7 @@ fn set_name<H: HTMLFieldSetElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_FIELD_SET_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FIELD_SET_ELEMENT), this, "name", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_FIELD_SET_ELEMENT), this, "name", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -123,7 +123,12 @@ fn get_validation_message<H: HTMLFieldSetElementImpl>(rt: &mut swb_js::Runtime, 
 }
 
 pub(super) fn construct<H: HTMLFieldSetElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLFieldSetElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLFieldSetElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_FIELD_SET_ELEMENT)
+    })
 }
 
 fn op_check_validity<H: HTMLFieldSetElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {

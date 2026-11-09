@@ -80,7 +80,7 @@ fn set_value<H: AttrImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -
         let this = b::glue::this_platform(rt, call, super::ATTR)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        <H as AttrImpl>::set_value(&mut b::Cx::new(rt, call, super::ATTR), this, value)?;
+        b::ce::scope(rt, |rt| <H as AttrImpl>::set_value(&mut b::Cx::new(rt, call, super::ATTR), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }

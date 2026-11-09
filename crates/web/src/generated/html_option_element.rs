@@ -51,7 +51,7 @@ fn set_disabled<H: HTMLOptionElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::HTML_OPTION_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_OPTION_ELEMENT), this, "disabled", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_OPTION_ELEMENT), this, "disabled", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -77,7 +77,7 @@ fn set_label<H: HTMLOptionElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_OPTION_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_OPTION_ELEMENT), this, "label", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_OPTION_ELEMENT), this, "label", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -95,7 +95,7 @@ fn set_default_selected<H: HTMLOptionElementImpl>(rt: &mut swb_js::Runtime, call
         let this = b::glue::this_node(rt, call, super::HTML_OPTION_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_OPTION_ELEMENT), this, "selected", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_OPTION_ELEMENT), this, "selected", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -113,7 +113,7 @@ fn set_selected<H: HTMLOptionElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::HTML_OPTION_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLOptionElementImpl>::set_selected(&mut b::Cx::new(rt, call, super::HTML_OPTION_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLOptionElementImpl>::set_selected(&mut b::Cx::new(rt, call, super::HTML_OPTION_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -131,7 +131,7 @@ fn set_value<H: HTMLOptionElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_OPTION_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_OPTION_ELEMENT), this, "value", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_OPTION_ELEMENT), this, "value", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -149,7 +149,7 @@ fn set_text<H: HTMLOptionElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_OPTION_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLOptionElementImpl>::set_text(&mut b::Cx::new(rt, call, super::HTML_OPTION_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLOptionElementImpl>::set_text(&mut b::Cx::new(rt, call, super::HTML_OPTION_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -163,7 +163,12 @@ fn get_index<H: HTMLOptionElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
 }
 
 pub(super) fn construct<H: HTMLOptionElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLOptionElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLOptionElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_OPTION_ELEMENT)
+    })
 }
 
 pub(super) fn construct_option<H: HTMLOptionElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {

@@ -327,7 +327,7 @@ fn set_domain<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCa
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        <H as DocumentImpl>::set_domain(&mut b::Cx::new(rt, call, super::DOCUMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as DocumentImpl>::set_domain(&mut b::Cx::new(rt, call, super::DOCUMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -353,7 +353,7 @@ fn set_title<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCal
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        <H as DocumentImpl>::set_title(&mut b::Cx::new(rt, call, super::DOCUMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as DocumentImpl>::set_title(&mut b::Cx::new(rt, call, super::DOCUMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -371,7 +371,7 @@ fn set_body<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
         let v = rt.arg(call, 0);
         let value = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::HTML_ELEMENT, "HTMLElement").map(Some) }).map_err(b::Exception::nested)?;
-        <H as DocumentImpl>::set_body(&mut b::Cx::new(rt, call, super::DOCUMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as DocumentImpl>::set_body(&mut b::Cx::new(rt, call, super::DOCUMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -2309,7 +2309,7 @@ fn op_import_node<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nati
         let a0 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
         let a1 = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.argument(1))? };
-        let result = <H as DocumentImpl>::import_node(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0, a1)?;
+        let result = b::ce::scope(rt, |rt| <H as DocumentImpl>::import_node(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0, a1))?;
         Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
     })
 }
@@ -2320,7 +2320,7 @@ fn op_adopt_node<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nativ
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
         let a0 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
-        let result = <H as DocumentImpl>::adopt_node(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        let result = b::ce::scope(rt, |rt| <H as DocumentImpl>::adopt_node(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0))?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
@@ -2443,7 +2443,7 @@ fn op_open<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall)
         let a0 = if v.is_undefined() { None } else { Some(b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?) };
         let v = rt.arg(call, 1);
         let a1 = if v.is_undefined() { None } else { Some(b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?) };
-        let result = <H as DocumentImpl>::open(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0, a1)?;
+        let result = b::ce::scope(rt, |rt| <H as DocumentImpl>::open(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0, a1))?;
         Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
     })
 }
@@ -2451,7 +2451,7 @@ fn op_open<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall)
 fn op_close<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Document", "close"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
-        <H as DocumentImpl>::close(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
+        b::ce::scope(rt, |rt| <H as DocumentImpl>::close(&mut b::Cx::new(rt, call, super::DOCUMENT), this))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -2464,7 +2464,7 @@ fn op_write<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall
             let v = rt.arg(call, i);
             a0.push(b::convert::dom_string(rt, v).map_err(|e| e.argument(i))?);
         }
-        <H as DocumentImpl>::write(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as DocumentImpl>::write(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -2477,7 +2477,7 @@ fn op_writeln<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCa
             let v = rt.arg(call, i);
             a0.push(b::convert::dom_string(rt, v).map_err(|e| e.argument(i))?);
         }
-        <H as DocumentImpl>::writeln(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as DocumentImpl>::writeln(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -2520,7 +2520,7 @@ fn op_prepend<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCa
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as DocumentImpl>::prepend(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as DocumentImpl>::prepend(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -2533,7 +2533,7 @@ fn op_append<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCal
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as DocumentImpl>::append(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as DocumentImpl>::append(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -2546,7 +2546,7 @@ fn op_replace_children<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as DocumentImpl>::replace_children(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as DocumentImpl>::replace_children(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }

@@ -27,7 +27,7 @@ fn set_col_span<H: HTMLTableCellElementImpl>(rt: &mut swb_js::Runtime, call: &sw
         let this = b::glue::this_node(rt, call, super::HTML_TABLE_CELL_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_TABLE_CELL_ELEMENT), this, "colspan", b::reflect::UnsignedLimit::Range(1, 1000), Some(1), value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_TABLE_CELL_ELEMENT), this, "colspan", b::reflect::UnsignedLimit::Range(1, 1000), Some(1), value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -45,7 +45,7 @@ fn set_row_span<H: HTMLTableCellElementImpl>(rt: &mut swb_js::Runtime, call: &sw
         let this = b::glue::this_node(rt, call, super::HTML_TABLE_CELL_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_TABLE_CELL_ELEMENT), this, "rowspan", b::reflect::UnsignedLimit::Range(0, 65534), Some(1), value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_TABLE_CELL_ELEMENT), this, "rowspan", b::reflect::UnsignedLimit::Range(0, 65534), Some(1), value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -63,7 +63,7 @@ fn set_headers<H: HTMLTableCellElementImpl>(rt: &mut swb_js::Runtime, call: &swb
         let this = b::glue::this_node(rt, call, super::HTML_TABLE_CELL_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TABLE_CELL_ELEMENT), this, "headers", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TABLE_CELL_ELEMENT), this, "headers", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -89,7 +89,7 @@ fn set_scope<H: HTMLTableCellElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::HTML_TABLE_CELL_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TABLE_CELL_ELEMENT), this, "scope", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TABLE_CELL_ELEMENT), this, "scope", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -107,13 +107,18 @@ fn set_abbr<H: HTMLTableCellElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js
         let this = b::glue::this_node(rt, call, super::HTML_TABLE_CELL_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TABLE_CELL_ELEMENT), this, "abbr", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TABLE_CELL_ELEMENT), this, "abbr", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
 
 pub(super) fn construct<H: HTMLTableCellElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLTableCellElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLTableCellElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_TABLE_CELL_ELEMENT)
+    })
 }
 
 /// Creates the interface object and the prototype of `HTMLTableCellElement` in `realm`

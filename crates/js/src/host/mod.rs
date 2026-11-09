@@ -206,9 +206,9 @@ pub(crate) struct Host {
     pub(crate) state: Option<Box<dyn HostState>>,
     /// The hooks of lazy creation (`lazy.rs`).
     pub(crate) lazy: Option<LazyHooks>,
-    /// A flag of the host that a native reads without a look at the host
-    /// state ([`Runtime::host_flag`]).
-    pub(crate) flag: bool,
+    /// The flags of the host that a native reads without a look at the
+    /// host state ([`Runtime::host_flags`]).
+    pub(crate) flags: u8,
     /// A cell of the host that a native reads without a look at the host
     /// state ([`Runtime::host_signal`]).
     pub(crate) signal: Rc<Cell<bool>>,
@@ -425,17 +425,36 @@ impl Runtime {
         state.downcast_mut()
     }
 
-    /// A flag of the host: one load, where a read of the host state takes a
-    /// type check (the browser's bindings: the runtime has several
-    /// documents, so a native must look for its document).
+    /// Bit 0 of [`Runtime::host_flags`]: one load, where a read of the host
+    /// state takes a type check (the browser's bindings: the runtime has
+    /// several documents, so a native must look for its document).
     #[inline]
     pub fn host_flag(&self) -> bool {
-        self.vm.host.flag
+        self.vm.host.flags & 1 != 0
     }
 
-    /// Sets the flag of [`Runtime::host_flag`].
+    /// Sets bit 0 of [`Runtime::host_flags`].
     pub fn set_host_flag(&mut self, flag: bool) {
-        self.vm.host.flag = flag;
+        self.set_host_flag_bit(0, flag);
+    }
+
+    /// The flags of the host, which the engine does not interpret: one
+    /// load in a native's fast path (the browser's bindings: bit 0 "the
+    /// runtime has several documents", bit 1 "custom element definitions
+    /// exist", ADR 0035 section 6).
+    #[inline]
+    pub fn host_flags(&self) -> u8 {
+        self.vm.host.flags
+    }
+
+    /// Sets or clears bit `bit` (0 to 7) of [`Runtime::host_flags`].
+    pub fn set_host_flag_bit(&mut self, bit: u8, on: bool) {
+        let mask = 1u8 << (bit & 7);
+        if on {
+            self.vm.host.flags |= mask;
+        } else {
+            self.vm.host.flags &= !mask;
+        }
     }
 
     /// A cell of the host: as [`Runtime::host_flag`], for a value that code

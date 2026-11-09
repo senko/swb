@@ -276,12 +276,29 @@ mod tests {
     }
 
     #[test]
-    fn an_html_constructor_throws_illegal_constructor() {
+    fn ce_reactions_wrap_the_call_of_the_member() {
+        let idl = "[Exposed=Window] interface Node {};\n[Exposed=Window] interface Element : Node { [CEReactions] undefined setAttribute(DOMString n, DOMString v); undefined other(DOMString n); [CEReactions] attribute DOMString id; };\n[Exposed=Window, LegacyOverrideBuiltIns] interface M { getter DOMString (DOMString n); [CEReactions] setter undefined (DOMString n, DOMString v); [CEReactions] deleter undefined (DOMString n); };";
+        let e = file(idl, "element.rs");
+        // After the conversions, around the call only.
+        assert!(e.contains("let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;\n        b::ce::scope(rt, |rt| <H as ElementImpl>::set_attribute(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1))?;"));
+        assert!(e.contains(
+            "<H as ElementImpl>::other(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;"
+        ));
+        assert!(!e.contains("b::ce::scope(rt, |rt| <H as ElementImpl>::other"));
+        assert!(e.contains("b::ce::scope(rt, |rt| <H as ElementImpl>::set_id(&mut b::Cx::new(rt, call, super::ELEMENT), this, value))?;"));
+        let m = file(idl, "m.rs");
+        assert!(m.contains("b::ce::scope(rt, |rt| <H as MImpl>::named_setter("));
+        assert!(m.contains("b::ce::scope(rt, |rt| <H as MImpl>::named_deleter("));
+    }
+
+    #[test]
+    fn an_html_constructor_calls_the_host() {
         let idl = "[Exposed=Window] interface E { [HTMLConstructor] constructor(); };";
         let e = file(idl, "e.rs");
         assert!(e.contains("pub(super) fn construct<H: EImpl>("));
         assert!(e.contains("b::Context::Constructor(\"E\")"));
-        assert!(e.contains("Err(b::Exception::type_error(\"Illegal constructor\"))"));
+        assert!(e.contains("if call.new_target().is_undefined() {"));
+        assert!(e.contains("<H as b::Host>::html_constructor(rt, call, super::E)"));
         // The trait has no constructor method to write.
         assert!(!e.contains("fn constructor("));
         // `new E()` is the only member, so the trait is empty and ready.
@@ -307,7 +324,7 @@ mod tests {
         ));
         // The HTML constructor of the interface itself is unchanged.
         assert!(img.contains("pub(super) fn construct<H: ImgImpl>("));
-        assert!(img.contains("Err(b::Exception::type_error(\"Illegal constructor\"))"));
+        assert!(img.contains("<H as b::Host>::html_constructor(rt, call, super::IMG)"));
         // `define` makes the functions with the prototype of the
         // interface and a `length` of the required arguments (0 and 1),
         // after `constructor` of the prototype, and keeps them for the

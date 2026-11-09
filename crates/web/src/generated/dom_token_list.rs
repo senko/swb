@@ -72,7 +72,7 @@ fn set_value<H: DOMTokenListImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nativ
         let this = b::glue::this_platform(rt, call, super::DOM_TOKEN_LIST)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        <H as DOMTokenListImpl>::set_value(&mut b::Cx::new(rt, call, super::DOM_TOKEN_LIST), this, value)?;
+        b::ce::scope(rt, |rt| <H as DOMTokenListImpl>::set_value(&mut b::Cx::new(rt, call, super::DOM_TOKEN_LIST), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -107,7 +107,7 @@ fn op_add<H: DOMTokenListImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCa
             let v = rt.arg(call, i);
             a0.push(b::convert::dom_string(rt, v).map_err(|e| e.argument(i))?);
         }
-        <H as DOMTokenListImpl>::add(&mut b::Cx::new(rt, call, super::DOM_TOKEN_LIST), this, a0)?;
+        b::ce::scope(rt, |rt| <H as DOMTokenListImpl>::add(&mut b::Cx::new(rt, call, super::DOM_TOKEN_LIST), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -120,7 +120,7 @@ fn op_remove<H: DOMTokenListImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nativ
             let v = rt.arg(call, i);
             a0.push(b::convert::dom_string(rt, v).map_err(|e| e.argument(i))?);
         }
-        <H as DOMTokenListImpl>::remove(&mut b::Cx::new(rt, call, super::DOM_TOKEN_LIST), this, a0)?;
+        b::ce::scope(rt, |rt| <H as DOMTokenListImpl>::remove(&mut b::Cx::new(rt, call, super::DOM_TOKEN_LIST), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -133,7 +133,7 @@ fn op_toggle<H: DOMTokenListImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nativ
         let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
         let a1 = if v.is_undefined() { None } else { Some(b::convert::boolean(rt, v).map_err(|e| e.argument(1))?) };
-        let result = <H as DOMTokenListImpl>::toggle(&mut b::Cx::new(rt, call, super::DOM_TOKEN_LIST), this, a0, a1)?;
+        let result = b::ce::scope(rt, |rt| <H as DOMTokenListImpl>::toggle(&mut b::Cx::new(rt, call, super::DOM_TOKEN_LIST), this, a0, a1))?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
     })
 }
@@ -146,7 +146,7 @@ fn op_replace<H: DOMTokenListImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nati
         let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
         let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
-        let result = <H as DOMTokenListImpl>::replace(&mut b::Cx::new(rt, call, super::DOM_TOKEN_LIST), this, a0, a1)?;
+        let result = b::ce::scope(rt, |rt| <H as DOMTokenListImpl>::replace(&mut b::Cx::new(rt, call, super::DOM_TOKEN_LIST), this, a0, a1))?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
     })
 }

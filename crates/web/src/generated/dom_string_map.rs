@@ -44,11 +44,11 @@ fn legacy_named_get<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, th
 
 fn legacy_named_set<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, name: String, v: swb_js::Value) -> b::Result<()> {
     let value = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
-    <H as DOMStringMapImpl>::named_setter(&mut b::Cx::without_call(rt, realm, super::DOM_STRING_MAP), this, name, value)
+    b::ce::scope(rt, |rt| <H as DOMStringMapImpl>::named_setter(&mut b::Cx::without_call(rt, realm, super::DOM_STRING_MAP), this, name, value))
 }
 
 fn legacy_named_delete<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, name: String) -> b::Result<bool> {
-    <H as DOMStringMapImpl>::named_deleter(&mut b::Cx::without_call(rt, realm, super::DOM_STRING_MAP), this, name).map(|()| true)
+    b::ce::scope(rt, |rt| <H as DOMStringMapImpl>::named_deleter(&mut b::Cx::without_call(rt, realm, super::DOM_STRING_MAP), this, name)).map(|()| true)
 }
 
 /// The indexed and named properties of `DOMStringMap` (Web IDL §3.9).

@@ -57,7 +57,9 @@
 //!   through [`EngineHost::storage`]).
 //! - The DOM and HTML interfaces: `dom` (nodes, lists,
 //!   `dataset`, attributes), `html` (the HTML element interfaces and their
-//!   activation behaviour), `svg` (the SVG element interfaces),
+//!   activation behaviour), `custom_elements` (definitions, the element
+//!   constructors, upgrades and reactions, ADR 0035), `svg` (the SVG
+//!   element interfaces),
 //!   `mutation_observer` with `mutation_registry`, `intersection_observer`
 //!   and `resize_observer`, and `image_events` (the `load` and
 //!   `error` events of images and style sheets).
@@ -97,6 +99,7 @@ mod crypto;
 mod cssom;
 mod cssom_sheets;
 mod cssom_view;
+mod custom_elements;
 mod dialogs;
 mod document_load;
 mod document_write;

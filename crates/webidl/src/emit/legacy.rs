@@ -268,11 +268,17 @@ impl Gen<'_> {
         );
         let _ = writeln!(
             glue,
-            "fn {name}<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, {key_param}, v: swb_js::Value) -> b::Result<()> {{\n    let value = {convert}.map_err(|e| e.argument(1))?;\n    {}<H as {}>::{}({}, this, {key}, value)\n}}\n",
+            "fn {name}<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, {key_param}, v: swb_js::Value) -> b::Result<()> {{\n    let value = {convert}.map_err(|e| e.argument(1))?;\n    {}{}\n}}\n",
             self.legacy_this(op.owner),
-            trait_path(op.owner, iface),
-            self.method_name(op),
-            legacy_cx(op.owner)
+            super::iface::ce_reactions(
+                &op.op.ext_attrs,
+                format!(
+                    "<H as {}>::{}({}, this, {key}, value)",
+                    trait_path(op.owner, iface),
+                    self.method_name(op),
+                    legacy_cx(op.owner)
+                )
+            )
         );
     }
 
@@ -286,11 +292,17 @@ impl Gen<'_> {
         };
         let _ = writeln!(
             glue,
-            "fn legacy_named_delete<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, name: String) -> b::Result<bool> {{\n    {}<H as {}>::{}({}, this, name){result}\n}}\n",
+            "fn legacy_named_delete<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, name: String) -> b::Result<bool> {{\n    {}{}{result}\n}}\n",
             self.legacy_this(op.owner),
-            trait_path(op.owner, iface),
-            self.method_name(op),
-            legacy_cx(op.owner)
+            super::iface::ce_reactions(
+                &op.op.ext_attrs,
+                format!(
+                    "<H as {}>::{}({}, this, name)",
+                    trait_path(op.owner, iface),
+                    self.method_name(op),
+                    legacy_cx(op.owner)
+                )
+            )
         );
     }
 

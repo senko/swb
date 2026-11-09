@@ -26,7 +26,7 @@ fn set_name<H: HTMLMetaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nat
         let this = b::glue::this_node(rt, call, super::HTML_META_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_META_ELEMENT), this, "name", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_META_ELEMENT), this, "name", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -44,7 +44,7 @@ fn set_http_equiv<H: HTMLMetaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::HTML_META_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_META_ELEMENT), this, "http-equiv", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_META_ELEMENT), this, "http-equiv", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -62,7 +62,7 @@ fn set_content<H: HTMLMetaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_META_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_META_ELEMENT), this, "content", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_META_ELEMENT), this, "content", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -80,13 +80,18 @@ fn set_media<H: HTMLMetaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Na
         let this = b::glue::this_node(rt, call, super::HTML_META_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_META_ELEMENT), this, "media", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_META_ELEMENT), this, "media", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
 
 pub(super) fn construct<H: HTMLMetaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLMetaElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLMetaElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_META_ELEMENT)
+    })
 }
 
 /// Creates the interface object and the prototype of `HTMLMetaElement` in `realm`

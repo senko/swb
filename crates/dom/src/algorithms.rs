@@ -99,6 +99,7 @@ impl Document {
         if let NodeData::Element(e) = &mut data {
             nodes += 2 * usize::from(e.template_contents.take().is_some());
             e.parser_form = None;
+            e.reset_custom_element_state();
         }
         self.check_room(nodes, crate::mutation::data_bytes(&data))?;
         let (is_script, is_control) = match &data {

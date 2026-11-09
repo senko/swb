@@ -23,7 +23,7 @@ from swbtools.linebreak_tables import write_tables
 from swbtools.linebreaks import linebreaks
 from swbtools.manifest import FILES_DIR, read_manifest
 from swbtools.measure import MEASUREMENTS, SLOW_MEASUREMENTS, measure
-from swbtools.module_cases import write_module_cases, write_module_graph_cases
+from swbtools.module_cases import write_ce_cases, write_module_cases, write_module_graph_cases
 from swbtools.pages import list_fixtures, list_js_fixtures, read_meta
 from swbtools.perf import perf
 from swbtools.pixels import DEFAULT_THRESHOLD
@@ -164,6 +164,10 @@ def cmd_module_cases(args: argparse.Namespace) -> int:
 
 def cmd_module_graph_cases(args: argparse.Namespace) -> int:
     return write_module_graph_cases(args.chromium)
+
+
+def cmd_ce_cases(args: argparse.Namespace) -> int:
+    return write_ce_cases(args.chromium)
 
 
 def cmd_js_unicode_tables(args: argparse.Namespace) -> int:
@@ -466,6 +470,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="the output of `probe --json tools/probes/web-module-graph.json`",
     )
     p.set_defaults(func=cmd_module_graph_cases)
+
+    p = commands.add_parser(
+        "ce-cases",
+        help="write crates/engine/tests/probe_net/custom_elements.rs from web-custom-elements.json",
+    )
+    p.add_argument(
+        "chromium",
+        type=Path,
+        help="the output of `probe --json tools/probes/web-custom-elements.json`",
+    )
+    p.set_defaults(func=cmd_ce_cases)
 
     p = commands.add_parser(
         "linebreaks", help="measure Chromium's line break opportunities (text crate test data)"

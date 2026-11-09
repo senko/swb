@@ -176,6 +176,9 @@ pub(crate) struct WebState {
     /// `import()`; shared by the documents of the runtime
     /// (`scripts/module_map.rs`).
     pub(crate) script_bases: crate::scripts::module_map::ScriptBases,
+    /// The custom element definitions and reactions of the agent
+    /// (`custom_elements/`).
+    pub(crate) custom: crate::custom_elements::Agent,
 }
 
 /// The binding state of one document and its `Window`.
@@ -342,6 +345,8 @@ pub(crate) struct DocState {
     /// The `img.decode()` promises that wait for their image
     /// (`image_events.rs`).
     pub(crate) decodes: HashMap<NodeId, Vec<Gc<Object>>>,
+    /// The window's `CustomElementRegistry` (`custom_elements/`).
+    pub(crate) custom: crate::custom_elements::Registry,
 }
 
 impl WebState {
@@ -366,6 +371,7 @@ impl HostState for WebState {
             tracer.object(*function);
         }
         self.mutation.trace(tracer);
+        self.custom.trace(tracer);
         if let Some(marker) = self.handler_marker {
             tracer.object(marker);
         }
@@ -463,6 +469,7 @@ impl DocState {
         for promise in self.decodes.values().flatten() {
             tracer.object(*promise);
         }
+        self.custom.trace(tracer);
     }
 }
 
@@ -597,6 +604,33 @@ pub(crate) fn wrap_node_with_proto(
     node: NodeId,
     proto: Option<Gc<Object>>,
 ) -> VmResult<Gc<Object>> {
+    wrap_node_in(rt, node, proto, None)
+}
+
+/// The wrapper of `node` of the current document, made as an instance of
+/// `class` if the node has none yet (the `HTMLUnknownElement` of a failed
+/// synchronous construction of a custom element, which has a custom element
+/// name).
+pub(crate) fn wrap_node_as(rt: &mut Runtime, node: NodeId, class: ClassId) -> VmResult<Gc<Object>> {
+    wrap_node_in(rt, node, None, Some(class))
+}
+
+/// The wrapper of `node` of the current document if a script has seen it.
+pub(crate) fn existing_wrapper(rt: &Runtime, node: NodeId) -> VmResult<Option<Gc<Object>>> {
+    Ok(state(rt)?.doc.wrappers.get(node.index()).copied().flatten())
+}
+
+#[allow(
+    clippy::inline_always,
+    reason = "each node wrapper: the class argument folds away (measured, ADR 0035 \"4a implementation notes\")"
+)]
+#[inline(always)]
+fn wrap_node_in(
+    rt: &mut Runtime,
+    node: NodeId,
+    proto: Option<Gc<Object>>,
+    class: Option<ClassId>,
+) -> VmResult<Gc<Object>> {
     let state = state(rt)?;
     if let Some(Some(wrapper)) = state.doc.wrappers.get(node.index()) {
         return Ok(*wrapper);
@@ -612,7 +646,7 @@ pub(crate) fn wrap_node_with_proto(
             "a wrapper of a node that does not exist",
         ));
     }
-    let class = class_of(dom, node);
+    let class = class.unwrap_or_else(|| class_of(dom, node));
     let data = b::node_data_in(key, node);
     let wrapper = match proto {
         Some(proto) => rt.new_host_object_with_proto(realm, Some(proto), class, data)?,
@@ -687,5 +721,13 @@ impl b::Host for WebState {
         value: Value,
     ) -> VmResult<()> {
         crate::events::handlers::set(rt, target, name, value)
+    }
+
+    fn html_constructor(
+        rt: &mut Runtime,
+        call: &swb_js::NativeCall,
+        class: ClassId,
+    ) -> b::Result<Value> {
+        crate::custom_elements::constructor::construct(rt, call, class)
     }
 }

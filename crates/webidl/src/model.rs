@@ -15,8 +15,7 @@ use crate::ast::{
 pub(crate) const FACTORY: &str = "LegacyFactoryFunction";
 
 /// The extended attributes that the generator knows, per construct, with
-/// the ones it ignores on purpose: `[CEReactions]` (no custom elements),
-/// `[SameObject]` and `[NewObject]` (the hand-written code keeps or makes
+/// the ones it ignores on purpose: `[SameObject]` and `[NewObject]` (the hand-written code keeps or makes
 /// the object), `[Serializable]` and `[Transferable]` (`structured.rs`
 /// clones the built-in types by hand; platform objects are not
 /// serialized), `[SecureContext]` (swb exposes these members

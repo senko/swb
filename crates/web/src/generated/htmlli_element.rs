@@ -26,13 +26,18 @@ fn set_value<H: HTMLLIElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nati
         let this = b::glue::this_node(rt, call, super::HTMLLI_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_long::<H>(&mut b::Cx::new(rt, call, super::HTMLLI_ELEMENT), this, "value", false, value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_long::<H>(&mut b::Cx::new(rt, call, super::HTMLLI_ELEMENT), this, "value", false, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
 
 pub(super) fn construct<H: HTMLLIElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLLIElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLLIElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTMLLI_ELEMENT)
+    })
 }
 
 /// Creates the interface object and the prototype of `HTMLLIElement` in `realm`

@@ -51,7 +51,7 @@ fn set_disabled<H: HTMLButtonElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::HTML_BUTTON_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "disabled", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "disabled", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -77,7 +77,7 @@ fn set_form_action<H: HTMLButtonElementImpl>(rt: &mut swb_js::Runtime, call: &sw
         let this = b::glue::this_node(rt, call, super::HTML_BUTTON_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "formaction", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "formaction", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -95,7 +95,7 @@ fn set_form_enctype<H: HTMLButtonElementImpl>(rt: &mut swb_js::Runtime, call: &s
         let this = b::glue::this_node(rt, call, super::HTML_BUTTON_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "formenctype", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "formenctype", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -113,7 +113,7 @@ fn set_form_method<H: HTMLButtonElementImpl>(rt: &mut swb_js::Runtime, call: &sw
         let this = b::glue::this_node(rt, call, super::HTML_BUTTON_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "formmethod", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "formmethod", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -131,7 +131,7 @@ fn set_form_no_validate<H: HTMLButtonElementImpl>(rt: &mut swb_js::Runtime, call
         let this = b::glue::this_node(rt, call, super::HTML_BUTTON_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "formnovalidate", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "formnovalidate", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -149,7 +149,7 @@ fn set_form_target<H: HTMLButtonElementImpl>(rt: &mut swb_js::Runtime, call: &sw
         let this = b::glue::this_node(rt, call, super::HTML_BUTTON_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "formtarget", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "formtarget", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -167,7 +167,7 @@ fn set_name<H: HTMLButtonElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_BUTTON_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "name", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "name", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -185,7 +185,7 @@ fn set_type<H: HTMLButtonElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_BUTTON_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "type", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "type", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -203,7 +203,7 @@ fn set_value<H: HTMLButtonElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_BUTTON_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "value", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_BUTTON_ELEMENT), this, "value", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -241,7 +241,12 @@ fn get_labels<H: HTMLButtonElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
 }
 
 pub(super) fn construct<H: HTMLButtonElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLButtonElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLButtonElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_BUTTON_ELEMENT)
+    })
 }
 
 fn op_check_validity<H: HTMLButtonElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {

@@ -101,7 +101,7 @@ and `ResizeObserver`; Wikipedia's Vue template compiler calls
 
 ### Measurements
 
-New probe file `tools/probes/web-custom-elements.json` (37 cases, 115
+New probe file `tools/probes/web-custom-elements.json` (38 cases, 116
 queries; the logging header of `web-module-graph.json` with `onerror`'s error
 object, and a helper `mk()` that defines a class which logs its constructor
 and callbacks). Every case has a control query. Chromium 148, three runs,
@@ -167,12 +167,12 @@ padding after `script_already_started`, so `ElementData` keeps its size.
   `ElementState::DEFINED` from the state. With JavaScript off, every element
   with a custom element name stays `undefined`, as in Chromium (measured,
   `defined-js-off`).
-- **Invalidation.** A change of the state of a connected element appends a
-  journal entry `Change::State { element }` that the mutation sink does not
-  see (no mutation record). The engine drains it as an attribute change
-  that every selector may depend on (the element, its subtree, and the
-  siblings after it if the sheets have sibling combinators), so
-  `x-a:not(:defined) .child` updates. A detached element needs no entry.
+- **Invalidation.** A change of whether a connected element is defined
+  sets a flag of the document that the mutation sink does not see (no
+  mutation record, no journal entry). The engine's drain invalidates the
+  styles when it takes the flag (every selector may depend on it), so
+  `x-a:not(:defined) .child` updates. A detached element needs no
+  invalidation.
 
 JS-off effect: `:defined` and `:not(:defined)` start to differ for custom
 element names. No fixture uses them on an element that it has (GitHub's two
@@ -411,10 +411,26 @@ call the same function.
 
 Why the fast path is safe: without a definition no element is custom and no
 upgrade can be enqueued, and a body that runs no script cannot make a
-definition; the bodies that run script (`define` itself, synchronous
-construction) are entered with the flag already set, or set it themselves
-before they enqueue (`define`). A reaction enqueued with an empty stack
-still runs, from the backup queue.
+definition. Some bodies run script and are entered with the flag clear: the
+insertion of an inline `<script>` by `append`, `appendChild` or `innerHTML`
+runs the script inside the call, and it can make the agent's first
+definition. The reactions that the rest of that operation enqueues (4b) then
+find an empty reactions stack and go to the backup queue. So the fast path
+tests the flag again after the body: if it was clear at the entry and is set
+after the body, a cold function invokes the backup element queue before the
+scope returns. The queue was empty at the entry (nothing could be enqueued
+without a definition), so its content comes from this body, which is what
+HTML's element queue of the scope would hold. Other bodies that run script
+(`define` itself, synchronous construction) are entered with the flag
+already set, or set it themselves before they enqueue (`define` pushes its
+own queue). A reaction enqueued with an empty stack and no scope still runs,
+from the backup queue.
+
+`createElement` and `createElementNS` have no scope: "create an element"
+with the synchronous custom elements flag enqueues no reaction of its own
+(the calls inside the constructor have their scopes), so the scope would
+push and pop an empty queue on every call (the IDL comment; 4a
+implementation notes).
 
 Rejected: a push and pop in `glue::run` for every native (most natives do
 not mutate the DOM; this costs every call); reading the definition count
@@ -565,7 +581,8 @@ slots of P and R (every side table keyed by `NodeId` would have to move).
 | Nested reaction invocations and synchronous constructions | 43 (Chromium, measured) | the reaction is dropped, the construction gives a failed `HTMLUnknownElement`; no report (as Chromium) |
 | Definitions per agent | 65,536 (Chromium: none) | `define` throws `NotSupportedError` (`swb: too many custom element definitions`), one warning |
 | Observed attribute names, all definitions | 1,048,576 names or 16 MiB of name text | as above |
-| Pending when-defined promises per registry | 65,536 names | a new promise that is not stored (it never resolves), one warning |
+| Names of definitions, all definitions of an agent | 16 MiB of name text (the heap limit does not count these Rust copies) | `define` throws `NotSupportedError`, one warning |
+| Pending when-defined promises per registry | 65,536 names or 16 MiB of name text | a new promise that is not stored (it never resolves), one warning |
 | Queued reactions (element queue entries and reactions) | 4,194,304 entries or 128 MiB of argument text per agent (with the frames' runtimes, as the mutation records' budget) | later reactions are dropped, one warning |
 | Construction stack | bounded by the nesting limit | |
 | Work of `define`'s walk and the sink's walks | the task's time limit (5 s), charged per node | termination |
@@ -584,7 +601,9 @@ observed attributes of 10 KB: the reaction byte budget),
 `ce-disconnect-100000` (`textContent = ''` over 100,000 connected custom
 elements), `ce-parser-100000` (100,000 defined elements in markup after
 the definition: 100,000 pauses), `ce-write-in-constructor` (a constructor
-that calls `document.write` and `open` in a loop: the counter).
+that calls `document.write` and `open` in a loop: the counter),
+`ce-long-names` (100 `define` and 100 `whenDefined` calls with names of
+1 MiB: the byte budgets).
 
 ### 11. Performance
 
@@ -807,3 +826,240 @@ The orchestrator decided them on 2026-11-08 (see Consequences): 1, 2, 3, 4,
     and the parent, where Chromium's sees neither (measured,
     `parser-sync`); 4c removes this difference. 4c moves earlier if
     feature 8 needs it.
+
+## 4a implementation notes
+
+Facts of the implementation (M10 sub-feature 4a: definitions, constructors,
+upgrades) that differ from the decision above or that 4b and 4c need. Code:
+`crates/dom/src/custom.rs`, `crates/web/src/custom_elements/` (`mod.rs`,
+`registry.rs`, `constructor.rs`, `create.rs`, `upgrade.rs`, `reactions.rs`),
+`crates/web/src/bindings/ce.rs`, the generator (`crates/webidl/src/emit/iface.rs`,
+`legacy.rs`). Values are Chromium 148's from
+`tools/probes/web-custom-elements.json` (the runs of the ADR).
+
+**Element state (section 1).** `ElementData` has `custom_state`
+(`swb_dom::CustomElementState`, `repr(u8)`) and `definition` (`u32`); its size
+stays 64 bytes. `ElementData::new` sets the initial state, so every creation
+path has it; `clone_one` (DOM "clone a single node") resets a copy to its
+initial state without a definition; the fragment parser's copy keeps the
+state of the temporary arena's element, which is the initial one. The arena's
+name set (`Document::created_custom_name`) is filled in `push_node` for each
+element created `undefined`. `Document::set_custom_element_state` bumps the
+generation and sets a flag (`take_defined_changed`) only when a connected
+element's definedness changes (an upgrade passes `failed` and
+`precustomized`, which are not defined); the journal and the mutation sink
+never see it. The engine's drain (`process_changes`) invalidates the styles
+when it takes the flag, so no selector analysis was needed. A first version
+appended a `Change::State` entry to the journal; the new variant made every
+recorded change dearer (+20 instructions for the `appendChild` and `remove`
+row, measured), so the flag replaced it, and section 1's "Invalidation"
+reads this way. The name checks (`is_valid_custom_element_name`,
+`is_valid_element_local_name`) moved to `swb_dom`; the web crate's copies are
+gone. The per-document set of *defined* names (section 3) is not in 4a:
+`custom_elements::look_up` reads the registry through the runtime, which
+every 4a caller has. 4b's sink and 4c's parser sink need the set.
+
+**Engine API (section 2).** `Runtime::construct` and `is_constructor` are
+public. The public `[[SetPrototypeOf]]` is `Runtime::set_prototype` (the
+internal `set_prototype_of` with its `ProtoSet` result keeps its name). Two
+additions: `construct_function` (Construct from the host with the result of
+`call_function`: a `ScriptError` and the thrown value as `last_value`, which
+`errors::report` needs) and `script_location` (the call site of the running
+native: the position of an error that the host makes and reports without
+throwing; it matches Chromium's `@:1:732` in `create-element-failures` and
+`@DOC:1:1877` in `upgrade-constructor-failures`). The flags:
+`Runtime::host_flags() -> u8` and `set_host_flag_bit(bit, on)`;
+`host_flag()` and `set_host_flag` remain for bit 0. Bit 1
+(`bindings::ce::DEFINITIONS_BIT`) is set at the agent's first definition and
+never cleared.
+
+**Registry and definitions (section 3).** The definitions are
+`WebState::custom.definitions` (number = index + 1), the registry
+`DocState::custom` (`Registry`); the reaction state is
+`Rc<RefCell<Reactions>>` in `WebState::custom`, ready to be shared with the
+sinks in 4b. `get` is `any` in the IDL (`(CustomElementConstructor or
+undefined)`). A valid `extends` throws `NotSupportedError: ...: Customized
+built-in elements are not supported` after Chromium's checks of an invalid
+value. `define` pushes an element queue of its own around the upgrade
+candidates and the when-defined resolution and invokes it before it returns:
+the glue's `[CEReactions]` scope is skipped when the flag was clear at entry
+(the agent's first definition). The walk of the upgrade candidates collects
+the elements first and runs the time check once if it visited 4,096 nodes or
+more (native work that the countdown does not see); `upgrade(root)` does the
+same. `whenDefined` past its budget returns a new pending promise that is
+not stored. The names have a byte budget as well (`MAX_NAME_BYTES`: 16 MiB
+for the names of all definitions of the agent, 16 MiB for the keys of the
+registry's pending when-defined promises). The engine's heap limit does not
+count these Rust copies: 3,000 definitions with names of 1 MiB reached
+3.2 GiB, and 6,000 `whenDefined` calls with such names 6.4 GiB (review
+finding 1). Past the budget `define` throws the budget's `NotSupportedError`
+and `whenDefined` returns a promise that is not stored (one warning each).
+
+**Constructors and "create an element" (section 4).** The generator writes,
+for every `[HTMLConstructor]`, the `new.target` check (Chromium's `Please use
+the 'new' operator ...`) and a call of `Host::html_constructor(rt, call,
+CLASS)` (default: `Illegal constructor`; `WebState` runs
+`custom_elements::constructor::construct`). The failed fallback of a
+synchronous construction gets its `HTMLUnknownElement` wrapper at once
+(`state::wrap_node_as`): the interface does not follow from the state, since
+an element whose upgrade failed keeps `HTMLElement` (measured). 4c's parser
+fallback needs the same. A failed check of the constructor's result is
+reported with the operation's prefix (`createElement`, `createElementNS`);
+Chromium's `error` event message for a reported `DOMException` is `Uncaught `
+without the text (measured), so `errors::report_host_error` gives that
+message, and the console line has the full text. The case
+`create-element-messages` measures the other two messages (Chromium 148,
+three equal runs): a constructor that returns an element of
+`document.implementation.createHTMLDocument()` gives `Failed to execute
+'createElement' on 'Document': The result must be in the same document`, and
+one that sets an attribute gives `Failed to execute 'createElementNS' on
+'Document': The result must not have attributes`; both return an
+`HTMLUnknownElement` and report with the position of the calling script.
+swb matched them without a change.
+
+**Reactions (section 5).** The nesting counter is entered before each
+reaction that runs (callbacks and upgrades) and around each synchronous
+construction; a reaction that finds the counter at 43 is dropped, a
+construction gives the failed element. A termination in an invocation
+empties the queues of the elements that were not reached. The backup queue's
+microtask is a native host function (`reactions::run_backup`); a cleared job
+queue (`event_loop::jobs_cleared`) drops the backup queue and resets its flag.
+No 4a path enqueues with an empty stack (upgrades come from `define` and
+`upgrade()`, inside a scope), so the backup queue first works in 4b.
+
+**`[CEReactions]` (section 6).** The generator wraps the call of the member
+in operations, attribute setters (also `[Reflect]` and `[ReflectSetter]`) and
+the setters and deleters of legacy platform objects: `b::ce::scope(rt, |rt|
+CALL)`. No `[SwbCustom]` member has `[CEReactions]` in the IDL; 4b wraps the
+hand-written paths that mutate the DOM outside the glue (`document.write`,
+the engine's changes). `createElement` and `createElementNS` have no
+`[CEReactions]` in `dom.idl` (a comment says why): their scope would push and
+pop an empty queue. The fast path of `scope` tests the flag after the body as
+well (section 6, "Why the fast path is safe"); the unit test
+`a_fast_path_scope_invokes_the_backup_queue_after_the_first_definition`
+(`bindings/ce.rs`) makes the first definition in the body, enqueues a
+reaction with the stack empty, and checks that the scope invoked the backup
+queue before it returned. The test of the flag after the body costs about 12
+instructions per call (the result of the body stays alive across the test
+and the compiler moves it; an out-of-line function with the result as an
+argument or a `&mut` was as dear). With definitions, `push_queue` and
+`pop_and_invoke` do one lookup of the state each and no `Rc` clone (they
+did two lookups and two clones per call).
+
+**Tests.** The probe cases run in `crates/engine/tests/probe_net.rs`
+(`custom_element_probe_cases_match_chromium`, the cases generated by
+`swbtools ce-cases`): of the 115 `js` queries, 70 match, 6 are departures
+(`api-surface` 0, 4, 5, 6: scoped registries, `ElementInternals`,
+`CustomStateSet`, `moveBefore`; `define-errors` 10: customized built-ins;
+`define-read-order` 1: `toolFillCallback`), and 39 are later (`CE_LATER`): 31
+of 4b (`upgrade-at-define`: the `importNode` row; `upgrade-reentrant`: the
+constructor's insertion upgrades the other element; the `reactions-*` cases,
+`fragment-parsing`, `clone-and-import`; `derived-classes` 0, the
+`setAttribute` on a custom element; the connected and attribute rows of
+`reactions-recursion-depth` and `reactions-depth-limit`) and 8 of 4c (the
+`parser-sync*` cases). The plan put `upgrade-reentrant` and the attribute
+row of `reactions-depth-limit` into 4a; both need the reactions of DOM
+operations. `defined-js-off` (a `style` query) is the unit test
+`defined_follows_the_custom_element_state` in `swb_style`. The case
+`create-element-messages` (fix round) is one of the 70.
+
+**Performance (section 11).** Bindings under callgrind (`swb --headless
+--js`, a page whose script runs the row in a loop, instructions per
+iteration as the difference of 40,000 and 20,000 iterations; base b85e8d4,
+release builds):
+
+| Binding | base | 4a | 4a / base | 4a with one definition | / base |
+|---|---|---|---|---|---|
+| `x = i` (the loop) | 651 | 656 | 1.007 | 650 | 0.998 |
+| `e.setAttribute('a', i)` | 4,393 | 4,398 | 1.001 | 4,581 | 1.043 |
+| `e.id = i` | 3,866 | 3,869 | 1.001 | 4,040 | 1.045 |
+| `t.appendChild(n); n.remove()` | 4,356 | 4,392 | 1.008 | 4,698 | 1.078 |
+| `e.textContent = 'x'` | 1,948 | 1,962 | 1.007 | 2,100 | 1.078 |
+| `e.innerHTML = '<b></b>'` | 17,033 | 17,164 | 1.008 | 17,334 | 1.018 |
+| `document.createElement('div')` | 4,287 | 4,230 | 0.987 | 4,515 | 1.053 |
+| `e.classList.add('c')` | 8,417 | 8,418 | 1.000 | 8,547 | 1.015 |
+
+(Numbers of the fix round; the first run of 4a had `createElement` at 1.013
+and `appendChild` with `remove` at 1.008.) The rows move by about 0.5 %
+between runs of one binary and between builds (the `x = i` row has no
+binding in it and moved +5). Without a definition every row is within the
+1 % budget. What it took, in instructions per call, for the rows that were
+over or close:
+
+- **The custom name test of `createElement`** (+57 at first). The atom of
+  the name must be decoded to look for a `-` (about 35 instructions for a
+  static atom such as `div`). `createElement` scans the name anyway to
+  validate it, so `element_local_name_hyphen` returns the hyphen as a
+  by-product of that scan (+4), and `ElementData::new_with_hyphen` skips the
+  test and the decode when there is none. `push_node` tests the node kind
+  once for the template and the custom name flags, and the rare insertion
+  into the arena's name set is a cold function. `create_element` has the
+  common case in the function and the definitions case out of line.
+- **`createElement` and `createElementNS` have no scope** (-10): see
+  `[CEReactions]` above. `createElement` also builds the lowercase name
+  only when the given name has an upper case letter (the base allocated a
+  new string for every call; measured -94), which is why the row
+  is now under the base.
+- **The scope's test after the body** (finding 2) costs about 12
+  instructions per call with `[CEReactions]`; it is the main part of the
+  +36 of `appendChild` with `remove`.
+- **The journal** (+20 for `appendChild` with `remove`): the variant
+  `Change::State` made `Journal::record` and `process_changes` dearer for
+  every change; the flag of `take_defined_changed` replaced it (above).
+
+With one definition the `[CEReactions]` scope pushes and pops an element
+queue (a `RefCell` of the shared reaction state; two lookups of the state
+per call, without `Rc` clones: the first version of this round did two
+lookups and two clones, and the rows moved by less than the noise), and
+`createElement` looks up the name in the registry: +1.5 to +8 %, reported,
+not a gate.
+
+**GitHub** (`fixtures/js/github-swb`, JavaScript on, the `debug!` lines of
+`custom_elements`): 75 definitions succeed: Chromium's 74 and
+`live-region-<uuid>` of a polyfill of `ariaNotify` that Chromium 148 does not
+load (swb has no `ariaNotify`: backlog); the second `toggle-switch` fails
+with `NotSupportedError` as in Chromium. The 10 elements present at their
+`define` are upgraded inside the call (`tool-tip`, `turbo-frame`,
+`react-app` while the document is interactive; 2 `cookie-consent-link`,
+`ghcc-consent`, 4 `react-partial` after `load`), and 2 `clipboard-copy`
+through `customElements.upgrade()`. The 23 `relative-time` elements that
+`createElement` constructs fail: the constructor calls `attachShadow`
+through a command polyfill that wraps `HTMLElement.prototype.attachShadow`,
+which swb lacks until feature 5 (`TypeError: Cannot read properties of
+undefined (reading 'call')`, 23 reports; one more from a callback). The
+console before 4a had 7 errors about the missing `customElements`. The JS-on
+scores went up (geometry 0.7909 to 0.8904, pixels 0.9749 to 0.9884; 148
+missing and 26 extra boxes to none); the other targets keep their scores
+with JavaScript on and off (Ars Technica's pixel score varies between 0.9891
+and 0.9901 in both builds), BBC and Wikipedia define nothing and log
+nothing new, and the JS-off snapshot is byte-identical.
+
+**Fix round after the review of 4a.**
+
+1. *Byte budget for names*: `MAX_NAME_BYTES` (section 10), hostile case
+   `ce-long-names`. Without the budget the case holds 252 MiB at 100 names
+   of 1 MiB and the log lacks the warnings.
+2. *The flag flips inside a fast-path scope*: section 6 and the unit test
+   named in "`[CEReactions]`" above.
+3. *Per-call cost with definitions*: one lookup of the state in `push_queue`
+   and in `pop_and_invoke`, no `Rc` clone. The one-definition rows moved by
+   about 1 % (noise level); the cost with definitions is mostly the
+   `RefCell`, the stack and the type check of the host data in each of
+   the two lookups.
+4. *`createElement` within 1 %*: see "Performance".
+5. *Two messages*: case `create-element-messages` (Chromium 148, three equal
+   runs); swb already matched.
+6. *Filter before cloning*: `observed_attributes` in `upgrade.rs` copies the
+   values of the observed attributes only (unit test).
+7. *The `VecDeque` per element*: `Reactions.queues` keeps the first reaction
+   of an element inline (`Pending::One`) and makes a `VecDeque` at the second.
+   `ce-upgrade-100000` held 293 MiB in the review and 250 to 262 MiB now (the
+   machine's own variation for the same page is about 15 MiB: the parse of
+   100,000 elements without a `define` holds 166 MiB in base and in this
+   tree, so the upgrades add about 36 MiB, 360 bytes per element, most of
+   it the JavaScript wrappers).
+
+Backlog: `Element.ariaNotify` (GitHub loads a polyfill that defines a custom
+element without it); `customElements.upgrade(root)` with a node of another
+document of the runtime (the conversion takes only nodes of the current
+document).

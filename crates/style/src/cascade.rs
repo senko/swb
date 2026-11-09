@@ -1795,6 +1795,23 @@ mod tests {
         assert!(!deps.contains(swb_css::ElementState::TARGET));
     }
 
+    /// `:defined` follows the custom element state (ADR 0035 section 1):
+    /// an HTML element with a custom element name is not defined before its
+    /// upgrade, also with JavaScript off (probe case `defined-js-off`,
+    /// Chromium 148); other names, reserved names and other namespaces are.
+    #[test]
+    fn defined_follows_the_custom_element_state() {
+        let html = "<x-a id=a>a</x-a><x-u id=u>u</x-u><foo id=f>f</foo><div id=d>d</div><font-face id=ff>ff</font-face><svg><x-a id=s></x-a></svg><annotation-xml id=ax>ax</annotation-xml>";
+        let css = ":not(:defined) { color: rgb(255, 0, 0) } :defined { color: rgb(0, 128, 0) }";
+        let (doc, map) = render(html, css);
+        for id in ["a", "u"] {
+            assert_eq!(get(&doc, &map, id).color, RED, "#{id}");
+        }
+        for id in ["f", "d", "ff", "s", "ax"] {
+            assert_eq!(get(&doc, &map, id).color, rgb(0, 128, 0), "#{id}");
+        }
+    }
+
     #[test]
     fn same_styles_compares_values() {
         let html = "<p id=p>x</p><ul><li>i</li></ul>";

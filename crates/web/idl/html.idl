@@ -267,6 +267,30 @@ HTMLElement includes DocumentAndElementEventHandlers;
 interface HTMLUnknownElement : HTMLElement {
 };
 
+// Custom elements
+// (https://html.spec.whatwg.org/multipage/custom-elements.html#customelementregistry,
+// copied on 2026-11-08, ADR 0035 section 3). swb has no scoped registries:
+// no constructor and no `initialize` (ADR 0035 section 9). `get` returns
+// `any` (the standard: `(CustomElementConstructor or undefined)`).
+[Exposed=Window]
+interface CustomElementRegistry {
+  [CEReactions] undefined define(DOMString name, CustomElementConstructor constructor, optional ElementDefinitionOptions options = {});
+  any get(DOMString name);
+  DOMString? getName(CustomElementConstructor constructor);
+  Promise<CustomElementConstructor> whenDefined(DOMString name);
+  [CEReactions] undefined upgrade(Node root);
+};
+
+callback CustomElementConstructor = HTMLElement ();
+
+dictionary ElementDefinitionOptions {
+  DOMString extends;
+};
+
+partial interface Window {
+  readonly attribute CustomElementRegistry customElements;
+};
+
 interface mixin HTMLOrSVGElement {
   [SameObject] readonly attribute DOMStringMap dataset;
   [Reflect] attribute DOMString nonce;

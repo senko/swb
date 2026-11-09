@@ -7,7 +7,9 @@
 //! (`FormData` and multipart bodies, `FileReader`, Blob URLs, `sendBeacon`);
 //! and the module probes `web-module-scripts.json` (M9 feature 7) and
 //! `web-module-graph.json` (ADR 0034 sub-feature 3b-1: module graphs,
-//! their errors, top-level `await`, `import()`, `import.meta`).
+//! their errors, top-level `await`, `import()`, `import.meta`); and the
+//! custom element probe `web-custom-elements.json` (ADR 0035; the cases of
+//! the later sub-features are listed in `CE_LATER`).
 //!
 //! `Sim` answers as the probe server does (`swbtools/probe.py`): the
 //! `resources` of a case under `/case-N/`, the headers `Cache-Control:
@@ -30,6 +32,8 @@ use common::{finish_loading, new_page, on_page_thread};
 
 #[path = "probe_net/blob.rs"]
 mod blob_cases;
+#[path = "probe_net/custom_elements.rs"]
+mod custom_element_cases;
 #[path = "probe_net/images.rs"]
 mod image_cases;
 #[path = "probe_net/modules.rs"]
@@ -71,6 +75,10 @@ pub(crate) struct Case {
 /// A query where swb's value differs on purpose: (case, query index,
 /// swb's value, why).
 type Departure = (&'static str, usize, &'static str, &'static str);
+
+/// Queries that a later sub-feature runs: (case, query index or `None` for
+/// all, the sub-feature and what it needs).
+type Later = (&'static str, Option<usize>, &'static str);
 
 /// A request as `__log` lists it.
 #[derive(Clone)]
@@ -327,8 +335,21 @@ fn failures(
     departures: &'static [Departure],
     workers: usize,
 ) -> Vec<String> {
+    failures_but_later(cases, departures, &[], workers)
+}
+
+/// [`failures`] without the queries that `later` names.
+fn failures_but_later(
+    cases: &'static [Case],
+    departures: &'static [Departure],
+    later: &'static [Later],
+    workers: usize,
+) -> Vec<String> {
     let mut out = Vec::new();
     for case in cases {
+        if later.iter().any(|(c, i, _)| *c == case.name && i.is_none()) {
+            continue;
+        }
         let folder = format!("case-{}", case.name);
         let sim = Arc::new(Sim {
             folder: folder.clone(),
@@ -350,6 +371,15 @@ fn failures(
         page.navigate(Url::parse(&format!("{MAIN}/{folder}/{folder}.html")).unwrap());
         finish_loading(&mut page, Duration::from_secs(20));
         for (index, (query, expected)) in case.queries.iter().enumerate() {
+            if later
+                .iter()
+                .any(|(c, i, _)| *c == case.name && *i == Some(index))
+            {
+                // The page still runs the query: a later query may depend
+                // on what it did.
+                let _ = evaluate(&mut page, &sim, query);
+                continue;
+            }
             let want = departures
                 .iter()
                 .find(|(c, i, _, _)| *c == case.name && *i == index)
@@ -603,6 +633,94 @@ const MODULE_GRAPH_DEPARTURES: &[Departure] = &[
         SCHEDULING,
     ),
 ];
+
+const SCOPED_REGISTRIES: &str = "swb has no scoped custom element registries (no \
+     `CustomElementRegistry` constructor, no `initialize`, no `customElementRegistry`), no \
+     `ElementInternals`, `CustomStateSet` and `moveBefore` (ADR 0035 section 9; backlog)";
+
+/// The departures of the custom element probe (ADR 0035 sub-feature 4a).
+const CE_DEPARTURES: &[Departure] = &[
+    (
+        "api-surface",
+        0,
+        r#""constructor,define,get,getName,upgrade,whenDefined""#,
+        SCOPED_REGISTRIES,
+    ),
+    (
+        "api-surface",
+        4,
+        r#""TypeError: Failed to construct 'CustomElementRegistry': Illegal constructor""#,
+        SCOPED_REGISTRIES,
+    ),
+    (
+        "api-surface",
+        5,
+        r#""TypeError: Illegal constructor""#,
+        SCOPED_REGISTRIES,
+    ),
+    (
+        "api-surface",
+        6,
+        r#""undefined,false,undefined,undefined,undefined,undefined""#,
+        SCOPED_REGISTRIES,
+    ),
+    (
+        "define-errors",
+        10,
+        r#""DOMException NotSupportedError: Failed to execute 'define' on 'CustomElementRegistry': Customized built-in elements are not supported""#,
+        "swb has no customized built-in elements: a valid `extends` throws (ADR 0035 section 9)",
+    ),
+    (
+        "define-read-order",
+        1,
+        r#""C.prototype,connectedCallback,disconnectedCallback,connectedMoveCallback,adoptedCallback,attributeChangedCallback,C.observedAttributes,C.disabledFeatures,C.formAssociated,formAssociatedCallback,formResetCallback,formDisabledCallback,formStateRestoreCallback""#,
+        "swb does not read Chromium's own `toolFillCallback` (ADR 0035 section 9)",
+    ),
+];
+
+const SUB_4B: &str = "ADR 0035 sub-feature 4b: the reactions of DOM operations (insertion, \
+     removal, attribute changes, adoption, clones, `importNode`, fragment parsing)";
+const SUB_4C: &str = "ADR 0035 sub-feature 4c: synchronous construction in the parser";
+
+/// The cases of the custom element probe that ADR 0035 sub-features 4b
+/// (the reactions of DOM operations) and 4c (synchronous construction in
+/// the parser) run.
+const CE_LATER: &[Later] = &[
+    // `importNode` of template contents upgrades the copies.
+    ("upgrade-at-define", None, SUB_4B),
+    // The constructor's insertion of `b` upgrades it.
+    ("upgrade-reentrant", None, SUB_4B),
+    ("parser-sync", None, SUB_4C),
+    ("parser-sync-document-write", None, SUB_4C),
+    ("parser-sync-dynamic-markup", None, SUB_4C),
+    ("parser-sync-failures", None, SUB_4C),
+    ("fragment-parsing", None, SUB_4B),
+    ("clone-and-import", None, SUB_4B),
+    ("reactions-subtree", None, SUB_4B),
+    ("reactions-queue-order", None, SUB_4B),
+    ("reactions-nested", None, SUB_4B),
+    ("reactions-attributes", None, SUB_4B),
+    ("reactions-adopted", None, SUB_4B),
+    ("reactions-callback-throws", None, SUB_4B),
+    ("reactions-recursion-count", None, SUB_4B),
+    ("reactions-append-several", None, SUB_4B),
+    ("reactions-reinsert-loop", None, SUB_4B),
+    // `setAttribute` on a custom element.
+    ("derived-classes", Some(0), SUB_4B),
+    // The connected and attribute rows (the constructor row runs in 4a).
+    ("reactions-recursion-depth", Some(0), SUB_4B),
+    ("reactions-recursion-depth", Some(2), SUB_4B),
+    ("reactions-depth-limit", Some(1), SUB_4B),
+    ("reactions-depth-limit", Some(4), SUB_4B),
+];
+
+#[test]
+fn custom_element_probe_cases_match_chromium() {
+    on_page_thread(|| {
+        let failures = failures_but_later(custom_element_cases::CASES, CE_DEPARTURES, CE_LATER, 3);
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    });
+}
 
 #[test]
 fn module_graph_probe_cases_match_chromium() {

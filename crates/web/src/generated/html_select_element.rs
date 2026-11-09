@@ -106,7 +106,7 @@ fn set_autocomplete<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &s
         let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, "autocomplete", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, "autocomplete", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -124,7 +124,7 @@ fn set_disabled<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, "disabled", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, "disabled", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -150,7 +150,7 @@ fn set_multiple<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, "multiple", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, "multiple", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -168,7 +168,7 @@ fn set_name<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, "name", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, "name", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -186,7 +186,7 @@ fn set_required<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, "required", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, "required", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -204,7 +204,7 @@ fn set_size<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, "size", b::reflect::UnsignedLimit::None, Some(0), value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, "size", b::reflect::UnsignedLimit::None, Some(0), value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -238,7 +238,7 @@ fn set_length<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        <H as HTMLSelectElementImpl>::set_length(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLSelectElementImpl>::set_length(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -264,7 +264,7 @@ fn set_selected_index<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: 
         let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        <H as HTMLSelectElementImpl>::set_selected_index(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLSelectElementImpl>::set_selected_index(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -282,7 +282,7 @@ fn set_value<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLSelectElementImpl>::set_value(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLSelectElementImpl>::set_value(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -320,7 +320,12 @@ fn get_labels<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
 }
 
 pub(super) fn construct<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLSelectElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLSelectElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_SELECT_ELEMENT)
+    })
 }
 
 fn op_item<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -353,7 +358,7 @@ fn op_add<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nat
         let a0 = super::types::HTMLOptionElementOrHTMLOptGroupElement::from_js(rt, call.realm(), v).map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
         let a1 = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { super::types::HTMLElementOrLong::from_js(rt, call.realm(), v).map(Some) }).map_err(|e| e.argument(1))? };
-        <H as HTMLSelectElementImpl>::add(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, a0, a1)?;
+        b::ce::scope(rt, |rt| <H as HTMLSelectElementImpl>::add(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, a0, a1))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -363,13 +368,13 @@ fn op_remove<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
         match call.argc().min(1) {
             0 => {
-        <H as HTMLSelectElementImpl>::remove_1(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this)?;
+        b::ce::scope(rt, |rt| <H as HTMLSelectElementImpl>::remove_1(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this))?;
         Ok(swb_js::Value::Undefined)
             }
             _ => {
         let v = rt.arg(call, 0);
         let a0 = b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(0))?;
-        <H as HTMLSelectElementImpl>::remove_2(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as HTMLSelectElementImpl>::remove_2(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
             }
         }
@@ -422,7 +427,7 @@ fn legacy_indexed_get<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, 
 fn legacy_indexed_set<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, index: u32, v: swb_js::Value) -> b::Result<()> {
     let value = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::HTML_OPTION_ELEMENT, "HTMLOptionElement").map(Some) }).map_err(|e| e.argument(1))?;
     let this = b::legacy::node(this)?;
-    <H as HTMLSelectElementImpl>::indexed_setter(&mut b::Cx::without_call(rt, realm, super::HTML_SELECT_ELEMENT), this, index, value)
+    b::ce::scope(rt, |rt| <H as HTMLSelectElementImpl>::indexed_setter(&mut b::Cx::without_call(rt, realm, super::HTML_SELECT_ELEMENT), this, index, value))
 }
 
 /// The indexed and named properties of `HTMLSelectElement` (Web IDL §3.9).

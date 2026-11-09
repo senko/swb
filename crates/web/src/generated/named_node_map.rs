@@ -103,7 +103,7 @@ fn op_set_named_item<H: NamedNodeMapImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
         let a0 = b::convert::platform(rt, v, super::ATTR, "Attr").map_err(|e| e.argument(0))?;
-        let result = <H as NamedNodeMapImpl>::set_named_item(&mut b::Cx::new(rt, call, super::NAMED_NODE_MAP), this, a0)?;
+        let result = b::ce::scope(rt, |rt| <H as NamedNodeMapImpl>::set_named_item(&mut b::Cx::new(rt, call, super::NAMED_NODE_MAP), this, a0))?;
         Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
 }
@@ -114,7 +114,7 @@ fn op_set_named_item_ns<H: NamedNodeMapImpl>(rt: &mut swb_js::Runtime, call: &sw
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
         let a0 = b::convert::platform(rt, v, super::ATTR, "Attr").map_err(|e| e.argument(0))?;
-        let result = <H as NamedNodeMapImpl>::set_named_item_ns(&mut b::Cx::new(rt, call, super::NAMED_NODE_MAP), this, a0)?;
+        let result = b::ce::scope(rt, |rt| <H as NamedNodeMapImpl>::set_named_item_ns(&mut b::Cx::new(rt, call, super::NAMED_NODE_MAP), this, a0))?;
         Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
 }
@@ -125,7 +125,7 @@ fn op_remove_named_item<H: NamedNodeMapImpl>(rt: &mut swb_js::Runtime, call: &sw
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
         let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
-        let result = <H as NamedNodeMapImpl>::remove_named_item(&mut b::Cx::new(rt, call, super::NAMED_NODE_MAP), this, a0)?;
+        let result = b::ce::scope(rt, |rt| <H as NamedNodeMapImpl>::remove_named_item(&mut b::Cx::new(rt, call, super::NAMED_NODE_MAP), this, a0))?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
@@ -138,7 +138,7 @@ fn op_remove_named_item_ns<H: NamedNodeMapImpl>(rt: &mut swb_js::Runtime, call: 
         let a0 = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
         let a1 = b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?;
-        let result = <H as NamedNodeMapImpl>::remove_named_item_ns(&mut b::Cx::new(rt, call, super::NAMED_NODE_MAP), this, a0, a1)?;
+        let result = b::ce::scope(rt, |rt| <H as NamedNodeMapImpl>::remove_named_item_ns(&mut b::Cx::new(rt, call, super::NAMED_NODE_MAP), this, a0, a1))?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }

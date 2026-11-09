@@ -471,7 +471,13 @@ impl<'a> StateSet<'a> {
 
     /// The states of an element that do not depend on its attributes.
     fn interaction_state(&self, id: NodeId) -> ElementState {
-        let mut state = ElementState::DEFINED;
+        // HTML "defined" (ADR 0035 section 1): not an element with a custom
+        // element name before its upgrade, also with JavaScript off.
+        let mut state = if self.doc.element(id).is_none_or(ElementData::is_defined) {
+            ElementState::DEFINED
+        } else {
+            ElementState::empty()
+        };
         if self.hover_chain.contains(&id) {
             state |= ElementState::HOVER;
         }

@@ -34,6 +34,7 @@ MODULES = (
     "write_cssom_modules",
     "frames",
     "storage_iterator",
+    "custom_elements",
 )
 for _module in MODULES:
     importlib.import_module(f"{__name__}.{_module}")

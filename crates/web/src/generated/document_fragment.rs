@@ -102,7 +102,7 @@ fn op_prepend<H: DocumentFragmentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as DocumentFragmentImpl>::prepend(&mut b::Cx::new(rt, call, super::DOCUMENT_FRAGMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as DocumentFragmentImpl>::prepend(&mut b::Cx::new(rt, call, super::DOCUMENT_FRAGMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -115,7 +115,7 @@ fn op_append<H: DocumentFragmentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as DocumentFragmentImpl>::append(&mut b::Cx::new(rt, call, super::DOCUMENT_FRAGMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as DocumentFragmentImpl>::append(&mut b::Cx::new(rt, call, super::DOCUMENT_FRAGMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -128,7 +128,7 @@ fn op_replace_children<H: DocumentFragmentImpl>(rt: &mut swb_js::Runtime, call: 
             let v = rt.arg(call, i);
             a0.push(super::types::NodeOrDomString::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
         }
-        <H as DocumentFragmentImpl>::replace_children(&mut b::Cx::new(rt, call, super::DOCUMENT_FRAGMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as DocumentFragmentImpl>::replace_children(&mut b::Cx::new(rt, call, super::DOCUMENT_FRAGMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }

@@ -152,6 +152,7 @@ outerHeight:aec
 devicePixelRatio:aec
 event:aec
 originAgentCluster:aec
+customElements:aec
 performance:aec
 crypto:aec
 onabort:aec
@@ -299,6 +300,7 @@ Window:dwc
 HTMLDocument:dwc
 HTMLElement:dwc
 HTMLUnknownElement:dwc
+CustomElementRegistry:dwc
 DOMStringMap:dwc
 HTMLHtmlElement:dwc
 HTMLHeadElement:dwc

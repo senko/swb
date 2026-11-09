@@ -13,6 +13,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use html5ever::{LocalName, QualName, local_name, ns};
 
+use crate::custom::CustomElementState;
 use crate::id_index::IdIndex;
 use crate::journal::{Journal, MutationSink};
 
@@ -85,18 +86,70 @@ pub struct ElementData {
     /// off), so the script never runs. The bindings keep the rest of the
     /// state of a script element (feature 5c of M8).
     pub script_already_started: bool,
+    /// DOM "custom element state" (ADR 0035 section 1; `custom.rs`).
+    pub(crate) custom_state: CustomElementState,
+    /// The number of the element's custom element definition in the
+    /// script runtime's table; 0 for none.
+    pub(crate) definition: u32,
 }
 
 impl ElementData {
-    /// Creates element data.
+    /// Creates element data. An HTML element with a valid custom element
+    /// name starts in the custom element state `undefined`, any other in
+    /// `uncustomized`.
+    #[inline]
     pub fn new(name: QualName, attrs: Vec<Attribute>) -> Self {
+        let custom_state = CustomElementState::initial(name.ns == ns!(html), &name.local);
         ElementData {
             name,
             attrs,
             template_contents: None,
             parser_form: None,
             script_already_started: false,
+            custom_state,
+            definition: 0,
         }
+    }
+
+    /// [`ElementData::new`] for a caller that knows whether the local name
+    /// has a hyphen (it validated the name): without one, the element is
+    /// `uncustomized` and the name needs no scan. A wrong `hyphen` is the
+    /// caller's bug (checked in debug builds).
+    #[inline]
+    pub fn new_with_hyphen(name: QualName, attrs: Vec<Attribute>, hyphen: bool) -> Self {
+        debug_assert_eq!(hyphen, name.local.contains('-'));
+        let custom_state = if hyphen {
+            CustomElementState::initial(name.ns == ns!(html), &name.local)
+        } else {
+            CustomElementState::Uncustomized
+        };
+        ElementData {
+            name,
+            attrs,
+            template_contents: None,
+            parser_form: None,
+            script_already_started: false,
+            custom_state,
+            definition: 0,
+        }
+    }
+
+    /// DOM "custom element state".
+    pub fn custom_element_state(&self) -> CustomElementState {
+        self.custom_state
+    }
+
+    /// HTML "defined" (`:defined`): the custom element state is
+    /// `uncustomized` or `custom`.
+    pub fn is_defined(&self) -> bool {
+        self.custom_state.is_defined()
+    }
+
+    /// The state of a copy of the element (DOM "clone a single node" creates
+    /// the copy as a new element): its initial state, without a definition.
+    pub(crate) fn reset_custom_element_state(&mut self) {
+        self.custom_state = CustomElementState::initial(self.is_html(), &self.name.local);
+        self.definition = 0;
     }
 
     /// The local name, for example `div`.
@@ -403,6 +456,15 @@ pub struct Document {
     pub(crate) scratch_body: Option<NodeId>,
     /// The `NodeIterator` positions of the arena (`iterator.rs`).
     pub(crate) iterators: crate::iterator::NodeIterators,
+    /// The local names of the elements that the arena created in the custom
+    /// element state `undefined` (`custom.rs`).
+    /// `None` until the first one: a fragment parse makes a new arena, and
+    /// an empty set costs at its creation and drop.
+    pub(crate) custom_names: Option<std::collections::HashSet<LocalName>>,
+    /// A connected element became defined or undefined since the last
+    /// [`Document::take_defined_changed`] (`:defined` may match differently;
+    /// ADR 0035 "4a implementation notes").
+    pub(crate) defined_changed: bool,
     arena_id: u64,
 }
 
@@ -452,6 +514,8 @@ impl Document {
             scratch_fragment: None,
             scratch_body: None,
             iterators: crate::iterator::NodeIterators::default(),
+            custom_names: None,
+            defined_changed: false,
             arena_id: NEXT_ARENA_ID.fetch_add(1, Ordering::Relaxed),
         }
     }

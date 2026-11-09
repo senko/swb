@@ -26,7 +26,7 @@ fn set_reversed<H: HTMLOListElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js
         let this = b::glue::this_node(rt, call, super::HTMLO_LIST_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTMLO_LIST_ELEMENT), this, "reversed", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTMLO_LIST_ELEMENT), this, "reversed", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -44,7 +44,7 @@ fn set_start<H: HTMLOListElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
         let this = b::glue::this_node(rt, call, super::HTMLO_LIST_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_long::<H>(&mut b::Cx::new(rt, call, super::HTMLO_LIST_ELEMENT), this, "start", false, value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_long::<H>(&mut b::Cx::new(rt, call, super::HTMLO_LIST_ELEMENT), this, "start", false, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -62,13 +62,18 @@ fn set_type<H: HTMLOListElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Na
         let this = b::glue::this_node(rt, call, super::HTMLO_LIST_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLO_LIST_ELEMENT), this, "type", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTMLO_LIST_ELEMENT), this, "type", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
 
 pub(super) fn construct<H: HTMLOListElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLOListElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLOListElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTMLO_LIST_ELEMENT)
+    })
 }
 
 /// Creates the interface object and the prototype of `HTMLOListElement` in `realm`

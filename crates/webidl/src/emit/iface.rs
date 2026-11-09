@@ -362,6 +362,7 @@ impl Gen<'_> {
             "b::Cx::new(rt, call, CLASS)",
             &format!("b::Cx::new(rt, call, super::{})", constant(&iface.name)),
         );
+        let call_impl = ce_reactions(&attr.ext_attrs, call_impl);
         // Web IDL §3.7.6 (attribute setters): a string that is not a value of
         // an enumeration type is ignored, without an exception.
         let is_enum = matches!(
@@ -459,13 +460,14 @@ impl Gen<'_> {
                 .iter()
                 .any(|op| op.ext_attrs.has("HTMLConstructor"))
         {
-            // Element constructors are for custom elements; swb has none,
-            // so `new` throws (Chromium: "Illegal constructor").
+            // HTML §3.2.3 "HTML element constructors": the host runs the
+            // steps with the interface's class (ADR 0035 section 4).
             let _ = writeln!(
                 glue,
-                "pub(super) fn construct<H: {0}Impl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {{\n    b::glue::run(rt, call, b::Context::Constructor({1}), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error(\"Illegal constructor\")))\n}}\n",
+                "pub(super) fn construct<H: {0}Impl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {{\n    b::glue::run(rt, call, b::Context::Constructor({1}), super::DOM_EXCEPTION, |rt| {{\n        if call.new_target().is_undefined() {{\n            return Err(b::Exception::type_error(\"Please use the 'new' operator, this DOM object constructor cannot be called as a function.\"));\n        }}\n        <H as b::Host>::html_constructor(rt, call, super::{2})\n    }})\n}}\n",
                 iface.name,
-                literal(&iface.name)
+                literal(&iface.name),
+                constant(&iface.name)
             );
             return Ok(());
         }
@@ -787,6 +789,7 @@ impl Gen<'_> {
             args.join(", ")
         )
         .replace(", )", ")");
+        let call = ce_reactions(&op.ext_attrs, call);
         if constructor {
             let _ = writeln!(
                 body,
@@ -1337,6 +1340,17 @@ fn arg_ident(name: &str) -> String {
 }
 
 /// The context argument of a member's trait call.
+/// The call of a hand-written member in the `[CEReactions]` scope (HTML
+/// §4.13.7.4, ADR 0035 section 6) if the member has the attribute: after the
+/// argument conversions, around the call only.
+pub(super) fn ce_reactions(attrs: &crate::ast::ExtAttrs, call: String) -> String {
+    if attrs.has("CEReactions") {
+        format!("b::ce::scope(rt, |rt| {call})")
+    } else {
+        call
+    }
+}
+
 fn cx(iface: &Iface) -> String {
     format!(
         "&mut b::Cx::new(rt, call, super::{})",

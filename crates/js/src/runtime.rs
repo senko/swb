@@ -631,6 +631,27 @@ impl Runtime {
         self.finish(result)
     }
 
+    /// `Construct(callee, args)` from the host, as [`Runtime::call_function`]
+    /// calls: an exception comes back as a [`ScriptError`] with the thrown
+    /// value as [`Runtime::last_value`], so that the host can report it
+    /// (the constructor of a custom element, ADR 0035 section 4).
+    pub fn construct_function(
+        &mut self,
+        callee: Value,
+        args: &[Value],
+    ) -> Result<Value, ScriptError> {
+        self.vm.error_offset = None;
+        let start = self.run_start();
+        let scope = self.heap.open_scope();
+        let result = self.construct(callee, args);
+        if result.is_err() {
+            self.restore_run_start(&start);
+        } else if let Err(error) = self.heap.close_scope(scope) {
+            return Err(finish_error(error.into()));
+        }
+        self.finish(result)
+    }
+
     /// Turns the result of a run into the API's result and keeps the value
     /// alive until the next run.
     pub(crate) fn finish(&mut self, result: VmResult<Value>) -> Result<Value, ScriptError> {
@@ -1057,6 +1078,15 @@ impl Runtime {
     pub fn throw_location(&self) -> Option<SourceLocation> {
         let (offset, code) = self.vm.error_offset.as_deref()?;
         Some(SourceLocation::of(code, *offset))
+    }
+
+    /// The place in the innermost running script: the call site of the
+    /// running native function (the host reports an error that it made
+    /// there without throwing it, ADR 0035 section 4).
+    pub fn script_location(&self) -> Option<SourceLocation> {
+        let frame = self.vm.frames.last()?;
+        let offset = crate::vm::frame_offset(frame)?;
+        Some(SourceLocation::of(&frame.compiled, offset))
     }
 
     /// The line and column (both from 1) of a code-unit offset in a

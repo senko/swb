@@ -75,7 +75,7 @@ fn set_caption<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_TABLE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::HTML_TABLE_CAPTION_ELEMENT, "HTMLTableCaptionElement").map(Some) }).map_err(b::Exception::nested)?;
-        <H as HTMLTableElementImpl>::set_caption(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLTableElementImpl>::set_caption(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -93,7 +93,7 @@ fn set_t_head<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_TABLE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::HTML_TABLE_SECTION_ELEMENT, "HTMLTableSectionElement").map(Some) }).map_err(b::Exception::nested)?;
-        <H as HTMLTableElementImpl>::set_t_head(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLTableElementImpl>::set_t_head(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -111,7 +111,7 @@ fn set_t_foot<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_node(rt, call, super::HTML_TABLE_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::HTML_TABLE_SECTION_ELEMENT, "HTMLTableSectionElement").map(Some) }).map_err(b::Exception::nested)?;
-        <H as HTMLTableElementImpl>::set_t_foot(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLTableElementImpl>::set_t_foot(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -133,7 +133,12 @@ fn get_rows<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Na
 }
 
 pub(super) fn construct<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLTableElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLTableElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_TABLE_ELEMENT)
+    })
 }
 
 fn op_create_caption<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -147,7 +152,7 @@ fn op_create_caption<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &s
 fn op_delete_caption<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("HTMLTableElement", "deleteCaption"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::HTML_TABLE_ELEMENT)?;
-        <H as HTMLTableElementImpl>::delete_caption(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this)?;
+        b::ce::scope(rt, |rt| <H as HTMLTableElementImpl>::delete_caption(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -163,7 +168,7 @@ fn op_create_t_head<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &sw
 fn op_delete_t_head<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("HTMLTableElement", "deleteTHead"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::HTML_TABLE_ELEMENT)?;
-        <H as HTMLTableElementImpl>::delete_t_head(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this)?;
+        b::ce::scope(rt, |rt| <H as HTMLTableElementImpl>::delete_t_head(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -179,7 +184,7 @@ fn op_create_t_foot<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &sw
 fn op_delete_t_foot<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("HTMLTableElement", "deleteTFoot"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::HTML_TABLE_ELEMENT)?;
-        <H as HTMLTableElementImpl>::delete_t_foot(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this)?;
+        b::ce::scope(rt, |rt| <H as HTMLTableElementImpl>::delete_t_foot(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -208,7 +213,7 @@ fn op_delete_row<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
         let a0 = b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(0))?;
-        <H as HTMLTableElementImpl>::delete_row(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this, a0)?;
+        b::ce::scope(rt, |rt| <H as HTMLTableElementImpl>::delete_row(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }

@@ -1062,7 +1062,7 @@ impl Runtime {
     /// the new object, recorded in the current handle scope. Like
     /// [`Runtime::call`], script code runs in a nested interpreter loop
     /// that charges the shared recursion budget.
-    pub(crate) fn construct(&mut self, callee: Value, args: &[Value]) -> VmResult<Value> {
+    pub fn construct(&mut self, callee: Value, args: &[Value]) -> VmResult<Value> {
         if self.budget.enter(REENTRY_WEIGHT).is_err() {
             return Err(VmError::range_error(STACK_OVERFLOW));
         }

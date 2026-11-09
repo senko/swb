@@ -16,6 +16,7 @@
 //! document; those of other interfaces to a [`Platform`] (the object and its
 //! host data).
 
+pub mod ce;
 pub mod convert;
 pub mod dom_exception;
 pub mod exception;
@@ -262,6 +263,14 @@ pub trait Host: HostState + Sized {
     /// `[ReflectURL]`: `value` parsed relative to the base URL of the node
     /// document of `element` and serialized, or `None` on failure.
     fn reflect_url(cx: &mut Cx<'_>, element: NodeId, value: &str) -> Option<String>;
+
+    /// The steps of an HTML element constructor (`[HTMLConstructor]`, HTML
+    /// §3.2.3) of the interface `class`, called with `new`: the element of a
+    /// custom element definition. The default has no definitions.
+    fn html_constructor(rt: &mut Runtime, call: &NativeCall, class: ClassId) -> Result<Value> {
+        let _ = (rt, call, class);
+        Err(Exception::type_error("Illegal constructor"))
+    }
 
     /// The getter of an event handler IDL attribute `name` (`onclick`) of
     /// `target` (HTML "getting the current value of the event handler"):

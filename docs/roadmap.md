@@ -4714,7 +4714,18 @@ Steps:
         the element state and `:defined`, the engine API, the registry,
         `[HTMLConstructor]`, "create an element", upgrades, the reaction
         machinery with Chromium's nesting limit of 43, `[CEReactions]` in
-        the generator with a fast path.
+        the generator with a fast path. Done (2026-11-09): `define` with
+        Chromium's checks, order of reads and messages, `get`, `getName`,
+        `whenDefined`, `upgrade`; `HTMLElement` as a constructor base with
+        the construction stack; `createElement` constructs inside the call
+        and reports a failure with the `HTMLUnknownElement` fallback;
+        upgrades at `define`; the reaction machinery; `:defined` from the
+        element state, also with JavaScript off. 70 probe queries match
+        Chromium, 6 are departures, 39 wait for 4b and 4c. Cost without a
+        definition: each binding row within +1 % (callgrind). GitHub: its
+        definitions succeed and its 10 elements are upgraded at their
+        `define`; JS-on geometry 0.79 to 0.89, pixels 0.975 to 0.988; the
+        `relative-time` constructions stop at `attachShadow` (feature 5).
       - 4b reactions of DOM operations (`implementer`): insertion,
         removal, attributes, adoption, clones, fragment parsing. GitHub's
         elements are upgraded and their callbacks run after 4b.
@@ -4787,7 +4798,10 @@ Steps:
   `define`); scoped registries (`new CustomElementRegistry()`,
   `initialize`, `customElementRegistry`); `ElementInternals`,
   form-associated custom elements and `:state()`; `moveBefore` and
-  `connectedMoveCallback`. GitHub uses none of them.
+  `connectedMoveCallback`. GitHub uses none of them. Found in 4a:
+  `Element.ariaNotify` (without it GitHub loads a polyfill that defines
+  one more custom element than in Chromium); `customElements.upgrade(root)`
+  takes only nodes of the current document.
 - Modules (ADR 0034): JSON and CSS modules (import attributes with
   `type`; GitHub uses none; swb rejects them with `TypeError: Unsupported
   module type 'json'`, a text that Chromium has no reason to give). The

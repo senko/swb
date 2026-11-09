@@ -82,7 +82,7 @@ fn set_css_text<H: CSSStyleDeclarationImpl>(rt: &mut swb_js::Runtime, call: &swb
         let this = b::glue::this_platform(rt, call, super::CSS_STYLE_DECLARATION)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string_null_empty(rt, v).map_err(b::Exception::nested)?;
-        <H as CSSStyleDeclarationImpl>::set_css_text(&mut b::Cx::new(rt, call, super::CSS_STYLE_DECLARATION), this, value)?;
+        b::ce::scope(rt, |rt| <H as CSSStyleDeclarationImpl>::set_css_text(&mut b::Cx::new(rt, call, super::CSS_STYLE_DECLARATION), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -116,7 +116,7 @@ fn set_css_float<H: CSSStyleDeclarationImpl>(rt: &mut swb_js::Runtime, call: &sw
         let this = b::glue::this_platform(rt, call, super::CSS_STYLE_DECLARATION)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string_null_empty(rt, v).map_err(b::Exception::nested)?;
-        <H as CSSStyleDeclarationImpl>::set_css_float(&mut b::Cx::new(rt, call, super::CSS_STYLE_DECLARATION), this, value)?;
+        b::ce::scope(rt, |rt| <H as CSSStyleDeclarationImpl>::set_css_float(&mut b::Cx::new(rt, call, super::CSS_STYLE_DECLARATION), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -164,7 +164,7 @@ fn op_set_property<H: CSSStyleDeclarationImpl>(rt: &mut swb_js::Runtime, call: &
         let a1 = b::convert::dom_string_null_empty(rt, v).map_err(|e| e.argument(1))?;
         let v = rt.arg(call, 2);
         let a2 = if v.is_undefined() { String::new() } else { b::convert::dom_string_null_empty(rt, v).map_err(|e| e.argument(2))? };
-        <H as CSSStyleDeclarationImpl>::set_property(&mut b::Cx::new(rt, call, super::CSS_STYLE_DECLARATION), this, a0, a1, a2)?;
+        b::ce::scope(rt, |rt| <H as CSSStyleDeclarationImpl>::set_property(&mut b::Cx::new(rt, call, super::CSS_STYLE_DECLARATION), this, a0, a1, a2))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -175,7 +175,7 @@ fn op_remove_property<H: CSSStyleDeclarationImpl>(rt: &mut swb_js::Runtime, call
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
         let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
-        let result = <H as CSSStyleDeclarationImpl>::remove_property(&mut b::Cx::new(rt, call, super::CSS_STYLE_DECLARATION), this, a0)?;
+        let result = b::ce::scope(rt, |rt| <H as CSSStyleDeclarationImpl>::remove_property(&mut b::Cx::new(rt, call, super::CSS_STYLE_DECLARATION), this, a0))?;
         Ok(b::to_js::string(rt, &result)?)
     })
 }

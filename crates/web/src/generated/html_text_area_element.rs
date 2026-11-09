@@ -99,7 +99,7 @@ fn set_autocomplete<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime, call: 
         let this = b::glue::this_node(rt, call, super::HTML_TEXT_AREA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "autocomplete", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "autocomplete", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -117,7 +117,7 @@ fn set_cols<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_TEXT_AREA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "cols", b::reflect::UnsignedLimit::PositiveWithFallback, Some(20), value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "cols", b::reflect::UnsignedLimit::PositiveWithFallback, Some(20), value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -135,7 +135,7 @@ fn set_dir_name<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime, call: &swb
         let this = b::glue::this_node(rt, call, super::HTML_TEXT_AREA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "dirname", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "dirname", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -153,7 +153,7 @@ fn set_disabled<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime, call: &swb
         let this = b::glue::this_node(rt, call, super::HTML_TEXT_AREA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "disabled", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "disabled", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -179,7 +179,7 @@ fn set_max_length<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime, call: &s
         let this = b::glue::this_node(rt, call, super::HTML_TEXT_AREA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_long::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "maxlength", true, value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_long::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "maxlength", true, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -197,7 +197,7 @@ fn set_min_length<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime, call: &s
         let this = b::glue::this_node(rt, call, super::HTML_TEXT_AREA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_long::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "minlength", true, value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_long::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "minlength", true, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -215,7 +215,7 @@ fn set_name<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_TEXT_AREA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "name", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "name", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -233,7 +233,7 @@ fn set_placeholder<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime, call: &
         let this = b::glue::this_node(rt, call, super::HTML_TEXT_AREA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "placeholder", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "placeholder", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -251,7 +251,7 @@ fn set_read_only<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime, call: &sw
         let this = b::glue::this_node(rt, call, super::HTML_TEXT_AREA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "readonly", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "readonly", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -269,7 +269,7 @@ fn set_required<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime, call: &swb
         let this = b::glue::this_node(rt, call, super::HTML_TEXT_AREA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "required", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "required", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -287,7 +287,7 @@ fn set_rows<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_TEXT_AREA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "rows", b::reflect::UnsignedLimit::PositiveWithFallback, Some(2), value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "rows", b::reflect::UnsignedLimit::PositiveWithFallback, Some(2), value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -305,7 +305,7 @@ fn set_wrap<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_node(rt, call, super::HTML_TEXT_AREA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "wrap", &value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, "wrap", &value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -331,7 +331,7 @@ fn set_default_value<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime, call:
         let this = b::glue::this_node(rt, call, super::HTML_TEXT_AREA_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
-        <H as HTMLTextAreaElementImpl>::set_default_value(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, value)?;
+        b::ce::scope(rt, |rt| <H as HTMLTextAreaElementImpl>::set_default_value(&mut b::Cx::new(rt, call, super::HTML_TEXT_AREA_ELEMENT), this, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -449,7 +449,12 @@ fn set_selection_direction<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime,
 }
 
 pub(super) fn construct<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Constructor("HTMLTextAreaElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+    b::glue::run(rt, call, b::Context::Constructor("HTMLTextAreaElement"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        <H as b::Host>::html_constructor(rt, call, super::HTML_TEXT_AREA_ELEMENT)
+    })
 }
 
 fn op_check_validity<H: HTMLTextAreaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {

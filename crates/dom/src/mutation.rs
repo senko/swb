@@ -122,24 +122,40 @@ impl Document {
     /// Creates a detached node whose node document is `owner` (a document
     /// node; a new document node is its own), without the limit check. An
     /// HTML `template` element gets its template contents.
+    #[inline]
     pub(crate) fn push_node(&mut self, data: NodeData, owner: NodeId) -> NodeId {
         let id = NodeId::from_index(self.nodes.len())
             .expect("the node limits keep the arena far below 2^32 nodes");
         let is_document = matches!(data, NodeData::Document);
-        let is_template =
-            matches!(&data, NodeData::Element(e) if e.is_html_named(&local_name!("template")));
+        // One test of the node kind for both element flags.
+        let (is_template, undefined) = match &data {
+            NodeData::Element(e) => (
+                e.is_html_named(&local_name!("template")),
+                e.custom_state == crate::CustomElementState::Undefined,
+            ),
+            _ => (false, false),
+        };
         self.text_bytes += data_bytes(&data);
+        if undefined {
+            self.note_custom_name(&data);
+        }
         let owner = if is_document { id } else { owner };
         self.nodes.push(crate::tree::Node::new(data, owner));
         if is_template {
-            let contents_owner = self.template_contents_owner(owner);
-            let contents = self.push_node(NodeData::DocumentFragment, contents_owner);
-            if let Some(e) = self.element_mut(id) {
-                e.template_contents = Some(contents);
-            }
-            self.template_hosts.insert(contents, id);
+            self.add_template_contents(id, owner);
         }
         id
+    }
+
+    /// Gives the new `template` element `id` its contents fragment.
+    #[inline(never)]
+    fn add_template_contents(&mut self, id: NodeId, owner: NodeId) {
+        let contents_owner = self.template_contents_owner(owner);
+        let contents = self.push_node(NodeData::DocumentFragment, contents_owner);
+        if let Some(e) = self.element_mut(id) {
+            e.template_contents = Some(contents);
+        }
+        self.template_hosts.insert(contents, id);
     }
 
     /// The template contents owner document of the document `doc`: an

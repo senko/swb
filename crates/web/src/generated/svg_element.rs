@@ -115,7 +115,7 @@ fn set_autofocus<H: SVGElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nat
         let this = b::glue::this_node(rt, call, super::SVG_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
-        b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::SVG_ELEMENT), this, "autofocus", value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_boolean::<H>(&mut b::Cx::new(rt, call, super::SVG_ELEMENT), this, "autofocus", value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -133,7 +133,7 @@ fn set_tab_index<H: SVGElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nat
         let this = b::glue::this_node(rt, call, super::SVG_ELEMENT)?;
         let v = rt.arg(call, 0);
         let value = b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
-        b::reflect::set_long::<H>(&mut b::Cx::new(rt, call, super::SVG_ELEMENT), this, "tabindex", false, value)?;
+        b::ce::scope(rt, |rt| b::reflect::set_long::<H>(&mut b::Cx::new(rt, call, super::SVG_ELEMENT), this, "tabindex", false, value))?;
         Ok(swb_js::Value::Undefined)
     })
 }
