@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use swb_dom::{Document, NodeId};
 
 use super::select::{detached_options, settle};
-use super::{ControlState, ControlType, Forms, InputType, in_document};
+use super::{ControlState, ControlType, Forms, InputType, in_window_document};
 
 /// What a script wrote to one control.
 #[derive(Clone, Debug, Default)]
@@ -317,7 +317,7 @@ impl Forms {
         if !radios.is_empty() {
             self.stamp_seeded_radios(doc, radios);
             let checked: Vec<NodeId> = doc
-                .descendants(NodeId::DOCUMENT)
+                .shadow_including_descendants(NodeId::DOCUMENT)
                 .filter(|&n| {
                     self.get(n)
                         .is_some_and(|s| s.ty == ControlType::Input(InputType::Radio) && s.checked)
@@ -338,7 +338,7 @@ impl Forms {
         let mut rank: HashMap<NodeId, usize> = HashMap::new();
         if radios.iter().any(|&(stamp, _)| stamp == 0) {
             rank = doc
-                .descendants(NodeId::DOCUMENT)
+                .shadow_including_descendants(NodeId::DOCUMENT)
                 .enumerate()
                 .map(|(i, n)| (n, i))
                 .collect();
@@ -447,7 +447,7 @@ pub(crate) fn select_of_option(doc: &Document, option: NodeId) -> Option<NodeId>
 
 /// True if the select is in the document (it has a state in [`Forms`]).
 pub(crate) fn select_is_attached(doc: &Document, select: NodeId) -> bool {
-    in_document(doc, select)
+    in_window_document(doc, select)
 }
 
 /// The options of a select that is not in the document, with the

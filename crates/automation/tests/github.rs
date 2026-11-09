@@ -19,8 +19,10 @@
 //!
 //! The same load also counts the custom element callbacks (ADR 0035
 //! sub-feature 4b; `custom_elements/reactions.rs` logs each callback at the
-//! `debug` level) and compares them with Chromium's replay. One test does
-//! both: the logger is global, and two loads at once would mix their lines.
+//! `debug` level) and compares them with Chromium's replay, and reads the
+//! shadow roots of `relative-time` and `tool-tip` (ADR 0036 sub-feature 5a).
+//! One test does all: the logger is global, and two loads at once would mix
+//! their lines.
 
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
@@ -106,8 +108,35 @@ fn github_module_scripts_run_in_document_order_and_custom_element_callbacks_matc
             "console errors about modules: {module_errors:?}"
         );
         custom_element_callbacks(&lines);
+        shadow_roots(&value(&mut page, SHADOW_ROOTS));
     });
 }
+
+/// The shadow roots of the page as the test reads them: the number of hosts,
+/// the text of the `part="root"` span of each `relative-time` root in document
+/// order, and the `style` and `slot` children of `tool-tip`'s root with the
+/// text that the slot gets.
+const SHADOW_ROOTS: &str = "(() => {
+    const all = Array.from(document.querySelectorAll('*'));
+    const hosts = all.filter(e => e.shadowRoot);
+    const times = Array.from(document.querySelectorAll('relative-time')).map(e => {
+        const span = e.shadowRoot && e.shadowRoot.querySelector('span[part=root]');
+        return span ? span.textContent : null;
+    });
+    const tip = document.querySelector('tool-tip');
+    const root = tip && tip.shadowRoot;
+    const slot = root && root.querySelector('slot');
+    return {
+        hosts: hosts.length,
+        times,
+        tip: root ? {
+            children: Array.from(root.children).map(c => c.localName),
+            styles: root.querySelectorAll('style').length,
+            hostStyle: Array.from(root.querySelectorAll('style')).some(s => s.textContent.includes('--tooltip-top')),
+            slotted: slot ? slot.assignedNodes().map(n => n.textContent.trim()) : null,
+        } : null,
+    };
+})()";
 
 /// The number of callback lines that start with `prefix`.
 fn count(callbacks: &[&str], prefix: &str) -> usize {
@@ -117,12 +146,13 @@ fn count(callbacks: &[&str], prefix: &str) -> usize {
 /// Chromium's replay of the page (ADR 0035 "What GitHub needs") has 35
 /// `connectedCallback` and 76 `attributeChangedCallback` calls. 23 and 69 of
 /// them belong to the 23 `relative-time` elements, whose constructor calls
-/// `attachShadow`; swb has no shadow roots until M10 feature 5, so those
-/// constructions fail and the elements get no callbacks. The other elements
-/// match: 12 `connectedCallback` and 7 `attributeChangedCallback` (`tool-tip`
-/// 1 and 4, `ghcc-consent` 1 and 3, `react-partial` 4, `react-app` 1,
-/// `turbo-frame` 1, `cookie-consent-link` 2, `clipboard-copy` 2). No
-/// disconnected or adopted callback.
+/// `attachShadow` (ADR 0036 sub-feature 5a): `createElement` constructs them,
+/// the page sets their attributes and inserts them, and the sink enqueues
+/// these callbacks. The other elements get theirs from their upgrades: 12
+/// `connectedCallback` and 7 `attributeChangedCallback` (`tool-tip` 1 and 4,
+/// `ghcc-consent` 1 and 3, `react-partial` 4, `react-app` 1, `turbo-frame` 1,
+/// `cookie-consent-link` 2, `clipboard-copy` 2). No disconnected or adopted
+/// callback.
 fn custom_element_callbacks(lines: &[String]) {
     let callbacks: Vec<&str> = lines
         .iter()
@@ -138,24 +168,65 @@ fn custom_element_callbacks(lines: &[String]) {
         count(&callbacks, "connectedCallback "),
         count(&callbacks, "attributeChangedCallback "),
     );
-    assert_eq!(connected, 12, "{callbacks:?}");
-    assert_eq!(changed, 7, "{callbacks:?}");
+    assert_eq!(connected, 35, "{callbacks:?}");
+    assert_eq!(changed, 76, "{callbacks:?}");
     // The origin of the callbacks: an upgrade enqueues the attributes and
     // the connected callback of an element that was in the document before
     // its definition; the sink enqueues what the DOM changes cause later.
-    // The page defines its elements after the parser made them and changes
-    // none of their attributes afterwards, so all 19 come from upgrades and
-    // the sink enqueues none (measured). The unit tests and the probe cases
-    // cover the sink; this assertion fails when the sink starts to enqueue
-    // callbacks that Chromium does not have for this page.
+    // The page defines its parsed elements after the parser made them, so
+    // their 19 callbacks come from upgrades; the 23 `relative-time` elements
+    // that scripts make get theirs from the sink.
     assert_eq!(count(&callbacks, "connectedCallback (upgrade)"), 12);
     assert_eq!(count(&callbacks, "attributeChangedCallback (upgrade)"), 7);
-    assert_eq!(count(&callbacks, "connectedCallback (sink)"), 0);
-    assert_eq!(count(&callbacks, "attributeChangedCallback (sink)"), 0);
     assert_eq!(
-        count(&callbacks, "connectedCallback (upgrade): relative-time")
-            + count(&callbacks, "connectedCallback (sink): relative-time"),
-        0,
-        "relative-time needs attachShadow (feature 5)"
+        count(&callbacks, "connectedCallback (sink): relative-time"),
+        23
+    );
+    assert_eq!(
+        count(&callbacks, "attributeChangedCallback (sink): relative-time"),
+        69
+    );
+}
+
+/// The replay's shadow roots (ADR 0036 "What GitHub needs"): 24 hosts; the
+/// `part="root"` span of each of the 23 `relative-time` roots has the text of
+/// the replay at the page clock, in document order; `tool-tip`'s root has
+/// its `style` with the `:host` rules and a default slot that gets the light
+/// text "Dismiss alert".
+fn shadow_roots(roots: &serde_json::Value) {
+    assert_eq!(roots["hosts"], 24, "{roots}");
+    let times: Vec<String> = serde_json::from_value(roots["times"].clone()).unwrap();
+    let replay = [
+        "4 days ago",
+        "4 days ago",
+        "2 weeks ago",
+        "2 weeks ago",
+        "4 days ago",
+        "4 days ago",
+        "2 weeks ago",
+        "2 weeks ago",
+        "4 days ago",
+        "3 weeks ago",
+        "3 weeks ago",
+        "3 weeks ago",
+        "last week",
+        "4 days ago",
+        "4 days ago",
+        "3 weeks ago",
+        "2 weeks ago",
+        "5 days ago",
+        "2 weeks ago",
+        "3 weeks ago",
+        "2 weeks ago",
+        "3 weeks ago",
+        "3 weeks ago",
+    ];
+    assert_eq!(times, replay, "{roots}");
+    let tip = &roots["tip"];
+    assert_eq!(tip["hostStyle"], true, "{roots}");
+    assert_eq!(
+        tip["slotted"],
+        serde_json::json!(["Dismiss alert"]),
+        "{roots}"
     );
 }

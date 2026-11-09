@@ -342,6 +342,16 @@ impl DocumentState {
         let started = Instant::now();
         let mut stylist = Stylist::new(self.dom.quirks_mode);
         for index in 0..self.sheets.len() {
+            // The sheets of shadow trees are not applied until ADR 0036
+            // sub-feature 5c (style scoping): nothing leaks into the
+            // document.
+            if self
+                .sheets
+                .get(index)
+                .is_some_and(|slot| slot.scope != swb_dom::NodeId::DOCUMENT)
+            {
+                continue;
+            }
             // A sheet that was not made and does not apply (its `media`
             // attribute does not match) stays unparsed, as before the CSSOM
             // (a script that reads it makes it). A disabled sheet exists

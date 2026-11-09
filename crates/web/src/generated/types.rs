@@ -363,6 +363,56 @@ impl ElementCreationOptions {
     }
 }
 
+/// The dictionary `ShadowRootInit`.
+#[derive(Clone, Debug)]
+pub struct ShadowRootInit {
+    /// `clonable`.
+    pub clonable: bool,
+    /// `delegatesFocus`.
+    pub delegates_focus: bool,
+    /// `mode`.
+    pub mode: ShadowRootMode,
+    /// `serializable`.
+    pub serializable: bool,
+    /// `slotAssignment`.
+    pub slot_assignment: SlotAssignmentMode,
+}
+
+impl ShadowRootInit {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<ShadowRootInit> {
+        let object = b::convert::dictionary_object_not_null(value, "ShadowRootInit")?;
+        let v = b::convert::member(rt, object, "clonable")?;
+        let clonable = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("clonable", "ShadowRootInit"))? };
+        let v = b::convert::member(rt, object, "delegatesFocus")?;
+        let delegates_focus = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("delegatesFocus", "ShadowRootInit"))? };
+        let v = b::convert::member(rt, object, "mode")?;
+        if v.is_undefined() { return Err(b::convert::required_member("mode", "ShadowRootInit")); }
+        let mode = ShadowRootMode::from_js(rt, v).map_err(|e| e.member("mode", "ShadowRootInit"))?;
+        let v = b::convert::member(rt, object, "serializable")?;
+        let serializable = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("serializable", "ShadowRootInit"))? };
+        let v = b::convert::member(rt, object, "slotAssignment")?;
+        let slot_assignment = if v.is_undefined() { SlotAssignmentMode::Named } else { SlotAssignmentMode::from_js(rt, v).map_err(|e| e.member("slotAssignment", "ShadowRootInit"))? };
+        Ok(ShadowRootInit { clonable, delegates_focus, mode, serializable, slot_assignment })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.clonable))?;
+        b::to_js::dictionary_member(rt, object, "clonable", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.delegates_focus))?;
+        b::to_js::dictionary_member(rt, object, "delegatesFocus", value)?;
+        let value = b::to_js::string(rt, (self.mode).as_str())?;
+        b::to_js::dictionary_member(rt, object, "mode", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.serializable))?;
+        b::to_js::dictionary_member(rt, object, "serializable", value)?;
+        let value = b::to_js::string(rt, (self.slot_assignment).as_str())?;
+        b::to_js::dictionary_member(rt, object, "slotAssignment", value)?;
+        Ok(object.into())
+    }
+}
+
 /// The dictionary `MutationObserverInit`.
 #[derive(Clone, Debug)]
 pub struct MutationObserverInit {
@@ -1228,6 +1278,31 @@ impl FocusOptions {
         }
         let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.prevent_scroll))?;
         b::to_js::dictionary_member(rt, object, "preventScroll", value)?;
+        Ok(object.into())
+    }
+}
+
+/// The dictionary `AssignedNodesOptions`.
+#[derive(Clone, Debug)]
+pub struct AssignedNodesOptions {
+    /// `flatten`.
+    pub flatten: bool,
+}
+
+impl AssignedNodesOptions {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<AssignedNodesOptions> {
+        let object = b::convert::dictionary_object(value, "AssignedNodesOptions")?;
+        let v = b::convert::member(rt, object, "flatten")?;
+        let flatten = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("flatten", "AssignedNodesOptions"))? };
+        Ok(AssignedNodesOptions { flatten })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.flatten))?;
+        b::to_js::dictionary_member(rt, object, "flatten", value)?;
         Ok(object.into())
     }
 }
@@ -3859,6 +3934,68 @@ impl SupportedType {
     }
 }
 
+/// The enumeration `ShadowRootMode`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShadowRootMode {
+    /// `"open"`.
+    Open,
+    /// `"closed"`.
+    Closed,
+}
+
+impl ShadowRootMode {
+    /// The values in order.
+    pub const VALUES: [&'static str; 2] = ["open", "closed"];
+
+    /// The value as a string.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ShadowRootMode::Open => "open",
+            ShadowRootMode::Closed => "closed",
+        }
+    }
+
+    /// Converts a JavaScript value (Web IDL §3.2.18).
+    pub fn from_js(rt: &mut swb_js::Runtime, value: swb_js::Value) -> b::Result<ShadowRootMode> {
+        let index = b::convert::enumeration(rt, value, &ShadowRootMode::VALUES, "ShadowRootMode")?;
+        Ok(match index {
+            0 => ShadowRootMode::Open,
+            _ => ShadowRootMode::Closed,
+        })
+    }
+}
+
+/// The enumeration `SlotAssignmentMode`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SlotAssignmentMode {
+    /// `"manual"`.
+    Manual,
+    /// `"named"`.
+    Named,
+}
+
+impl SlotAssignmentMode {
+    /// The values in order.
+    pub const VALUES: [&'static str; 2] = ["manual", "named"];
+
+    /// The value as a string.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SlotAssignmentMode::Manual => "manual",
+            SlotAssignmentMode::Named => "named",
+        }
+    }
+
+    /// Converts a JavaScript value (Web IDL §3.2.18).
+    pub fn from_js(rt: &mut swb_js::Runtime, value: swb_js::Value) -> b::Result<SlotAssignmentMode> {
+        let index = b::convert::enumeration(rt, value, &SlotAssignmentMode::VALUES, "SlotAssignmentMode")?;
+        Ok(match index {
+            0 => SlotAssignmentMode::Manual,
+            _ => SlotAssignmentMode::Named,
+        })
+    }
+}
+
 /// The enumeration `RequestDestination`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RequestDestination {
@@ -5248,6 +5385,34 @@ impl ElementOrDocument {
         match self {
             ElementOrDocument::Element(x) => b::to_js::node::<H>(rt, realm, *x),
             ElementOrDocument::Document(x) => b::to_js::node::<H>(rt, realm, *x),
+        }
+    }
+}
+
+/// The union type `(Element or Text)`.
+#[derive(Clone, Debug)]
+pub enum ElementOrText {
+    /// `Element`.
+    Element(b::NodeId),
+    /// `Text`.
+    Text(b::NodeId),
+}
+
+impl ElementOrText {
+    /// Converts a JavaScript value (Web IDL §3.2.25).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<ElementOrText> {
+        if b::convert::is_platform_object(rt, value) {
+            if rt.implements(value, super::ELEMENT) { return Ok(ElementOrText::Element(b::convert::node(rt, value, super::ELEMENT, "Element")?)); }
+            if rt.implements(value, super::TEXT) { return Ok(ElementOrText::Text(b::convert::node(rt, value, super::TEXT, "Text")?)); }
+        }
+        Err(b::Exception::NotOfType("(Element or Text)".into()))
+    }
+
+    /// Converts to a JavaScript value.
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        match self {
+            ElementOrText::Element(x) => b::to_js::node::<H>(rt, realm, *x),
+            ElementOrText::Text(x) => b::to_js::node::<H>(rt, realm, *x),
         }
     }
 }

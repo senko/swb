@@ -68,6 +68,10 @@ const OPERATION_ATTRS: &[&str] = &[
     "Exposed",
     "SecureContext",
 ];
+/// `[SwbNullIsInvalid]`: `null` is no value of the dictionary (Chromium's
+/// `TypeError` for `attachShadow(null)`, measured; Web IDL converts it to an
+/// empty dictionary).
+const DICTIONARY_ATTRS: &[&str] = &["SwbNullIsInvalid"];
 const TYPE_ATTRS: &[&str] = &[
     "Clamp",
     "EnforceRange",
@@ -446,7 +450,7 @@ impl Model {
                     ),
                 );
             }
-            check_attrs(&dict.ext_attrs, &[], &dict.place, "dictionary")?;
+            check_attrs(&dict.ext_attrs, DICTIONARY_ATTRS, &dict.place, "dictionary")?;
             for member in &dict.members {
                 check_attrs(&member.ext_attrs, &[], &member.place, "dictionary member")?;
                 self.check_type(&member.ty, &member.place)?;

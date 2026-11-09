@@ -27,6 +27,9 @@ pub trait ElementImpl: b::Host {
     /// `readonly attribute NamedNodeMap attributes`.
     fn attributes(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `readonly attribute ShadowRoot? shadowRoot`.
+    fn shadow_root(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
+
     /// `attribute DOMString innerHTML`.
     fn inner_html(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
 
@@ -87,6 +90,9 @@ pub trait ElementImpl: b::Host {
     /// `readonly attribute Element? nextElementSibling`.
     fn next_element_sibling(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
+    /// `readonly attribute HTMLSlotElement? assignedSlot`.
+    fn assigned_slot(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
+
     /// `boolean hasAttributes()`.
     fn has_attributes(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
 
@@ -134,6 +140,9 @@ pub trait ElementImpl: b::Host {
 
     /// `Attr removeAttributeNode(Attr attr)`.
     fn remove_attribute_node(cx: &mut b::Cx<'_>, this: b::NodeId, attr: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `ShadowRoot attachShadow(ShadowRootInit init)`.
+    fn attach_shadow(cx: &mut b::Cx<'_>, this: b::NodeId, init: super::types::ShadowRootInit) -> b::Result<b::NodeId>;
 
     /// `boolean matches(DOMString selectors)`.
     fn matches(cx: &mut b::Cx<'_>, this: b::NodeId, selectors: String) -> b::Result<bool>;
@@ -303,11 +312,37 @@ fn set_class_list<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nativ
     })
 }
 
+fn get_slot<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Element", "slot"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let result = b::reflect::get_string::<H>(&mut b::Cx::new(rt, call, super::ELEMENT), this, "slot")?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_slot<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("Element", "slot"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::ELEMENT), this, "slot", &value))?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 fn get_attributes<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("Element", "attributes"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::ELEMENT)?;
         let result = <H as ElementImpl>::attributes(&mut b::Cx::new(rt, call, super::ELEMENT), this)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn get_shadow_root<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Element", "shadowRoot"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let result = <H as ElementImpl>::shadow_root(&mut b::Cx::new(rt, call, super::ELEMENT), this)?;
+        Ok((match result { Some(x0) => b::to_js::node::<H>(rt, call.realm(), x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
 }
 
@@ -475,6 +510,14 @@ fn get_next_element_sibling<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb
     b::glue::run(rt, call, b::Context::Getter("Element", "nextElementSibling"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::ELEMENT)?;
         let result = <H as ElementImpl>::next_element_sibling(&mut b::Cx::new(rt, call, super::ELEMENT), this)?;
+        Ok((match result { Some(x0) => b::to_js::node::<H>(rt, call.realm(), x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn get_assigned_slot<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Element", "assignedSlot"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        let result = <H as ElementImpl>::assigned_slot(&mut b::Cx::new(rt, call, super::ELEMENT), this)?;
         Ok((match result { Some(x0) => b::to_js::node::<H>(rt, call.realm(), x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
 }
@@ -662,6 +705,17 @@ fn op_remove_attribute_node<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb
         let a0 = b::convert::platform(rt, v, super::ATTR, "Attr").map_err(|e| e.argument(0))?;
         let result = b::ce::scope(rt, |rt| <H as ElementImpl>::remove_attribute_node(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0))?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn op_attach_shadow<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "attachShadow"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = super::types::ShadowRootInit::from_js(rt, call.realm(), v).map_err(|e| e.argument(0))?;
+        let result = <H as ElementImpl>::attach_shadow(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0)?;
+        Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
     })
 }
 
@@ -1003,7 +1057,9 @@ pub fn define<H: ElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::V
     rt.define_accessor(realm, target, "id", (Some(get_id::<H> as swb_js::NativeFn), Some(set_id::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "className", (Some(get_class_name::<H> as swb_js::NativeFn), Some(set_class_name::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "classList", (Some(get_class_list::<H> as swb_js::NativeFn), Some(set_class_list::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "slot", (Some(get_slot::<H> as swb_js::NativeFn), Some(set_slot::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "attributes", (Some(get_attributes::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "shadowRoot", (Some(get_shadow_root::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "innerHTML", (Some(get_inner_html::<H> as swb_js::NativeFn), Some(set_inner_html::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "outerHTML", (Some(get_outer_html::<H> as swb_js::NativeFn), Some(set_outer_html::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "scrollTop", (Some(get_scroll_top::<H> as swb_js::NativeFn), Some(set_scroll_top::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
@@ -1020,8 +1076,10 @@ pub fn define<H: ElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::V
     rt.define_accessor(realm, target, "childElementCount", (Some(get_child_element_count::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "previousElementSibling", (Some(get_previous_element_sibling::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "nextElementSibling", (Some(get_next_element_sibling::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "assignedSlot", (Some(get_assigned_slot::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "after", 0, op_after::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "append", 0, op_append::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "attachShadow", 1, op_attach_shadow::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "before", 0, op_before::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "closest", 1, op_closest::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "getAttribute", 1, op_get_attribute::<H>, swb_js::Attributes::MEMBER)?;

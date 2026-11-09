@@ -22,6 +22,12 @@
 //! Invalidation: any change marks the styles dirty (a full restyle, M8); a
 //! change of a stylesheet (added, removed, moved, its text, `media` or
 //! URL) or of the base URL marks the stylist dirty.
+//!
+//! Shadow trees (ADR 0036 section 3): "in the document" means connected, so
+//! the walks are shadow-including: the images, frames and form controls of a
+//! connected shadow tree work, and the sheets of its `style` and `link`
+//! elements are collected with the shadow root as their scope (the stylist
+//! does not apply them until sub-feature 5c).
 
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
@@ -206,6 +212,7 @@ impl DocumentState {
         }
         let journal = self.dom.take_journal();
         let defined_changed = self.dom.take_defined_changed();
+        let shadow_changed = self.dom.take_shadow_changed();
         self.drained = Some(generation);
         if self.retired {
             // A document that left its frame starts nothing.
@@ -220,6 +227,10 @@ impl DocumentState {
         // section 1): `:defined` may match differently, and no selector
         // analysis tells which rules, so the styles are dirty.
         if defined_changed {
+            self.invalidate_styles();
+        }
+        // A connected element got a shadow root (no journal entry).
+        if shadow_changed {
             self.invalidate_styles();
         }
     }
@@ -246,7 +257,7 @@ impl DocumentState {
         let mut owners = Vec::new();
         let mut videos = Vec::new();
         let mut images = Vec::new();
-        for node in dom.descendants(NodeId::DOCUMENT) {
+        for node in dom.shadow_including_descendants(NodeId::DOCUMENT) {
             match dom.element(node).and_then(Kind::of) {
                 Some(Kind::Style | Kind::Link) => owners.push(node),
                 Some(Kind::Video) => videos.push(node),
@@ -263,7 +274,8 @@ impl DocumentState {
             .collect();
         for owner in owners {
             let (slot, _) = self.wanted_sheet(owner, old.remove(&owner), &mut plan);
-            if let Some(slot) = slot {
+            if let Some(mut slot) = slot {
+                slot.scope = sheet_scope(&self.dom, owner);
                 self.sheets.push(slot);
             }
         }
@@ -383,6 +395,14 @@ impl DocumentState {
                 }
             }
             stack[first..].reverse();
+            // A host's shadow tree comes before its children
+            // (shadow-including tree order): it is popped first.
+            if dom.has_shadow_state()
+                && let Some(shadow) = dom.shadow_root(node)
+                && visited.insert(shadow)
+            {
+                stack.push(shadow);
+            }
         }
     }
 
@@ -492,9 +512,12 @@ impl DocumentState {
                     {
                         self.parser_links.push(node);
                     }
+                    let old_scope = old.as_ref().map(|s| s.scope);
                     let (slot, changed) = self.wanted_sheet(node, old, &mut plan);
                     stylist_dirty |= changed || (had && slot.is_none());
-                    if let Some(slot) = slot {
+                    if let Some(mut slot) = slot {
+                        slot.scope = sheet_scope(&self.dom, node);
+                        stylist_dirty |= old_scope.is_some_and(|s| s != slot.scope);
                         // A moved element is sorted below.
                         let at = index.unwrap_or(self.sheets.len());
                         self.sheets.insert(at, slot);
@@ -561,10 +584,10 @@ impl DocumentState {
                 return true;
             };
             let before = i.checked_sub(1).and_then(|j| sheets.get(j));
-            before.is_none_or(|b| dom.precedes(b.owner, owner))
+            before.is_none_or(|b| dom.shadow_including_precedes(b.owner, owner))
                 && sheets
                     .get(i + 1)
-                    .is_none_or(|a| dom.precedes(owner, a.owner))
+                    .is_none_or(|a| dom.shadow_including_precedes(owner, a.owner))
         })
     }
 
@@ -768,7 +791,8 @@ impl<'a> Connected<'a> {
         }
     }
 
-    /// True if `node` is in the document (its root is the document node).
+    /// True if `node` is in the document (its shadow-including root is the
+    /// document node).
     fn check(&mut self, node: NodeId) -> bool {
         if self.dom.get(node).is_none() {
             return false;
@@ -780,7 +804,7 @@ impl<'a> Connected<'a> {
                 break known;
             }
             self.path.push(current);
-            match self.dom.parent(current) {
+            match self.dom.shadow_including_parent(current) {
                 Some(parent) => current = parent,
                 None => break current == NodeId::DOCUMENT,
             }
@@ -792,27 +816,42 @@ impl<'a> Connected<'a> {
     }
 }
 
-/// True if `node` is in the document tree of `dom` (not detached, not in
-/// another document of the arena such as template contents).
+/// True if `node` is in the document of `dom` (not detached, not in another
+/// document of the arena such as template contents or a
+/// `createHTMLDocument` document; also in a shadow tree of the document).
 pub(super) fn in_document(dom: &Document, node: NodeId) -> bool {
-    dom.get(node).is_some() && dom.root(node) == NodeId::DOCUMENT
+    dom.get(node).is_some() && dom.shadow_including_root(node) == NodeId::DOCUMENT
 }
 
-/// Compares two nodes of the document tree in tree order.
+/// The tree scope of the sheet of the connected element `owner`: the shadow
+/// root of its tree, or the document node.
+fn sheet_scope(dom: &Document, owner: NodeId) -> NodeId {
+    if !dom.has_shadow_state() {
+        return NodeId::DOCUMENT;
+    }
+    let root = dom.root(owner);
+    if dom.shadow_host(root).is_some() {
+        root
+    } else {
+        NodeId::DOCUMENT
+    }
+}
+
+/// Compares two connected nodes in shadow-including tree order.
 fn tree_order_cmp(dom: &Document, a: NodeId, b: NodeId) -> Ordering {
     if a == b {
         Ordering::Equal
-    } else if dom.precedes(a, b) {
+    } else if dom.shadow_including_precedes(a, b) {
         Ordering::Less
     } else {
         Ordering::Greater
     }
 }
 
-/// Sorts nodes of the document tree in tree order. The parser inserts in
-/// tree order, so the list is usually sorted already.
+/// Sorts connected nodes in shadow-including tree order. The parser inserts
+/// in tree order, so the list is usually sorted already.
 fn sort_in_tree_order(dom: &Document, nodes: &mut [NodeId]) {
-    if !nodes.is_sorted_by(|&a, &b| !dom.precedes(b, a)) {
+    if !nodes.is_sorted_by(|&a, &b| !dom.shadow_including_precedes(b, a)) {
         nodes.sort_by(|&a, &b| tree_order_cmp(dom, a, b));
     }
 }

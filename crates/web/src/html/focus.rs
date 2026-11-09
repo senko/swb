@@ -54,7 +54,7 @@ use crate::generated::types::FocusOptions;
 use crate::state::{dom, engine, engine_mut};
 
 /// The focused element of the window's document.
-fn focused(rt: &Runtime) -> VmResult<Option<NodeId>> {
+pub(crate) fn focused(rt: &Runtime) -> VmResult<Option<NodeId>> {
     Ok(engine(rt)?.focused_element())
 }
 

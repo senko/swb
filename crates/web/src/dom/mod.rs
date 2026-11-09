@@ -25,6 +25,7 @@ mod implementation;
 pub(crate) mod lists;
 mod markup;
 mod queries;
+pub(crate) mod shadow;
 pub(crate) mod string_map;
 pub(crate) mod token_list;
 pub(crate) mod tree_ops;
@@ -87,7 +88,7 @@ pub(super) fn node_name(data: &NodeData) -> String {
         NodeData::ProcessingInstruction { target, .. } => target.clone(),
         NodeData::Doctype { name, .. } => name.clone(),
         NodeData::Document => "#document".to_owned(),
-        NodeData::DocumentFragment => "#document-fragment".to_owned(),
+        NodeData::DocumentFragment | NodeData::ShadowRoot(_) => "#document-fragment".to_owned(),
     }
 }
 
@@ -164,7 +165,7 @@ impl g::node::NodeImpl for WebState {
             NodeData::Comment(_) => 8,
             NodeData::Document => 9,
             NodeData::Doctype { .. } => 10,
-            NodeData::DocumentFragment => 11,
+            NodeData::DocumentFragment | NodeData::ShadowRoot(_) => 11,
         })
     }
 
@@ -191,10 +192,9 @@ impl g::node::NodeImpl for WebState {
     fn get_root_node(
         cx: &mut Cx<'_>,
         this: NodeId,
-        _options: GetRootNodeOptions,
+        options: GetRootNodeOptions,
     ) -> b::Result<NodeId> {
-        // Without shadow trees, `composed` changes nothing.
-        Ok(dom(cx.rt)?.root(this))
+        shadow::root_node(cx, this, options.composed)
     }
 
     fn parent_node(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
@@ -250,7 +250,9 @@ impl g::node::NodeImpl for WebState {
         let dom = dom(cx.rt)?;
         Ok(match dom.node(this).data {
             NodeData::Document | NodeData::Doctype { .. } => None,
-            NodeData::Element(_) | NodeData::DocumentFragment => Some(dom.text_content(this)),
+            NodeData::Element(_) | NodeData::DocumentFragment | NodeData::ShadowRoot(_) => {
+                Some(dom.text_content(this))
+            }
             _ => dom.char_data(this).map(str::to_owned),
         })
     }
@@ -258,7 +260,7 @@ impl g::node::NodeImpl for WebState {
     fn set_text_content(cx: &mut Cx<'_>, this: NodeId, value: Option<String>) -> b::Result<()> {
         let value = value.unwrap_or_default();
         match dom(cx.rt)?.node(this).data {
-            NodeData::Element(_) | NodeData::DocumentFragment => {
+            NodeData::Element(_) | NodeData::DocumentFragment | NodeData::ShadowRoot(_) => {
                 string_replace_all(cx, this, &value)
             }
             NodeData::Document | NodeData::Doctype { .. } => Ok(()),
@@ -274,6 +276,12 @@ impl g::node::NodeImpl for WebState {
 
     /// <https://dom.spec.whatwg.org/#dom-node-clonenode>
     fn clone_node(cx: &mut Cx<'_>, this: NodeId, subtree: bool) -> b::Result<NodeId> {
+        if shadow::is_shadow_root(dom(cx.rt)?, this) {
+            return Err(Exception::dom(
+                "NotSupportedError",
+                "ShadowRoot nodes are not clonable.",
+            ));
+        }
         clone(cx, this, this, subtree)
     }
 
@@ -415,7 +423,7 @@ fn context_element(dom: &swb_dom::Document, node: NodeId) -> Option<NodeId> {
     match dom.node(node).data {
         NodeData::Element(_) => Some(node),
         NodeData::Document => dom.element_children(node).next(),
-        NodeData::Doctype { .. } | NodeData::DocumentFragment => None,
+        NodeData::Doctype { .. } | NodeData::DocumentFragment | NodeData::ShadowRoot(_) => None,
         _ => dom.parent_element(node),
     }
 }

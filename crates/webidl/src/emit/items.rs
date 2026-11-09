@@ -83,9 +83,19 @@ impl Gen<'_> {
         );
         let body = {
             let mut body = String::new();
+            let null_is_invalid = self
+                .model
+                .dictionaries
+                .iter()
+                .any(|d| d.name == name && d.ext_attrs.has("SwbNullIsInvalid"));
             let _ = writeln!(
                 body,
-                "        let object = b::convert::dictionary_object(value, {})?;",
+                "        let object = b::convert::{}(value, {})?;",
+                if null_is_invalid {
+                    "dictionary_object_not_null"
+                } else {
+                    "dictionary_object"
+                },
                 literal(name)
             );
             for (owner, m) in &members {

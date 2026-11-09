@@ -943,3 +943,219 @@ recommended except 8.
   - The polyfills that swb runs and Chromium skips stay; `CommandEvent`
     and `commandfor` go to the backlog.
   - The budgets of section 12 are accepted.
+
+## 5a implementation notes
+
+Facts of sub-feature 5a (shadow trees and slots in the DOM) that differ from
+the decision above or that 5b to 5d need. Code: `crates/dom/src/shadow.rs`,
+`slots.rs` (new), `tree.rs`, `mutation.rs`, `algorithms.rs`, `transplant.rs`,
+`id_index.rs`; `crates/web/src/dom/shadow.rs`, `html/slot.rs` (new),
+`mutation_observer.rs`, `custom_elements/`, `cssom_sheets.rs`, `dom/adopt.rs`;
+`crates/engine/src/document/changes.rs`, `resources.rs`, `forms/`,
+`frames/`, `page/frames.rs`; the generator (`[SwbNullIsInvalid]`).
+
+**The node and the state (section 1).** `NodeData::ShadowRoot(ShadowRootData)`
+(host, mode, slot assignment, the four flags); `NodeData::is_fragment()` is
+true for it and for `DocumentFragment`. `ElementData::shadow_flags` (`HOST`,
+`SLOT`) sits in the padding: the size stays 64 bytes (the test stays).
+`Document::shadow: Option<Box<ShadowState>>` holds the roots by host, the
+slots of each root by name in tree order (`RootSlots`), the assigned nodes of
+each slot, the assigned slot of each node, the manual lists in both
+directions, the signal slots, a work count, the flag of an attach to a
+connected host (`take_shadow_changed`: the drain restyles, as with
+`take_defined_changed`) and the attention cell; the `Document` itself got
+only the one field (a temporary arena of each fragment parse is made and
+dropped: each field costs there, measured in the `innerHTML` row).
+`is_connected` goes through hosts; the old meaning "the root is a document"
+is `in_document_tree`, which the id index uses (the document's
+`getElementById` does not see shadow nodes; `get_element_by_id` with a
+shadow root walks its tree).
+
+**The host check (section 1, measured).** Chromium accepts the 18 names of
+the DOM's list in any namespace (an SVG, MathML or namespace-less `div`, an
+XLink `span`) and a valid custom element name only in the HTML namespace
+(case `attach-namespaces`, added in 5a); the standard requires the HTML
+namespace for both. swb follows Chromium. The disable-shadow flag is the one
+of the definition that the registry of the host's node document has for the
+host's local name (`custom_elements::shadow_disabled`; measured for a
+`createElement` of a defined name).
+
+**Slot assignment (section 2).** The steps run in `link` and `unlink_with`
+(insertion and removal, also of the children of a fragment) and after the
+journal entry of an attribute change, when the arena has a `ShadowState`.
+DOM "assign slottables for a tree" visits every slot of a root; swb works on
+the names that a change touches: a root keeps the first slot of each name at
+its last computation (`RootSlots::first`), and a change of the slots changes
+an assignment only when that first slot changes. An append to a host extends
+the list in place and a removal from a host takes the node out of it, so that
+building a host's children stays linear. `assign()` takes each node out of
+its earlier slot's list in one pass per earlier slot (the hostile case
+`shadow-assign-flood`). Two measured departures from the DOM's text: a
+manually assigned node is assigned when it becomes a child of the host (DOM
+assigns a slot at an insertion only for named roots), and a slot that leaves
+its tree is signalled before the tree's slots whose lists it changed (DOM
+runs "assign slottables for a tree" of the tree first; case
+`slotchange-order`). The flattened lists are computed from the stored lists
+when asked (`flattened_assigned_nodes`), not stored: 5b's `flat_children`
+needs them per slot and can keep them with the assigned list then.
+
+**`slotchange`.** The arena's attention cell is the runtime's signal cell
+(`set_shadow_attention`), installed at `attachShadow`, at `assign()` and
+when a transplant brings roots into an arena. `mutation_observer::
+after_request` then queues the mutation observer microtask if the current
+arena has signal slots, and checks the time limit when the shadow steps
+visited 4,096 nodes (`take_shadow_work`). `deliver` takes the signal slots of
+every lent document before the observers' callbacks and fires `slotchange`
+after them (bubbles, not composed, not cancelable, trusted), with the path of
+DOM ancestors up to the root until 5d. A cleared job queue sets the signal
+again.
+
+**Walks (section 3).** Shadow-including: the upgrade candidates of `define`,
+`customElements.upgrade(root)`, the sink's walks of inserted, removed and
+adopted subtrees, adoption's node document, the drain's `rediscover` and
+`collect_subtree`, image source selection, the frames of `iframe` elements,
+the form controls (the radio group key has the tree; a `form` attribute is
+looked up in the control's tree), the entry list of a submission. An upgrade
+of an element that has a root with a definition that has the disable-shadow
+flag fails before the constructor with the measured report.
+
+**Sheets.** `SheetSlot::scope` is the shadow root of the owner's tree (else
+the document node). The stylist skips the other scopes, `document.styleSheets`
+lists the document's scope only, and `ShadowRoot.styleSheets` lists the
+root's (`EngineHost::shadow_style_sheet_count`, `shadow_style_sheet`). The
+list of sheets is kept in shadow-including tree order.
+
+**Frames (measured).** An `iframe` in a connected shadow tree gets a frame
+with its document, but it is no "document-tree child navigable":
+`window.length`, `window[i]` and the named access skip it
+(`Frame::in_shadow_tree`, set when the frame is made; a container that moves
+is removed first, which destroys the frame). Case `walks-in-shadow`.
+
+**Bindings (section 9).** As planned, without `adoptedStyleSheets` (5c) and
+`elementFromPoint` (5b); `ShadowRoot.activeElement` retargets the focused
+element against the root (DOM "retarget", `dom/shadow.rs`; 5d does
+`document.activeElement`). The root's `innerHTML` is parsed with the host as
+context. `attachShadow(null)` needs the new dictionary attribute
+`[SwbNullIsInvalid]` (Chromium: "The provided value is not of type
+'ShadowRootInit'."; Web IDL would convert `null` to an empty dictionary).
+
+**Tests.** The probe file has 25 cases and 137 queries (5a added
+`attach-namespaces`, `walks-in-shadow`, `slotchange-order` and, in the fix
+round, `forms-in-shadow`, each with a control query; Chromium 148, runs 1 and 3 equal, run 2 differs only in
+`focus-shadow` #1, a 5d case whose focus events depend on an earlier query).
+64 queries match, 4 are departures (`api-surface` 1, 3, 4: members that 5b,
+5c or the backlog add; `attach-namespaces` 1: no `MathMLElement`), 69 are
+later (13 cases of 5b, 5c, 5d and declarative roots; `api-surface` 5 and 6,
+`root-properties` 6 and 10, `slotchange-timing` 6). Mutation checks: the
+host-including fast path without the host bit, the signal order of a
+removal, and the plain walks of `define` and of the sink each fail a test.
+GitHub (`crates/automation/tests/github.rs`): the callbacks reach the
+replay's 35 and 76 (12 and 7 from upgrades, 23 and 69 from the sink for the
+`relative-time` elements), the page has 24 hosts, the texts of the 23
+`relative-time` roots equal the replay's list at the page clock, and
+`tool-tip`'s root has its `:host` style (and the popover polyfill's) and a
+default slot that gets "Dismiss alert". Hostile cases (release build):
+`shadow-hosts-200000` 1.5 s, 590 MiB; `shadow-slots-same-name-20000` ends at
+the time limit of 5 s (each rename moves 20,000 nodes); `shadow-slotchange-loop`
+ends at the time limit (10.5 s after the fix round, see below);
+`shadow-assign-flood` 2.1 s; `shadow-transplant` 0.6 s
+with a tree of 200 nodes (1,000 round trips; a tree of 2,000 nodes reaches the
+node limit, because a transplant leaves the taken nodes in their arena, as
+for a light tree). The whole set after the fix round: 449 cases, 447 pass; `nest-div-100000` is the known failure, and `large-message-to-a-frame-in-a-loop-js-on` is inactive (it is also inactive with the 5cddedc and 5a builds, so it does not come from this work).
+
+**Fix round (review of 5a).**
+(1) The form code had its own `in_document` (the top of the ancestors is the
+document), so a control in a connected shadow tree counted as detached: a
+script write to `checked` made a seed with stamp 0, and `r2.checked = true`
+left `r1.checked` true until the next rebuild. It is now
+`forms::in_window_document` (the shadow-including root is `NodeId::DOCUMENT`;
+the name differs from `changes::in_document`, which says the same). Case
+`forms-in-shadow` (radio groups with and without a `form` owner, a select,
+validity, a checkbox and a text input in an open root, and the light-tree
+control) equals Chromium.
+(2) `index_slot` kept the slots of a name in a `Vec` and compared a new slot
+with the siblings by a forward scan, so prepending slots to a root was
+quadratic (20,000 slots: over 5 s). `RootSlots::by_name` holds a `VecDeque`;
+a slot is tried against both ends with a bounded two-way sibling scan
+(`Document::precedes_within`, 8 steps) before the binary search, and every
+step is counted as work. Slots in the middle cost a binary search of
+scans, counted.
+(3) `shadow_inserted` and `shadow_removed` walked the whole moved subtree for
+slots in every arena with shadow state. `slots_below` walks at most 32 nodes
+first; only a larger subtree makes it look for the root of the parent (the
+walk up is counted), and the full walk follows only if that root is a shadow
+root. A chain of 30,000 divs built bottom-up after one `attachShadow` took
+1.9 s (2.6 s in the hostile case); it takes 0.65 s.
+(4) Removing assigned nodes: the lists are `AssignedList` (a vector and a
+start offset), the search goes from both ends, and a removal at the front
+moves the offset; the moved entries are counted (16 per step). 100,000
+children removed from the end or the front take 0.7 s in total (2.1 s).
+(5) `deliver` gives the signal slots back to their documents
+(`Document::restore_slot_signals`) when a termination stops the observers or
+a `slotchange` listener, the interrupted slot included, as the observers'
+records are restored. A loop that signals again at each `slotchange` thus
+runs two tasks into the time limit before the scripts of the document stop
+(`shadow-slotchange-loop` 10.5 s, was 5.6 s; the case limit is 20 s).
+(6) `forget_shadow_nodes` visits the moved nodes and the lists they are in,
+not every map (20,000 hosts and 10,000 adoptions of a one-node element:
+5.7 s at the time limit before, 0.8 s).
+(7) A unit test checks `assignedSlot` (`find_slot` with `open`) of a closed
+root directly.
+Each new test fails when its fix is removed (mutation checks: the old form
+check, no end test in `index_slot`, no bound on the slot walk, removal at the
+front without the offset, no restore in either path of `deliver`, no cleanup
+of the manual lists, no closed-root test).
+New hostile cases: `shadow-slots-prepend-20000` (before: 5.6 s, the time
+limit; after: 0.6 s), `shadow-detached-chain-30000` (2.6 s; 0.65 s),
+`shadow-assigned-remove-100000` (2.1 s; 0.7 s) and
+`shadow-adopt-many-hosts` (5.7 s, the time limit; 0.8 s).
+
+**GitHub's console** (`swb --headless --js --replay fixtures/js/github-swb
+--now <capture time> --settle-ms 1500`): the base had 47 lines, 46 failed
+custom element constructors and one callback, all "Cannot read properties
+of undefined (reading 'call')" from the polyfills that wrap the missing
+`attachShadow`; 5a has none.
+
+**"In the document" in the engine.** `Document::is_connected` is the DOM's
+(any document node of the arena at the top of the shadow-including tree);
+the engine's checks of the window's document (`in_document` of the drain,
+the frames' `in_frame_tree`, `frames::connected` of the bindings) compare the
+shadow-including root with `NodeId::DOCUMENT`, so a `createHTMLDocument`
+document still gets no sheets or frames (the first version used
+`is_connected` there; `tests/cssom_sheets.rs` caught it).
+
+**Performance (section 13).** The binding rows of ADR 0035 section 11 under
+callgrind (`swb --headless --js`, instructions per iteration as the
+difference of 40,000 and 20,000 iterations; release builds; base 5cddedc):
+
+| Binding | base | 5a | 5a / base |
+|---|---|---|---|
+| `x = i` (the loop) | 644 | 632 | 0.981 |
+| `e.setAttribute('a', i)` | 4,408 | 4,411 | 1.001 |
+| `e.id = i` | 3,887 | 3,897 | 1.003 |
+| `t.appendChild(n); n.remove()` | 4,400 | 4,372 | 0.994 |
+| `e.textContent = 'x'` | 1,945 | 1,941 | 0.998 |
+| `e.innerHTML = '<b></b>'` | 17,249 | 17,382 | 1.008 |
+| `document.createElement('div')` | 4,221 | 4,232 | 1.003 |
+| `e.classList.add('c')` | 8,400 | 8,433 | 1.004 |
+
+(Measured after the fix round.) The loop row has no binding in it, so its
+ratio shows the noise between builds. The first version had `innerHTML` at 1.011: three new fields of
+`Document` cost at the drop of the temporary arena of each fragment parse,
+`push_node` noted HTML `slot` elements (a flag that limited the subtree walks
+to arenas that made a slot), and the drain looked up a shadow root for every
+visited node; the fields moved into `ShadowState`, the flag went (the walks
+run only in arenas with shadow state anyway), and the drain tests
+`has_shadow_state` first. With shadow roots (not a gate): `div.attachShadow`
+plus `append` of a `span` per iteration (the `relative-time` pattern) costs
+22,191 instructions.
+
+**The targets** (compare with JavaScript on, all 8 fixtures of `fixtures/js`,
+and off, `fixtures/pages`, against a release build of 5cddedc): every score
+is the base's (GitHub JS on geometry 0.8904, pixels 0.9884: the shadow
+content renders with 5b; Ars Technica's pixels 0.9901 in both); the JS-off
+snapshot is byte-identical. Only GitHub attaches shadow roots after the load
+(24 open roots; the other targets' scripts test for `attachShadow` and
+attach none, counted with `--eval`). The warnings of the logs are the base's
+apart from GitHub, which lost its 24 (the failed `relative-time`
+constructors).

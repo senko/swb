@@ -97,6 +97,20 @@ pub(super) fn set_inner_html(cx: &mut Cx<'_>, this: NodeId, markup: &str) -> b::
     result
 }
 
+/// `ShadowRoot.innerHTML` (setter): the markup parsed in the context of the
+/// root's host replaces the children of the root.
+pub(super) fn set_root_inner_html(
+    cx: &mut Cx<'_>,
+    root: NodeId,
+    host: NodeId,
+    markup: &str,
+) -> b::Result<()> {
+    let fragment = parse_in(cx, host, markup)?;
+    let result = tree_ops::replace_all(cx, root, fragment, true);
+    recycle(cx, fragment)?;
+    result
+}
+
 /// Gives the parsed fragment back to the DOM for the next parse (no
 /// script can reach it).
 fn recycle(cx: &mut Cx<'_>, fragment: NodeId) -> b::Result<()> {

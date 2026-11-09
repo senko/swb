@@ -68,12 +68,23 @@ fn move_detached(
     let (controls, subtree, old_owner) = taken?;
     let result = dom_mut(rt)?.put_subtree(owner, subtree);
     let placed = dom_result(rt, result)?;
+    attention_for_roots(rt)?;
     state::move_node_state(rt, document, &placed.pairs)?;
     // DOM "adopt": the callbacks of the nodes that came from another arena.
     crate::custom_elements::adopted_from(rt, placed.root, (document, old_owner))?;
     put_controls(rt, controls, &placed.pairs)?;
     rt.check_time()?;
     Ok(placed.root)
+}
+
+/// A subtree that came from another arena may have brought shadow roots: the
+/// current arena then asks for attention at its slot changes (as after
+/// `attachShadow`).
+fn attention_for_roots(rt: &mut Runtime) -> b::Result<()> {
+    if dom(rt)?.has_shadow_state() {
+        super::shadow::install_attention(rt)?;
+    }
+    Ok(())
 }
 
 /// The node limits of the current document's arena hold the subtree of `node` of
@@ -132,10 +143,10 @@ fn put_controls(
 /// the fragment keeps its node document). Any other node moves here.
 pub(crate) fn bring_here(rt: &mut Runtime, node: NodeRef, parent: NodeId) -> b::Result<NodeId> {
     state::ensure_lent(rt, node.document)?;
-    let is_fragment = matches!(
-        state::dom_of(rt, node.document)?.node(node.node).data,
-        NodeData::DocumentFragment
-    );
+    let is_fragment = state::dom_of(rt, node.document)?
+        .node(node.node)
+        .data
+        .is_fragment();
     if !is_fragment {
         return transplant(rt, node, parent);
     }
@@ -187,6 +198,7 @@ pub(crate) fn import_here(
     let subtree = state::dom_of(rt, node.document)?.copy_subtree(node.node, deep);
     let result = dom_mut(rt)?.put_subtree(owner, subtree);
     let placed = dom_result(rt, result)?;
+    attention_for_roots(rt)?;
     let entered = state::switch_if_other(rt, node.document)?;
     let copied = (|| -> b::Result<_> {
         let started = placed

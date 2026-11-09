@@ -12,6 +12,9 @@ pub trait TextImpl: b::Host {
     /// `readonly attribute DOMString wholeText`.
     fn whole_text(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
 
+    /// `readonly attribute HTMLSlotElement? assignedSlot`.
+    fn assigned_slot(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
+
     /// `constructor(optional DOMString data)`.
     fn constructor(cx: &mut b::Cx<'_>, data: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
@@ -25,6 +28,14 @@ fn get_whole_text<H: TextImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCa
         let this = b::glue::this_node(rt, call, super::TEXT)?;
         let result = <H as TextImpl>::whole_text(&mut b::Cx::new(rt, call, super::TEXT), this)?;
         Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn get_assigned_slot<H: TextImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Text", "assignedSlot"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::TEXT)?;
+        let result = <H as TextImpl>::assigned_slot(&mut b::Cx::new(rt, call, super::TEXT), this)?;
+        Ok((match result { Some(x0) => b::to_js::node::<H>(rt, call.realm(), x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
 }
 
@@ -55,6 +66,7 @@ pub fn define<H: TextImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmRe
     let target = interface.prototype;
     let _ = target;
     rt.define_accessor(realm, target, "wholeText", (Some(get_whole_text::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "assignedSlot", (Some(get_assigned_slot::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "splitText", 1, op_split_text::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)

@@ -461,28 +461,52 @@ pub(crate) fn set_style_disabled(cx: &mut Cx<'_>, element: NodeId, value: bool) 
     Ok(())
 }
 
-/// True if the list is the window's document's (another document of the
-/// arena has no sheets in swb).
-fn is_window_document(this: Platform) -> bool {
-    b::node_of(this.data) == Some(NodeId::DOCUMENT)
+/// The owner of a `StyleSheetList`: the window's document, a shadow root
+/// (`ShadowRoot.styleSheets`), or none (another document of the arena has no
+/// sheets in swb).
+enum ListOwner {
+    Document,
+    Shadow(NodeId),
+    None,
+}
+
+fn list_owner(cx: &Cx<'_>, this: Platform) -> b::Result<ListOwner> {
+    let Some(node) = b::node_of(this.data) else {
+        return Ok(ListOwner::None);
+    };
+    if node == NodeId::DOCUMENT {
+        return Ok(ListOwner::Document);
+    }
+    let dom = crate::state::dom(cx.rt)?;
+    let in_window = dom.get(node).is_some()
+        && dom.shadow_host(node).is_some()
+        && dom.node_document(node) == NodeId::DOCUMENT;
+    Ok(if in_window {
+        ListOwner::Shadow(node)
+    } else {
+        ListOwner::None
+    })
 }
 
 impl g::style_sheet_list::StyleSheetListImpl for WebState {
     fn length(cx: &mut Cx<'_>, this: Platform) -> b::Result<u32> {
-        if !is_window_document(this) {
-            return Ok(0);
-        }
-        let count = engine_mut(cx.rt)?.style_sheet_count();
+        let count = match list_owner(cx, this)? {
+            ListOwner::Document => engine_mut(cx.rt)?.style_sheet_count(),
+            ListOwner::Shadow(root) => engine_mut(cx.rt)?.shadow_style_sheet_count(root),
+            ListOwner::None => 0,
+        };
         Ok(u32::try_from(count).unwrap_or(u32::MAX))
     }
 
     fn item(cx: &mut Cx<'_>, this: Platform, index: u32) -> b::Result<Option<Gc<Object>>> {
-        if !is_window_document(this) {
+        let Ok(i) = usize::try_from(index) else {
             return Ok(None);
-        }
-        let sheet = usize::try_from(index)
-            .ok()
-            .and_then(|i| engine_mut(cx.rt).ok()?.style_sheet(i));
+        };
+        let sheet = match list_owner(cx, this)? {
+            ListOwner::Document => engine_mut(cx.rt)?.style_sheet(i),
+            ListOwner::Shadow(root) => engine_mut(cx.rt)?.shadow_style_sheet(root, i),
+            ListOwner::None => None,
+        };
         match sheet {
             Some(sheet) => Ok(Some(wrap_sheet(cx, sheet)?)),
             None => Ok(None),

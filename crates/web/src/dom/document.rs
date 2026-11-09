@@ -379,6 +379,12 @@ impl g::document::DocumentImpl for WebState {
                 "The node provided is a document, which may not be imported.",
             ));
         }
+        if super::shadow::is_shadow_root(crate::state::dom_of(cx.rt, node.document)?, node.node) {
+            return Err(Exception::dom(
+                "NotSupportedError",
+                "The node provided is a shadow root, which may not be imported.",
+            ));
+        }
         match node.here(cx.rt) {
             Some(here) => super::clone(cx, here, this, subtree),
             None => super::adopt::import_here(cx.rt, node, this, subtree),
@@ -401,6 +407,12 @@ impl g::document::DocumentImpl for WebState {
             return Err(Exception::dom(
                 "NotSupportedError",
                 "The node provided is of type '#document', which may not be adopted.",
+            ));
+        }
+        if super::shadow::is_shadow_root(crate::state::dom_of(cx.rt, node.document)?, node.node) {
+            return Err(Exception::dom(
+                "HierarchyRequestError",
+                "The node provided is a shadow root, which may not be adopted.",
             ));
         }
         match node.here(cx.rt) {

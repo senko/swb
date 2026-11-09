@@ -218,6 +218,17 @@ mod tests {
         assert!(types.contains("pub enum LongOrDomString {"));
         assert!(types.contains("pub struct F(pub swb_js::Gc<swb_js::Object>);"));
         assert!(types.contains("pub fn invoke<H: b::Host>(self, rt: &mut swb_js::Runtime, _realm: u32, this: swb_js::Value, v: swb_js::Value) -> b::Result<bool> {"));
+        assert!(types.contains("b::convert::dictionary_object(value, \"D\")?;"));
+    }
+
+    /// `[SwbNullIsInvalid]` on a dictionary: `null` is a `TypeError`
+    /// (Chromium's `attachShadow(null)`).
+    #[test]
+    fn a_dictionary_that_refuses_null() {
+        let idl = "[SwbNullIsInvalid] dictionary D { required long x; };";
+        let types = file(idl, "types.rs");
+        assert!(types.contains("b::convert::dictionary_object_not_null(value, \"D\")?;"));
+        assert!(!types.contains("b::convert::dictionary_object(value"));
     }
 
     #[test]

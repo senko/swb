@@ -81,11 +81,11 @@ pub(crate) fn try_upgrade(rt: &mut Runtime, element: NodeId) -> VmResult<()> {
 }
 
 /// The upgrade candidates of a new definition: an upgrade reaction for each
-/// element of the window's document, in tree order, in the HTML namespace
-/// with the definition's local name (HTML `define` step "upgrade
-/// candidates"; shadow trees join with feature 5). The arena's set of
-/// created custom element names skips the walk for a name that no element
-/// has.
+/// element of the window's document, in shadow-including tree order, in the
+/// HTML namespace with the definition's local name (HTML `define` step
+/// "upgrade candidates"; measured order, case `custom-elements-in-shadow`).
+/// The arena's set of created custom element names skips the walk for a
+/// name that no element has.
 /// Returns the number of candidates.
 pub(crate) fn upgrade_candidates(
     rt: &mut Runtime,
@@ -98,7 +98,7 @@ pub(crate) fn upgrade_candidates(
     }
     let mut visited = 0;
     let candidates: Vec<NodeId> = dom
-        .descendants(NodeId::DOCUMENT)
+        .shadow_including_descendants(NodeId::DOCUMENT)
         .inspect(|_| visited += 1)
         .filter(|&node| {
             dom.element(node)
@@ -114,8 +114,8 @@ pub(crate) fn upgrade_candidates(
     Ok(count)
 }
 
-/// `customElements.upgrade(root)`: tries to upgrade each inclusive
-/// descendant of `root` in tree order.
+/// `customElements.upgrade(root)`: tries to upgrade each shadow-including
+/// inclusive descendant of `root` in shadow-including tree order.
 pub(crate) fn upgrade_subtree(rt: &mut Runtime, root: NodeId) -> VmResult<()> {
     if !super::any_definitions(rt) {
         return Ok(());
@@ -123,7 +123,7 @@ pub(crate) fn upgrade_subtree(rt: &mut Runtime, root: NodeId) -> VmResult<()> {
     let dom = dom(rt)?;
     let mut visited = 0;
     let elements: Vec<NodeId> = dom
-        .descendants(root)
+        .shadow_including_descendants(root)
         .inspect(|_| visited += 1)
         .filter(|&node| dom.element(node).is_some())
         .collect();
@@ -183,6 +183,7 @@ fn upgrade(rt: &mut Runtime, element: NodeId, number: u32) -> VmResult<Option<Pl
         return Ok(None);
     }
     let wanted = definition(rt, number)?;
+    let disable_shadow = wanted.disable_shadow;
     let attributes = observed_attributes(
         data,
         wanted.callback(Callback::AttributeChanged).is_some(),
@@ -203,6 +204,10 @@ fn upgrade(rt: &mut Runtime, element: NodeId, number: u32) -> VmResult<Option<Pl
     definition_mut(rt, number)?
         .construction_stack
         .push(StackEntry::Element(key, element));
+    if disable_shadow && crate::state::dom(rt)?.shadow_root(element).is_some() {
+        shadow_disabled_failure(rt, place, number)?;
+        return Ok(Some(place));
+    }
     dom_mut(rt)?.set_custom_element_state(element, CustomElementState::Precustomized, None);
     let constructor = definition(rt, number)?.constructor;
     let result = rt.construct_function(Value::Object(constructor), &[]);
@@ -262,17 +267,41 @@ fn finish(
         );
         return Ok(None);
     };
+    fail(rt, place, number)?;
+    Ok(Some(failure))
+}
+
+/// The failure steps of an upgrade of the element at `place` (in the current
+/// document): no definition, no reactions; the state stays `failed` or
+/// `precustomized` (measured: not `:defined`, never upgraded again).
+fn fail(rt: &mut Runtime, place: Place, number: u32) -> VmResult<()> {
     log::debug!(
         "the upgrade of a custom element failed: {}",
         definition(rt, number)?.name
     );
-    // The failure steps: no definition, no reactions; the state stays
-    // `failed` or `precustomized` (measured: not `:defined`, never upgraded
-    // again).
+    let element = place.1;
     let (state, _) = dom(rt)?.custom_element_state(element);
     dom_mut(rt)?.set_custom_element_state(element, state, Some(0));
     reactions::shared(rt)?.borrow_mut().clear(place);
-    Ok(Some(failure))
+    Ok(())
+}
+
+/// HTML "upgrade an element" step 9.1: a definition with the disable-shadow
+/// flag and an element that has a shadow root. The upgrade fails before
+/// the constructor, with a report without a prefix (measured, case
+/// `attach-errors`).
+fn shadow_disabled_failure(rt: &mut Runtime, place: Place, number: u32) -> VmResult<()> {
+    definition_mut(rt, number)?.construction_stack.pop();
+    fail(rt, place, number)?;
+    let realm = crate::state::doc_realm(rt)?;
+    let error = crate::bindings::dom_exception::create(
+        rt,
+        realm,
+        crate::generated::DOM_EXCEPTION,
+        "NotSupportedError",
+        "The element already has a ShadowRoot though it is disabled by disabledFeatures static field.",
+    )?;
+    crate::errors::report_host_error(rt, Value::Object(error), true)
 }
 
 /// The `attributeChangedCallback` arguments of the upgrade for the attributes

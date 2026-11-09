@@ -119,6 +119,10 @@ impl g::character_data::CharacterDataImpl for WebState {
 }
 
 impl g::text::TextImpl for WebState {
+    fn assigned_slot(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
+        super::shadow::assigned_slot(cx, this)
+    }
+
     /// The data of the contiguous text nodes around this one, in order.
     /// <https://dom.spec.whatwg.org/#dom-text-wholetext>
     fn whole_text(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {

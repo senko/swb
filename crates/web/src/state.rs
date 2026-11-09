@@ -572,6 +572,7 @@ fn class_of(dom: &Document, node: NodeId) -> ClassId {
     match &dom.node(node).data {
         NodeData::Document => g::HTML_DOCUMENT,
         NodeData::DocumentFragment => g::DOCUMENT_FRAGMENT,
+        NodeData::ShadowRoot(_) => g::SHADOW_ROOT,
         NodeData::Doctype { .. } => g::DOCUMENT_TYPE,
         NodeData::Element(e) if e.name.ns == ns!(html) => crate::html::class_of_html(&e.name.local),
         NodeData::Element(e) if e.name.ns == ns!(svg) => crate::svg::class_of_svg(&e.name.local),

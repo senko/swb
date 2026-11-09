@@ -4,6 +4,35 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-09: M10 feature 5a: shadow trees and slots in the DOM
+
+- `swb_dom` has shadow roots (ADR 0036 sections 1 to 3): a node kind
+  `ShadowRoot`, a flag byte in the element data (its size stays 64) and a
+  per-arena shadow state that exists after the first `attachShadow`.
+  `attachShadow` has Chromium's checks and messages, also the custom
+  element disable-shadow flag. Connectedness goes through hosts; adoption,
+  clones of clonable roots and transplants between arenas carry roots.
+- Named and manual slots are assigned eagerly in the change functions;
+  `slotchange` fires in the mutation observer microtask after the
+  observers' callbacks. Three measured places follow Chromium where it
+  differs from the DOM text (ADR notes).
+- Shadow-including walks: custom element upgrades and callbacks, sheet
+  owners (collected, not applied until 5c), images, iframes (outside
+  `window.length`, measured), radio groups and other form state.
+- GitHub with JavaScript on: the 24 roots exist with the replay's texts,
+  the custom element callbacks reach the replay's 35 and 76 (feature 4's
+  open part), the console has no error (47 before). Rendering does not
+  change until 5b; all scores equal the base; binding rows within +1 %.
+- Probe: 25 cases, 137 queries; 64 match Chromium, 4 departures, 69 wait
+  for 5b to 5d.
+- Review: forms treated controls in a connected shadow tree as detached
+  (a radio group kept two checked radios); fixed, with the probe case
+  `forms-in-shadow`. Four quadratic paths became linear (prepended slots,
+  the slot walk of detached subtrees, removal from assigned lists, the
+  transplant cleanup), each with a hostile case; `slotchange` signals
+  survive a termination.
+- Next: 5b (the flat tree in rendering).
+
 ## 2026-11-09: M10 feature 5: ADR 0036 (shadow DOM)
 
 - ADR 0036 decides the design of shadow DOM before the code: a new node

@@ -187,6 +187,12 @@ pub(crate) struct Frame {
     pub(crate) container: Option<NodeId>,
     /// The child frames, in the tree order of their containers.
     pub(crate) children: Vec<FrameId>,
+    /// True if the container is in a shadow tree: the frame is no
+    /// "document-tree child navigable" of its parent, so `window.length`,
+    /// `window[i]` and the named access do not see it (measured, case
+    /// `walks-in-shadow` of `tools/probes/web-shadow-dom.json`). A container
+    /// that moves is removed first, which destroys the frame.
+    pub(crate) in_shadow_tree: bool,
     /// The name of the browsing context: the `name` attribute of the container
     /// when the frame was made, then what scripts write to `window.name`
     /// (measured: a later change of the attribute does not count).
@@ -287,6 +293,7 @@ impl Frame {
             parent,
             container,
             children: Vec::new(),
+            in_shadow_tree: false,
             name: String::new(),
             origin: None,
             storage_site: None,

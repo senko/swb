@@ -45,7 +45,7 @@ fn write_node(doc: &Document, id: NodeId, indent: &str, out: &mut String) {
     let node = doc.node(id);
     // Writing to a String cannot fail.
     match &node.data {
-        NodeData::Document | NodeData::DocumentFragment => {
+        NodeData::Document | NodeData::DocumentFragment | NodeData::ShadowRoot(_) => {
             let _ = writeln!(out, "| {indent}#document");
         }
         NodeData::Doctype { name, .. } => {

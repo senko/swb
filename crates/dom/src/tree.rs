@@ -91,6 +91,18 @@ pub struct ElementData {
     /// The number of the element's custom element definition in the
     /// script runtime's table; 0 for none.
     pub(crate) definition: u32,
+    /// The shadow DOM flags of the element ([`shadow_flags`]; ADR 0036
+    /// section 1): it hosts a shadow root, it is a slot with assigned nodes.
+    /// They fit in the padding: the size of `ElementData` stays 64 bytes.
+    pub(crate) shadow_flags: u8,
+}
+
+/// The bits of [`ElementData`]'s shadow DOM flags.
+pub(crate) mod shadow_flags {
+    /// The element is a shadow host.
+    pub(crate) const HOST: u8 = 1;
+    /// The element is a slot with a non-empty list of assigned nodes.
+    pub(crate) const SLOT: u8 = 2;
 }
 
 impl ElementData {
@@ -108,6 +120,7 @@ impl ElementData {
             script_already_started: false,
             custom_state,
             definition: 0,
+            shadow_flags: 0,
         }
     }
 
@@ -131,12 +144,26 @@ impl ElementData {
             script_already_started: false,
             custom_state,
             definition: 0,
+            shadow_flags: 0,
         }
     }
 
     /// DOM "custom element state".
     pub fn custom_element_state(&self) -> CustomElementState {
         self.custom_state
+    }
+
+    /// True if the element is a shadow host (it has a shadow root).
+    #[inline]
+    pub fn is_shadow_host(&self) -> bool {
+        self.shadow_flags & shadow_flags::HOST != 0
+    }
+
+    /// True if the element is a slot in a shadow tree whose list of assigned
+    /// nodes is not empty.
+    #[inline]
+    pub fn has_assigned_nodes(&self) -> bool {
+        self.shadow_flags & shadow_flags::SLOT != 0
     }
 
     /// HTML "defined" (`:defined`): the custom element state is
@@ -254,6 +281,46 @@ pub fn is_html_whitespace(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\n' | '\x0C' | '\r')
 }
 
+/// The mode of a shadow root.
+/// <https://dom.spec.whatwg.org/#shadowroot-mode>
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShadowRootMode {
+    /// `open`: `host.shadowRoot` gives the root.
+    Open,
+    /// `closed`.
+    Closed,
+}
+
+/// The slot assignment of a shadow root.
+/// <https://dom.spec.whatwg.org/#shadowroot-slot-assignment>
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SlotAssignment {
+    /// Slots take the host's children by their `slot` attribute.
+    Named,
+    /// Slots take the nodes of their `assign()` calls.
+    Manual,
+}
+
+/// The data of a shadow root (ADR 0036 section 1).
+/// <https://dom.spec.whatwg.org/#concept-shadow-root>
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ShadowRootData {
+    /// The host element.
+    pub host: NodeId,
+    /// The mode.
+    pub mode: ShadowRootMode,
+    /// The slot assignment.
+    pub slot_assignment: SlotAssignment,
+    /// The delegates-focus flag.
+    pub delegates_focus: bool,
+    /// The clonable flag.
+    pub clonable: bool,
+    /// The serializable flag.
+    pub serializable: bool,
+    /// The declarative flag (always false in swb: no declarative roots).
+    pub declarative: bool,
+}
+
 /// The kind-specific data of a node.
 #[derive(Clone, Debug)]
 pub enum NodeData {
@@ -261,6 +328,8 @@ pub enum NodeData {
     Document,
     /// A document fragment, used for `<template>` contents.
     DocumentFragment,
+    /// A shadow root: a document fragment with a host (DOM §4.8).
+    ShadowRoot(ShadowRootData),
     /// A doctype.
     Doctype {
         /// The doctype name, for example `html`.
@@ -283,6 +352,24 @@ pub enum NodeData {
         /// The data.
         data: String,
     },
+}
+
+impl NodeData {
+    /// True for a document fragment, also a shadow root (the DOM's rules of
+    /// fragments apply to both).
+    #[inline]
+    pub fn is_fragment(&self) -> bool {
+        matches!(self, NodeData::DocumentFragment | NodeData::ShadowRoot(_))
+    }
+
+    /// The data of a shadow root.
+    #[inline]
+    pub fn as_shadow_root(&self) -> Option<&ShadowRootData> {
+        match self {
+            NodeData::ShadowRoot(data) => Some(data),
+            _ => None,
+        }
+    }
 }
 
 /// A node: its tree links, its node document and its data.
@@ -465,6 +552,10 @@ pub struct Document {
     /// [`Document::take_defined_changed`] (`:defined` may match differently;
     /// ADR 0035 "4a implementation notes").
     pub(crate) defined_changed: bool,
+    /// The shadow roots and slots of the arena (`shadow.rs`, `slots.rs`;
+    /// ADR 0036 section 1). `None` until the first shadow root: a page
+    /// without one pays one test per change.
+    pub(crate) shadow: Option<Box<crate::shadow::ShadowState>>,
     arena_id: u64,
 }
 
@@ -516,6 +607,7 @@ impl Document {
             iterators: crate::iterator::NodeIterators::default(),
             custom_names: None,
             defined_changed: false,
+            shadow: None,
             arena_id: NEXT_ARENA_ID.fetch_add(1, Ordering::Relaxed),
         }
     }
@@ -934,23 +1026,53 @@ impl Document {
     }
 
     /// The root of the tree that contains `id`: its last ancestor, or the
-    /// node itself.
+    /// node itself. The root of a node in a shadow tree is its shadow root.
     pub fn root(&self, id: NodeId) -> NodeId {
         self.ancestors(id).last().unwrap_or(id)
     }
 
     /// True if the root of the tree that contains `id` is a document node
-    /// (DOM "connected"; swb has no shadow trees).
-    pub fn is_connected(&self, id: NodeId) -> bool {
+    /// (DOM "in a document tree": not in a shadow tree). The id index and
+    /// the document's queries see these nodes only.
+    pub fn in_document_tree(&self, id: NodeId) -> bool {
         matches!(self.node(self.root(id)).data, NodeData::Document)
+    }
+
+    /// DOM "connected": the shadow-including root of `id` is a document
+    /// node. A node in a shadow tree is connected when its host is.
+    /// <https://dom.spec.whatwg.org/#connected>
+    pub fn is_connected(&self, id: NodeId) -> bool {
+        let mut root = self.root(id);
+        loop {
+            match &self.node(root).data {
+                NodeData::Document => return true,
+                NodeData::ShadowRoot(data) => root = self.root(data.host),
+                _ => return false,
+            }
+        }
     }
 
     /// True if `a` comes before `b` in tree order. Both must be in the same
     /// tree; otherwise the result is false.
     /// <https://dom.spec.whatwg.org/#concept-tree-preceding>
     pub fn precedes(&self, a: NodeId, b: NodeId) -> bool {
+        self.precedes_within(a, b, usize::MAX, &mut 0)
+            .unwrap_or(false)
+    }
+
+    /// [`Document::precedes`] with a bound: `None` if comparing two
+    /// siblings takes more than `limit` steps. Two siblings are compared by
+    /// a scan that goes both ways, so that the cost is the distance between
+    /// them. `steps` gets the nodes that the comparison visited.
+    pub fn precedes_within(
+        &self,
+        a: NodeId,
+        b: NodeId,
+        limit: usize,
+        steps: &mut usize,
+    ) -> Option<bool> {
         if a == b {
-            return false;
+            return Some(false);
         }
         // The inclusive ancestors of each, root first.
         let path = |n: NodeId| {
@@ -959,20 +1081,38 @@ impl Document {
             path
         };
         let (pa, pb) = (path(a), path(b));
+        *steps += pa.len() + pb.len();
         if pa.first() != pb.first() {
-            return false;
+            return Some(false);
         }
         let common = pa.iter().zip(&pb).take_while(|(x, y)| x == y).count();
         match (pa.get(common), pb.get(common)) {
             // `a` is an ancestor of `b`.
-            (None, Some(_)) => true,
+            (None, Some(_)) => Some(true),
             // Siblings under the last common ancestor: is `ca` before `cb`?
             (Some(&ca), Some(&cb)) => {
-                std::iter::successors(self.node(ca).next_sibling, |&n| self.node(n).next_sibling)
-                    .any(|n| n == cb)
+                let mut next = self.node(ca).next_sibling;
+                let mut prev = self.node(ca).prev_sibling;
+                let mut scanned = 0;
+                while next.is_some() || prev.is_some() {
+                    if scanned >= limit {
+                        return None;
+                    }
+                    scanned += 1;
+                    *steps += 1;
+                    if next == Some(cb) {
+                        return Some(true);
+                    }
+                    if prev == Some(cb) {
+                        return Some(false);
+                    }
+                    next = next.and_then(|n| self.node(n).next_sibling);
+                    prev = prev.and_then(|n| self.node(n).prev_sibling);
+                }
+                Some(false)
             }
             // `b` is an ancestor of `a`, or `a == b`.
-            (_, None) => false,
+            (_, None) => Some(false),
         }
     }
 }

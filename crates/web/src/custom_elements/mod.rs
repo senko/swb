@@ -138,10 +138,8 @@ pub(crate) struct Definition {
     pub(crate) form_associated: bool,
     #[allow(dead_code, reason = "kept for ElementInternals (backlog)")]
     pub(crate) disable_internals: bool,
-    #[allow(
-        dead_code,
-        reason = "checked at an upgrade with attachShadow (feature 5)"
-    )]
+    /// The disable-shadow flag (`disabledFeatures` has `shadow`): checked by
+    /// `attachShadow` and at an upgrade (ADR 0036 section 3).
     pub(crate) disable_shadow: bool,
     pub(crate) construction_stack: Vec<StackEntry>,
     /// The document of the window whose registry holds the definition.
@@ -316,6 +314,28 @@ pub(crate) fn adopted_from(rt: &mut Runtime, root: NodeId, old: reactions::Place
             .borrow_mut()
             .on_adopted_from(key, crate::state::dom(rt)?, root, old);
     reactions::after_sink(rt, attention)
+}
+
+/// DOM "attach a shadow root" step 3: the disable-shadow flag of the
+/// definition that the registry of `element`'s node document has for the
+/// element's name (swb has no `is` values: customized built-in elements are
+/// not supported). Measured: also for an element that the definition did
+/// not construct (case `attach-errors`, `createElement` of a defined name).
+pub(crate) fn shadow_disabled(rt: &Runtime, element: NodeId) -> VmResult<bool> {
+    if !any_definitions(rt) {
+        return Ok(false);
+    }
+    let dom = crate::state::dom(rt)?;
+    let Some(data) = dom.element(element) else {
+        return Ok(false);
+    };
+    if !swb_dom::is_valid_custom_element_name(&data.name.local) {
+        return Ok(false);
+    }
+    let Some(number) = look_up(rt, dom.node_document(element), &data.name.local) else {
+        return Ok(false);
+    };
+    Ok(definition(rt, number)?.disable_shadow)
 }
 
 /// True if the agent has a custom element definition.

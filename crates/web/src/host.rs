@@ -923,6 +923,22 @@ pub trait EngineHost: Any {
         None
     }
 
+    /// The number of style sheets of the shadow root `root`
+    /// (`ShadowRoot.styleSheets`): the sheets of its `style` and `link`
+    /// elements, in tree order (ADR 0036 section 5; not applied until
+    /// sub-feature 5c).
+    fn shadow_style_sheet_count(&mut self, root: NodeId) -> usize {
+        let _ = root;
+        0
+    }
+
+    /// The style sheet at `index` of the list of
+    /// [`EngineHost::shadow_style_sheet_count`].
+    fn shadow_style_sheet(&mut self, root: NodeId, index: usize) -> Option<SheetRef> {
+        let _ = (root, index);
+        None
+    }
+
     /// The style sheet of the `style` or `link` element `owner` (`sheet`):
     /// `None` if it has none (not in the document, a `link` that loads, a
     /// `style` of another type).

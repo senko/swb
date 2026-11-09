@@ -3,11 +3,15 @@
 //!
 //! They follow the DOM standard's algorithms ("insert", "remove",
 //! "replace", "replace all", "adopt", "change an attribute", "replace
-//! data": <https://dom.spec.whatwg.org/>), without live ranges, shadow
-//! trees and custom elements. Each primitive change bumps the generation,
-//! appends a journal entry and calls the mutation sink (`journal.rs`), and
-//! keeps the id index (`id_index.rs`) and the byte count of the limits up
-//! to date.
+//! data": <https://dom.spec.whatwg.org/>), without live ranges; the
+//! custom element reactions are the mutation sink's. Each primitive change
+//! bumps the generation, appends a journal entry and calls the mutation sink
+//! (`journal.rs`), and keeps the id index (`id_index.rs`) and the byte count
+//! of the limits up to date. In an arena with shadow roots the link and
+//! unlink primitives and the attribute changes also run the slot assignment
+//! steps of the DOM's "insert", "remove" and attribute change steps
+//! (`slots.rs`); a shadow root inserts like a fragment, and adoption walks
+//! the shadow-including subtree.
 //!
 //! The public functions check the DOM's preconditions and the limits and
 //! return a [`DomError`]. The parser uses the crate-private functions,
@@ -58,7 +62,7 @@ pub enum DomError {
 /// The bytes that the data of a node adds to the byte count of the limits.
 pub(crate) fn data_bytes(data: &NodeData) -> usize {
     match data {
-        NodeData::Document | NodeData::DocumentFragment => 0,
+        NodeData::Document | NodeData::DocumentFragment | NodeData::ShadowRoot(_) => 0,
         NodeData::Doctype {
             name,
             public_id,
@@ -262,8 +266,11 @@ impl Document {
     #[inline]
     pub(crate) fn link(&mut self, parent: NodeId, node: NodeId, before: Option<NodeId>) {
         self.link_raw(parent, node, before);
-        if self.may_have_ids(node) && self.is_connected(parent) {
+        if self.may_have_ids(node) && self.in_document_tree(parent) {
             self.index_ids(node);
+        }
+        if self.shadow.is_some() {
+            self.shadow_inserted(parent, node);
         }
     }
 
@@ -310,7 +317,7 @@ impl Document {
         if steps {
             self.run_removal_steps(node);
         }
-        if self.may_have_ids(node) && self.is_connected(parent) {
+        if self.may_have_ids(node) && self.in_document_tree(parent) {
             self.unindex_ids(node);
         }
         match prev {
@@ -329,6 +336,9 @@ impl Document {
         let p = self.node_mut(parent);
         p.child_count -= 1;
         p.element_child_count -= u32::from(is_element);
+        if self.shadow.is_some() {
+            self.shadow_removed(parent, node);
+        }
     }
 
     /// Reports a change: bumps the generation (and the structure generation
@@ -370,7 +380,7 @@ impl Document {
         before: Option<NodeId>,
         suppress_observers: bool,
     ) {
-        if !matches!(self.node(node).data, NodeData::DocumentFragment) {
+        if !self.node(node).data.is_fragment() {
             // One node: no list to collect (the parser's case). Step 6 of
             // "insert" reads the previous sibling before the adopt step
             // removes `node`, so a move within the same parent would name
@@ -487,12 +497,13 @@ impl Document {
         }
     }
 
-    /// Makes `document` the node document of the subtree of `node`, and
-    /// its template contents owner that of the template contents in it.
+    /// Makes `document` the node document of the shadow-including subtree
+    /// of `node`, and its template contents owner that of the template
+    /// contents in it.
     fn set_node_document(&mut self, node: NodeId, document: NodeId) {
         let mut stack = vec![(node, document)];
         while let Some((root, document)) = stack.pop() {
-            let subtree: Vec<NodeId> = self.descendants(root).collect();
+            let subtree: Vec<NodeId> = self.shadow_including_descendants(root).collect();
             for n in subtree {
                 self.node_mut(n).owner = document;
                 if let Some(contents) = self.element(n).and_then(|e| e.template_contents) {
@@ -517,9 +528,7 @@ impl Document {
             }
         }
         let added = match node {
-            Some(n) if matches!(self.node(n).data, NodeData::DocumentFragment) => {
-                self.child_list(n)
-            }
+            Some(n) if self.node(n).data.is_fragment() => self.child_list(n),
             Some(n) => vec![n],
             None => Vec::new(),
         };
@@ -604,7 +613,7 @@ impl Document {
         }
         let prev_sibling = self.node(child).prev_sibling;
         self.remove_node(child, true);
-        let nodes = if matches!(self.node(node).data, NodeData::DocumentFragment) {
+        let nodes = if self.node(node).data.is_fragment() {
             self.child_list(node)
         } else {
             vec![node]
@@ -665,8 +674,10 @@ impl Document {
     /// subtree into the document `document` (any node of that document).
     /// <https://dom.spec.whatwg.org/#dom-document-adoptnode>
     pub fn adopt(&mut self, node: NodeId, document: NodeId) -> Result<(), DomError> {
-        if matches!(self.node(node).data, NodeData::Document) {
-            return Err(DomError::NotSupported);
+        match self.node(node).data {
+            NodeData::Document => return Err(DomError::NotSupported),
+            NodeData::ShadowRoot(_) => return Err(DomError::HierarchyRequest),
+            _ => {}
         }
         let document = self.node_document(document);
         let had_parent = self.node(node).parent.is_some();
@@ -693,7 +704,7 @@ impl Document {
         if !self.parser_forms {
             return Vec::new();
         }
-        if matches!(self.node(node).data, NodeData::DocumentFragment) {
+        if self.node(node).data.is_fragment() {
             self.child_list(node)
         } else if self.node(node).parent.is_some() {
             vec![node]
@@ -712,20 +723,26 @@ impl Document {
     fn can_have_children(&self, node: NodeId) -> bool {
         matches!(
             self.node(node).data,
-            NodeData::Document | NodeData::DocumentFragment | NodeData::Element(_)
+            NodeData::Document
+                | NodeData::DocumentFragment
+                | NodeData::ShadowRoot(_)
+                | NodeData::Element(_)
         )
     }
 
     /// True if `node` is a host-including inclusive ancestor of `of`: an
     /// inclusive ancestor, also across template contents to their
-    /// template element.
+    /// template element and across shadow roots to their host.
     /// <https://dom.spec.whatwg.org/#concept-tree-host-including-inclusive-ancestor>
     pub fn is_host_including_inclusive_ancestor(&self, node: NodeId, of: NodeId) -> bool {
-        // A node without children and template contents is an ancestor of
-        // nothing: the common case (a new leaf) needs no walk, so that
-        // building a deep tree is not quadratic.
+        // A node without children, template contents and shadow root is an
+        // ancestor of nothing: the common case (a new leaf) needs no walk,
+        // so that building a deep tree is not quadratic.
         let n = self.node(node);
-        if n.first_child.is_none() && n.as_element().is_none_or(|e| e.template_contents.is_none()) {
+        if n.first_child.is_none()
+            && n.as_element()
+                .is_none_or(|e| e.template_contents.is_none() && !e.is_shadow_host())
+        {
             return node == of;
         }
         let mut current = Some(of);
@@ -733,10 +750,11 @@ impl Document {
             if n == node {
                 return true;
             }
-            current = self
-                .node(n)
-                .parent
-                .or_else(|| self.template_hosts.get(&n).copied());
+            let at = self.node(n);
+            current = at.parent.or_else(|| match &at.data {
+                NodeData::ShadowRoot(data) => Some(data.host),
+                _ => self.template_hosts.get(&n).copied(),
+            });
         }
         false
     }
@@ -802,7 +820,7 @@ impl Document {
         let doctype_after_child = child.is_some_and(|c| following(c).any(is_doctype));
         let child_is_doctype = validity == Validity::PreInsert && child.is_some_and(is_doctype);
         let bad = match &self.node(node).data {
-            NodeData::DocumentFragment => {
+            NodeData::DocumentFragment | NodeData::ShadowRoot(_) => {
                 let elements = self.element_children(node).count();
                 let has_text = self
                     .children(node)
@@ -870,6 +888,9 @@ impl Document {
             name,
             old_value: old_value.as_deref(),
         });
+        if self.shadow.is_some() {
+            self.shadow_attribute_changed(element, name, old_value.as_deref());
+        }
         Ok(())
     }
 
@@ -900,6 +921,9 @@ impl Document {
             name: &attr.name,
             old_value: Some(&attr.value),
         });
+        if self.shadow.is_some() {
+            self.shadow_attribute_changed(element, &attr.name, Some(&attr.value));
+        }
         Some(attr.value)
     }
 
@@ -933,6 +957,9 @@ impl Document {
                 name: &name,
                 old_value: None,
             });
+            if self.shadow.is_some() {
+                self.shadow_attribute_changed(element, &name, None);
+            }
         }
     }
 }

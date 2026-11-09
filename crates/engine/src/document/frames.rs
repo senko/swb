@@ -252,9 +252,10 @@ impl DocumentState {
     }
 }
 
-/// The `iframe` elements of the document tree, in tree order.
+/// The connected `iframe` elements of the document (also in shadow trees),
+/// in shadow-including tree order.
 pub(crate) fn iframes_in(dom: &Document) -> Vec<NodeId> {
-    dom.descendants(NodeId::DOCUMENT)
+    dom.shadow_including_descendants(NodeId::DOCUMENT)
         .filter(|&n| dom.is_html_element(n, &local_name!("iframe")))
         .collect()
 }

@@ -85,11 +85,14 @@ impl IdIndex {
 
 impl Document {
     /// The first element in tree order whose `id` is `id` in the tree of
-    /// `root`, a document node of the arena. An empty `id` finds nothing.
-    /// Elements in detached subtrees and in template contents are not in
-    /// the index.
+    /// `root`, a document node of the arena or a shadow root (which the
+    /// index does not hold: a walk). An empty `id` finds nothing. Elements in
+    /// detached subtrees and in template contents are not in the index.
     /// <https://dom.spec.whatwg.org/#dom-nonelementparentnode-getelementbyid>
     pub fn get_element_by_id(&self, root: NodeId, id: &str) -> Option<NodeId> {
+        if self.node(root).data.as_shadow_root().is_some() {
+            return self.walk_for_id(root, id);
+        }
         if !self.ids.borrow().active {
             let index = self.build_id_index();
             *self.ids.borrow_mut() = index;
@@ -225,7 +228,7 @@ impl Document {
 
     /// Moves a connected element in the id index from `old` to `new`.
     pub(crate) fn reindex_id(&mut self, element: NodeId, old: Option<&str>, new: Option<&str>) {
-        if !self.ids.get_mut().active || !self.is_connected(element) {
+        if !self.ids.get_mut().active || !self.in_document_tree(element) {
             return;
         }
         let ids = self.ids.get_mut();

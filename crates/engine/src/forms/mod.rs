@@ -361,7 +361,7 @@ impl Forms {
             ..Forms::default()
         };
         let mut radios = Vec::new();
-        for node in doc.descendants(NodeId::DOCUMENT) {
+        for node in doc.shadow_including_descendants(NodeId::DOCUMENT) {
             let Some(e) = doc.element(node) else {
                 continue;
             };
@@ -466,7 +466,7 @@ impl Forms {
         }
         if radios_restored {
             let checked: Vec<NodeId> = doc
-                .descendants(NodeId::DOCUMENT)
+                .shadow_including_descendants(NodeId::DOCUMENT)
                 .filter(|&n| {
                     forms
                         .get(n)
@@ -482,7 +482,7 @@ impl Forms {
     /// tree order) except the last one of each group: setting a radio
     /// button's checkedness unchecks the others of its group.
     fn keep_last_checked(&mut self, doc: &Document, checked: &[NodeId]) {
-        let mut last: HashMap<(Option<NodeId>, &str), NodeId> = HashMap::new();
+        let mut last: HashMap<RadioKey<'_>, NodeId> = HashMap::new();
         for &node in checked {
             if let Some(key) = self.radio_key(doc, node) {
                 let at = |n: NodeId| self.get(n).map_or(0, |s| s.checked_at);
@@ -629,7 +629,7 @@ impl Forms {
     /// <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-reset>
     pub(crate) fn reset(&mut self, doc: &Document, form: NodeId) -> Vec<NodeId> {
         let nodes: Vec<NodeId> = doc
-            .descendants(NodeId::DOCUMENT)
+            .shadow_including_descendants(NodeId::DOCUMENT)
             .filter(|&n| self.owner(n) == Some(form))
             .collect();
         let disabled_elements = DisabledElements::new(doc);
@@ -883,7 +883,7 @@ impl Forms {
     ) -> Vec<NodeId> {
         let groups = self.radio_groups(doc);
         cx.begin_pass();
-        doc.descendants(NodeId::DOCUMENT)
+        doc.shadow_including_descendants(NodeId::DOCUMENT)
             .filter(|&n| {
                 self.owner(n) == Some(form)
                     && self
@@ -957,15 +957,21 @@ impl Forms {
         required && !checked
     }
 
-    /// The key of the radio button group of radio button `node`: its form
-    /// owner and its name. `None` without a name (the button is alone in
-    /// its group).
-    fn radio_key<'a>(&self, doc: &'a Document, node: NodeId) -> Option<(Option<NodeId>, &'a str)> {
+    /// The key of the radio button group of radio button `node`: its tree
+    /// (the document or a shadow root: HTML "in the same tree"), its form
+    /// owner and its name. `None` without a name (the button is alone in its
+    /// group).
+    fn radio_key<'a>(&self, doc: &'a Document, node: NodeId) -> Option<RadioKey<'a>> {
         let name = doc
             .element(node)
             .and_then(|e| e.attr("name"))
             .filter(|n| !n.is_empty())?;
-        Some((self.owner(node), name))
+        let tree = if doc.has_shadow_state() {
+            doc.root(node)
+        } else {
+            NodeId::DOCUMENT
+        };
+        Some((tree, self.owner(node), name))
     }
 
     /// The radio button group of radio button `node`: the radio buttons
@@ -976,7 +982,7 @@ impl Forms {
         let Some(key) = self.radio_key(doc, node) else {
             return vec![node];
         };
-        doc.descendants(NodeId::DOCUMENT)
+        doc.shadow_including_descendants(NodeId::DOCUMENT)
             .filter(|&n| {
                 self.control_type(n) == Some(ControlType::Input(InputType::Radio))
                     && self.radio_key(doc, n) == Some(key)
@@ -989,9 +995,12 @@ impl Forms {
 /// button.
 #[derive(Default)]
 struct RadioGroups<'a> {
-    checked: HashSet<(Option<NodeId>, &'a str)>,
-    required: HashSet<(Option<NodeId>, &'a str)>,
+    checked: HashSet<RadioKey<'a>>,
+    required: HashSet<RadioKey<'a>>,
 }
+
+/// The key of a radio button group: the tree, the form owner, the name.
+type RadioKey<'a> = (NodeId, Option<NodeId>, &'a str);
 
 /// The state of a select after its DOM changed: an option that was in the
 /// select keeps its selectedness and its dirtiness flag (the attribute
@@ -1230,8 +1239,9 @@ fn is_listed(e: &ElementData) -> bool {
 }
 
 /// The form owner of a form-associated element: the form that its `form`
-/// attribute names (looked up in `ids`), else the form that the parser
-/// associated with it, else its nearest `form` ancestor.
+/// attribute names (looked up in `ids`, or in the element's shadow tree),
+/// else the form that the parser associated with it, else its nearest
+/// `form` ancestor (in its own tree: the ancestors stop at a shadow root).
 /// <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#reset-the-form-owner>
 fn form_owner(
     doc: &Document,
@@ -1243,9 +1253,18 @@ fn form_owner(
     if is_listed(e)
         && let Some(id) = e.attr("form")
     {
-        return by_id(id).filter(|&f| is_form(f));
+        let root = doc.root(node);
+        let found = if doc.shadow_host(root).is_some() {
+            doc.get_element_by_id(root, id)
+        } else {
+            by_id(id)
+        };
+        return found.filter(|&f| is_form(f));
     }
-    if let Some(form) = e.parser_form.filter(|&f| is_form(f) && in_document(doc, f)) {
+    if let Some(form) = e
+        .parser_form
+        .filter(|&f| is_form(f) && in_window_document(doc, f))
+    {
         return Some(form);
     }
     doc.ancestors(node).find(|&n| is_form(n))
@@ -1315,10 +1334,12 @@ fn in_datalist(doc: &Document, node: NodeId) -> bool {
         .any(|a| doc.is_html_element(a, &local_name!("datalist")))
 }
 
-/// True if `node` is in the document tree (not detached, not in a
-/// template).
-fn in_document(doc: &Document, node: NodeId) -> bool {
-    doc.ancestors(node).last() == Some(NodeId::DOCUMENT)
+/// True if `node` is connected to the window's document: its
+/// shadow-including root is `NodeId::DOCUMENT` (not detached, not in a
+/// template or another document of the arena; a node in a connected shadow
+/// tree counts).
+fn in_window_document(doc: &Document, node: NodeId) -> bool {
+    doc.get(node).is_some() && doc.shadow_including_root(node) == NodeId::DOCUMENT
 }
 
 /// The control that a `label` element labels: the element its `for`

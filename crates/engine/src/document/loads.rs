@@ -190,7 +190,12 @@ impl DocumentState {
         let base = self.base_url.value();
         let selections = match only {
             Some(nodes) => image_source::select_images(doc, base, &env, nodes.iter().copied()),
-            None => image_source::select_images(doc, base, &env, doc.descendants(NodeId::DOCUMENT)),
+            None => image_source::select_images(
+                doc,
+                base,
+                &env,
+                doc.shadow_including_descendants(NodeId::DOCUMENT),
+            ),
         };
         // The dimension sources change only for the nodes of `only` that
         // had one or get one; `Arc::make_mut` clones only a shared map.

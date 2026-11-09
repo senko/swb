@@ -49,7 +49,10 @@ impl Document {
     /// DOM "clone a node" with the node document `document` (any node of
     /// that document): a copy of `node`, and with `deep` of its
     /// descendants (and the contents of template elements). The copy has no
-    /// parent. Form element pointers are not copied.
+    /// parent. Form element pointers are not copied. A shadow host whose
+    /// root is clonable gets a copy of the root with all of its content,
+    /// also without `deep` (measured). A shadow root itself is not clonable
+    /// ([`DomError::NotSupported`]).
     /// <https://dom.spec.whatwg.org/#concept-node-clone>
     pub fn clone_node(
         &mut self,
@@ -57,34 +60,81 @@ impl Document {
         document: NodeId,
         deep: bool,
     ) -> Result<Cloned, DomError> {
+        if self.node(node).data.as_shadow_root().is_some() {
+            return Err(DomError::NotSupported);
+        }
         let document = self.node_document(document);
         let mut pairs = Pairs::default();
         let root = self.clone_one(node, document, &mut pairs)?;
+        // (original, copy): the children of the original are copied next.
+        // Template contents go with their template element, a clonable
+        // shadow root with its host.
+        let mut stack = Vec::new();
+        let mut roots = Vec::new();
+        self.clone_shadow_root(node, root, &mut stack, &mut roots)?;
         if deep {
-            // (original, copy): the children of the original are copied
-            // next. Template contents go with their template element.
-            let mut stack = vec![(node, root)];
-            while let Some((src, dst)) = stack.pop() {
-                let contents = self
-                    .element(src)
-                    .and_then(|e| e.template_contents)
-                    .zip(self.element(dst).and_then(|e| e.template_contents));
-                for (from, to) in std::iter::once((src, dst)).chain(contents) {
-                    let owner = self.node_document(to);
-                    let children: Vec<NodeId> = self.children(from).collect();
-                    for child in children {
-                        let copy = self.clone_one(child, owner, &mut pairs)?;
-                        self.link_raw(to, copy, None);
-                        stack.push((child, copy));
-                    }
+            stack.push((node, root));
+        }
+        while let Some((src, dst)) = stack.pop() {
+            let contents = self
+                .element(src)
+                .and_then(|e| e.template_contents)
+                .zip(self.element(dst).and_then(|e| e.template_contents));
+            for (from, to) in std::iter::once((src, dst)).chain(contents) {
+                let owner = self.node_document(to);
+                let children: Vec<NodeId> = self.children(from).collect();
+                for child in children {
+                    let copy = self.clone_one(child, owner, &mut pairs)?;
+                    self.link_raw(to, copy, None);
+                    self.clone_shadow_root(child, copy, &mut stack, &mut roots)?;
+                    stack.push((child, copy));
                 }
             }
+        }
+        // The DOM appends the copies one by one, which assigns the slots; the
+        // copy above linked them directly.
+        for copy in roots {
+            self.assign_new_root(copy);
         }
         Ok(Cloned {
             root,
             scripts: pairs.scripts,
             controls: pairs.controls,
         })
+    }
+
+    /// DOM "clone a single node" step 7: if `src` is a shadow host whose root
+    /// is clonable, `copy` gets a shadow root with the same options, and the
+    /// pair of roots goes on `stack` (the root's children are copied
+    /// whatever `deep` says).
+    fn clone_shadow_root(
+        &mut self,
+        src: NodeId,
+        copy: NodeId,
+        stack: &mut Vec<(NodeId, NodeId)>,
+        roots: &mut Vec<NodeId>,
+    ) -> Result<(), DomError> {
+        let Some(root) = self.shadow_root(src) else {
+            return Ok(());
+        };
+        let Some(data) = self.shadow_root_data(root).copied() else {
+            return Ok(());
+        };
+        if !data.clonable {
+            return Ok(());
+        }
+        self.check_room(1, 0)?;
+        let copy_root = self.make_shadow_root(
+            copy,
+            crate::tree::ShadowRootData {
+                host: copy,
+                declarative: false,
+                ..data
+            },
+        );
+        stack.push((root, copy_root));
+        roots.push(copy_root);
+        Ok(())
     }
 
     /// Creates the copy of one node, without children.
@@ -99,6 +149,7 @@ impl Document {
         if let NodeData::Element(e) = &mut data {
             nodes += 2 * usize::from(e.template_contents.take().is_some());
             e.parser_form = None;
+            e.shadow_flags = 0;
             e.reset_custom_element_state();
         }
         self.check_room(nodes, crate::mutation::data_bytes(&data))?;
@@ -155,7 +206,8 @@ impl Document {
     fn same_data(first: &Document, x: NodeId, second: &Document, y: NodeId) -> bool {
         match (&first.node(x).data, &second.node(y).data) {
             (NodeData::Document, NodeData::Document)
-            | (NodeData::DocumentFragment, NodeData::DocumentFragment) => true,
+            | (NodeData::DocumentFragment, NodeData::DocumentFragment)
+            | (NodeData::ShadowRoot(_), NodeData::ShadowRoot(_)) => true,
             (
                 NodeData::Doctype {
                     name,

@@ -34,14 +34,8 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
         "shadow-root-interface",
         7,
-        r#""constructor""#,
-        "ShadowRoot is the interface object only: no instance exists, so its members are left out (ADR 0028, M9 feature 1)",
-    ),
-    (
-        "shadow-root-interface",
-        8,
-        r#"["undefined", false, null, false]"#,
-        "no `attachShadow()` and no `shadowRoot`: swb has no shadow trees",
+        r#""activeElement,clonable,constructor,delegatesFocus,host,innerHTML,mode,onslotchange,serializable,slotAssignment,styleSheets""#,
+        "`ShadowRoot` lacks `adoptedStyleSheets` (ADR 0036 sub-feature 5c), `elementFromPoint` and `elementsFromPoint` (5b), and the members that ADR 0036 section 9 leaves out of M10",
     ),
     (
         "navigator-plugins",

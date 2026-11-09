@@ -4768,7 +4768,18 @@ Steps:
         `slotchange`, shadow-including walks (custom elements, sheets,
         images, frames, forms), the bindings. Exit: GitHub's 24 roots
         exist with the replay's content and its callback counts reach 35
-        and 76 (feature 4's open part).
+        and 76 (feature 4's open part). Done (2026-11-09), exit met:
+        `NodeData::ShadowRoot` with a flag byte and a per-arena shadow
+        state; `attachShadow` with Chromium's checks and messages;
+        connectedness through hosts; adoption, clones of clonable roots
+        and transplants carry roots; named and manual slots with eager
+        assignment; `slotchange` after the observers' callbacks;
+        shadow-including walks for custom elements, sheets (collected, not
+        applied until 5c), images, frames and form controls. GitHub: 24
+        roots with the replay's texts, callbacks 35 and 76, no console
+        error (47 before). Probe: 25 cases, 137 queries; 64 match, 4
+        departures, 69 wait for 5b to 5d. Rendering unchanged until 5b;
+        all scores equal; binding rows within +1 %.
       - 5b the flat tree in rendering (`implementer-hard`): style
         inheritance, the box tree, counters, hit testing,
         `elementFromPoint`, the `:hover` chains, `innerText`; the fast

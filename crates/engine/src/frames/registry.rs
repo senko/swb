@@ -118,6 +118,8 @@ impl DocumentMaker {
 /// What a new frame takes from its parent's document and its container.
 pub(crate) struct ChildInit {
     pub(crate) container: NodeId,
+    /// The container is in a shadow tree ([`super::Frame::in_shadow_tree`]).
+    pub(crate) in_shadow_tree: bool,
     pub(crate) name: String,
     pub(crate) sandbox_attr: Option<String>,
     pub(crate) base_url: Url,
@@ -137,6 +139,7 @@ impl ChildInit {
         let element = doc.dom().element(container)?;
         Some(ChildInit {
             container,
+            in_shadow_tree: doc.dom().in_shadow_tree(container),
             name: element.attr("name").unwrap_or_default().to_owned(),
             sandbox_attr: element.attr("sandbox").map(str::to_owned),
             base_url: doc.base_url().clone(),
@@ -263,6 +266,7 @@ impl Frames {
         let id = self.insert(parent, init.container, doc, at)?;
         let frame = self.get_mut(id)?;
         frame.name = init.name;
+        frame.in_shadow_tree = init.in_shadow_tree;
         frame.sandbox = sandbox;
         frame.origin = Some(origin);
         frame.storage_site = storage_site;
@@ -448,6 +452,19 @@ impl FrameRegistry {
     }
 }
 
+impl FrameRegistry {
+    /// HTML "document-tree child navigables" of the frame `frame`: its child
+    /// frames whose containers are not in a shadow tree.
+    fn tree_children(&self, frame: u32) -> impl Iterator<Item = FrameId> + '_ {
+        self.frame(frame)
+            .map(|f| f.children.as_slice())
+            .unwrap_or_default()
+            .iter()
+            .copied()
+            .filter(|&c| self.frames.get(c).is_none_or(|f| !f.in_shadow_tree))
+    }
+}
+
 impl FrameHost for FrameRegistry {
     fn is_alive(&self, frame: u32) -> bool {
         self.frame(frame).is_some()
@@ -458,21 +475,19 @@ impl FrameHost for FrameRegistry {
     }
 
     fn child_count(&self, frame: u32) -> u32 {
-        self.frame(frame)
-            .map_or(0, |f| u32::try_from(f.children.len()).unwrap_or(u32::MAX))
+        let count = self.tree_children(frame).count();
+        u32::try_from(count).unwrap_or(u32::MAX)
     }
 
     fn child_at(&self, frame: u32, index: u32) -> Option<u32> {
-        let child = self.frame(frame)?.children.get(index as usize)?;
+        let child = self.tree_children(frame).nth(index as usize)?;
         Some(child.number())
     }
 
     fn child_named(&self, frame: u32, name: &str) -> Option<u32> {
-        let children = &self.frame(frame)?.children;
-        children
-            .iter()
-            .find(|&&c| self.frames.get(c).is_some_and(|f| f.name == name))
-            .map(|c| c.number())
+        self.tree_children(frame)
+            .find(|&c| self.frames.get(c).is_some_and(|f| f.name == name))
+            .map(FrameId::number)
     }
 
     fn child_of_container(&self, parent: u32, container: NodeId) -> Option<u32> {

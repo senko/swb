@@ -81,6 +81,10 @@ pub(crate) enum SheetSource {
 pub(crate) struct SheetSlot {
     /// The `style` or `link` element.
     pub(crate) owner: NodeId,
+    /// The tree scope of the sheet: the document node, or the shadow root
+    /// whose tree holds `owner` (ADR 0036 section 5). The stylist applies
+    /// only the document's sheets until sub-feature 5c.
+    pub(crate) scope: NodeId,
     pub(crate) source: SheetSource,
     /// The load number of a `link` (see [`Pending::Stylesheet`]).
     pub(crate) serial: u64,
@@ -117,6 +121,7 @@ impl SheetSlot {
     pub(crate) fn inline(owner: NodeId, css: String, base_url: Url, media: Option<String>) -> Self {
         SheetSlot {
             owner,
+            scope: NodeId::DOCUMENT,
             source: SheetSource::Inline,
             serial: 0,
             css: Some(css),
@@ -136,6 +141,7 @@ impl SheetSlot {
     pub(crate) fn link(owner: NodeId, url: Url, serial: u64, media: Option<String>) -> Self {
         SheetSlot {
             owner,
+            scope: NodeId::DOCUMENT,
             source: SheetSource::Link(url.clone()),
             serial,
             css: None,
@@ -320,16 +326,28 @@ impl Sheets {
         self.list.get_mut(index)
     }
 
-    /// The indexes of the settled slots, in tree order.
+    /// The indexes of the settled slots of the document's scope, in tree
+    /// order (`document.styleSheets`).
     pub(crate) fn settled(&mut self) -> &[usize] {
         let list = &self.list;
         self.settled.get_or_insert_with(|| {
             list.iter()
                 .enumerate()
-                .filter(|(_, s)| s.is_settled())
+                .filter(|(_, s)| s.is_settled() && s.scope == NodeId::DOCUMENT)
                 .map(|(i, _)| i)
                 .collect()
         })
+    }
+
+    /// The indexes of the settled slots of the shadow root `scope`, in tree
+    /// order (`ShadowRoot.styleSheets`).
+    pub(crate) fn settled_in(&self, scope: NodeId) -> Vec<usize> {
+        self.list
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| s.is_settled() && s.scope == scope)
+            .map(|(i, _)| i)
+            .collect()
     }
 
     /// The index of the sheet of `owner`. Sheets added last are found

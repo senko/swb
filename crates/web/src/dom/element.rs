@@ -17,6 +17,22 @@ impl g::element::ElementImpl for WebState {
     parent_node_methods!("Element");
     child_node_methods!("Element");
 
+    fn attach_shadow(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        init: g::types::ShadowRootInit,
+    ) -> b::Result<NodeId> {
+        super::shadow::attach_shadow(cx, this, &init)
+    }
+
+    fn shadow_root(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
+        super::shadow::shadow_root(cx, this)
+    }
+
+    fn assigned_slot(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
+        super::shadow::assigned_slot(cx, this)
+    }
+
     fn namespace_uri(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<String>> {
         let dom = dom(cx.rt)?;
         let ns = dom.element(this).map(|e| e.name.ns.to_string());

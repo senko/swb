@@ -9,9 +9,16 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `HTMLSlotElement`.
 pub trait HTMLSlotElementImpl: b::Host {
-}
+    /// `sequence<Node> assignedNodes(optional AssignedNodesOptions options)`.
+    fn assigned_nodes(cx: &mut b::Cx<'_>, this: b::NodeId, options: super::types::AssignedNodesOptions) -> b::Result<Vec<b::NodeId>>;
 
-impl<T: b::Host> HTMLSlotElementImpl for T {}
+    /// `sequence<Element> assignedElements(optional AssignedNodesOptions options)`.
+    fn assigned_elements(cx: &mut b::Cx<'_>, this: b::NodeId, options: super::types::AssignedNodesOptions) -> b::Result<Vec<b::NodeId>>;
+
+    /// `undefined assign((Element or Text)... nodes)`.
+    fn assign(cx: &mut b::Cx<'_>, this: b::NodeId, nodes: Vec<super::types::ElementOrText>) -> b::Result<()>;
+
+}
 
 fn get_name<H: HTMLSlotElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("HTMLSlotElement", "name"), super::DOM_EXCEPTION, |rt| {
@@ -40,6 +47,39 @@ pub(super) fn construct<H: HTMLSlotElementImpl>(rt: &mut swb_js::Runtime, call: 
     })
 }
 
+fn op_assigned_nodes<H: HTMLSlotElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLSlotElement", "assignedNodes"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SLOT_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let a0 = if v.is_undefined() { super::types::AssignedNodesOptions::from_js(rt, call.realm(), swb_js::Value::Undefined)? } else { super::types::AssignedNodesOptions::from_js(rt, call.realm(), v).map_err(|e| e.argument(0))? };
+        let result = <H as HTMLSlotElementImpl>::assigned_nodes(&mut b::Cx::new(rt, call, super::HTML_SLOT_ELEMENT), this, a0)?;
+        Ok(b::to_js::sequence(rt, call.realm(), &result, |rt, item0| b::to_js::node::<H>(rt, call.realm(), *item0))?)
+    })
+}
+
+fn op_assigned_elements<H: HTMLSlotElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLSlotElement", "assignedElements"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SLOT_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let a0 = if v.is_undefined() { super::types::AssignedNodesOptions::from_js(rt, call.realm(), swb_js::Value::Undefined)? } else { super::types::AssignedNodesOptions::from_js(rt, call.realm(), v).map_err(|e| e.argument(0))? };
+        let result = <H as HTMLSlotElementImpl>::assigned_elements(&mut b::Cx::new(rt, call, super::HTML_SLOT_ELEMENT), this, a0)?;
+        Ok(b::to_js::sequence(rt, call.realm(), &result, |rt, item0| b::to_js::node::<H>(rt, call.realm(), *item0))?)
+    })
+}
+
+fn op_assign<H: HTMLSlotElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLSlotElement", "assign"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SLOT_ELEMENT)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(super::types::ElementOrText::from_js(rt, call.realm(), v).map_err(|e| e.argument(i))?);
+        }
+        <H as HTMLSlotElementImpl>::assign(&mut b::Cx::new(rt, call, super::HTML_SLOT_ELEMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 /// Creates the interface object and the prototype of `HTMLSlotElement` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: HTMLSlotElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
@@ -47,6 +87,9 @@ pub fn define<H: HTMLSlotElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> s
     let target = interface.prototype;
     let _ = target;
     rt.define_accessor(realm, target, "name", (Some(get_name::<H> as swb_js::NativeFn), Some(set_name::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "assign", 0, op_assign::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "assignedElements", 0, op_assigned_elements::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "assignedNodes", 0, op_assigned_nodes::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

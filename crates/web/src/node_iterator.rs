@@ -582,7 +582,7 @@ fn node_type(rt: &mut Runtime, key: DocKey, node: NodeId) -> Option<u32> {
         NodeData::Comment(_) => 8,
         NodeData::Document => 9,
         NodeData::Doctype { .. } => 10,
-        NodeData::DocumentFragment => 11,
+        NodeData::DocumentFragment | NodeData::ShadowRoot(_) => 11,
     })
 }
 

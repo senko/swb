@@ -386,7 +386,9 @@ pub(crate) fn connected(rt: &mut Runtime, element: NodeId) -> VmResult<()> {
     };
     {
         let document = dom(rt)?;
-        if document.get(element).is_none() || document.root(element) != NodeId::DOCUMENT {
+        if document.get(element).is_none()
+            || document.shadow_including_root(element) != NodeId::DOCUMENT
+        {
             return Ok(());
         }
     }

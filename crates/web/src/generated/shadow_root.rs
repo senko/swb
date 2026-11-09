@@ -9,9 +9,135 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `ShadowRoot`.
 pub trait ShadowRootImpl: b::Host {
+    /// `readonly attribute ShadowRootMode mode`.
+    fn mode(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<super::types::ShadowRootMode>;
+
+    /// `readonly attribute boolean delegatesFocus`.
+    fn delegates_focus(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `readonly attribute SlotAssignmentMode slotAssignment`.
+    fn slot_assignment(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<super::types::SlotAssignmentMode>;
+
+    /// `readonly attribute boolean clonable`.
+    fn clonable(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `readonly attribute boolean serializable`.
+    fn serializable(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `readonly attribute Element host`.
+    fn host(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<b::NodeId>;
+
+    /// `attribute DOMString innerHTML`.
+    fn inner_html(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
+
+    /// The setter of `attribute DOMString innerHTML`.
+    fn set_inner_html(cx: &mut b::Cx<'_>, this: b::NodeId, value: String) -> b::Result<()>;
+
+    /// `readonly attribute StyleSheetList styleSheets`.
+    fn style_sheets(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `readonly attribute Element? activeElement`.
+    fn active_element(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
+
 }
 
-impl<T: b::Host> ShadowRootImpl for T {}
+fn get_mode<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("ShadowRoot", "mode"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        let result = <H as ShadowRootImpl>::mode(&mut b::Cx::new(rt, call, super::SHADOW_ROOT), this)?;
+        Ok(b::to_js::string(rt, result.as_str())?)
+    })
+}
+
+fn get_delegates_focus<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("ShadowRoot", "delegatesFocus"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        let result = <H as ShadowRootImpl>::delegates_focus(&mut b::Cx::new(rt, call, super::SHADOW_ROOT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn get_slot_assignment<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("ShadowRoot", "slotAssignment"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        let result = <H as ShadowRootImpl>::slot_assignment(&mut b::Cx::new(rt, call, super::SHADOW_ROOT), this)?;
+        Ok(b::to_js::string(rt, result.as_str())?)
+    })
+}
+
+fn get_clonable<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("ShadowRoot", "clonable"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        let result = <H as ShadowRootImpl>::clonable(&mut b::Cx::new(rt, call, super::SHADOW_ROOT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn get_serializable<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("ShadowRoot", "serializable"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        let result = <H as ShadowRootImpl>::serializable(&mut b::Cx::new(rt, call, super::SHADOW_ROOT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn get_host<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("ShadowRoot", "host"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        let result = <H as ShadowRootImpl>::host(&mut b::Cx::new(rt, call, super::SHADOW_ROOT), this)?;
+        Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
+    })
+}
+
+fn get_onslotchange<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("ShadowRoot", "onslotchange"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        Ok(<H as b::Host>::event_handler(rt, b::HandlerTarget::Node(this), "onslotchange")?)
+    })
+}
+
+fn set_onslotchange<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("ShadowRoot", "onslotchange"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        let v = rt.arg(call, 0);
+        <H as b::Host>::set_event_handler(rt, b::HandlerTarget::Node(this), "onslotchange", v)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_inner_html<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("ShadowRoot", "innerHTML"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        let result = <H as ShadowRootImpl>::inner_html(&mut b::Cx::new(rt, call, super::SHADOW_ROOT), this)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_inner_html<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("ShadowRoot", "innerHTML"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string_null_empty(rt, v).map_err(b::Exception::nested)?;
+        b::ce::scope(rt, |rt| <H as ShadowRootImpl>::set_inner_html(&mut b::Cx::new(rt, call, super::SHADOW_ROOT), this, value))?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_style_sheets<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("ShadowRoot", "styleSheets"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        let result = <H as ShadowRootImpl>::style_sheets(&mut b::Cx::new(rt, call, super::SHADOW_ROOT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn get_active_element<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("ShadowRoot", "activeElement"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        let result = <H as ShadowRootImpl>::active_element(&mut b::Cx::new(rt, call, super::SHADOW_ROOT), this)?;
+        Ok((match result { Some(x0) => b::to_js::node::<H>(rt, call.realm(), x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
 
 /// Creates the interface object and the prototype of `ShadowRoot` in `realm`
 /// with their members (the parent's interface must exist).
@@ -19,6 +145,16 @@ pub fn define<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js
     let interface = rt.begin_interface(realm, super::SHADOW_ROOT)?;
     let target = interface.prototype;
     let _ = target;
+    rt.define_accessor(realm, target, "mode", (Some(get_mode::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "delegatesFocus", (Some(get_delegates_focus::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "slotAssignment", (Some(get_slot_assignment::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "clonable", (Some(get_clonable::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "serializable", (Some(get_serializable::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "host", (Some(get_host::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "onslotchange", (Some(get_onslotchange::<H> as swb_js::NativeFn), Some(set_onslotchange::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "innerHTML", (Some(get_inner_html::<H> as swb_js::NativeFn), Some(set_inner_html::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "styleSheets", (Some(get_style_sheets::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "activeElement", (Some(get_active_element::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

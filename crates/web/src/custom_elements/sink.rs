@@ -242,13 +242,17 @@ impl Reactions {
         )
     }
 
-    /// Walks the inclusive descendants of `root` in tree order and enqueues
+    /// Walks the shadow-including inclusive descendants of `root` in
+    /// shadow-including tree order and enqueues
     /// the reaction of `walk` for each custom element (or, for an insertion,
     /// each element that can be upgraded).
     fn walk(&mut self, key: DocKey, doc: &Document, root: NodeId, walk: Walk) -> bool {
         let mut attention = false;
         let mut visited = 0;
-        for node in doc.descendants(root) {
+        // DOM "insert", "remove" and "adopt" walk the shadow-including
+        // inclusive descendants (measured: removing a host disconnects its
+        // shadow tree, case `custom-elements-in-shadow`).
+        for node in doc.shadow_including_descendants(root) {
             visited += 1;
             let (state, number) = doc.custom_element_state(node);
             let reaction = match (state, walk) {

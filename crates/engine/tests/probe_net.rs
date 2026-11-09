@@ -40,6 +40,8 @@ mod image_cases;
 mod module_cases;
 #[path = "probe_net/module_graph.rs"]
 mod module_graph_cases;
+#[path = "probe_net/shadow_dom.rs"]
+mod shadow_cases;
 #[path = "probe_net/xhr.rs"]
 mod xhr_cases;
 
@@ -705,6 +707,82 @@ const CE_LATER: &[Later] = &[
     ("parser-sync-dynamic-markup", None, SUB_4C),
     ("parser-sync-failures", None, SUB_4C),
 ];
+
+const SUB_5B: &str = "ADR 0036 sub-feature 5b: the flat tree in rendering";
+const SUB_5C: &str = "ADR 0036 sub-feature 5c: style scoping and constructable style sheets";
+const SUB_5D: &str = "ADR 0036 sub-feature 5d: events and focus through shadow trees";
+const DECLARATIVE: &str = "backlog (ADR 0036 section 10): declarative shadow roots and the \
+     serialization of roots (`getHTML`, `setHTMLUnsafe`, `parseHTMLUnsafe`)";
+
+/// The departures of the shadow DOM probe (ADR 0036 sub-feature 5a). The
+/// members that later sub-features add change these values; those
+/// sub-features update the rows.
+const SHADOW_DEPARTURES: &[Departure] = &[
+    (
+        "api-surface",
+        1,
+        r#""activeElement,clonable,constructor,delegatesFocus,host,innerHTML,mode,onslotchange,serializable,slotAssignment,styleSheets""#,
+        "`ShadowRoot` lacks `adoptedStyleSheets` (sub-feature 5c), `elementFromPoint` and \
+         `elementsFromPoint` (5b), and the members that ADR 0036 section 9 leaves out of M10 \
+         (`getHTML`, `setHTML`, `setHTMLUnsafe`, `getSelection`, `getAnimations`, \
+         `fullscreenElement`, `pictureInPictureElement`, `pointerLockElement`, \
+         `customElementRegistry`)",
+    ),
+    (
+        "api-surface",
+        3,
+        r#""attachShadow:true,shadowRoot:true,slot:true,assignedSlot:true,part:false,getHTML:false,setHTMLUnsafe:false,customElementRegistry:false""#,
+        "`Element.part` comes with `::part()` (sub-feature 5c); `getHTML`, `setHTMLUnsafe` and \
+         scoped registries (`customElementRegistry`) are backlog (ADR 0036 sections 9 and 10)",
+    ),
+    (
+        "api-surface",
+        4,
+        r#""true,false,undefined,function,0,false,false,1,0,0""#,
+        "`adoptedStyleSheets`, `replace` and `replaceSync` come with sub-feature 5c; \
+         `Document.parseHTMLUnsafe` is backlog (ADR 0036 section 10)",
+    ),
+    (
+        "attach-namespaces",
+        1,
+        r#""svg div=ok:true:SVGElement | svg x-a=DOMException NotSupportedError: Failed to execute 'attachShadow' on 'Element': This element does not support attachShadow | mathml div=ok:true:Element | mathml math=DOMException NotSupportedError: Failed to execute 'attachShadow' on 'Element': This element does not support attachShadow | urn div=ok:true:Element | urn x-a=DOMException NotSupportedError: Failed to execute 'attachShadow' on 'Element': This element does not support attachShadow | urn a=DOMException NotSupportedError: Failed to execute 'attachShadow' on 'Element': This element does not support attachShadow | urn foo=DOMException NotSupportedError: Failed to execute 'attachShadow' on 'Element': This element does not support attachShadow | null div=ok:true:Element | null x-a=DOMException NotSupportedError: Failed to execute 'attachShadow' on 'Element': This element does not support attachShadow | xlink span=ok:true:Element""#,
+        "swb has no `MathMLElement` interface: a MathML element is an `Element` (the shadow \
+         roots match)",
+    ),
+];
+
+/// The cases and queries of the shadow DOM probe that later sub-features of
+/// ADR 0036 (or the backlog) run.
+const SHADOW_LATER: &[Later] = &[
+    ("api-surface", Some(5), SUB_5C),
+    ("api-surface", Some(6), SUB_5C),
+    ("composed-path-open", None, SUB_5D),
+    ("composed-path-closed", None, SUB_5D),
+    ("retarget-related", None, SUB_5D),
+    ("focus-shadow", None, SUB_5D),
+    ("tab-order", None, SUB_5D),
+    ("tab-order-backward", None, SUB_5D),
+    ("ui-events-through-shadow", None, SUB_5D),
+    ("slotchange-timing", Some(6), SUB_5D),
+    // `adoptedStyleSheets` (5c) and `elementFromPoint` (5b) of a root;
+    // `getSelection` is not in M10 (ADR 0036 section 9).
+    ("root-properties", Some(6), SUB_5C),
+    ("root-properties", Some(10), DECLARATIVE),
+    ("style-scoping", None, SUB_5C),
+    ("style-specificity-and-order", None, SUB_5C),
+    ("constructable-sheets", None, SUB_5C),
+    ("render-reads", None, SUB_5B),
+    ("nesting-depth", None, SUB_5B),
+    ("declarative-js-on", None, DECLARATIVE),
+];
+
+#[test]
+fn shadow_dom_probe_cases_match_chromium() {
+    on_page_thread(|| {
+        let failures = failures_but_later(shadow_cases::CASES, SHADOW_DEPARTURES, SHADOW_LATER, 3);
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    });
+}
 
 #[test]
 fn custom_element_probe_cases_match_chromium() {

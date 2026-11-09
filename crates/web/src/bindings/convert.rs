@@ -535,6 +535,17 @@ pub fn dictionary_object(value: Value, name: &str) -> Result<Option<Gc<Object>>>
     }
 }
 
+/// [`dictionary_object`] for a dictionary with `[SwbNullIsInvalid]`: `null`
+/// is a `TypeError` too (Chromium's `attachShadow(null)`, measured).
+pub fn dictionary_object_not_null(value: Value, name: &str) -> Result<Option<Gc<Object>>> {
+    if value == Value::Null {
+        return Err(Exception::type_error(format!(
+            "The provided value is not of type '{name}'."
+        )));
+    }
+    dictionary_object(value, name)
+}
+
 /// `Get(jsDict, key)` of a dictionary member, or `undefined` without an
 /// object.
 pub fn member(rt: &mut Runtime, dict: Option<Gc<Object>>, key: &str) -> Result<Value> {

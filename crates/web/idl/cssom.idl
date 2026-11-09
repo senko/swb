@@ -129,6 +129,10 @@ partial interface Document {
   [SameObject] readonly attribute StyleSheetList styleSheets;
 };
 
+partial interface ShadowRoot {
+  [SameObject] readonly attribute StyleSheetList styleSheets;
+};
+
 interface mixin LinkStyle {
   readonly attribute CSSStyleSheet? sheet;
 };

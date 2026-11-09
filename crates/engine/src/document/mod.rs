@@ -822,6 +822,18 @@ impl swb_web::EngineHost for DocumentState {
         self.script_sheet(index)
     }
 
+    fn shadow_style_sheet_count(&mut self, root: NodeId) -> usize {
+        self.script_sheet_count_in(root)
+    }
+
+    fn shadow_style_sheet(
+        &mut self,
+        root: NodeId,
+        index: usize,
+    ) -> Option<swb_style::cssom::sheet::SheetRef> {
+        self.script_sheet_in(root, index)
+    }
+
     fn style_sheet_of(&mut self, owner: NodeId) -> Option<swb_style::cssom::sheet::SheetRef> {
         self.script_sheet_of(owner)
     }

@@ -226,8 +226,21 @@ pub(crate) fn after_request(rt: &mut Runtime) -> VmResult<()> {
     if backup {
         crate::custom_elements::reactions::queue_backup_microtask(rt)?;
     }
+    // A slot change waits for the mutation observer microtask (DOM "signal
+    // a slot change"); the slot assignment counts its work (ADR 0036
+    // section 12).
+    let (slot_signals, slots_overdue) = match dom_mut(rt) {
+        Ok(dom) => (
+            dom.has_slot_signals(),
+            dom.take_shadow_work(swb_dom::WORK_PER_CHECK),
+        ),
+        Err(_) => (false, false),
+    };
+    if slot_signals {
+        queue_microtask(rt);
+    }
     // The work of the pre-removing steps of the node iterators counts too.
-    if crate::node_iterator::take_overdue(rt) || overdue || reactions_overdue {
+    if crate::node_iterator::take_overdue(rt) || overdue || reactions_overdue || slots_overdue {
         rt.check_time()?;
     }
     Ok(())
@@ -268,6 +281,11 @@ pub(crate) fn jobs_cleared(rt: &mut Runtime) {
     };
     web.mutation.queued = false;
     web.mutation.registry.borrow_mut().want_microtask();
+    // The signal slots wait too: the next call queues the microtask again.
+    let signals = crate::state::dom(rt).is_ok_and(swb_dom::Document::has_slot_signals);
+    if signals {
+        rt.host_signal_cell().set(true);
+    }
 }
 
 /// The mutation observer microtask.
@@ -280,7 +298,9 @@ fn notify(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     Ok(NativeReturn::Value(Value::Undefined))
 }
 
-/// DOM "notify mutation observers".
+/// DOM "notify mutation observers": the observers' callbacks, then
+/// `slotchange` at each signal slot (both sets are taken first).
+/// <https://dom.spec.whatwg.org/#notify-mutation-observers>
 fn deliver(rt: &mut Runtime) -> VmResult<()> {
     let registry = {
         let web = state_mut(rt)?;
@@ -288,16 +308,93 @@ fn deliver(rt: &mut Runtime) -> VmResult<()> {
         web.mutation.registry.clone()
     };
     let ids = registry.borrow_mut().take_notify_set();
+    let slots = take_slot_signals(rt)?;
     for (position, &id) in ids.iter().enumerate() {
         let result = rt.check_time().and_then(|()| notify_one(rt, &registry, id));
         if let Err(error) = result {
             // A termination: the observers whose turn has not come keep
-            // their records and are notified by the next delivery.
+            // their records and are notified by the next delivery; the
+            // signal slots wait with them.
             registry.borrow_mut().restore_notify(&ids[position..]);
+            restore_slot_signals(rt, &slots);
+            return Err(error);
+        }
+    }
+    for (position, &(key, slot)) in slots.iter().enumerate() {
+        let result = rt
+            .check_time()
+            .and_then(|()| fire_slotchange(rt, key, slot));
+        if let Err(error) = result {
+            // The slots whose turn has not come (and the one that was
+            // interrupted) stay signalled.
+            restore_slot_signals(rt, &slots[position..]);
             return Err(error);
         }
     }
     after_call(rt)
+}
+
+/// Gives signal slots back to their documents (a termination interrupted
+/// the delivery): they go before the slots signalled since.
+fn restore_slot_signals(rt: &mut Runtime, slots: &[(u32, NodeId)]) {
+    let Ok(web) = state_mut(rt) else {
+        return;
+    };
+    let records = std::iter::once(&mut web.doc).chain(web.docs.iter_mut().flatten());
+    for record in records {
+        let key = record.key;
+        let nodes: Vec<NodeId> = slots
+            .iter()
+            .filter(|&&(k, _)| k == key)
+            .map(|&(_, slot)| slot)
+            .collect();
+        if nodes.is_empty() || record.retired {
+            continue;
+        }
+        if let Some(host) = record.host.as_deref_mut() {
+            host.dom_mut().restore_slot_signals(&nodes);
+        }
+    }
+}
+
+/// The signal slots of the documents of the agent (each arena keeps its
+/// own), in the order of the documents, emptied.
+fn take_slot_signals(rt: &mut Runtime) -> VmResult<Vec<(u32, NodeId)>> {
+    let web = state_mut(rt)?;
+    let mut slots = Vec::new();
+    let records = std::iter::once(&mut web.doc).chain(web.docs.iter_mut().flatten());
+    for record in records {
+        if record.retired {
+            continue;
+        }
+        let key = record.key;
+        if let Some(host) = record.host.as_deref_mut()
+            && host.dom().has_slot_signals()
+        {
+            slots.extend(
+                host.dom_mut()
+                    .take_slot_signals()
+                    .into_iter()
+                    .map(|s| (key, s)),
+            );
+        }
+    }
+    Ok(slots)
+}
+
+/// Fires `slotchange` at the slot `slot` of the document `key`: it bubbles,
+/// is not composed and cannot be canceled (measured, case
+/// `slotchange-timing`). Until ADR 0036 sub-feature 5d the path is the
+/// slot's ancestors up to its root.
+fn fire_slotchange(rt: &mut Runtime, key: u32, slot: NodeId) -> VmResult<()> {
+    let entered = crate::state::switch_if_other(rt, key)?;
+    let event = crate::events::TrustedEvent {
+        bubbles: true,
+        ..crate::events::TrustedEvent::new("slotchange")
+    };
+    let result = crate::events::fire_trusted(rt, crate::events::DispatchTarget::Node(slot), &event);
+    crate::state::leave(rt, entered);
+    result.map(|_| ())
 }
 
 /// The turn of one observer in "notify mutation observers".

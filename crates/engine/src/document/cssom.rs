@@ -38,6 +38,20 @@ impl DocumentState {
         self.cssom_sheet(slot)
     }
 
+    /// The number of sheets of `ShadowRoot.styleSheets` of the shadow root
+    /// `scope`, after the DOM changes.
+    pub(crate) fn script_sheet_count_in(&mut self, scope: NodeId) -> usize {
+        self.process_changes();
+        self.sheets.settled_in(scope).len()
+    }
+
+    /// The sheet at `index` of `ShadowRoot.styleSheets` of `scope`.
+    pub(crate) fn script_sheet_in(&mut self, scope: NodeId, index: usize) -> Option<SheetRef> {
+        self.process_changes();
+        let slot = *self.sheets.settled_in(scope).get(index)?;
+        self.cssom_sheet(slot)
+    }
+
     /// The sheet of the element `owner`, after the DOM changes.
     pub(crate) fn script_sheet_of(&mut self, owner: NodeId) -> Option<SheetRef> {
         self.process_changes();

@@ -95,7 +95,7 @@ fn serialize(doc: &Document, mut stack: Vec<Step>) -> String {
                 out.push_str(name);
                 out.push('>');
             }
-            NodeData::Document | NodeData::DocumentFragment => {
+            NodeData::Document | NodeData::DocumentFragment | NodeData::ShadowRoot(_) => {
                 let first = stack.len();
                 stack.extend(doc.children(id).map(Step::Node));
                 stack[first..].reverse();

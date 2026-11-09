@@ -193,6 +193,10 @@ partial interface Document {
   readonly attribute Element? activeElement;
 };
 
+partial interface ShadowRoot {
+  readonly attribute Element? activeElement;
+};
+
 partial interface Document {
   // resource metadata management
   readonly attribute USVString referrer;
@@ -1041,6 +1045,13 @@ interface HTMLOptionsCollection : HTMLCollection {
 interface HTMLSlotElement : HTMLElement {
   [HTMLConstructor] constructor();
   [CEReactions, Reflect] attribute DOMString name;
+  sequence<Node> assignedNodes(optional AssignedNodesOptions options = {});
+  sequence<Element> assignedElements(optional AssignedNodesOptions options = {});
+  undefined assign((Element or Text)... nodes);
+};
+
+dictionary AssignedNodesOptions {
+  boolean flatten = false;
 };
 
 [Exposed=Window]

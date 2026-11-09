@@ -216,7 +216,7 @@ fn entry_list(
 ) -> Vec<Entry> {
     let (doc, forms) = (cx.doc, cx.forms);
     let mut entries = Vec::new();
-    for node in doc.descendants(NodeId::DOCUMENT) {
+    for node in doc.shadow_including_descendants(NodeId::DOCUMENT) {
         let (Some(state), Some(e)) = (forms.get(node), doc.element(node)) else {
             continue;
         };
@@ -349,17 +349,18 @@ fn direction(doc: &Document, node: NodeId) -> &'static str {
 /// The default button of a form: its first submit button in tree order.
 /// <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#default-button>
 pub(crate) fn default_button(doc: &Document, forms: &Forms, form: NodeId) -> Option<NodeId> {
-    doc.descendants(NodeId::DOCUMENT).find(|&n| {
-        forms
-            .control_type(n)
-            .is_some_and(ControlType::is_submit_button)
-            && forms.owner(n) == Some(form)
-    })
+    doc.shadow_including_descendants(NodeId::DOCUMENT)
+        .find(|&n| {
+            forms
+                .control_type(n)
+                .is_some_and(ControlType::is_submit_button)
+                && forms.owner(n) == Some(form)
+        })
 }
 
 /// The number of fields of a form that block implicit submission.
 pub(crate) fn blocking_fields(doc: &Document, forms: &Forms, form: NodeId) -> usize {
-    doc.descendants(NodeId::DOCUMENT)
+    doc.shadow_including_descendants(NodeId::DOCUMENT)
         .filter(|&n| {
             matches!(forms.control_type(n), Some(ControlType::Input(t)) if t.blocks_implicit_submission())
                 && forms.owner(n) == Some(form)

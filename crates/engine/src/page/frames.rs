@@ -301,11 +301,12 @@ impl Page {
         }
     }
 
-    /// True if `node` is in the document tree of `frame`'s document.
+    /// True if `node` is in `frame`'s document (also in a shadow tree of it,
+    /// not in another document of the arena).
     fn in_frame_tree(&self, frame: FrameId, node: NodeId) -> bool {
         self.doc_of(frame).is_some_and(|d| {
             let dom = d.dom();
-            dom.get(node).is_some() && dom.root(node) == NodeId::DOCUMENT
+            dom.get(node).is_some() && dom.shadow_including_root(node) == NodeId::DOCUMENT
         })
     }
 
@@ -318,8 +319,9 @@ impl Page {
         let init = ChildInit::of(doc, container)?;
         let at = {
             let dom = doc.dom();
-            self.frames
-                .child_position(parent, container, |a, b| dom.precedes(a, b))
+            self.frames.child_position(parent, container, |a, b| {
+                dom.shadow_including_precedes(a, b)
+            })
         };
         let settings = self.frame_settings();
         let maker = Rc::clone(&self.maker);

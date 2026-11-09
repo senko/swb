@@ -7,13 +7,28 @@
 //! A taken node stays in its arena as an empty detached comment, because a
 //! `NodeId` stays valid for the lifetime of the arena: what still holds the id
 //! reads nothing of the moved node.
+//!
+//! Shadow roots go with their hosts (all of them when a subtree is taken, the
+//! clonable ones in a copy: DOM "clone a node"), and the arena that gets them
+//! assigns their slots again (ADR 0036 section 1).
 
 use std::collections::HashMap;
 
 use html5ever::local_name;
 
 use crate::mutation::{DomError, data_bytes};
-use crate::tree::{Document, NodeData, NodeId};
+use crate::tree::{Document, NodeData, NodeId, ShadowRootData};
+
+/// How a node without a parent hangs on another node of a [`Subtree`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Attached {
+    /// Not at all (the root of the subtree, or a node with a parent).
+    No,
+    /// The contents of this template element.
+    Contents(NodeId),
+    /// The shadow root of this host.
+    Shadow(NodeId),
+}
 
 /// One node of a [`Subtree`].
 #[derive(Debug)]
@@ -23,12 +38,13 @@ struct Entry {
     data: NodeData,
     /// The parent, in that arena; `None` for a root.
     parent: Option<NodeId>,
-    /// For the contents of a template: the template element.
-    contents_of: Option<NodeId>,
+    /// For template contents and shadow roots: their element.
+    attached: Attached,
 }
 
 /// The nodes of a subtree without an arena, in an order with parents before
-/// their children and template elements before their contents.
+/// their children, template elements before their contents and hosts before
+/// their shadow roots.
 #[derive(Debug, Default)]
 pub struct Subtree {
     nodes: Vec<Entry>,
@@ -74,36 +90,51 @@ fn nodes_needed(nodes: usize, templates: usize) -> usize {
 }
 
 impl Document {
-    /// The nodes of the subtree of `root` with its template contents; without
-    /// `deep`, only `root`. Each has the template element that it is the
-    /// contents of, if it is the root of template contents.
-    fn subtree_nodes(&self, root: NodeId, deep: bool) -> Vec<(NodeId, Option<NodeId>)> {
-        if !deep {
-            return vec![(root, None)];
-        }
+    /// The nodes of the subtree of `root` with its template contents and
+    /// shadow roots (with `all_roots` every root, else the clonable ones);
+    /// without `deep`, only `root` and its clonable shadow root. Each has the
+    /// element that it hangs on, if it is the root of template contents or
+    /// a shadow root.
+    fn subtree_nodes(&self, root: NodeId, deep: bool, all_roots: bool) -> Vec<(NodeId, Attached)> {
         let mut found = Vec::new();
-        let mut roots = vec![(root, None)];
-        while let Some((start, host)) = roots.pop() {
-            found.push((start, host));
+        let mut roots = vec![(root, Attached::No)];
+        while let Some((start, attached)) = roots.pop() {
+            found.push((start, attached));
+            if !deep && start == root {
+                if let Some(shadow) = self.shadow_root_to_take(root, false) {
+                    roots.push((shadow, Attached::Shadow(root)));
+                }
+                continue;
+            }
             let mut at = start;
             loop {
                 if let Some(contents) = self.element(at).and_then(|e| e.template_contents) {
-                    roots.push((contents, Some(at)));
+                    roots.push((contents, Attached::Contents(at)));
+                }
+                if let Some(shadow) = self.shadow_root_to_take(at, all_roots) {
+                    roots.push((shadow, Attached::Shadow(at)));
                 }
                 let Some(next) = self.next_in_tree_order(at, start) else {
                     break;
                 };
-                found.push((next, None));
+                found.push((next, Attached::No));
                 at = next;
             }
         }
         found
     }
 
+    /// The shadow root of `host` that goes with it: any root with `all`,
+    /// else a clonable one.
+    fn shadow_root_to_take(&self, host: NodeId, all: bool) -> Option<NodeId> {
+        let root = self.shadow_root(host)?;
+        (all || self.shadow_root_data(root).is_some_and(|d| d.clonable)).then_some(root)
+    }
+
     /// The size of the subtree of `root`, for [`Document::check_subtree_room`] of
     /// the arena that is to hold it.
     pub fn subtree_size(&self, root: NodeId) -> SubtreeSize {
-        let found = self.subtree_nodes(root, true);
+        let found = self.subtree_nodes(root, true, true);
         let mut size = SubtreeSize {
             nodes: found.len(),
             bytes: 0,
@@ -133,7 +164,7 @@ impl Document {
     /// contents, out of the arena. Each taken node stays as an empty detached
     /// comment.
     pub fn take_subtree(&mut self, root: NodeId) -> Subtree {
-        let found = self.subtree_nodes(root, true);
+        let found = self.subtree_nodes(root, true, true);
         let mut subtree = Subtree {
             nodes: Vec::with_capacity(found.len()),
             ..Subtree::default()
@@ -143,7 +174,7 @@ impl Document {
             .iter()
             .map(|&(n, _)| if n == root { None } else { self.parent(n) })
             .collect();
-        for (&(old, contents_of), parent) in found.iter().zip(parents) {
+        for (&(old, attached), parent) in found.iter().zip(parents) {
             let node = self.node_mut(old);
             node.parent = None;
             node.first_child = None;
@@ -154,10 +185,14 @@ impl Document {
             node.element_child_count = 0;
             let data = std::mem::replace(&mut node.data, NodeData::Comment(String::new()));
             self.text_bytes = self.text_bytes.saturating_sub(data_bytes(&data));
-            subtree.push(old, data, parent, contents_of);
-            if contents_of.is_some() {
+            subtree.push(old, data, parent, attached);
+            if matches!(attached, Attached::Contents(_)) {
                 self.template_hosts.remove(&old);
             }
+        }
+        if self.shadow.is_some() {
+            let taken: Vec<NodeId> = found.iter().map(|&(n, _)| n).collect();
+            self.forget_shadow_nodes(&taken);
         }
         self.generation += 1;
         self.structure_generation += 1;
@@ -167,14 +202,14 @@ impl Document {
     /// A copy of the subtree of `root` (with `deep`, else of `root` alone), for
     /// another arena.
     pub fn copy_subtree(&self, root: NodeId, deep: bool) -> Subtree {
-        let found = self.subtree_nodes(root, deep);
+        let found = self.subtree_nodes(root, deep, false);
         let mut subtree = Subtree {
             nodes: Vec::with_capacity(found.len()),
             ..Subtree::default()
         };
-        for &(old, contents_of) in &found {
+        for &(old, attached) in &found {
             let parent = if old == root { None } else { self.parent(old) };
-            subtree.push(old, self.node(old).data.clone(), parent, contents_of);
+            subtree.push(old, self.node(old).data.clone(), parent, attached);
         }
         subtree
     }
@@ -195,20 +230,31 @@ impl Document {
         let mut map: HashMap<NodeId, NodeId> = HashMap::with_capacity(subtree.nodes.len());
         let mut pairs = Vec::with_capacity(subtree.nodes.len());
         let mut root = None;
+        let mut shadow_roots = Vec::new();
         for entry in subtree.nodes {
-            let new = if let Some(host) = entry.contents_of {
+            let new = match entry.attached {
                 // `push_node` made the contents of the template.
-                map.get(&host)
+                Attached::Contents(host) => map
+                    .get(&host)
                     .and_then(|&h| self.element(h))
-                    .and_then(|e| e.template_contents)
-            } else {
-                let parent = entry.parent.and_then(|p| map.get(&p).copied());
-                let own = parent.map_or(owner, |p| self.node_document(p));
-                let id = self.push_node(entry.data, own);
-                if let Some(parent) = parent {
-                    self.link_raw(parent, id, None);
+                    .and_then(|e| e.template_contents),
+                Attached::Shadow(host) => match (map.get(&host), entry.data) {
+                    (Some(&host), NodeData::ShadowRoot(data)) => {
+                        let id = self.make_shadow_root(host, ShadowRootData { host, ..data });
+                        shadow_roots.push(id);
+                        Some(id)
+                    }
+                    _ => None,
+                },
+                Attached::No => {
+                    let parent = entry.parent.and_then(|p| map.get(&p).copied());
+                    let own = parent.map_or(owner, |p| self.node_document(p));
+                    let id = self.push_node(entry.data, own);
+                    if let Some(parent) = parent {
+                        self.link_raw(parent, id, None);
+                    }
+                    Some(id)
                 }
-                Some(id)
             };
             let Some(new) = new else {
                 continue;
@@ -216,6 +262,9 @@ impl Document {
             root.get_or_insert(new);
             map.insert(entry.old, new);
             pairs.push((entry.old, new));
+        }
+        for shadow in shadow_roots {
+            self.assign_new_root(shadow);
         }
         self.generation += 1;
         self.structure_generation += 1;
@@ -233,11 +282,12 @@ impl Subtree {
         old: NodeId,
         mut data: NodeData,
         parent: Option<NodeId>,
-        contents_of: Option<NodeId>,
+        attached: Attached,
     ) {
         if let NodeData::Element(e) = &mut data {
             e.template_contents = None;
             e.parser_form = None;
+            e.shadow_flags = 0;
             if e.is_html_named(&local_name!("template")) {
                 self.templates += 1;
             }
@@ -247,7 +297,7 @@ impl Subtree {
             old,
             data,
             parent,
-            contents_of,
+            attached,
         });
     }
 }

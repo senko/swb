@@ -13,6 +13,8 @@ from swbtools.module_cases import (
     GRAPH_CASES_FILE,
     GRAPH_PROBE_FILE,
     PROBE_FILE,
+    SHADOW_CASES_FILE,
+    SHADOW_PROBE_FILE,
     raw,
     render,
 )
@@ -117,3 +119,12 @@ def test_committed_ce_cases_are_those_of_the_probe_file() -> None:
     rust = (root / CE_CASES_FILE).read_text()
     written = re.findall(r'^        name: r?"([^"]+)",$', rust, re.MULTILINE)
     assert written == [c["name"] for c in probe["cases"] if c.get("javascript", True)]
+
+
+def test_committed_shadow_cases_are_those_of_the_probe_file() -> None:
+    root = paths.repo_root()
+    probe = json.loads((root / SHADOW_PROBE_FILE).read_text())
+    rust = (root / SHADOW_CASES_FILE).read_text()
+    written = re.findall(r'^        name: r?"([^"]+)",$', rust, re.MULTILINE)
+    assert written == [c["name"] for c in probe["cases"] if c.get("javascript", True)]
+    assert "shadow-cases" in rust

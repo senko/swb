@@ -147,6 +147,58 @@ fn a_termination_keeps_the_later_observers_notified() {
     });
 }
 
+/// A termination in an observer callback does not lose the signal slots
+/// that were taken for the same delivery: `slotchange` fires in the next one.
+#[test]
+fn a_termination_keeps_the_signal_slots() {
+    on_big_stack(|| {
+        let mut rt = load_in(PAGE, false, ClockMode::Virtual);
+        rt.set_time_limit(std::time::Duration::from_millis(200));
+        eval(
+            &mut rt,
+            "(function () { window.hits = 0; window.loops = 0; \
+             const h = document.createElement('div'); document.body.appendChild(h); \
+             const s = h.attachShadow({mode: 'open'}).appendChild(document.createElement('slot')); \
+             s.addEventListener('slotchange', function () { window.hits++; }); \
+             new MutationObserver(function () { if (loops++ === 0) { for (;;) {} } }).observe(h, {childList: true}); \
+             h.appendChild(document.createElement('b')); })(), 1",
+        );
+        rt.run_due_tasks(std::time::Duration::from_secs(1));
+        assert_eq!(eval(&mut rt, "window.loops"), 1);
+        // The next call queues the delivery again, if it did not run.
+        eval(&mut rt, "a.getAttribute('x'), 1");
+        rt.run_due_tasks(std::time::Duration::from_secs(1));
+        assert_eq!(eval(&mut rt, "window.hits"), 1);
+    });
+}
+
+/// A termination in a `slotchange` listener keeps the slots that wait for
+/// their turn, and the interrupted one.
+#[test]
+fn a_termination_in_slotchange_keeps_the_later_slots() {
+    on_big_stack(|| {
+        let mut rt = load_in(PAGE, false, ClockMode::Virtual);
+        rt.set_time_limit(std::time::Duration::from_millis(200));
+        eval(
+            &mut rt,
+            "(function () { window.hits = 0; window.loops = 0; \
+             const h = document.createElement('div'); document.body.appendChild(h); \
+             const r = h.attachShadow({mode: 'open'}); \
+             const s1 = r.appendChild(document.createElement('slot')); \
+             const s2 = r.appendChild(document.createElement('slot')); s2.name = 'n'; \
+             s1.addEventListener('slotchange', function () { if (loops++ === 0) { for (;;) {} } }); \
+             s2.addEventListener('slotchange', function () { window.hits++; }); \
+             h.appendChild(document.createElement('b')); \
+             const c = h.appendChild(document.createElement('i')); c.slot = 'n'; })(), 1",
+        );
+        rt.run_due_tasks(std::time::Duration::from_secs(1));
+        eval(&mut rt, "a.getAttribute('x'), 1");
+        rt.run_due_tasks(std::time::Duration::from_secs(1));
+        assert_eq!(eval(&mut rt, "window.loops"), 2);
+        assert_eq!(eval(&mut rt, "window.hits"), 1);
+    });
+}
+
 /// 100,000 children removed one by one under a subtree observer take
 /// linear time (the transient registered observers are a set).
 #[test]

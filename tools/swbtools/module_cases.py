@@ -6,7 +6,9 @@
 `tools/probes/web-module-graph.json` (`module-graph-cases`) and
 `crates/engine/tests/probe_net/custom_elements.rs` from
 `tools/probes/web-custom-elements.json` (`ce-cases`; the cases with
-JavaScript off are left out: they have no `js` queries).
+JavaScript off are left out: they have no `js` queries) and
+`crates/engine/tests/probe_net/shadow_dom.rs` from
+`tools/probes/web-shadow-dom.json` (`shadow-cases`).
 
 Run Chromium three times and check that the outputs are equal (docs/testing.md),
 then pass one output:
@@ -31,12 +33,15 @@ GRAPH_PROBE_FILE = Path("tools/probes/web-module-graph.json")
 GRAPH_CASES_FILE = Path("crates/engine/tests/probe_net/module_graph.rs")
 CE_PROBE_FILE = Path("tools/probes/web-custom-elements.json")
 CE_CASES_FILE = Path("crates/engine/tests/probe_net/custom_elements.rs")
+SHADOW_PROBE_FILE = Path("tools/probes/web-shadow-dom.json")
+SHADOW_CASES_FILE = Path("crates/engine/tests/probe_net/shadow_dom.rs")
 
 # The command and the section of docs/testing.md of each probe file.
 COMMANDS = {
     PROBE_FILE: ("module-cases", "Module script tests"),
     GRAPH_PROBE_FILE: ("module-graph-cases", "Module script tests"),
     CE_PROBE_FILE: ("ce-cases", "Custom element tests"),
+    SHADOW_PROBE_FILE: ("shadow-cases", "Shadow DOM tests"),
 }
 
 
@@ -125,4 +130,16 @@ def write_ce_cases(chromium_json: Path) -> int:
     text = render(probe, chromium, CE_PROBE_FILE)
     (root / CE_CASES_FILE).write_text(text, encoding="utf-8")
     print(f"wrote {CE_CASES_FILE}")
+    return 0
+
+
+def write_shadow_cases(chromium_json: Path) -> int:
+    """Writes the cases file of the shadow DOM probe from the `probe --json`
+    output in `chromium_json`."""
+    root = paths.repo_root()
+    probe = json.loads((root / SHADOW_PROBE_FILE).read_text(encoding="utf-8"))
+    chromium = json.loads(chromium_json.read_text(encoding="utf-8"))
+    text = render(probe, chromium, SHADOW_PROBE_FILE)
+    (root / SHADOW_CASES_FILE).write_text(text, encoding="utf-8")
+    print(f"wrote {SHADOW_CASES_FILE}")
     return 0

@@ -95,7 +95,7 @@ fn ensure_valid_in(
 ) -> Result<(), Exception> {
     let parent_is_document = match dom.node(parent).data {
         NodeData::Document => true,
-        NodeData::DocumentFragment | NodeData::Element(_) => false,
+        NodeData::DocumentFragment | NodeData::ShadowRoot(_) | NodeData::Element(_) => false,
         _ => return Err(hierarchy("This node type does not support this method.")),
     };
     let node_is_document = matches!(node_dom.node(node).data, NodeData::Document);
@@ -165,7 +165,7 @@ fn check_document_child(
     };
     match &node_dom.node(node).data {
         NodeData::Element(_) => element_rule(),
-        NodeData::DocumentFragment => {
+        NodeData::DocumentFragment | NodeData::ShadowRoot(_) => {
             let mut elements = 0;
             for c in node_dom.children(node) {
                 if matches!(node_dom.node(c).data, NodeData::Text(_)) {
@@ -199,7 +199,7 @@ fn check_document_child(
 /// of a fragment (read before the insertion empties it).
 fn inserted(dom: &Document, node: NodeId) -> Vec<NodeId> {
     match dom.node(node).data {
-        NodeData::DocumentFragment => dom.children(node).collect(),
+        NodeData::DocumentFragment | NodeData::ShadowRoot(_) => dom.children(node).collect(),
         _ => vec![node],
     }
 }

@@ -44,6 +44,7 @@ mod inner_text;
 mod owner;
 mod selection;
 pub(crate) mod selection_events;
+mod slot;
 mod tables;
 mod token_lists;
 pub(crate) mod validation;
