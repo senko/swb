@@ -4,6 +4,39 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-11: M10 feature 5b: the flat tree in rendering
+
+- `swb_dom::flat` gives the flat tree without a cached copy. Measured
+  first: a slot that a nested host takes stays in the flat tree and passes
+  its styles on (CSS Scoping §3.3 uses the assigned nodes; ADR 0036
+  section 4 said the flattened list, now corrected). An element outside
+  the flat tree has computed values that inherit from nothing (measured).
+- Style walks the flat tree; the document's author rules match only
+  elements of the document's tree scope, so GitHub's rules do not style
+  the `relative-time` spans. Counters, the box tree, tables, hit testing,
+  the scroll chain, `offsetParent`, `innerText` and the `:hover` chains
+  follow it. `elementFromPoint` retargets; `ShadowRoot.elementFromPoint`
+  and `elementsFromPoint` are new. `assign()` and other changes of
+  assigned lists restyle.
+- Until 5d, input events from shadow content go to the outermost host, so
+  a click on a relative time in a link follows the link.
+- GitHub with JavaScript on: geometry 0.8904 -> 0.9115, pixels 0.9884 ->
+  0.9934; 22 relative times render the replay's text (the 23rd is in a
+  span that is hidden at this width, as in Chromium). Other targets
+  unchanged; JS-off snapshot identical; callgrind +0.16 % at most
+  (Wikipedia); binding rows within +0.4 %.
+- The new hostile cases `shadow-nested-100000` and
+  `shadow-slot-passthrough-10000` found two quadratic paths (the restyle
+  flag of `attachShadow` in nested trees, the linear search of the
+  `:hover` chain); both are linear now.
+- Review: `document.elementsFromPoint` dropped every element that the
+  retargeting repeated; Chromium drops only a repeat of the element
+  before it (case `hit-test-retarget-repeats`: `h, x, h, html`). Fixed.
+  Three copies of the tree-scope rule became `swb_dom::FlatScopes`.
+- A new session continued the work from the step patches after the first
+  session stopped; the step checkpoints of the brief made this cheap.
+- Next: 5c (style scoping and constructable sheets).
+
 ## 2026-11-09: M10 feature 5a: shadow trees and slots in the DOM
 
 - `swb_dom` has shadow roots (ADR 0036 sections 1 to 3): a node kind

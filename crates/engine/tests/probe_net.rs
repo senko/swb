@@ -708,7 +708,6 @@ const CE_LATER: &[Later] = &[
     ("parser-sync-failures", None, SUB_4C),
 ];
 
-const SUB_5B: &str = "ADR 0036 sub-feature 5b: the flat tree in rendering";
 const SUB_5C: &str = "ADR 0036 sub-feature 5c: style scoping and constructable style sheets";
 const SUB_5D: &str = "ADR 0036 sub-feature 5d: events and focus through shadow trees";
 const DECLARATIVE: &str = "backlog (ADR 0036 section 10): declarative shadow roots and the \
@@ -721,9 +720,9 @@ const SHADOW_DEPARTURES: &[Departure] = &[
     (
         "api-surface",
         1,
-        r#""activeElement,clonable,constructor,delegatesFocus,host,innerHTML,mode,onslotchange,serializable,slotAssignment,styleSheets""#,
-        "`ShadowRoot` lacks `adoptedStyleSheets` (sub-feature 5c), `elementFromPoint` and \
-         `elementsFromPoint` (5b), and the members that ADR 0036 section 9 leaves out of M10 \
+        r#""activeElement,clonable,constructor,delegatesFocus,elementFromPoint,elementsFromPoint,host,innerHTML,mode,onslotchange,serializable,slotAssignment,styleSheets""#,
+        "`ShadowRoot` lacks `adoptedStyleSheets` (sub-feature 5c) and the members that ADR \
+         0036 section 9 leaves out of M10 \
          (`getHTML`, `setHTML`, `setHTMLUnsafe`, `getSelection`, `getAnimations`, \
          `fullscreenElement`, `pictureInPictureElement`, `pointerLockElement`, \
          `customElementRegistry`)",
@@ -749,6 +748,14 @@ const SHADOW_DEPARTURES: &[Departure] = &[
         "swb has no `MathMLElement` interface: a MathML element is an `Element` (the shadow \
          roots match)",
     ),
+    (
+        "nesting-depth",
+        1,
+        r#""0,false,true,true""#,
+        "boxes nest at most 256 levels deep (`MAX_BOX_DEPTH`, ADR 0036 section 12): the \
+         content of 1,000 nested hosts below that depth is flattened into text without \
+         element boxes, as for deep light trees",
+    ),
 ];
 
 /// The cases and queries of the shadow DOM probe that later sub-features of
@@ -762,6 +769,8 @@ const SHADOW_LATER: &[Later] = &[
     ("focus-shadow", None, SUB_5D),
     ("tab-order", None, SUB_5D),
     ("tab-order-backward", None, SUB_5D),
+    // The `:hover` row (2) runs with the input steps in
+    // `crates/automation/tests/real_input.rs` since 5b.
     ("ui-events-through-shadow", None, SUB_5D),
     ("slotchange-timing", Some(6), SUB_5D),
     // `adoptedStyleSheets` (5c) and `elementFromPoint` (5b) of a root;
@@ -771,8 +780,6 @@ const SHADOW_LATER: &[Later] = &[
     ("style-scoping", None, SUB_5C),
     ("style-specificity-and-order", None, SUB_5C),
     ("constructable-sheets", None, SUB_5C),
-    ("render-reads", None, SUB_5B),
-    ("nesting-depth", None, SUB_5B),
     ("declarative-js-on", None, DECLARATIVE),
 ];
 

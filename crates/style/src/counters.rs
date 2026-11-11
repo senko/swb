@@ -17,6 +17,10 @@
 //! replaced elements and form controls do not take part, and elements
 //! with an atomic box are not list items (`element_kinds.rs`).
 //!
+//! The walks follow the flat tree (`swb_dom::flat`, ADR 0036 section 4):
+//! slotted elements count inside their slot, and light children that no
+//! slot takes do not count.
+//!
 //! # Chromium compatibility
 //!
 //! Where Chromium 148 differs from CSS Lists 3, swb follows Chromium
@@ -156,7 +160,7 @@ pub(crate) fn resolve(doc: &Document, map: &mut StyleMap) {
                 stack.push(Visit::Leave(node, depth));
                 if renders_children(doc.element(node), doc.scripting()) {
                     children.clear();
-                    children.extend(doc.element_children(node));
+                    children.extend(doc.flat_element_children(node));
                     stack.extend(children.iter().rev().map(|&c| Visit::Enter(c, depth + 1)));
                 }
             }
@@ -224,7 +228,7 @@ impl Pass<'_> {
         let element = self.doc.element(node);
         let mut list = None;
         if is_list_item(element, style, self.doc.scripting()) {
-            let parent = self.doc.parent(node).unwrap_or(NodeId::DOCUMENT);
+            let parent = self.doc.flat_parent(node).unwrap_or(NodeId::DOCUMENT);
             let enclosing = self.lists.enclosing(parent);
             let ordinal = self.lists.ordinal(self.doc, map, element, style, enclosing);
             map.set_list_item_ordinal(node, ordinal);
@@ -814,7 +818,7 @@ fn reversed_list_counts(doc: &Document, map: &StyleMap) -> HashMap<NodeId, i64> 
                 stack.push(Visit::Leave(node, ()));
                 if renders_children(doc.element(node), doc.scripting()) {
                     children.clear();
-                    children.extend(doc.element_children(node));
+                    children.extend(doc.flat_element_children(node));
                     stack.extend(children.iter().rev().map(|&c| Visit::Enter(c, ())));
                 }
             }

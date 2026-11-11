@@ -72,7 +72,7 @@ pub(crate) fn layout_html_scripting(html: &str) -> TestLayout {
 }
 
 /// Lays out a document.
-fn layout_document(doc: Document) -> TestLayout {
+pub(crate) fn layout_document(doc: Document) -> TestLayout {
     let styles = styles_for(&doc);
     let mut fonts = FontContext::for_tests();
     let mut ctx = LayoutContext::new(&mut fonts);

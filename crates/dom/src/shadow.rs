@@ -104,7 +104,9 @@ pub(crate) struct ShadowState {
     /// The nodes that the assignment steps visited since the last
     /// [`Document::take_shadow_work`].
     pub(crate) work: usize,
-    /// A shadow root was attached to a connected host since the last
+    /// The flat tree of the window's document changed without a journal
+    /// entry (a shadow root was attached to a connected host, or the
+    /// assigned nodes of a connected slot changed) since the last
     /// [`Document::take_shadow_changed`].
     pub(crate) changed: bool,
     /// The cell that asks the script runtime for attention
@@ -184,15 +186,34 @@ impl Document {
         }
         self.shadow_state().roots.insert(host, root);
         self.generation += 1;
-        if self.is_connected(host) {
+        if self.may_be_connected(host) {
             self.shadow_state().changed = true;
         }
         root
     }
 
-    /// True if a shadow root was attached to a connected host since the last
-    /// call, and clears the flag (the engine restyles; no journal entry, as
-    /// for [`Document::take_defined_changed`]).
+    /// True if `node` may be connected: the root of its tree is a document
+    /// node, or a shadow root whose host's tree has a document node or
+    /// another shadow root as its root. The answer for deeper nesting is a
+    /// guess (true) that costs the depth of two trees, not a walk through
+    /// every host: `is_connected` at each level of 100,000 nested trees made
+    /// building them quadratic (`shadow-nested-100000`). A wrong true costs
+    /// one restyle.
+    pub(crate) fn may_be_connected(&self, node: NodeId) -> bool {
+        let mut root = self.root(node);
+        if let Some(host) = self.shadow_host(root) {
+            root = self.root(host);
+        }
+        matches!(
+            self.node(root).data,
+            NodeData::Document | NodeData::ShadowRoot(_)
+        )
+    }
+
+    /// True if a shadow root was attached to a connected host, or the
+    /// assigned nodes of a connected slot changed (the flat tree changed),
+    /// since the last call, and clears the flag (the engine restyles; no
+    /// journal entry, as for [`Document::take_defined_changed`]).
     pub fn take_shadow_changed(&mut self) -> bool {
         self.shadow
             .as_mut()
@@ -254,6 +275,27 @@ impl Document {
     /// True if `ancestor` is a shadow-including inclusive ancestor of `node`.
     pub fn is_shadow_including_inclusive_ancestor(&self, ancestor: NodeId, node: NodeId) -> bool {
         node == ancestor || self.shadow_including_ancestors(node).any(|a| a == ancestor)
+    }
+
+    /// DOM "retarget `a` against `b`": while `a`'s root is a shadow root
+    /// that is not a shadow-including inclusive ancestor of `b`, `a` becomes
+    /// that root's host. Against a document node, the result is the
+    /// outermost host of `a` (or `a` itself in the document's tree).
+    /// <https://dom.spec.whatwg.org/#retarget>
+    pub fn retarget(&self, mut a: NodeId, b: NodeId) -> NodeId {
+        if self.shadow.is_none() {
+            return a;
+        }
+        loop {
+            let root = self.root(a);
+            let Some(host) = self.shadow_host(root) else {
+                return a;
+            };
+            if self.is_shadow_including_inclusive_ancestor(root, b) {
+                return a;
+            }
+            a = host;
+        }
     }
 
     /// The shadow-including inclusive descendants of `node` in

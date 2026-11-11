@@ -1,6 +1,7 @@
-"""Shadow trees and slots in the DOM (ADR 0036 section 12, sub-feature 5a)."""
+"""Shadow trees and slots in the DOM and in rendering (ADR 0036 section 12, sub-features 5a
+and 5b)."""
 
-from swbtools.hostile_cases.core import Page, case, doc
+from swbtools.hostile_cases.core import Page, case, doc, steps_args
 
 JS = ("--js", "--settle-ms", "500")
 
@@ -194,3 +195,48 @@ def shadow_adopt_many_hosts() -> Page:
         "setTimeout(() => console.warn('adopt ok'), 10);</script>"
     )
     return Page(doc("<iframe id=f></iframe><b id=e>x</b>" + script))
+
+
+_FONT = "<style>body { margin: 8px; font: 16px/20px sans-serif }</style>"
+
+
+@case(
+    "100,000 nested shadow trees, each host a `div` in the previous root, with a link at the "
+    "bottom: style and layout walk the flat tree without recursion (below 256 levels the "
+    "content is flattened into text), a click on the text reaches the document's listener at "
+    "the outermost host, and a Tab key does not fail (ADR 0036 sections 4 and 12, 5b)",
+    time_limit_s=30,
+    expect_log="clicked h",
+    swb_args=(*steps_args([{"click": [12, 14]}, {"key": "Tab"}]), "--settle-ms", "500"),
+)
+def shadow_nested_100000() -> Page:
+    script = (
+        "<script>let e = document.getElementById('h'); "
+        "for (let i = 0; i < 100000; i++) { const d = document.createElement('div'); "
+        "e.attachShadow({mode: 'open'}).appendChild(d); e = d; } "
+        "e.innerHTML = '<a href=\"#x\">deep deep deep</a>'; "
+        "document.addEventListener('click', (ev) => console.warn('clicked ' + ev.target.id));"
+        "</script>"
+    )
+    return Page(doc(_FONT + "<div id=h></div>" + script))
+
+
+@case(
+    "10,000 nested hosts that pass one slot on to the next, with one light child at the top: "
+    "the light child's flat parent is the outermost slot, and each slot's the next one, so a "
+    "style pass costs the number of slots, not its square; a click on the text reaches the "
+    "light child (ADR 0036 sections 4 and 12, 5b)",
+    time_limit_s=30,
+    expect_log="clicked x",
+    swb_args=(*steps_args([{"click": [12, 14]}]), "--settle-ms", "500"),
+)
+def shadow_slot_passthrough_10000() -> Page:
+    script = (
+        "<script>let e = document.getElementById('h'); "
+        "for (let i = 0; i < 10000; i++) { const d = document.createElement('div'); "
+        "d.appendChild(document.createElement('slot')); "
+        "e.attachShadow({mode: 'open'}).appendChild(d); e = d; } "
+        "document.addEventListener('click', (ev) => console.warn('clicked ' + ev.target.id));"
+        "</script>"
+    )
+    return Page(doc(_FONT + "<div id=h><b id=x>pass pass pass</b></div>" + script))

@@ -88,11 +88,12 @@ fn point_in_frame(point: Point, corner: Point, scroll: Point, scale: f32) -> Poi
     )
 }
 
-/// The innermost link element that contains `node` (or is `node`), and its
-/// target resolved against `base`.
+/// The innermost link element that contains `node` (or is `node`) in the
+/// flat tree (ADR 0036 section 4: a link around a host contains its shadow
+/// content), and its target resolved against `base`.
 pub(crate) fn link_around(doc: &Document, node: NodeId, base: &Url) -> Option<(NodeId, Url)> {
     std::iter::once(node)
-        .chain(doc.ancestors(node))
+        .chain(doc.flat_ancestors(node))
         .find_map(|n| Some((n, link_target(doc, n, base)?)))
 }
 

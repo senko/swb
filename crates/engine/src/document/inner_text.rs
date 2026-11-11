@@ -33,7 +33,7 @@
 //! starts a line in swb; Chromium keeps a space at its start when the line
 //! has text before it).
 
-use swb_dom::{Document, NodeData, NodeId, local_name, ns};
+use swb_dom::{Document, FlatScopes, NodeData, NodeId, local_name, ns};
 use swb_style::{ComputedStyle, Display, StyleMap, TextTransform, Visibility};
 
 use super::DocumentState;
@@ -121,7 +121,9 @@ fn is_option(dom: &Document, node: NodeId) -> bool {
 
 /// A step of the walk.
 enum Step {
-    Enter(NodeId),
+    /// A node and its tree scope (the root of its tree: the document or a
+    /// shadow root).
+    Enter(NodeId, NodeId),
     /// The end of an element: the item that follows its children (a tab,
     /// a line feed), its required line break count, and whether it is an
     /// atomic inline whose content is a line of its own.
@@ -139,10 +141,14 @@ fn rendered_text(dom: &Document, styles: &StyleMap, root: NodeId) -> String {
         line_start: true,
         ..Collector::default()
     };
-    let mut stack = vec![Step::Enter(root)];
+    let mut walk = Walk {
+        scope: dom.root(root),
+        scopes: FlatScopes::default(),
+    };
+    let mut stack = vec![Step::Enter(root, walk.scope)];
     while let Some(step) = stack.pop() {
-        let node = match step {
-            Step::Enter(node) => node,
+        let (node, scope) = match step {
+            Step::Enter(node, scope) => (node, scope),
             Step::Leave {
                 after,
                 breaks,
@@ -160,14 +166,25 @@ fn rendered_text(dom: &Document, styles: &StyleMap, root: NodeId) -> String {
         };
         match &dom.node(node).data {
             NodeData::Text(text) => {
+                // The flat parent (ADR 0036 section 4): a text node that no
+                // slot takes is not being rendered (measured, case
+                // `unslotted-computed-style`: a host's `innerText` leaves
+                // it out).
                 let style = dom
-                    .parent(node)
+                    .flat_parent(node)
                     .and_then(|p| styles.get(p).or_else(|| option_style(dom, styles, p)));
                 if let Some(style) = style {
-                    out.text(text, style);
+                    out.text(text, style, scope == walk.scope);
                 }
             }
-            NodeData::Element(_) => enter(dom, styles, node, node == root, &mut out, &mut stack),
+            NodeData::Element(_) => {
+                let at = Place {
+                    node,
+                    scope,
+                    root: node == root,
+                };
+                enter(dom, styles, at, &mut walk, &mut out, &mut stack);
+            }
             _ => {}
         }
     }
@@ -189,17 +206,44 @@ fn option_style<'a>(
         .and_then(|select| styles.get(select))
 }
 
+/// The shadow trees of the walk (ADR 0036 sub-feature 5b). Below a host,
+/// the walk follows the flat tree, so that the white space of the light
+/// text around shadow content collapses as layout collapses it; only the
+/// text of the tree of the element whose text is asked for gives
+/// characters (measured in Chromium 148, case `render-reads` of
+/// `tools/probes/web-shadow-dom.json`: the `innerText` of a paragraph
+/// leaves the shadow text of a host out and keeps the spaces on both sides
+/// of it).
+struct Walk {
+    /// The tree scope of the element whose text is asked for.
+    scope: NodeId,
+    /// The tree scopes of the flat tree below the element.
+    scopes: FlatScopes,
+}
+
+/// An element of the walk.
+#[derive(Clone, Copy)]
+struct Place {
+    node: NodeId,
+    /// Its tree scope.
+    scope: NodeId,
+    /// True for the element whose text is asked for.
+    root: bool,
+}
+
 /// The steps of an element: its items before its children, its children
 /// on the stack, and the items after them. The element whose text is
-/// asked for (`root`) gives only the items of its children.
+/// asked for (`root`) gives only the items of its children; an element
+/// of another tree scope gives none.
 fn enter(
     dom: &Document,
     styles: &StyleMap,
-    node: NodeId,
-    root: bool,
+    at: Place,
+    walk: &mut Walk,
     out: &mut Collector,
     stack: &mut Vec<Step>,
 ) {
+    let Place { node, scope, root } = at;
     let option = is_option(dom, node) && styles.get(node).is_none();
     let Some(style) = styles.get(node).or_else(|| option_style(dom, styles, node)) else {
         return;
@@ -208,7 +252,7 @@ fn enter(
         return;
     }
     let children = children_of(dom, styles, node);
-    let visible = style.visibility == Visibility::Visible && !root;
+    let visible = style.visibility == Visibility::Visible && !root && scope == walk.scope;
     let has_box = style.display != Display::Contents && !root;
     let breaks = if !visible || !has_box {
         0
@@ -243,13 +287,16 @@ fn enter(
     let first = stack.len();
     match children {
         Children::None => {}
-        Children::All => stack.extend(dom.children(node).map(Step::Enter)),
+        Children::All => {
+            let scope = walk.scopes.of_children(dom, node, scope);
+            stack.extend(dom.flat_children(node).map(|c| Step::Enter(c, scope)));
+        }
         Children::Options => stack.extend(
             dom.children(node)
                 .filter(|&c| is_option(dom, c))
-                .map(Step::Enter),
+                .map(|c| Step::Enter(c, scope)),
         ),
-        Children::Summary(summary) => stack.extend(summary.map(Step::Enter)),
+        Children::Summary(summary) => stack.extend(summary.map(|c| Step::Enter(c, scope))),
     }
     stack[first..].reverse();
 }
@@ -334,6 +381,9 @@ struct Collector {
     items: Vec<Item>,
     /// A collapsible space waits for the next text of the line.
     pending_space: bool,
+    /// The waiting space comes from text of the tree whose text is asked
+    /// for (not from the shadow text around it).
+    pending_shown: bool,
     /// True at the start of a line: collapsible spaces go.
     line_start: bool,
     /// The last character of the line so far (`text-transform:
@@ -382,15 +432,23 @@ impl Collector {
     fn flush_space(&mut self) {
         if self.pending_space {
             self.pending_space = false;
-            self.items.push(Item::Text(" ".to_owned()));
+            if self.pending_shown {
+                self.items.push(Item::Text(" ".to_owned()));
+            }
         }
         self.line_start = false;
     }
 
     /// The text of a text node with the style of its parent. A text that is
-    /// not visible changes the white-space state but gives no characters.
-    fn text(&mut self, data: &str, style: &ComputedStyle) {
-        let visible = style.visibility == Visibility::Visible;
+    /// not visible (or not `shown`: in another tree scope) changes the
+    /// white-space state but gives no characters.
+    fn text(&mut self, data: &str, style: &ComputedStyle, shown: bool) {
+        let visible = shown && style.visibility == Visibility::Visible;
+        // A collapsible space before the text of another tree belongs to
+        // the light text, and layout keeps it (case `render-reads`: the
+        // paragraph's text is "by  end"); a space of the other tree gives
+        // nothing.
+        let keeps_space = |pending_shown: bool| pending_shown && (visible || !shown);
         let mut text = String::new();
         if style.white_space.collapses_spaces() {
             let pre_line = style.white_space == swb_style::WhiteSpace::PreLine;
@@ -404,12 +462,13 @@ impl Collector {
                         self.line_start = true;
                     } else if !self.line_start {
                         self.pending_space = true;
+                        self.pending_shown = shown;
                     }
                     continue;
                 }
                 if self.pending_space {
                     self.pending_space = false;
-                    if visible {
+                    if keeps_space(self.pending_shown) {
                         text.push(' ');
                     }
                 }
@@ -422,10 +481,10 @@ impl Collector {
             if data.is_empty() {
                 return;
             }
+            if self.pending_space && keeps_space(self.pending_shown) {
+                text.push(' ');
+            }
             if visible {
-                if self.pending_space {
-                    text.push(' ');
-                }
                 text.push_str(data);
             }
             self.pending_space = false;

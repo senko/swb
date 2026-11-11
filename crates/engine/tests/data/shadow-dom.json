@@ -1,0 +1,1048 @@
+{
+  "cases": [
+    {
+      "name": "host-replaces-children",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #c, #after)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #c, #after)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": null
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #c, #after)[3]",
+          "tag": "p",
+          "index": 6,
+          "rect": [
+            8.0,
+            54.0,
+            384.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "document.getElementById('h').offsetHeight",
+          "value": 30
+        }
+      ]
+    },
+    {
+      "name": "default-slot",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #a, #b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #a, #b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            13.33,
+            9.0,
+            21.34,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #a, #b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            34.67,
+            9.0,
+            10.67,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "named-slot-order",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #x, #y, #z)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #x, #y, #z)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            22.83,
+            9.0,
+            21.34,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #x, #y, #z)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            8.0,
+            9.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #x, #y, #z)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": null
+        }
+      ]
+    },
+    {
+      "name": "slot-fallback",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #h2, #l)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #h2, #l)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            8.0,
+            28.0,
+            384.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #h2, #l)[3]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            8.0,
+            29.0,
+            8.91,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "relative-time-in-flex-row",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#row, #by, #rt, #e)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#row, #by, #rt, #e)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            8.0,
+            8.0,
+            16.91,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#row, #by, #rt, #e)[3]",
+          "tag": "relative-time",
+          "index": 6,
+          "rect": [
+            28.91,
+            8.0,
+            78.28,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#row, #by, #rt, #e)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            111.19,
+            8.0,
+            26.7,
+            20.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "inline-host-in-paragraph",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#p, #h)[1]",
+          "tag": "p",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            200.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#p, #h)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            39.14,
+            9.0,
+            121.3,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "host-style-block-padding",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #n)[1]",
+          "tag": "span",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            34.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #n)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            8.0,
+            43.0,
+            30.25,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "slotted-inherits-from-slot",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #s)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #s)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            8.0,
+            10.0,
+            94.28,
+            36.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "slot-display-block",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #s, #t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            32.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #s, #t)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            11.0,
+            12.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #s, #t)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            21.67,
+            12.0,
+            9.78,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "nested-shadow-slot-passthrough",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #x)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            26.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #x)[2]",
+          "tag": "b",
+          "index": 5,
+          "rect": [
+            15.45,
+            12.0,
+            36.47,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "host-display-none",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #c, #a)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": null
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #c, #a)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": null
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #c, #a)[3]",
+          "tag": "p",
+          "index": 6,
+          "rect": [
+            8.0,
+            16.0,
+            384.0,
+            20.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "slot-in-flex-container",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #a, #b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #a, #b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            8.0,
+            8.0,
+            10.67,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #a, #b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            186.66,
+            8.0,
+            21.34,
+            20.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "slotted-list-items",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #a, #b)[1]",
+          "tag": "ul",
+          "index": 4,
+          "rect": [
+            8.0,
+            16.0,
+            384.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #a, #b)[2]",
+          "tag": "li",
+          "index": 5,
+          "rect": [
+            48.0,
+            16.0,
+            344.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #a, #b)[3]",
+          "tag": "li",
+          "index": 6,
+          "rect": [
+            48.0,
+            36.0,
+            344.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "getComputedStyle(document.getElementById('b'),'::marker').content",
+          "value": "normal"
+        }
+      ]
+    },
+    {
+      "name": "table-through-slot",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #r, #c)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #r, #c)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            11.0,
+            11.0,
+            28.02,
+            24.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #r, #c)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            11.0,
+            11.0,
+            28.02,
+            24.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "slotted-inherits-from-slot-inline",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #s)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #s)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            8.0,
+            10.0,
+            94.28,
+            36.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "getComputedStyle(document.getElementById('s')).fontSize",
+          "value": "32px"
+        }
+      ]
+    },
+    {
+      "name": "slot-display-block-inline",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #s, #t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            32.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #s, #t)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            11.0,
+            12.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #s, #t)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            21.67,
+            12.0,
+            9.78,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "nested-slot-inherit",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #x)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #x)[2]",
+          "tag": "b",
+          "index": 5,
+          "rect": [
+            12.45,
+            9.0,
+            54.7,
+            27.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "getComputedStyle(document.getElementById('x')).fontSize",
+          "value": "24px"
+        },
+        {
+          "kind": "js",
+          "label": "getComputedStyle(document.getElementById('h').shadowRoot.getElementById('os')).fontSize",
+          "value": "24px"
+        }
+      ]
+    },
+    {
+      "name": "counter-through-slot",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #a, #b, #after)[1]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #a, #b, #after)[2]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            8.0,
+            8.0,
+            48.95,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #a, #b, #after)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            8.0,
+            28.0,
+            45.97,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #a, #b, #after)[4]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            8.0,
+            48.0,
+            21.36,
+            20.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[...document.querySelectorAll('.c')].map(e => e.getBoundingClientRect().width)",
+          "value": [
+            48.953125,
+            45.96875,
+            21.359375
+          ]
+        }
+      ]
+    },
+    {
+      "name": "unslotted-computed-style",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #u, #s)[1]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #u, #s)[2]",
+          "tag": "span",
+          "index": 6,
+          "rect": null
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #u, #s)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            8.0,
+            1.0,
+            15.0,
+            33.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[getComputedStyle(document.getElementById('u')).fontSize, getComputedStyle(document.getElementById('s')).fontSize, getComputedStyle(document.getElementById('u')).display, getComputedStyle(document.getElementById('u')).color, getComputedStyle(document.getElementById('s')).color, getComputedStyle(document.getElementById('ui')).fontSize, getComputedStyle(document.getElementById('ui')).display]",
+          "value": [
+            "16px",
+            "30px",
+            "inline",
+            "rgb(0, 0, 0)",
+            "rgb(0, 128, 0)",
+            "22px",
+            "inline"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[document.getElementById('h').innerText, document.getElementById('u').getClientRects().length]",
+          "value": [
+            "s",
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "unused-fallback-computed-style",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #s)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            21.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #s)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            8.0,
+            4.0,
+            13.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('h').shadowRoot.getElementById('f'); return [getComputedStyle(f).fontSize, f.getClientRects().length]; })()",
+          "value": [
+            "16px",
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "hit-test-through-host",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#l, #h)[1]",
+          "tag": "a",
+          "index": 5,
+          "rect": [
+            8.0,
+            9.0,
+            144.09,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#l, #h)[2]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            38.25,
+            9.0,
+            82.7,
+            17.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(() => { const h = document.getElementById('h'); const r = h.getBoundingClientRect(); const x = r.x + 5, y = r.y + r.height / 2; const e = document.elementFromPoint(x, y); return [e.id, e.closest('a').id, h.shadowRoot.elementFromPoint(x, y).id, document.elementsFromPoint(x, y).map(n => n.id || n.localName), h.shadowRoot.elementsFromPoint(x, y).map(n => n.id || n.localName)]; })()",
+          "value": [
+            "h",
+            "l",
+            "in",
+            [
+              "h",
+              "l",
+              "p",
+              "body",
+              "html"
+            ],
+            [
+              "in",
+              "h",
+              "l",
+              "p",
+              "body",
+              "html"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "hit-test-retarget-repeats",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(() => { const h = document.getElementById('h'); return [document.elementsFromPoint(5,5).map(n => n.id || n.localName), h.shadowRoot.elementsFromPoint(5,5).map(n => n.id || n.localName), document.elementFromPoint(5,5).id, h.shadowRoot.elementFromPoint(5,5).id]; })()",
+          "value": [
+            [
+              "h",
+              "x",
+              "h",
+              "html"
+            ],
+            [
+              "a",
+              "c",
+              "x",
+              "b",
+              "h",
+              "html"
+            ],
+            "h",
+            "a"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "declarative-js-off",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #c)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            45.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #c)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            8.0,
+            34.0,
+            29.36,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "declarative-js-on",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#h, #c)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            384.0,
+            45.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#h, #c)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            8.0,
+            34.0,
+            29.36,
+            17.0
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -734,7 +734,12 @@ impl ContainerBuilder {
         {
             self.push_details_children(ctx, parent, state);
         } else {
-            self.push_nodes(ctx, ctx.doc.children(parent), parent_style.as_ref(), state);
+            self.push_nodes(
+                ctx,
+                ctx.doc.flat_children(parent),
+                parent_style.as_ref(),
+                state,
+            );
         }
         if parent_style.is_some() {
             self.push_pseudo(ctx, parent, PseudoKind::After, state);
@@ -959,7 +964,7 @@ impl ContainerBuilder {
         while let Some(node) = stack.pop() {
             match &ctx.doc.node(node).data {
                 NodeData::Text(text) => {
-                    if let Some(style) = ctx.doc.parent(node).and_then(|p| ctx.styles.get(p)) {
+                    if let Some(style) = ctx.doc.flat_parent(node).and_then(|p| ctx.styles.get(p)) {
                         self.inline.push_text(node, style, text);
                     }
                 }
@@ -976,7 +981,7 @@ impl ContainerBuilder {
                         continue;
                     }
                     let first = stack.len();
-                    stack.extend(ctx.doc.children(node));
+                    stack.extend(ctx.doc.flat_children(node));
                     stack[first..].reverse();
                 }
                 _ => {}
@@ -1790,5 +1795,88 @@ mod tests {
             "<p style='text-transform:capitalize'>foo<b>bar</b> (hello) <i>x</i>y<br>z</p>",
         );
         assert_eq!(text, "Foobar (Hello) XyZ");
+    }
+
+    /// Attaches an open root with `markup` to `host`; returns the root.
+    fn attach(doc: &mut Document, host: NodeId, markup: &str) -> NodeId {
+        let init = swb_dom::ShadowRootInit {
+            mode: swb_dom::ShadowRootMode::Open,
+            slot_assignment: swb_dom::SlotAssignment::Named,
+            delegates_focus: false,
+            clonable: false,
+            serializable: false,
+        };
+        let root = doc.attach_shadow(host, init, false).expect("a host");
+        let fragment = swb_dom::parse_fragment(doc, host, markup).expect("markup fits");
+        doc.append_child(root, fragment).expect("a fragment");
+        root
+    }
+
+    fn texts_of(doc: Document) -> String {
+        let l = crate::test_support::layout_document(doc);
+        l.texts().into_iter().map(|(_, t)| t).collect()
+    }
+
+    #[test]
+    fn a_host_shows_its_shadow_tree_with_the_slotted_children() {
+        let mut doc = swb_dom::parse_html(
+            "<div id=h><b slot=a>A</b><i>D</i><u slot=none>U</u></div>\
+             <table><tr id=r></tr></table>",
+        );
+        let host = doc.element_by_id("h").expect("a host");
+        attach(
+            &mut doc,
+            host,
+            "[<slot name=a></slot>|<slot></slot>|<slot name=c>fallback</slot>]",
+        );
+        // A table row whose cells come through a slot.
+        let row = doc.element_by_id("r").expect("a row");
+        let cell = doc
+            .create_element(
+                swb_dom::QualName::new(None, swb_dom::ns!(html), local_name!("td")),
+                Vec::new(),
+            )
+            .expect("an element");
+        let text = doc.create_text("cell").expect("a node");
+        doc.append_child(cell, text).expect("appended");
+        doc.append_child(row, cell).expect("appended");
+        // `tr` cannot be a host; a `div` inside the cell can.
+        let inner = doc
+            .create_element(
+                swb_dom::QualName::new(None, swb_dom::ns!(html), local_name!("div")),
+                Vec::new(),
+            )
+            .expect("an element");
+        doc.append_child(cell, inner).expect("appended");
+        attach(&mut doc, inner, "<span>!</span>");
+        assert_eq!(texts_of(doc), "[A|D|fallback]cell!");
+    }
+
+    #[test]
+    fn nested_hosts_below_the_depth_limit_are_flattened_in_the_flat_tree() {
+        let mut doc = swb_dom::parse_html("<div id=h>light</div>");
+        let mut host = doc.element_by_id("h").expect("a host");
+        for _ in 0..MAX_BOX_DEPTH + 10 {
+            let root = attach(&mut doc, host, "<div><slot></slot></div>");
+            let div = doc.first_element_child(root).expect("a div");
+            host = div;
+        }
+        attach(
+            &mut doc,
+            host,
+            "<span>deep</span><slot style='font-size:30px'></slot>",
+        );
+        let l = crate::test_support::layout_document(doc);
+        let mut texts = Vec::new();
+        l.tree.walk(|f, _| {
+            if let crate::FragmentRef::Text(t) = f {
+                texts.push((t.text.to_string(), t.style.font_size));
+            }
+        });
+        // The light text takes the style of the slot, its flat parent.
+        assert_eq!(
+            texts,
+            [("deep".to_owned(), 16.0), ("light".to_owned(), 30.0)]
+        );
     }
 }

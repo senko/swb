@@ -229,7 +229,8 @@ impl DocumentState {
         if defined_changed {
             self.invalidate_styles();
         }
-        // A connected element got a shadow root (no journal entry).
+        // A connected element got a shadow root, or a slot's assigned nodes
+        // changed (`assign()` makes no journal entry): the flat tree changed.
         if shadow_changed {
             self.invalidate_styles();
         }

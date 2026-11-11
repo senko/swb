@@ -85,7 +85,7 @@ impl DocumentState {
         }
         let chain: Vec<(NodeId, Arc<ComputedStyle>)> = self
             .dom
-            .ancestors(node)
+            .flat_ancestors(node)
             .take_while(|&n| n != NodeId::DOCUMENT)
             .collect::<Vec<_>>()
             .into_iter()

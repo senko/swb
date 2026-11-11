@@ -146,7 +146,8 @@ impl Scrollers {
     /// fixed element those below its nearest transformed ancestor, so
     /// without one all of them), and with `include_self` the element
     /// `node` itself. For a text node, the chain starts at its parent
-    /// element. This is the scroll chain of wheel and keyboard scrolling
+    /// element. The ancestors are those of the flat tree (ADR 0036 section
+    /// 4). This is the scroll chain of wheel and keyboard scrolling
     /// and the list of boxes that "scroll into view" scrolls. The same rule
     /// as `swb_layout::ScrollState`. At most the DOM depth long.
     pub(crate) fn chain(
@@ -181,7 +182,7 @@ impl Scrollers {
         let start = if doc.get(node).is_some_and(swb_dom::Node::is_element) {
             Some(node)
         } else {
-            doc.parent_element(node)
+            doc.flat_parent_element(node)
         };
         let mut chain = Vec::new();
         let mut skip = Skip::None;
@@ -218,7 +219,7 @@ impl Scrollers {
                 }
             }
             is_self = false;
-            current = doc.parent_element(element);
+            current = doc.flat_parent_element(element);
         }
         (chain, skip == Skip::ToTransformed)
     }

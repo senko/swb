@@ -446,21 +446,41 @@ pub(crate) fn scroll_into_view(
 
 // ----- Document -----
 
-/// `elementFromPoint` and `elementsFromPoint` of the window's document;
-/// other documents have no layout.
+/// `elementFromPoint` and `elementsFromPoint` of the window's document or
+/// of a shadow root in it (`scope`); other documents have no layout. Each
+/// element is retargeted against `scope` (DOM "retarget"; measured in
+/// Chromium 148, case `hit-test-through-host` of
+/// `tools/probes/shadow-dom.json`: the document sees the host, the root its
+/// own element and the light elements around the host). The engine lists
+/// each element once; after the retargeting, an element that repeats the
+/// element before it is dropped, but a later repeat stays (case
+/// `hit-test-retarget-repeats`: `[h, x, h, html]` when a slotted light
+/// element lies between two shadow boxes of host `h`).
 pub(crate) fn elements_from_point(
     rt: &mut Runtime,
-    document: NodeId,
+    scope: NodeId,
     x: f64,
     y: f64,
     all: bool,
 ) -> b::Result<Vec<NodeId>> {
-    if document != NodeId::DOCUMENT {
+    let in_window = scope == NodeId::DOCUMENT || {
+        let dom = crate::state::dom(rt)?;
+        dom.shadow_host(scope).is_some() && dom.shadow_including_root(scope) == NodeId::DOCUMENT
+    };
+    if !in_window {
         return Ok(Vec::new());
     }
     let elements = crate::state::engine_laid_out(rt)?.elements_from_point(x, y, all);
     rt.check_time()?;
-    Ok(elements)
+    let dom = crate::state::dom(rt)?;
+    let mut out: Vec<NodeId> = Vec::with_capacity(elements.len());
+    for element in elements {
+        let target = dom.retarget(element, scope);
+        if out.last() != Some(&target) {
+            out.push(target);
+        }
+    }
+    Ok(out)
 }
 
 /// `document.scrollingElement` of the window's document.

@@ -13,6 +13,7 @@ mod algorithms;
 mod custom;
 mod dump;
 mod encoding;
+mod flat;
 mod id_index;
 mod iterator;
 mod journal;
@@ -32,6 +33,7 @@ pub use custom::{
     is_valid_element_local_name,
 };
 pub use dump::dump_tree;
+pub use flat::{FlatChildren, FlatScopes};
 pub use html5ever::{LocalName, Namespace, QualName, local_name, ns};
 pub use iterator::{DeadIterators, IteratorPosition, IteratorWork, Spot, WORK_PER_CHECK};
 pub use journal::{Change, Journal, MAX_JOURNAL_ENTRIES, MutationSink};

@@ -612,12 +612,18 @@ impl Stylist {
         media: &[bool],
         layer_ranks: &[u32],
         filter: Option<&AncestorFilter>,
+        author: bool,
         context: &mut MatchingContext,
         scratch: &mut Vec<u32>,
         out: &mut Vec<u32>,
     ) {
         scratch.clear();
         self.map(target).candidates(el, self.quirks, scratch);
+        if !author {
+            // An element outside the document's tree scope (ADR 0036
+            // section 5): the document's author rules do not match it.
+            scratch.retain(|&i| self.rules[i as usize].origin != CascadeOrigin::Author);
+        }
         for &index in scratch.iter() {
             let rule = &self.rules[index as usize];
             if let Some(chain) = rule.media

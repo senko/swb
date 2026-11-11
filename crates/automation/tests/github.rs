@@ -20,7 +20,8 @@
 //! The same load also counts the custom element callbacks (ADR 0035
 //! sub-feature 4b; `custom_elements/reactions.rs` logs each callback at the
 //! `debug` level) and compares them with Chromium's replay, and reads the
-//! shadow roots of `relative-time` and `tool-tip` (ADR 0036 sub-feature 5a).
+//! shadow roots of `relative-time` and `tool-tip` (ADR 0036 sub-feature 5a)
+//! and the text that renders in the `relative-time` hosts (sub-feature 5b).
 //! One test does all: the logger is global, and two loads at once would mix
 //! their lines.
 
@@ -109,7 +110,43 @@ fn github_module_scripts_run_in_document_order_and_custom_element_callbacks_matc
         );
         custom_element_callbacks(&lines);
         shadow_roots(&value(&mut page, SHADOW_ROOTS));
+        rendered_times(&mut page);
     });
+}
+
+/// The text that renders in each `relative-time` host (ADR 0036 sub-feature
+/// 5b): the text fragments whose node is in the host's shadow tree, in
+/// document order of the hosts. The light text of a host (the date that
+/// the server wrote, "Oct 18, 2026") is outside the flat tree and has no
+/// fragment.
+fn rendered_times(page: &mut swb_engine::Page) {
+    page.update_layout();
+    let hosts = page.query_selector_all("relative-time").unwrap();
+    assert_eq!(hosts.len(), 23);
+    let doc = page.document().unwrap();
+    let mut texts = vec![String::new(); hosts.len()];
+    let mut light = Vec::new();
+    page.fragments().unwrap().walk(|f, _| {
+        let swb_layout::FragmentRef::Text(t) = f else {
+            return;
+        };
+        if let Some(i) = hosts.iter().position(|&h| doc.parent(t.node) == Some(h)) {
+            light.push((i, t.text.to_string()));
+        }
+        let host = doc
+            .shadow_including_ancestors(t.node)
+            .find(|a| hosts.contains(a));
+        if let Some(i) = host.and_then(|h| hosts.iter().position(|&x| x == h)) {
+            texts[i].push_str(&t.text);
+        }
+    });
+    assert!(light.is_empty(), "light text renders: {light:?}");
+    let shown: Vec<String> = texts.iter().map(|t| t.trim().to_owned()).collect();
+    // The first one is in a `span.d-sm-none`, which the page's style sheet
+    // hides at this viewport width (as in Chromium).
+    let mut want: Vec<&str> = REPLAY_TIMES.to_vec();
+    want[0] = "";
+    assert_eq!(shown, want);
 }
 
 /// The shadow roots of the page as the test reads them: the number of hosts,
@@ -188,6 +225,34 @@ fn custom_element_callbacks(lines: &[String]) {
     );
 }
 
+/// The texts of the 23 `relative-time` elements in Chromium's replay at the
+/// page clock, in document order.
+const REPLAY_TIMES: [&str; 23] = [
+    "4 days ago",
+    "4 days ago",
+    "2 weeks ago",
+    "2 weeks ago",
+    "4 days ago",
+    "4 days ago",
+    "2 weeks ago",
+    "2 weeks ago",
+    "4 days ago",
+    "3 weeks ago",
+    "3 weeks ago",
+    "3 weeks ago",
+    "last week",
+    "4 days ago",
+    "4 days ago",
+    "3 weeks ago",
+    "2 weeks ago",
+    "5 days ago",
+    "2 weeks ago",
+    "3 weeks ago",
+    "2 weeks ago",
+    "3 weeks ago",
+    "3 weeks ago",
+];
+
 /// The replay's shadow roots (ADR 0036 "What GitHub needs"): 24 hosts; the
 /// `part="root"` span of each of the 23 `relative-time` roots has the text of
 /// the replay at the page clock, in document order; `tool-tip`'s root has
@@ -196,32 +261,7 @@ fn custom_element_callbacks(lines: &[String]) {
 fn shadow_roots(roots: &serde_json::Value) {
     assert_eq!(roots["hosts"], 24, "{roots}");
     let times: Vec<String> = serde_json::from_value(roots["times"].clone()).unwrap();
-    let replay = [
-        "4 days ago",
-        "4 days ago",
-        "2 weeks ago",
-        "2 weeks ago",
-        "4 days ago",
-        "4 days ago",
-        "2 weeks ago",
-        "2 weeks ago",
-        "4 days ago",
-        "3 weeks ago",
-        "3 weeks ago",
-        "3 weeks ago",
-        "last week",
-        "4 days ago",
-        "4 days ago",
-        "3 weeks ago",
-        "2 weeks ago",
-        "5 days ago",
-        "2 weeks ago",
-        "3 weeks ago",
-        "2 weeks ago",
-        "3 weeks ago",
-        "3 weeks ago",
-    ];
-    assert_eq!(times, replay, "{roots}");
+    assert_eq!(times, REPLAY_TIMES, "{roots}");
     let tip = &roots["tip"];
     assert_eq!(tip["hostStyle"], true, "{roots}");
     assert_eq!(

@@ -339,7 +339,7 @@ impl DocumentState {
     fn fixed_containing_block(&self, node: NodeId) -> Option<NodeId> {
         let styles = self.styles.as_ref()?;
         let root = self.dom.document_element();
-        self.dom.ancestors(node).find(|&ancestor| {
+        self.dom.flat_ancestors(node).find(|&ancestor| {
             // The `filter` of the root element is not one (Chromium 148).
             styles.get(ancestor).is_some_and(|s| {
                 s.has_transform() || (s.is_filter_containing_block() && Some(ancestor) != root)
@@ -352,15 +352,25 @@ impl DocumentState {
     /// positioned boxes (positioned or transformed; Chromium 148 also
     /// takes a transformed ancestor, as the specification now says), the
     /// body, or, for an element that is not positioned, a `td`, `th` or
-    /// `table`. The caller handles the root, the body and fixed boxes.
+    /// `table`. The caller handles the root, the body and fixed boxes. The
+    /// ancestors are those of the flat tree, and the answer is retargeted
+    /// against `node` (CSSOM View; measured in Chromium 148, case
+    /// `render-reads`: the offset parent of a shadow element is the light
+    /// `body`).
     fn offset_parent(&self, node: NodeId) -> Option<NodeId> {
+        self.offset_parent_in_flat_tree(node)
+            .map(|parent| self.dom.retarget(parent, node))
+    }
+
+    /// [`Self::offset_parent`] before the retargeting.
+    fn offset_parent_in_flat_tree(&self, node: NodeId) -> Option<NodeId> {
         let styles = self.styles.as_ref()?;
         let body = self.dom.body();
         let own_static = styles
             .get(node)
             .is_none_or(|s| s.position == Position::Static);
         let root = self.dom.document_element();
-        for ancestor in self.dom.ancestors(node) {
+        for ancestor in self.dom.flat_ancestors(node) {
             let element = self.dom.element(ancestor)?;
             if body == Some(ancestor) {
                 return Some(ancestor);
@@ -583,13 +593,9 @@ impl DocumentState {
         let hits = list.hit_test_all(point, self.scroll);
         let mut found: Vec<NodeId> = Vec::new();
         for hit in hits {
-            let element = if self.dom.element(hit).is_some() {
-                Some(hit)
-            } else {
-                self.dom
-                    .parent(hit)
-                    .filter(|&p| self.dom.element(p).is_some())
-            };
+            // The bindings retarget the elements against the document or
+            // the shadow root that asks.
+            let element = self.element_of(hit);
             if let Some(element) = element
                 && !found.contains(&element)
             {
@@ -730,7 +736,7 @@ impl DocumentState {
             f64::from(first.y + unit(border[0])),
         );
         let positioned = std::iter::once(target)
-            .chain(self.dom.ancestors(target))
+            .chain(self.dom.flat_ancestors(target))
             .take_while(|&n| self.dom.element(n).is_some())
             .find(|&n| {
                 self.styles

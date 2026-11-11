@@ -151,6 +151,110 @@
    "javascript": true
   },
   {
+   "name": "slotted-inherits-from-slot-inline",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h><span id=s>slotted</span> tail</div><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<slot style='font-size:32px;line-height:40px'></slot>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #s"
+    },
+    {
+     "js": "getComputedStyle(document.getElementById('s')).fontSize"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "slot-display-block-inline",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h><span id=s>S</span><span id=t>T</span></div><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<slot style='display:block;padding:3px'></slot><slot name=n style='display:block;padding:3px'></slot>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #s, #t"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "nested-slot-inherit",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h><b id=x>pass</b></div><script>var r=document.getElementById('h').attachShadow({mode:'open'});r.innerHTML=\"<div id=ih><slot id=os style='font-size:24px;line-height:30px'></slot></div>\";r.getElementById('ih').attachShadow({mode:'open'}).innerHTML=\"<i style='display:block'>[<slot id=is></slot>]</i>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #x"
+    },
+    {
+     "js": "getComputedStyle(document.getElementById('x')).fontSize"
+    },
+    {
+     "js": "getComputedStyle(document.getElementById('h').shadowRoot.getElementById('os')).fontSize"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "counter-through-slot",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><style>.c{counter-increment:n;display:table}.c::before{content:counter(n) '.'}</style><div id=h><span id=a class=c>one</span><span id=b class=c>two</span></div><div id=after class=c>x</div><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<div style='counter-reset:n 9'><slot></slot></div>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #a, #b, #after"
+    },
+    {
+     "js": "[...document.querySelectorAll('.c')].map(e => e.getBoundingClientRect().width)"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "unslotted-computed-style",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><style>body{color:rgb(0,0,255);font-size:18px}</style><div id=h style='font-size:20px;color:rgb(0,128,0)'><span id=u slot=nope>u</span><span id=s>s</span><span id=u2 slot=nope style='font-size:22px'><i id=ui>i</i></span></div><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<div style='font-size:30px'><slot></slot></div>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #u, #s"
+    },
+    {
+     "js": "[getComputedStyle(document.getElementById('u')).fontSize, getComputedStyle(document.getElementById('s')).fontSize, getComputedStyle(document.getElementById('u')).display, getComputedStyle(document.getElementById('u')).color, getComputedStyle(document.getElementById('s')).color, getComputedStyle(document.getElementById('ui')).fontSize, getComputedStyle(document.getElementById('ui')).display]"
+    },
+    {
+     "js": "[document.getElementById('h').innerText, document.getElementById('u').getClientRects().length]"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "unused-fallback-computed-style",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h><span id=s>s</span></div><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<div style='font-size:30px'><slot style='font-size:26px'><b id=f>f</b></slot></div>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #s"
+    },
+    {
+     "js": "(() => { const f = document.getElementById('h').shadowRoot.getElementById('f'); return [getComputedStyle(f).fontSize, f.getClientRects().length]; })()"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "hit-test-through-host",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><p style='margin:0'><a id=l href='#t'>see <span id=h>light</span> end</a></p><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<b id=in>4 days ago</b>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#l, #h"
+    },
+    {
+     "js": "(() => { const h = document.getElementById('h'); const r = h.getBoundingClientRect(); const x = r.x + 5, y = r.y + r.height / 2; const e = document.elementFromPoint(x, y); return [e.id, e.closest('a').id, h.shadowRoot.elementFromPoint(x, y).id, document.elementsFromPoint(x, y).map(n => n.id || n.localName), h.shadowRoot.elementsFromPoint(x, y).map(n => n.id || n.localName)]; })()"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "hit-test-retarget-repeats",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0}</style></head><body><div id=h style='position:absolute;left:0;top:0;width:100px;height:100px'><b id=x style='position:absolute;left:0;top:0;width:50px;height:50px;z-index:2'>x</b></div><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<div id=a style='position:absolute;left:0;top:0;width:50px;height:50px;z-index:3'></div><div id=b style='position:absolute;left:0;top:0;width:50px;height:50px;z-index:1'><slot></slot></div><div id=c style='position:absolute;left:0;top:0;width:50px;height:50px;z-index:1'></div>\";</script></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const h = document.getElementById('h'); return [document.elementsFromPoint(5,5).map(n => n.id || n.localName), h.shadowRoot.elementsFromPoint(5,5).map(n => n.id || n.localName), document.elementFromPoint(5,5).id, h.shadowRoot.elementFromPoint(5,5).id]; })()"
+    }
+   ],
+   "javascript": true
+  },
+  {
    "name": "declarative-js-off",
    "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h><template shadowrootmode=open><p style='margin:0;height:25px'>shadow</p><slot></slot></template><span id=c>light</span></div></body></html>",
    "measure": [

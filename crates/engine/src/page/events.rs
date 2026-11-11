@@ -135,12 +135,14 @@ impl Page {
     }
 
     /// The event target at a point in viewport coordinates: the element of
-    /// the hit node, else the root element (a point outside every box is on
-    /// the canvas of the root element, as in Chromium).
+    /// the hit node retargeted against the document (the interim rule of
+    /// `DocumentState::event_target_of`), else the root element (a point
+    /// outside every box is on the canvas of the root element, as in
+    /// Chromium).
     pub(super) fn target_at(&mut self, point: Point) -> Option<NodeId> {
         let hit = self.hit_doc(point.x, point.y);
         let doc = self.doc.as_ref()?;
-        hit.and_then(|h| doc.element_of(h.node))
+        hit.and_then(|h| doc.event_target_of(h.node))
             .or_else(|| doc.dom().element_children(NodeId::DOCUMENT).next())
     }
 

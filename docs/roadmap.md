@@ -4785,6 +4785,18 @@ Steps:
         `elementFromPoint`, the `:hover` chains, `innerText`; the fast
         path for documents without shadow roots. Exit: GitHub's relative
         times show Chromium's text; no cost for the other targets.
+        Done (2026-11-11), exit met: `swb_dom::flat` (a slot's flat
+        children are its assigned nodes, CSS Scoping §3.3, measured; ADR
+        0036 section 4 corrected); style, counters, the box tree, tables,
+        hit testing, the scroll chain, `offsetParent`, `elementFromPoint`
+        (also of `ShadowRoot`), the state chains and `innerText` follow
+        the flat tree; the document's author rules match only elements of
+        the document's tree scope; interim event target until 5d: the
+        outermost host. GitHub JS on geometry 0.8904 -> 0.9115, pixels
+        0.9884 -> 0.9934; 22 relative times render the replay's text (the
+        23rd is in a span that is hidden at this width, as in Chromium).
+        Other targets unchanged; JS-off snapshot identical; callgrind
+        +0.16 % at most (Wikipedia).
       - 5c style scoping and constructable sheets (`implementer-hard`):
         `:host`, `:host()`, `:host-context()`, `::slotted()`, `::part()`,
         the cascade's context step, layers per scope, `new
@@ -4834,8 +4846,8 @@ Steps:
 - CSS nesting is not supported (GitHub does not use it; 3 of 4 probe cases
   of `github-css.json` differ).
 - Cascade layers (feature 1): `adoptedStyleSheets` must add their sheets to
-  the document's layer tree, after the document's sheets (feature 5b;
-  measured: an adopted sheet's `@layer a` joins the document's layer `a`).
+  the document's layer tree, after the document's sheets (sub-feature 5c
+  of ADR 0036; measured: an adopted sheet's `@layer a` joins the document's layer `a`).
   swb loads no `@import` sheets: the layer of an import is declared, its
   rules do not exist. `@page`, `@namespace`, `@container` and `@property`
   have no CSSOM objects. An `@import ... layer(a b)` that `insertRule`
@@ -4852,6 +4864,13 @@ Steps:
   them GitHub's `command` polyfill runs in swb and wraps `attachShadow`).
   The diagnosis's "`adoptedStyleSheets` set once" was the tools' own
   `stop_animations` sheet; GitHub's page uses none.
+- Shadow DOM, found in 5b: until 5d, a link or button inside a shadow
+  tree shows as hovered, but a click goes to the outermost host and does
+  not activate it (the interim event target; GitHub has none);
+  `selectstart` goes to the shadow hit node and stops at its root;
+  layout dumps (`boxes.rs`) list light elements only; 1,000 nested hosts
+  exceed `MAX_BOX_DEPTH` (256), so the deepest content has no box (probe
+  `nesting-depth`, ADR 0036 section 12).
 - Custom elements (ADR 0035): customized built-in elements (`extends`,
   `is`; Chromium supports them, swb throws `NotSupportedError` at
   `define`); scoped registries (`new CustomElementRegistry()`,

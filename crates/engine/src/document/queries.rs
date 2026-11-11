@@ -585,8 +585,23 @@ impl DocumentState {
         if self.dom.get(node)?.is_element() {
             Some(node)
         } else {
-            self.dom.parent_element(node)
+            self.dom.flat_parent_element(node)
         }
+    }
+
+    /// The target of the pointer, mouse, wheel and click events of a hit
+    /// node, and the start of the walk for its activation behaviour: the
+    /// element of the node retargeted against the document (the outermost
+    /// host of a node in a shadow tree), which is the `target` that
+    /// Chromium's listeners outside the tree see (measured, case
+    /// `hit-test-through-host`). This is the interim rule of ADR 0036
+    /// sub-feature 5b: events from shadow nodes take the DOM path of their
+    /// target, which stops at the shadow root, so they start at the host
+    /// until 5d builds the composed path. The `:hover` and `:active`
+    /// chains keep the hit node ([`DocumentState::element_of`]).
+    pub(crate) fn event_target_of(&self, node: NodeId) -> Option<NodeId> {
+        self.element_of(node)
+            .map(|e| self.dom.retarget(e, NodeId::DOCUMENT))
     }
 }
 

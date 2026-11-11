@@ -46,7 +46,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use swb_css::{MatchingContext, MediaEnvironment, parse_style_attribute};
-use swb_dom::{Document, ElementData, NodeId};
+use swb_dom::{Document, ElementData, FlatScopes, NodeId};
 use url::Url;
 
 use crate::ComputedStyle;
@@ -105,6 +105,13 @@ fn compute_styles_with_options(
 /// [`compute_styles`], the descendants of `display: none` elements get
 /// styles too. Empty if `node` is not an element of the document tree.
 /// Pseudo-elements, `use` instances and counters are not computed.
+///
+/// The ancestors are the flat ancestors (ADR 0036 section 4). For an
+/// element outside the flat tree (a light child of a host that no slot
+/// takes, unused fallback content, or a node below one), the chain stops at
+/// the first element without a flat parent, which inherits from the initial
+/// style (measured in Chromium 148: cases `unslotted-computed-style` and
+/// `unused-fallback-computed-style` of `tools/probes/shadow-dom.json`).
 pub fn compute_element_styles(
     doc: &Document,
     stylist: &Stylist,
@@ -116,16 +123,27 @@ pub fn compute_element_styles(
     let Some(root) = doc.document_element() else {
         return Vec::new();
     };
-    if doc.element(node).is_none() {
+    if doc.element(node).is_none() || doc.parent(root) != Some(NodeId::DOCUMENT) {
         return Vec::new();
     }
     let mut chain: Vec<NodeId> = std::iter::once(node)
-        .chain(doc.ancestors(node).take_while(|&n| n != NodeId::DOCUMENT))
+        .chain(
+            doc.flat_ancestors(node)
+                .take_while(|&n| n != NodeId::DOCUMENT),
+        )
         .collect();
-    if chain.last() != Some(&root) || doc.parent(root) != Some(NodeId::DOCUMENT) {
+    let Some(&top) = chain.last() else {
+        return Vec::new();
+    };
+    // A chain that does not reach the document element: an element outside
+    // the flat tree, if it is in the window's document at all.
+    if top != root
+        && !(doc.has_shadow_state() && doc.shadow_including_root(node) == NodeId::DOCUMENT)
+    {
         return Vec::new();
     }
     chain.reverse();
+    let scopes = chain_scopes(doc, &chain);
     // Without the per-document tables: a pass over the document would
     // cost more than the cascade of a few elements.
     let state_set = StateSet::lazy(doc, states);
@@ -133,13 +151,14 @@ pub fn compute_element_styles(
     let mut parent = Arc::clone(&styler.cx.initial);
     let mut layout_parent = None;
     let mut out = Vec::with_capacity(chain.len());
-    for id in chain {
+    for (id, scope) in chain.into_iter().zip(scopes) {
         let Some(el) = DomElement::new(doc, id, &state_set) else {
             // Only elements are between an element and the document
             // element.
             return Vec::new();
         };
         let is_root = id == root;
+        styler.document_scope = scope == NodeId::DOCUMENT;
         let style = styler.style_element(&el, &parent, layout_parent, is_root);
         if is_root {
             styler.cx.root_font_size = style.font_size;
@@ -183,7 +202,26 @@ pub fn compute_pseudo_element_style(
         .map(|(_, s)| s.display)
         .find(|&d| d != Display::Contents);
     let el = DomElement::new(doc, *node, &state_set)?;
+    styler.document_scope = doc.in_document_tree(*node);
     styler.style_pseudo_element(&el, style, kind, layout_parent, true)
+}
+
+/// The tree scope (the root of the element's tree: the document or a
+/// shadow root) of each element of `chain`, a path of the flat tree from
+/// its top down. Linear in the length of the chain plus the depth of the
+/// top in its tree.
+fn chain_scopes(doc: &Document, chain: &[NodeId]) -> Vec<NodeId> {
+    if !doc.has_shadow_state() {
+        return vec![NodeId::DOCUMENT; chain.len()];
+    }
+    let mut flat = FlatScopes::default();
+    let mut scope = chain.first().map_or(NodeId::DOCUMENT, |&top| doc.root(top));
+    let mut scopes: Vec<NodeId> = Vec::with_capacity(chain.len());
+    for &id in chain {
+        scopes.push(scope);
+        scope = flat.of_children(doc, id, scope);
+    }
+    scopes
 }
 
 /// What a shareable element style depends on. The parent style is
@@ -236,6 +274,12 @@ struct Styler<'a> {
     shared: HashMap<SharingKey, Arc<ComputedStyle>>,
     scratch: Vec<u32>,
     matched: Vec<u32>,
+    /// True while the element being styled is in the document's tree
+    /// scope: only then do the author rules apply. The sheets of shadow
+    /// trees are not applied yet (ADR 0036, 5b implementation notes), so
+    /// an element of a shadow tree gets the user-agent rules, the hints,
+    /// its `style` attribute and inheritance.
+    document_scope: bool,
 }
 
 impl<'a> Styler<'a> {
@@ -279,6 +323,7 @@ impl<'a> Styler<'a> {
             shared: HashMap::new(),
             scratch: Vec::new(),
             matched: Vec::new(),
+            document_scope: true,
         }
     }
 
@@ -287,14 +332,25 @@ impl<'a> Styler<'a> {
         let Some(root) = self.doc.document_element() else {
             return map;
         };
-        // Pre-order traversal. `path` holds the ancestors of the current
-        // element, whose keys are in the Bloom filter.
-        let mut stack: Vec<(NodeId, Arc<ComputedStyle>, Option<Display>, usize)> =
-            vec![(root, Arc::clone(&self.cx.initial), None, 0)];
+        // Pre-order traversal of the flat tree (ADR 0036 section 4). `path`
+        // holds the flat ancestors of the current element, whose keys are in
+        // the Bloom filter: a superset of the DOM ancestors inside the
+        // element's tree, so the filter never rejects a rule wrongly. Each
+        // entry carries the element's tree scope (the root of its tree:
+        // the document or a shadow root).
+        let mut stack: Vec<Pending> = vec![(
+            root,
+            Arc::clone(&self.cx.initial),
+            None,
+            0,
+            NodeId::DOCUMENT,
+        )];
         let mut path: Vec<NodeId> = Vec::new();
         let mut children = Vec::new();
+        let mut scopes = FlatScopes::default();
+        let shadow = self.doc.has_shadow_state();
         let quirks = self.cx.quirks;
-        while let Some((node, parent, layout_parent, depth)) = stack.pop() {
+        while let Some((node, parent, layout_parent, depth, scope)) = stack.pop() {
             while path.len() > depth {
                 if let Some(ancestor) = path.pop()
                     && let (Some(filter), Some(e)) = (&mut self.filter, self.doc.element(ancestor))
@@ -306,6 +362,7 @@ impl<'a> Styler<'a> {
                 continue;
             };
             let is_root = node == root;
+            self.document_scope = scope == NodeId::DOCUMENT;
             let style = self.style_element(&el, &parent, layout_parent, is_root);
             if is_root {
                 self.cx.root_font_size = style.font_size;
@@ -321,15 +378,26 @@ impl<'a> Styler<'a> {
                 };
                 self.style_pseudo_elements(&el, &style, child_layout_parent, &mut map);
                 children.clear();
-                children.extend(self.doc.element_children(node));
+                children.extend(self.doc.flat_element_children(node));
                 if !children.is_empty() {
                     if let Some(filter) = &mut self.filter {
                         filter.push_element(el.data(), quirks);
                     }
                     path.push(node);
                 }
+                let child_scope = if shadow {
+                    scopes.of_children(self.doc, node, scope)
+                } else {
+                    scope
+                };
                 for &child in children.iter().rev() {
-                    stack.push((child, Arc::clone(&style), child_layout_parent, depth + 1));
+                    stack.push((
+                        child,
+                        Arc::clone(&style),
+                        child_layout_parent,
+                        depth + 1,
+                        child_scope,
+                    ));
                 }
             }
             map.set(node, style);
@@ -355,6 +423,7 @@ impl<'a> Styler<'a> {
             &self.media,
             &self.cx.layer_ranks,
             self.filter.as_ref(),
+            self.document_scope,
             &mut self.matching,
             &mut self.scratch,
             &mut matched,
@@ -495,6 +564,7 @@ impl<'a> Styler<'a> {
                 &self.media,
                 &self.cx.layer_ranks,
                 self.filter.as_ref(),
+                self.document_scope,
                 &mut self.matching,
                 &mut self.scratch,
                 &mut matched,
@@ -552,6 +622,11 @@ impl<'a> Styler<'a> {
         map.set_pseudo(node, PseudoKind::DetailsContent, Arc::new(content));
     }
 }
+
+/// An element that the style walk will visit: the element, its parent's
+/// style, the display of its parent box, its depth (the length of the path
+/// of its ancestors) and its tree scope.
+type Pending = (NodeId, Arc<ComputedStyle>, Option<Display>, usize, NodeId);
 
 /// True if `display: contents` computes to `none` for the element (the
 /// list in CSS Display 3 Appendix B).
@@ -2446,5 +2521,175 @@ mod tests {
             .pseudo(node(&doc, "p"), PseudoKind::Before)
             .expect("a ::before");
         assert_eq!(pseudo.color, BLUE);
+    }
+}
+
+#[cfg(test)]
+mod shadow_tests {
+    //! The flat tree in the style walk (ADR 0036 section 4) and the scope
+    //! test of the document's author rules (5b).
+
+    use swb_css::MediaEnvironment;
+    use swb_dom::{Document, ShadowRootInit, ShadowRootMode, SlotAssignment, parse_html};
+
+    use super::*;
+    use crate::values::*;
+
+    fn base() -> Url {
+        Url::parse("https://example.com/").expect("valid URL")
+    }
+
+    fn node(doc: &Document, id: &str) -> NodeId {
+        doc.element_by_id(id)
+            .unwrap_or_else(|| panic!("no element #{id}"))
+    }
+
+    /// Attaches an open root to `host` with `markup` as its content and
+    /// returns the root.
+    fn shadow(doc: &mut Document, host: NodeId, markup: &str) -> NodeId {
+        let init = ShadowRootInit {
+            mode: ShadowRootMode::Open,
+            slot_assignment: SlotAssignment::Named,
+            delegates_focus: false,
+            clonable: false,
+            serializable: false,
+        };
+        let root = doc.attach_shadow(host, init, false).expect("a host");
+        let fragment = swb_dom::parse_fragment(doc, host, markup).expect("markup fits");
+        doc.append_child(root, fragment).expect("a fragment");
+        root
+    }
+
+    /// The element with id `id` in the tree of `root`.
+    fn in_root(doc: &Document, root: NodeId, id: &str) -> NodeId {
+        doc.descendants(root)
+            .find(|&n| doc.element(n).and_then(ElementData::id) == Some(id))
+            .unwrap_or_else(|| panic!("no #{id} in the root"))
+    }
+
+    fn stylist(doc: &Document, css: &str) -> Stylist {
+        let mut stylist = Stylist::new(doc.quirks_mode);
+        stylist.add_author_sheet(&swb_css::parse_stylesheet(css), &base());
+        stylist
+    }
+
+    fn styles(doc: &Document, css: &str) -> StyleMap {
+        let env = MediaEnvironment::default();
+        compute_styles(
+            doc,
+            &stylist(doc, css),
+            &env,
+            &ElementStates::default(),
+            &base(),
+        )
+    }
+
+    /// The style of `node` from [`compute_element_styles`].
+    fn element_style(doc: &Document, css: &str, node: NodeId) -> Option<Arc<ComputedStyle>> {
+        let env = MediaEnvironment::default();
+        let chain = compute_element_styles(
+            doc,
+            &stylist(doc, css),
+            &env,
+            &ElementStates::default(),
+            &base(),
+            node,
+        );
+        chain
+            .last()
+            .filter(|(n, _)| *n == node)
+            .map(|(_, s)| Arc::clone(s))
+    }
+
+    const CSS: &str = "body { font-size: 18px; color: blue } span { color: red; font-size: 40px }\
+                       #h { font-size: 20px }";
+
+    const BLUE: Rgba = Rgba::rgb(0, 0, 255);
+    const RED: Rgba = Rgba::rgb(255, 0, 0);
+
+    #[test]
+    fn shadow_children_inherit_from_the_host_and_slotted_ones_from_the_slot() {
+        let mut doc =
+            parse_html("<!DOCTYPE html><div id=h><i id=x>slotted</i><b id=u slot=none>u</b></div>");
+        let host = node(&doc, "h");
+        let root = shadow(
+            &mut doc,
+            host,
+            "<span id=in>in</span><p id=p style='font-size:30px'><slot id=s></slot></p>",
+        );
+        let map = styles(&doc, CSS);
+        let span = in_root(&doc, root, "in");
+        let p = in_root(&doc, root, "p");
+        let slot = in_root(&doc, root, "s");
+        // The document's rules do not match the shadow `span`: it inherits
+        // from the host.
+        let s = map.get(span).expect("a style");
+        assert_eq!((s.font_size, s.color), (20.0, BLUE));
+        // The `style` attribute applies in a shadow tree; the slot inherits
+        // from the `p` and the slotted `i` from the slot.
+        assert_eq!(map.get(p).expect("a style").font_size, 30.0);
+        assert_eq!(map.get(slot).expect("a style").display, Display::Contents);
+        assert_eq!(map.get(node(&doc, "x")).expect("a style").font_size, 30.0);
+        // The light child that no slot takes is not in the walk.
+        assert!(map.get(node(&doc, "u")).is_none());
+    }
+
+    #[test]
+    fn light_rules_still_match_slotted_elements() {
+        let mut doc = parse_html("<!DOCTYPE html><div id=h><span id=x>x</span></div>");
+        let host = node(&doc, "h");
+        shadow(&mut doc, host, "<slot></slot>");
+        let map = styles(&doc, CSS);
+        let x = map.get(node(&doc, "x")).expect("a style");
+        assert_eq!((x.font_size, x.color), (40.0, RED));
+    }
+
+    #[test]
+    fn a_slot_passed_on_stays_in_the_inheritance_chain() {
+        // The case `nested-slot-inherit` of tools/probes/shadow-dom.json.
+        let mut doc = parse_html("<!DOCTYPE html><div id=h><b id=x>pass</b></div>");
+        let host = node(&doc, "h");
+        let root = shadow(
+            &mut doc,
+            host,
+            "<div id=ih><slot id=os style='font-size:24px'></slot></div>",
+        );
+        let inner_host = in_root(&doc, root, "ih");
+        shadow(&mut doc, inner_host, "<i><slot></slot></i>");
+        let map = styles(&doc, "");
+        assert_eq!(map.get(node(&doc, "x")).expect("a style").font_size, 24.0);
+        let x = element_style(&doc, "", node(&doc, "x")).expect("a style");
+        assert_eq!(x.font_size, 24.0);
+    }
+
+    #[test]
+    fn element_styles_follow_the_flat_tree() {
+        let mut doc = parse_html(
+            "<!DOCTYPE html><div id=h><i id=x>x</i><b id=u slot=none><em id=e>e</em></b></div>",
+        );
+        let host = node(&doc, "h");
+        let root = shadow(
+            &mut doc,
+            host,
+            "<p style='font-size:30px'><slot></slot></p><span id=in>s</span>",
+        );
+        // Slotted: through the slot.
+        let x = element_style(&doc, CSS, node(&doc, "x")).expect("a style");
+        assert_eq!(x.font_size, 30.0);
+        // A shadow element: the document's rules do not match it.
+        let span = element_style(&doc, CSS, in_root(&doc, root, "in")).expect("a style");
+        assert_eq!((span.font_size, span.color), (20.0, BLUE));
+        // Outside the flat tree: the initial style is the parent (measured:
+        // case `unslotted-computed-style`), the document's rules match, and
+        // the display is not blockified.
+        let u = element_style(&doc, "b { color: red }", node(&doc, "u")).expect("a style");
+        assert_eq!((u.font_size, u.color), (16.0, RED));
+        assert_eq!(u.display, Display::Inline);
+        let e = element_style(&doc, "b { font-size: 22px }", node(&doc, "e")).expect("a style");
+        assert_eq!(e.font_size, 22.0);
+        // A detached host: no styles.
+        let x = node(&doc, "x");
+        doc.remove(host);
+        assert!(element_style(&doc, CSS, x).is_none());
     }
 }

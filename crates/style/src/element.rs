@@ -266,6 +266,9 @@ pub(crate) struct StateSet<'a> {
     /// False for the set of one query ([`StateSet::lazy`]): it has no class
     /// lists and computes the disabled state of an element when asked.
     full: bool,
+    /// The hovered, active and focused elements and their flat ancestor
+    /// elements, sorted (a binary search per element: a chain can be as
+    /// deep as the tree).
     hover_chain: Vec<NodeId>,
     active_chain: Vec<NodeId>,
     focus_chain: Vec<NodeId>,
@@ -339,14 +342,18 @@ impl<'a> StateSet<'a> {
 
     /// [`StateSet::new`], with the per-document tables only if `tables`.
     fn new_with(doc: &'a Document, states: &ElementStates, tables: bool) -> Self {
+        // The chains follow the flat tree: a host and the slots of a slotted
+        // element match too (measured in Chromium 148, ADR 0036 section 4).
         let chain = |node: Option<NodeId>| -> Vec<NodeId> {
             let Some(node) = node.filter(|&n| doc.get(n).is_some()) else {
                 return Vec::new();
             };
-            std::iter::once(node)
-                .chain(doc.ancestors(node))
+            let mut chain: Vec<NodeId> = std::iter::once(node)
+                .chain(doc.flat_ancestors(node))
                 .filter(|&n| doc.node(n).is_element())
-                .collect()
+                .collect();
+            chain.sort_unstable();
+            chain
         };
         let mut classes = Vec::new();
         let mut any_editable = false;
@@ -478,13 +485,13 @@ impl<'a> StateSet<'a> {
         } else {
             ElementState::empty()
         };
-        if self.hover_chain.contains(&id) {
+        if self.hover_chain.binary_search(&id).is_ok() {
             state |= ElementState::HOVER;
         }
-        if self.active_chain.contains(&id) {
+        if self.active_chain.binary_search(&id).is_ok() {
             state |= ElementState::ACTIVE;
         }
-        if self.focus_chain.contains(&id) {
+        if self.focus_chain.binary_search(&id).is_ok() {
             state |= ElementState::FOCUS_WITHIN;
         }
         if self.focus == Some(id) && !self.is_iframe(id) {

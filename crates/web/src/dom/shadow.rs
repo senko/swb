@@ -165,25 +165,34 @@ impl g::shadow_root::ShadowRootImpl for WebState {
         if dom.get(focused).is_none() {
             return Ok(None);
         }
-        let candidate = retarget(dom, focused, this);
+        let candidate = dom.retarget(focused, this);
         Ok((dom.root(candidate) == this).then_some(candidate))
     }
-}
 
-/// DOM "retarget `a` against `b`": while `a`'s root is a shadow root that is
-/// not a shadow-including inclusive ancestor of `b`, `a` becomes that root's
-/// host.
-/// <https://dom.spec.whatwg.org/#retarget>
-pub(crate) fn retarget(dom: &swb_dom::Document, mut a: NodeId, b: NodeId) -> NodeId {
-    loop {
-        let root = dom.root(a);
-        let Some(host) = dom.shadow_host(root) else {
-            return a;
-        };
-        if dom.is_shadow_including_inclusive_ancestor(root, b) {
-            return a;
-        }
-        a = host;
+    /// CSSOM View `elementFromPoint` of a root: the topmost element at the
+    /// point, retargeted against the root (ADR 0036 sub-feature 5b).
+    fn element_from_point(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        x: f64,
+        y: f64,
+    ) -> b::Result<Option<NodeId>> {
+        Ok(
+            crate::cssom_view::elements_from_point(cx.rt, this, x, y, false)?
+                .first()
+                .copied(),
+        )
+    }
+
+    /// CSSOM View `elementsFromPoint` of a root, each element retargeted
+    /// against the root.
+    fn elements_from_point(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        x: f64,
+        y: f64,
+    ) -> b::Result<Vec<NodeId>> {
+        crate::cssom_view::elements_from_point(cx.rt, this, x, y, true)
     }
 }
 

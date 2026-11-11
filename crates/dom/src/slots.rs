@@ -471,6 +471,15 @@ impl Document {
                 e.shadow_flags &= !shadow_flags::SLOT;
             }
         }
+        // The flat tree changed: the engine restyles (ADR 0036 section 5,
+        // "Invalidation"; `assign()` makes no journal entry, so the
+        // generation tells the engine's drain to look).
+        if self.may_be_connected(slot)
+            && let Some(state) = self.shadow.as_mut()
+        {
+            state.changed = true;
+            self.generation += 1;
+        }
         self.signal_slot(slot);
     }
 

@@ -1159,3 +1159,163 @@ snapshot is byte-identical. Only GitHub attaches shadow roots after the load
 attach none, counted with `--eval`). The warnings of the logs are the base's
 apart from GitHub, which lost its 24 (the failed `relative-time`
 constructors).
+
+## 5b implementation notes
+
+Facts of sub-feature 5b (the flat tree in rendering) that differ from the
+decision above or that 5c and 5d need. Code: `crates/dom/src/flat.rs` (new),
+`shadow.rs` (`retarget`), `slots.rs`; `crates/style/src/cascade.rs`,
+`stylist.rs`, `counters.rs`, `element.rs`; `crates/layout/src/box_tree.rs`,
+`table/build.rs`; `crates/engine/src/hit_test.rs`, `scrollers.rs`,
+`page/events.rs`, `page/forms.rs`, `document/queries.rs`, `geometry.rs`,
+`resolved.rs`, `inner_text.rs`, `changes.rs`; `crates/web/src/cssom_view.rs`,
+`dom/shadow.rs`, `idl/cssom-view.idl`.
+
+**The flat-tree model (section 4 is wrong on one point).** CSS Scoping §3.3
+builds the flat tree with "find slottables", that is with each slot's
+*assigned* nodes, not with its flattened list: a slot that is assigned to a
+slot of a nested host stays in the flat tree, as a child of that slot, and
+its own assigned nodes are its flat children. Section 4's "the innermost
+slot whose flattened list holds n" would skip it. Measured in Chromium 148
+(case `nested-slot-inherit` of `tools/probes/shadow-dom.json`, three equal
+runs): the outer slot, assigned onward, has `font-size: 24px` and the inner
+slot none; the light `b` has `24px` and a 27 px high box, so it inherits from
+the outer slot. swb follows the specification and Chromium: `flat_children`
+of a slot with assigned nodes is its stored assigned list (`Listed`), and
+`flat_parent` of a slotted node is its assigned slot. Each step is O(1), so a
+chain of N pass-through slots costs O(N) in a style pass
+(`shadow-slot-passthrough-10000`). The flattened lists are not used in
+rendering.
+
+**`getComputedStyle` outside the flat tree (differs from section 4's table).**
+Measured (cases `unslotted-computed-style` and
+`unused-fallback-computed-style`): a light child of a host that no slot takes
+has computed values, but they inherit from nothing: `font-size: 16px`, black,
+`display: inline` (not blockified) under a host with `20px` and green; its
+child inherits from it; unused fallback content of a slot the same. So
+`compute_element_styles` walks the flat ancestors and stops at the first node
+without a flat parent, which inherits from the initial style; it is not the
+DOM chain. A node that is not in the window's document still has no style.
+
+**Style.** `Styler::run` walks `flat_element_children`; inheritance and the
+`layout_parent` follow it; the Bloom filter holds the flat ancestors (a
+superset of the DOM ancestors in the element's own tree, so it never rejects
+a rule wrongly). Each stack entry carries the element's tree scope (the
+document node or a shadow root): a host's children get its root, a slot's
+assigned nodes get the scope of the slot's host (recorded when the walk
+entered the host; `swb_dom::FlatScopes`, which `getComputedStyle` and
+`innerText` also use). The scope test of 5b: the document's author rules match
+only elements of the document's scope (`matching_rules(.., author)`, one bool
+per element; measured: document rules do not match shadow nodes). A shadow
+element gets the user-agent rules, presentational hints, its `style`
+attribute and inheritance; sheets in shadow trees stay unapplied until 5c.
+Counters and list numbering walk the flat tree (CSS Lists). The `:hover`,
+`:active` and `:focus-within` chains are the flat ancestors (measured: the
+host and the slot match `:hover`).
+
+**Layout.** `push_children`, `push_flattened` (below `MAX_BOX_DEPTH`) and the
+table builder's `for_each_child` take `flat_children`; a text node's style is
+its flat parent's (the slot's for slotted text). Light children outside the
+flat tree get no box. The other walks of `crates/layout` and `crates/style`
+stay DOM walks on purpose: SVG content, `source` children of media, the root
+and body of background propagation, `details` and `colgroup` children (they
+cannot be hosts or slots), selector matching within a scope, the disabled and
+editing states, table hints, SVG `use`, `querySelector`.
+
+**Hit testing and the interim event target.** `element_of` takes the flat
+parent element of a text node (hover, cursor, `elementsFromPoint`);
+`link_around` and the scroll chain (`Scrollers::chain`, used by wheel,
+keys and `scrollIntoView`) walk flat ancestors; `offsetParent` walks flat
+ancestors and is retargeted against the element (measured: the light `body`
+for a shadow `span`). `document.elementFromPoint` and `elementsFromPoint`
+retarget each element against the document, and the new
+`ShadowRoot.elementFromPoint` and `elementsFromPoint` against the root
+(measured, case `hit-test-through-host`: the document gets `h, l, p, body,
+html`, the root `in, h, l, p, body, html`). After the retargeting, an
+element that repeats the one before it is dropped, but a later repeat stays
+(the review found this; case `hit-test-retarget-repeats`: a slotted light
+element between two shadow boxes of host `h` gives the document `h, x, h,
+html`). Interim
+rule until 5d builds the composed path: the pointer, mouse, wheel and click
+events of a hit in a shadow tree go to the hit element retargeted against the
+document (the outermost host, which is Chromium's `target` outside the tree,
+measured in `ui-events-through-shadow`), and the engine's activation walk
+(input without scripts) starts there too, so a click on a relative time in a
+link follows the link and reaches the document's and React's listeners. The
+`:hover` and `:active` chains keep the real hit node. Focus is unchanged.
+Known gap until 5d: a link or a button inside a shadow tree shows as the
+hovered link, but a click on it goes to the host and does not activate it.
+
+**`innerText`.** The walk follows the flat tree with a tree scope per step;
+only the text of the asked element's tree gives characters, the shadow text
+between changes the white-space state as layout does, and a collapsible
+space of the light text before shadow text stays. Measured (`render-reads`):
+the `innerText` of `<p>by <relative-time>..</relative-time> end</p>` is
+`"by  end"` (two spaces), a host's is `""` when no slot takes its children,
+a shadow element's is its text.
+
+**Invalidation.** Every change of a connected slot's assigned list
+(`set_assigned`: insertions, removals, `slot` and `name` changes, `assign()`)
+sets the flag of `take_shadow_changed` and bumps the arena's generation, and
+the engine's drain invalidates all styles (`assign()` makes no journal entry
+and changed no generation before).
+
+**Departures.** `nesting-depth` #1: 1,000 nested hosts exceed the 256 box
+levels (`MAX_BOX_DEPTH`, section 12); the content below is flattened into
+text, so the deepest `div` has no box (Chromium: left 1007, a box). The
+probe case `counter-through-slot` was changed before it became a test: it
+used `width: max-content` on blocks (not supported in swb, roadmap backlog)
+and digits of equal width; it now uses `display: table` and
+`counter-reset: n 9` (three equal Chromium runs).
+
+**Tests.** `crates/engine/tests/shadow_rendering.rs` runs every case of
+`tools/probes/shadow-dom.json` (the boxes within 0.5 px, the `js` rows) but
+the four that need shadow-tree `<style>` (5c) and the two declarative cases,
+with Chromium's values in `tests/data/shadow-dom.json`, plus engine tests (a
+click on shadow text in a link, with and without scripts; the cursor of a
+slot; `assign()` lays out again; scroll containers of shadow boxes).
+`probe_net.rs`: `render-reads` matches, `nesting-depth` matches but the
+departure above; the `:hover` row of `ui-events-through-shadow` runs with its
+steps in `crates/automation/tests/real_input.rs`. Unit tests in `flat.rs`,
+`cascade.rs` (`shadow_tests`), `box_tree.rs`. The GitHub test reads the text
+fragments in the 23 `relative-time` hosts: 22 show the replay's text; the
+first is in a `span.d-sm-none`, which the page hides at this width (as in
+Chromium); no light date text has a fragment.
+
+**Two quadratic costs that the hostile cases found.** (1) `attach_shadow`
+asked `is_connected` of the host (a walk through every host above it) to set
+the restyle flag, so building 100,000 nested trees was quadratic (5a code:
+10,000 levels 0.22 s, 40,000 levels 3.4 s). The flag now uses
+`may_be_connected` (the roots of the node's tree and of its host's tree; a
+deeper nesting answers true, which costs at most one restyle), also for the
+slot changes above: 40,000 levels 0.04 s. (2) The `:hover`, `:active` and
+`:focus-within` chains were searched linearly for each element; with the
+flat ancestors of a hit 100,000 trees deep that was quadratic in the style
+pass. The chains are sorted and searched by bisection.
+
+**Hostile cases** (release build; base 2808bc1 / 5b): `shadow-nested-100000`
+(new: 100,000 nested trees, a link at the bottom, a click and a Tab) base
+inactive (the script ran into its time limit), 5b 1.36 s, 551 MiB;
+`shadow-slot-passthrough-10000` (new) 1.76 s, 97 MiB / 1.61 s, 179 MiB;
+`shadow-hosts-200000` 1.46 s, 587 MiB / 1.91 s, 809 MiB (the 200,000 shadow
+texts now have boxes); the other seven 5a cases within 0.05 s and 5 MiB of
+the base.
+
+**Performance (section 13).** JavaScript off: `just snapshot` is
+byte-identical to the base; callgrind totals of `swb --headless`: Wikipedia
+646.81 M / 647.85 M instructions (+0.16 %), Ars Technica 1,968.52 M /
+1,968.39 M (−0.01 %), BBC 7,329.23 M / 7,329.60 M (+0.01 %); `swbtools perf`
+stage times within the run-to-run noise (two runs each). The binding rows of
+ADR 0035 section 11 (instructions per iteration, base / 5b): loop 650 / 649,
+`setAttribute` 4,407 / 4,396, `id` 3,889 / 3,893, `appendChild` with `remove`
+4,380 / 4,399 (1.004), `textContent` 1,959 / 1,941, `innerHTML` 17,378 /
+17,398, `createElement` 4,237 / 4,231, `classList.add` 8,420 / 8,422; the
+`relative-time` pattern 22,142. GitHub with JavaScript on (`--bench 20`,
+three runs): style 24.9 / 25.4 ms per pass, layout 4.93 / 5.05 ms, the
+headless load 0.48 s in both (budget 1.56 s). A pass over 1,000 hosts with a
+slot each (5,004 elements in the flat tree): style 2.39 ms, layout 6.86 ms;
+the same content as light elements (4,003): 1.78 ms and 6.74 ms.
+
+**The targets** (compare against Chromium, base / 5b): GitHub with
+JavaScript on geometry 0.8904 / 0.9115, pixels 0.9884 / 0.9934; every other
+score with JavaScript on and off is the base's.

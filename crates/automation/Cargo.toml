@@ -24,4 +24,5 @@ tungstenite.workspace = true
 
 [dev-dependencies]
 jiff.workspace = true
+swb-layout.workspace = true
 swb-paint.workspace = true

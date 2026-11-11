@@ -439,3 +439,42 @@ fn scroll_events_of_elements_are_in_tree_order() {
         assert_eq!(value(&mut page, "log.join('|')"), "b|a|c");
     });
 }
+
+/// The `:hover` row of the case `ui-events-through-shadow` of
+/// `tools/probes/web-shadow-dom.json` with its input steps (ADR 0036
+/// sub-feature 5b): after a click on shadow text, the host and the shadow
+/// element match `:hover` (the chain follows the flat tree), and the
+/// document's listeners see the host as the target (the interim target rule
+/// of 5b; `composedPath()` comes with 5d). Chromium 148's values are those of
+/// `crates/engine/tests/probe_net/shadow_dom.rs`.
+#[test]
+fn shadow_hover_chain_and_targets_follow_the_flat_tree() {
+    on_page_thread(|| {
+        let probe: Value = serde_json::from_str(
+            &std::fs::read_to_string(repo_root().join("tools/probes/web-shadow-dom.json")).unwrap(),
+        )
+        .unwrap();
+        let case = probe["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == "ui-events-through-shadow")
+            .unwrap();
+        let site = Site::new("shadow-hover");
+        let mut page = page_of(&site, case["html"].as_str().unwrap());
+        // The probe's viewport: the click at the center of the host lands
+        // on its shadow text.
+        page.set_viewport(Size::new(400.0, 300.0), 1.0);
+        run_steps(&mut page, case["steps"].as_array().unwrap()).unwrap();
+        let measure = case["measure"].as_array().unwrap();
+        let hover = measure[2]["js"].as_str().unwrap();
+        assert_eq!(value(&mut page, hover), "true,true,false");
+        assert_eq!(
+            value(
+                &mut page,
+                "L.map(function (x) { return x.split('<')[0]; }).join(' ')"
+            ),
+            "pointerover:div#h mouseover:div#h mousedown:div#h mouseup:div#h click:div#h"
+        );
+    });
+}

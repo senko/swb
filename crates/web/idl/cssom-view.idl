@@ -118,6 +118,13 @@ partial interface Document {
   readonly attribute Element? scrollingElement;
 };
 
+// The `DocumentOrShadowRoot` members of CSSOM View for shadow roots (as
+// Chromium has them; the specification's mixin is Document-only).
+partial interface ShadowRoot {
+  Element? elementFromPoint(double x, double y);
+  sequence<Element> elementsFromPoint(double x, double y);
+};
+
 enum ScrollLogicalPosition { "start", "center", "end", "nearest" };
 
 dictionary ScrollIntoViewOptions : ScrollOptions {

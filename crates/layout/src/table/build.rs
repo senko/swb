@@ -117,7 +117,7 @@ fn for_each_child(
         return;
     };
     pseudo(ctx, parent, PseudoKind::Before, state, f);
-    for child in ctx.doc.children(parent) {
+    for child in ctx.doc.flat_children(parent) {
         match &ctx.doc.node(child).data {
             NodeData::Text(text) => {
                 if !is_collapsible_white_space(parent_style, text) {

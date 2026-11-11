@@ -2686,6 +2686,7 @@ dependencies = [
  "serde_json",
  "swb-dom",
  "swb-engine",
+ "swb-layout",
  "swb-net",
  "swb-paint",
  "thiserror 2.0.21",

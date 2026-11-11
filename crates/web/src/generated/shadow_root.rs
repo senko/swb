@@ -39,6 +39,12 @@ pub trait ShadowRootImpl: b::Host {
     /// `readonly attribute Element? activeElement`.
     fn active_element(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
+    /// `Element? elementFromPoint(double x, double y)`.
+    fn element_from_point(cx: &mut b::Cx<'_>, this: b::NodeId, x: f64, y: f64) -> b::Result<Option<b::NodeId>>;
+
+    /// `sequence<Element> elementsFromPoint(double x, double y)`.
+    fn elements_from_point(cx: &mut b::Cx<'_>, this: b::NodeId, x: f64, y: f64) -> b::Result<Vec<b::NodeId>>;
+
 }
 
 fn get_mode<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -139,6 +145,32 @@ fn get_active_element<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js
     })
 }
 
+fn op_element_from_point<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("ShadowRoot", "elementFromPoint"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        b::glue::require_arguments(call, 2)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::double(rt, v).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::double(rt, v).map_err(|e| e.argument(1))?;
+        let result = <H as ShadowRootImpl>::element_from_point(&mut b::Cx::new(rt, call, super::SHADOW_ROOT), this, a0, a1)?;
+        Ok((match result { Some(x0) => b::to_js::node::<H>(rt, call.realm(), x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn op_elements_from_point<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("ShadowRoot", "elementsFromPoint"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        b::glue::require_arguments(call, 2)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::double(rt, v).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::double(rt, v).map_err(|e| e.argument(1))?;
+        let result = <H as ShadowRootImpl>::elements_from_point(&mut b::Cx::new(rt, call, super::SHADOW_ROOT), this, a0, a1)?;
+        Ok(b::to_js::sequence(rt, call.realm(), &result, |rt, item0| b::to_js::node::<H>(rt, call.realm(), *item0))?)
+    })
+}
+
 /// Creates the interface object and the prototype of `ShadowRoot` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
@@ -155,6 +187,8 @@ pub fn define<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js
     rt.define_accessor(realm, target, "innerHTML", (Some(get_inner_html::<H> as swb_js::NativeFn), Some(set_inner_html::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "styleSheets", (Some(get_style_sheets::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "activeElement", (Some(get_active_element::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "elementFromPoint", 2, op_element_from_point::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "elementsFromPoint", 2, op_elements_from_point::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }
