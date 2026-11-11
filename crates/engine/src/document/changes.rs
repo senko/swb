@@ -580,8 +580,22 @@ impl DocumentState {
     fn placed_in_order(&self, placed: &[NodeId]) -> bool {
         let dom = &self.dom;
         let sheets = &self.sheets;
+        // Many sheets placed in one drain (a script that fills many shadow
+        // roots, each with a `<style>`): one map of the positions, not a scan
+        // of the list per sheet (hostile case `shadow-styles-100000`).
+        let positions: Option<HashMap<NodeId, usize>> = (placed.len() > 16).then(|| {
+            sheets
+                .iter()
+                .enumerate()
+                .map(|(i, s)| (s.owner, i))
+                .collect()
+        });
         placed.iter().all(|&owner| {
-            let Some(i) = sheets.position(owner) else {
+            let position = match &positions {
+                Some(map) => map.get(&owner).copied(),
+                None => sheets.position(owner),
+            };
+            let Some(i) = position else {
                 return true;
             };
             let before = i.checked_sub(1).and_then(|j| sheets.get(j));

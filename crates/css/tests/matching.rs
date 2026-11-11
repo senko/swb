@@ -15,6 +15,9 @@ struct Node {
     children: Vec<usize>,
     has_text: bool,
     state: ElementState,
+    /// The flat tree parent where it differs from `parent`: the host of an
+    /// element at the top of a shadow tree, the slot of a slotted element.
+    flat_parent: Option<usize>,
 }
 
 #[derive(Default)]
@@ -146,6 +149,13 @@ impl Element for El<'_> {
 
     fn same_element(&self, other: &Self) -> bool {
         self.id == other.id
+    }
+
+    fn flat_parent_element(&self) -> Option<Self> {
+        self.node().flat_parent.or(self.node().parent).map(|id| El {
+            tree: self.tree,
+            id,
+        })
     }
 }
 
@@ -810,4 +820,166 @@ fn sibling_index_cache_makes_long_lists_fast() {
         .count();
     assert_eq!(count, 10_000 + 3_333);
     assert!(start.elapsed().as_secs() < 2, "took {:?}", start.elapsed());
+}
+
+/// A document with a shadow tree (CSS Scoping 1):
+///
+/// ```text
+/// html
+///   div.dark
+///     div#h.a            host of the shadow tree below
+///       b#ls             light child, slotted into #sl; host of its own tree
+/// shadow tree of #h (its top element has no parent element):
+///   div#top
+///     slot#sl            flat children: #ls
+///     span#in[part="p q"]
+/// ```
+struct ShadowDoc {
+    tree: Tree,
+    h: usize,
+    ls: usize,
+    top: usize,
+    sl: usize,
+    inner: usize,
+}
+
+fn shadow_doc() -> ShadowDoc {
+    let mut tree = Tree::default();
+    let html = tree.add(None, "html", &[]);
+    let dark = tree.add(Some(html), "div", &[("class", "dark")]);
+    let h = tree.add(Some(dark), "div", &[("id", "h"), ("class", "a")]);
+    let ls = tree.add(Some(h), "b", &[("id", "ls")]);
+    let top = tree.add(None, "div", &[("id", "top")]);
+    tree.nodes[top].flat_parent = Some(h);
+    let sl = tree.add(Some(top), "slot", &[("id", "sl")]);
+    tree.nodes[ls].flat_parent = Some(sl);
+    let inner = tree.add(Some(top), "span", &[("id", "in"), ("part", "p q")]);
+    ShadowDoc {
+        tree,
+        h,
+        ls,
+        top,
+        sl,
+        inner,
+    }
+}
+
+fn first(css: &str) -> swb_css::Selector {
+    SelectorList::parse_str(css)
+        .unwrap_or_else(|e| panic!("{css}: {e}"))
+        .selectors()[0]
+        .clone()
+}
+
+#[test]
+fn host_selectors_match_the_featureless_host_of_the_tree() {
+    use swb_css::matches_in_tree;
+    let d = shadow_doc();
+    let t = &d.tree;
+    let check = |css: &str, el: usize, host: Option<usize>| {
+        let host = host.map(|h| t.el(h));
+        matches_in_tree(
+            &first(css),
+            &t.el(el),
+            host.as_ref(),
+            &mut MatchingContext::default(),
+        )
+    };
+    // The host, from its own tree only.
+    assert!(check(":host", d.h, Some(d.h)));
+    assert!(!check(":host", d.h, None));
+    assert!(!check(":host", d.top, Some(d.h)));
+    assert!(check(":host(.a)", d.h, Some(d.h)));
+    assert!(check(":host(div.a:not(.b))", d.h, Some(d.h)));
+    assert!(!check(":host(.b)", d.h, Some(d.h)));
+    assert!(check(":host::after", d.h, Some(d.h)));
+    // Featureless: other simple selectors do not match it (measured).
+    for css in [
+        ".a:host",
+        ":host.a",
+        "*:host",
+        "div:host",
+        ":host:not(.b)",
+        "div",
+        "*",
+    ] {
+        assert!(!check(css, d.h, Some(d.h)), "{css}");
+    }
+    assert!(check(":is(:host)", d.h, Some(d.h)));
+    assert!(check(":is(:host, .zzz)", d.h, Some(d.h)));
+    // The host is the parent of the top of the tree, with no parent itself.
+    assert!(check(":host > div", d.top, Some(d.h)));
+    assert!(check(":host(.a) span", d.inner, Some(d.h)));
+    assert!(check("div span", d.inner, Some(d.h)));
+    assert!(!check("#h span", d.inner, Some(d.h)));
+    assert!(!check(".dark :host", d.h, Some(d.h)));
+    assert!(!check(":host > div", d.top, None));
+    // Without a host, a top element has no parent element.
+    assert!(!check(":host span", d.inner, None));
+    // `:host-context()`: the host or a flat ancestor.
+    assert!(check(":host-context(.dark)", d.h, Some(d.h)));
+    assert!(check(":host-context(.a)", d.h, Some(d.h)));
+    assert!(!check(":host-context(.zzz)", d.h, Some(d.h)));
+    assert!(check(":host-context(slot)", d.ls, Some(d.ls)));
+    assert!(check(":host-context(#top)", d.ls, Some(d.ls)));
+    assert!(!check(":host-context(slot)", d.h, Some(d.h)));
+    // `::slotted()` and `::part()` never match here.
+    assert!(!check("::slotted(b)", d.ls, Some(d.h)));
+    assert!(!check("::part(p)", d.inner, None));
+}
+
+#[test]
+fn slotted_and_part_selectors_cross_one_boundary() {
+    use swb_css::{matches, matches_part, matches_slotted};
+    let d = shadow_doc();
+    let t = &d.tree;
+    let slotted = |css: &str| {
+        matches_slotted(
+            &first(css),
+            &t.el(d.ls),
+            &t.el(d.sl),
+            Some(&t.el(d.h)),
+            &mut MatchingContext::default(),
+        )
+    };
+    assert!(slotted("::slotted(b)"));
+    assert!(slotted("::slotted(*)"));
+    assert!(slotted("::slotted(#ls)::before"));
+    assert!(slotted("slot#sl::slotted(b)"));
+    assert!(slotted("#top > ::slotted(b)"));
+    assert!(slotted(":host ::slotted(b)"));
+    assert!(slotted(":host(.a) > div > ::slotted(b)"));
+    assert!(!slotted("::slotted(span)"));
+    assert!(!slotted("span::slotted(b)"));
+    assert!(!slotted(".dark ::slotted(b)"));
+    assert!(!slotted("::part(p)"));
+    assert!(!slotted("b"));
+    let part = |css: &str, element_host: usize, host: Option<usize>| {
+        let host = host.map(|h| t.el(h));
+        matches_part(
+            &first(css),
+            &t.el(d.inner),
+            &t.el(element_host),
+            host.as_ref(),
+            &mut MatchingContext::default(),
+        )
+    };
+    // From the host's tree (the document here).
+    assert!(part("::part(p)", d.h, None));
+    assert!(part("::part(q p)", d.h, None));
+    assert!(part("#h::part(p)::before", d.h, None));
+    assert!(part(".dark > div::part(q)", d.h, None));
+    assert!(!part("::part(r)", d.h, None));
+    assert!(!part("::part(p r)", d.h, None));
+    assert!(!part("::part(P)", d.h, None));
+    assert!(!part("::part(p):hover", d.h, None));
+    assert!(!part("span::part(p)", d.h, None));
+    // From the part's own tree: only through `:host`.
+    assert!(!part("::part(p)", d.h, Some(d.h)));
+    assert!(part(":host::part(p)", d.h, Some(d.h)));
+    assert!(!part("::slotted(span)", d.h, None));
+    // `matches()` ignores them.
+    let mut context = MatchingContext::default();
+    assert!(!matches(&first("::slotted(b)"), &t.el(d.ls), &mut context));
+    assert!(!matches(&first("::part(p)"), &t.el(d.inner), &mut context));
 }

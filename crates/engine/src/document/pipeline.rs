@@ -341,15 +341,15 @@ impl DocumentState {
         }
         let started = Instant::now();
         let mut stylist = Stylist::new(self.dom.quirks_mode);
+        let mut in_shadow_trees = Vec::new();
         for index in 0..self.sheets.len() {
-            // The sheets of shadow trees are not applied until ADR 0036
-            // sub-feature 5c (style scoping): nothing leaks into the
-            // document.
+            // The sheets of shadow trees go to their trees' stylists.
             if self
                 .sheets
                 .get(index)
                 .is_some_and(|slot| slot.scope != swb_dom::NodeId::DOCUMENT)
             {
+                in_shadow_trees.push(index);
                 continue;
             }
             // A sheet that was not made and does not apply (its `media`
@@ -375,6 +375,9 @@ impl DocumentState {
             if let Some(slot) = self.sheets.get(index) {
                 stylist.add_cssom_sheet(&sheet, &slot.base_url);
             }
+        }
+        if !in_shadow_trees.is_empty() {
+            self.add_shadow_scopes(&mut stylist, &in_shadow_trees, env);
         }
         self.stylist = Some(stylist);
         self.timings.stylesheets = started.elapsed();

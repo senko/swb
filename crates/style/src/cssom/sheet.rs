@@ -285,9 +285,9 @@ impl StyleSheet {
         self.hold.as_ref().map_or(0, Hold::bytes)
     }
 
-    /// True after a script changed the rules.
-    #[cfg(test)]
-    pub(crate) fn is_modified(&self) -> bool {
+    /// True after a script changed the rules: they may differ from the
+    /// parse of the sheet's text.
+    pub fn is_modified(&self) -> bool {
         self.modified
     }
 

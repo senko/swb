@@ -82,8 +82,8 @@ pub(crate) struct SheetSlot {
     /// The `style` or `link` element.
     pub(crate) owner: NodeId,
     /// The tree scope of the sheet: the document node, or the shadow root
-    /// whose tree holds `owner` (ADR 0036 section 5). The stylist applies
-    /// only the document's sheets until sub-feature 5c.
+    /// whose tree holds `owner` (ADR 0036 section 5). The sheets of a
+    /// shadow root apply to its tree only (`document/shadow_styles.rs`).
     pub(crate) scope: NodeId,
     pub(crate) source: SheetSource,
     /// The load number of a `link` (see [`Pending::Stylesheet`]).
@@ -207,7 +207,11 @@ impl SheetSlot {
             (None, true) => "",
             (None, false) => return None,
         };
-        let sheet = StyleSheet::parse_in(css, quirks, memory, self.script_made);
+        // The sheets of shadow trees count in the document's style memory
+        // like those that scripts made (ADR 0036 section 12): a page can
+        // make one per shadow root.
+        let counted = self.script_made || self.scope != NodeId::DOCUMENT;
+        let sheet = StyleSheet::parse_in(css, quirks, memory, counted);
         {
             let mut s = sheet.borrow_mut();
             s.owner = Some(self.owner);
@@ -227,7 +231,6 @@ impl SheetSlot {
     }
 
     /// The CSSOM sheet if it was made.
-    #[cfg(test)]
     pub(crate) fn existing_sheet(&self) -> Option<&SheetRef> {
         self.sheet.as_ref()
     }

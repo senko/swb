@@ -72,6 +72,6 @@ pub use font_settings::{FontFeatureSettings, FontTag, FontVariationSettings, MAX
 pub use properties::inert::InertStyle;
 pub use query::{Matcher, parse_selectors};
 pub use style_map::{InstanceId, PseudoKind, StyleMap};
-pub use stylist::Stylist;
+pub use stylist::{SCOPE_BYTES, SCOPE_RULE_BYTES, Stylist};
 pub use transform_list::{TransformListError, TransformOp, parse_transform_list};
 pub use values::*;

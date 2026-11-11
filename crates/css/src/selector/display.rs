@@ -11,7 +11,7 @@ use std::fmt::{self, Write as _};
 
 use super::{
     AnB, AttrCase, AttrOperator, Combinator, Component, Direction, LocalName, PseudoClass,
-    STATE_PSEUDO_CLASSES, Selector, SelectorList,
+    STATE_PSEUDO_CLASSES, Selector, SelectorList, ShadowPseudo,
 };
 use crate::serialize::{serialize_identifier, serialize_string};
 
@@ -64,6 +64,29 @@ impl Writer {
 
     fn selector(self, selector: &Selector, out: &mut String) {
         self.components(&selector.components, out);
+        match selector.shadow.as_deref() {
+            Some(ShadowPseudo::Slotted(argument)) => {
+                out.push_str("::slotted(");
+                for component in argument {
+                    self.component(component, out);
+                }
+                out.push(')');
+            }
+            Some(ShadowPseudo::Part { names, after }) => {
+                out.push_str("::part(");
+                for (i, name) in names.iter().enumerate() {
+                    if i > 0 {
+                        out.push(' ');
+                    }
+                    serialize_identifier(name, out);
+                }
+                out.push(')');
+                for component in after {
+                    self.component(component, out);
+                }
+            }
+            None => {}
+        }
         if let Some(pe) = selector.pseudo_element {
             out.push_str("::");
             out.push_str(pe.name());

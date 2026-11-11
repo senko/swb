@@ -240,3 +240,70 @@ def shadow_slot_passthrough_10000() -> Page:
         "</script>"
     )
     return Page(doc(_FONT + "<div id=h><b id=x>pass pass pass</b></div>" + script))
+
+
+@case(
+    "100,000 shadow roots, each with a distinct `<style>` of 1 KB and a `b`: the parsed sheets "
+    "and the scoped stylists count in the document's style memory (128 MiB), so the sheets past "
+    "it are not parsed, with one warning; style and layout run, and a timer logs `styles ok` "
+    "(ADR 0036 sections 5 and 12, 5c-1)",
+    time_limit_s=30,
+    rss_limit_mib=2048,
+    expect_log="styles ok",
+    swb_args=JS,
+)
+def shadow_styles_100000() -> Page:
+    script = (
+        "<script>const base = 'b{margin:1px 2px 3px 4px;padding:1px}'.repeat(28); "
+        "const f = document.createDocumentFragment(); let last = null; "
+        "for (let i = 0; i < 100000; i++) { const d = document.createElement('div'); "
+        "const s = document.createElement('style'); "
+        "s.textContent = base + '.c' + i + '{color:red}'; "
+        "last = document.createElement('b'); last.className = 'c' + i; last.textContent = 'x'; "
+        "d.attachShadow({mode: 'open'}).append(s, last); f.appendChild(d); } "
+        "document.body.appendChild(f); const c = getComputedStyle(last).marginTop; "
+        "setTimeout(() => console.warn('styles ok ' + c), 10);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "10,000 nested shadow hosts, each root with `:host-context(.x)` and the next host, below a "
+    "`.x` body: each host's match walks its flat ancestors up to `.x`, and the walks share "
+    "their answers, so the style pass is linear; a timer logs `context ok` (ADR 0036 sections "
+    "5 and 12, 5c-1)",
+    time_limit_s=20,
+    expect_log="context ok",
+    swb_args=JS,
+)
+def shadow_host_context_nested_10000() -> Page:
+    script = (
+        "<script>document.body.className = 'x'; let e = document.getElementById('h'); "
+        "for (let i = 0; i < 10000; i++) { const r = e.attachShadow({mode: 'open'}); "
+        "r.innerHTML = '<style>:host-context(.x){padding-left:1px}</style><div></div>'; "
+        "e = r.lastChild; } const p = getComputedStyle(e).paddingLeft; "
+        "setTimeout(() => console.warn('context ok ' + p), 10);</script>"
+    )
+    return Page(doc(_FONT + "<div id=h></div>" + script))
+
+
+@case(
+    "10,000 nested hosts that pass one slot on to the next, each root with a `::slotted(*)` "
+    "rule, with one light child at the top: an element gets the `::slotted()` rules of at most "
+    "256 slots of its chain, so the style pass is not quadratic; a click on the text reaches "
+    "the light child (ADR 0036 sections 5 and 12, 5c-1)",
+    time_limit_s=30,
+    expect_log="clicked x",
+    swb_args=(*steps_args([{"click": [12, 14]}]), "--settle-ms", "500"),
+)
+def shadow_slotted_passthrough_10000() -> Page:
+    script = (
+        "<script>let e = document.getElementById('h'); "
+        "for (let i = 0; i < 10000; i++) { const d = document.createElement('div'); "
+        "const s = document.createElement('style'); s.textContent = '::slotted(*){color:green}'; "
+        "d.appendChild(document.createElement('slot')); "
+        "e.attachShadow({mode: 'open'}).append(s, d); e = d; } "
+        "document.addEventListener('click', (ev) => console.warn('clicked ' + ev.target.id));"
+        "</script>"
+    )
+    return Page(doc(_FONT + "<div id=h><b id=x>pass pass pass</b></div>" + script))

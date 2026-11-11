@@ -1319,3 +1319,178 @@ the same content as light elements (4,003): 1.78 ms and 6.74 ms.
 **The targets** (compare against Chromium, base / 5b): GitHub with
 JavaScript on geometry 0.8904 / 0.9115, pixels 0.9884 / 0.9934; every other
 score with JavaScript on and off is the base's.
+
+## 5c-1 implementation notes
+
+Facts of sub-feature 5c-1 (style scoping) that differ from the decision above
+or that 5c-2 and 5d need. The orchestrator split 5c in two sessions: 5c-1 is
+section 5 (sheets of shadow trees, `:host`, `:host()`, `:host-context()`,
+`::slotted()`, `::part()`, the context step, layers per scope); 5c-2 is
+section 6 (the `CSSStyleSheet` constructor, `replace`, `replaceSync`,
+`adoptedStyleSheets`). Code: `crates/css/src/selector/` (`mod.rs`,
+`parse.rs`, `matching.rs`, `specificity.rs`, `display.rs`);
+`crates/style/src/stylist.rs`, `cascade.rs`, `element.rs`; new
+`crates/engine/src/document/shadow_styles.rs`, `resources.rs`, `pipeline.rs`,
+`changes.rs`; `crates/dom/src/shadow.rs`.
+
+**Measured answers** (Chromium 148, three equal runs; ten new cases in
+`tools/probes/web-shadow-dom.json`):
+
+| Question | Case | Chromium |
+|---|---|---|
+| `:host-context()`: which ancestors | `host-context-ancestors` | the flat tree's: a host slotted below a `.x` of another tree matches; a host outside the flat tree whose only `.x` is a shadow-including ancestor does not; the host itself counts |
+| `::slotted()` of two nested slots, equal specificity | `slotted-nested-cascade` | normal: the outer tree's rule wins; `!important`: the inner tree's; the inner tree's rule matches the element slotted through the outer slot |
+| A host's `style` attribute and `:host` | `host-attribute-and-hints` | the attribute beats `:host` for normal declarations; `:host !important` beats the attribute, also the attribute's `!important` |
+| A host's presentational hint and `:host` | `host-attribute-and-hints` | `:host { text-align: left }` beats `<div align=right>`: hints stay below every author context |
+| `::part()` and the part's `style` attribute | `host-attribute-and-hints`, `part-depth` | the outer `::part()` beats the part's attribute and its tree's rules for normal declarations; their `!important` beats the outer `!important` |
+| `@layer` of one name in a root and in the document | `layers-per-scope` | each tree has its own layer order |
+| `::part()` two trees down without `exportparts` | `part-depth` | no match; the middle tree's `::part()` matches |
+| Syntax and `selectorText` | `scoped-selector-syntax` | valid: `::slotted(span:hover)`, `::slotted(span)::before`, `::slotted(span)::marker`, `::part(x y)`, `::part(x):hover`, `::part(x)::before`, `::part(x):is(:hover)`, `:host.a`, `.a:host`, `div > :host`, `:host::part(x)`; invalid: `::slotted(span):hover`, `::slotted(span .a)`, `::slotted()`, `::slotted(span).a`, `::part(x).a`, `::part(x)::part(y)`, `::part(x):first-child`, `::part(x)::after:hover`; `::SLOTTED(SPAN)` serializes as `::slotted(span)`, `::part(X)` keeps its case, `::before` as `::before` (no `*`) |
+| Specificity | `scoped-specificity` | `::slotted()` is a pseudo-element plus its argument; `::part()` a pseudo-element (the names do not count) |
+| The featureless host | `host-featureless` | `:host`, `:is(:host)`, `:host(div.a)`, `:host(.a:not(.b))` match; `.a:host`, `:host.a`, `*:host`, `div:host`, `:host:not(.b)` do not; the document's `:host` and `::slotted(*)` match nothing |
+| Pseudo-elements | `scoped-pseudo-elements` | `:host::before`, `::slotted(span)::after`, `::part(p)::before` generate content |
+| `revert-layer` in two contexts | `revert-layer-contexts` | a shadow tree's `span { color: revert-layer !important }` rolls back its `span { color: green }` also when the document's `::part()` has `color: revert-layer` (normal or `!important`): each context keeps its own floor; the same for a custom property; the document's `revert-layer` alone leaves the shadow tree's rule (green), its `revert` does not (black) |
+| Pseudo-classes after `::part()` | `revert-layer-contexts` | `:not()` only with valid pseudo-classes (`:not(:hover)`; `:not(:first-child)`, `:not(.a)` are invalid); `:is()` and `:where()` drop the other arguments (`::part(x):is(.a)` is `::part(x):is()`); `:lang()`, `:dir()`, `:checked`, `:defined` are valid; `:has()`, `:empty`, `:root`, `:host` are not |
+
+**The selector model.** `::slotted(<compound>)` and `::part(<ident>+)` with
+the pseudo-classes after it are `Selector::shadow` (`ShadowPseudo`), beside the
+components, which then match the slot or the shadow host. A compound with only
+a pseudo-element stores no implicit `*` (Chromium's `selectorText`).
+`Selector::host_relation` tells whether the subject can be the featureless
+host (`:host*` in the subject compound, or only inside `:is()`/`:where()`).
+Matching: `matches_in_tree(selector, element, host)` treats `host` as
+featureless (only `:host*`, also inside `:is()`/`:where()`, match it; it has no
+parent and no siblings; it is the parent of the tree's top elements);
+`matches_slotted` and `matches_part` match the argument against the element
+of the other tree and the components against the slot or host. The matcher has
+a const parameter `SHADOW`: for the document's rules the host's steps compile
+away (the first version cost Wikipedia +1.5 % of instructions).
+`:host-context()` walks `Element::flat_parent_element`; the answers are shared
+in a style pass (`MatchingContext`, keyed by the argument and the element),
+so N nested hosts cost O(N).
+
+**Stylists per scope (section 5 "Sheets of a shadow root").** The document's
+`Stylist` holds the scoped stylists (`Stylist::new_scoped`: author rules only,
+its own `LayerTree`, `@font-face` ignored) and the root of each
+(`set_root_scope`). Each stylist sorts its rules into rule sets: the tree's
+own rules, rules whose subject is the host, `::slotted()` rules and
+`::part()` rules (`ShadowMaps`, made at the first rule); the document's
+stylist keeps no `:host` and `::slotted()` rules (they match nothing there).
+The engine (`document/shadow_styles.rs`) builds them with the document's
+stylist and drops them with it: roots are grouped by their applying sheets
+(the key of a sheet is its text and base URL, or, for a sheet whose rules a
+script changed, its identity), and each group gets one stylist built from
+its first root's sheets; the other roots' sheets are not parsed until a
+script reads them. **GitHub's fixture**: the popover polyfill prepends its
+`<style>` (an `@layer popover-polyfill` block) only to `tool-tip`'s root; the
+23 `relative-time` roots have no sheet (read with `github.rs`), so the page
+has one scoped stylist with two sheets.
+
+**Matching an element (steps 2 to 5).** `Styler::match_scoped` adds, when the
+document has shadow roots and the stylist has scoped stylists or `::part()`
+rules (one test per element otherwise): the rules of the element's own tree;
+`::part()` rules of the tree around its host and `:host::part()` rules of its
+own tree; `::slotted()` rules of the trees of the slot it is assigned to and
+of each slot that slot is assigned to, at most 256 slots
+(`MAX_SLOT_CHAIN`: a chain of N pass-through slots would cost O(N²); the box
+tree flattens below 256 levels anyway); the `:host` rules of its own shadow
+root. The style sharing key includes these rules.
+
+**The cascade context (differs from section 5).** Section 5 ranks contexts by
+depth. CSS Scoping §3.1 orders them by shadow-including tree order of their
+roots; swb gives each element's contexts a number in that order: the tree
+around its host (`::part()`), its own tree, the trees of its slots (the
+assigned slot's first, each next one nested in it), its own shadow tree
+(`:host`). Along one chain of nested trees this is the depth; it differs for
+an element that is both slotted and a host (its own root comes last). Normal
+declarations: outer contexts first; `!important`: inner first. The `style`
+attribute belongs to its element's context and ranks above that context's
+rules; the presentational hints stay below all author declarations
+(measured). `revert-layer` positions carry the context, so a `revert-layer`
+rolls back layers of its own context only; each context keeps its own floor
+for each property (measured, `revert-layer-contexts`).
+
+**Budgets (section 12).** The CSSOM sheets of shadow trees are parsed as
+counted style data (as scripts' sheets) and each scoped stylist holds
+`SCOPE_BYTES` (4 KiB) plus 256 bytes per rule of the document's
+`StyleMemory`; past 128 MiB sheets are not parsed and stylists not built,
+with one warning.
+
+**Two quadratic costs of the 5a sheet drain** (found with
+`shadow-styles-100000`; also in the base: a page that builds 20,000, 40,000
+and 80,000 roots with a `<style>` each took 0.95, 3.9 and 14.9 s):
+`shadow_including_precedes` compared siblings by a forward scan only, so the
+check that a sorted list of sheets is sorted scanned to the end of the
+siblings for each pair (now a scan both ways, as `Document::precedes_within`);
+`placed_in_order` looked up each placed sheet with a linear scan (now a map
+when more than 16 were placed). After: 0.90, 1.74 and 3.49 s, with the
+stylist builds.
+
+**Departures.** `style-scoping` #2: `exportparts` is backlog (section 11).
+`Element.part` (`DOMTokenList`) is not added (`api-surface` #3 stays a
+departure with the backlog members). The rows that need `adoptedStyleSheets`
+or `new CSSStyleSheet()` (`api-surface` #6, `root-properties` #6,
+`style-specificity-and-order` #2 and #3, `constructable-sheets`) wait for
+5c-2. `MAX_SLOT_CHAIN`. `revert-layer-contexts` #2: two gaps outside shadow
+DOM (`selector()` of `CSS.supports` parses `:is()` as a forgiving list;
+`:lang(en)` serializes as `:lang("en")`); both are in the roadmap backlog.
+
+**Tests.** `probe_net.rs`: the ten new cases (but `revert-layer-contexts`
+#2), `style-scoping` (but #2),
+`style-specificity-and-order` #1 and `api-surface` #5 match Chromium.
+`shadow_rendering.rs`: the four cases that waited for a shadow `<style>`,
+the new case `tool-tip-style` of `tools/probes/shadow-dom.json` (GitHub's
+`tool-tip` style and the polyfill's style copied from the fixture's root, on
+two hosts without `popover`; boxes and 18 computed values with `::after`
+equal Chromium's) and `shadow_sheet_changes_restyle` (`insertRule`,
+`deleteRule`, a new text, a `<style>` inserted and removed). Unit tests in
+`crates/css` (parse, serialization, specificity, keys, matching),
+`crates/style/src/cascade/scoping_tests.rs` and
+`crates/engine/src/document/tests.rs`. `github.rs`: the roots' sheets and
+`tool-tip`'s `:host` values (`text-align: center`, `opacity: 0`, no box).
+Each new test failed when the code it checks was broken (21 mutations, and
+7 for the review fixes).
+
+**Hostile cases** (release builds, base 4b4f480 / 5c-1):
+`shadow-styles-100000` 21.78 s, 924 MiB, inactive (the script's time limit)
+/ 4.57 s, 1,004 MiB; `shadow-host-context-nested-10000` 4.07 s, 135 MiB /
+4.01 s, 135 MiB; `shadow-slotted-passthrough-10000` 6.62 s, 237 MiB / 7.82 s,
+274 MiB; the 11 earlier `shadow-*` cases within 0.01 s and 5 MiB of the base.
+Most of the time of the two nested cases is the 5a drain's tree order of
+sheets in nested trees (O(depth) per comparison), in both builds.
+
+**Performance (section 13).** JavaScript off: `just snapshot` is
+byte-identical to the base; callgrind totals of `swb --headless`:
+Wikipedia 647.76 M / 649.66 M instructions (+0.29 %), Ars Technica
+1,968.63 M / 1,970.09 M (+0.07 %), BBC 7,331.10 M / 7,332.03 M (+0.01 %; a
+first run gave 7,261 M with fewer web font decodes, a timing effect of the
+loader threads);
+`swbtools perf` stage times within the run-to-run noise
+(two runs each). GitHub with JavaScript on (`--bench 20`, three runs): style
+24.9 / 24.7 ms per pass, layout 5.00 / 5.07 ms, the headless load 0.47 s in
+both (budget 1.56 s). A style pass over 1,000 hosts whose roots have the same
+`<style>` of 20 rules: style 1.94 ms (the base, which applies no shadow
+sheet: 1.35 ms), stylist build 0.39 ms; with 1,000 distinct sheets: style
+6.2 ms, stylist build 14.4 ms (1,000 scoped stylists).
+
+After the review fixes, callgrind totals of `swb --headless --replay`
+(without a screenshot, so the totals differ from the ones above; mean of
+two runs, base / 5c-1): Wikipedia 866.73 M / 868.33 M (+0.19 %), Ars
+Technica 2,134.81 M / 2,136.22 M (+0.07 %), BBC 7,479.73 M / 7,482.74 M
+(+0.04 %).
+
+**The targets** (compare against Chromium): every score with JavaScript on
+and off is the base's (GitHub with JavaScript on: geometry 0.9115, pixels
+0.9934).
+
+**Review fixes.** (1) One `revert-layer` floor per property: a
+`revert-layer` of a second context replaced the floor of the first, so the
+first context's lower rules came back (Chromium: they stay rolled back;
+case `revert-layer-contexts`). The cascade now keeps one floor per property
+and context, also for custom properties. (2) The arguments of `:host()` and
+`:host-context()` were not in the selector's state dependencies, so with
+`:host(:hover)` as the page's only `:hover` rule a hover did not restyle.
+(3) Pseudo-classes after `::part()`: `:not()`, `:is()` and `:where()`
+accepted any argument; they now follow Chromium (table above). (4) The
+`:host-context()` memo never stores an answer that the match budget cut
+short (the old code returned before the store; the check is now explicit).

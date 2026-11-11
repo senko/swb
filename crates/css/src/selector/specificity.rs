@@ -4,7 +4,7 @@
 
 use std::fmt;
 
-use super::{Component, PseudoClass, SelectorList};
+use super::{Component, PseudoClass, SelectorList, ShadowPseudo};
 
 /// The specificity of a selector: (IDs, classes, types).
 ///
@@ -61,13 +61,35 @@ const ID: Specificity = Specificity(1 << 20);
 const CLASS: Specificity = Specificity(1 << 10);
 const TYPE: Specificity = Specificity(1);
 
-/// Computes the specificity of a selector from its components.
-pub(crate) fn compute(components: &[Component], has_pseudo_element: bool) -> Specificity {
+/// Computes the specificity of a selector from its components, its shadow
+/// pseudo-element and whether it ends with a pseudo-element.
+///
+/// `::slotted()` counts as a pseudo-element plus its argument
+/// (<https://drafts.csswg.org/css-scoping/#slotted-pseudo>); `::part()` as a
+/// pseudo-element, plus the pseudo-classes after it
+/// (<https://drafts.csswg.org/css-shadow-parts/#part>). Measured in Chromium
+/// 148 (`scoped-specificity` of `tools/probes/web-shadow-dom.json`).
+pub(crate) fn compute(
+    components: &[Component],
+    shadow: Option<&ShadowPseudo>,
+    has_pseudo_element: bool,
+) -> Specificity {
     let mut total = if has_pseudo_element {
         TYPE
     } else {
         Specificity::default()
     };
+    match shadow {
+        Some(ShadowPseudo::Slotted(argument)) => total = total.add(TYPE).add(sum(argument)),
+        Some(ShadowPseudo::Part { after, .. }) => total = total.add(TYPE).add(sum(after)),
+        None => {}
+    }
+    total.add(sum(components))
+}
+
+/// The sum of the specificities of simple selectors.
+fn sum(components: &[Component]) -> Specificity {
+    let mut total = Specificity::default();
     for component in components {
         let part = match component {
             Component::Combinator(_) | Component::Universal => continue,

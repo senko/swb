@@ -339,8 +339,22 @@ impl Document {
                 if shadow_a || shadow_b {
                     return shadow_a;
                 }
-                std::iter::successors(self.node(ca).next_sibling, |&n| self.node(n).next_sibling)
-                    .any(|n| n == cb)
+                // Siblings: a scan both ways, so that the cost is the
+                // distance between them (a check that a long list is
+                // sorted compares neighbours: hostile case
+                // `shadow-styles-100000`).
+                let (mut next, mut prev) = (self.node(ca).next_sibling, self.node(ca).prev_sibling);
+                while next.is_some() || prev.is_some() {
+                    if next == Some(cb) {
+                        return true;
+                    }
+                    if prev == Some(cb) {
+                        return false;
+                    }
+                    next = next.and_then(|n| self.node(n).next_sibling);
+                    prev = prev.and_then(|n| self.node(n).prev_sibling);
+                }
+                false
             }
             (_, None) => false,
         }

@@ -24,22 +24,32 @@
 //! ([`Stylist::layer_ranks`]), and [`Stylist::matching_rules`] sorts by
 //! origin, layer rank, specificity and source order. The cascade reverses
 //! the layer order for `!important` declarations.
+//!
+//! Shadow trees (ADR 0036 section 5): the sheets of a shadow tree go into a
+//! scoped stylist ([`Stylist::new_scoped`]: author rules only, its own layer
+//! tree, no `@font-face`), which the document's stylist holds
+//! ([`Stylist::add_scope`]); shadow roots with the same sheets share one
+//! ([`Stylist::set_root_scope`]). Each stylist sorts its rules into
+//! [`RuleSet`]s: the rules of its own tree, those whose subject is the
+//! featureless host (`:host`, `:host()`, `:host-context()`), `::slotted()`
+//! rules and `::part()` rules. The document's stylist keeps no `:host` and
+//! `::slotted()` rules: they match nothing there.
 
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 
 use log::trace;
 use swb_css::{
-    BucketKey, CssRule, ElementState, FontFaceRule, ImportLayer, LayerName, MatchingContext,
-    MediaEnvironment, MediaQueryList, PseudoElement, Selector, SelectorList, Stylesheet, matches,
-    parse_stylesheet,
+    BucketKey, CssRule, ElementState, FontFaceRule, HostRelation, ImportLayer, LayerName,
+    MatchingContext, MediaEnvironment, MediaQueryList, PseudoElement, Selector, SelectorList,
+    ShadowPseudoKind, Stylesheet, matches, parse_stylesheet,
 };
 use url::Url;
 
 use smallvec::SmallVec;
 
 use crate::bloom::{AncestorFilter, MAX_ANCESTOR_HASHES, ancestor_hashes};
-use crate::cssom::sheet::{RuleKind, RuleRef, StyleSheet};
+use crate::cssom::sheet::{Hold, RuleKind, RuleRef, StyleSheet};
 use crate::element::DomElement;
 use crate::font_face::FontFace;
 use crate::layers::{LayerTree, UNLAYERED};
@@ -210,6 +220,87 @@ pub(crate) enum RuleTarget {
     Pseudo(PseudoKind),
 }
 
+impl RuleTarget {
+    /// The index of the target in [`ShadowMaps`]; `None` for the
+    /// pseudo-elements without rules.
+    fn index(self) -> Option<usize> {
+        match self {
+            RuleTarget::Element => Some(0),
+            RuleTarget::Pseudo(PseudoKind::Before) => Some(1),
+            RuleTarget::Pseudo(PseudoKind::After) => Some(2),
+            RuleTarget::Pseudo(PseudoKind::Marker) => Some(3),
+            RuleTarget::Pseudo(PseudoKind::Placeholder) => Some(4),
+            RuleTarget::Pseudo(PseudoKind::DetailsSummary | PseudoKind::DetailsContent) => None,
+        }
+    }
+
+    /// The target of the rules of a selector's pseudo-element, if the
+    /// stylist keeps them.
+    fn of(pseudo: Option<PseudoElement>) -> Option<RuleTarget> {
+        Some(match pseudo {
+            None => RuleTarget::Element,
+            Some(PseudoElement::Before) => RuleTarget::Pseudo(PseudoKind::Before),
+            Some(PseudoElement::After) => RuleTarget::Pseudo(PseudoKind::After),
+            Some(PseudoElement::Marker) => RuleTarget::Pseudo(PseudoKind::Marker),
+            Some(PseudoElement::Placeholder) => RuleTarget::Pseudo(PseudoKind::Placeholder),
+            Some(_) => return None,
+        })
+    }
+}
+
+/// The number of [`RuleTarget`]s that have rules.
+const TARGETS: usize = 5;
+
+/// The sets of rules of a stylist that match across a shadow boundary (ADR
+/// 0036 section 5): rules whose subject is the featureless host (`:host`,
+/// `:host()`, `:host-context()`), `::slotted()` rules and `::part()` rules.
+/// The document's author rules are [`RuleSet::Tree`] rules.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RuleSet {
+    /// Rules that match elements of the stylist's own tree (all rules of
+    /// the user-agent sheets and of the document).
+    Tree,
+    /// Rules of a shadow tree that match its host.
+    Host,
+    /// `::slotted()` rules of a shadow tree.
+    Slotted,
+    /// `::part()` rules, which match parts of the shadow trees of the
+    /// stylist's tree.
+    Part,
+}
+
+/// The maps of the [`RuleSet`]s other than [`RuleSet::Tree`], by target;
+/// a map exists once it has a rule.
+#[derive(Debug, Default)]
+struct ShadowMaps {
+    host: [Option<Box<RuleMap>>; TARGETS],
+    slotted: [Option<Box<RuleMap>>; TARGETS],
+    part: [Option<Box<RuleMap>>; TARGETS],
+}
+
+impl ShadowMaps {
+    fn set(&self, set: RuleSet) -> Option<&[Option<Box<RuleMap>>; TARGETS]> {
+        match set {
+            RuleSet::Tree => None,
+            RuleSet::Host => Some(&self.host),
+            RuleSet::Slotted => Some(&self.slotted),
+            RuleSet::Part => Some(&self.part),
+        }
+    }
+
+    fn set_mut(&mut self, set: RuleSet) -> Option<&mut [Option<Box<RuleMap>>; TARGETS]> {
+        match set {
+            RuleSet::Tree => None,
+            RuleSet::Host => Some(&mut self.host),
+            RuleSet::Slotted => Some(&mut self.slotted),
+            RuleSet::Part => Some(&mut self.part),
+        }
+    }
+}
+
+/// The index of a scoped stylist ([`Stylist::scope`]).
+pub(crate) type ScopeIndex = u32;
+
 /// The style rules of a document.
 #[derive(Debug)]
 pub struct Stylist {
@@ -239,7 +330,29 @@ pub struct Stylist {
     font_faces_truncated: bool,
     /// See [`Stylist::set_dark_canvas_text`].
     dark_canvas_text: bool,
+    /// True for the stylist of a shadow tree's sheets ([`Stylist::new_scoped`]).
+    scoped: bool,
+    /// The rules that match across a shadow boundary.
+    shadow_maps: Option<Box<ShadowMaps>>,
+    /// The stylists of the sheets of shadow trees (document stylist only):
+    /// one per distinct list of sheets (ADR 0036 section 5).
+    scopes: Vec<Stylist>,
+    /// The stylist of each shadow root that has sheets.
+    scope_of_root: HashMap<swb_dom::NodeId, ScopeIndex>,
+    /// The pseudo-element targets that some scoped stylist has rules for
+    /// (bits by [`RuleTarget::index`]).
+    scoped_targets: u8,
+    /// What the scoped stylists hold of the document's style memory.
+    scope_holds: Vec<Hold>,
 }
+
+/// The estimated bytes of a scoped stylist without its rules, for the
+/// document's style memory: the stylist and its maps.
+pub const SCOPE_BYTES: usize = 4096;
+
+/// The estimated bytes of one rule (selector) of a scoped stylist: the
+/// rule, its selector and its entries in the maps.
+pub const SCOPE_RULE_BYTES: usize = 256;
 
 /// The most `@font-face` rules that a document can have; later rules are
 /// ignored. Real pages have up to a few thousand (families split into
@@ -266,24 +379,8 @@ impl Stylist {
     /// mode, the quirks-mode user-agent rules) and the presentational hint
     /// rules.
     pub fn new(quirks: swb_dom::QuirksMode) -> Self {
-        let mut stylist = Stylist {
-            quirks: quirks == swb_dom::QuirksMode::Quirks,
-            rules: Vec::new(),
-            element_rules: RuleMap::default(),
-            before_rules: RuleMap::default(),
-            after_rules: RuleMap::default(),
-            marker_rules: RuleMap::default(),
-            placeholder_rules: RuleMap::default(),
-            no_rules: RuleMap::default(),
-            media_lists: Vec::new(),
-            media_chains: Vec::new(),
-            layers: LayerTree::default(),
-            next_order: 0,
-            state_dependencies: ElementState::empty(),
-            font_faces: Vec::new(),
-            font_faces_truncated: false,
-            dark_canvas_text: false,
-        };
+        let mut stylist = Self::new_scoped(quirks);
+        stylist.scoped = false;
         let ua = ParserContext::user_agent();
         stylist.add_rules(
             &UA_SHEET.rules,
@@ -306,6 +403,104 @@ impl Stylist {
             Scope::default(),
         );
         stylist
+    }
+
+    /// Creates the stylist of the sheets of a shadow tree (ADR 0036 section
+    /// 5): only author rules, with their own cascade layers. Add it to the
+    /// document's stylist with [`Stylist::add_scope`]. `@font-face` rules of
+    /// shadow trees are ignored.
+    pub fn new_scoped(quirks: swb_dom::QuirksMode) -> Self {
+        Stylist {
+            quirks: quirks == swb_dom::QuirksMode::Quirks,
+            rules: Vec::new(),
+            element_rules: RuleMap::default(),
+            before_rules: RuleMap::default(),
+            after_rules: RuleMap::default(),
+            marker_rules: RuleMap::default(),
+            placeholder_rules: RuleMap::default(),
+            no_rules: RuleMap::default(),
+            media_lists: Vec::new(),
+            media_chains: Vec::new(),
+            layers: LayerTree::default(),
+            next_order: 0,
+            state_dependencies: ElementState::empty(),
+            font_faces: Vec::new(),
+            font_faces_truncated: false,
+            dark_canvas_text: false,
+            scoped: true,
+            shadow_maps: None,
+            scopes: Vec::new(),
+            scope_of_root: HashMap::new(),
+            scoped_targets: 0,
+            scope_holds: Vec::new(),
+        }
+    }
+
+    /// Adds the stylist of a shadow tree's sheets ([`Stylist::new_scoped`])
+    /// and returns its index for [`Stylist::set_root_scope`]. `hold` is
+    /// what it holds of the document's style memory; it returns with the
+    /// stylist.
+    pub fn add_scope(&mut self, scope: Stylist, hold: Hold) -> u32 {
+        debug_assert!(scope.scoped, "a scope is made with Stylist::new_scoped");
+        self.scope_holds.push(hold);
+        self.state_dependencies |= scope.state_dependencies;
+        for target in [
+            PseudoKind::Before,
+            PseudoKind::After,
+            PseudoKind::Marker,
+            PseudoKind::Placeholder,
+        ] {
+            let target = RuleTarget::Pseudo(target);
+            if scope.has_rules(target)
+                && let Some(i) = target.index()
+            {
+                self.scoped_targets |= 1 << i;
+            }
+        }
+        let index = self.scopes.len() as u32;
+        self.scopes.push(scope);
+        index
+    }
+
+    /// Applies the scoped stylist `index` to the shadow root `root`.
+    pub fn set_root_scope(&mut self, root: swb_dom::NodeId, index: u32) {
+        if (index as usize) < self.scopes.len() {
+            self.scope_of_root.insert(root, index);
+        }
+    }
+
+    /// The number of scoped stylists.
+    pub fn scope_count(&self) -> usize {
+        self.scopes.len()
+    }
+
+    /// The number of rules (one per selector), for memory estimates.
+    pub fn len(&self) -> usize {
+        self.rules.len()
+    }
+
+    /// True if the stylist has no rules.
+    pub fn is_empty(&self) -> bool {
+        self.rules.is_empty()
+    }
+
+    /// The scoped stylist of the shadow root `root`, if it has sheets.
+    pub(crate) fn scope_of(&self, root: swb_dom::NodeId) -> Option<ScopeIndex> {
+        if self.scope_of_root.is_empty() {
+            return None;
+        }
+        self.scope_of_root.get(&root).copied()
+    }
+
+    /// The scoped stylist `index`.
+    pub(crate) fn scope(&self, index: ScopeIndex) -> Option<&Stylist> {
+        self.scopes.get(index as usize)
+    }
+
+    /// True if styles may need the rules of shadow trees: some shadow root
+    /// has sheets, or the document has `::part()` rules.
+    pub(crate) fn has_shadow_rules(&self) -> bool {
+        !self.scopes.is_empty() || self.shadow_maps.is_some()
     }
 
     /// Adds an author stylesheet. Relative `url()` values resolve against
@@ -488,6 +683,10 @@ impl Stylist {
 
     /// Adds a valid `@font-face` rule, up to [`MAX_FONT_FACES`].
     fn add_font_face(&mut self, rule: &FontFaceRule, cx: &ParserContext, media: Option<u32>) {
+        if self.scoped {
+            trace!("ignored @font-face in a shadow tree's sheet");
+            return;
+        }
         let Some(face) = FontFace::parse(rule, cx) else {
             return;
         };
@@ -515,27 +714,30 @@ impl Stylist {
             .chain(&block.important)
             .any(|d| d.longhand() == Some(crate::properties::LonghandId::Content));
         for selector in selectors {
-            let map = match selector.pseudo_element() {
-                None => &mut self.element_rules,
-                Some(PseudoElement::Before) => &mut self.before_rules,
-                Some(PseudoElement::After) => &mut self.after_rules,
-                Some(PseudoElement::Marker) => &mut self.marker_rules,
-                Some(PseudoElement::Placeholder) => &mut self.placeholder_rules,
-                Some(other) => {
+            let Some(target) = RuleTarget::of(selector.pseudo_element()) else {
+                if let Some(other) = selector.pseudo_element() {
                     trace!(
                         "ignored rule for unsupported pseudo-element ::{}",
                         other.name()
                     );
-                    continue;
                 }
+                continue;
             };
+            let sets = self.rule_sets(selector);
+            if sets.is_empty() {
+                continue;
+            }
             let specificity = if origin == CascadeOrigin::PresentationalHint {
                 0
             } else {
                 selector.specificity().value()
             };
             let index = self.rules.len() as u32;
-            map.insert(selector.bucket_key(), index, self.quirks);
+            let quirks = self.quirks;
+            for &set in &sets {
+                self.map_mut(set, target)
+                    .insert(selector.bucket_key(), index, quirks);
+            }
             self.state_dependencies |= selector.state_dependencies();
             self.rules.push(Rule {
                 selector: selector.clone(),
@@ -548,6 +750,120 @@ impl Stylist {
                 uses_element_data,
             });
             self.next_order += 1;
+        }
+    }
+
+    /// The rule sets that a selector goes into (CSS Scoping 1 §3). In the
+    /// document's stylist, `:host` and `::slotted()` rules match nothing
+    /// (measured in Chromium 148, `host-featureless`), so they are not kept.
+    fn rule_sets(&self, selector: &Selector) -> SmallVec<[RuleSet; 2]> {
+        let mut sets = SmallVec::new();
+        match (selector.shadow_pseudo(), self.scoped) {
+            (Some(ShadowPseudoKind::Part), _) => sets.push(RuleSet::Part),
+            (Some(ShadowPseudoKind::Slotted), true) => sets.push(RuleSet::Slotted),
+            (Some(ShadowPseudoKind::Slotted), false) => {}
+            (None, scoped) => match selector.host_relation() {
+                HostRelation::Never => sets.push(RuleSet::Tree),
+                HostRelation::Only if scoped => sets.push(RuleSet::Host),
+                HostRelation::Only => {}
+                HostRelation::Also => {
+                    sets.push(RuleSet::Tree);
+                    if scoped {
+                        sets.push(RuleSet::Host);
+                    }
+                }
+            },
+        }
+        sets
+    }
+
+    /// The map of `set` for `target`, made if needed.
+    fn map_mut(&mut self, set: RuleSet, target: RuleTarget) -> &mut RuleMap {
+        let Some(i) = target.index() else {
+            return &mut self.no_rules;
+        };
+        if set == RuleSet::Tree {
+            return match target {
+                RuleTarget::Element => &mut self.element_rules,
+                RuleTarget::Pseudo(PseudoKind::Before) => &mut self.before_rules,
+                RuleTarget::Pseudo(PseudoKind::After) => &mut self.after_rules,
+                RuleTarget::Pseudo(PseudoKind::Marker) => &mut self.marker_rules,
+                RuleTarget::Pseudo(_) => &mut self.placeholder_rules,
+            };
+        }
+        let maps = self.shadow_maps.get_or_insert_with(Box::default);
+        match maps.set_mut(set) {
+            Some(maps) => maps[i].get_or_insert_with(Box::default),
+            None => &mut self.no_rules,
+        }
+    }
+
+    /// The map of `set` for `target`, if it has rules.
+    fn set_map(&self, set: RuleSet, target: RuleTarget) -> Option<&RuleMap> {
+        if set == RuleSet::Tree {
+            return Some(self.map(target));
+        }
+        self.shadow_maps.as_ref()?.set(set)?[target.index()?].as_deref()
+    }
+
+    /// True if the stylist has rules for `target` in any set.
+    fn has_rules(&self, target: RuleTarget) -> bool {
+        !self.map(target).is_empty()
+            || [RuleSet::Host, RuleSet::Slotted, RuleSet::Part]
+                .into_iter()
+                .any(|set| self.set_map(set, target).is_some())
+    }
+
+    /// Appends the rules of `set` for `target` that match: candidates by
+    /// the keys of `el` (the element whose key the rule's subject has: the
+    /// element, also for `::slotted()`; the host for `:host`), whose `@media`
+    /// chain matches (`media`), whose ancestor keys `filter` (the flat
+    /// ancestors of the styled element) may hold, and for which `test`
+    /// answers true. Unsorted.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn collect(
+        &self,
+        set: RuleSet,
+        target: RuleTarget,
+        el: &DomElement<'_>,
+        media: &[bool],
+        filter: Option<&AncestorFilter>,
+        scratch: &mut Vec<u32>,
+        mut test: impl FnMut(&Selector) -> bool,
+        out: &mut Vec<u32>,
+    ) {
+        let Some(map) = self.set_map(set, target) else {
+            return;
+        };
+        scratch.clear();
+        map.candidates(el, self.quirks, scratch);
+        let start = out.len();
+        for &index in scratch.iter() {
+            let rule = &self.rules[index as usize];
+            if let Some(chain) = rule.media
+                && !media.get(chain as usize).copied().unwrap_or(false)
+            {
+                continue;
+            }
+            if let Some(filter) = filter
+                && !rule
+                    .ancestor_hashes
+                    .iter()
+                    .all(|&h| filter.might_contain(h))
+            {
+                continue;
+            }
+            if test(&rule.selector) {
+                out.push(index);
+            }
+        }
+        // In quirks mode, two classes that differ only in case look up the
+        // same bucket.
+        if self.quirks {
+            let mut found = out.split_off(start);
+            found.sort_unstable();
+            found.dedup();
+            out.append(&mut found);
         }
     }
 
@@ -581,9 +897,15 @@ impl Stylist {
             .collect()
     }
 
-    /// True if any rule targets the pseudo-element.
+    /// True if any rule targets the pseudo-element (also a rule of a
+    /// shadow tree).
     pub(crate) fn has_pseudo_rules(&self, kind: PseudoKind) -> bool {
-        !self.map(RuleTarget::Pseudo(kind)).is_empty()
+        let target = RuleTarget::Pseudo(kind);
+        !self.map(target).is_empty()
+            || target
+                .index()
+                .is_some_and(|i| self.scoped_targets & (1 << i) != 0)
+            || self.set_map(RuleSet::Part, target).is_some()
     }
 
     fn map(&self, target: RuleTarget) -> &RuleMap {

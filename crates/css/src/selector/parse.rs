@@ -10,6 +10,7 @@
 use super::{
     AttrCase, AttrOperator, AttributeSelector, Combinator, Component, Direction, LocalName, Nth,
     PseudoClass, PseudoElement, RelativeSelector, STATE_PSEUDO_CLASSES, Selector, SelectorList,
+    ShadowPseudo,
 };
 use crate::cursor::{ParseError, Parser};
 use crate::parser::MAX_NESTING_DEPTH;
@@ -109,11 +110,22 @@ pub(crate) fn parse_selector_list(input: &[ComponentValue]) -> Result<SelectorLi
     let list = parse_list(input, TOP_LEVEL)?;
     if list
         .iter()
-        .any(|s| match_depth(&s.components) > MAX_MATCH_DEPTH)
+        .any(|s| selector_match_depth(s) > MAX_MATCH_DEPTH)
     {
         return Err(ParseError::Invalid);
     }
     Ok(list)
+}
+
+/// An upper bound for the recursion depth of matching `selector`, with the
+/// argument of `::slotted()` and the pseudo-classes after `::part()`.
+fn selector_match_depth(selector: &Selector) -> usize {
+    let shadow = match selector.shadow.as_deref() {
+        Some(ShadowPseudo::Slotted(argument)) => match_depth(argument),
+        Some(ShadowPseudo::Part { after, .. }) => match_depth(after),
+        None => 0,
+    };
+    match_depth(&selector.components).max(shadow)
 }
 
 /// An upper bound for the recursion depth of matching `components`.
@@ -168,8 +180,123 @@ fn parse_forgiving_list(input: &[ComponentValue], options: Options) -> SelectorL
 }
 
 fn parse_complex(input: &[ComponentValue], options: Options) -> Result<Selector, ParseError> {
-    let (components, pseudo_element) = parse_components(input, options)?;
-    Ok(Selector::new(components, pseudo_element))
+    let (components, pseudos) = parse_components(input, options)?;
+    let (shadow, pseudo_element) = pseudos.finish();
+    Ok(Selector::new(components, shadow, pseudo_element))
+}
+
+/// The pseudo-elements at the end of a selector while it is parsed.
+#[derive(Debug, Default)]
+struct Pseudos {
+    /// `::slotted()` or `::part()`.
+    shadow: Option<ShadowPseudo>,
+    /// The pseudo-classes after `::part()`.
+    after_part: Vec<Component>,
+    /// The (last) pseudo-element.
+    element: Option<PseudoElement>,
+}
+
+impl Pseudos {
+    fn any(&self) -> bool {
+        self.shadow.is_some() || self.element.is_some()
+    }
+
+    fn finish(self) -> (Option<ShadowPseudo>, Option<PseudoElement>) {
+        let shadow = match self.shadow {
+            Some(ShadowPseudo::Part { names, .. }) => Some(ShadowPseudo::Part {
+                names,
+                after: self.after_part.into_boxed_slice(),
+            }),
+            other => other,
+        };
+        (shadow, self.element)
+    }
+
+    /// Adds a pseudo-class: to the compound, or after `::part()`, where only
+    /// the pseudo-classes that do not depend on the tree are valid
+    /// (<https://drafts.csswg.org/css-shadow-parts/#part>; measured in
+    /// Chromium 148: `::part(x):hover` is valid, `::part(x):first-child` and
+    /// `::slotted(span):hover` are not).
+    fn push_pseudo_class(
+        &mut self,
+        out: &mut Vec<Component>,
+        pc: PseudoClass,
+    ) -> Result<(), ParseError> {
+        match &self.shadow {
+            None => out.push(Component::PseudoClass(pc)),
+            Some(ShadowPseudo::Part { .. }) => {
+                let pc = after_part(pc)?;
+                self.after_part.push(Component::PseudoClass(pc));
+            }
+            Some(_) => return Err(ParseError::Invalid),
+        }
+        Ok(())
+    }
+}
+
+/// The pseudo-class `pc` after `::part()`. Measured in Chromium 148
+/// (`tools/probes/web-shadow-dom.json`, case `revert-layer-contexts`):
+/// `:not()` is valid only if every argument is a compound of valid
+/// pseudo-classes (`::part(x):not(:hover)`; `:not(:first-child)` and
+/// `:not(.a)` are invalid); `:is()` and `:where()` drop the other arguments
+/// as forgiving lists do (`::part(x):is(.a)` serializes as
+/// `::part(x):is()`); `:lang()`, `:dir()`, `:checked` and `:defined` are
+/// valid.
+fn after_part(pc: PseudoClass) -> Result<PseudoClass, ParseError> {
+    match pc {
+        PseudoClass::Not(list) if list.selectors.iter().all(valid_after_part) => {
+            Ok(PseudoClass::Not(list))
+        }
+        PseudoClass::Is(list) => Ok(PseudoClass::Is(keep_valid_after_part(list))),
+        PseudoClass::Where(list) => Ok(PseudoClass::Where(keep_valid_after_part(list))),
+        PseudoClass::Not(_) => Err(ParseError::Invalid),
+        pc if is_structural(&pc) => Err(ParseError::Invalid),
+        pc => Ok(pc),
+    }
+}
+
+/// True if `selector`, an argument of a pseudo-class after `::part()`, is a
+/// compound of pseudo-classes that are valid there.
+fn valid_after_part(selector: &Selector) -> bool {
+    selector.shadow.is_none()
+        && selector.pseudo_element.is_none()
+        && selector.components.iter().all(|c| match c {
+            Component::PseudoClass(
+                PseudoClass::Not(list) | PseudoClass::Is(list) | PseudoClass::Where(list),
+            ) => list.selectors.iter().all(valid_after_part),
+            Component::PseudoClass(pc) => !is_structural(pc),
+            _ => false,
+        })
+}
+
+/// `list` without the arguments that are not valid after `::part()`.
+fn keep_valid_after_part(mut list: SelectorList) -> SelectorList {
+    list.selectors.retain(valid_after_part);
+    list
+}
+
+/// True for the pseudo-classes that match by the element's place in the
+/// tree, which cannot follow `::part()`.
+fn is_structural(pc: &PseudoClass) -> bool {
+    matches!(
+        pc,
+        PseudoClass::Root
+            | PseudoClass::Empty
+            | PseudoClass::Scope
+            | PseudoClass::FirstChild
+            | PseudoClass::LastChild
+            | PseudoClass::OnlyChild
+            | PseudoClass::FirstOfType
+            | PseudoClass::LastOfType
+            | PseudoClass::OnlyOfType
+            | PseudoClass::NthChild(_)
+            | PseudoClass::NthLastChild(_)
+            | PseudoClass::NthOfType(_)
+            | PseudoClass::NthLastOfType(_)
+            | PseudoClass::Has(_)
+            | PseudoClass::Host(_)
+            | PseudoClass::HostContext(_)
+    )
 }
 
 /// Parses a relative selector (`:has()` argument), for example `> img`.
@@ -190,7 +317,7 @@ fn parse_relative(
     let (components, _) = parse_components(p.remaining(), options)?;
     Ok(RelativeSelector {
         combinator,
-        selector: Selector::new(components, None),
+        selector: Selector::new(components, None, None),
     })
 }
 
@@ -198,25 +325,23 @@ fn parse_relative(
 fn parse_components(
     input: &[ComponentValue],
     options: Options,
-) -> Result<(Vec<Component>, Option<PseudoElement>), ParseError> {
+) -> Result<(Vec<Component>, Pseudos), ParseError> {
     let mut p = Parser::new(input);
     p.skip_whitespace();
     // Left to right first; compounds are reversed at the end.
     let mut left_to_right = Vec::new();
-    let mut pseudo_element = None;
+    let mut pseudos = Pseudos::default();
     loop {
         let start = left_to_right.len();
-        parse_compound(&mut p, &mut left_to_right, &mut pseudo_element, options)?;
-        if left_to_right.len() == start {
-            if pseudo_element.is_none() {
-                return Err(if p.peek_including_whitespace().is_none() {
-                    ParseError::EndOfInput
-                } else {
-                    ParseError::Unexpected
-                });
-            }
-            // A compound with only a pseudo-element, such as `::before`.
-            left_to_right.push(Component::Universal);
+        parse_compound(&mut p, &mut left_to_right, &mut pseudos, options)?;
+        // A compound with only a pseudo-element, such as `::before`, stays
+        // empty: it matches any element, and Chromium serializes no `*`.
+        if left_to_right.len() == start && !pseudos.any() {
+            return Err(if p.peek_including_whitespace().is_none() {
+                ParseError::EndOfInput
+            } else {
+                ParseError::Unexpected
+            });
         }
         let had_whitespace = p.skip_whitespace();
         let combinator = match p.peek_including_whitespace() {
@@ -228,7 +353,7 @@ fn parse_components(
             Some(_) => return Err(ParseError::Unexpected),
         };
         // A pseudo-element must be in the last compound.
-        if pseudo_element.is_some() {
+        if pseudos.any() {
             return Err(ParseError::Invalid);
         }
         if combinator != Combinator::Descendant {
@@ -237,7 +362,7 @@ fn parse_components(
         }
         left_to_right.push(Component::Combinator(combinator));
     }
-    Ok((reverse_compounds(left_to_right), pseudo_element))
+    Ok((reverse_compounds(left_to_right), pseudos))
 }
 
 /// Reverses the order of compounds (not of the components inside them).
@@ -258,7 +383,7 @@ fn reverse_compounds(mut left_to_right: Vec<Component>) -> Vec<Component> {
 fn parse_compound(
     p: &mut Parser<'_>,
     out: &mut Vec<Component>,
-    pseudo_element: &mut Option<PseudoElement>,
+    pseudos: &mut Pseudos,
     options: Options,
 ) -> Result<(), ParseError> {
     parse_type_selector(p, out)?;
@@ -272,7 +397,11 @@ fn parse_compound(
         }
         // Nothing may follow a pseudo-element in its compound. (Selectors 4
         // allows some pseudo-classes there; they are rare and not supported.)
-        if pseudo_element.is_some() {
+        // After `::slotted()` and `::part()` only pseudo-classes and
+        // pseudo-elements may follow ([`Pseudos::push_pseudo_class`]).
+        if pseudos.element.is_some()
+            || (pseudos.shadow.is_some() && !matches!(value, ComponentValue::Colon))
+        {
             return Err(ParseError::Invalid);
         }
         p.next_including_whitespace();
@@ -283,7 +412,7 @@ fn parse_compound(
                 Some(ComponentValue::Ident(name)) => out.push(Component::Class(name.clone())),
                 _ => return Err(ParseError::Unexpected),
             },
-            ComponentValue::Colon => parse_pseudo(p, out, pseudo_element, options)?,
+            ComponentValue::Colon => parse_pseudo(p, out, pseudos, options)?,
             ComponentValue::Block(block) => {
                 let attribute = parse_attribute(&block.contents)?;
                 out.push(Component::Attribute(Box::new(attribute)));
@@ -336,42 +465,76 @@ fn parse_type_selector(p: &mut Parser<'_>, out: &mut Vec<Component>) -> Result<(
 fn parse_pseudo(
     p: &mut Parser<'_>,
     out: &mut Vec<Component>,
-    pseudo_element: &mut Option<PseudoElement>,
+    pseudos: &mut Pseudos,
     options: Options,
 ) -> Result<(), ParseError> {
     match p.next_including_whitespace() {
         Some(ComponentValue::Colon) => match p.next_including_whitespace() {
             Some(ComponentValue::Ident(name)) => {
                 let pe = PseudoElement::from_name(name).ok_or(ParseError::Invalid)?;
-                set_pseudo_element(pseudo_element, pe, options)
+                set_pseudo_element(pseudos, pe, options)
+            }
+            Some(ComponentValue::Function(f)) => {
+                if !options.allow_pseudo_element || pseudos.shadow.is_some() {
+                    return Err(ParseError::Invalid);
+                }
+                pseudos.shadow = Some(shadow_pseudo(f, options)?);
+                Ok(())
             }
             _ => Err(ParseError::Invalid),
         },
         Some(ComponentValue::Ident(name)) => {
             if let Some(pe) = PseudoElement::from_name(name).filter(|pe| pe.has_legacy_syntax()) {
-                return set_pseudo_element(pseudo_element, pe, options);
+                return set_pseudo_element(pseudos, pe, options);
             }
-            out.push(Component::PseudoClass(pseudo_class(name)?));
-            Ok(())
+            pseudos.push_pseudo_class(out, pseudo_class(name)?)
         }
         Some(ComponentValue::Function(f)) => {
-            out.push(Component::PseudoClass(functional_pseudo_class(f, options)?));
-            Ok(())
+            pseudos.push_pseudo_class(out, functional_pseudo_class(f, options)?)
         }
         _ => Err(ParseError::Unexpected),
     }
 }
 
 fn set_pseudo_element(
-    slot: &mut Option<PseudoElement>,
+    pseudos: &mut Pseudos,
     pe: PseudoElement,
     options: Options,
 ) -> Result<(), ParseError> {
     if !options.allow_pseudo_element {
         return Err(ParseError::Invalid);
     }
-    *slot = Some(pe);
+    pseudos.element = Some(pe);
     Ok(())
+}
+
+/// Parses `::slotted(<compound-selector>)` or `::part(<ident>+)` (the
+/// function after `::`).
+/// <https://drafts.csswg.org/css-scoping/#slotted-pseudo>,
+/// <https://drafts.csswg.org/css-shadow-parts/#part>
+fn shadow_pseudo(f: &Function, options: Options) -> Result<ShadowPseudo, ParseError> {
+    let args = &f.arguments[..];
+    match f.name.to_ascii_lowercase().as_str() {
+        "slotted" => {
+            let argument = parse_compound_argument(args, options.nested()?)?;
+            Ok(ShadowPseudo::Slotted(argument.components))
+        }
+        "part" => {
+            let mut p = Parser::new(args);
+            let mut names = Vec::new();
+            while !p.is_exhausted() {
+                names.push(Box::from(p.expect_ident()?));
+            }
+            if names.is_empty() {
+                return Err(ParseError::Invalid);
+            }
+            Ok(ShadowPseudo::Part {
+                names: names.into_boxed_slice(),
+                after: Box::default(),
+            })
+        }
+        _ => Err(ParseError::Invalid),
+    }
 }
 
 fn pseudo_class(name: &str) -> Result<PseudoClass, ParseError> {
@@ -625,11 +788,11 @@ mod tests {
             ("a:HOVER", "a:hover"),
             ("a::before", "a::before"),
             ("a:before", "a::before"),
-            ("::after", "*::after"),
+            ("::after", "::after"),
             ("p::first-line", "p::first-line"),
             ("p:first-letter", "p::first-letter"),
             ("input::placeholder", "input::placeholder"),
-            ("::selection", "*::selection"),
+            ("::selection", "::selection"),
             ("li:nth-child(2n+1)", "li:nth-child(2n+1)"),
             ("li:nth-child(odd)", "li:nth-child(2n+1)"),
             ("li:nth-child(-n+3)", "li:nth-child(-n+3)"),
@@ -697,7 +860,7 @@ mod tests {
     }
 
     /// `:host`, `:host()` and `:host-context()` parse, as in Chromium 148
-    /// (`tools/probes/host-sizes-auto.json`); they never match.
+    /// (`tools/probes/host-sizes-auto.json`).
     #[test]
     fn shadow_host_selectors() {
         for (css, expected) in [
@@ -711,9 +874,123 @@ mod tests {
             ("p:host::before", "p:host::before"),
             (":is(:host, .a)", ":is(:host, .a)"),
             (":not(:host(*))", ":not(:host(*))"),
+            (":host(.a)::after", ":host(.a)::after"),
+            (":host-context(.a)::after", ":host-context(.a)::after"),
+            ("div > :host", "div > :host"),
         ] {
             assert_eq!(normalize(css), expected, "{css}");
         }
+    }
+
+    /// `::slotted()` and `::part()`: validity and `selectorText` as measured
+    /// in Chromium 148 (`scoped-selector-syntax` of
+    /// `tools/probes/web-shadow-dom.json`).
+    #[test]
+    fn slotted_and_part_selectors() {
+        use crate::selector::ShadowPseudoKind;
+        // A compound with only a pseudo-element stores no `*` (Chromium
+        // serializes `::before`).
+        assert_eq!(normalize("a > ::after"), "a > ::after");
+        assert_eq!(normalize("*::selection"), "*::selection");
+        for (css, expected) in [
+            ("::slotted(span)", "::slotted(span)"),
+            ("slot::slotted(.a)", "slot::slotted(.a)"),
+            ("::slotted(span)::before", "::slotted(span)::before"),
+            ("::slotted(span):before", "::slotted(span)::before"),
+            ("::slotted(span:hover)", "::slotted(span:hover)"),
+            ("::slotted(*)", "::slotted(*)"),
+            ("::slotted(span)::marker", "::slotted(span)::marker"),
+            ("::SLOTTED( SPAN )", "::slotted(SPAN)"),
+            (":host > ::slotted(span)", ":host > ::slotted(span)"),
+            ("::part(x)", "::part(x)"),
+            ("::part( x  y )", "::part(x y)"),
+            ("::part(x):hover", "::part(x):hover"),
+            ("::part(x)::before", "::part(x)::before"),
+            ("x-a::part(x)", "x-a::part(x)"),
+            ("::part(X)", "::part(X)"),
+            ("::part(x):focus-visible", "::part(x):focus-visible"),
+            ("::part(x):is(:hover)", "::part(x):is(:hover)"),
+            ("::part(x):hover::after", "::part(x):hover::after"),
+            (":host::part(x)", ":host::part(x)"),
+            ("::part(\\31 x)", "::part(\\31 x)"),
+            // `revert-layer-contexts`: the arguments after `::part()`.
+            ("::part(x):not(:hover)", "::part(x):not(:hover)"),
+            ("::part(x):is(:first-child)", "::part(x):is()"),
+            ("::part(x):where(:first-child)", "::part(x):where()"),
+            ("::part(x):is(.a)", "::part(x):is()"),
+            ("::part(x):is(.a, :hover)", "::part(x):is(:hover)"),
+            // Chromium serializes `:lang(en)`; swb quotes the range in any
+            // selector (roadmap backlog).
+            ("::part(x):lang(en)", "::part(x):lang(\"en\")"),
+            ("::part(x):dir(ltr)", "::part(x):dir(ltr)"),
+            ("::part(x):checked", "::part(x):checked"),
+            ("::part(x):defined", "::part(x):defined"),
+        ] {
+            assert_eq!(normalize(css), expected, "{css}");
+        }
+        let list = parse("::SLOTTED(SPAN), ::part(x)").expect("valid");
+        assert_eq!(list.cssom_text(), "::slotted(span), ::part(x)");
+        let kinds: Vec<_> = list.iter().map(Selector::shadow_pseudo).collect();
+        assert_eq!(
+            kinds,
+            [
+                Some(ShadowPseudoKind::Slotted),
+                Some(ShadowPseudoKind::Part)
+            ]
+        );
+        assert_eq!(
+            parse("span").expect("valid").selectors()[0].shadow_pseudo(),
+            None
+        );
+        for css in [
+            "::slotted(span):hover",
+            "::slotted(span .a)",
+            "::slotted(span > .a)",
+            "::slotted()",
+            "::slotted(span).a",
+            "::slotted(span)::slotted(b)",
+            ":not(::slotted(span))",
+            ":not(::part(x))",
+            "::slotted(::before)",
+            "::slotted(span) b",
+            "::part(x).a",
+            "::part(x)#a",
+            "::part(x)[a]",
+            "::part(x)::part(y)",
+            "::part()",
+            "::part(1)",
+            "::part(x, y)",
+            "::part(x):first-child",
+            "::part(x):nth-child(2)",
+            "::part(x):has(a)",
+            "::part(x):not(:first-child)",
+            "::part(x):not(.a)",
+            "::part(x):not(:hover, .a)",
+            "::part(x):empty",
+            "::part(x):root",
+            "::part(x):host",
+            "::part(x)::after:hover",
+            "::part(x) b",
+            "::before::part(x)",
+            "::bogus(x)",
+        ] {
+            assert!(parse(css).is_err(), "{css:?} should be invalid");
+        }
+    }
+
+    #[test]
+    fn host_relation() {
+        use crate::selector::HostRelation;
+        let relation = |css: &str| parse(css).expect("valid").selectors()[0].host_relation();
+        assert_eq!(relation(":host"), HostRelation::Only);
+        assert_eq!(relation(":host(.a)::after"), HostRelation::Only);
+        assert_eq!(relation(".a:host-context(.b)"), HostRelation::Only);
+        assert_eq!(relation(":is(:host, .a)"), HostRelation::Also);
+        assert_eq!(relation(":where(.b :host)"), HostRelation::Also);
+        assert_eq!(relation(":host span"), HostRelation::Never);
+        assert_eq!(relation(":not(:host)"), HostRelation::Never);
+        assert_eq!(relation("span"), HostRelation::Never);
+        assert_eq!(relation(":host::part(x)"), HostRelation::Never);
     }
 
     #[test]
@@ -776,7 +1053,6 @@ mod tests {
             "a!",
             "a{}",
             "a b c >",
-            "a::slotted(b)",
             ":host()",
             ":host(.a .b)",
             ":host(.a > .b)",
@@ -845,6 +1121,21 @@ mod tests {
             (":host", (0, 1, 0)),
             (":host(#a.b)", (1, 2, 0)),
             (":host-context(p)", (0, 1, 1)),
+            (":host::after", (0, 1, 1)),
+            // A pseudo-element plus the argument (measured in Chromium 148,
+            // `scoped-specificity`).
+            ("::slotted(span)", (0, 0, 2)),
+            ("::slotted(.c)", (0, 1, 1)),
+            ("slot::slotted(span)", (0, 0, 3)),
+            ("slot::slotted(*)", (0, 0, 2)),
+            ("::slotted(#a)::before", (1, 0, 2)),
+            // A pseudo-element plus the pseudo-classes after it; the names do
+            // not count.
+            ("::part(t)", (0, 0, 1)),
+            ("::part(t u)", (0, 0, 1)),
+            ("div::part(t)", (0, 0, 2)),
+            ("body div::part(t)", (0, 0, 3)),
+            ("#pp::part(t):hover::before", (1, 1, 2)),
         ];
         for (css, (a, b, c)) in cases {
             let list = parse(css).unwrap_or_else(|e| panic!("{css}: {e}"));
@@ -879,6 +1170,12 @@ mod tests {
         assert_eq!(key(":is(.a)"), format!("{:?}", BucketKey::Universal));
         assert_eq!(key(".a > *"), format!("{:?}", BucketKey::Universal));
         assert_eq!(key("a.b::before"), format!("{:?}", BucketKey::Class("b")));
+        // `::slotted()`: the key of the argument, which the element matches.
+        assert_eq!(
+            key("slot.s::slotted(b.x)"),
+            format!("{:?}", BucketKey::Class("x"))
+        );
+        assert_eq!(key("#a::part(x)"), format!("{:?}", BucketKey::Universal));
         let list = parse("a::marker, b").expect("valid");
         assert_eq!(
             list.selectors()[0].pseudo_element(),
@@ -918,6 +1215,21 @@ mod tests {
             keys(".a:not(.b):hover .c"),
             format!("{:?}", [BucketKey::Class("a")])
         );
+        // The slot of `::slotted()` and the host of `::part()` are flat
+        // ancestors of the element.
+        assert_eq!(
+            keys(".a > slot.s::slotted(b)"),
+            format!(
+                "{:?}",
+                [
+                    BucketKey::Class("a"),
+                    local("slot", "slot"),
+                    BucketKey::Class("s")
+                ]
+            )
+        );
+        assert_eq!(keys("#h::part(x)"), format!("{:?}", [BucketKey::Id("h")]));
+        assert_eq!(keys("::slotted(.x)"), "[]");
     }
 
     #[test]
@@ -932,6 +1244,11 @@ mod tests {
             ElementState::FOCUS | ElementState::CHECKED | ElementState::ACTIVE
         );
         assert_eq!(deps(":nth-child(2 of :disabled)"), ElementState::DISABLED);
+        // The arguments of `:host()` and `:host-context()`: a hover of the
+        // host must restyle when no other rule depends on `:hover`.
+        assert_eq!(deps(":host(:hover)"), ElementState::HOVER);
+        assert_eq!(deps(":host-context(:focus) span"), ElementState::FOCUS);
+        assert_eq!(deps(":host"), ElementState::empty());
     }
 
     #[test]

@@ -163,8 +163,15 @@ const SHADOW_ROOTS: &str = "(() => {
     const tip = document.querySelector('tool-tip');
     const root = tip && tip.shadowRoot;
     const slot = root && root.querySelector('slot');
+    const sheets = hosts.map(h => Array.from(h.shadowRoot.querySelectorAll('style'))
+        .map(s => s.textContent.includes('--tooltip-top') ? 'own' : 'polyfill').join('+'));
+    const tipStyle = tip && getComputedStyle(tip);
     return {
         hosts: hosts.length,
+        sheets: sheets.reduce((counts, s) => { counts[s] = (counts[s] || 0) + 1; return counts; }, {}),
+        rootSheets: hosts.map(h => h.shadowRoot.styleSheets.length).reduce((a, b) => a + b, 0),
+        tipStyle: tip ? [tip.getClientRects().length, tipStyle.display, tipStyle.textAlign,
+            tipStyle.opacity, tipStyle.whiteSpace].join(' ') : null,
         times,
         tip: root ? {
             children: Array.from(root.children).map(c => c.localName),
@@ -260,6 +267,18 @@ const REPLAY_TIMES: [&str; 23] = [
 /// text "Dismiss alert".
 fn shadow_roots(roots: &serde_json::Value) {
     assert_eq!(roots["hosts"], 24, "{roots}");
+    // ADR 0036 sub-feature 5c-1: the popover polyfill prepends its `<style>`
+    // to `tool-tip`'s root only (the 23 `relative-time` roots get none in
+    // the fixture), and the root's sheets apply to its host: `:host` sets
+    // `text-align`, `opacity` and `white-space`; the closed popover still
+    // has no box.
+    assert_eq!(
+        roots["sheets"],
+        serde_json::json!({"": 23, "polyfill+own": 1}),
+        "{roots}"
+    );
+    assert_eq!(roots["rootSheets"], 2, "{roots}");
+    assert_eq!(roots["tipStyle"], "0 none center 0 normal", "{roots}");
     let times: Vec<String> = serde_json::from_value(roots["times"].clone()).unwrap();
     assert_eq!(times, REPLAY_TIMES, "{roots}");
     let tip = &roots["tip"];

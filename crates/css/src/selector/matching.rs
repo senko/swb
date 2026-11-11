@@ -38,7 +38,7 @@ use log::debug;
 
 use super::{
     AttrCase, AttrOperator, AttributeSelector, Combinator, Component, Direction, Nth, PseudoClass,
-    RelativeSelector, Selector, SelectorList,
+    RelativeSelector, Selector, SelectorList, ShadowPseudo,
 };
 
 bitflags! {
@@ -181,6 +181,12 @@ pub trait Element: Sized + Clone {
     fn cache_key(&self) -> Option<usize> {
         None
     }
+    /// The parent element in the flat tree (CSS Scoping 1 §3.3), for
+    /// `:host-context()`. The default is [`Element::parent_element`], for
+    /// trees without shadow roots.
+    fn flat_parent_element(&self) -> Option<Self> {
+        self.parent_element()
+    }
 }
 
 /// The maximum number of elements that one call to [`matches()`] visits.
@@ -197,6 +203,11 @@ pub struct MatchingContext {
     /// Sibling indices for `:nth-*()`, by kind (see [`NthKind`]) and
     /// [`Element::cache_key`].
     nth_indices: [HashMap<usize, i32>; 4],
+    /// For `:host-context()`: whether an element or one of its flat
+    /// ancestors matches an argument, by the argument's address and
+    /// [`Element::cache_key`]. Nested hosts share their ancestors' answers,
+    /// so a style pass over N nested hosts costs O(N), not O(N²).
+    host_context: HashMap<(usize, usize), bool>,
     /// The elements that all matches with this context visited, for a
     /// caller that bounds the total work of a query over many elements
     /// (each match has its own budget of [`MATCH_BUDGET`]).
@@ -248,23 +259,126 @@ pub fn matches_with_scope<E: Element>(
     scope: Option<&E>,
     context: &mut MatchingContext,
 ) -> bool {
+    if selector.shadow.is_some() {
+        return false;
+    }
+    run::<E, false>(selector, scope, None, context, |m| {
+        m.match_from(&selector.components, element, None) == MatchResult::Matched
+    })
+}
+
+/// True if `selector`, a selector of a rule of the tree scope whose shadow
+/// host is `host` (`None` for the document), matches `element`, an element
+/// of that tree or the host itself (CSS Scoping 1 §3.2). The host is
+/// featureless: only `:host`, `:host()` and `:host-context()` match it (also
+/// inside `:is()` and `:where()`; measured in Chromium 148), and it is the
+/// parent of the elements at the top of its tree. Selectors with
+/// `::slotted()` or `::part()` never match here.
+/// <https://drafts.csswg.org/css-scoping/#host-element-in-tree>
+pub fn matches_in_tree<E: Element>(
+    selector: &Selector,
+    element: &E,
+    host: Option<&E>,
+    context: &mut MatchingContext,
+) -> bool {
+    if selector.shadow.is_some() {
+        return false;
+    }
+    let components = &selector.components;
+    match host {
+        // The document's rules: the matcher without the host's steps.
+        None => run::<E, false>(selector, None, None, context, |m| {
+            m.match_from(components, element, None) == MatchResult::Matched
+        }),
+        Some(_) => run::<E, true>(selector, None, host, context, |m| {
+            m.match_from(components, element, None) == MatchResult::Matched
+        }),
+    }
+}
+
+/// True if `selector`, with `::slotted()`, of a rule of the tree scope whose
+/// shadow host is `host`, matches `element`, which is assigned (after
+/// flattening) to `slot`, a slot of that tree: the argument matches
+/// `element`, and the rest of the selector matches `slot`.
+/// <https://drafts.csswg.org/css-scoping/#slotted-pseudo>
+pub fn matches_slotted<E: Element>(
+    selector: &Selector,
+    element: &E,
+    slot: &E,
+    host: Option<&E>,
+    context: &mut MatchingContext,
+) -> bool {
+    let Some(ShadowPseudo::Slotted(argument)) = selector.shadow.as_deref() else {
+        return false;
+    };
+    run::<E, true>(selector, None, host, context, |m| {
+        m.match_compound(argument, element)
+            && m.match_from(&selector.components, slot, None) == MatchResult::Matched
+    })
+}
+
+/// True if `selector`, with `::part()`, of a rule of the tree scope whose
+/// shadow host is `host`, matches `element`, an element of the shadow tree
+/// of `element_host`: `element` has all the part names (its `part`
+/// attribute) and matches the pseudo-classes after `::part()`, and the rest
+/// of the selector matches `element_host`. Without `exportparts`,
+/// `element_host` is an element of the rule's tree, or its host itself
+/// (`:host::part(x)`).
+/// <https://drafts.csswg.org/css-shadow-parts/#part>
+pub fn matches_part<E: Element>(
+    selector: &Selector,
+    element: &E,
+    element_host: &E,
+    host: Option<&E>,
+    context: &mut MatchingContext,
+) -> bool {
+    let Some(ShadowPseudo::Part { names, after }) = selector.shadow.as_deref() else {
+        return false;
+    };
+    let Some(parts) = element.attribute("part") else {
+        return false;
+    };
+    if !names
+        .iter()
+        .all(|name| parts.split(is_html_whitespace_char).any(|p| p == &**name))
+    {
+        return false;
+    }
+    run::<E, true>(selector, None, host, context, |m| {
+        m.match_compound(after, element)
+            && m.match_from(&selector.components, element_host, None) == MatchResult::Matched
+    })
+}
+
+/// Runs `body` with a matcher for `selector` and adds the visited elements
+/// to the context's steps.
+#[inline]
+fn run<E: Element, const SHADOW: bool>(
+    selector: &Selector,
+    scope: Option<&E>,
+    host: Option<&E>,
+    context: &mut MatchingContext,
+    body: impl FnOnce(&mut Matcher<'_, '_, E, SHADOW>) -> bool,
+) -> bool {
     let mut matcher = Matcher {
         context,
         scope,
+        host,
+        in_host_argument: false,
         nesting: 0,
         budget: MATCH_BUDGET,
         exhausted: false,
         at_subject: true,
-        has_pseudo_element: selector.pseudo_element.is_some(),
+        has_pseudo_element: selector.pseudo_element.is_some() || selector.shadow.is_some(),
     };
-    let result = matcher.match_from(&selector.components, element, None);
+    let result = body(&mut matcher);
     let (left, exhausted) = (matcher.budget, matcher.exhausted);
     context.steps += u64::from(MATCH_BUDGET - left);
     if exhausted {
         debug!("selector `{selector}` is too expensive to match; treated as no match");
         return false;
     }
-    result == MatchResult::Matched
+    result
 }
 
 /// True if any selector in `list` matches `element`.
@@ -321,9 +435,18 @@ enum Next<'s, 'x, E> {
     Anchor(&'x E),
 }
 
-struct Matcher<'c, 's, E> {
+/// A matcher. `SHADOW` is true when the rules of a shadow tree are matched
+/// (a host is given); for the document's rules it is false, so that the
+/// steps of the featureless host cost nothing there.
+struct Matcher<'c, 's, E, const SHADOW: bool> {
     context: &'c mut MatchingContext,
     scope: Option<&'s E>,
+    /// The shadow host of the tree whose rule is matched: featureless, and
+    /// the parent of the elements at the top of the tree.
+    host: Option<&'s E>,
+    /// True while the argument of `:host()` or `:host-context()` is
+    /// matched: there the host is an ordinary element.
+    in_host_argument: bool,
     /// The nesting depth of selector arguments (`:is()`, `:not()`, ...).
     nesting: u32,
     /// How many more elements this match may visit.
@@ -336,7 +459,7 @@ struct Matcher<'c, 's, E> {
     has_pseudo_element: bool,
 }
 
-impl<E: Element> Matcher<'_, '_, E> {
+impl<E: Element, const SHADOW: bool> Matcher<'_, '_, E, SHADOW> {
     /// Uses one step of the budget. Returns false if none is left.
     fn spend(&mut self) -> bool {
         if self.budget == 0 {
@@ -389,10 +512,14 @@ impl<E: Element> Matcher<'_, '_, E> {
         };
         let mut current = element.clone();
         loop {
-            let candidate = match combinator {
-                Combinator::Descendant | Combinator::Child => current.parent_element(),
-                Combinator::NextSibling | Combinator::SubsequentSibling => {
-                    current.prev_sibling_element()
+            let candidate = if SHADOW && self.host.is_some() {
+                self.step_in_tree(&current, combinator)
+            } else {
+                match combinator {
+                    Combinator::Descendant | Combinator::Child => current.parent_element(),
+                    Combinator::NextSibling | Combinator::SubsequentSibling => {
+                        current.prev_sibling_element()
+                    }
                 }
             };
             let Some(candidate) = candidate else {
@@ -423,7 +550,46 @@ impl<E: Element> Matcher<'_, '_, E> {
         }
     }
 
+    /// True if `element` is the featureless host of the tree whose rule is
+    /// matched.
+    fn is_featureless(&self, element: &E) -> bool {
+        self.host
+            .is_some_and(|h| !self.in_host_argument && h.same_element(element))
+    }
+
+    /// The candidate for `combinator` from `current` while the rules of a
+    /// shadow tree are matched: the host has no parent and no siblings in
+    /// its tree, and it is the parent of the elements at the top of the
+    /// tree.
+    #[cold]
+    #[inline(never)]
+    fn step_in_tree(&self, current: &E, combinator: Combinator) -> Option<E> {
+        if self.is_featureless(current) {
+            return None;
+        }
+        match combinator {
+            Combinator::Descendant | Combinator::Child => current
+                .parent_element()
+                .or_else(|| self.host.filter(|_| !self.in_host_argument).cloned()),
+            Combinator::NextSibling | Combinator::SubsequentSibling => {
+                current.prev_sibling_element()
+            }
+        }
+    }
+
+    /// Matches a compound against the featureless host.
+    #[cold]
+    #[inline(never)]
+    fn match_featureless_compound(&mut self, compound: &[Component]) -> bool {
+        self.at_subject = false;
+        !compound.is_empty() && compound.iter().all(|c| self.match_featureless(c))
+    }
+
+    #[inline]
     fn match_compound(&mut self, compound: &[Component], element: &E) -> bool {
+        if SHADOW && self.is_featureless(element) {
+            return self.match_featureless_compound(compound);
+        }
         let is_subject = std::mem::replace(&mut self.at_subject, false);
         // The quirk does not apply to a compound with a pseudo-element.
         if self.quirks()
@@ -435,6 +601,76 @@ impl<E: Element> Matcher<'_, '_, E> {
             return false;
         }
         compound.iter().all(|c| self.match_simple(c, element))
+    }
+
+    /// Matches a simple selector against the featureless host
+    /// (`self.host`). Measured in Chromium 148 (`host-featureless`): `*:host`,
+    /// `div:host`, `.a:host` and `:host:not(.b)` do not match, `:is(:host)`
+    /// does.
+    fn match_featureless(&mut self, component: &Component) -> bool {
+        let Some(host) = self.host else {
+            return false;
+        };
+        match component {
+            Component::PseudoClass(pc @ (PseudoClass::Host(_) | PseudoClass::HostContext(_))) => {
+                self.match_pseudo_class(pc, host)
+            }
+            Component::PseudoClass(PseudoClass::Is(list) | PseudoClass::Where(list)) => {
+                self.match_nested_list(list, host)
+            }
+            _ => false,
+        }
+    }
+
+    /// Matches the argument of `:host()` or `:host-context()` (a compound)
+    /// against `element` as an ordinary element.
+    fn match_host_argument(&mut self, argument: &Selector, element: &E) -> bool {
+        let outer = std::mem::replace(&mut self.in_host_argument, true);
+        self.nesting += 1;
+        let result = self.match_from(&argument.components, element, None) == MatchResult::Matched;
+        self.nesting -= 1;
+        self.in_host_argument = outer;
+        result
+    }
+
+    /// `:host-context()`: the host or one of its flat tree ancestors matches
+    /// the argument (measured in Chromium 148, `host-context-ancestors`: a
+    /// host slotted below a matching element of another tree matches, an
+    /// element that only a shadow-including ancestor matches does not).
+    fn match_host_context(&mut self, argument: &Selector, host: &E) -> bool {
+        let argument_key = std::ptr::from_ref(argument) as usize;
+        let mut path = Vec::new();
+        let mut current = Some(host.clone());
+        let mut result = false;
+        while let Some(element) = current {
+            let key = element.cache_key();
+            if let Some(known) =
+                key.and_then(|k| self.context.host_context.get(&(argument_key, k)).copied())
+            {
+                result = known;
+                break;
+            }
+            path.extend(key);
+            if self.match_host_argument(argument, &element) {
+                result = true;
+                break;
+            }
+            if !self.spend() {
+                return false;
+            }
+            current = element.flat_parent_element();
+        }
+        if self.exhausted {
+            // An answer cut short by the budget is not an answer: keep it
+            // out of the memo that later elements of the pass read.
+            return false;
+        }
+        for key in path {
+            self.context
+                .host_context
+                .insert((argument_key, key), result);
+        }
+        result
     }
 
     fn match_simple(&mut self, component: &Component, element: &E) -> bool {
@@ -507,8 +743,26 @@ impl<E: Element> Matcher<'_, '_, E> {
             PseudoClass::Has(relative) => relative.iter().any(|r| self.match_relative(r, element)),
             PseudoClass::Lang(ranges) => match_lang(element, ranges),
             PseudoClass::Dir(dir) => match_dir(element, *dir),
-            // No shadow trees: no element is a shadow host.
-            PseudoClass::Host(_) | PseudoClass::HostContext(_) => false,
+            PseudoClass::Host(_) | PseudoClass::HostContext(_) => {
+                SHADOW && self.match_host_pseudo_class(pc, element)
+            }
+        }
+    }
+
+    /// `:host`, `:host()` and `:host-context()`: only the featureless host
+    /// matches them.
+    #[cold]
+    #[inline(never)]
+    fn match_host_pseudo_class(&mut self, pc: &PseudoClass, element: &E) -> bool {
+        if !self.is_featureless(element) {
+            return false;
+        }
+        match pc {
+            PseudoClass::Host(argument) => argument
+                .as_ref()
+                .is_none_or(|a| self.match_host_argument(a, element)),
+            PseudoClass::HostContext(argument) => self.match_host_context(argument, element),
+            _ => false,
         }
     }
 
@@ -729,6 +983,10 @@ fn hover_active_quirk_applies(compound: &[Component]) -> bool {
 
 fn is_html_whitespace(b: u8) -> bool {
     matches!(b, b' ' | b'\t' | b'\n' | b'\x0c' | b'\r')
+}
+
+fn is_html_whitespace_char(c: char) -> bool {
+    matches!(c, ' ' | '\t' | '\n' | '\x0c' | '\r')
 }
 
 fn match_attribute<E: Element>(attr: &AttributeSelector, element: &E) -> bool {

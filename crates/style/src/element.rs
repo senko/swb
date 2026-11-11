@@ -786,6 +786,10 @@ impl Element for DomElement<'_> {
     fn cache_key(&self) -> Option<usize> {
         Some(self.id.index())
     }
+
+    fn flat_parent_element(&self) -> Option<Self> {
+        self.handle(self.doc.flat_parent_element(self.id))
+    }
 }
 
 #[cfg(test)]

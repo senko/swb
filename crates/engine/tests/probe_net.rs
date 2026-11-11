@@ -708,7 +708,8 @@ const CE_LATER: &[Later] = &[
     ("parser-sync-failures", None, SUB_4C),
 ];
 
-const SUB_5C: &str = "ADR 0036 sub-feature 5c: style scoping and constructable style sheets";
+const SUB_5C2: &str = "ADR 0036 sub-feature 5c-2: constructable style sheets and \
+     `adoptedStyleSheets`";
 const SUB_5D: &str = "ADR 0036 sub-feature 5d: events and focus through shadow trees";
 const DECLARATIVE: &str = "backlog (ADR 0036 section 10): declarative shadow roots and the \
      serialization of roots (`getHTML`, `setHTMLUnsafe`, `parseHTMLUnsafe`)";
@@ -721,7 +722,7 @@ const SHADOW_DEPARTURES: &[Departure] = &[
         "api-surface",
         1,
         r#""activeElement,clonable,constructor,delegatesFocus,elementFromPoint,elementsFromPoint,host,innerHTML,mode,onslotchange,serializable,slotAssignment,styleSheets""#,
-        "`ShadowRoot` lacks `adoptedStyleSheets` (sub-feature 5c) and the members that ADR \
+        "`ShadowRoot` lacks `adoptedStyleSheets` (sub-feature 5c-2) and the members that ADR \
          0036 section 9 leaves out of M10 \
          (`getHTML`, `setHTML`, `setHTMLUnsafe`, `getSelection`, `getAnimations`, \
          `fullscreenElement`, `pictureInPictureElement`, `pointerLockElement`, \
@@ -731,14 +732,14 @@ const SHADOW_DEPARTURES: &[Departure] = &[
         "api-surface",
         3,
         r#""attachShadow:true,shadowRoot:true,slot:true,assignedSlot:true,part:false,getHTML:false,setHTMLUnsafe:false,customElementRegistry:false""#,
-        "`Element.part` comes with `::part()` (sub-feature 5c); `getHTML`, `setHTMLUnsafe` and \
-         scoped registries (`customElementRegistry`) are backlog (ADR 0036 sections 9 and 10)",
+        "`Element.part`, `getHTML`, `setHTMLUnsafe` and scoped registries \
+         (`customElementRegistry`) are backlog (roadmap; ADR 0036 sections 9 and 10)",
     ),
     (
         "api-surface",
         4,
         r#""true,false,undefined,function,0,false,false,1,0,0""#,
-        "`adoptedStyleSheets`, `replace` and `replaceSync` come with sub-feature 5c; \
+        "`adoptedStyleSheets`, `replace` and `replaceSync` come with sub-feature 5c-2; \
          `Document.parseHTMLUnsafe` is backlog (ADR 0036 section 10)",
     ),
     (
@@ -747,6 +748,22 @@ const SHADOW_DEPARTURES: &[Departure] = &[
         r#""svg div=ok:true:SVGElement | svg x-a=DOMException NotSupportedError: Failed to execute 'attachShadow' on 'Element': This element does not support attachShadow | mathml div=ok:true:Element | mathml math=DOMException NotSupportedError: Failed to execute 'attachShadow' on 'Element': This element does not support attachShadow | urn div=ok:true:Element | urn x-a=DOMException NotSupportedError: Failed to execute 'attachShadow' on 'Element': This element does not support attachShadow | urn a=DOMException NotSupportedError: Failed to execute 'attachShadow' on 'Element': This element does not support attachShadow | urn foo=DOMException NotSupportedError: Failed to execute 'attachShadow' on 'Element': This element does not support attachShadow | null div=ok:true:Element | null x-a=DOMException NotSupportedError: Failed to execute 'attachShadow' on 'Element': This element does not support attachShadow | xlink span=ok:true:Element""#,
         "swb has no `MathMLElement` interface: a MathML element is an `Element` (the shadow \
          roots match)",
+    ),
+    (
+        "style-scoping",
+        2,
+        r#""rgba(0, 0, 0, 0) | rgb(0, 128, 0) | rgb(0, 0, 255) | rgb(0, 0, 0) | rgb(0, 0, 0)""#,
+        "`exportparts` is backlog (ADR 0036 section 11): the document's `::part(inner)` does \
+         not reach the part of a nested host that its host's tree exports",
+    ),
+    (
+        "revert-layer-contexts",
+        2,
+        r#""::part(x):not(:first-child)=false/!SyntaxError ; ::part(x):not(:hover)=true/::part(x):not(:hover) ; ::part(x):not(.a)=false/!SyntaxError ; ::part(x):is(:first-child)=true/::part(x):is() ; ::part(x):where(:first-child)=true/::part(x):where() ; ::part(x):is(.a)=true/::part(x):is() ; ::part(x):has(span)=false/!SyntaxError ; ::part(x):lang(en)=true/::part(x):lang(\"en\") ; ::part(x):dir(ltr)=true/::part(x):dir(ltr) ; ::part(x):empty=false/!SyntaxError ; ::part(x):root=false/!SyntaxError ; ::part(x):checked=true/::part(x):checked ; ::part(x):defined=true/::part(x):defined ; ::part(x):host=false/!SyntaxError""#,
+        "two gaps outside shadow DOM (roadmap backlog): `selector()` of `CSS.supports` parses \
+         `:is()` and `:where()` as forgiving lists, so a dropped argument still gives true \
+         (CSS Conditional 4 makes them unforgiving there); `:lang(en)` serializes as \
+         `:lang(\"en\")`. Validity and `selectorText` after `::part()` match",
     ),
     (
         "nesting-depth",
@@ -761,8 +778,7 @@ const SHADOW_DEPARTURES: &[Departure] = &[
 /// The cases and queries of the shadow DOM probe that later sub-features of
 /// ADR 0036 (or the backlog) run.
 const SHADOW_LATER: &[Later] = &[
-    ("api-surface", Some(5), SUB_5C),
-    ("api-surface", Some(6), SUB_5C),
+    ("api-surface", Some(6), SUB_5C2),
     ("composed-path-open", None, SUB_5D),
     ("composed-path-closed", None, SUB_5D),
     ("retarget-related", None, SUB_5D),
@@ -773,13 +789,15 @@ const SHADOW_LATER: &[Later] = &[
     // `crates/automation/tests/real_input.rs` since 5b.
     ("ui-events-through-shadow", None, SUB_5D),
     ("slotchange-timing", Some(6), SUB_5D),
-    // `adoptedStyleSheets` (5c) and `elementFromPoint` (5b) of a root;
+    // `adoptedStyleSheets` (5c-2) and `elementFromPoint` (5b) of a root;
     // `getSelection` is not in M10 (ADR 0036 section 9).
-    ("root-properties", Some(6), SUB_5C),
+    ("root-properties", Some(6), SUB_5C2),
     ("root-properties", Some(10), DECLARATIVE),
-    ("style-scoping", None, SUB_5C),
-    ("style-specificity-and-order", None, SUB_5C),
-    ("constructable-sheets", None, SUB_5C),
+    // The script of the case stops at `new CSSStyleSheet()` until 5c-2, so
+    // the roots of rows 2 and 3 get no content.
+    ("style-specificity-and-order", Some(2), SUB_5C2),
+    ("style-specificity-and-order", Some(3), SUB_5C2),
+    ("constructable-sheets", None, SUB_5C2),
     ("declarative-js-on", None, DECLARATIVE),
 ];
 

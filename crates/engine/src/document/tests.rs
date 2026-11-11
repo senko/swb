@@ -1232,3 +1232,122 @@ fn lazy_check_ignores_auto_sized_images_that_are_not_deferred() {
     assert!(!doc.has_deferred_images());
     assert!(!doc.lazy_due());
 }
+
+/// Attaches an open shadow root to the element `id` with `markup`.
+fn attach(doc: &mut DocumentState, id: &str, markup: &str) -> NodeId {
+    let host = element(doc, id);
+    doc.change_dom(|dom| {
+        let init = swb_dom::ShadowRootInit {
+            mode: swb_dom::ShadowRootMode::Open,
+            slot_assignment: swb_dom::SlotAssignment::Named,
+            delegates_focus: false,
+            clonable: false,
+            serializable: false,
+        };
+        let root = dom.attach_shadow(host, init, false).unwrap();
+        let fragment = swb_dom::parse_fragment(dom, host, markup).unwrap();
+        dom.append_child(root, fragment).unwrap();
+        root
+    })
+}
+
+/// ADR 0036 section 5: the sheets of a shadow tree apply to it; roots with
+/// equal lists of sheets share one scoped stylist; a change of a sheet in a
+/// root (its text, a script's `insertRule`, a `<style>` added) drops the
+/// stylists.
+#[test]
+fn shadow_sheets_share_scoped_stylists() {
+    let mut doc = walked(
+        "<div id=a></div><div id=b></div><div id=c></div><div id=d></div><span id=l>l</span>",
+        &url(),
+    );
+    let same = "<style>span{color:rgb(0,128,0)}</style><span id=s>s</span>";
+    let ra = attach(&mut doc, "a", same);
+    let rb = attach(&mut doc, "b", same);
+    let rc = attach(&mut doc, "c", same);
+    attach(&mut doc, "d", "<span id=s>no sheet</span>");
+    doc.update_style();
+    let scopes = |doc: &DocumentState| doc.stylist.as_ref().unwrap().scope_count();
+    assert_eq!(scopes(&doc), 1);
+    let color = |doc: &DocumentState, root: NodeId| {
+        let span = doc
+            .dom()
+            .descendants(root)
+            .find(|&n| doc.dom().element(n).and_then(|e| e.id()) == Some("s"))
+            .unwrap();
+        doc.styles().unwrap().get(span).unwrap().color
+    };
+    let green = swb_style::Rgba::rgb(0, 128, 0);
+    let black = swb_style::Rgba::rgb(0, 0, 0);
+    assert_eq!(color(&doc, ra), green);
+    assert_eq!(color(&doc, rc), green);
+    let light = element(&doc, "l");
+    assert_eq!(doc.styles().unwrap().get(light).unwrap().color, black);
+    // Only the parse of the first root's sheet was made.
+    let made = |doc: &DocumentState| {
+        doc.sheets
+            .iter()
+            .filter(|s| s.existing_sheet().is_some())
+            .count()
+    };
+    assert_eq!(made(&doc), 1);
+    // A new text in one root: its own stylist.
+    let style_c = doc.dom().children(rc).next().unwrap();
+    let text_c = doc.dom().children(style_c).next().unwrap();
+    doc.change_dom(|dom| dom.set_data(text_c, "span{color:rgb(0,0,255)}"))
+        .unwrap();
+    assert!(doc.stylist.is_none());
+    doc.update_style();
+    assert_eq!(scopes(&doc), 2);
+    assert_eq!(color(&doc, rc), swb_style::Rgba::rgb(0, 0, 255));
+    assert_eq!(color(&doc, rb), green);
+    // A rule that a script inserts into the first root's sheet: that sheet
+    // is only the same as itself.
+    let sheet = doc.script_sheet_in(ra, 0).unwrap();
+    swb_style::cssom::sheet::StyleSheet::insert_rule(&sheet, "span{font-size:30px}", 1).unwrap();
+    doc.invalidate_style();
+    doc.update_style();
+    assert_eq!(scopes(&doc), 3);
+    let size = |doc: &DocumentState, root: NodeId| {
+        let span = doc
+            .dom()
+            .descendants(root)
+            .find(|&n| doc.dom().element(n).is_some_and(|e| e.id() == Some("s")))
+            .unwrap();
+        doc.styles().unwrap().get(span).unwrap().font_size
+    };
+    assert_eq!(size(&doc, ra), 30.0);
+    assert_eq!(size(&doc, rb), 16.0);
+    // A `<style>` removed from a root: the root has no stylist.
+    let style_b = doc.dom().children(rb).next().unwrap();
+    doc.change_dom(|dom| dom.remove(style_b));
+    assert!(doc.stylist.is_none());
+    doc.update_style();
+    assert_eq!(color(&doc, rb), black);
+}
+
+/// ADR 0036 section 12: the scoped stylists and the parsed sheets of shadow
+/// trees count in the document's style memory; past it, a root gets no
+/// rules.
+#[test]
+fn shadow_sheets_count_in_the_style_memory() {
+    let mut doc = walked("<div id=a></div><div id=b></div>", &url());
+    let ra = attach(&mut doc, "a", "<style>p{color:red}</style><p>x</p>");
+    doc.update_style();
+    assert_eq!(doc.stylist.as_ref().unwrap().scope_count(), 1);
+    let used = doc.style_memory.used();
+    assert!(used > swb_style::SCOPE_BYTES, "{used}");
+    // Dropping the stylist returns the scoped stylist's bytes; the parsed
+    // sheet stays.
+    doc.invalidate_style();
+    assert!(doc.style_memory.used() < used);
+    let _ = ra;
+    // A memory that is full: the next root's sheet is not parsed.
+    let rest = doc.style_memory.free();
+    let _hold = doc.style_memory.reserve(rest, "test").unwrap();
+    let rb = attach(&mut doc, "b", "<style>b{color:red}</style><b>x</b>");
+    doc.update_style();
+    assert_eq!(doc.stylist.as_ref().unwrap().scope_count(), 0);
+    let sheet = doc.script_sheet_in(rb, 0).unwrap();
+    assert!(sheet.borrow().rules().is_empty(), "not parsed");
+}

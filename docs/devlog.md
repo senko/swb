@@ -4,6 +4,41 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-11: M10 feature 5c-1: style scoping in shadow trees
+
+- 5c is split into 5c-1 (style scoping) and 5c-2 (constructable sheets,
+  `adoptedStyleSheets`): one agent session cannot do both.
+- The `<style>` and `<link>` sheets of a shadow tree apply to that tree.
+  `swb_css` parses `::slotted()` and `::part()` and matches `:host`,
+  `:host()` and `:host-context()` against the featureless host. The
+  document's stylist holds one scoped stylist for each distinct list of
+  shadow sheets, each with its own layer order.
+- The cascade gives each matched rule a context in shadow-including
+  order. Measured in Chromium 148 (nine new probe cases): the outer
+  context wins for normal declarations, the inner for `!important`; the
+  `style` attribute is in its element's context; presentational hints
+  stay below all author rules; `:host-context()` uses flat-tree
+  ancestors; `::part()` reaches one tree only.
+- GitHub: the popover polyfill falls back to a `<style>` (no `new
+  CSSStyleSheet()` until 5c-2) and adds it only to `tool-tip`'s root.
+  `tool-tip` gets its `:host` style and has no box, as in Chromium.
+  Scores unchanged.
+- The first matcher version cost Wikipedia 1.5 % more instructions; a
+  const `SHADOW` parameter on `Matcher` keeps the host steps out of
+  document matching. Final callgrind: Wikipedia +0.29 %, Ars Technica
+  +0.07 %, BBC +0.01 %. JS-off snapshot identical.
+- The new hostile case `shadow-styles-100000` found two quadratic paths
+  in the 5a sheet code (sibling order, sheet positions): 21.8 s at the
+  script time limit before, 4.6 s now.
+- Review: a `revert-layer` of one context replaced the floor of another
+  (new case `revert-layer-contexts`, measured); `:host(:hover)` alone did
+  not make a hover restyle (the arguments of `:host()` and
+  `:host-context()` were not state dependencies); `:not()`, `:is()` and
+  `:where()` after `::part()` accepted any argument (now as measured in
+  Chromium). All fixed, with tests that fail without the fixes. Callgrind
+  after the fixes: Wikipedia +0.19 %, Ars Technica +0.07 %, BBC +0.04 %.
+- Next: 5c-2 (constructable sheets and `adoptedStyleSheets`).
+
 ## 2026-11-11: M10 feature 5b: the flat tree in rendering
 
 - `swb_dom::flat` gives the flat tree without a cached copy. Measured

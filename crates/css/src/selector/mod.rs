@@ -8,6 +8,13 @@
 //! matching checks the originating element, and the style crate applies the
 //! rule to the pseudo-element.
 //!
+//! Shadow trees (CSS Scoping 1, CSS Shadow Parts 1): `::slotted()` and
+//! `::part()` are stored apart from the components too, since they cross a
+//! tree boundary: the components match the slot or the shadow host, and the
+//! pseudo-element's argument matches the element of the other tree. `:host`,
+//! `:host()` and `:host-context()` match the featureless host when the rules
+//! of its shadow tree are matched ([`matches_in_tree()`]).
+//!
 //! Namespaces: `@namespace` is not supported, so every namespace prefix is
 //! undeclared and makes a selector invalid, as the specification requires.
 //! `*|E` is the same as `E` (any namespace). `|E` (no namespace) is
@@ -24,7 +31,7 @@ mod specificity;
 pub use anb::AnB;
 pub use matching::{
     CaseSensitivity, Element, ElementState, MATCH_BUDGET, MatchingContext, QuirksMode, matches,
-    matches_any, matches_with_scope,
+    matches_any, matches_in_tree, matches_part, matches_slotted, matches_with_scope,
 };
 pub use specificity::Specificity;
 
@@ -91,19 +98,63 @@ impl<'a> IntoIterator for &'a SelectorList {
 pub struct Selector {
     /// Simple selectors and combinators, right to left. Compound selectors
     /// are separated by [`Component::Combinator`]; inside a compound, the
-    /// order is as written.
+    /// order is as written. A compound can be empty only before a
+    /// pseudo-element (`::before`: no implicit `*` is stored). With
+    /// [`Selector::shadow`], they match the slot (`::slotted()`) or the
+    /// shadow host (`::part()`), not the subject.
     components: Box<[Component]>,
+    /// `::slotted()` or `::part()`, which cross a shadow boundary.
+    shadow: Option<Box<ShadowPseudo>>,
     pseudo_element: Option<PseudoElement>,
     specificity: Specificity,
 }
 
 impl Selector {
-    pub(crate) fn new(components: Vec<Component>, pseudo_element: Option<PseudoElement>) -> Self {
-        let specificity = specificity::compute(&components, pseudo_element.is_some());
+    pub(crate) fn new(
+        components: Vec<Component>,
+        shadow: Option<ShadowPseudo>,
+        pseudo_element: Option<PseudoElement>,
+    ) -> Self {
+        let specificity =
+            specificity::compute(&components, shadow.as_ref(), pseudo_element.is_some());
         Selector {
             components: components.into_boxed_slice(),
+            shadow: shadow.map(Box::new),
             pseudo_element,
             specificity,
+        }
+    }
+
+    /// Which shadow pseudo-element (`::slotted()` or `::part()`) the
+    /// selector has, if any. Such a selector matches an element of another
+    /// tree than its rule (see [`matches_slotted()`] and [`matches_part()`]);
+    /// [`matches()`] and [`matches_in_tree()`] never match it.
+    pub fn shadow_pseudo(&self) -> Option<ShadowPseudoKind> {
+        self.shadow.as_deref().map(|s| match s {
+            ShadowPseudo::Slotted(_) => ShadowPseudoKind::Slotted,
+            ShadowPseudo::Part { .. } => ShadowPseudoKind::Part,
+        })
+    }
+
+    /// How the subject compound relates to the shadow host, for a rule of
+    /// a shadow tree (CSS Scoping 1 §3.2: the host is featureless in its
+    /// tree and matches only `:host`, `:host()` and `:host-context()`).
+    pub fn host_relation(&self) -> HostRelation {
+        if self.shadow.is_some() {
+            return HostRelation::Never;
+        }
+        let subject = matching::split_compound(&self.components).0;
+        if subject.iter().any(|c| {
+            matches!(
+                c,
+                Component::PseudoClass(PseudoClass::Host(_) | PseudoClass::HostContext(_))
+            )
+        }) {
+            HostRelation::Only
+        } else if subject.iter().any(mentions_host) {
+            HostRelation::Also
+        } else {
+            HostRelation::Never
         }
     }
 
@@ -128,7 +179,11 @@ impl Selector {
     /// or the local name of the key. In quirks mode, IDs and classes match
     /// ASCII case-insensitively, so look them up in lowercase there.
     pub fn bucket_key(&self) -> BucketKey<'_> {
-        let subject = matching::split_compound(&self.components).0;
+        let subject = match self.shadow.as_deref() {
+            Some(ShadowPseudo::Slotted(argument)) => &argument[..],
+            Some(ShadowPseudo::Part { .. }) => return BucketKey::Universal,
+            None => matching::split_compound(&self.components).0,
+        };
         let mut class = None;
         let mut local_name = None;
         for component in subject {
@@ -164,7 +219,12 @@ impl Selector {
         // combinator matches an ancestor of the subject, also when sibling
         // combinators come between (siblings share the parent).
         let mut ancestors = Vec::new();
-        let mut rest = matching::split_compound(&self.components).1;
+        let (subject, mut rest) = matching::split_compound(&self.components);
+        // With `::slotted()` or `::part()`, the subject compound matches the
+        // slot or the host: a flat ancestor of the element.
+        if self.shadow.is_some() {
+            ancestors.push(subject);
+        }
         while let Some((Component::Combinator(combinator), after)) = rest.split_first() {
             let (compound, next) = matching::split_compound(after);
             if matches!(combinator, Combinator::Descendant | Combinator::Child) {
@@ -193,12 +253,36 @@ impl Selector {
     /// `:link` and `:visited` add [`ElementState::VISITED`]. The style crate
     /// can skip restyling when other flags change.
     pub fn state_dependencies(&self) -> ElementState {
-        state_dependencies(&self.components)
+        let shadow = match self.shadow.as_deref() {
+            Some(ShadowPseudo::Slotted(argument)) => state_dependencies(argument),
+            Some(ShadowPseudo::Part { after, .. }) => state_dependencies(after),
+            None => ElementState::empty(),
+        };
+        state_dependencies(&self.components) | shadow
     }
 
     /// True if the selector matches `element`. See [`matches()`].
     pub fn matches<E: Element>(&self, element: &E, context: &mut MatchingContext) -> bool {
         matches(self, element, context)
+    }
+}
+
+/// True if the component is or contains `:host`, `:host()` or
+/// `:host-context()` in its subject compound (also inside `:is()` and
+/// `:where()`, which can match the featureless host).
+fn mentions_host(component: &Component) -> bool {
+    match component {
+        Component::PseudoClass(PseudoClass::Host(_) | PseudoClass::HostContext(_)) => true,
+        Component::PseudoClass(PseudoClass::Is(list) | PseudoClass::Where(list)) => {
+            list.iter().any(|s| {
+                s.shadow.is_none()
+                    && matching::split_compound(&s.components)
+                        .0
+                        .iter()
+                        .any(mentions_host)
+            })
+        }
+        _ => false,
     }
 }
 
@@ -227,6 +311,9 @@ fn state_dependencies(components: &[Component]) -> ElementState {
                         acc | r.selector.state_dependencies()
                     })
                 }
+                PseudoClass::Host(Some(argument)) | PseudoClass::HostContext(argument) => {
+                    argument.state_dependencies()
+                }
                 _ => ElementState::empty(),
             }
         })
@@ -249,6 +336,42 @@ pub enum BucketKey<'a> {
     },
     /// No key: the selector can match any element.
     Universal,
+}
+
+/// The kind of a shadow pseudo-element (see [`Selector::shadow_pseudo`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ShadowPseudoKind {
+    /// `::slotted(<compound-selector>)`.
+    /// <https://drafts.csswg.org/css-scoping/#slotted-pseudo>
+    Slotted,
+    /// `::part(<ident>+)`. <https://drafts.csswg.org/css-shadow-parts/#part>
+    Part,
+}
+
+/// Whether a selector of a shadow tree's rule can match the tree's host
+/// (see [`Selector::host_relation`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum HostRelation {
+    /// The subject compound has no `:host*`: it never matches the host.
+    Never,
+    /// The subject compound has `:host`, `:host()` or `:host-context()`: it
+    /// matches only the featureless host.
+    Only,
+    /// The subject compound has `:host*` inside `:is()` or `:where()` only:
+    /// it can match the host and other elements.
+    Also,
+}
+
+/// `::slotted()` or `::part()` with its arguments.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum ShadowPseudo {
+    /// `::slotted(<compound-selector>)`: the compound, in written order.
+    Slotted(Box<[Component]>),
+    /// `::part(<ident>+)` and the pseudo-classes after it (written order).
+    Part {
+        names: Box<[Box<str>]>,
+        after: Box<[Component]>,
+    },
 }
 
 /// A combinator between two compound selectors.
@@ -445,12 +568,12 @@ pub(crate) enum PseudoClass {
     Has(Box<[RelativeSelector]>),
     Lang(Box<[Box<str>]>),
     Dir(Direction),
-    /// `:host` and `:host(<compound-selector>)`. There are no shadow trees,
-    /// so it never matches. It parses so that a selector list that
-    /// contains it stays valid.
+    /// `:host` and `:host(<compound-selector>)`: the shadow host, in the
+    /// context of its shadow tree.
     /// <https://drafts.csswg.org/css-scoping/#host-selector>
     Host(Option<Box<Selector>>),
-    /// `:host-context(<compound-selector>)`. Never matches (see `Host`).
+    /// `:host-context(<compound-selector>)`: the shadow host if it or a
+    /// flat tree ancestor matches the argument (measured in Chromium 148).
     HostContext(Box<Selector>),
 }
 

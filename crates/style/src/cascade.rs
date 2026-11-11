@@ -8,17 +8,23 @@
 //! For each element:
 //!
 //! 1. Find the matching rules ([`Stylist::matching_rules`]), the
-//!    presentational hints ([`crate::hints`]) and the `style` attribute.
+//!    presentational hints ([`crate::hints`]) and the `style` attribute. In
+//!    a document with shadow trees also the rules of the element's own
+//!    shadow tree, the `:host` rules of its shadow root, the `::slotted()`
+//!    rules of the slots it is assigned to and the `::part()` rules of the
+//!    tree around its host (`Styler::match_scoped`, ADR 0036 section 5).
 //! 2. Pick the winning declaration of each property, in this order of
 //!    precedence (CSS Cascade 5, <https://www.w3.org/TR/css-cascade-5/#cascade-sort>):
-//!    user-agent `!important`, author `!important` (the `style` attribute
-//!    before rules; the rules of the first cascade layer before those of
-//!    later layers, the unlayered rules last), author normal (the `style`
-//!    attribute, then the unlayered rules, then the layers from the last to
-//!    the first, then presentational hints), user-agent normal. Within a
-//!    layer, higher specificity wins, then later source order.
-//!    `revert-layer` drops the author declarations of its layer and of the
-//!    layers above it ([`Position`]).
+//!    user-agent `!important`, author `!important` (the inner cascade
+//!    contexts of shadow trees first; in each context, the `style` attribute
+//!    of its elements before rules, the rules of the first cascade layer
+//!    before those of later layers, the unlayered rules last), author normal
+//!    (the outer contexts first; in each, the `style` attribute, then the
+//!    unlayered rules, then the layers from the last to the first), then
+//!    presentational hints, user-agent normal. Within a layer, higher
+//!    specificity wins, then later source order. `revert-layer` drops the
+//!    author declarations of its context in its layer and the layers above
+//!    it ([`Position`]).
 //! 3. Compute custom properties, then `font-family` and `font-size`
 //!    (other properties depend on the font size), then all other
 //!    properties. Values with `var()` are substituted and parsed here.
@@ -40,6 +46,8 @@
 //! in the `content` of pseudo-elements with their text and computes the
 //! ordinal values of list items.
 
+#[cfg(test)]
+mod scoping_tests;
 pub(crate) mod use_instances;
 
 use std::collections::{HashMap, HashSet};
@@ -62,7 +70,7 @@ use crate::properties::{
     UnparsedValue, parse_property_value,
 };
 use crate::style_map::{PseudoKind, StyleMap};
-use crate::stylist::{CascadeOrigin, RuleTarget, Stylist};
+use crate::stylist::{CascadeOrigin, Rule, RuleSet, RuleTarget, ScopeIndex, Stylist};
 use crate::values::{
     Content, ContentItem, Display, Float, FontSizeOrigin, LengthContext, ListStylePosition,
     ListStyleType, Overflow, TextAlign, UserSelect,
@@ -158,7 +166,7 @@ pub fn compute_element_styles(
             return Vec::new();
         };
         let is_root = id == root;
-        styler.document_scope = scope == NodeId::DOCUMENT;
+        styler.scope = scope;
         let style = styler.style_element(&el, &parent, layout_parent, is_root);
         if is_root {
             styler.cx.root_font_size = style.font_size;
@@ -202,7 +210,7 @@ pub fn compute_pseudo_element_style(
         .map(|(_, s)| s.display)
         .find(|&d| d != Display::Contents);
     let el = DomElement::new(doc, *node, &state_set)?;
-    styler.document_scope = doc.in_document_tree(*node);
+    styler.scope = doc.root(*node);
     styler.style_pseudo_element(&el, style, kind, layout_parent, true)
 }
 
@@ -234,6 +242,8 @@ struct SharingKey {
     /// See [`contents_is_none`].
     contents_is_none: bool,
     rules: Box<[u32]>,
+    /// The matched rules of shadow trees (empty without them).
+    scoped: Box<[ScopedMatch]>,
 }
 
 /// Settings shared by all cascades of one document.
@@ -249,6 +259,30 @@ struct CascadeContext<'a> {
     /// conditions ([`Stylist::layer_ranks`]); `layer_ranks[0]` is the rank
     /// of the unlayered rules, the highest.
     layer_ranks: Arc<[u32]>,
+}
+
+impl CascadeContext<'_> {
+    /// The rule of a [`ScopedMatch`].
+    fn scoped_rule(&self, m: &ScopedMatch) -> Option<&Rule> {
+        let stylist = if m.stylist == DOCUMENT_STYLIST {
+            self.stylist
+        } else {
+            self.stylist.scope(m.stylist)?
+        };
+        Some(stylist.rule(m.rule))
+    }
+}
+
+/// The rules that match an element or a pseudo-element.
+struct MatchedRules<'m> {
+    /// Rules of the document's stylist, sorted by the cascade order of
+    /// normal declarations ([`Stylist::matching_rules`]).
+    document: &'m [u32],
+    /// Rules of shadow trees' stylists and the document's `::part()` rules.
+    scoped: &'m [ScopedMatch],
+    /// The cascade context of the element's own tree (that of the document's
+    /// author rules in `document`, and of the `style` attribute).
+    own: u32,
 }
 
 /// The declarations that apply to an element, besides the matched rules.
@@ -274,12 +308,58 @@ struct Styler<'a> {
     shared: HashMap<SharingKey, Arc<ComputedStyle>>,
     scratch: Vec<u32>,
     matched: Vec<u32>,
-    /// True while the element being styled is in the document's tree
-    /// scope: only then do the author rules apply. The sheets of shadow
-    /// trees are not applied yet (ADR 0036, 5b implementation notes), so
-    /// an element of a shadow tree gets the user-agent rules, the hints,
-    /// its `style` attribute and inheritance.
-    document_scope: bool,
+    /// The tree scope of the element being styled (the document node or a
+    /// shadow root): the document's author rules apply only to elements of
+    /// the document's scope, the rules of a shadow tree's sheets to the
+    /// elements of that tree (ADR 0036 section 5).
+    scope: NodeId,
+    /// The rules of shadow trees (and the document's `::part()` rules) that
+    /// match the element being styled.
+    scoped_matched: Vec<ScopedMatch>,
+    found: Vec<u32>,
+    /// True if the document has shadow roots and the stylist has rules of
+    /// shadow trees or `::part()` rules: only then are they looked up.
+    shadow_rules: bool,
+    /// The evaluated media and the layer ranks of each scoped stylist, made
+    /// at its first use.
+    scope_cascades: Vec<Option<ScopeCascade>>,
+    /// The nesting depth of each shadow root met (the document is 0).
+    depths: HashMap<NodeId, u32>,
+}
+
+/// The evaluated `@media` conditions and the layer ranks of a scoped
+/// stylist.
+struct ScopeCascade {
+    media: Vec<bool>,
+    ranks: Arc<[u32]>,
+}
+
+/// The stylist of a [`ScopedMatch`] that is the document's.
+const DOCUMENT_STYLIST: ScopeIndex = ScopeIndex::MAX;
+
+/// The most slots, each assigned to the next, whose `::slotted()` rules an
+/// element gets: the first slots of the chain. A chain of N slots passed on
+/// through N nested trees would otherwise cost O(N²) in a style pass
+/// (hostile case `shadow-slotted-passthrough-10000`); the bound equals the
+/// box tree's depth limit (`MAX_BOX_DEPTH`), below which such content is
+/// flattened anyway.
+const MAX_SLOT_CHAIN: usize = 256;
+
+/// A matched author rule of a shadow tree's stylist, or a `::part()` rule of
+/// the document's, with its cascade context (CSS Cascade 5 §6.1; ADR 0036
+/// section 5): a number that orders the contexts of one element by
+/// shadow-including tree order of their roots (CSS Scoping 1 §3.1), so that
+/// a smaller one is an outer context: the tree around the element's own
+/// (`::part()` rules), its own tree, then the trees of the slots that it is
+/// assigned to, its assigned slot's first (each later one is nested in the
+/// one before), then its own shadow tree (`:host` rules).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct ScopedMatch {
+    context: u32,
+    stylist: ScopeIndex,
+    rule: u32,
+    /// The rank of the rule's layer in its stylist.
+    rank: u32,
 }
 
 impl<'a> Styler<'a> {
@@ -323,7 +403,227 @@ impl<'a> Styler<'a> {
             shared: HashMap::new(),
             scratch: Vec::new(),
             matched: Vec::new(),
-            document_scope: true,
+            scope: NodeId::DOCUMENT,
+            scoped_matched: Vec::new(),
+            found: Vec::new(),
+            shadow_rules: doc.has_shadow_state() && stylist.has_shadow_rules(),
+            scope_cascades: Vec::new(),
+            depths: HashMap::new(),
+        }
+    }
+
+    /// The nesting depth of the tree scope `scope`: 0 for the document (and
+    /// for the root of a detached tree), 1 for the shadow root of a host in
+    /// the document, and so on. Memoized, so that a walk down nested trees
+    /// costs linear time.
+    fn depth(&mut self, scope: NodeId) -> u32 {
+        let doc = self.doc;
+        let mut chain = Vec::new();
+        let mut current = scope;
+        let base = loop {
+            if current == NodeId::DOCUMENT {
+                break 0;
+            }
+            if let Some(&depth) = self.depths.get(&current) {
+                break depth;
+            }
+            match doc.shadow_host(current) {
+                Some(host) => {
+                    chain.push(current);
+                    current = doc.root(host);
+                }
+                None => break 0,
+            }
+        };
+        let mut depth = base;
+        for &root in chain.iter().rev() {
+            depth = depth.saturating_add(1);
+            self.depths.insert(root, depth);
+        }
+        depth
+    }
+
+    /// Makes the evaluated media and layer ranks of the scoped stylist
+    /// `index` at its first use.
+    fn ensure_scope_cascade(&mut self, index: ScopeIndex) {
+        let Some(stylist) = self.cx.stylist.scope(index) else {
+            return;
+        };
+        let slot = index as usize;
+        if self.scope_cascades.len() <= slot {
+            self.scope_cascades.resize_with(slot + 1, || None);
+        }
+        if let Some(entry) = self.scope_cascades.get_mut(slot)
+            && entry.is_none()
+        {
+            let media = stylist.evaluate_media(self.cx.env);
+            let ranks = stylist.layer_ranks(&media);
+            *entry = Some(ScopeCascade { media, ranks });
+        }
+    }
+
+    /// Appends to `out` the rules of `set` of the stylist `index` that
+    /// match, by `test`, with the cascade context `context`. `key` is the
+    /// element whose keys the rules' buckets are looked up by.
+    #[allow(clippy::too_many_arguments)]
+    fn collect_scoped(
+        &mut self,
+        index: ScopeIndex,
+        set: RuleSet,
+        target: RuleTarget,
+        key: &DomElement<'_>,
+        context: u32,
+        mut test: impl FnMut(&swb_css::Selector, &mut MatchingContext) -> bool,
+        out: &mut Vec<ScopedMatch>,
+    ) {
+        let (stylist, media, ranks): (&Stylist, &[bool], &[u32]) = if index == DOCUMENT_STYLIST {
+            (self.cx.stylist, &self.media, &self.cx.layer_ranks)
+        } else {
+            self.ensure_scope_cascade(index);
+            match (
+                self.cx.stylist.scope(index),
+                self.scope_cascades
+                    .get(index as usize)
+                    .and_then(Option::as_ref),
+            ) {
+                (Some(stylist), Some(c)) => (stylist, &c.media, &c.ranks),
+                _ => return,
+            }
+        };
+        self.found.clear();
+        let matching = &mut self.matching;
+        stylist.collect(
+            set,
+            target,
+            key,
+            media,
+            self.filter.as_ref(),
+            &mut self.scratch,
+            |selector| test(selector, matching),
+            &mut self.found,
+        );
+        out.extend(self.found.iter().map(|&rule| {
+            ScopedMatch {
+                context,
+                stylist: index,
+                rule,
+                rank: ranks
+                    .get(stylist.rule(rule).layer as usize)
+                    .copied()
+                    .unwrap_or(0),
+            }
+        }));
+    }
+
+    /// Appends to `out` the rules of shadow trees, and the document's
+    /// `::part()` rules, that match `el` (the element being styled, of the
+    /// tree scope `self.scope`) or its pseudo-element `target`: steps 2 to 5
+    /// of ADR 0036 section 5. The element's own tree's rules for an element
+    /// of the document are the document stylist's (step 1).
+    fn match_scoped(
+        &mut self,
+        el: &DomElement<'_>,
+        target: RuleTarget,
+        out: &mut Vec<ScopedMatch>,
+    ) {
+        let doc = self.doc;
+        let states = self.states;
+        let stylist = self.cx.stylist;
+        let scope = self.scope;
+        let own = self.depth(scope);
+        let node = el.node_id();
+        let handle = |id: Option<NodeId>| id.and_then(|id| DomElement::new(doc, id, states));
+        let host = handle(doc.shadow_host(scope));
+        if let Some(host) = &host {
+            // The rules of the element's own shadow tree.
+            if let Some(index) = stylist.scope_of(scope) {
+                self.collect_scoped(
+                    index,
+                    RuleSet::Tree,
+                    target,
+                    el,
+                    own,
+                    |s, cx| swb_css::matches_in_tree(s, el, Some(host), cx),
+                    out,
+                );
+            }
+            // `::part()` rules of the tree around the host, and `:host::part()`
+            // rules of the element's own tree.
+            if el.data().has_attr("part") {
+                let outer = doc.root(host.node_id());
+                let outer_host = handle(doc.shadow_host(outer));
+                let outer_index = if outer == NodeId::DOCUMENT {
+                    Some(DOCUMENT_STYLIST)
+                } else {
+                    stylist.scope_of(outer)
+                };
+                if let Some(index) = outer_index {
+                    self.collect_scoped(
+                        index,
+                        RuleSet::Part,
+                        target,
+                        el,
+                        own.saturating_sub(1),
+                        |s, cx| swb_css::matches_part(s, el, host, outer_host.as_ref(), cx),
+                        out,
+                    );
+                }
+                if let Some(index) = stylist.scope_of(scope) {
+                    self.collect_scoped(
+                        index,
+                        RuleSet::Part,
+                        target,
+                        el,
+                        own,
+                        |s, cx| swb_css::matches_part(s, el, host, Some(host), cx),
+                        out,
+                    );
+                }
+            }
+        }
+        let mut context = own.saturating_add(1);
+        // `::slotted()` rules of the trees of the slots that the element is
+        // assigned to: its slot, the slot that slot is assigned to, and so on
+        // (measured: a nested slot's rules match, `slotted-nested-cascade`).
+        let mut current = node;
+        for _ in 0..MAX_SLOT_CHAIN {
+            let assigned = doc
+                .parent_element(current)
+                .and_then(|p| doc.element(p))
+                .is_some_and(ElementData::is_shadow_host);
+            let Some(slot) = assigned.then(|| doc.assigned_slot(current)).flatten() else {
+                break;
+            };
+            let root = doc.root(slot);
+            if let (Some(index), Some(slot_el)) = (stylist.scope_of(root), handle(Some(slot))) {
+                let slot_host = handle(doc.shadow_host(root));
+                self.collect_scoped(
+                    index,
+                    RuleSet::Slotted,
+                    target,
+                    el,
+                    context,
+                    |s, cx| swb_css::matches_slotted(s, el, &slot_el, slot_host.as_ref(), cx),
+                    out,
+                );
+            }
+            context = context.saturating_add(1);
+            current = slot;
+        }
+        // `:host` rules of the element's own shadow tree.
+        if el.data().is_shadow_host()
+            && let Some(root) = doc.shadow_root(node)
+            && let Some(index) = stylist.scope_of(root)
+        {
+            self.collect_scoped(
+                index,
+                RuleSet::Host,
+                target,
+                el,
+                context,
+                |s, cx| swb_css::matches_in_tree(s, el, Some(el), cx),
+                out,
+            );
         }
     }
 
@@ -362,7 +662,7 @@ impl<'a> Styler<'a> {
                 continue;
             };
             let is_root = node == root;
-            self.document_scope = scope == NodeId::DOCUMENT;
+            self.scope = scope;
             let style = self.style_element(&el, &parent, layout_parent, is_root);
             if is_root {
                 self.cx.root_font_size = style.font_size;
@@ -423,11 +723,21 @@ impl<'a> Styler<'a> {
             &self.media,
             &self.cx.layer_ranks,
             self.filter.as_ref(),
-            self.document_scope,
+            self.scope == NodeId::DOCUMENT,
             &mut self.matching,
             &mut self.scratch,
             &mut matched,
         );
+        let mut scoped = std::mem::take(&mut self.scoped_matched);
+        scoped.clear();
+        if self.shadow_rules {
+            self.match_scoped(el, RuleTarget::Element, &mut scoped);
+        }
+        let own = if scoped.is_empty() {
+            0
+        } else {
+            self.depth(self.scope)
+        };
         let mut hints = Vec::new();
         let dimension_source = self
             .states
@@ -450,24 +760,34 @@ impl<'a> Styler<'a> {
         let shareable = !is_root
             && hints.is_empty()
             && style_attribute.is_none()
-            && matched.iter().all(|&i| !stylist.rule(i).uses_element_data);
+            && matched.iter().all(|&i| !stylist.rule(i).uses_element_data)
+            && scoped
+                .iter()
+                .all(|m| !self.cx.scoped_rule(m).is_some_and(|r| r.uses_element_data));
         let contents_is_none = contents_is_none(data);
         let key = shareable.then(|| SharingKey {
             parent: Arc::as_ptr(parent) as usize,
             layout_parent,
             contents_is_none,
             rules: matched.clone().into_boxed_slice(),
+            scoped: scoped.clone().into_boxed_slice(),
         });
         if let Some(shared) = key.as_ref().and_then(|k| self.shared.get(k)) {
             let shared = Arc::clone(shared);
             self.matched = matched;
+            self.scoped_matched = scoped;
             return shared;
         }
         let extra = ExtraDeclarations {
             hints: &hints,
             style_attribute: style_attribute.as_ref(),
         };
-        let mut style = cascade(&self.cx, &matched, extra, parent, Some(data), is_root);
+        let rules = MatchedRules {
+            document: &matched,
+            scoped: &scoped,
+            own,
+        };
+        let mut style = cascade(&self.cx, &rules, extra, parent, Some(data), is_root);
         apply_fixups(&mut style, is_root, layout_parent);
         // Chromium (`StyleAdjuster`): tables do not take the `-webkit-`
         // values of `text-align`, so `<center>` and `align` do not align the
@@ -491,6 +811,7 @@ impl<'a> Styler<'a> {
             style.display = Display::None;
         }
         self.matched = matched;
+        self.scoped_matched = scoped;
         let style = Arc::new(style);
         if let Some(key) = key {
             self.shared.insert(key, Arc::clone(&style));
@@ -557,6 +878,8 @@ impl<'a> Styler<'a> {
     ) -> Option<ComputedStyle> {
         let mut matched = std::mem::take(&mut self.matched);
         matched.clear();
+        let mut scoped = std::mem::take(&mut self.scoped_matched);
+        scoped.clear();
         if self.cx.stylist.has_pseudo_rules(kind) {
             self.cx.stylist.matching_rules(
                 el,
@@ -564,17 +887,30 @@ impl<'a> Styler<'a> {
                 &self.media,
                 &self.cx.layer_ranks,
                 self.filter.as_ref(),
-                self.document_scope,
+                self.scope == NodeId::DOCUMENT,
                 &mut self.matching,
                 &mut self.scratch,
                 &mut matched,
             );
+            if self.shadow_rules {
+                self.match_scoped(el, RuleTarget::Pseudo(kind), &mut scoped);
+            }
         }
+        let own = if scoped.is_empty() {
+            0
+        } else {
+            self.depth(self.scope)
+        };
         let boxed = matches!(kind, PseudoKind::Marker | PseudoKind::Placeholder);
-        let pseudo = (!matched.is_empty() || boxed || always).then(|| {
+        let pseudo = (!matched.is_empty() || !scoped.is_empty() || boxed || always).then(|| {
+            let rules = MatchedRules {
+                document: &matched,
+                scoped: &scoped,
+                own,
+            };
             let mut pseudo = cascade(
                 &self.cx,
-                &matched,
+                &rules,
                 ExtraDeclarations::default(),
                 style,
                 Some(el.data()),
@@ -586,6 +922,7 @@ impl<'a> Styler<'a> {
             pseudo
         });
         self.matched = matched;
+        self.scoped_matched = scoped;
         pseudo
     }
 
@@ -672,21 +1009,43 @@ enum Level {
     UserAgent,
 }
 
-/// Where a group of author declarations stands in the layer order, for
-/// `revert-layer`: the presentational hints are 0 (below every layer), the
-/// layers follow in their order from 1, the unlayered rules come after the
-/// layers, and the `style` attribute last. A `revert-layer` at position `p`
-/// drops the author declarations at positions `p` and above, whatever their
-/// importance (measured in Chromium 148, `tools/probes/cascade-layers.json`,
-/// `rl-*` cases).
-type Position = u32;
+/// Where a group of author declarations stands in the layer order of its
+/// cascade context, for `revert-layer`: the context in the high 32 bits,
+/// and in the low bits the presentational hints are 0 (below every layer),
+/// the layers follow in their order from 1, the unlayered rules come after
+/// the layers, and the `style` attribute last. A `revert-layer` at position
+/// `p` drops the author declarations of its context at positions `p` and
+/// above, whatever their importance (measured in Chromium 148,
+/// `tools/probes/cascade-layers.json`, `rl-*` cases); each context has its
+/// own layers.
+type Position = u64;
 
-/// The position of the presentational hints.
-const HINT_POSITION: Position = 0;
+/// The position of the presentational hints in their context.
+const HINT_POSITION: u32 = 0;
 
-/// The position of the rules of the layer of rank `rank`.
-fn rule_position(rank: u32) -> Position {
+/// The position of the `style` attribute in its context: above every layer.
+const ATTRIBUTE_POSITION: u32 = u32::MAX - 1;
+
+/// The position of the rules of the layer of rank `rank` in their context.
+fn rule_position(rank: u32) -> u32 {
     rank.saturating_add(1)
+}
+
+/// The [`Position`] of `layer_position` in the cascade context `context`.
+fn position(context: u32, layer_position: u32) -> Position {
+    (u64::from(context) << 32) | u64::from(layer_position)
+}
+
+/// True if a declaration at `position` is dropped by a `revert-layer` that
+/// won at `floor`: same context, same layer or a later one.
+fn reverted_by_layer(position: Position, floor: Position) -> bool {
+    context_of(position) == context_of(floor) && position >= floor
+}
+
+/// The cascade context of a [`Position`].
+fn context_of(position: Position) -> u32 {
+    // The high 32 bits; the shift leaves no more than 32 bits.
+    u32::try_from(position >> 32).unwrap_or(u32::MAX)
 }
 
 /// The winning declaration of each property.
@@ -696,15 +1055,23 @@ struct Winners<'d> {
     /// author-level declarations are skipped, so the user-agent value (if
     /// any) wins. <https://www.w3.org/TR/css-cascade-5/#default>
     reverted: [bool; LonghandId::COUNT],
-    /// Per property, the position of the lowest `revert-layer` that won:
-    /// author declarations at this position and above are skipped
-    /// ([`Position`]). `Position::MAX` if none won.
+    /// Per property, the position of the lowest `revert-layer` that won in
+    /// the first context that had one: author declarations of that context
+    /// at this position and above are skipped ([`Position`]).
+    /// `Position::MAX` if none won.
     layer_floor: [Position; LonghandId::COUNT],
+    /// The floors of the other contexts, by property index and context: a
+    /// `revert-layer` rolls back the layers of its own context only, so a
+    /// floor of one context must not replace the floor of another
+    /// (measured, `tools/probes/web-shadow-dom.json`, case
+    /// `revert-layer-contexts`). Made at the first such floor: `None`
+    /// without shadow trees.
+    other_floors: Option<HashMap<(usize, u32), Position>>,
     custom: Vec<(&'d Arc<str>, &'d CustomDeclaration)>,
     custom_seen: HashSet<&'d str>,
-    /// The same as `layer_floor`, for the custom properties that a
-    /// `revert-layer` rolled back.
-    custom_floor: HashMap<&'d str, Position>,
+    /// The same as `layer_floor` and `other_floors`, for the custom
+    /// properties that a `revert-layer` rolled back, by name and context.
+    custom_floor: HashMap<(&'d str, u32), Position>,
 }
 
 impl<'d> Winners<'d> {
@@ -713,9 +1080,43 @@ impl<'d> Winners<'d> {
             longhands: [None; LonghandId::COUNT],
             reverted: [false; LonghandId::COUNT],
             layer_floor: [Position::MAX; LonghandId::COUNT],
+            other_floors: None,
             custom: Vec::new(),
             custom_seen: HashSet::new(),
             custom_floor: HashMap::new(),
+        }
+    }
+
+    /// True if a `revert-layer` of the context of `position` drops an author
+    /// declaration of property `index` at `position`.
+    fn layer_reverted(&self, index: usize, position: Position) -> bool {
+        let floor = self.layer_floor[index];
+        if floor == Position::MAX {
+            // No floor in any context: `other_floors` gets one only after
+            // `layer_floor` has one.
+            return false;
+        }
+        if context_of(floor) == context_of(position) {
+            return position >= floor;
+        }
+        self.other_floors
+            .as_ref()
+            .and_then(|floors| floors.get(&(index, context_of(position))))
+            .is_some_and(|&f| reverted_by_layer(position, f))
+    }
+
+    /// Records a `revert-layer` of property `index` that won at `position`.
+    fn set_layer_floor(&mut self, index: usize, position: Position) {
+        let floor = &mut self.layer_floor[index];
+        if *floor == Position::MAX || context_of(*floor) == context_of(position) {
+            *floor = position.min(*floor);
+        } else {
+            let other = self
+                .other_floors
+                .get_or_insert_with(HashMap::new)
+                .entry((index, context_of(position)))
+                .or_insert(position);
+            *other = position.min(*other);
         }
     }
 
@@ -736,7 +1137,7 @@ impl<'d> Winners<'d> {
                     let index = id as usize;
                     if self.longhands[index].is_some()
                         || (level == Level::Author
-                            && (self.reverted[index] || position >= self.layer_floor[index]))
+                            && (self.reverted[index] || self.layer_reverted(index, position)))
                     {
                         continue;
                     }
@@ -749,7 +1150,7 @@ impl<'d> Winners<'d> {
                         PropertyDeclaration::CssWide(_, CssWideKeyword::RevertLayer)
                             if level == Level::Author =>
                         {
-                            self.layer_floor[index] = position;
+                            self.set_layer_floor(index, position);
                         }
                         _ => self.longhands[index] = Some(other),
                     }
@@ -765,9 +1166,10 @@ impl<'d> Winners<'d> {
         level: Level,
         position: Position,
     ) {
-        let floor = self.custom_floor.get(&**name).copied();
+        let key = (&**name, context_of(position));
+        let floor = self.custom_floor.get(&key).copied();
         if self.custom_seen.contains(&**name)
-            || (level == Level::Author && floor.is_some_and(|f| position >= f))
+            || (level == Level::Author && floor.is_some_and(|f| reverted_by_layer(position, f)))
         {
             return;
         }
@@ -777,7 +1179,8 @@ impl<'d> Winners<'d> {
                 CustomDeclaration::CssWide(CssWideKeyword::RevertLayer)
             )
         {
-            self.custom_floor.insert(name, position);
+            let floor = self.custom_floor.entry(key).or_insert(position);
+            *floor = position.min(*floor);
         } else {
             self.custom_seen.insert(name);
             self.custom.push((name, value));
@@ -785,70 +1188,132 @@ impl<'d> Winners<'d> {
     }
 }
 
+/// An author rule in the cascade: its cascade context, the rank of its
+/// layer, and the rule.
+#[derive(Clone, Copy)]
+struct AuthorRule<'r> {
+    context: u32,
+    rank: u32,
+    rule: &'r Rule,
+}
+
 /// Runs the cascade for one element or pseudo-element and computes its
-/// style. `matched` holds rule indices sorted by cascade order.
+/// style.
+///
+/// The author rules come from several cascade contexts when shadow trees
+/// are involved (CSS Cascade 5 §6.1; ADR 0036 section 5): for normal
+/// declarations the outer context wins, for `!important` ones the inner
+/// (measured in Chromium 148, `style-scoping`, `slotted-nested-cascade`,
+/// `host-attribute-and-hints`, `part-depth`). The context step comes before
+/// the `style` attribute (which belongs to the element's own context) and
+/// before the layers. The presentational hints stay below all author rules
+/// (measured: a host's `align` hint loses to `:host` in its shadow tree).
 fn cascade(
     cx: &CascadeContext<'_>,
-    matched: &[u32],
+    matched: &MatchedRules<'_>,
     extra: ExtraDeclarations<'_>,
     parent: &ComputedStyle,
     element: Option<&ElementData>,
     is_root: bool,
 ) -> ComputedStyle {
     let stylist = cx.stylist;
-    let rules: Vec<&crate::stylist::Rule> = matched.iter().map(|&i| stylist.rule(i)).collect();
-    let ua_end = rules
+    let document = matched.document;
+    let origin = |i: &u32| stylist.rule(*i).origin;
+    let ua_end = document
         .iter()
-        .position(|r| r.origin != CascadeOrigin::UserAgent)
-        .unwrap_or(rules.len());
-    let author_start = rules
+        .position(|i| origin(i) != CascadeOrigin::UserAgent)
+        .unwrap_or(document.len());
+    let author_start = document
         .iter()
-        .position(|r| r.origin == CascadeOrigin::Author)
-        .unwrap_or(rules.len());
-    let ua = &rules[..ua_end];
-    let hint_rules = &rules[ua_end..author_start];
-    let author = &rules[author_start..];
+        .position(|i| origin(i) == CascadeOrigin::Author)
+        .unwrap_or(document.len());
+    let ua = &document[..ua_end];
+    let hint_rules = &document[ua_end..author_start];
 
     let ranks = &cx.layer_ranks;
-    let rank_of = |r: &crate::stylist::Rule| {
+    let rank_of = |r: &Rule| {
         debug_assert!(
             (r.layer as usize) < ranks.len(),
             "every rule's layer node has a rank"
         );
         ranks.get(r.layer as usize).copied().unwrap_or(0)
     };
-    // The unlayered rules rank last; the `style` attribute stands above them.
-    let attr_position = rule_position(ranks.first().copied().unwrap_or(0)).saturating_add(1);
+    let own = matched.own;
+    // Sorted by context, then layer rank, then specificity and order (the
+    // document's rules are sorted already).
+    let mut author: Vec<AuthorRule<'_>> =
+        Vec::with_capacity(document.len() - author_start + matched.scoped.len());
+    author.extend(document[author_start..].iter().map(|&i| {
+        let rule = stylist.rule(i);
+        AuthorRule {
+            context: own,
+            rank: rank_of(rule),
+            rule,
+        }
+    }));
+    if !matched.scoped.is_empty() {
+        author.extend(matched.scoped.iter().filter_map(|m| {
+            Some(AuthorRule {
+                context: m.context,
+                rank: m.rank,
+                rule: cx.scoped_rule(m)?,
+            })
+        }));
+        author.sort_by_key(|a| (a.context, a.rank, a.rule.sort_key));
+    }
+    // The `style` attribute stands above every layer of its context.
+    let attr_position = position(own, ATTRIBUTE_POSITION);
 
     let mut winners = Winners::new();
-    for r in ua.iter().rev() {
-        winners.add_all(&r.block.important, Level::UserAgent, HINT_POSITION);
+    for &i in ua.iter().rev() {
+        winners.add_all(&stylist.rule(i).block.important, Level::UserAgent, 0);
     }
-    if let Some(attr) = extra.style_attribute {
-        winners.add_all(&attr.important, Level::Author, attr_position);
-    }
-    // `!important` reverses the order of the layers: the rules are sorted by
-    // layer rank, so the layers run from the first to the last and, inside a
-    // layer, the rules from the last to the first. The unlayered rules,
-    // ranked last, are the weakest.
-    for run in author.chunk_by(|a, b| rank_of(a) == rank_of(b)) {
-        let position = rule_position(rank_of(run[0]));
-        for r in run.iter().rev() {
-            winners.add_all(&r.block.important, Level::Author, position);
+    // `!important`: the inner contexts first. Inside a context, the order
+    // of the layers is reversed: the rules are sorted by layer rank, so the
+    // layers run from the first to the last and, inside a layer, the rules
+    // from the last to the first. The unlayered rules, ranked last, are the
+    // weakest. The `style` attribute comes before the rules of its context.
+    let mut attr = extra.style_attribute;
+    for context_run in author.chunk_by(|a, b| a.context == b.context).rev() {
+        if context_run[0].context <= own
+            && let Some(a) = attr.take()
+        {
+            winners.add_all(&a.important, Level::Author, attr_position);
+        }
+        for run in context_run.chunk_by(|a, b| a.rank == b.rank) {
+            let position = position(run[0].context, rule_position(run[0].rank));
+            for r in run.iter().rev() {
+                winners.add_all(&r.rule.block.important, Level::Author, position);
+            }
         }
     }
-    if let Some(attr) = extra.style_attribute {
-        winners.add_all(&attr.normal, Level::Author, attr_position);
+    if let Some(a) = attr {
+        winners.add_all(&a.important, Level::Author, attr_position);
     }
-    for r in author.iter().rev() {
-        winners.add_all(&r.block.normal, Level::Author, rule_position(rank_of(r)));
+    // Normal declarations: the outer contexts first; the `style` attribute
+    // before the rules of its context.
+    let mut attr = extra.style_attribute;
+    for context_run in author.chunk_by(|a, b| a.context == b.context) {
+        if context_run[0].context >= own
+            && let Some(a) = attr.take()
+        {
+            winners.add_all(&a.normal, Level::Author, attr_position);
+        }
+        for r in context_run.iter().rev() {
+            let position = position(r.context, rule_position(r.rank));
+            winners.add_all(&r.rule.block.normal, Level::Author, position);
+        }
     }
-    winners.add_all(extra.hints, Level::Author, HINT_POSITION);
-    for r in hint_rules.iter().rev() {
-        winners.add_all(&r.block.normal, Level::Author, HINT_POSITION);
+    if let Some(a) = attr {
+        winners.add_all(&a.normal, Level::Author, attr_position);
     }
-    for r in ua.iter().rev() {
-        winners.add_all(&r.block.normal, Level::UserAgent, HINT_POSITION);
+    winners.add_all(extra.hints, Level::Author, position(own, HINT_POSITION));
+    for &i in hint_rules.iter().rev() {
+        let hint = &stylist.rule(i).block.normal;
+        winners.add_all(hint, Level::Author, position(own, HINT_POSITION));
+    }
+    for &i in ua.iter().rev() {
+        winners.add_all(&stylist.rule(i).block.normal, Level::UserAgent, 0);
     }
     compute(cx, &winners, parent, element, is_root)
 }

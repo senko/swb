@@ -4797,10 +4797,27 @@ Steps:
         23rd is in a span that is hidden at this width, as in Chromium).
         Other targets unchanged; JS-off snapshot identical; callgrind
         +0.16 % at most (Wikipedia).
-      - 5c style scoping and constructable sheets (`implementer-hard`):
-        `:host`, `:host()`, `:host-context()`, `::slotted()`, `::part()`,
-        the cascade's context step, layers per scope, `new
-        CSSStyleSheet`, `replace`, `replaceSync`, `adoptedStyleSheets`.
+      - 5c style scoping and constructable sheets. Split on 2026-11-11
+        into two parts, each with its own review and commit, because
+        one agent session cannot do both:
+      - 5c-1 style scoping (`implementer-hard`): the sheets of shadow
+        trees, `:host`, `:host()`, `:host-context()`, `::slotted()`,
+        `::part()`, the cascade's context step, layers per scope.
+        Done (2026-11-11): one scoped stylist for each distinct list of
+        shadow sheets, with its own layer order; the cascade's contexts
+        in shadow-including order (measured: the outer context wins for
+        normal declarations, the inner for `!important`; the `style`
+        attribute is in its element's context; presentational hints are
+        below all author rules); `:host-context()` over the flat tree.
+        GitHub: the popover polyfill adds its `<style>` to `tool-tip`'s
+        root only, and that style renders as in Chromium (layout case
+        `tool-tip-style`). Targets unchanged; JS-off snapshot identical;
+        callgrind +0.29 % at most (Wikipedia).
+      - 5c-2 constructable sheets (`implementer-hard`): `new
+        CSSStyleSheet`, `replace`, `replaceSync`, `adoptedStyleSheets` of
+        the document and of shadow roots (an observable array), adopted
+        sheets in the layer tree; the probe rows that `SUB_5C2` in
+        `crates/engine/tests/probe_net.rs` lists.
       - 5d events and focus (`implementer`): retargeting, `composedPath`,
         `relatedTarget`, `activeElement`, `delegatesFocus`, the Tab order
         with scopes.
@@ -4846,7 +4863,7 @@ Steps:
 - CSS nesting is not supported (GitHub does not use it; 3 of 4 probe cases
   of `github-css.json` differ).
 - Cascade layers (feature 1): `adoptedStyleSheets` must add their sheets to
-  the document's layer tree, after the document's sheets (sub-feature 5c
+  the document's layer tree, after the document's sheets (sub-feature 5c-2
   of ADR 0036; measured: an adopted sheet's `@layer a` joins the document's layer `a`).
   swb loads no `@import` sheets: the layer of an import is declared, its
   rules do not exist. `@page`, `@namespace`, `@container` and `@property`
@@ -4871,6 +4888,24 @@ Steps:
   layout dumps (`boxes.rs`) list light elements only; 1,000 nested hosts
   exceed `MAX_BOX_DEPTH` (256), so the deepest content has no box (probe
   `nesting-depth`, ADR 0036 section 12).
+- Shadow DOM, found in 5c-1: `Element.part` (a `DOMTokenList`) is
+  missing; `::slotted()` rules reach at most 256 slots of a pass-through
+  chain (`MAX_SLOT_CHAIN`); `@font-face` in shadow sheets is ignored (not
+  measured in Chromium). The 5a code that orders the sheets of nested
+  trees (`shadow_including_precedes`) builds the path to the document for
+  each comparison: 10,000 nested roots with a `<style>` each spend about
+  4 s there (`shadow-host-context-nested-10000`,
+  `shadow-slotted-passthrough-10000`). A script that appends 40,000
+  `<style>` elements of 1 KB to a document without shadow trees takes
+  about 25 s (before and after 5c-1; not investigated). A scoped stylist
+  is charged 4 KiB plus 256 bytes per rule; a rule with a long selector
+  takes more (the review estimates up to 10 times; the sheet itself is
+  also charged).
+- CSS, found in the 5c-1 review (measured in Chromium 148, probe case
+  `revert-layer-contexts`): `CSS.supports('selector(...)')` parses `:is()`
+  and `:where()` as forgiving lists, so `selector(:is(.a, :bogus))` gives
+  true (CSS Conditional 4: unforgiving there; Chromium gives false);
+  `:lang(en)` serializes as `:lang("en")` (Chromium: `:lang(en)`).
 - Custom elements (ADR 0035): customized built-in elements (`extends`,
   `is`; Chromium supports them, swb throws `NotSupportedError` at
   `define`); scoped registries (`new CustomElementRegistry()`,

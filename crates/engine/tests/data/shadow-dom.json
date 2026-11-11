@@ -1043,6 +1043,73 @@
           ]
         }
       ]
+    },
+    {
+      "name": "tool-tip-style",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#b, #tt, #tn, #after)[1]",
+          "tag": "button",
+          "index": 6,
+          "rect": [
+            8.0,
+            8.0,
+            54.55,
+            21.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#b, #tt, #tn, #after)[2]",
+          "tag": "tool-tip",
+          "index": 7,
+          "rect": [
+            18.0,
+            42.0,
+            84.67,
+            28.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#b, #tt, #tn, #after)[3]",
+          "tag": "tool-tip",
+          "index": 8,
+          "rect": [
+            18.0,
+            84.0,
+            31.34,
+            28.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#b, #tt, #tn, #after)[4]",
+          "tag": "p",
+          "index": 9,
+          "rect": [
+            8.0,
+            144.0,
+            384.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(function(){var e=document.getElementById('tt');var cs=getComputedStyle(e);var ca=getComputedStyle(e,'::after');return [cs.getPropertyValue('padding-top'),cs.getPropertyValue('padding-left'),cs.getPropertyValue('font-size'),cs.getPropertyValue('line-height'),cs.getPropertyValue('color'),cs.getPropertyValue('background-color'),cs.getPropertyValue('border-top-left-radius'),cs.getPropertyValue('border-top-width'),cs.getPropertyValue('opacity'),cs.getPropertyValue('white-space'),cs.getPropertyValue('text-align'),cs.getPropertyValue('top'),cs.getPropertyValue('left'),cs.getPropertyValue('max-width'),cs.getPropertyValue('overflow-x'),cs.getPropertyValue('letter-spacing'),cs.getPropertyValue('text-transform'),cs.getPropertyValue('position')].join(' | ')+' || '+[ca.getPropertyValue('position'),ca.getPropertyValue('display'),ca.getPropertyValue('height'),ca.getPropertyValue('bottom'),ca.getPropertyValue('top'),ca.getPropertyValue('content')].join(' | ')})()",
+          "value": "4px | 8px | 12px | 20px | rgb(255, 255, 255) | rgb(37, 41, 46) | 6px | 0px | 0 | normal | center | 34px | 10px | 320px | visible | normal | none | absolute || absolute | block | 4px | 28px | -4px | \"\""
+        },
+        {
+          "kind": "js",
+          "label": "(function(){var e=document.getElementById('tn');var cs=getComputedStyle(e);var ca=getComputedStyle(e,'::after');return [cs.getPropertyValue('padding-top'),cs.getPropertyValue('padding-left'),cs.getPropertyValue('font-size'),cs.getPropertyValue('line-height'),cs.getPropertyValue('color'),cs.getPropertyValue('background-color'),cs.getPropertyValue('border-top-left-radius'),cs.getPropertyValue('border-top-width'),cs.getPropertyValue('opacity'),cs.getPropertyValue('white-space'),cs.getPropertyValue('text-align'),cs.getPropertyValue('top'),cs.getPropertyValue('left'),cs.getPropertyValue('max-width'),cs.getPropertyValue('overflow-x'),cs.getPropertyValue('letter-spacing'),cs.getPropertyValue('text-transform'),cs.getPropertyValue('position')].join(' | ')+' || '+[ca.getPropertyValue('position'),ca.getPropertyValue('display'),ca.getPropertyValue('height'),ca.getPropertyValue('bottom'),ca.getPropertyValue('top'),ca.getPropertyValue('content')].join(' | ')})()",
+          "value": "4px | 8px | 12px | 20px | rgb(255, 255, 255) | rgb(37, 41, 46) | 6px | 0px | 0 | normal | center | 76px | 10px | 320px | visible | normal | none | absolute || absolute | block | 4px | -4px | 28px | \"\""
+        }
+      ]
     }
   ]
 }

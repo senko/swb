@@ -31,16 +31,6 @@ use common::{OnePage, answer, differences, new_page, on_page_threads, repo_root}
 
 /// The cases that wait for a later sub-feature: (case, why).
 const WAITING: &[(&str, &str)] = &[
-    (
-        "host-style-block-padding",
-        "5c: a `<style>` in the shadow tree",
-    ),
-    (
-        "slotted-inherits-from-slot",
-        "5c: a `<style>` in the shadow tree",
-    ),
-    ("slot-display-block", "5c: a `<style>` in the shadow tree"),
-    ("host-display-none", "5c: a `<style>` in the shadow tree"),
     ("declarative-js-off", "declarative shadow roots (backlog)"),
     ("declarative-js-on", "declarative shadow roots (backlog)"),
 ];
@@ -308,6 +298,51 @@ fn assign_lays_out_again() {
         assert_eq!(answer(&mut page, count), 1);
         answer(&mut page, "s.assign()");
         assert_eq!(answer(&mut page, count), 0);
+    });
+}
+
+/// A change of a shadow tree's sheet restyles (ADR 0036 section 5,
+/// "Invalidation"): `insertRule` and `deleteRule` through
+/// `ShadowRoot.styleSheets`, a new text, a `<style>` inserted into and
+/// removed from the root; the rules never leak into the document.
+#[test]
+fn shadow_sheet_changes_restyle() {
+    common::on_page_thread(|| {
+        let html = "<!DOCTYPE html><body><div id=h></div><span id=l>l</span><script>\
+                    var r = document.getElementById('h').attachShadow({mode: 'open'});\
+                    r.innerHTML = '<style>span{color:rgb(0,128,0)}</style><span id=s>s</span>';\
+                    var s = r.getElementById('s');\
+                    function c(e) { return getComputedStyle(e).color + ' ' + getComputedStyle(e).fontSize; }\
+                    </script>";
+        let mut page = open(html, Size::new(400.0, 300.0));
+        assert_eq!(answer(&mut page, "c(s)"), "rgb(0, 128, 0) 16px");
+        assert_eq!(answer(&mut page, "c(l)"), "rgb(0, 0, 0) 16px");
+        answer(
+            &mut page,
+            "r.styleSheets[0].insertRule('span{font-size:30px}', 1)",
+        );
+        assert_eq!(answer(&mut page, "c(s)"), "rgb(0, 128, 0) 30px");
+        assert_eq!(answer(&mut page, "c(l)"), "rgb(0, 0, 0) 16px");
+        answer(&mut page, "r.styleSheets[0].deleteRule(0)");
+        assert_eq!(answer(&mut page, "c(s)"), "rgb(0, 0, 0) 30px");
+        answer(
+            &mut page,
+            "r.firstChild.textContent = 'span{color:rgb(0,0,255)}'",
+        );
+        assert_eq!(answer(&mut page, "c(s)"), "rgb(0, 0, 255) 16px");
+        answer(
+            &mut page,
+            "var t = document.createElement('style'); t.textContent = 'span{font-size:20px}'; \
+             r.appendChild(t)",
+        );
+        assert_eq!(answer(&mut page, "c(s)"), "rgb(0, 0, 255) 20px");
+        assert_eq!(answer(&mut page, "c(l)"), "rgb(0, 0, 0) 16px");
+        answer(&mut page, "t.remove()");
+        assert_eq!(answer(&mut page, "c(s)"), "rgb(0, 0, 255) 16px");
+        // The same through layout: the box of the shadow text.
+        answer(&mut page, "r.appendChild(t)");
+        let height = "s.getBoundingClientRect().height > 20";
+        assert_eq!(answer(&mut page, height), true);
     });
 }
 

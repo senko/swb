@@ -47,6 +47,7 @@ mod script_actions;
 mod script_forms;
 mod script_validity;
 mod scripts;
+mod shadow_styles;
 #[cfg(test)]
 mod tests;
 
