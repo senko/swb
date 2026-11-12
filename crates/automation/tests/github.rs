@@ -20,8 +20,9 @@
 //! The same load also counts the custom element callbacks (ADR 0035
 //! sub-feature 4b; `custom_elements/reactions.rs` logs each callback at the
 //! `debug` level) and compares them with Chromium's replay, and reads the
-//! shadow roots of `relative-time` and `tool-tip` (ADR 0036 sub-feature 5a)
-//! and the text that renders in the `relative-time` hosts (sub-feature 5b).
+//! shadow roots of `relative-time` and `tool-tip` (ADR 0036 sub-feature 5a),
+//! their sheets and adopted sheets (5c-1, 5c-2) and the text that renders in
+//! the `relative-time` hosts (sub-feature 5b).
 //! One test does all: the logger is global, and two loads at once would mix
 //! their lines.
 
@@ -170,6 +171,11 @@ const SHADOW_ROOTS: &str = "(() => {
         hosts: hosts.length,
         sheets: sheets.reduce((counts, s) => { counts[s] = (counts[s] || 0) + 1; return counts; }, {}),
         rootSheets: hosts.map(h => h.shadowRoot.styleSheets.length).reduce((a, b) => a + b, 0),
+        adopted: hosts.map(h => h.localName + ':' + h.shadowRoot.adoptedStyleSheets.length)
+            .filter(t => !t.endsWith(':0')),
+        documentAdopted: document.adoptedStyleSheets.length,
+        adoptedSheets: new Set(hosts.map(h => h.shadowRoot.adoptedStyleSheets)
+            .concat([document.adoptedStyleSheets]).flatMap(a => Array.from(a))).size,
         tipStyle: tip ? [tip.getClientRects().length, tipStyle.display, tipStyle.textAlign,
             tipStyle.opacity, tipStyle.whiteSpace].join(' ') : null,
         times,
@@ -267,17 +273,28 @@ const REPLAY_TIMES: [&str; 23] = [
 /// text "Dismiss alert".
 fn shadow_roots(roots: &serde_json::Value) {
     assert_eq!(roots["hosts"], 24, "{roots}");
-    // ADR 0036 sub-feature 5c-1: the popover polyfill prepends its `<style>`
-    // to `tool-tip`'s root only (the 23 `relative-time` roots get none in
-    // the fixture), and the root's sheets apply to its host: `:host` sets
+    // ADR 0036 sub-feature 5c-2: the popover polyfill (which swb runs until
+    // it has `popover`) makes one constructed sheet and adopts it in the
+    // document and in each of the 24 roots (until 5c-2 it prepended a
+    // `<style>` to `tool-tip`'s root only); `tool-tip`'s root has its own
+    // `<style>` and its sheets apply to its host: `:host` sets
     // `text-align`, `opacity` and `white-space`; the closed popover still
     // has no box.
     assert_eq!(
         roots["sheets"],
-        serde_json::json!({"": 23, "polyfill+own": 1}),
+        serde_json::json!({"": 23, "own": 1}),
         "{roots}"
     );
-    assert_eq!(roots["rootSheets"], 2, "{roots}");
+    assert_eq!(roots["rootSheets"], 1, "{roots}");
+    let adopted: Vec<String> = serde_json::from_value(roots["adopted"].clone()).unwrap();
+    assert_eq!(adopted.len(), 24, "{roots}");
+    assert_eq!(adopted[0], "tool-tip:1", "{roots}");
+    assert!(
+        adopted[1..].iter().all(|a| a == "relative-time:1"),
+        "{roots}"
+    );
+    assert_eq!(roots["documentAdopted"], 1, "{roots}");
+    assert_eq!(roots["adoptedSheets"], 1, "{roots}");
     assert_eq!(roots["tipStyle"], "0 none center 0 normal", "{roots}");
     let times: Vec<String> = serde_json::from_value(roots["times"].clone()).unwrap();
     assert_eq!(times, REPLAY_TIMES, "{roots}");

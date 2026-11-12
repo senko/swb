@@ -36,6 +36,12 @@ pub trait ShadowRootImpl: b::Host {
     /// `readonly attribute StyleSheetList styleSheets`.
     fn style_sheets(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `attribute any adoptedStyleSheets`.
+    fn adopted_style_sheets(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Value>;
+
+    /// The setter of `attribute any adoptedStyleSheets`.
+    fn set_adopted_style_sheets(cx: &mut b::Cx<'_>, this: b::NodeId, value: swb_js::Value) -> b::Result<()>;
+
     /// `readonly attribute Element? activeElement`.
     fn active_element(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
@@ -137,6 +143,24 @@ fn get_style_sheets<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
     })
 }
 
+fn get_adopted_style_sheets<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("ShadowRoot", "adoptedStyleSheets"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        let result = <H as ShadowRootImpl>::adopted_style_sheets(&mut b::Cx::new(rt, call, super::SHADOW_ROOT), this)?;
+        Ok(swb_js::VmResult::Ok(result)?)
+    })
+}
+
+fn set_adopted_style_sheets<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("ShadowRoot", "adoptedStyleSheets"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        let v = rt.arg(call, 0);
+        let value = b::Result::Ok(v).map_err(b::Exception::nested)?;
+        <H as ShadowRootImpl>::set_adopted_style_sheets(&mut b::Cx::new(rt, call, super::SHADOW_ROOT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 fn get_active_element<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("ShadowRoot", "activeElement"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
@@ -186,6 +210,7 @@ pub fn define<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js
     rt.define_accessor(realm, target, "onslotchange", (Some(get_onslotchange::<H> as swb_js::NativeFn), Some(set_onslotchange::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "innerHTML", (Some(get_inner_html::<H> as swb_js::NativeFn), Some(set_inner_html::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "styleSheets", (Some(get_style_sheets::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "adoptedStyleSheets", (Some(get_adopted_style_sheets::<H> as swb_js::NativeFn), Some(set_adopted_style_sheets::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "activeElement", (Some(get_active_element::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "elementFromPoint", 2, op_element_from_point::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "elementsFromPoint", 2, op_elements_from_point::<H>, swb_js::Attributes::MEMBER)?;

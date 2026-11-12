@@ -286,6 +286,40 @@ fn adoption_takes_the_shadow_tree() {
     assert_eq!(doc.quirks_mode_of(other), QuirksMode::NoQuirks);
 }
 
+/// Each move of a root to another document counts (the adopted style sheets
+/// go, ADR 0036 "5c-2 implementation notes"), also of a nested root; a move
+/// between a document and its template contents owner does not; a removal
+/// does not.
+#[test]
+fn moves_to_other_documents_count() {
+    let mut doc = crate::parse_html("<div id=h></div><template id=t></template>");
+    let (h, t) = (id(&doc, "h"), id(&doc, "t"));
+    let root = doc.attach_shadow(h, open(), false).expect("root");
+    let inner_host = element(&mut doc, "span");
+    doc.append_child(root, inner_host).expect("append");
+    let inner = doc.attach_shadow(inner_host, open(), false).expect("root");
+    let count =
+        |doc: &Document, root: NodeId| doc.shadow_root_data(root).expect("a root").adoptions;
+    assert_eq!((count(&doc, root), count(&doc, inner)), (0, 0));
+    doc.remove(h);
+    assert_eq!(count(&doc, root), 0);
+    let other = doc.create_document().expect("document");
+    doc.adopt(h, other).expect("adopt");
+    doc.adopt(h, NodeId::DOCUMENT).expect("adopt");
+    assert_eq!((count(&doc, root), count(&doc, inner)), (2, 2));
+    // Into the template contents and back.
+    let contents = doc
+        .element(t)
+        .and_then(|e| e.template_contents)
+        .expect("contents");
+    doc.append_child(contents, h).expect("append");
+    assert_ne!(doc.node_document(root), NodeId::DOCUMENT);
+    let body = doc.parent(t).expect("body");
+    doc.append_child(body, h).expect("append");
+    assert_eq!(doc.node_document(root), NodeId::DOCUMENT);
+    assert_eq!(count(&doc, root), 2);
+}
+
 /// Appending a root moves its children (a fragment insertion) and keeps the
 /// root with its host (measured).
 #[test]

@@ -26,7 +26,9 @@ use std::rc::Rc;
 use swb_css::{ImportLayer, MediaQueryList};
 use swb_dom::NodeId;
 use swb_js::{Gc, GenericData, HostData, Object, Runtime, Tracer, Value, VmError};
-use swb_style::cssom::sheet::{self as model, RuleError, RuleKind, RuleRef, SheetRef, StyleSheet};
+use swb_style::cssom::sheet::{
+    self as model, RuleError, RuleKind, RuleRef, SheetRef, StyleMemory, StyleSheet,
+};
 
 use crate::bindings::{self as b, Cx, Platform};
 use crate::generated as g;
@@ -44,6 +46,9 @@ pub(crate) struct CssomObjects {
     /// The size at which the next new wrapper sweeps the maps (at least
     /// [`MIN_OBJECTS`]).
     limit: usize,
+    /// The style memory of the constructed sheets of a document whose host
+    /// has none ([`crate::EngineHost::style_memory`]; the tests' hosts).
+    own_memory: StyleMemory,
 }
 
 impl CssomObjects {
@@ -313,9 +318,15 @@ fn owned_object(
     Ok(cx.rt.new_host_object(realm, class, data)?)
 }
 
-/// Tells the engine that `sheet` changed if it belongs to the document.
+/// Tells the engine that `sheet` changed if it belongs to the document or
+/// is a constructed sheet (which the document or its shadow roots may have
+/// adopted).
 fn sheet_changed(rt: &mut Runtime, sheet: &SheetRef) -> b::Result<()> {
-    if sheet.borrow().owner.is_some() {
+    let applies = {
+        let sheet = sheet.borrow();
+        sheet.owner.is_some() || sheet.is_constructed()
+    };
+    if applies {
         engine_mut(rt)?.style_sheets_changed();
     }
     Ok(())
@@ -364,6 +375,10 @@ fn sheet_error(error: RuleError, index: u32, text: &str, delete: bool) -> b::Exc
         RuleError::Hierarchy | RuleError::ImportInGroup => {
             b::Exception::dom("HierarchyRequestError", "Failed to insert the rule.")
         }
+        RuleError::ImportInConstructed => b::Exception::dom(
+            "SyntaxError",
+            "Can't insert @import rules into a constructed stylesheet.",
+        ),
         RuleError::Memory => b::Exception::dom(
             "QuotaExceededError",
             "The style data that scripts made reaches the limit of the document.",
@@ -569,7 +584,110 @@ impl g::style_sheet::StyleSheetImpl for WebState {
     }
 }
 
+/// The sheet and the constructor document of a constructed sheet's wrapper
+/// `value` (for `adoptedStyleSheets`); `None` for a sheet of an element.
+/// `NotOfType` for a value that is no `CSSStyleSheet`.
+pub(crate) fn constructed_sheet(
+    rt: &Runtime,
+    value: Value,
+) -> b::Result<Option<(SheetRef, crate::state::DocKey)>> {
+    let not_a_sheet = || b::Exception::NotOfType("CSSStyleSheet".into());
+    if !rt.implements(value, g::CSS_STYLE_SHEET) {
+        return Err(not_a_sheet());
+    }
+    let (_, data) = rt.host_object(value).ok_or_else(not_a_sheet)?;
+    let handle = generic_handle(data)?;
+    let data = rt
+        .heap()
+        .generic::<SheetData>(handle)
+        .map_err(VmError::from)?;
+    Ok(data
+        .sheet
+        .borrow()
+        .is_constructed()
+        .then(|| (Rc::clone(&data.sheet), data.document)))
+}
+
+/// The `NotAllowedError` of `replace` and `replaceSync` on a sheet that is
+/// not constructed (Chromium's text).
+fn check_constructed(sheet: &SheetRef, member: &str) -> b::Result<()> {
+    if sheet.borrow().is_constructed() {
+        Ok(())
+    } else {
+        Err(b::Exception::dom(
+            "NotAllowedError",
+            format!("Can't call {member} on non-constructed CSSStyleSheets."),
+        ))
+    }
+}
+
+/// The media list of `new CSSStyleSheet(options)`: of a `MediaList`, or the
+/// parse of a string.
+fn init_media(
+    rt: &mut Runtime,
+    media: g::types::MediaListOrDomString,
+) -> b::Result<MediaQueryList> {
+    match media {
+        g::types::MediaListOrDomString::MediaList(list) => {
+            with_media(rt, list, |m| (m.clone(), false))
+        }
+        g::types::MediaListOrDomString::DomString(text) => Ok(MediaQueryList::parse_str(&text)),
+    }
+}
+
 impl g::css_style_sheet::CSSStyleSheetImpl for WebState {
+    /// `new CSSStyleSheet(options)` (CSSOM §6.1.2): a constructed sheet of
+    /// the current window's document. Measured in Chromium 148 (case
+    /// `constructed-sheet-options`): `baseURL` is neither checked nor used;
+    /// relative `url()` values resolve against the document base URL at the
+    /// construction. The sheet counts in the document's style memory.
+    fn constructor(cx: &mut Cx<'_>, options: g::types::CSSStyleSheetInit) -> b::Result<Gc<Object>> {
+        let media = init_media(cx.rt, options.media)?;
+        let quirks = crate::state::dom(cx.rt)?.quirks_mode == swb_dom::QuirksMode::Quirks;
+        let base = engine_mut(cx.rt)?.base_url();
+        let base = url::Url::parse(&base)
+            .map_err(|_| b::Exception::type_error("The document has no base URL."))?;
+        let memory = match engine_mut(cx.rt)?.style_memory() {
+            Some(memory) => memory,
+            None => state(cx.rt)?.doc.cssom.own_memory.clone(),
+        };
+        let sheet = StyleSheet::construct(&memory, quirks, base, media, options.disabled);
+        sweep(cx.rt)?;
+        let key = Rc::as_ptr(&sheet) as usize;
+        let document = crate::state::document_key(cx.rt)?;
+        let data = cx.rt.alloc_host_data(SheetData {
+            document,
+            sheet,
+            rules: None,
+            media: None,
+        })?;
+        let object = cx.new_instance::<WebState>(data)?;
+        state_mut(cx.rt)?.doc.cssom.sheets.insert(key, object);
+        Ok(object)
+    }
+
+    /// `replace(text)` (CSSOM §6.1.3): the rules change at once, and the
+    /// promise is resolved with the sheet when it returns (measured in
+    /// Chromium 148: its reaction runs before those of promises resolved
+    /// after the call; swb loads no `@import`, so nothing waits).
+    fn replace(cx: &mut Cx<'_>, this: Platform, text: String) -> b::Result<Gc<Object>> {
+        let sheet = sheet_of(cx.rt, this)?;
+        check_constructed(&sheet, "replace")?;
+        StyleSheet::replace_rules(&sheet, &text);
+        sheet_changed(cx.rt, &sheet)?;
+        let realm = cx.realm();
+        let promise = cx.rt.resolved_promise(realm, this.object.into())?;
+        b::convert::promise(cx.rt, realm, promise)
+    }
+
+    /// `replaceSync(text)` (CSSOM §6.1.3).
+    fn replace_sync(cx: &mut Cx<'_>, this: Platform, text: String) -> b::Result<()> {
+        let sheet = sheet_of(cx.rt, this)?;
+        check_constructed(&sheet, "replaceSync")?;
+        StyleSheet::replace_rules(&sheet, &text);
+        sheet_changed(cx.rt, &sheet)
+    }
+
     /// Always null: swb does not load the sheets of `@import`.
     fn owner_rule(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<Option<Gc<Object>>> {
         Ok(None)

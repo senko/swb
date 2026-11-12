@@ -196,8 +196,34 @@ fn chromium_cases_kathmandu() {
     chromium_cases("Asia/Kathmandu");
 }
 
+/// The `tzdata` version whose rules for Morocco agree with the recorded
+/// Chromium 148 values (checked with Debian's 2026b). tzdata 2026f changed
+/// them (Morocco keeps UTC+00 after 2026), and Chromium 148's own data
+/// predates that: with 2026f the offsets from 2026 on and the zone names
+/// differ (roadmap backlog: measure again with a Chromium that has the new
+/// rules).
+const CASABLANCA_TZDATA: &str = "2026b";
+
+/// The version of the system's zone database (`# version 2026f` in the
+/// first line of `tzdata.zi`), if the file is there.
+fn system_tzdata_version() -> Option<String> {
+    let dir = std::env::var("TZDIR").unwrap_or_else(|_| "/usr/share/zoneinfo".to_owned());
+    let text = std::fs::read_to_string(std::path::Path::new(&dir).join("tzdata.zi")).ok()?;
+    let line = text.lines().next()?;
+    line.strip_prefix("# version ").map(str::to_owned)
+}
+
 #[test]
 fn chromium_cases_casablanca() {
+    if let Some(version) = system_tzdata_version()
+        && version.as_str() > CASABLANCA_TZDATA
+    {
+        eprintln!(
+            "skipped: the system's tzdata {version} has newer rules for Morocco than the \
+             Chromium values ({CASABLANCA_TZDATA})"
+        );
+        return;
+    }
     chromium_cases("Africa/Casablanca");
 }
 

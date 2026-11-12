@@ -34,8 +34,8 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
         "shadow-root-interface",
         7,
-        r#""activeElement,clonable,constructor,delegatesFocus,elementFromPoint,elementsFromPoint,host,innerHTML,mode,onslotchange,serializable,slotAssignment,styleSheets""#,
-        "`ShadowRoot` lacks `adoptedStyleSheets` (ADR 0036 sub-feature 5c) and the members that ADR 0036 section 9 leaves out of M10",
+        r#""activeElement,adoptedStyleSheets,clonable,constructor,delegatesFocus,elementFromPoint,elementsFromPoint,host,innerHTML,mode,onslotchange,serializable,slotAssignment,styleSheets""#,
+        "`ShadowRoot` lacks the members that ADR 0036 section 9 leaves out of M10",
     ),
     (
         "navigator-plugins",

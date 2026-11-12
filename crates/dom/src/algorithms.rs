@@ -129,6 +129,7 @@ impl Document {
             crate::tree::ShadowRootData {
                 host: copy,
                 declarative: false,
+                adoptions: 0,
                 ..data
             },
         );

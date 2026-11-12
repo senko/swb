@@ -240,7 +240,14 @@ impl Document {
                     .and_then(|e| e.template_contents),
                 Attached::Shadow(host) => match (map.get(&host), entry.data) {
                     (Some(&host), NodeData::ShadowRoot(data)) => {
-                        let id = self.make_shadow_root(host, ShadowRootData { host, ..data });
+                        // The root moved to another document.
+                        let adoptions = data.adoptions.wrapping_add(1);
+                        let data = ShadowRootData {
+                            host,
+                            adoptions,
+                            ..data
+                        };
+                        let id = self.make_shadow_root(host, data);
                         shadow_roots.push(id);
                         Some(id)
                     }

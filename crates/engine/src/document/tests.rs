@@ -1351,3 +1351,139 @@ fn shadow_sheets_count_in_the_style_memory() {
     let sheet = doc.script_sheet_in(rb, 0).unwrap();
     assert!(sheet.borrow().rules().is_empty(), "not parsed");
 }
+
+/// A constructed sheet of the document with `text`, for the lists of
+/// adopted sheets.
+fn constructed(doc: &DocumentState, text: &str) -> swb_style::cssom::sheet::SheetRef {
+    use swb_style::cssom::sheet::StyleSheet;
+    let base = doc.base_url.value().clone();
+    let media = swb_css::MediaQueryList::default();
+    let sheet = StyleSheet::construct(&doc.style_memory, false, base, media, false);
+    StyleSheet::replace_rules(&sheet, text);
+    sheet
+}
+
+/// ADR 0036 section 6: the document's adopted sheets come after its own
+/// sheets, in the order of the list, each once at its last place, and join
+/// its layer order (the specification's order at each build); disabled
+/// sheets and sheets whose media do not match do not apply.
+#[test]
+fn adopted_sheets_of_the_document() {
+    let mut doc = walked(
+        "<style>p{color:rgb(255,0,0)} @layer x, y;</style><p id=p>p</p>",
+        &url(),
+    );
+    let color = |doc: &DocumentState| {
+        let p = element(doc, "p");
+        doc.styles().unwrap().get(p).unwrap().color
+    };
+    let green = swb_style::Rgba::rgb(0, 128, 0);
+    let blue = swb_style::Rgba::rgb(0, 0, 255);
+    let a = constructed(&doc, "p{color:rgb(0,128,0)}");
+    let b = constructed(&doc, "p{color:rgb(0,0,255)}");
+    let set = |doc: &mut DocumentState, sheets: &[&swb_style::cssom::sheet::SheetRef]| {
+        let list = doc.adopted.list_mut(&doc.dom, NodeId::DOCUMENT).unwrap();
+        *list = sheets.iter().map(|s| Rc::clone(s)).collect();
+        doc.invalidate_style();
+        doc.update_style();
+    };
+    set(&mut doc, &[&a]);
+    assert_eq!(color(&doc), green);
+    set(&mut doc, &[&b, &a, &b]);
+    assert_eq!(color(&doc), blue);
+    set(&mut doc, &[&a, &b, &a]);
+    assert_eq!(color(&doc), green);
+    b.borrow_mut().disabled = true;
+    set(&mut doc, &[&a, &b]);
+    assert_eq!(color(&doc), green);
+    a.borrow_mut().media = swb_css::MediaQueryList::parse_str("print");
+    set(&mut doc, &[&a, &b]);
+    assert_eq!(color(&doc), swb_style::Rgba::rgb(255, 0, 0));
+    // The layers join the document's: its statement orders `x` before `y`.
+    let layers = constructed(
+        &doc,
+        "@layer y{p{color:rgb(0,0,255)}} @layer x{p{color:rgb(0,128,0)}}",
+    );
+    let statement = constructed(&doc, "@layer y, x;");
+    set(&mut doc, &[&statement, &layers]);
+    // The document's `p{color:red}` is unlayered and wins over both layers.
+    assert_eq!(color(&doc), swb_style::Rgba::rgb(255, 0, 0));
+    let p = element(&doc, "p");
+    doc.change_dom(|dom| dom.set_attr(p, "class", "c")).unwrap();
+    let only_layers = constructed(
+        &doc,
+        "@layer y{.c{color:rgb(0,0,255)!important}} @layer x{.c{color:rgb(0,128,0)!important}}",
+    );
+    set(&mut doc, &[&only_layers]);
+    // `!important` reverses the layer order: `x` (first) wins.
+    assert_eq!(color(&doc), green);
+}
+
+/// ADR 0036 section 6: a shadow root's adopted sheets come after the sheets
+/// of its elements; roots that adopt the same sheets share one scoped
+/// stylist; a root that moves to another document and back has no adopted
+/// sheets; a list of a node that is no root any more goes.
+#[test]
+fn adopted_sheets_of_shadow_roots() {
+    let mut doc = walked(
+        "<div id=a></div><div id=b></div><div id=c></div><span id=l>l</span>",
+        &url(),
+    );
+    let ra = attach(
+        &mut doc,
+        "a",
+        "<style>span{color:rgb(255,0,0)}</style><span id=s>s</span>",
+    );
+    let rb = attach(&mut doc, "b", "<span id=s>s</span>");
+    let rc = attach(&mut doc, "c", "<span id=s>s</span>");
+    let green = constructed(&doc, "span{color:rgb(0,128,0)}");
+    for root in [ra, rb, rc] {
+        doc.adopted
+            .list_mut(&doc.dom, root)
+            .unwrap()
+            .push(Rc::clone(&green));
+    }
+    doc.invalidate_style();
+    doc.update_style();
+    let color = |doc: &DocumentState, root: NodeId| {
+        let span = doc
+            .dom()
+            .descendants(root)
+            .find(|&n| doc.dom().element(n).and_then(|e| e.id()) == Some("s"))
+            .unwrap();
+        doc.styles().unwrap().get(span).unwrap().color
+    };
+    let g = swb_style::Rgba::rgb(0, 128, 0);
+    assert_eq!(color(&doc, ra), g);
+    assert_eq!(color(&doc, rb), g);
+    assert_eq!(color(&doc, rc), g);
+    // The light span gets nothing; `rb` and `rc` share a stylist.
+    let light = element(&doc, "l");
+    assert_eq!(
+        doc.styles().unwrap().get(light).unwrap().color,
+        swb_style::Rgba::rgb(0, 0, 0)
+    );
+    assert_eq!(doc.stylist.as_ref().unwrap().scope_count(), 2);
+    // The host of `rc` goes to another document and back.
+    let host = element(&doc, "c");
+    let body = doc.dom().parent(host).unwrap();
+    doc.change_dom(|dom| {
+        let other = dom.create_node(swb_dom::NodeData::Document).unwrap();
+        dom.adopt(host, other).unwrap();
+        dom.append_child(body, host).unwrap();
+    });
+    doc.update_style();
+    assert_eq!(color(&doc, rc), swb_style::Rgba::rgb(0, 0, 0));
+    assert!(doc.adopted.list_mut(&doc.dom, rc).unwrap().is_empty());
+    assert!(doc.adopted.list_mut(&doc.dom, host).is_none());
+    // A root that was not connected at the last build gets its sheets when
+    // its host is inserted (a DOM change keeps the stylist otherwise).
+    let host_b = element(&doc, "b");
+    doc.change_dom(|dom| dom.remove(host_b));
+    doc.invalidate_style();
+    doc.update_style();
+    assert!(doc.stylist.is_some());
+    doc.change_dom(|dom| dom.append_child(body, host_b).unwrap());
+    doc.update_style();
+    assert_eq!(color(&doc, rb), g);
+}

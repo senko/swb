@@ -336,6 +336,9 @@ impl DocumentState {
     /// Builds the stylist if it is dirty, from the parsed sheets (a sheet
     /// is parsed once, at its first use).
     fn ensure_stylist(&mut self, env: &MediaEnvironment) {
+        if self.stylist.is_some() && self.adopted.out_of_date(&self.dom) {
+            self.stylist = None;
+        }
         if self.stylist.is_some() {
             return;
         }
@@ -376,8 +379,17 @@ impl DocumentState {
                 stylist.add_cssom_sheet(&sheet, &slot.base_url);
             }
         }
-        if !in_shadow_trees.is_empty() {
-            self.add_shadow_scopes(&mut stylist, &in_shadow_trees, env);
+        // The document's adopted sheets come after its other sheets and
+        // join their layer order (measured in feature 1 and 5c-2).
+        for sheet in self.adopted.document_sheets(env) {
+            let sheet = sheet.borrow();
+            if let Some(base) = sheet.constructed_base_url() {
+                stylist.add_cssom_sheet(&sheet, base);
+            }
+        }
+        let adopted_roots = self.adopted.root_sheets(&self.dom, env);
+        if !in_shadow_trees.is_empty() || !adopted_roots.is_empty() {
+            self.add_shadow_scopes(&mut stylist, &in_shadow_trees, adopted_roots, env);
         }
         self.stylist = Some(stylist);
         self.timings.stylesheets = started.elapsed();

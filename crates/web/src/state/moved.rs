@@ -103,6 +103,7 @@ pub(crate) fn move_node_state(
     let to = &mut state_now.doc;
     let mut words: Vec<(Gc<Object>, u64)> = Vec::new();
     let mut with_wrapper: Vec<(NodeId, NodeId)> = Vec::new();
+    let mut moved_arrays: Vec<NodeId> = Vec::new();
     for &(old, new) in pairs {
         from.moved.insert(old, (target, new));
         if !from.scripts.elements.is_empty() {
@@ -142,6 +143,10 @@ pub(crate) fn move_node_state(
         if let Some(promises) = from.decodes.remove(&old) {
             to.decodes.insert(new, promises);
         }
+        if let Some(handler) = from.adopted.move_to(&mut to.adopted, old, new) {
+            words.push((handler, b::word_of(target, new)));
+            moved_arrays.push(new);
+        }
         from.style_blocks.forget(old);
         from.io.forget_target(old);
         from.ro.forget_target(old);
@@ -177,6 +182,11 @@ pub(crate) fn move_node_state(
     }
     if registered {
         crate::mutation_observer::install_sink(rt, true)?;
+    }
+    // The move counted as an adoption of each moved root: their arrays
+    // are empty now, also for a script that holds one.
+    if !moved_arrays.is_empty() {
+        crate::adopted::forget_moved(rt, &moved_arrays)?;
     }
     Ok(())
 }

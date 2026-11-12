@@ -509,3 +509,101 @@ fn rules_of_the_pages_own_sheets_are_charged_when_written() {
     assert!(set(&rule, "left", "3px"));
     assert_eq!(memory.used(), used);
 }
+
+fn base() -> Url {
+    Url::parse("https://a.test/dir/page.html").unwrap()
+}
+
+fn construct(memory: &StyleMemory) -> SheetRef {
+    StyleSheet::construct(memory, false, base(), MediaQueryList::default(), false)
+}
+
+#[test]
+fn constructed_sheets_start_empty_and_count_in_the_memory() {
+    let memory = StyleMemory::with_limit(MAX_SCRIPT_STYLE_BYTES);
+    let media = MediaQueryList::parse_str("print");
+    let sheet = StyleSheet::construct(&memory, false, base(), media, true);
+    {
+        let this = sheet.borrow();
+        assert!(this.is_constructed());
+        assert!(this.rules().is_empty());
+        assert!(this.disabled);
+        assert_eq!(this.media.to_string(), "print");
+        assert_eq!(this.constructed_base_url(), Some(&base()));
+        assert_eq!(this.owner, None);
+        assert_eq!(this.href, None);
+    }
+    assert_eq!(memory.used(), CONSTRUCTED_SHEET_BYTES);
+    drop(sheet);
+    assert_eq!(memory.used(), 0);
+    // The sheets of elements are not constructed.
+    let page = StyleSheet::parse("a{}", false);
+    assert!(!page.borrow().is_constructed());
+    assert_eq!(page.borrow().constructed_base_url(), None);
+    // A memory that is full still gives a sheet, without rules.
+    let full = StyleMemory::with_limit(0);
+    let media = MediaQueryList::default();
+    let sheet = StyleSheet::construct(&full, false, base(), media, false);
+    assert_eq!(full.used(), 0);
+    StyleSheet::replace_rules(&sheet, "a{}");
+    assert!(sheet.borrow().rules().is_empty());
+}
+
+#[test]
+fn replace_rules_drops_imports_and_detaches_the_old_rules() {
+    let memory = StyleMemory::with_limit(MAX_SCRIPT_STYLE_BYTES);
+    let sheet = construct(&memory);
+    StyleSheet::replace_rules(
+        &sheet,
+        "@import url(x.css); @import url(y.css); b{} c{color:red}",
+    );
+    assert_eq!(texts(&sheet), ["b { }", "c { color: red; }"]);
+    assert!(memory.used() > CONSTRUCTED_SHEET_BYTES);
+    let old = Rc::clone(&sheet.borrow().rules()[0]);
+    assert!(parent_sheet(&old).is_some());
+    // Case `constructable-sheets` #2: the `@import` after a rule is invalid
+    // anyway, and `}}} c{...}` is one invalid rule.
+    StyleSheet::replace_rules(
+        &sheet,
+        "a{color:red} @import url(x.css); b{} }}} c{color:blue}",
+    );
+    assert_eq!(texts(&sheet), ["a { color: red; }", "b { }"]);
+    assert!(parent_sheet(&old).is_none());
+    drop(old);
+    StyleSheet::replace_rules(&sheet, "");
+    assert_eq!(texts(&sheet).len(), 0);
+    assert_eq!(memory.used(), CONSTRUCTED_SHEET_BYTES);
+}
+
+#[test]
+fn replace_rules_past_the_memory_leaves_no_rules() {
+    let memory = StyleMemory::with_limit(4 << 10);
+    let sheet = construct(&memory);
+    StyleSheet::replace_rules(&sheet, "a{color:red}");
+    assert_eq!(texts(&sheet).len(), 1);
+    let big = ".c{color:red}".repeat(400);
+    StyleSheet::replace_rules(&sheet, &big);
+    assert_eq!(texts(&sheet).len(), 0);
+    assert_eq!(memory.used(), CONSTRUCTED_SHEET_BYTES);
+    // The bytes of the old rules are free for a replacement of their size.
+    StyleSheet::replace_rules(&sheet, "a{color:red}");
+    let used = memory.used();
+    StyleSheet::replace_rules(&sheet, "b{color:red}");
+    assert_eq!(memory.used(), used);
+}
+
+#[test]
+fn constructed_sheets_refuse_inserted_imports() {
+    let memory = StyleMemory::with_limit(MAX_SCRIPT_STYLE_BYTES);
+    let sheet = construct(&memory);
+    assert_eq!(
+        StyleSheet::insert_rule(&sheet, "@import url(x.css)", 0),
+        Err(RuleError::ImportInConstructed)
+    );
+    assert_eq!(StyleSheet::insert_rule(&sheet, "a{}", 0), Ok(0));
+    let page = StyleSheet::parse("", false);
+    assert_eq!(
+        StyleSheet::insert_rule(&page, "@import url(x.css)", 0),
+        Ok(0)
+    );
+}

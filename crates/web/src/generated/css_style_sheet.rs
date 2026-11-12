@@ -18,11 +18,20 @@ pub trait CSSStyleSheetImpl: b::Host {
     /// `readonly attribute CSSRuleList rules`.
     fn rules(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `constructor(optional CSSStyleSheetInit options)`.
+    fn constructor(cx: &mut b::Cx<'_>, options: super::types::CSSStyleSheetInit) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `unsigned long insertRule(DOMString rule, optional unsigned long index)`.
     fn insert_rule(cx: &mut b::Cx<'_>, this: b::Platform, rule: String, index: u32) -> b::Result<u32>;
 
     /// `undefined deleteRule(unsigned long index)`.
     fn delete_rule(cx: &mut b::Cx<'_>, this: b::Platform, index: u32) -> b::Result<()>;
+
+    /// `Promise<CSSStyleSheet> replace(USVString text)`.
+    fn replace(cx: &mut b::Cx<'_>, this: b::Platform, text: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `undefined replaceSync(USVString text)`.
+    fn replace_sync(cx: &mut b::Cx<'_>, this: b::Platform, text: String) -> b::Result<()>;
 
     /// `long addRule(optional DOMString selector, optional DOMString style, optional unsigned long index)`.
     fn add_rule(cx: &mut b::Cx<'_>, this: b::Platform, selector: String, style: String, index: Option<u32>) -> b::Result<i32>;
@@ -56,6 +65,15 @@ fn get_rules<H: CSSStyleSheetImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nati
     })
 }
 
+pub(super) fn construct<H: CSSStyleSheetImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Constructor("CSSStyleSheet"), super::DOM_EXCEPTION, |rt| {
+        let v = rt.arg(call, 0);
+        let a0 = if v.is_undefined() { super::types::CSSStyleSheetInit::from_js(rt, call.realm(), swb_js::Value::Undefined)? } else { super::types::CSSStyleSheetInit::from_js(rt, call.realm(), v).map_err(|e| e.argument(0))? };
+        let result = <H as CSSStyleSheetImpl>::constructor(&mut b::Cx::new(rt, call, super::CSS_STYLE_SHEET), a0)?;
+        Ok(swb_js::Value::Object(result))
+    })
+}
+
 fn op_insert_rule<H: CSSStyleSheetImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("CSSStyleSheet", "insertRule"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::CSS_STYLE_SHEET)?;
@@ -76,6 +94,28 @@ fn op_delete_rule<H: CSSStyleSheetImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let v = rt.arg(call, 0);
         let a0 = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(0))?;
         <H as CSSStyleSheetImpl>::delete_rule(&mut b::Cx::new(rt, call, super::CSS_STYLE_SHEET), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_replace<H: CSSStyleSheetImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run_promise(rt, call, b::Context::Operation("CSSStyleSheet", "replace"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::CSS_STYLE_SHEET)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::usv_string(rt, v).map_err(|e| e.argument(0))?;
+        let result = <H as CSSStyleSheetImpl>::replace(&mut b::Cx::new(rt, call, super::CSS_STYLE_SHEET), this, a0)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn op_replace_sync<H: CSSStyleSheetImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("CSSStyleSheet", "replaceSync"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::CSS_STYLE_SHEET)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::usv_string(rt, v).map_err(|e| e.argument(0))?;
+        <H as CSSStyleSheetImpl>::replace_sync(&mut b::Cx::new(rt, call, super::CSS_STYLE_SHEET), this, a0)?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -117,6 +157,8 @@ pub fn define<H: CSSStyleSheetImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb
     rt.define_method(realm, target, "deleteRule", 1, op_delete_rule::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "insertRule", 1, op_insert_rule::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "removeRule", 0, op_remove_rule::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "replace", 1, op_replace::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "replaceSync", 1, op_replace_sync::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

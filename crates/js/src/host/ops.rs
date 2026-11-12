@@ -144,6 +144,69 @@ impl Runtime {
         self.scoped(|rt| rt.define_by_host(object, key, desc))
     }
 
+    /// `ToPropertyKey(value)` (ECMA-262 §7.1.19); the key of a proxy trap's
+    /// argument. Can run script code (`toString`).
+    pub fn property_key_of(&mut self, value: Value) -> VmResult<PropertyKey> {
+        self.in_scope(|rt| {
+            let key = rt.to_property_key(value)?;
+            rt.heap.record(key);
+            Ok(key)
+        })
+    }
+
+    /// `ToPropertyDescriptor(value)` (ECMA-262 §6.2.6.5): the descriptor
+    /// object of a `defineProperty` trap. The getters of the object run;
+    /// the values are recorded in the current handle scope.
+    pub fn property_descriptor_of(&mut self, value: Value) -> VmResult<PropertyDescriptor> {
+        self.in_scope(|rt| rt.parse_property_descriptor(value))
+    }
+
+    /// `object.[[DefineOwnProperty]](key, desc)` (ECMA-262 §10.1.6): whether
+    /// the property was defined.
+    pub fn define_own(
+        &mut self,
+        object: Gc<Object>,
+        key: PropertyKey,
+        desc: PropertyDescriptor,
+    ) -> VmResult<bool> {
+        self.in_scope(|rt| rt.define_own_property(object, key, desc))
+    }
+
+    /// `object.[[Set]](key, value, receiver)` (ECMA-262 §10.1.9): whether
+    /// the write happened (a setter that it found has run).
+    pub fn set_with_receiver_of(
+        &mut self,
+        object: Gc<Object>,
+        key: PropertyKey,
+        value: Value,
+        receiver: Value,
+    ) -> VmResult<bool> {
+        self.in_scope(
+            |rt| match rt.set_with_receiver(object, key, value, receiver, false)? {
+                crate::vm::proxy::SetDone::Done(done) => Ok(done),
+                crate::vm::proxy::SetDone::Setter { setter, receiver } => {
+                    rt.call(setter, receiver, &[value])?;
+                    Ok(true)
+                }
+            },
+        )
+    }
+
+    /// `object.[[Delete]](key)` (ECMA-262 §10.1.10): whether the property
+    /// is gone.
+    pub fn delete_key(&mut self, object: Gc<Object>, key: PropertyKey) -> VmResult<bool> {
+        self.in_scope(|rt| rt.delete_property(object.into(), key, false))
+    }
+
+    /// `ProxyCreate(target, handler)` (ECMA-262 §10.5.15): a new proxy, for
+    /// the exotic objects that Web IDL describes as proxies (the
+    /// `ObservableArray` of `adoptedStyleSheets`, whose handler's traps are
+    /// the host's natives).
+    pub fn new_proxy(&mut self, target: Gc<Object>, handler: Gc<Object>) -> VmResult<Gc<Object>> {
+        let proxy = self.in_scope(|rt| rt.proxy_create(target.into(), handler.into()))?;
+        Ok(self.keep(proxy))
+    }
+
     /// A new ordinary object with `%Object.prototype%` of `realm`.
     pub fn new_plain_object(&mut self, realm: u32) -> VmResult<Gc<Object>> {
         let proto = self.intrinsic(realm, Intrinsic::ObjectPrototype)?;

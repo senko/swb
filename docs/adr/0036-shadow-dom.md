@@ -1494,3 +1494,171 @@ and context, also for custom properties. (2) The arguments of `:host()` and
 accepted any argument; they now follow Chromium (table above). (4) The
 `:host-context()` memo never stores an answer that the match budget cut
 short (the old code returned before the store; the check is now explicit).
+
+## 5c-2 implementation notes
+
+Facts of sub-feature 5c-2 (constructable style sheets and
+`adoptedStyleSheets`) that differ from section 6 or that later work needs.
+Code: `crates/style/src/cssom/sheet.rs` (constructed sheets); new
+`crates/web/src/adopted.rs`, `cssom_sheets.rs`, `idl/cssom.idl`,
+`state.rs`, `state/moved.rs`; `crates/js/src/host/ops.rs` (`new_proxy` and
+the internal methods that the traps need); new
+`crates/engine/src/document/adopted_sheets.rs`, `shadow_styles.rs`,
+`pipeline.rs`; `crates/dom/src/tree.rs`, `mutation.rs`, `transplant.rs`
+(`ShadowRootData::adoptions`).
+
+**Measured answers** (Chromium 148, three equal runs; four new cases in
+`tools/probes/web-shadow-dom.json`, and two queries added while the work
+went on):
+
+| Question | Case | Chromium |
+|---|---|---|
+| Layer order with adopted sheets | `adopted-layer-order` | a fresh `[t, s]` gives the specification's order (t's statement first), also in a root and with the document's or the root's own `@layer` statements first; but after a style update with `[s]`, `[t, s]` keeps s's order. The rule that fits all 18 rows: Chromium keeps the layer order of the previous style update while no layer that holds style rules appears that the update before did not have. It holds for `<style>` elements too (a statement sheet inserted before a layers sheet changes nothing), and depends on when style updates run (no read between `[s]` and `[t, s]` gives the specification's order) |
+| `baseURL` | `constructed-sheet-options` | an invalid URL (`http://[`) does not throw; the option has no effect: relative `url()` values resolve against the document base URL at the construction (a `<base>` inserted later does not change a sheet made before; a sheet made after keeps that base when the `<base>` goes) |
+| `replace()` on a sheet of an element | `constructed-sheet-options` | a promise rejected with `NotAllowedError` "Failed to execute 'replace' on 'CSSStyleSheet': Can't call replace on non-constructed CSSStyleSheets." |
+| `replace()` timing | `constructed-sheet-options` | the rules change at once; the promise is resolved when `replace` returns (its reaction runs before those of promises resolved after the call, before timers and messages); `insertRule`, `replaceSync`, `deleteRule` and `media` work while it "waits" (no visible disallow-modification flag) |
+| A host moved to another document | `adopted-host-moves` | `remove()` keeps the root's array; a move into a `createHTMLDocument` document (append or `adoptNode`) or a frame's document empties it (the same array object); moving back keeps it empty; a move into the document's template contents and back keeps it |
+| The same sheet twice | `adopted-array` | the last place counts: `[C, D, C]` gives C, `[B, A, B]` B |
+| The observable array | `adopted-array` | the same object each time and after the setter; descriptors of an array (`length` writable, not enumerable or configurable); `Array.isArray` true, prototype the document's realm's `Array.prototype`; a write past the end and a longer `length` fail silently in sloppy code; `delete` of the last index only; `defineProperty` with an accessor or `enumerable: false` is refused; `preventExtensions` and `freeze` throw (V8's proxy messages); other keys are ordinary; trap errors have no context prefix ("Failed to convert value to 'CSSStyleSheet'.", "Can't adopt non-constructed stylesheets."), the setter's have it; a setter that fails on its second value keeps the first |
+| A sheet of another document | `adopted-array`, `constructable-sheets` | `NotAllowedError` "Sharing constructed stylesheets in multiple documents is not allowed" (a frame's sheet into the main document, the main document's into a frame's document, a `createHTMLDocument` document or a root in it), a `DOMException` of the array's realm; a root of a detached element of the document accepts the sheet |
+
+**Differences from section 6.** (1) `baseURL` is neither checked nor used
+(Chromium; the specification parses it and throws for an invalid URL). The
+sheet keeps the document base URL of the construction. (2) `replace()`
+resolves its promise at once, not in a task. (3) The layer order is the
+specification's at every stylist build: swb rebuilds the stylist from all
+sheets after each change and keeps no order across builds, so the rows of
+`adopted-layer-order` that depend on an earlier style update, and
+`constructable-sheets` #9, are departures (`LAYER_HISTORY`). (4) After a
+reorder of the same sheets by index writes (`reverse()`), Chromium's cascade
+keeps the old order until an entry goes or the setter runs; swb follows the
+array (departure, `adopted-array` #2).
+
+**The observable array.** As section 6 planned: a `Proxy` whose target is
+an `Array` that always holds the list, and a handler with native traps
+`set`, `defineProperty`, `deleteProperty` and `preventExtensions` (Web IDL
+§3.11; `get`, `has`, `ownKeys` and `getOwnPropertyDescriptor` need no trap,
+since the target answers them as Web IDL's traps would). The handler is a
+host object of the class `ObservableArrayHandler` (registered after the
+generated classes, no prototype) whose word names the scope, so a trap finds
+the scope's document after a move as a node's wrapper does; the traps are
+made once per realm. Each change of the target is mirrored into the engine's
+list of the scope (`EngineHost::adopted_sheets`, a `Vec<SheetRef>`; `None`
+for a scope that the engine does not style), followed by
+`style_sheets_changed`. The generator has no `ObservableArray`: the IDL
+declares `attribute any adoptedStyleSheets` and the getter and setter call
+`adopted.rs`. `swb_js` got the public operations that the traps need:
+`new_proxy`, `property_key_of`, `property_descriptor_of`, `define_own`,
+`set_with_receiver_of`, `delete_key`.
+
+**Moves.** `ShadowRootData::adoptions` counts the moves of a root to another
+document (but between a document and its template contents owner); a
+transplant to another arena counts one. The bindings' array and the engine's
+list keep the count of their last write. A move within the arena adds the
+moved roots to a list of the arena (`Document::take_moved_roots`) and sets
+the runtime's signal, so the bindings empty the arrays of those roots after
+the call (`adopted::forget_moved`, one lookup per moved root); a transplant
+to another arena empties them in `state::move_node_state`, where the array
+moves with its node. A script that
+holds an array sees it empty at once (measured: Chromium gives 0 for
+`arr.length` read before any use of the getter). The stylist build ignores
+(and drops) the list of a root that moved; `ensure_stylist` drops a stylist
+that applied the sheets of a root that moved, or when the connected roots
+with adopted sheets are others than at its build (a DOM change keeps the
+stylist otherwise). It looks at the roots only after a change of a child
+list since its last look (the arena's structure generation), and walks up
+to the document (`is_connected`) only for roots that the build did not
+apply.
+
+**Cascade.** The document's adopted sheets are added to its stylist after its
+other sheets, so they join its layer tree (the feature-1 backlog item); a
+root's adopted sheets come after its tree's sheets in the root's scoped
+stylist, and the key of an adopted sheet is its identity: GitHub's popover
+polyfill adopts one sheet in 24 roots, which share one scoped stylist (the
+23 `relative-time` roots; `tool-tip` has its own `<style>` first). A sheet
+that is in an array more than once is added once, at its last place.
+
+**Lifetime.** The arrays live in the document's binding state, traced, as
+the other `[SameObject]` objects of nodes; a sheet lives as long as an array
+(or a script) holds its wrapper. The engine's lists hold `Rc`s of the sheets;
+`root_sheets` drops the lists of nodes that are no shadow root of the
+document any more. Tested with and without the GC stress mode
+(`crates/web/tests/adopted_sheets.rs`).
+
+**Budgets (section 12).** 65,536 entries per array: a write past it throws
+`NotAllowedError` "swb: too many adopted style sheets" (one warning per
+document). A constructed sheet counts 512 bytes (`CONSTRUCTED_SHEET_BYTES`)
+in the document's style memory while they fit, and its rules as the rules of
+any sheet that a script made: past 128 MiB `replace`/`replaceSync` leave it
+without rules (one warning). The constructor does not fail at the limit (a
+first version threw `QuotaExceededError`, which stopped the script of
+`shadow-adopted-many`).
+
+**Departures.** `adopted-layer-order` #3, #6, #9, #11, #13 to #16 and
+`constructable-sheets` #9 (`LAYER_HISTORY`, above); `adopted-array` #2 (the
+stale order after a reorder); `constructed-sheet-options` #0 (`MediaList`
+writes `bogus(` as `bogus()`, a gap outside shadow DOM, roadmap backlog);
+`root-properties` #6 (`ShadowRoot.getSelection`, section 9). Not measured: a
+sheet adopted twice is applied once, so the layer statements of its first
+place do not count.
+
+**Tests.** `probe_net.rs`: the probe file has 39 cases and 203 queries; the
+four new cases, `constructable-sheets`, `style-specificity-and-order` #2 and
+#3 and `api-surface` #6 match but the departures above. Unit tests in
+`crates/style/src/cssom/sheet/tests.rs`, `crates/dom/src/shadow/tests.rs`,
+`crates/engine/src/document/adopted_sheets.rs` and
+`crates/engine/src/document/tests.rs`; `crates/web/tests/adopted_sheets.rs`
+(with and without the GC stress mode: the host's lists follow the arrays
+through every trap and the setter, sheets live as long as an array holds
+them and none stays after, moves, the limit). `github.rs`: the popover
+polyfill adopts one sheet in the document and the 24 roots (it no longer
+prepends a `<style>` to `tool-tip`'s root); `tool-tip` keeps its `:host`
+values and has no box; the relative times render as before; the load logs
+no warning (as the base). Each new test failed when the code it checks was
+broken (17 mutations; three first missed and got tests: `delete` of an
+index that is not the last, a root inserted after the stylist build, the
+array of a root that moved into a frame's document, case
+`adopted-host-moves` #2).
+
+**Hostile cases** (release builds, base 9d980aa / 5c-2): new
+`shadow-adopted-many` 1.36 s, 230 MiB (inactive in the base: no
+constructor) and `shadow-adopted-push-pop-loop` 3.56 s, 92 MiB (a style read
+after each change rebuilds the stylist, about 0.14 ms on its page; 100,000
+rounds with reads end at the task's time limit, so the case has 20,000);
+the 14 earlier `shadow-*` cases within 0.3 s of the base (memory within the
+run-to-run noise: `shadow-styles-100000` gave 1,020 to 1,083 MiB in four
+runs of both builds).
+
+**Performance (section 13).** JavaScript off: `just snapshot` is
+byte-identical to the base; callgrind totals of `swb --headless --replay`
+(mean of two runs, base / 5c-2): Wikipedia 868.44 M / 868.46 M (+0.00 %),
+Ars Technica 2,136.20 M / 2,135.95 M (−0.01 %), BBC 7,482.82 M / 7,482.69 M
+(−0.00 %). The binding rows of ADR 0035 section 11 (instructions per
+iteration, base / 5c-2): loop 649 / 646, `setAttribute` 4,575 / 4,583, `id`
+4,089 / 4,067, `appendChild` with `remove` 4,404 / 4,410, `textContent`
+1,948 / 1,938, `innerHTML` 17,794 / 17,781, `createElement` 4,228 / 4,230,
+`classList.add` 8,594 / 8,589 (all within 0.6 %). GitHub with JavaScript on
+(`--bench 20`, three runs): style 24.2 / 24.6 ms per pass (the 24 roots now
+match the polyfill's rules), layout 5.21 / 5.24 ms, the headless load (best
+of 5) 0.595 / 0.594 s (budget 1.56 s).
+
+**The targets** (compare against Chromium): every score with JavaScript on
+and off is the base's (GitHub with JavaScript on: geometry 0.9115, pixels
+0.9934).
+
+**Review fixes.** (1) `ensure_stylist` looked at every root with adopted
+sheets on each style pass and query, with an `is_connected` walk each:
+8,000 roots with one adopted sheet and 3,000 `getComputedStyle` calls took
+338 ms (21 ms without the sheets), 6,000 nested roots with 1,500 calls
+passed the script time limit. Now the look waits for a change of a child
+list (above, "Moves"): 24 ms and 539 ms (505 ms without the sheets). (2) A
+script that held a root's array saw the old sheets after the root moved to
+another document, until a use of the getter; the arrays are emptied at the
+move now (above), with a new query in `adopted-host-moves` (a frame's
+document and `adoptNode`; Chromium's values, three runs, two equal: the
+third differs only in `focus-shadow` #1, a 5d case) and a binding test.
+The delta review found that the first version of this fix looked at every
+array of the document at each move (N arrays and M moves cost N x M
+lookups); the arena now lists the moved roots. Not changed: by the review's reading, a change of a sheet by a script of
+another window invalidates the calling window's document, not the sheet's
+(not tested: the binding tests have no frames; backlog).

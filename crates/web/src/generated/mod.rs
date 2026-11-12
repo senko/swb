@@ -754,7 +754,7 @@ pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult
     b::glue::define_class(rt, swb_js::ClassSpec::new("CSSStyleDeclaration").hooks(css_style_declaration::hooks::<H>()), CSS_STYLE_DECLARATION)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("MediaList").hooks(media_list::hooks::<H>()), MEDIA_LIST)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("StyleSheet"), STYLE_SHEET)?;
-    b::glue::define_class(rt, swb_js::ClassSpec::new("CSSStyleSheet").parent(STYLE_SHEET), CSS_STYLE_SHEET)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("CSSStyleSheet").parent(STYLE_SHEET).constructor(css_style_sheet::construct::<H>, 0), CSS_STYLE_SHEET)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("StyleSheetList").hooks(style_sheet_list::hooks::<H>()), STYLE_SHEET_LIST)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("CSSRuleList").hooks(css_rule_list::hooks::<H>()), CSS_RULE_LIST)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("CSSRule"), CSS_RULE)?;

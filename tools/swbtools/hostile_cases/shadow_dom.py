@@ -1,5 +1,5 @@
-"""Shadow trees and slots in the DOM and in rendering (ADR 0036 section 12, sub-features 5a
-and 5b)."""
+"""Shadow trees and slots in the DOM and in rendering, style scoping and adopted style sheets
+(ADR 0036 section 12, sub-features 5a to 5c-2)."""
 
 from swbtools.hostile_cases.core import Page, case, doc, steps_args
 
@@ -307,3 +307,57 @@ def shadow_slotted_passthrough_10000() -> Page:
         "</script>"
     )
     return Page(doc(_FONT + "<div id=h><b id=x>pass pass pass</b></div>" + script))
+
+
+@case(
+    "`adoptedStyleSheets` past its bounds: one constructed sheet pushed 65,537 times into the "
+    "document's array (the last push throws `NotAllowedError`, one warning: at most 65,536 "
+    "entries, each sheet applied once), then 10,000 roots that each adopt a distinct sheet of "
+    "10 KB (the parsed rules count in the document's style memory of 128 MiB: the sheets past "
+    "it get no rules, one warning); style and layout run, and a timer logs `adopted ok` (ADR "
+    "0036 sections 6 and 12, 5c-2)",
+    time_limit_s=30,
+    rss_limit_mib=2048,
+    expect_log=("adopted ok", "more than 65536 entries"),
+    swb_args=JS,
+)
+def shadow_adopted_many() -> Page:
+    script = (
+        "<script>const one = new CSSStyleSheet(); one.replaceSync('p{color:green}'); "
+        "const a = document.adoptedStyleSheets; let refused = ''; "
+        "for (let i = 0; i < 65537; i++) { try { a.push(one); } catch (e) { refused = e.name; } } "
+        "const base = 'b{margin:1px 2px 3px 4px;padding:1px}'.repeat(280); "
+        "const f = document.createDocumentFragment(); let last = null; "
+        "for (let i = 0; i < 10000; i++) { const d = document.createElement('div'); "
+        "const s = new CSSStyleSheet(); s.replaceSync(base + '.c' + i + '{color:red}'); "
+        "last = document.createElement('b'); last.className = 'c' + i; last.textContent = 'x'; "
+        "const r = d.attachShadow({mode: 'open'}); r.append(last); r.adoptedStyleSheets = [s]; "
+        "f.appendChild(d); } "
+        "document.body.appendChild(f); const c = getComputedStyle(last).marginTop; "
+        "setTimeout(() => console.warn('adopted ok ' + a.length + ' ' + refused + ' ' + c), 10);"
+        "</script>"
+    )
+    return Page(doc("<p>p</p>" + script))
+
+
+@case(
+    "20,000 `push` and `pop` of a constructed sheet on the document's `adoptedStyleSheets` "
+    "with a style read after each, then 100,000 on a root's without reads: each change drops "
+    "the stylist, and a read builds it for the few sheets of the page (about 0.14 ms), so the "
+    "loop is linear; a timer logs `push ok` (ADR 0036 sections 6 and 12, 5c-2)",
+    time_limit_s=20,
+    expect_log="push ok",
+    swb_args=JS,
+)
+def shadow_adopted_push_pop_loop() -> Page:
+    script = (
+        "<script>const s = new CSSStyleSheet(); s.replaceSync('p{color:green} b{color:blue}'); "
+        "const p = document.querySelector('p'); const a = document.adoptedStyleSheets; let c = ''; "
+        "for (let i = 0; i < 20000; i++) { a.push(s); c = getComputedStyle(p).color; a.pop(); } "
+        "const r = document.getElementById('h').attachShadow({mode: 'open'}); "
+        "r.innerHTML = '<b>b</b>'; const ra = r.adoptedStyleSheets; "
+        "for (let i = 0; i < 100000; i++) { ra.push(s); ra.pop(); } ra.push(s); "
+        "const b = getComputedStyle(r.firstChild).color; "
+        "setTimeout(() => console.warn('push ok ' + c + ' ' + b), 10);</script>"
+    )
+    return Page(doc("<p>p</p><div id=h></div>" + script))

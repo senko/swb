@@ -88,21 +88,9 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     ),
     (
         "interfaces",
-        1,
-        r#"[true, true, true, true, true, true, true, "TypeError: Failed to construct 'CSSRule': Illegal constructor", "TypeError: Failed to construct 'StyleSheet': Illegal constructor", "TypeError: Failed to construct 'CSSRuleList': Illegal constructor", "TypeError: Failed to construct 'StyleSheetList': Illegal constructor", "TypeError: Failed to construct 'MediaList': Illegal constructor", "TypeError: Failed to construct 'CSSStyleRule': Illegal constructor", "TypeError: Failed to construct 'CSSStyleSheet': Illegal constructor"]"#,
-        "no constructable style sheets (backlog)",
-    ),
-    (
-        "interfaces",
         2,
-        r#""StyleSheet: type,href,ownerNode,parentStyleSheet,title,media,disabled,constructor | CSSStyleSheet: ownerRule,cssRules,rules,addRule,deleteRule,insertRule,removeRule,constructor | StyleSheetList: length,item,constructor | CSSRuleList: length,item,constructor | CSSRule: type,cssText,parentRule,parentStyleSheet,STYLE_RULE,CHARSET_RULE,IMPORT_RULE,MEDIA_RULE,FONT_FACE_RULE,PAGE_RULE,MARGIN_RULE,NAMESPACE_RULE,KEYFRAMES_RULE,KEYFRAME_RULE,COUNTER_STYLE_RULE,FONT_FEATURE_VALUES_RULE,SUPPORTS_RULE,constructor | CSSStyleRule: selectorText,style,constructor | CSSGroupingRule: cssRules,deleteRule,insertRule,constructor | CSSConditionRule: conditionText,constructor | CSSMediaRule: media,constructor | CSSSupportsRule: constructor | CSSImportRule: href,media,styleSheet,layerName,supportsText,constructor | CSSFontFaceRule: constructor | CSSKeyframesRule: name,constructor | MediaList: length,mediaText,appendMedium,deleteMedium,item,toString,constructor""#,
-        "the members that swb leaves out: `replace`, `replaceSync`, `styleMap` and the nesting members of `CSSStyleRule`, `CSSFontFaceRule.style`, the keyframe members",
-    ),
-    (
-        "interfaces",
-        3,
-        r#""styleSheets:true:true adoptedStyleSheets:false:false HTMLStyleElement.sheet:true,HTMLLinkElement.sheet:true,SVGStyleElement.sheet:true""#,
-        "no `adoptedStyleSheets` (backlog)",
+        r#""StyleSheet: type,href,ownerNode,parentStyleSheet,title,media,disabled,constructor | CSSStyleSheet: ownerRule,cssRules,rules,addRule,deleteRule,insertRule,removeRule,replace,replaceSync,constructor | StyleSheetList: length,item,constructor | CSSRuleList: length,item,constructor | CSSRule: type,cssText,parentRule,parentStyleSheet,STYLE_RULE,CHARSET_RULE,IMPORT_RULE,MEDIA_RULE,FONT_FACE_RULE,PAGE_RULE,MARGIN_RULE,NAMESPACE_RULE,KEYFRAMES_RULE,KEYFRAME_RULE,COUNTER_STYLE_RULE,FONT_FEATURE_VALUES_RULE,SUPPORTS_RULE,constructor | CSSStyleRule: selectorText,style,constructor | CSSGroupingRule: cssRules,deleteRule,insertRule,constructor | CSSConditionRule: conditionText,constructor | CSSMediaRule: media,constructor | CSSSupportsRule: constructor | CSSImportRule: href,media,styleSheet,layerName,supportsText,constructor | CSSFontFaceRule: constructor | CSSKeyframesRule: name,constructor | MediaList: length,mediaText,appendMedium,deleteMedium,item,toString,constructor""#,
+        "the members that swb leaves out: `styleMap` and the nesting members of `CSSStyleRule`, `CSSFontFaceRule.style`, the keyframe members",
     ),
     (
         "link-sheets",

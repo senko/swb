@@ -143,6 +143,10 @@ pub(crate) struct WebState {
     /// The class of the named properties object of the global object
     /// (`WindowProperties`, registered after the generated classes).
     pub(crate) window_properties: Option<ClassId>,
+    /// The class of the handlers of the `adoptedStyleSheets` arrays, and
+    /// their traps by realm (`adopted.rs`).
+    pub(crate) adopted_handler: Option<ClassId>,
+    pub(crate) adopted_traps: HashMap<u32, crate::adopted::Traps>,
     /// The parsed selector lists of `querySelector*`, `matches` and
     /// `closest`, by text (the page that calls them in a loop parses each
     /// string once).
@@ -314,6 +318,9 @@ pub(crate) struct DocState {
     /// The wrappers of the style sheets and rules that scripts have seen
     /// (`cssom_sheets.rs`).
     pub(crate) cssom: crate::cssom_sheets::CssomObjects,
+    /// The `adoptedStyleSheets` arrays of the document and its shadow roots
+    /// (`adopted.rs`).
+    pub(crate) adopted: crate::adopted::AdoptedArrays,
     /// The window's map of animation frame callbacks.
     pub(crate) animation_frames: crate::animation_frames::AnimationFrames,
     /// The `MediaQueryList` objects with listeners by their order of
@@ -371,6 +378,9 @@ impl HostState for WebState {
             tracer.object(*proxy);
         }
         for function in self.cross_origin_functions.values() {
+            tracer.object(*function);
+        }
+        for function in self.adopted_traps.values().flatten() {
             tracer.object(*function);
         }
         self.mutation.trace(tracer);
@@ -465,6 +475,7 @@ impl DocState {
         // The module records of the document (ADR 0034 section 5).
         self.scripts.trace(tracer);
         self.cssom.trace(tracer);
+        self.adopted.trace(tracer);
         self.messages.trace(tracer);
         for reader in self.readers.values() {
             tracer.object(*reader);

@@ -159,6 +159,45 @@ impl ScrollIntoViewOptions {
     }
 }
 
+/// The dictionary `CSSStyleSheetInit`.
+#[derive(Clone, Debug)]
+pub struct CSSStyleSheetInit {
+    /// `baseURL`.
+    pub base_url: Option<String>,
+    /// `disabled`.
+    pub disabled: bool,
+    /// `media`.
+    pub media: MediaListOrDomString,
+}
+
+impl CSSStyleSheetInit {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, realm: u32, value: swb_js::Value) -> b::Result<CSSStyleSheetInit> {
+        let object = b::convert::dictionary_object(value, "CSSStyleSheetInit")?;
+        let v = b::convert::member(rt, object, "baseURL")?;
+        let base_url = if v.is_undefined() { None } else { Some(b::convert::dom_string(rt, v).map_err(|e| e.member("baseURL", "CSSStyleSheetInit"))?) };
+        let v = b::convert::member(rt, object, "disabled")?;
+        let disabled = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("disabled", "CSSStyleSheetInit"))? };
+        let v = b::convert::member(rt, object, "media")?;
+        let media = if v.is_undefined() { { let d = rt.string_value("")?; MediaListOrDomString::from_js(rt, realm, d)? } } else { MediaListOrDomString::from_js(rt, realm, v).map_err(|e| e.member("media", "CSSStyleSheetInit"))? };
+        Ok(CSSStyleSheetInit { base_url, disabled, media })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        if let Some(x) = &self.base_url {
+            let value = b::to_js::string(rt, &x.clone())?;
+            b::to_js::dictionary_member(rt, object, "baseURL", value)?;
+        }
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.disabled))?;
+        b::to_js::dictionary_member(rt, object, "disabled", value)?;
+        let value = (self.media.clone()).to_js::<H>(rt, realm)?;
+        b::to_js::dictionary_member(rt, object, "media", value)?;
+        Ok(object.into())
+    }
+}
+
 /// The dictionary `EventInit`.
 #[derive(Clone, Debug)]
 pub struct EventInit {
@@ -5553,6 +5592,33 @@ impl HTMLOptionElementOrHTMLOptGroupElement {
         match self {
             HTMLOptionElementOrHTMLOptGroupElement::HTMLOptionElement(x) => swb_js::VmResult::Ok(b::to_js::node_ref(*x)),
             HTMLOptionElementOrHTMLOptGroupElement::HTMLOptGroupElement(x) => swb_js::VmResult::Ok(b::to_js::node_ref(*x)),
+        }
+    }
+}
+
+/// The union type `(DOMString or MediaList)`.
+#[derive(Clone, Debug)]
+pub enum MediaListOrDomString {
+    /// `MediaList`.
+    MediaList(b::Platform),
+    /// `DOMString`.
+    DomString(String),
+}
+
+impl MediaListOrDomString {
+    /// Converts a JavaScript value (Web IDL §3.2.25).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<MediaListOrDomString> {
+        if b::convert::is_platform_object(rt, value) {
+            if rt.implements(value, super::MEDIA_LIST) { return Ok(MediaListOrDomString::MediaList(b::convert::platform(rt, value, super::MEDIA_LIST, "MediaList")?)); }
+        }
+        Ok(MediaListOrDomString::DomString(b::convert::dom_string(rt, value)?))
+    }
+
+    /// Converts to a JavaScript value.
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, _realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        match self {
+            MediaListOrDomString::MediaList(x) => swb_js::VmResult::Ok(swb_js::Value::Object((*x).object)),
+            MediaListOrDomString::DomString(x) => b::to_js::string(rt, &x.clone()),
         }
     }
 }

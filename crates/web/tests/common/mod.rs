@@ -6,10 +6,12 @@
 
 use std::any::Any;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use swb_dom::{Document, HtmlParser, ParseStep, TextPosition, WrittenStep};
 use swb_js::{HeapConfig, RuntimeConfig};
+use swb_style::cssom::sheet::SheetRef;
 use swb_web::{ClockMode, EngineHost, Evaluation, JsonForm, PageClock, ScriptRuntime};
 
 /// The URL of the test documents.
@@ -48,6 +50,9 @@ pub(crate) struct TestDocument {
     /// The ids of the module fetches that a script element joined and that
     /// delay the load event from then on (`EngineHost::delay_load_for_module`).
     pub(crate) delayed_fetches: Rc<RefCell<Vec<u64>>>,
+    /// The lists of adopted style sheets by scope
+    /// (`EngineHost::adopted_sheets`).
+    pub(crate) adopted: HashMap<swb_dom::NodeId, Vec<SheetRef>>,
 }
 
 impl TestDocument {
@@ -61,6 +66,7 @@ impl TestDocument {
             accept_fetches: false,
             module_fetches: Rc::default(),
             delayed_fetches: Rc::default(),
+            adopted: HashMap::new(),
         }
     }
 
@@ -84,6 +90,7 @@ impl TestDocument {
             accept_fetches: false,
             module_fetches: Rc::default(),
             delayed_fetches: Rc::default(),
+            adopted: HashMap::new(),
         }
     }
 }
@@ -167,6 +174,10 @@ impl EngineHost for TestDocument {
 
     fn delay_load_for_module(&mut self, id: u64) {
         self.delayed_fetches.borrow_mut().push(id);
+    }
+
+    fn adopted_sheets(&mut self, scope: swb_dom::NodeId) -> Option<&mut Vec<SheetRef>> {
+        Some(self.adopted.entry(scope).or_default())
     }
 
     fn parse_step(&mut self) -> Option<(ParseStep, Option<TextPosition>)> {

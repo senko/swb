@@ -708,11 +708,15 @@ const CE_LATER: &[Later] = &[
     ("parser-sync-failures", None, SUB_4C),
 ];
 
-const SUB_5C2: &str = "ADR 0036 sub-feature 5c-2: constructable style sheets and \
-     `adoptedStyleSheets`";
 const SUB_5D: &str = "ADR 0036 sub-feature 5d: events and focus through shadow trees";
 const DECLARATIVE: &str = "backlog (ADR 0036 section 10): declarative shadow roots and the \
      serialization of roots (`getHTML`, `setHTMLUnsafe`, `parseHTMLUnsafe`)";
+
+const LAYER_HISTORY: &str = "Chromium keeps the cascade layer order of the previous style \
+     update while no layer with style rules appears that the update before did not have, also \
+     for `<style>` elements; swb orders the layers of each style update as CSS Cascade 5 says \
+     (first declaration in the order of the sheets, the adopted ones last; ADR 0036 \"5c-2 \
+     implementation notes\")";
 
 /// The departures of the shadow DOM probe (ADR 0036 sub-feature 5a). The
 /// members that later sub-features add change these values; those
@@ -721,8 +725,8 @@ const SHADOW_DEPARTURES: &[Departure] = &[
     (
         "api-surface",
         1,
-        r#""activeElement,clonable,constructor,delegatesFocus,elementFromPoint,elementsFromPoint,host,innerHTML,mode,onslotchange,serializable,slotAssignment,styleSheets""#,
-        "`ShadowRoot` lacks `adoptedStyleSheets` (sub-feature 5c-2) and the members that ADR \
+        r#""activeElement,adoptedStyleSheets,clonable,constructor,delegatesFocus,elementFromPoint,elementsFromPoint,host,innerHTML,mode,onslotchange,serializable,slotAssignment,styleSheets""#,
+        "`ShadowRoot` lacks the members that ADR \
          0036 section 9 leaves out of M10 \
          (`getHTML`, `setHTML`, `setHTMLUnsafe`, `getSelection`, `getAnimations`, \
          `fullscreenElement`, `pictureInPictureElement`, `pointerLockElement`, \
@@ -738,9 +742,85 @@ const SHADOW_DEPARTURES: &[Departure] = &[
     (
         "api-surface",
         4,
-        r#""true,false,undefined,function,0,false,false,1,0,0""#,
-        "`adoptedStyleSheets`, `replace` and `replaceSync` come with sub-feature 5c-2; \
-         `Document.parseHTMLUnsafe` is backlog (ADR 0036 section 10)",
+        r#""true,true,undefined,function,0,true,true,1,0,0""#,
+        "`Document.parseHTMLUnsafe` is backlog (ADR 0036 section 10)",
+    ),
+    (
+        "root-properties",
+        6,
+        r#""null,0,true,0,function,undefined,string""#,
+        "`ShadowRoot.getSelection` is not in M10 (ADR 0036 section 9)",
+    ),
+    (
+        "constructable-sheets",
+        9,
+        r#""dashed | dotted""#,
+        LAYER_HISTORY,
+    ),
+    (
+        "adopted-layer-order",
+        3,
+        r#""dashed dotted""#,
+        LAYER_HISTORY,
+    ),
+    (
+        "adopted-layer-order",
+        6,
+        r#""dashed dotted none dotted""#,
+        LAYER_HISTORY,
+    ),
+    (
+        "adopted-layer-order",
+        9,
+        r#""dashed dotted dashed""#,
+        LAYER_HISTORY,
+    ),
+    (
+        "adopted-layer-order",
+        11,
+        r#""dashed dotted""#,
+        LAYER_HISTORY,
+    ),
+    (
+        "adopted-layer-order",
+        13,
+        r#""dashed dotted""#,
+        LAYER_HISTORY,
+    ),
+    (
+        "adopted-layer-order",
+        14,
+        r#""dashed dotted""#,
+        LAYER_HISTORY,
+    ),
+    (
+        "adopted-layer-order",
+        15,
+        r#""dashed dotted dashed dotted""#,
+        LAYER_HISTORY,
+    ),
+    (
+        "adopted-layer-order",
+        16,
+        r#""dashed dotted dashed dotted""#,
+        LAYER_HISTORY,
+    ),
+    (
+        "constructed-sheet-options",
+        0,
+        r#""ok | null | null | TypeError: Failed to construct 'CSSStyleSheet': Please use the 'new' operator, this DOM object constructor cannot be called as a function. | TypeError: Failed to construct 'CSSStyleSheet': The provided value is not of type 'CSSStyleSheetInit'. | not all | screen, bogus() | print | 0 | true""#,
+        "a gap outside shadow DOM (roadmap backlog): swb's media query list closes the \
+         unclosed function of a `<general-enclosed>` (`bogus(` serializes as `bogus()`); \
+         Chromium keeps the text as written. The options themselves match",
+    ),
+    (
+        "adopted-array",
+        2,
+        r#""rgb(0, 0, 255),true,rgb(0, 128, 0),rgb(0, 128, 0),rgb(0, 128, 0),rgb(0, 128, 0),rgb(0, 128, 0),rgb(255, 0, 0),rgb(0, 128, 0),rgb(0, 0, 255)""#,
+        "Chromium keeps the old cascade order after a reorder of the same sheets by index \
+         writes (`reverse()`, `a[0] = A; a[1] = B`) until an entry is removed or the setter \
+         runs; swb applies the sheets in the order of the array (CSSOM, ADR 0036 \"5c-2 \
+         implementation notes\")",
     ),
     (
         "attach-namespaces",
@@ -778,7 +858,6 @@ const SHADOW_DEPARTURES: &[Departure] = &[
 /// The cases and queries of the shadow DOM probe that later sub-features of
 /// ADR 0036 (or the backlog) run.
 const SHADOW_LATER: &[Later] = &[
-    ("api-surface", Some(6), SUB_5C2),
     ("composed-path-open", None, SUB_5D),
     ("composed-path-closed", None, SUB_5D),
     ("retarget-related", None, SUB_5D),
@@ -789,15 +868,7 @@ const SHADOW_LATER: &[Later] = &[
     // `crates/automation/tests/real_input.rs` since 5b.
     ("ui-events-through-shadow", None, SUB_5D),
     ("slotchange-timing", Some(6), SUB_5D),
-    // `adoptedStyleSheets` (5c-2) and `elementFromPoint` (5b) of a root;
-    // `getSelection` is not in M10 (ADR 0036 section 9).
-    ("root-properties", Some(6), SUB_5C2),
     ("root-properties", Some(10), DECLARATIVE),
-    // The script of the case stops at `new CSSStyleSheet()` until 5c-2, so
-    // the roots of rows 2 and 3 get no content.
-    ("style-specificity-and-order", Some(2), SUB_5C2),
-    ("style-specificity-and-order", Some(3), SUB_5C2),
-    ("constructable-sheets", None, SUB_5C2),
     ("declarative-js-on", None, DECLARATIVE),
 ];
 

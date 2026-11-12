@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use swb_dom::{Document, HtmlParser, NodeId, ParseStep, TextPosition, WrittenStep};
 use swb_style::cssom::resolved::PseudoElement;
-use swb_style::cssom::sheet::SheetRef;
+use swb_style::cssom::sheet::{SheetRef, StyleMemory};
 use swb_style::{ComputedStyle, ElementStates};
 
 use crate::storage::SharedStorage;
@@ -952,9 +952,28 @@ pub trait EngineHost: Any {
     fn settle_style_sheets(&mut self) {}
 
     /// A script changed a style sheet of the document (its rules, a rule,
-    /// its media or its disabled flag): the rule index is built again at the
+    /// its media or its disabled flag), or the adopted style sheets of the
+    /// document or of a shadow root: the rule index is built again at the
     /// next style flush.
     fn style_sheets_changed(&mut self) {}
+
+    /// The style memory of the document (ADR 0028 section 16), which the
+    /// sheets of `new CSSStyleSheet()` share with the sheets of the page;
+    /// `None` for a host without one (the bindings then use their own).
+    fn style_memory(&mut self) -> Option<StyleMemory> {
+        None
+    }
+
+    /// The list of adopted style sheets that the engine applies for `scope`
+    /// (`adoptedStyleSheets` of the document, `NodeId::DOCUMENT`, or of a
+    /// shadow root whose node document it is; ADR 0036 section 6), in the
+    /// order of the array; the bindings change it with each change of the
+    /// array and then call [`EngineHost::style_sheets_changed`]. `None` for
+    /// another scope or a host that applies no style (the default).
+    fn adopted_sheets(&mut self, scope: NodeId) -> Option<&mut Vec<SheetRef>> {
+        let _ = scope;
+        None
+    }
 
     // ----- Geometry and scrolling (CSSOM View) -----
     //

@@ -239,6 +239,14 @@ pub(crate) fn after_request(rt: &mut Runtime) -> VmResult<()> {
     if slot_signals {
         queue_microtask(rt);
     }
+    // A shadow root that moved to another document has no adopted sheets
+    // (ADR 0036 "5c-2 implementation notes", moves).
+    let moved = dom_mut(rt).map(swb_dom::Document::take_moved_roots);
+    if let Ok(moved) = moved
+        && !moved.is_empty()
+    {
+        crate::adopted::forget_moved(rt, &moved)?;
+    }
     // The work of the pre-removing steps of the node iterators counts too.
     if crate::node_iterator::take_overdue(rt) || overdue || reactions_overdue || slots_overdue {
         rt.check_time()?;

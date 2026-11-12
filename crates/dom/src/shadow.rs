@@ -112,6 +112,10 @@ pub(crate) struct ShadowState {
     /// The cell that asks the script runtime for attention
     /// ([`Document::set_shadow_attention`]).
     pub(crate) attention: Option<Rc<Cell<bool>>>,
+    /// The shadow roots that moved to another document of the arena (their
+    /// [`crate::ShadowRootData::adoptions`] grew) since the last
+    /// [`Document::take_moved_roots`].
+    pub(crate) moved_roots: Vec<NodeId>,
 }
 
 impl Document {
@@ -173,6 +177,7 @@ impl Document {
             clonable: init.clonable,
             serializable: init.serializable,
             declarative: false,
+            adoptions: 0,
         };
         Ok(self.make_shadow_root(host, data))
     }
@@ -376,6 +381,30 @@ impl Document {
         if let Some(cell) = self.shadow.as_ref().and_then(|s| s.attention.as_ref()) {
             cell.set(true);
         }
+    }
+
+    /// Notes the shadow roots `roots` that moved to another document of the
+    /// arena, and asks the host for attention: the bindings empty their
+    /// `adoptedStyleSheets` arrays at once, so that a script that holds one
+    /// sees it empty (measured in Chromium 148).
+    pub(crate) fn note_roots_moved(&mut self, roots: Vec<NodeId>) {
+        let state = self.shadow_state();
+        if state.moved_roots.is_empty() {
+            state.moved_roots = roots;
+        } else {
+            state.moved_roots.extend(roots);
+        }
+        self.request_shadow_attention();
+    }
+
+    /// The shadow roots that moved to another document of the arena since
+    /// the last call (see [`crate::ShadowRootData::adoptions`]), each once
+    /// per move.
+    pub fn take_moved_roots(&mut self) -> Vec<NodeId> {
+        self.shadow
+            .as_mut()
+            .map(|state| std::mem::take(&mut state.moved_roots))
+            .unwrap_or_default()
     }
 
     /// True if the shadow steps visited at least `limit` nodes since the last

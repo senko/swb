@@ -106,6 +106,18 @@ impl g::document::DocumentImpl for WebState {
         crate::cssom_sheets::style_sheets(cx, this)
     }
 
+    fn adopted_style_sheets(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Value> {
+        crate::adopted::get(cx, this)
+    }
+
+    fn set_adopted_style_sheets(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        value: swb_js::Value,
+    ) -> b::Result<()> {
+        crate::adopted::set(cx, this, value)
+    }
+
     fn has_focus(cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
         crate::html::focus::has_focus(cx, this)
     }

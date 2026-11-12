@@ -272,6 +272,7 @@ impl ScriptRuntime {
             g::define_classes::<WebState>(rt)?;
             rt.set_host_data(WebState::default());
             crate::window::define_class(rt)?;
+            crate::adopted::define_class(rt)?;
             crate::window_proxy::install_hooks(rt);
             init_window(rt, 0)?;
             crate::state::add_document(rt, 0, frame, document_clock)?;

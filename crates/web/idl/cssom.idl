@@ -29,8 +29,16 @@
 // - The order of some members follows Chromium's prototypes (measured,
 //   `tools/probes/web-cssom-sheets.json`): `MediaList` has `length` before
 //   `mediaText`, `CSSRule` has `type` first.
-// - Not included: the `CSSStyleSheet` constructor, `replace` and
-//   `replaceSync` (constructable style sheets), `adoptedStyleSheets`,
+// - The constructor, `replace`, `replaceSync`, `CSSStyleSheetInit` and
+//   `adoptedStyleSheets` came with M10 sub-feature 5c-2 (ADR 0036 section
+//   6). `adoptedStyleSheets` is `ObservableArray<CSSStyleSheet>` in the
+//   standard; the generator has no observable arrays, so it is `any` here
+//   and `crates/web/src/adopted.rs` makes the array (a `Proxy` over an
+//   `Array`). It is on `Document` and `ShadowRoot`, as `styleSheets` (the
+//   standard has both in the `DocumentOrShadowRoot` mixin).
+//   `CSSStyleSheetInit.baseURL` has no default (the standard's `= null`
+//   is no valid default of a `DOMString`).
+// - Not included:
 //   `CSSStyleRule.styleMap` and the nesting members of `CSSStyleRule`,
 //   `CSSPageRule`, `CSSMarginRule`, `CSSNamespaceRule`,
 //   `CSSFontFaceRule.style` and the members of `CSSKeyframesRule` but
@@ -107,10 +115,21 @@ interface StyleSheet {
 
 [Exposed=Window]
 interface CSSStyleSheet : StyleSheet {
+  constructor(optional CSSStyleSheetInit options = {});
+
   readonly attribute CSSRule? ownerRule;
   [SameObject] readonly attribute CSSRuleList cssRules;
   unsigned long insertRule(CSSOMString rule, optional unsigned long index = 0);
   undefined deleteRule(unsigned long index);
+
+  Promise<CSSStyleSheet> replace(USVString text);
+  undefined replaceSync(USVString text);
+};
+
+dictionary CSSStyleSheetInit {
+  DOMString baseURL;
+  (MediaList or DOMString) media = "";
+  boolean disabled = false;
 };
 
 partial interface CSSStyleSheet {
@@ -127,10 +146,12 @@ interface StyleSheetList {
 
 partial interface Document {
   [SameObject] readonly attribute StyleSheetList styleSheets;
+  attribute any adoptedStyleSheets;
 };
 
 partial interface ShadowRoot {
   [SameObject] readonly attribute StyleSheetList styleSheets;
+  attribute any adoptedStyleSheets;
 };
 
 interface mixin LinkStyle {

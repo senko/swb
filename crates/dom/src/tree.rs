@@ -319,6 +319,12 @@ pub struct ShadowRootData {
     pub serializable: bool,
     /// The declarative flag (always false in swb: no declarative roots).
     pub declarative: bool,
+    /// How many times the root moved to another document (wrapping), but
+    /// for moves between a document and its template contents owner. The
+    /// root's `adoptedStyleSheets` are cleared at such a move (measured in
+    /// Chromium 148, ADR 0036 "5c-2 implementation notes"); the bindings and
+    /// the engine compare this number with the one of their last write.
+    pub adoptions: u32,
 }
 
 /// The kind-specific data of a node.

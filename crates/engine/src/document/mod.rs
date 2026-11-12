@@ -29,6 +29,7 @@
 //! the frame viewports, the declarative refresh, the requests of
 //! subresources with the document's loader client).
 
+mod adopted_sheets;
 mod api_fetches;
 mod changes;
 mod cssom;
@@ -259,6 +260,9 @@ pub struct DocumentState {
     /// The estimated size of the style data that scripts made (the sheets of
     /// their `style` elements, their rules); bounded (ADR 0028 section 16).
     pub(crate) style_memory: swb_style::cssom::sheet::StyleMemory,
+    /// The adopted style sheets of the document and its shadow roots
+    /// (`adoptedStyleSheets`, ADR 0036 section 6).
+    pub(crate) adopted: adopted_sheets::AdoptedSheets,
     /// The number of the last stylesheet load (each load has its own, so
     /// that a stale response is ignored).
     pub(crate) sheet_serial: u64,
@@ -415,6 +419,7 @@ impl DocumentState {
             tree_order: Derived::new(TreeOrder::default()),
             sheets: Sheets::default(),
             style_memory: swb_style::cssom::sheet::StyleMemory::default(),
+            adopted: adopted_sheets::AdoptedSheets::default(),
             sheet_serial: 0,
             images: init.images,
             lazy: lazy::LazyImages::default(),
@@ -846,6 +851,17 @@ impl swb_web::EngineHost for DocumentState {
     fn style_sheets_changed(&mut self) {
         self.flushes.sheet_changes = self.flushes.sheet_changes.saturating_add(1);
         self.invalidate_style();
+    }
+
+    fn style_memory(&mut self) -> Option<swb_style::cssom::sheet::StyleMemory> {
+        Some(self.style_memory.clone())
+    }
+
+    fn adopted_sheets(
+        &mut self,
+        scope: NodeId,
+    ) -> Option<&mut Vec<swb_style::cssom::sheet::SheetRef>> {
+        self.adopted.list_mut(&self.dom, scope)
     }
 
     fn resolved_value(

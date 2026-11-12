@@ -3,7 +3,9 @@
 //! section 10).
 //!
 //! A [`StyleSheet`] is the parsed form of a `style` element's text or of a
-//! `link` element's response, and at the same time the object behind a
+//! `link` element's response, or a sheet that `new CSSStyleSheet()` made
+//! (a constructed sheet, for `adoptedStyleSheets`; ADR 0036 section 6), and
+//! at the same time the object behind a
 //! script's `CSSStyleSheet`: the engine builds the stylist from its rules,
 //! and the bindings read and change them. Both hold it through a
 //! [`SheetRef`]; each rule is a [`RuleRef`], so that a rule keeps its
@@ -85,7 +87,26 @@ pub struct StyleSheet {
     /// without the declarations of their style rules (those hold their own);
     /// the page's own sheets hold none.
     hold: Option<Hold>,
+    /// The data of a sheet that `new CSSStyleSheet()` made (CSSOM "constructed
+    /// flag"); `None` for the sheets of `style` and `link` elements.
+    constructed: Option<Constructed>,
 }
+
+/// The data of a constructed sheet.
+#[derive(Debug)]
+struct Constructed {
+    /// The URL that relative `url()` values resolve against: the document
+    /// base URL at the construction (Chromium 148 ignores the `baseURL`
+    /// option, measured; case `constructed-sheet-options`).
+    base_url: Url,
+    /// The estimated bytes of the sheet object itself, if they fitted.
+    _hold: Option<Hold>,
+}
+
+/// The estimated bytes of a constructed sheet without its rules (the sheet
+/// object and its wrapper's data), charged to the document's style memory
+/// (ADR 0036 section 12).
+pub const CONSTRUCTED_SHEET_BYTES: usize = 512;
 
 /// A CSS rule (CSSOM §6.4).
 #[derive(Debug)]
@@ -189,6 +210,9 @@ pub enum RuleError {
     /// A grouping rule nested [`MAX_GROUP_DEPTH`] deep gets no more rules
     /// (swb's bound, `HierarchyRequestError`).
     TooDeep,
+    /// `@import` into a constructed sheet (`SyntaxError`, CSSOM "insert a
+    /// CSS rule" step 4).
+    ImportInConstructed,
     /// The style data that scripts made would exceed
     /// [`MAX_SCRIPT_STYLE_BYTES`] (swb's bound, `QuotaExceededError`).
     Memory,
@@ -234,7 +258,18 @@ impl StyleSheet {
     /// estimated bytes of the parsed rules count in `memory`, and a text
     /// that does not fit gives a sheet without rules.
     pub fn parse_in(css: &str, quirks: bool, memory: &StyleMemory, script: bool) -> SheetRef {
-        let sheet = Rc::new(RefCell::new(StyleSheet {
+        let sheet = Rc::new(RefCell::new(Self::empty(quirks, memory, None)));
+        if let Some((rules, hold)) = parse_rules(&sheet, css, memory, script, false) {
+            let mut this = sheet.borrow_mut();
+            this.rules = rules;
+            this.hold = hold;
+        }
+        sheet
+    }
+
+    /// A sheet without rules and owner.
+    fn empty(quirks: bool, memory: &StyleMemory, constructed: Option<Constructed>) -> StyleSheet {
+        StyleSheet {
             rules: Vec::new(),
             media: MediaQueryList::default(),
             disabled: false,
@@ -246,30 +281,70 @@ impl StyleSheet {
             modified: false,
             memory: memory.clone(),
             hold: None,
-        }));
-        let mut budget = None;
-        if script && !memory.fits(estimate_style_bytes(css), "style sheet text") {
-            return sheet;
+            constructed,
         }
-        let parsed = parse_stylesheet(css).rules;
-        if script {
-            budget = memory.reserve(rules_bytes(&parsed), "style sheet text");
-            if budget.is_none() {
-                return sheet;
-            }
+    }
+
+    /// `new CSSStyleSheet(options)` (CSSOM §6.1.2 "create a constructed
+    /// `CSSStyleSheet`"): an empty sheet with the constructed flag, whose
+    /// relative `url()` values resolve against `base_url`, with `media` and
+    /// `disabled` of the options. The sheet object counts
+    /// [`CONSTRUCTED_SHEET_BYTES`] in `memory` while they fit: past the
+    /// limit the sheet is still made (its rules cannot be parsed then; the
+    /// script heap's limit bounds the number of sheet objects).
+    pub fn construct(
+        memory: &StyleMemory,
+        quirks: bool,
+        base_url: Url,
+        media: MediaQueryList,
+        disabled: bool,
+    ) -> SheetRef {
+        let constructed = Constructed {
+            base_url,
+            _hold: memory.reserve(CONSTRUCTED_SHEET_BYTES, "new CSSStyleSheet()"),
+        };
+        let mut sheet = Self::empty(quirks, memory, Some(constructed));
+        sheet.media = media;
+        sheet.disabled = disabled;
+        Rc::new(RefCell::new(sheet))
+    }
+
+    /// True for a sheet that `new CSSStyleSheet()` made (the constructed
+    /// flag).
+    pub fn is_constructed(&self) -> bool {
+        self.constructed.is_some()
+    }
+
+    /// The base URL of a constructed sheet's `url()` values; `None` for the
+    /// sheets of elements (their slot has it).
+    pub fn constructed_base_url(&self) -> Option<&Url> {
+        self.constructed.as_ref().map(|c| &c.base_url)
+    }
+
+    /// `replaceSync(text)` and the parse of `replace(text)` (CSSOM §6.1.3):
+    /// the rules of `css` replace the rules of the sheet, without `@import`
+    /// rules (dropped, as Chromium 148 drops them; a `debug!` line). The
+    /// parsed rules count in the document's style memory like the text of
+    /// any sheet that a script made: a text that does not fit leaves the
+    /// sheet without rules (one warning per document). The old rules keep
+    /// their data for the scripts that hold them; their parent sheet
+    /// becomes null.
+    pub fn replace_rules(sheet: &SheetRef, css: &str) {
+        // The old rules go first, so that their bytes are free for the new
+        // ones (unless a script still holds them).
+        let (memory, old) = {
+            let mut this = sheet.borrow_mut();
+            this.hold = None;
+            this.modified = true;
+            (this.memory.clone(), std::mem::take(&mut this.rules))
+        };
+        for rule in old {
+            rule.borrow_mut().sheet = Weak::new();
         }
-        let rules = convert(
-            parsed,
-            &Weak::new(),
-            &Rc::downgrade(&sheet),
-            memory,
-            &mut budget,
-        );
+        let (rules, hold) = parse_rules(sheet, css, &memory, true, true).unwrap_or_default();
         let mut this = sheet.borrow_mut();
         this.rules = rules;
-        this.hold = budget;
-        drop(this);
-        sheet
+        this.hold = hold;
     }
 
     /// The top-level rules (`cssRules`).
@@ -353,6 +428,9 @@ impl StyleSheet {
             // The `@import` rules are a prefix of the list (this check keeps
             // it so), so the rules at `at - 1` and `at` decide.
             let this = sheet.borrow();
+            if this.constructed.is_some() && matches!(parsed, CssRule::Import(_)) {
+                return Err(RuleError::ImportInConstructed);
+            }
             let is_import = |r: Option<&RuleRef>| {
                 r.is_some_and(|r| matches!(r.borrow().kind, RuleKind::Import(_)))
             };
@@ -716,6 +794,46 @@ impl StyleRule {
         }
         block
     }
+}
+
+/// Parses `css` into the rules of `sheet` (which must not be borrowed).
+/// With `script`, the text must pass the check of [`estimate_style_bytes`]
+/// and the parsed rules must fit in `memory`; they hold their bytes in the
+/// returned [`Hold`]. `None` if they do not fit. With `no_imports`, the
+/// `@import` rules are dropped (a constructed sheet).
+fn parse_rules(
+    sheet: &SheetRef,
+    css: &str,
+    memory: &StyleMemory,
+    script: bool,
+    no_imports: bool,
+) -> Option<(Vec<RuleRef>, Option<Hold>)> {
+    if script && !memory.fits(estimate_style_bytes(css), "style sheet text") {
+        return None;
+    }
+    let mut parsed = parse_stylesheet(css).rules;
+    if no_imports {
+        let before = parsed.len();
+        parsed.retain(|r| !matches!(r, CssRule::Import(_)));
+        if parsed.len() < before {
+            log::debug!(
+                "a constructed style sheet ignores {} @import rules",
+                before - parsed.len()
+            );
+        }
+    }
+    let mut budget = None;
+    if script {
+        budget = Some(memory.reserve(rules_bytes(&parsed), "style sheet text")?);
+    }
+    let rules = convert(
+        parsed,
+        &Weak::new(),
+        &Rc::downgrade(sheet),
+        memory,
+        &mut budget,
+    );
+    Some((rules, budget))
 }
 
 /// Converts a rule that a script inserts: reserves the estimated bytes of

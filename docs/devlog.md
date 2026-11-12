@@ -4,6 +4,40 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-12: M10 feature 5c-2: constructable style sheets and `adoptedStyleSheets`
+
+- `new CSSStyleSheet(options)`, `replace`, `replaceSync` and
+  `adoptedStyleSheets` of `Document` and `ShadowRoot`. The array is a
+  `Proxy` over an `Array` with native traps (ADR 0036 section 6); each
+  change goes to the engine's list of the scope, which the stylist reads.
+- Measured in Chromium 148 (four new probe cases): `baseURL` has no effect
+  (the document base URL at construction counts); `replace()` resolves at
+  once; a root that moves to another document loses its adopted sheets
+  (but not into its document's template contents); the last place of a
+  sheet that is adopted twice counts; Chromium keeps the cascade layer
+  order of an earlier style update in some cases, also for `<style>`
+  elements: swb keeps the specification's order (departure).
+- GitHub: the popover polyfill now adopts one constructed sheet in the
+  document and the 24 roots instead of prepending a `<style>`; the 24
+  roots share two scoped stylists. Scores unchanged (geometry 0.9115,
+  pixels 0.9934); load 0.59 s.
+- Hostile cases `shadow-adopted-many` (65,537 entries, 10,000 roots with
+  10 KB sheets) and `shadow-adopted-push-pop-loop`. The first version's
+  constructor threw `QuotaExceededError` past the style memory; now the
+  sheet is made without rules.
+- The implementer session stopped at a usage limit after `just check`
+  passed, before its hand-off; the orchestrator made the patch from its
+  worktree.
+- Review: no defect in the observable array (25 paths with re-entrant
+  scripts, in both GC modes). Fixed: each style query looked at every root
+  with adopted sheets (6,000 nested roots passed the script time limit;
+  now 539 ms, as without the sheets), and a held array kept its sheets
+  after its root moved to another document until the getter ran (new probe
+  query, measured: Chromium empties it at once).
+- The system's tzdata went from 2026b to 2026f during the work (new rules
+  for Morocco); the Casablanca Date test now skips on newer data (backlog).
+- Next: 5d (events and focus).
+
 ## 2026-11-11: M10 feature 5c-1: style scoping in shadow trees
 
 - 5c is split into 5c-1 (style scoping) and 5c-2 (constructable sheets,

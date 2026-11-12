@@ -4817,7 +4817,16 @@ Steps:
         CSSStyleSheet`, `replace`, `replaceSync`, `adoptedStyleSheets` of
         the document and of shadow roots (an observable array), adopted
         sheets in the layer tree; the probe rows that `SUB_5C2` in
-        `crates/engine/tests/probe_net.rs` lists.
+        `crates/engine/tests/probe_net.rs` lists. Done (2026-11-12): a
+        `Proxy` over an `Array` with native traps; the document's adopted
+        sheets join its layer tree, a root's come after its tree's sheets;
+        GitHub's popover polyfill adopts one sheet in the document and the
+        24 roots. Measured: `baseURL` has no effect, `replace()` resolves
+        at once, a root that moves to another document loses its sheets,
+        Chromium keeps an earlier layer order in some cases (swb keeps the
+        specification's order: departure). Targets unchanged (GitHub JS on
+        geometry 0.9115, pixels 0.9934); JS-off snapshot identical;
+        callgrind within 0.01 %.
       - 5d events and focus (`implementer`): retargeting, `composedPath`,
         `relatedTarget`, `activeElement`, `delegatesFocus`, the Tab order
         with scopes.
@@ -4862,10 +4871,7 @@ Steps:
   `replay` of this page takes 17 s or more).
 - CSS nesting is not supported (GitHub does not use it; 3 of 4 probe cases
   of `github-css.json` differ).
-- Cascade layers (feature 1): `adoptedStyleSheets` must add their sheets to
-  the document's layer tree, after the document's sheets (sub-feature 5c-2
-  of ADR 0036; measured: an adopted sheet's `@layer a` joins the document's layer `a`).
-  swb loads no `@import` sheets: the layer of an import is declared, its
+- Cascade layers (feature 1): swb loads no `@import` sheets: the layer of an import is declared, its
   rules do not exist. `@page`, `@namespace`, `@container` and `@property`
   have no CSSOM objects. An `@import ... layer(a b)` that `insertRule`
   adds: Chromium accepts it, swb keeps no layer and puts the function in
@@ -4906,6 +4912,31 @@ Steps:
   and `:where()` as forgiving lists, so `selector(:is(.a, :bogus))` gives
   true (CSS Conditional 4: unforgiving there; Chromium gives false);
   `:lang(en)` serializes as `:lang("en")` (Chromium: `:lang(en)`).
+- Shadow DOM, found in 5c-2 (measured in Chromium 148, probe cases
+  `adopted-layer-order` and `adopted-array`): Chromium keeps the cascade
+  layer order of the previous style update while no layer with style rules
+  appears that the update before did not have (also for `<style>`
+  elements); after a reorder of adopted sheets by index writes it keeps
+  the old cascade order until an entry goes. swb orders the layers anew at
+  each stylist build, as CSS Cascade 5 says, and follows the array: both
+  are departures, not bugs of swb. A sheet adopted twice is applied once,
+  at its last place, so the layer statements of its first place do not
+  count (not measured). `MediaList` closes an unclosed function of a
+  `<general-enclosed>` (`bogus(` serializes as `bogus()`; Chromium keeps
+  the text). A change of a constructed sheet drops the stylist even when
+  no array holds the sheet. A style read after each change of an adopted
+  array rebuilds the stylist: about 0.14 ms on a small page (20,000 rounds
+  take 2.8 s). By the review's reading (not tested: the binding tests have
+  no frames), a change of a constructed sheet by a script of another window
+  invalidates the calling window's document, not the sheet's.
+- Tests (found 2026-11-12, at the 5c-2 commit): Debian's tzdata went from
+  2026b to 2026f, which changes Morocco's rules (UTC+00 after 2026).
+  Chromium 148's own data predates that, so the recorded values of
+  `chromium_cases_casablanca` (`crates/js/tests/builtins_date.rs`) differ
+  from swb's results from 2026 on and in the zone names. The test now
+  skips the zone when the system's `tzdata.zi` is newer than 2026b (it
+  prints why). Measure the zone again with a Chromium that has the new
+  rules, then remove the skip.
 - Custom elements (ADR 0035): customized built-in elements (`extends`,
   `is`; Chromium supports them, swb throws `NotSupportedError` at
   `define`); scoped registries (`new CustomElementRegistry()`,

@@ -482,7 +482,11 @@ impl Document {
         }
         let old = self.node(node).owner;
         if old != document {
-            self.set_node_document(node, document);
+            // A move between a document and its template contents owner
+            // keeps the adopted style sheets of shadow roots (measured).
+            let template_move = self.template_owners.get(&old) == Some(&document)
+                || self.template_owners.get(&document) == Some(&old);
+            self.set_node_document(node, document, !template_move);
             self.report_adopted(node, old);
         }
     }
@@ -499,18 +503,29 @@ impl Document {
 
     /// Makes `document` the node document of the shadow-including subtree
     /// of `node`, and its template contents owner that of the template
-    /// contents in it.
-    fn set_node_document(&mut self, node: NodeId, document: NodeId) {
-        let mut stack = vec![(node, document)];
-        while let Some((root, document)) = stack.pop() {
+    /// contents in it. With `count`, each shadow root in the subtree counts
+    /// the move ([`crate::ShadowRootData::adoptions`]); the roots in the
+    /// template contents always count theirs.
+    fn set_node_document(&mut self, node: NodeId, document: NodeId, count: bool) {
+        let mut stack = vec![(node, document, count)];
+        let mut counted = Vec::new();
+        while let Some((root, document, count)) = stack.pop() {
             let subtree: Vec<NodeId> = self.shadow_including_descendants(root).collect();
             for n in subtree {
-                self.node_mut(n).owner = document;
+                let this = self.node_mut(n);
+                this.owner = document;
+                if count && let NodeData::ShadowRoot(data) = &mut this.data {
+                    data.adoptions = data.adoptions.wrapping_add(1);
+                    counted.push(n);
+                }
                 if let Some(contents) = self.element(n).and_then(|e| e.template_contents) {
                     let inert = self.template_contents_owner(document);
-                    stack.push((contents, inert));
+                    stack.push((contents, inert, true));
                 }
             }
+        }
+        if !counted.is_empty() {
+            self.note_roots_moved(counted);
         }
     }
 

@@ -89,6 +89,7 @@
 //!   and `page_budget` (the budgets that the runtimes of a page share).
 
 mod abort;
+mod adopted;
 mod animation_frames;
 mod base64;
 pub mod bindings;

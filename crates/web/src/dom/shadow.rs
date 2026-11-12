@@ -154,6 +154,18 @@ impl g::shadow_root::ShadowRootImpl for WebState {
         crate::cssom_sheets::style_sheets(cx, this)
     }
 
+    fn adopted_style_sheets(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Value> {
+        crate::adopted::get(cx, this)
+    }
+
+    fn set_adopted_style_sheets(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        value: swb_js::Value,
+    ) -> b::Result<()> {
+        crate::adopted::set(cx, this, value)
+    }
+
     /// HTML `DocumentOrShadowRoot.activeElement` of a root: the focused
     /// element retargeted against the root, if that is in the root's tree.
     /// <https://html.spec.whatwg.org/multipage/interaction.html#dom-documentorshadowroot-activeelement>
