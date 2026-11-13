@@ -314,6 +314,37 @@ pub(crate) fn data_mut(rt: &mut Runtime, event: Gc<Generic>) -> VmResult<&mut Ev
     Ok(rt.heap_mut().generic_mut::<EventData>(event)?)
 }
 
+/// The node `object` retargeted against the event target `against` (DOM
+/// "retarget"), for the getters of event attributes that retarget
+/// (`ToggleEvent.source`): against the document when `against` is not a
+/// node of the current document. An object that is not a node of the
+/// current document stays as it is.
+/// <https://dom.spec.whatwg.org/#retarget>
+pub(crate) fn retarget_object(
+    rt: &mut Runtime,
+    object: Gc<Object>,
+    against: Option<Target>,
+) -> VmResult<Gc<Object>> {
+    let Ok(target::TargetKind::Node(node)) = target::kind_of(rt, object) else {
+        return Ok(object);
+    };
+    let key = crate::state::document_key(rt)?;
+    let against = match against {
+        Some(Target::Node(k, n)) if k == key => n,
+        Some(Target::Object(o)) => match target::kind_of(rt, o) {
+            Ok(target::TargetKind::Node(n)) => n,
+            _ => NodeId::DOCUMENT,
+        },
+        _ => NodeId::DOCUMENT,
+    };
+    let result = crate::state::dom(rt)?.retarget(node, against);
+    if result == node {
+        return Ok(object);
+    }
+    let realm = crate::state::doc_realm(rt)?;
+    <WebState as b::Host>::wrap_node(rt, realm, result)
+}
+
 /// The state of the event `this`.
 fn this_data<'a>(cx: &'a Cx<'_>, this: Platform) -> b::Result<&'a EventData> {
     Ok(data(cx.rt, event_handle(this.data)?)?)

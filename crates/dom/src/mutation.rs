@@ -100,6 +100,11 @@ fn is_id(name: &QualName) -> bool {
     name.ns == ns!() && name.local == local_name!("id")
 }
 
+/// True for the attribute `popover` without a namespace.
+fn is_popover(name: &QualName) -> bool {
+    name.ns == ns!() && &*name.local == "popover"
+}
+
 /// How [`Document::check_insertion`] treats the parent's children.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Validity {
@@ -469,6 +474,9 @@ impl Document {
                 prev_sibling,
                 next_sibling,
             });
+        }
+        if self.has_top_layer_entries() {
+            self.top_layer_removed(node);
         }
     }
 
@@ -908,6 +916,9 @@ impl Document {
         if self.shadow.is_some() {
             self.shadow_attribute_changed(element, name, old_value.as_deref());
         }
+        if self.top_layer.is_some() && is_popover(name) {
+            self.popover_attribute_changed(element, old_value.as_deref(), Some(value));
+        }
         Ok(())
     }
 
@@ -940,6 +951,9 @@ impl Document {
         });
         if self.shadow.is_some() {
             self.shadow_attribute_changed(element, &attr.name, Some(&attr.value));
+        }
+        if self.top_layer.is_some() && is_popover(&attr.name) {
+            self.popover_attribute_changed(element, Some(&attr.value), None);
         }
         Some(attr.value)
     }

@@ -709,6 +709,13 @@ impl ScriptRuntime {
                 result
             }),
             Task::Storage => self.storage_event_task(),
+            Task::Toggle { node, serial } => self.task("the event 'toggle'", |rt| {
+                set_listener_checkpoints(rt, true);
+                let result =
+                    crate::html::popover::toggle_task(rt, node, serial).map_err(task_error);
+                set_listener_checkpoints(rt, false);
+                result
+            }),
             Task::PortMessage(id) => self.task("the event 'message'", |rt| {
                 set_listener_checkpoints(rt, true);
                 let result = crate::message_port::deliver(rt, id).map_err(task_error);

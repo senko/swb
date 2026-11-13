@@ -25,8 +25,10 @@
 //! It also handles the user's clicks (the engine's input is dispatched as
 //! trusted events, and the activation behavior of this module replaces the
 //! engine's own action), the `summary` of a `details` element, the
-//! `javascript:` URLs of links and form actions, and the simulated click of
-//! a key (`simulated_click`).
+//! `javascript:` URLs of links and form actions, the simulated click of
+//! a key (`simulated_click`), and the invokers of popovers (a button with
+//! `popovertarget` that does not submit or reset a form; `popover.rs`, ADR
+//! 0037 section 3).
 //!
 //! Measured in Chromium 148 (`tools/probes/web-input-handlers.json`):
 //! `dispatchEvent` of a `click` `MouseEvent` activates a disabled checkbox;
@@ -76,6 +78,9 @@ pub(crate) enum Kind {
     Label,
     /// The first `summary` child of a `details` element.
     Summary,
+    /// A `button` or `input` of type `button`: it acts only as the invoker
+    /// of a popover.
+    Invoker,
 }
 
 /// What the click that submits a form tells the submission.
@@ -112,6 +117,10 @@ pub(crate) struct Activation {
     saved: Saved,
     /// For a label: the button that acts after the label.
     also: Option<NodeId>,
+    /// For a link: the invoker of a popover below it on the event's path.
+    /// It acts before the link, which Chromium also follows (measured,
+    /// `invokers-in-link`).
+    invoker: Option<NodeId>,
 }
 
 /// The activation behavior of an element.
@@ -134,11 +143,12 @@ fn kind_of(dom: &Document, node: NodeId) -> Option<Kind> {
             Some("radio") => Some(Kind::Radio),
             Some("submit" | "image") => Some(Kind::Submit),
             Some("reset") => Some(Kind::Reset),
+            Some("button") => Some(Kind::Invoker),
             _ => None,
         },
         "button" => match ty().as_deref() {
             Some("reset") => Some(Kind::Reset),
-            Some("button") => None,
+            Some("button") => Some(Kind::Invoker),
             _ => Some(Kind::Submit),
         },
         _ => None,
@@ -156,27 +166,66 @@ pub(crate) fn find_target(
     bubbles: bool,
 ) -> VmResult<Option<Activation>> {
     let dom = dom(rt)?;
-    let Some(&node) = path.first() else {
+    let Some(&origin) = path.first() else {
         return Ok(None);
     };
     let mut labels = LabelMemo::default();
     let picked = swb_dom::click_target(path, bubbles, |n, skip_labels| {
         role_of(dom, n, (&mut labels, skip_labels))
     });
-    Ok(picked.and_then(|t| {
-        Some(Activation {
-            node: t.node,
-            origin: node,
-            kind: kind_of(dom, t.node)?,
-            saved: Saved::None,
-            also: t.also,
-        })
+    // A button that invokes a popover does not act in the walk (like a
+    // button of type `button`: a link around it is followed). It invokes its
+    // popover besides a link (below the link) and after a label (above the
+    // label), or alone if the walk found no target.
+    let reach = path
+        .get(..if bubbles { path.len() } else { 1 })
+        .unwrap_or(path);
+    let (node, also, with) = match picked {
+        None => match first_invoker(rt, reach)? {
+            Some(invoker) => (invoker, None, None),
+            None => return Ok(None),
+        },
+        Some(t) => {
+            let at = reach.iter().position(|&n| n == t.node).unwrap_or(0);
+            match t.role {
+                ClickRole::Link => (
+                    t.node,
+                    None,
+                    first_invoker(rt, reach.get(..at).unwrap_or_default())?,
+                ),
+                ClickRole::Label if t.also.is_none() => (
+                    t.node,
+                    first_invoker(rt, reach.get(at + 1..).unwrap_or_default())?,
+                    None,
+                ),
+                _ => (t.node, t.also, None),
+            }
+        }
+    };
+    Ok(kind_of(dom, node).map(|kind| Activation {
+        node,
+        origin,
+        kind,
+        saved: Saved::None,
+        also,
+        invoker: with,
     }))
+}
+
+/// The first element of `nodes` that invokes a popover.
+fn first_invoker(rt: &Runtime, nodes: &[NodeId]) -> VmResult<Option<NodeId>> {
+    for &node in nodes {
+        if super::popover::invoker_target(rt, node)?.is_some() {
+            return Ok(Some(node));
+        }
+    }
+    Ok(None)
 }
 
 /// The role of `node` for [`swb_dom::click_target`]. A submit or reset button
 /// acts if it has a form owner and is enabled (the activation behavior of
-/// HTML `button` and `input`); a label acts if it has a control (a label
+/// HTML `button` and `input`); a button that invokes a popover
+/// (`popover.rs`) is `Interactive`, and `find_target` runs it; a label acts if it has a control (a label
 /// without one lets the click go to a link around it and, as interactive
 /// content, stops an outer label, measured). A file or a color field takes the
 /// click for itself (its chooser opens; measured): nothing around it acts.
@@ -202,6 +251,8 @@ fn role_of(
         Kind::Label => labels.role(has_for(dom, node), || labeled_control(dom, node).is_some()),
         Kind::Summary => ClickRole::Summary,
         Kind::Checkbox | Kind::Radio => ClickRole::Toggle,
+        // A button without a form owner acts as an invoker only, and an
+        // invoker does not stop a link (see `find_target`).
         Kind::Submit | Kind::Reset => {
             if form_owner(dom, node).is_some() && !swb_style::is_actually_disabled(dom, node) {
                 ClickRole::Button
@@ -209,6 +260,7 @@ fn role_of(
                 ClickRole::Interactive
             }
         }
+        Kind::Invoker => ClickRole::Interactive,
     }
 }
 
@@ -303,9 +355,19 @@ pub(crate) fn after_dispatch(
     if canceled {
         return canceled_activation(rt, a);
     }
+    // The invoker below a link acts first, as the event bubbles.
+    if let Some(invoker) = a.invoker {
+        super::popover::activate(rt, invoker, a.origin)?;
+    }
     // A listener may have changed the element since.
     if kind_of(dom(rt)?, a.node) != Some(a.kind) {
         return Ok(());
+    }
+    // A button that does not submit or reset a form invokes its popover.
+    if matches!(a.kind, Kind::Submit | Kind::Reset | Kind::Invoker)
+        && super::popover::invoker_target(rt, a.node)?.is_some()
+    {
+        return super::popover::activate(rt, a.node, a.origin);
     }
     match a.kind {
         Kind::Checkbox => fire_input_and_change(rt, a.node),
@@ -346,6 +408,7 @@ pub(crate) fn after_dispatch(
             }
         }
         Kind::Summary => toggle_details(rt, a.node),
+        Kind::Invoker => Ok(()),
     }
 }
 
@@ -595,6 +658,9 @@ fn is_disabled(rt: &Runtime, node: NodeId) -> VmResult<bool> {
 /// The button that acts after an acting label (the label is inside it): its
 /// activation behavior, without a point.
 fn activate_button(rt: &mut Runtime, button: NodeId, modifiers: u16) -> VmResult<()> {
+    if super::popover::invoker_target(rt, button)?.is_some() {
+        return super::popover::activate(rt, button, button);
+    }
     match kind_of(dom(rt)?, button) {
         Some(Kind::Submit) => {
             let click = ClickInfo {

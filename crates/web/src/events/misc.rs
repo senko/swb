@@ -1,11 +1,14 @@
 //! The other event interfaces that `createEvent` names or that forms
 //! fire: `SubmitEvent` (HTML §4.10.21.3), `HashChangeEvent`,
 //! `MessageEvent`, `StorageEvent`, `BeforeUnloadEvent`,
-//! `TransitionEvent`, `DeviceMotionEvent` and `DeviceOrientationEvent`.
+//! `TransitionEvent`, `DeviceMotionEvent`, `DeviceOrientationEvent` and
+//! `ToggleEvent` (HTML §6.5.1, ADR 0037).
 //! <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submitevent>
+//! <https://html.spec.whatwg.org/multipage/interaction.html#the-toggleevent-interface>
 //!
-//! swb fires none of them except `submit`; scripts can construct them and
-//! dispatch them. The state of each is a variant of [`Other`].
+//! swb fires `submit`, `beforetoggle` and `toggle` of them (and the events
+//! of the modules that name them); scripts can construct them and dispatch
+//! them. The state of each is a variant of [`Other`].
 
 use swb_js::{Gc, Object, Runtime, Tracer, Value, VmError};
 
@@ -15,7 +18,7 @@ use crate::generated as g;
 use crate::generated::types::{
     DeviceMotionEventInit, DeviceOrientationEventInit, FormDataEventInit, HashChangeEventInit,
     MessageEventInit, PopStateEventInit, ProgressEventInit, StorageEventInit, SubmitEventInit,
-    TransitionEventInit,
+    ToggleEventInit, TransitionEventInit,
 };
 use crate::state::WebState;
 
@@ -77,6 +80,12 @@ pub(crate) enum Other {
     FormData {
         form_data: Gc<Object>,
     },
+    /// `ToggleEvent`.
+    Toggle {
+        old_state: String,
+        new_state: String,
+        source: Option<Gc<Object>>,
+    },
 }
 
 /// The state of a trusted `ProgressEvent`.
@@ -116,6 +125,10 @@ impl Other {
             | Other::Storage {
                 storage_area: Some(object),
                 ..
+            }
+            | Other::Toggle {
+                source: Some(object),
+                ..
             } => tracer.object(*object),
             Other::FormData { form_data } => tracer.object(*form_data),
             Other::PopState { state, .. } => tracer.value(*state),
@@ -152,6 +165,11 @@ impl Other {
                 pseudo_element,
                 ..
             } => property_name.capacity() + pseudo_element.capacity(),
+            Other::Toggle {
+                old_state,
+                new_state,
+                ..
+            } => old_state.capacity() + new_state.capacity(),
             _ => 0,
         }
     }
@@ -532,6 +550,47 @@ impl g::form_data_event::FormDataEventImpl for WebState {
             Other::FormData { form_data } => Ok(*form_data),
             _ => Err(VmError::type_error("Illegal invocation").into()),
         }
+    }
+}
+
+impl g::toggle_event::ToggleEventImpl for WebState {
+    fn constructor(cx: &mut Cx<'_>, kind: String, init: ToggleEventInit) -> b::Result<Gc<Object>> {
+        let flags = (init.bubbles, init.cancelable, init.composed);
+        let other = Other::Toggle {
+            old_state: init.old_state,
+            new_state: init.new_state,
+            source: init.source.map(|node| node.object),
+        };
+        make(cx, kind, flags, other)
+    }
+
+    fn old_state(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
+        match other(cx, this)? {
+            Other::Toggle { old_state, .. } => Ok(old_state.clone()),
+            _ => Ok(String::new()),
+        }
+    }
+
+    fn new_state(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
+        match other(cx, this)? {
+            Other::Toggle { new_state, .. } => Ok(new_state.clone()),
+            _ => Ok(String::new()),
+        }
+    }
+
+    /// `source`: the source retargeted against the current target (HTML:
+    /// "retargeting source against this's currentTarget"); outside a
+    /// dispatch, against the document.
+    fn source(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
+        let source = match other(cx, this)? {
+            Other::Toggle { source, .. } => *source,
+            _ => None,
+        };
+        let Some(source) = source else {
+            return Ok(None);
+        };
+        let current = this_data(cx, this)?.current_target;
+        Ok(Some(super::retarget_object(cx.rt, source, current)?))
     }
 }
 

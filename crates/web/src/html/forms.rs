@@ -212,6 +212,18 @@ impl g::html_button_element::HTMLButtonElementImpl for WebState {
         owner(cx, this)
     }
 
+    fn popover_target_element(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
+        super::popover::target_element(cx, this)
+    }
+
+    fn set_popover_target_element(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        value: Option<b::NodeRef>,
+    ) -> b::Result<()> {
+        super::popover::set_target_element(cx, this, value)
+    }
+
     fn form_action(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
         action_url(cx, this, "formaction")
     }

@@ -360,6 +360,13 @@ pub(crate) struct DocState {
     pub(crate) decodes: HashMap<NodeId, Vec<Gc<Object>>>,
     /// The window's `CustomElementRegistry` (`custom_elements/`).
     pub(crate) custom: crate::custom_elements::Registry,
+    /// The elements that scripts set as `popoverTargetElement`, by invoker
+    /// (`html/popover.rs`). Node ids do not keep nodes alive: the arena
+    /// keeps every node.
+    pub(crate) popover_targets: HashMap<NodeId, NodeId>,
+    /// The queued `toggle` task of each popover that has one
+    /// (`html/popover.rs`): a new task replaces it.
+    pub(crate) toggle_tasks: HashMap<NodeId, crate::event_loop::TaskKey>,
 }
 
 impl WebState {

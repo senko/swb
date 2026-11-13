@@ -19,7 +19,8 @@
 //! images (as the walk does). Across drains, each kind starts in the order
 //! of insertion.
 //!
-//! Invalidation: any change marks the styles dirty (a full restyle, M8); a
+//! Invalidation: any change marks the styles dirty (a full restyle, M8; also
+//! a popover that shows or hides, `Change::TopLayer`, ADR 0037); a
 //! change of a stylesheet (added, removed, moved, its text, `media` or
 //! URL) or of the base URL marks the stylist dirty.
 //!
@@ -210,6 +211,9 @@ impl DocumentState {
         if self.drained == Some(generation) && self.dom.journal().is_empty() {
             return;
         }
+        if self.dom.has_popover_attribute_hides() {
+            self.run_popover_attribute_steps();
+        }
         let journal = self.dom.take_journal();
         let defined_changed = self.dom.take_defined_changed();
         let shadow_changed = self.dom.take_shadow_changed();
@@ -306,7 +310,7 @@ impl DocumentState {
             if !batch.in_document {
                 let target = match &change {
                     Change::Children { parent, .. } => *parent,
-                    Change::Attribute { element, .. } => *element,
+                    Change::Attribute { element, .. } | Change::TopLayer { element } => *element,
                     Change::Text { node, .. } => *node,
                 };
                 batch.in_document = connected.check(target);
@@ -361,6 +365,9 @@ impl DocumentState {
                         self.children_changed(parent, &mut batch);
                     }
                 }
+                // `:popover-open` and the top layer: the styles are dirty
+                // (`in_document` above).
+                Change::TopLayer { .. } => {}
             }
         }
         self.finish_batch(batch);

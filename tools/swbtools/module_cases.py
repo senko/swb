@@ -8,7 +8,9 @@
 `tools/probes/web-custom-elements.json` (`ce-cases`; the cases with
 JavaScript off are left out: they have no `js` queries) and
 `crates/engine/tests/probe_net/shadow_dom.rs` from
-`tools/probes/web-shadow-dom.json` (`shadow-cases`).
+`tools/probes/web-shadow-dom.json` (`shadow-cases`) and
+`crates/engine/tests/probe_net/top_layer.rs` from
+`tools/probes/web-top-layer.json` (`top-layer-cases`).
 
 Run Chromium three times and check that the outputs are equal (docs/testing.md),
 then pass one output:
@@ -35,6 +37,8 @@ CE_PROBE_FILE = Path("tools/probes/web-custom-elements.json")
 CE_CASES_FILE = Path("crates/engine/tests/probe_net/custom_elements.rs")
 SHADOW_PROBE_FILE = Path("tools/probes/web-shadow-dom.json")
 SHADOW_CASES_FILE = Path("crates/engine/tests/probe_net/shadow_dom.rs")
+TOP_LAYER_PROBE_FILE = Path("tools/probes/web-top-layer.json")
+TOP_LAYER_CASES_FILE = Path("crates/engine/tests/probe_net/top_layer.rs")
 
 # The command and the section of docs/testing.md of each probe file.
 COMMANDS = {
@@ -42,6 +46,7 @@ COMMANDS = {
     GRAPH_PROBE_FILE: ("module-graph-cases", "Module script tests"),
     CE_PROBE_FILE: ("ce-cases", "Custom element tests"),
     SHADOW_PROBE_FILE: ("shadow-cases", "Shadow DOM tests"),
+    TOP_LAYER_PROBE_FILE: ("top-layer-cases", "Top layer tests"),
 }
 
 
@@ -142,4 +147,16 @@ def write_shadow_cases(chromium_json: Path) -> int:
     text = render(probe, chromium, SHADOW_PROBE_FILE)
     (root / SHADOW_CASES_FILE).write_text(text, encoding="utf-8")
     print(f"wrote {SHADOW_CASES_FILE}")
+    return 0
+
+
+def write_top_layer_cases(chromium_json: Path) -> int:
+    """Writes the cases file of the top layer probe from the `probe --json`
+    output in `chromium_json`."""
+    root = paths.repo_root()
+    probe = json.loads((root / TOP_LAYER_PROBE_FILE).read_text(encoding="utf-8"))
+    chromium = json.loads(chromium_json.read_text(encoding="utf-8"))
+    text = render(probe, chromium, TOP_LAYER_PROBE_FILE)
+    (root / TOP_LAYER_CASES_FILE).write_text(text, encoding="utf-8")
+    print(f"wrote {TOP_LAYER_CASES_FILE}")
     return 0

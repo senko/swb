@@ -75,6 +75,12 @@ pub trait HTMLInputElementImpl: b::Host {
     /// The setter of `attribute DOMString? selectionDirection`.
     fn set_selection_direction(cx: &mut b::Cx<'_>, this: b::NodeId, value: Option<String>) -> b::Result<()>;
 
+    /// `attribute Element? popoverTargetElement`.
+    fn popover_target_element(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
+
+    /// The setter of `attribute Element? popoverTargetElement`.
+    fn set_popover_target_element(cx: &mut b::Cx<'_>, this: b::NodeId, value: Option<b::NodeRef>) -> b::Result<()>;
+
     /// `boolean checkValidity()`.
     fn check_validity(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
 
@@ -758,6 +764,42 @@ fn set_selection_direction<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, ca
     })
 }
 
+fn get_popover_target_element<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLInputElement", "popoverTargetElement"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_INPUT_ELEMENT)?;
+        let result = <H as HTMLInputElementImpl>::popover_target_element(&mut b::Cx::new(rt, call, super::HTML_INPUT_ELEMENT), this)?;
+        Ok((match result { Some(x0) => b::to_js::node::<H>(rt, call.realm(), x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn set_popover_target_element<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLInputElement", "popoverTargetElement"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_INPUT_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::ELEMENT, "Element").map(Some) }).map_err(b::Exception::nested)?;
+        b::ce::scope(rt, |rt| <H as HTMLInputElementImpl>::set_popover_target_element(&mut b::Cx::new(rt, call, super::HTML_INPUT_ELEMENT), this, value))?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_popover_target_action<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLInputElement", "popoverTargetAction"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_INPUT_ELEMENT)?;
+        let result = b::reflect::get_enumerated::<H>(&mut b::Cx::new(rt, call, super::HTML_INPUT_ELEMENT), this, "popovertargetaction", &b::reflect::Keywords { keywords: &[("toggle", "toggle"), ("show", "show"), ("hide", "hide")], missing: Some("toggle"), invalid: Some("toggle") })?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_popover_target_action<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLInputElement", "popoverTargetAction"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_INPUT_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_INPUT_ELEMENT), this, "popovertargetaction", &value))?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 pub(super) fn construct<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Constructor("HTMLInputElement"), super::DOM_EXCEPTION, |rt| {
         if call.new_target().is_undefined() {
@@ -903,6 +945,8 @@ pub fn define<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> 
     rt.define_accessor(realm, target, "selectionStart", (Some(get_selection_start::<H> as swb_js::NativeFn), Some(set_selection_start::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "selectionEnd", (Some(get_selection_end::<H> as swb_js::NativeFn), Some(set_selection_end::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "selectionDirection", (Some(get_selection_direction::<H> as swb_js::NativeFn), Some(set_selection_direction::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "popoverTargetElement", (Some(get_popover_target_element::<H> as swb_js::NativeFn), Some(set_popover_target_element::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "popoverTargetAction", (Some(get_popover_target_action::<H> as swb_js::NativeFn), Some(set_popover_target_action::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "checkValidity", 0, op_check_validity::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "reportValidity", 0, op_report_validity::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "select", 0, op_select::<H>, swb_js::Attributes::MEMBER)?;

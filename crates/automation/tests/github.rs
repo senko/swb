@@ -258,6 +258,10 @@ const SHADOW_ROOTS: &str = "(() => {
         documentAdopted: document.adoptedStyleSheets.length,
         adoptedSheets: new Set(hosts.map(h => h.shadowRoot.adoptedStyleSheets)
             .concat([document.adoptedStyleSheets]).flatMap(a => Array.from(a))).size,
+        popoverPolyfill: ![Element.prototype.matches, Element.prototype.closest,
+            Document.prototype.querySelectorAll, window.ToggleEvent]
+            .every(f => /native code/.test(String(f))),
+        nativeShowPopover: /native code/.test(String(HTMLElement.prototype.showPopover)),
         tipStyle: tip ? [tip.getClientRects().length, tipStyle.display, tipStyle.textAlign,
             tipStyle.opacity, tipStyle.whiteSpace].join(' ') : null,
         times,
@@ -355,28 +359,25 @@ const REPLAY_TIMES: [&str; 23] = [
 /// text "Dismiss alert".
 fn shadow_roots(roots: &serde_json::Value) {
     assert_eq!(roots["hosts"], 24, "{roots}");
-    // ADR 0036 sub-feature 5c-2: the popover polyfill (which swb runs until
-    // it has `popover`) makes one constructed sheet and adopts it in the
-    // document and in each of the 24 roots (until 5c-2 it prepended a
-    // `<style>` to `tool-tip`'s root only); `tool-tip`'s root has its own
+    // ADR 0037 sub-feature 6a: swb has `popover`, so GitHub's popover
+    // polyfill does not run (it installs only without `popover` in
+    // `HTMLElement.prototype`): no constructed sheet is adopted anywhere, as
+    // in Chromium (until 6a the polyfill adopted one sheet in the document
+    // and the 24 roots, ADR 0036 5c-2). `tool-tip`'s root has its own
     // `<style>` and its sheets apply to its host: `:host` sets
-    // `text-align`, `opacity` and `white-space`; the closed popover still
-    // has no box.
+    // `text-align`, `opacity` and `white-space`; the closed popover has no
+    // box (the UA sheet's `[popover]:not(:popover-open)`).
     assert_eq!(
         roots["sheets"],
         serde_json::json!({"": 23, "own": 1}),
         "{roots}"
     );
     assert_eq!(roots["rootSheets"], 1, "{roots}");
-    let adopted: Vec<String> = serde_json::from_value(roots["adopted"].clone()).unwrap();
-    assert_eq!(adopted.len(), 24, "{roots}");
-    assert_eq!(adopted[0], "tool-tip:1", "{roots}");
-    assert!(
-        adopted[1..].iter().all(|a| a == "relative-time:1"),
-        "{roots}"
-    );
-    assert_eq!(roots["documentAdopted"], 1, "{roots}");
-    assert_eq!(roots["adoptedSheets"], 1, "{roots}");
+    assert_eq!(roots["adopted"], serde_json::json!([]), "{roots}");
+    assert_eq!(roots["documentAdopted"], 0, "{roots}");
+    assert_eq!(roots["adoptedSheets"], 0, "{roots}");
+    assert_eq!(roots["popoverPolyfill"], false, "{roots}");
+    assert_eq!(roots["nativeShowPopover"], true, "{roots}");
     assert_eq!(roots["tipStyle"], "0 none center 0 normal", "{roots}");
     let times: Vec<String> = serde_json::from_value(roots["times"].clone()).unwrap();
     assert_eq!(times, REPLAY_TIMES, "{roots}");

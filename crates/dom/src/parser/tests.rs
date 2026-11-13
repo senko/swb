@@ -276,6 +276,7 @@ fn check_journal(doc: &Document) {
                 assert!(matches!(doc.node(node).data, NodeData::Text(_)));
             }
             Change::Attribute { element, .. } => assert!(doc.element(element).is_some()),
+            Change::TopLayer { .. } => panic!("the parser shows no popover"),
         }
     }
     for index in 0..doc.len() {

@@ -22,7 +22,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use html5ever::{QualName, local_name, ns};
 
-use crate::tree::{Document, ElementData, NodeData, NodeId, SlotAssignment, shadow_flags};
+use crate::tree::{Document, ElementData, NodeData, NodeId, SlotAssignment, flags};
 
 /// The slots of one shadow root.
 #[derive(Debug, Default)]
@@ -400,7 +400,7 @@ impl Document {
         state.assigned_slot.insert(node, slot);
         state.work += 1;
         if let Some(e) = self.element_mut(slot) {
-            e.shadow_flags |= shadow_flags::SLOT;
+            e.flags |= flags::SLOT;
         }
         self.signal_slot(slot);
     }
@@ -431,7 +431,7 @@ impl Document {
             state.assigned_slot.remove(&node);
         }
         if empty && let Some(e) = self.element_mut(slot) {
-            e.shadow_flags &= !shadow_flags::SLOT;
+            e.flags &= !flags::SLOT;
         }
         self.signal_slot(slot);
     }
@@ -466,9 +466,9 @@ impl Document {
         }
         if let Some(e) = self.element_mut(slot) {
             if filled {
-                e.shadow_flags |= shadow_flags::SLOT;
+                e.flags |= flags::SLOT;
             } else {
-                e.shadow_flags &= !shadow_flags::SLOT;
+                e.flags &= !flags::SLOT;
             }
         }
         // The flat tree changed: the engine restyles (ADR 0036 section 5,

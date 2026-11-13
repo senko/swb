@@ -10,7 +10,7 @@
 //! Chromium 148, case `nested-slot-inherit`: the light child inherits from
 //! the outer slot).
 //!
-//! No tree is cached: the walks read the `shadow_flags` byte of each element
+//! No tree is cached: the walks read the `flags` byte of each element
 //! and look up the shadow state only at hosts and slots. In an arena without
 //! shadow state every function takes one branch more than its DOM
 //! counterpart. The walks are iterative.

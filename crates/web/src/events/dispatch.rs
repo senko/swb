@@ -85,6 +85,18 @@ pub enum EventInterface {
         /// `formData`.
         form_data: Gc<Object>,
     },
+    /// `ToggleEvent` (`beforetoggle`, `toggle`; ADR 0037).
+    Toggle {
+        /// `oldState`.
+        old: swb_dom::ToggleState,
+        /// `newState`.
+        new: swb_dom::ToggleState,
+        /// `source`, a node of the current document.
+        source: Option<NodeId>,
+        /// `source` when it is an element of another document (`showPopover`
+        /// with such a `source`: Chromium accepts it): the wrapper.
+        foreign: Option<Gc<Object>>,
+    },
 }
 
 /// An event that the engine fires (DOM "fire an event"): `isTrusted` is
@@ -212,6 +224,23 @@ pub(crate) fn dispatch_trusted(
             g::FORM_DATA_EVENT,
             Extra::Other(Box::new(super::misc::form_data(*form_data))),
         ),
+        EventInterface::Toggle {
+            old,
+            new,
+            source,
+            foreign,
+        } => {
+            let source = match source {
+                Some(node) => Some(WebState::wrap_node(rt, realm, *node)?),
+                None => *foreign,
+            };
+            let other = super::misc::Other::Toggle {
+                old_state: old.as_str().to_owned(),
+                new_state: new.as_str().to_owned(),
+                source,
+            };
+            (g::TOGGLE_EVENT, Extra::Other(Box::new(other)))
+        }
         EventInterface::User(user) => {
             // Chromium makes a `wheel` event cancelable only when a
             // listener on its path can cancel it.

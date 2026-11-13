@@ -190,9 +190,12 @@ impl Document {
                 self.template_hosts.remove(&old);
             }
         }
-        if self.shadow.is_some() {
+        if self.shadow.is_some() || self.top_layer.is_some() {
             let taken: Vec<NodeId> = found.iter().map(|&(n, _)| n).collect();
-            self.forget_shadow_nodes(&taken);
+            if self.shadow.is_some() {
+                self.forget_shadow_nodes(&taken);
+            }
+            self.forget_top_layer_nodes(&taken);
         }
         self.generation += 1;
         self.structure_generation += 1;
@@ -294,7 +297,7 @@ impl Subtree {
         if let NodeData::Element(e) = &mut data {
             e.template_contents = None;
             e.parser_form = None;
-            e.shadow_flags = 0;
+            e.flags = 0;
             if e.is_html_named(&local_name!("template")) {
                 self.templates += 1;
             }

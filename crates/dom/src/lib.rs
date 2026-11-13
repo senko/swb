@@ -24,6 +24,7 @@ mod parser;
 mod serialize;
 mod shadow;
 mod slots;
+mod top_layer;
 mod transplant;
 mod tree;
 
@@ -51,6 +52,12 @@ pub use parser::{
 pub use serialize::{inner_html, outer_html};
 pub use shadow::{
     AttachError, ShadowIncludingDescendants, ShadowRootInit, is_valid_shadow_host_name,
+};
+pub use top_layer::{
+    DialogData, HideOptions, PendingToggle, PopoverError, PopoverErrorKind, PopoverState,
+    TargetAction, ToggleState, TopLayerHost, TopLayerState, hide_all_popovers_until, hide_popover,
+    popover_target_activation, popover_target_by_id, run_popover_attribute_steps, show_popover,
+    toggle_popover, topmost_popover_ancestor,
 };
 pub use transplant::{Placed, Subtree, SubtreeSize};
 pub use tree::{

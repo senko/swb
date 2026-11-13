@@ -801,7 +801,16 @@ impl Element for DomElement<'_> {
     }
 
     fn state(&self) -> ElementState {
-        self.states.interaction_state(self.id) | self.form_state()
+        let mut state = self.states.interaction_state(self.id) | self.form_state();
+        // `:popover-open` and `:modal` from the element's flag byte (ADR 0037
+        // section 8).
+        if self.data.is_popover_showing() {
+            state |= ElementState::POPOVER_OPEN;
+        }
+        if self.data.is_modal() {
+            state |= ElementState::MODAL;
+        }
+        state
     }
 
     fn same_element(&self, other: &Self) -> bool {
@@ -849,6 +858,42 @@ mod tests {
         assert!(matches(&doc, &s, "t", "div > p:last-child"));
         assert!(matches(&doc, &s, "l", ":defined"));
         assert!(matches(&doc, &s, "d", "div:has(> a:link)"));
+    }
+
+    /// A host of the popover algorithms without events.
+    struct Quiet<'a>(&'a mut Document);
+
+    impl swb_dom::TopLayerHost for Quiet<'_> {
+        fn doc(&mut self) -> &mut Document {
+            self.0
+        }
+
+        fn fire_beforetoggle(
+            &mut self,
+            _: NodeId,
+            _: swb_dom::ToggleState,
+            _: swb_dom::ToggleState,
+            _: bool,
+            _: Option<NodeId>,
+        ) -> Option<bool> {
+            Some(true)
+        }
+
+        fn queue_toggle_task(&mut self, _: NodeId, _: u64) {}
+    }
+
+    #[test]
+    fn popover_open_follows_the_flag() {
+        let mut doc = parse_html("<div id=p popover>x</div><div id=q>y</div>");
+        let p = find(&doc, "p");
+        let closed = StateSet::new(&doc, &ElementStates::default());
+        assert!(!matches(&doc, &closed, "p", ":popover-open"));
+        assert!(matches(&doc, &closed, "p", "[popover]:not(:popover-open)"));
+        swb_dom::show_popover(&mut Quiet(&mut doc), p, true, None).expect("shows");
+        let open = StateSet::new(&doc, &ElementStates::default());
+        assert!(matches(&doc, &open, "p", ":popover-open"));
+        assert!(!matches(&doc, &open, "q", ":popover-open"));
+        assert!(!matches(&doc, &open, "p", ":modal"));
     }
 
     #[test]

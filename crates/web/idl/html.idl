@@ -30,8 +30,12 @@
 // `inputMode`, `enterKeyHint`) and the
 // members of HTMLOrSVGElement without `focus` and `blur` (feature
 // 6d; `innerText` and `outerText` since 7b2; `contentEditable` and
-// `isContentEditable` since 12b, without editing behavior); it lacks
-// `popover`, `attachInternals` and the popover members. No element
+// `isContentEditable` since 12b, without editing behavior; the popover
+// members `popover`, `showPopover`, `hidePopover` and `togglePopover` since
+// M10 6a, ADR 0037); it lacks `attachInternals`. HTMLButtonElement and
+// HTMLInputElement have PopoverTargetAttributes (M10 6a) but not the
+// `command`, `commandForElement` and `interestForElement` of Chromium (ADR
+// 0037 section 11: no target uses them). No element
 // interface has the obsolete members (except `HTMLStyleElement.type`, which
 // scripts set to stop a sheet; M9 feature 6, with `HTMLStyleElement.disabled`;
 // `sheet` is `LinkStyle` of `cssom.idl`), `files`, `valueAsNumber`,
@@ -262,7 +266,24 @@ interface HTMLElement : Element {
   // copied on 2026-10-31, feature 12b of M8; swb has no editing behavior)
   [CEReactions] attribute DOMString contentEditable;
   readonly attribute boolean isContentEditable;
+
+  // popover API (https://html.spec.whatwg.org/multipage/popover.html, copied
+  // on 2026-11-13, M10 6a; ADR 0037 section 9). `popover` reflects the
+  // attribute "limited to only known values": swb's keyword attributes.
+  undefined showPopover(optional ShowPopoverOptions options = {});
+  undefined hidePopover();
+  boolean togglePopover(optional (TogglePopoverOptions or boolean) options = {});
+  [CEReactions, Reflect, SwbKeywords="=auto auto manual hint", SwbInvalid="manual"] attribute DOMString? popover;
 };
+
+dictionary ShowPopoverOptions {
+  [SwbAnyDocument] HTMLElement source;
+};
+
+dictionary TogglePopoverOptions : ShowPopoverOptions {
+  boolean force;
+};
+
 HTMLElement includes HTMLOrSVGElement;
 HTMLElement includes GlobalEventHandlers;
 HTMLElement includes DocumentAndElementEventHandlers;
@@ -1016,6 +1037,17 @@ interface HTMLDetailsElement : HTMLElement {
   [CEReactions, Reflect] attribute boolean open;
 };
 
+// The popover target attributes
+// (https://html.spec.whatwg.org/multipage/popover.html#the-popover-target-attributes,
+// copied on 2026-11-13, M10 6a). `popoverTargetAction` has swb's keywords
+// ("limited to only known values"; missing and invalid: toggle).
+interface mixin PopoverTargetAttributes {
+  [CEReactions] attribute [SwbAnyDocument] Element? popoverTargetElement;
+  [CEReactions, Reflect, SwbKeywords="toggle show hide", SwbMissing="toggle", SwbInvalid="toggle"] attribute DOMString popoverTargetAction;
+};
+HTMLButtonElement includes PopoverTargetAttributes;
+HTMLInputElement includes PopoverTargetAttributes;
+
 [Exposed=Window]
 interface HTMLDialogElement : HTMLElement {
   [HTMLConstructor] constructor();
@@ -1515,6 +1547,24 @@ interface SubmitEvent : Event {
 
 dictionary SubmitEventInit : EventInit {
   [SwbAnyDocument] HTMLElement? submitter = null;
+};
+
+// https://html.spec.whatwg.org/multipage/interaction.html#the-toggleevent-interface
+// (copied on 2026-11-13, M10 6a). `source` is `object?` and the member of
+// the dictionary `[SwbAnyDocument]`, as `SubmitEvent.submitter`: the
+// element can be of another document; the getter retargets it.
+[Exposed=Window]
+interface ToggleEvent : Event {
+  constructor(DOMString type, optional ToggleEventInit eventInitDict = {});
+  readonly attribute DOMString oldState;
+  readonly attribute DOMString newState;
+  readonly attribute object? source;
+};
+
+dictionary ToggleEventInit : EventInit {
+  DOMString oldState = "";
+  DOMString newState = "";
+  [SwbAnyDocument] Element? source = null;
 };
 
 [Exposed=Window]

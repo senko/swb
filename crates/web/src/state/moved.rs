@@ -104,6 +104,7 @@ pub(crate) fn move_node_state(
     let mut words: Vec<(Gc<Object>, u64)> = Vec::new();
     let mut with_wrapper: Vec<(NodeId, NodeId)> = Vec::new();
     let mut moved_arrays: Vec<NodeId> = Vec::new();
+    crate::html::popover::move_targets(&mut from, to, pairs);
     for &(old, new) in pairs {
         from.moved.insert(old, (target, new));
         if !from.scripts.elements.is_empty() {

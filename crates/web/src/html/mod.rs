@@ -26,7 +26,9 @@
 //! - `selection.rs`: the selection members of `input` and `textarea`
 //!   (feature 9b1);
 //! - `selection_events.rs`: their `select` and `selectionchange` events
-//!   (feature 9b2).
+//!   (feature 9b2);
+//! - `popover.rs`: the popover members, `popoverTargetElement`, the
+//!   invokers and the `toggle` task (M10 6a, ADR 0037).
 //!
 //! Reflected attributes (`[Reflect]` and its variants) are generated from
 //! the IDL (`crates/web/idl/html.idl`); this module has what the standard
@@ -42,6 +44,7 @@ mod forms;
 mod hyperlink;
 mod inner_text;
 mod owner;
+pub(crate) mod popover;
 mod selection;
 pub(crate) mod selection_events;
 mod slot;

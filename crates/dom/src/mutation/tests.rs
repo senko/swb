@@ -94,6 +94,7 @@ impl MutationSink for Recorder {
                 old: old_value.map(str::to_owned),
                 new: doc.char_data(node).unwrap_or_default().to_owned(),
             },
+            Change::TopLayer { .. } => panic!("the sink gets no top-layer change"),
         };
         self.0.borrow_mut().push(record);
     }

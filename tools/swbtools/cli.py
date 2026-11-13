@@ -28,6 +28,7 @@ from swbtools.module_cases import (
     write_module_cases,
     write_module_graph_cases,
     write_shadow_cases,
+    write_top_layer_cases,
 )
 from swbtools.pages import list_fixtures, list_js_fixtures, read_meta
 from swbtools.perf import perf
@@ -177,6 +178,10 @@ def cmd_ce_cases(args: argparse.Namespace) -> int:
 
 def cmd_shadow_cases(args: argparse.Namespace) -> int:
     return write_shadow_cases(args.chromium)
+
+
+def cmd_top_layer_cases(args: argparse.Namespace) -> int:
+    return write_top_layer_cases(args.chromium)
 
 
 def cmd_js_unicode_tables(args: argparse.Namespace) -> int:
@@ -501,6 +506,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="the output of `probe --json tools/probes/web-shadow-dom.json`",
     )
     p.set_defaults(func=cmd_shadow_cases)
+
+    p = commands.add_parser(
+        "top-layer-cases",
+        help="write crates/engine/tests/probe_net/top_layer.rs from web-top-layer.json",
+    )
+    p.add_argument(
+        "chromium",
+        type=Path,
+        help="the output of `probe --json tools/probes/web-top-layer.json`",
+    )
+    p.set_defaults(func=cmd_top_layer_cases)
 
     p = commands.add_parser(
         "linebreaks", help="measure Chromium's line break opportunities (text crate test data)"

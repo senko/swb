@@ -9,7 +9,10 @@
 //! `web-module-graph.json` (ADR 0034 sub-feature 3b-1: module graphs,
 //! their errors, top-level `await`, `import()`, `import.meta`); and the
 //! custom element probe `web-custom-elements.json` (ADR 0035; the cases of
-//! the later sub-features are listed in `CE_LATER`).
+//! the later sub-features are listed in `CE_LATER`), the shadow DOM probe
+//! `web-shadow-dom.json` (ADR 0036) and the top layer probe
+//! `web-top-layer.json` (ADR 0037; `TOP_LAYER_LATER` lists the cases of the
+//! sub-features after 6a).
 //!
 //! `Sim` answers as the probe server does (`swbtools/probe.py`): the
 //! `resources` of a case under `/case-N/`, the headers `Cache-Control:
@@ -42,6 +45,8 @@ mod module_cases;
 mod module_graph_cases;
 #[path = "probe_net/shadow_dom.rs"]
 mod shadow_cases;
+#[path = "probe_net/top_layer.rs"]
+mod top_layer_cases;
 #[path = "probe_net/xhr.rs"]
 mod xhr_cases;
 
@@ -867,6 +872,133 @@ const SHADOW_LATER: &[Later] = &[
     ("root-properties", Some(10), DECLARATIVE),
     ("declarative-js-on", None, DECLARATIVE),
 ];
+
+const SUB_6C: &str = "ADR 0037 sub-feature 6c: popover focus steps";
+const SUB_6D: &str = "ADR 0037 sub-feature 6d: dialogs (`show`, `showModal`, `close`, \
+     `requestClose`, `returnValue`, `closedBy`)";
+const SUB_6B_6E: &str = "ADR 0037 sub-features 6b (rows 1 to 4: the paint order of the top \
+     layer) and 6e (rows 5 to 10: modal inertness)";
+const SUB_6C_STEPS: &str = "ADR 0037 sub-feature 6c (light dismiss, Escape, invokers with \
+     JavaScript off, focus); the case has input steps: it runs in \
+     `crates/automation/tests/real_input.rs` or, without scripts, in an engine test";
+const SUB_6D_STEPS: &str = "ADR 0037 sub-feature 6d (dialogs, close requests); the case has \
+     input steps: it runs in `crates/automation/tests/real_input.rs` or, without scripts, in an \
+     engine test";
+const SUB_6E_STEPS: &str = "ADR 0037 sub-feature 6e (modal inertness); the case has input \
+     steps: it runs in `crates/automation/tests/real_input.rs`";
+
+/// The departures of the top layer probe (ADR 0037 section 11, "6a
+/// implementation notes"). The members that later sub-features add change
+/// these values; those sub-features update the rows.
+const TOP_LAYER_DEPARTURES: &[Departure] = &[
+    (
+        "popover-target-arenas",
+        10,
+        r#""beforetoggle:true,toggle:false,beforetoggle:false""#,
+        "the `source` option that is an element of another document reaches the `beforetoggle` \
+         event but not the queued `toggle` event (the toggle task keeps a node of the popover's \
+         arena only; a rare case, ADR 0037 \"6a implementation notes\", review fixes)",
+    ),
+    (
+        "popover-target-arenas",
+        2,
+        r#""false,null,,false,false,false""#,
+        "an invoker that leaves its target's document alone and comes back: Chromium keeps \
+         the element that a script set, swb drops the entry when only one end moves (ADR 0037 \
+         \"6a implementation notes\", review fixes)",
+    ),
+    (
+        "api-surface",
+        3,
+        r#""HTMLButtonElement:popoverTargetElement/popoverTargetAction HTMLInputElement:popoverTargetElement/popoverTargetAction""#,
+        "`command`, `commandForElement` and `interestForElement` are backlog (ADR 0037 \
+         section 11: no target uses them)",
+    ),
+    (
+        "api-surface",
+        5,
+        r#"":popover-open=true :modal=true :open=true :closed=false ::backdrop=true :popover-open::backdrop=true dialog:modal::backdrop=true ::backdrop:hover=false :fullscreen=true | overlay=false transition-behavior=true interactivity=false position-anchor=false position-try=false display=true""#,
+        "the `overlay` property comes with sub-feature 6b; `interactivity` and CSS anchor \
+         positioning (`position-anchor`, `position-try`) are backlog (ADR 0037 section 11)",
+    ),
+];
+
+/// The cases and queries of the top layer probe that the later sub-features
+/// of ADR 0037 run. The 6a fix round adds `invokers-in-link*`,
+/// `popover-validity-6a` and `popover-target-arenas`.
+const TOP_LAYER_LATER: &[Later] = &[
+    // The 6a fix round: key presses on an invoker in a link.
+    ("invokers-in-link-enter", None, STEPS),
+    ("invokers-in-link-space", None, STEPS),
+    ("invokers-in-link-enter-plain", None, STEPS),
+    ("api-surface", Some(1), SUB_6D),
+    ("api-surface", Some(4), SUB_6D),
+    ("popover-reflection", Some(5), SUB_6D),
+    ("exceptions", Some(3), SUB_6D),
+    ("exceptions", Some(4), SUB_6D),
+    ("exceptions", Some(6), SUB_6D),
+    ("dialog-basics", None, SUB_6D),
+    ("dialog-form", None, SUB_6D),
+    ("dialog-focus", None, SUB_6D),
+    ("popover-focus", None, SUB_6C),
+    ("top-layer-hit-order", None, SUB_6B_6E),
+    ("inert-click", None, SUB_6E_STEPS),
+    ("inert-hover", None, SUB_6E_STEPS),
+    ("inert-tab", None, SUB_6E_STEPS),
+    ("inert-selection", None, SUB_6E_STEPS),
+    ("inert-backdrop-click", None, SUB_6E_STEPS),
+    ("inert-closedby-any", None, SUB_6D_STEPS),
+    ("escape-modal", None, SUB_6D_STEPS),
+    ("escape-cancel-prevented", None, SUB_6D_STEPS),
+    ("escape-no-activation", None, SUB_6D_STEPS),
+    ("escape-nested-dialogs", None, SUB_6D_STEPS),
+    ("escape-popover-in-dialog", None, SUB_6D_STEPS),
+    ("escape-popovers", None, SUB_6C_STEPS),
+    ("escape-keydown-prevented", None, SUB_6D_STEPS),
+    ("escape-nonmodal-and-closedby", None, SUB_6D_STEPS),
+    ("escape-focus-return", None, SUB_6C_STEPS),
+    ("popover-tab-order", None, SUB_6C_STEPS),
+    ("xo-escape-no-activation", None, SUB_6D_STEPS),
+    ("xo-escape-cancel-after-click", None, SUB_6D_STEPS),
+    ("xo-escape-cancel-click-between", None, SUB_6D_STEPS),
+    ("xo-groups-no-activation", None, SUB_6D_STEPS),
+    ("xo-groups-after-click", None, SUB_6D_STEPS),
+    ("xo-groups-two-before-click", None, SUB_6D_STEPS),
+    ("xo-popovers-no-activation", None, SUB_6C_STEPS),
+    ("light-dismiss-outside", None, SUB_6C_STEPS),
+    ("light-dismiss-inside-child", None, SUB_6C_STEPS),
+    ("light-dismiss-inside-parent", None, SUB_6C_STEPS),
+    ("light-dismiss-down-out-up-in", None, SUB_6C_STEPS),
+    ("light-dismiss-down-in-up-out", None, SUB_6C_STEPS),
+    ("light-dismiss-invoker", None, SUB_6C_STEPS),
+    ("light-dismiss-right-click", None, SUB_6C_STEPS),
+    ("light-dismiss-manual", None, SUB_6C_STEPS),
+    ("light-dismiss-prevented-pointerdown", None, SUB_6C_STEPS),
+    ("noscript-invoker-toggle", None, SUB_6C_STEPS),
+    ("noscript-invoker-twice", None, SUB_6C_STEPS),
+    ("noscript-invoker-actions", None, SUB_6C_STEPS),
+    ("noscript-nested", None, SUB_6C_STEPS),
+    ("noscript-light-dismiss", None, SUB_6C_STEPS),
+    ("noscript-escape", None, SUB_6C_STEPS),
+    ("noscript-keyboard", None, SUB_6C_STEPS),
+    ("noscript-dialog-form", None, SUB_6D_STEPS),
+    ("noscript-dialog-escape", None, SUB_6D_STEPS),
+    ("noscript-form-invoker-button", None, SUB_6C_STEPS),
+    ("noscript-form-invoker-submit", None, SUB_6C_STEPS),
+];
+
+#[test]
+fn top_layer_probe_cases_match_chromium() {
+    on_page_thread(|| {
+        let failures = failures_but_later(
+            top_layer_cases::CASES,
+            TOP_LAYER_DEPARTURES,
+            TOP_LAYER_LATER,
+            3,
+        );
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    });
+}
 
 #[test]
 fn shadow_dom_probe_cases_match_chromium() {

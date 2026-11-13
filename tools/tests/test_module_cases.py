@@ -15,6 +15,8 @@ from swbtools.module_cases import (
     PROBE_FILE,
     SHADOW_CASES_FILE,
     SHADOW_PROBE_FILE,
+    TOP_LAYER_CASES_FILE,
+    TOP_LAYER_PROBE_FILE,
     raw,
     render,
 )
@@ -128,3 +130,12 @@ def test_committed_shadow_cases_are_those_of_the_probe_file() -> None:
     written = re.findall(r'^        name: r?"([^"]+)",$', rust, re.MULTILINE)
     assert written == [c["name"] for c in probe["cases"] if c.get("javascript", True)]
     assert "shadow-cases" in rust
+
+
+def test_committed_top_layer_cases_are_those_of_the_probe_file() -> None:
+    root = paths.repo_root()
+    probe = json.loads((root / TOP_LAYER_PROBE_FILE).read_text())
+    rust = (root / TOP_LAYER_CASES_FILE).read_text()
+    written = re.findall(r'^        name: r?"([^"]+)",$', rust, re.MULTILINE)
+    assert written == [c["name"] for c in probe["cases"] if c.get("javascript", True)]
+    assert "top-layer-cases" in rust

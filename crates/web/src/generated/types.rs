@@ -1261,6 +1261,68 @@ impl WindowPostMessageOptions {
     }
 }
 
+/// The dictionary `ShowPopoverOptions`.
+#[derive(Clone, Debug)]
+pub struct ShowPopoverOptions {
+    /// `source`.
+    pub source: Option<b::NodeRef>,
+}
+
+impl ShowPopoverOptions {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<ShowPopoverOptions> {
+        let object = b::convert::dictionary_object(value, "ShowPopoverOptions")?;
+        let v = b::convert::member(rt, object, "source")?;
+        let source = if v.is_undefined() { None } else { Some(b::convert::node_ref(rt, v, super::HTML_ELEMENT, "HTMLElement").map_err(|e| e.member("source", "ShowPopoverOptions"))?) };
+        Ok(ShowPopoverOptions { source })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        if let Some(x) = &self.source {
+            let value = swb_js::VmResult::Ok(b::to_js::node_ref(*x))?;
+            b::to_js::dictionary_member(rt, object, "source", value)?;
+        }
+        Ok(object.into())
+    }
+}
+
+/// The dictionary `TogglePopoverOptions`.
+#[derive(Clone, Debug)]
+pub struct TogglePopoverOptions {
+    /// `source`.
+    pub source: Option<b::NodeRef>,
+    /// `force`.
+    pub force: Option<bool>,
+}
+
+impl TogglePopoverOptions {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<TogglePopoverOptions> {
+        let object = b::convert::dictionary_object(value, "TogglePopoverOptions")?;
+        let v = b::convert::member(rt, object, "source")?;
+        let source = if v.is_undefined() { None } else { Some(b::convert::node_ref(rt, v, super::HTML_ELEMENT, "HTMLElement").map_err(|e| e.member("source", "ShowPopoverOptions"))?) };
+        let v = b::convert::member(rt, object, "force")?;
+        let force = if v.is_undefined() { None } else { Some(b::convert::boolean(rt, v).map_err(|e| e.member("force", "TogglePopoverOptions"))?) };
+        Ok(TogglePopoverOptions { source, force })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        if let Some(x) = &self.source {
+            let value = swb_js::VmResult::Ok(b::to_js::node_ref(*x))?;
+            b::to_js::dictionary_member(rt, object, "source", value)?;
+        }
+        if let Some(x) = &self.force {
+            let value = swb_js::VmResult::Ok(swb_js::Value::Bool(*x))?;
+            b::to_js::dictionary_member(rt, object, "force", value)?;
+        }
+        Ok(object.into())
+    }
+}
+
 /// The dictionary `ElementDefinitionOptions`.
 #[derive(Clone, Debug)]
 pub struct ElementDefinitionOptions {
@@ -1623,6 +1685,61 @@ impl SubmitEventInit {
         b::to_js::dictionary_member(rt, object, "composed", value)?;
         let value = (match self.submitter { Some(x0) => swb_js::VmResult::Ok(b::to_js::node_ref(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?;
         b::to_js::dictionary_member(rt, object, "submitter", value)?;
+        Ok(object.into())
+    }
+}
+
+/// The dictionary `ToggleEventInit`.
+#[derive(Clone, Debug)]
+pub struct ToggleEventInit {
+    /// `bubbles`.
+    pub bubbles: bool,
+    /// `cancelable`.
+    pub cancelable: bool,
+    /// `composed`.
+    pub composed: bool,
+    /// `newState`.
+    pub new_state: String,
+    /// `oldState`.
+    pub old_state: String,
+    /// `source`.
+    pub source: Option<b::NodeRef>,
+}
+
+impl ToggleEventInit {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<ToggleEventInit> {
+        let object = b::convert::dictionary_object(value, "ToggleEventInit")?;
+        let v = b::convert::member(rt, object, "bubbles")?;
+        let bubbles = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("bubbles", "EventInit"))? };
+        let v = b::convert::member(rt, object, "cancelable")?;
+        let cancelable = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("cancelable", "EventInit"))? };
+        let v = b::convert::member(rt, object, "composed")?;
+        let composed = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("composed", "EventInit"))? };
+        let v = b::convert::member(rt, object, "newState")?;
+        let new_state = if v.is_undefined() { String::new() } else { b::convert::dom_string(rt, v).map_err(|e| e.member("newState", "ToggleEventInit"))? };
+        let v = b::convert::member(rt, object, "oldState")?;
+        let old_state = if v.is_undefined() { String::new() } else { b::convert::dom_string(rt, v).map_err(|e| e.member("oldState", "ToggleEventInit"))? };
+        let v = b::convert::member(rt, object, "source")?;
+        let source = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::ELEMENT, "Element").map(Some) }).map_err(|e| e.member("source", "ToggleEventInit"))? };
+        Ok(ToggleEventInit { bubbles, cancelable, composed, new_state, old_state, source })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.bubbles))?;
+        b::to_js::dictionary_member(rt, object, "bubbles", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.cancelable))?;
+        b::to_js::dictionary_member(rt, object, "cancelable", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.composed))?;
+        b::to_js::dictionary_member(rt, object, "composed", value)?;
+        let value = b::to_js::string(rt, &self.new_state.clone())?;
+        b::to_js::dictionary_member(rt, object, "newState", value)?;
+        let value = b::to_js::string(rt, &self.old_state.clone())?;
+        b::to_js::dictionary_member(rt, object, "oldState", value)?;
+        let value = (match self.source { Some(x0) => swb_js::VmResult::Ok(b::to_js::node_ref(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?;
+        b::to_js::dictionary_member(rt, object, "source", value)?;
         Ok(object.into())
     }
 }
@@ -5674,6 +5791,35 @@ impl RadioNodeListOrElement {
         match self {
             RadioNodeListOrElement::RadioNodeList(x) => swb_js::VmResult::Ok(swb_js::Value::Object((*x).object)),
             RadioNodeListOrElement::Element(x) => b::to_js::node::<H>(rt, realm, *x),
+        }
+    }
+}
+
+/// The union type `(TogglePopoverOptions or boolean)`.
+#[derive(Clone, Debug)]
+pub enum TogglePopoverOptionsOrBoolean {
+    /// `TogglePopoverOptions`.
+    TogglePopoverOptions(TogglePopoverOptions),
+    /// `boolean`.
+    Boolean(bool),
+}
+
+impl TogglePopoverOptionsOrBoolean {
+    /// Converts a JavaScript value (Web IDL §3.2.25).
+    pub fn from_js(rt: &mut swb_js::Runtime, realm: u32, value: swb_js::Value) -> b::Result<TogglePopoverOptionsOrBoolean> {
+        if value.is_nullish() { return Ok(TogglePopoverOptionsOrBoolean::TogglePopoverOptions(TogglePopoverOptions::from_js(rt, realm, value)?)); }
+        if let swb_js::Value::Object(_) = value {
+            return Ok(TogglePopoverOptionsOrBoolean::TogglePopoverOptions(TogglePopoverOptions::from_js(rt, realm, value)?));
+        }
+        if let swb_js::Value::Bool(_) = value { return Ok(TogglePopoverOptionsOrBoolean::Boolean(b::convert::boolean(rt, value)?)); }
+        Ok(TogglePopoverOptionsOrBoolean::Boolean(b::convert::boolean(rt, value)?))
+    }
+
+    /// Converts to a JavaScript value.
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        match self {
+            TogglePopoverOptionsOrBoolean::TogglePopoverOptions(x) => (x.clone()).to_js::<H>(rt, realm),
+            TogglePopoverOptionsOrBoolean::Boolean(x) => swb_js::VmResult::Ok(swb_js::Value::Bool(*x)),
         }
     }
 }

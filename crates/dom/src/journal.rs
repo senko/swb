@@ -81,6 +81,14 @@ pub enum Change<'a> {
         /// parser appends text in many small steps.
         old_value: Option<&'a str>,
     },
+    /// An element entered or left the top layer, or became or stopped being
+    /// a showing popover (ADR 0037 section 1). No attribute changes, so this
+    /// is no mutation record: the mutation sink does not get it, and the
+    /// engine restyles.
+    TopLayer {
+        /// The element.
+        element: NodeId,
+    },
 }
 
 /// A receiver of each primitive change at the moment it happens.
@@ -138,6 +146,9 @@ enum Entry {
     Attribute(Box<AttributeEntry>),
     Text {
         node: NodeId,
+    },
+    TopLayer {
+        element: NodeId,
     },
 }
 
@@ -246,6 +257,7 @@ impl Journal {
                 node: *node,
                 old_value: None,
             },
+            Entry::TopLayer { element } => Change::TopLayer { element: *element },
         }
     }
 
@@ -266,7 +278,7 @@ impl Journal {
         let (nodes, value_bytes) = match change {
             Change::Children { added, removed, .. } => (added.len() + removed.len(), 0),
             Change::Attribute { old_value, .. } => (0, old_value.map_or(0, str::len)),
-            Change::Text { .. } => (0, 0),
+            Change::Text { .. } | Change::TopLayer { .. } => (0, 0),
         };
         self.value_bytes += value_bytes;
         if self.entries.len() >= MAX_JOURNAL_ENTRIES
@@ -320,6 +332,7 @@ impl Journal {
                 old_value: old_value.map(str::to_owned),
             })),
             Change::Text { node, .. } => Entry::Text { node },
+            Change::TopLayer { element } => Entry::TopLayer { element },
         };
         self.entries.push(entry);
     }

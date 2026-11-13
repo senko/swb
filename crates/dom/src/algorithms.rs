@@ -150,7 +150,7 @@ impl Document {
         if let NodeData::Element(e) = &mut data {
             nodes += 2 * usize::from(e.template_contents.take().is_some());
             e.parser_form = None;
-            e.shadow_flags = 0;
+            e.flags = 0;
             e.reset_custom_element_state();
         }
         self.check_room(nodes, crate::mutation::data_bytes(&data))?;

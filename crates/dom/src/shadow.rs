@@ -21,7 +21,7 @@ use html5ever::{local_name, ns};
 
 use crate::mutation::DomError;
 use crate::tree::{
-    Document, NodeData, NodeId, ShadowRootData, ShadowRootMode, SlotAssignment, shadow_flags,
+    Document, NodeData, NodeId, ShadowRootData, ShadowRootMode, SlotAssignment, flags,
 };
 
 /// The options of `attachShadow` (DOM `ShadowRootInit`).
@@ -187,7 +187,7 @@ impl Document {
         let owner = self.node_document(host);
         let root = self.push_node(NodeData::ShadowRoot(data), owner);
         if let Some(e) = self.element_mut(host) {
-            e.shadow_flags |= shadow_flags::HOST;
+            e.flags |= flags::HOST;
         }
         self.shadow_state().roots.insert(host, root);
         self.generation += 1;

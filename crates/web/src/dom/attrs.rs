@@ -245,6 +245,7 @@ pub(crate) fn set_attribute(
     if name.ns == ns!() && &*name.local == "hidden" {
         crate::html::focus::hidden_set(rt, element)?;
     }
+    popover_attribute_changed(rt, element, name)?;
     Ok(crate::scripts::attribute_changed(
         rt,
         element,
@@ -252,6 +253,20 @@ pub(crate) fn set_attribute(
         had,
         old.as_deref(),
     )?)
+}
+
+/// The attribute change steps of `popover` (a showing popover whose state
+/// changed hides, with events) and of `popovertarget` (the element that a
+/// script set is forgotten).
+fn popover_attribute_changed(rt: &mut Runtime, element: NodeId, name: &QualName) -> b::Result<()> {
+    if name.ns != ns!() {
+        return Ok(());
+    }
+    match &*name.local {
+        "popover" => crate::html::popover::attribute_changed(rt),
+        "popovertarget" => Ok(crate::html::popover::target_attribute_changed(rt, element)?),
+        _ => Ok(()),
+    }
 }
 
 /// Tells the engine that the `selected` attribute of an `option` was
@@ -296,6 +311,10 @@ pub(crate) fn remove_attribute(
             let data = attr_data_mut(rt, object)?;
             data.owner = None;
             data.value.clone_from(old);
+        }
+        // The steps run without `throw`: only a stop is an error.
+        if let Err(Exception::Js(error)) = popover_attribute_changed(rt, element, name) {
+            return Err(error);
         }
     }
     Ok(old)

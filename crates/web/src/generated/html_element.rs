@@ -81,6 +81,15 @@ pub trait HTMLElementImpl: b::Host {
     /// `undefined click()`.
     fn click(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<()>;
 
+    /// `undefined showPopover(optional ShowPopoverOptions options)`.
+    fn show_popover(cx: &mut b::Cx<'_>, this: b::NodeId, options: super::types::ShowPopoverOptions) -> b::Result<()>;
+
+    /// `undefined hidePopover()`.
+    fn hide_popover(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<()>;
+
+    /// `boolean togglePopover(optional (TogglePopoverOptions or boolean) options)`.
+    fn toggle_popover(cx: &mut b::Cx<'_>, this: b::NodeId, options: super::types::TogglePopoverOptionsOrBoolean) -> b::Result<bool>;
+
     /// `undefined focus(optional FocusOptions options)`.
     fn focus(cx: &mut b::Cx<'_>, this: b::NodeId, options: super::types::FocusOptions) -> b::Result<()>;
 
@@ -364,6 +373,24 @@ fn get_is_content_editable<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &
         let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
         let result = <H as HTMLElementImpl>::is_content_editable(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn get_popover<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "popover"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = b::reflect::get_nullable_enumerated::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "popover", &b::reflect::Keywords { keywords: &[("", "auto"), ("auto", "auto"), ("manual", "manual"), ("hint", "hint")], missing: None, invalid: Some("manual") })?;
+        Ok((match result { Some(x0) => b::to_js::string(rt, &x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn set_popover<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "popover"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(b::Exception::nested)?;
+        b::ce::scope(rt, |rt| b::reflect::set_nullable_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "popover", value.as_deref()))?;
+        Ok(swb_js::Value::Undefined)
     })
 }
 
@@ -2055,6 +2082,34 @@ fn op_click<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeC
     })
 }
 
+fn op_show_popover<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLElement", "showPopover"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let a0 = if v.is_undefined() { super::types::ShowPopoverOptions::from_js(rt, call.realm(), swb_js::Value::Undefined)? } else { super::types::ShowPopoverOptions::from_js(rt, call.realm(), v).map_err(|e| e.argument(0))? };
+        <H as HTMLElementImpl>::show_popover(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_hide_popover<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLElement", "hidePopover"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        <H as HTMLElementImpl>::hide_popover(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_toggle_popover<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLElement", "togglePopover"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let a0 = if v.is_undefined() { { let d = swb_js::Value::Undefined; super::types::TogglePopoverOptionsOrBoolean::from_js(rt, call.realm(), d)? } } else { super::types::TogglePopoverOptionsOrBoolean::from_js(rt, call.realm(), v).map_err(|e| e.argument(0))? };
+        let result = <H as HTMLElementImpl>::toggle_popover(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, a0)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
 fn op_focus<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("HTMLElement", "focus"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
@@ -2095,6 +2150,7 @@ pub fn define<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_j
     rt.define_accessor(realm, target, "enterKeyHint", (Some(get_enter_key_hint::<H> as swb_js::NativeFn), Some(set_enter_key_hint::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "contentEditable", (Some(get_content_editable::<H> as swb_js::NativeFn), Some(set_content_editable::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "isContentEditable", (Some(get_is_content_editable::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "popover", (Some(get_popover::<H> as swb_js::NativeFn), Some(set_popover::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "offsetParent", (Some(get_offset_parent::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "offsetTop", (Some(get_offset_top::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "offsetLeft", (Some(get_offset_left::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
@@ -2205,6 +2261,9 @@ pub fn define<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_j
     rt.define_method(realm, target, "blur", 0, op_blur::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "click", 0, op_click::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "focus", 0, op_focus::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "hidePopover", 0, op_hide_popover::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "showPopover", 0, op_show_popover::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "togglePopover", 0, op_toggle_popover::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

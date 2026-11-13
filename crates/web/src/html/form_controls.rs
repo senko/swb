@@ -123,6 +123,18 @@ fn image_size(cx: &mut Cx<'_>, this: NodeId, name: &str) -> b::Result<u32> {
 impl g::html_input_element::HTMLInputElementImpl for WebState {
     super::validation::constraint_validation_members!();
 
+    fn popover_target_element(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
+        super::popover::target_element(cx, this)
+    }
+
+    fn set_popover_target_element(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        value: Option<b::NodeRef>,
+    ) -> b::Result<()> {
+        super::popover::set_target_element(cx, this, value)
+    }
+
     fn labels(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<swb_js::Gc<swb_js::Object>>> {
         super::validation::labels(cx, this)
     }

@@ -43,6 +43,31 @@ impl g::html_element::HTMLElementImpl for WebState {
         super::activation::click(cx, this)
     }
 
+    fn show_popover(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        options: crate::generated::types::ShowPopoverOptions,
+    ) -> b::Result<()> {
+        super::popover::show(cx, this, options.source)
+    }
+
+    fn hide_popover(cx: &mut Cx<'_>, this: NodeId) -> b::Result<()> {
+        super::popover::hide(cx, this)
+    }
+
+    fn toggle_popover(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        options: crate::generated::types::TogglePopoverOptionsOrBoolean,
+    ) -> b::Result<bool> {
+        use crate::generated::types::TogglePopoverOptionsOrBoolean as Options;
+        let (force, source) = match options {
+            Options::Boolean(force) => (Some(force), None),
+            Options::TogglePopoverOptions(o) => (o.force, o.source),
+        };
+        super::popover::toggle(cx, this, force, source)
+    }
+
     fn focus(
         cx: &mut Cx<'_>,
         this: NodeId,

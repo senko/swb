@@ -4867,7 +4867,24 @@ Steps:
         for pages without scripts, show and hide with `beforetoggle` and
         coalesced `toggle` tasks, the auto and hint stacks, removal and
         attribute steps, `ToggleEvent`, the popover members, invokers on
-        the script path, `:popover-open`.
+        the script path, `:popover-open`. Done (2026-11-13):
+        `swb_dom::top_layer` runs HTML's popover algorithms behind
+        `TopLayerHost` (the web layer fires `beforetoggle` and queues
+        `toggle`; the engine's host for pages without scripts fires
+        nothing); swb follows Chromium 148 where it differs from the
+        standard (nested shows in `beforetoggle`, the hint model, the
+        messages; ADR 0037 "6a implementation notes"). From the review:
+        `popoverTargetElement` follows a move to another arena, a hide in
+        a document that is not fully active throws, an invoker in a link
+        opens its popover and follows the link (as in Chromium), an
+        element of another document is accepted as target and `source`.
+        The 6a probe rows match Chromium except 4 departures (68 cases,
+        266 queries; the rows of 6b to 6e are `Later`). GitHub's popover
+        polyfill no longer runs, so no sheet is adopted (as in Chromium);
+        targets unchanged (GitHub JS on geometry 0.9115, pixels 0.9934);
+        JS-off snapshot identical; callgrind +0.03 % at most. 6c must
+        give the click path with JavaScript off the same invoker-in-link
+        rule (ADR 0037 "Review fixes" 3).
       - 6b the top layer in rendering (`implementer-hard`): `::backdrop`,
         the top-layer fix-ups of `position`, `overlay`, the UA sheet,
         top-layer boxes under the initial containing block, their paint
@@ -5000,6 +5017,15 @@ Steps:
   coalesced toggle task of 6a is the mechanism); fullscreen. Not copied:
   under a modal dialog, Chromium's double click on text outside the
   dialog selects a word of the dialog.
+- Top layer (found in 6a): two departures of `popoverTargetElement` and
+  `source` (ADR 0037 "6a implementation notes", review fixes 1 and 4): an
+  invoker that leaves its target's document alone and comes back loses
+  the element that a script set (Chromium keeps it); the queued `toggle`
+  event of a show whose `source` is an element of another document has
+  `source` null (Chromium keeps the element). A removal scans the removed
+  subtree while a popover or dialog is in the top layer (300 removals of
+  a 50,000-node subtree: 116 ms without, 151 ms with one open popover);
+  a counter of showing descendants per subtree would remove the scan.
 - Tests (found 2026-11-12, at the 5c-2 commit): Debian's tzdata went from
   2026b to 2026f, which changes Morocco's rules (UTC+00 after 2026).
   Chromium 148's own data predates that, so the recorded values of

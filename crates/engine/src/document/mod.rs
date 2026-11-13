@@ -27,7 +27,8 @@
 //! task), `cssom.rs` (the style sheets of scripts: `document.styleSheets`,
 //! `sheet`), `frames.rs` (the `iframe` changes for the page's frame tree,
 //! the frame viewports, the declarative refresh, the requests of
-//! subresources with the document's loader client).
+//! subresources with the document's loader client), `top_layer.rs` (the
+//! host of the popover algorithms for documents without scripts).
 
 mod adopted_sheets;
 mod api_fetches;
@@ -51,6 +52,7 @@ mod scripts;
 mod shadow_styles;
 #[cfg(test)]
 mod tests;
+pub(crate) mod top_layer;
 
 use std::rc::Rc;
 use std::sync::Arc;

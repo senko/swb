@@ -517,3 +517,43 @@ fn tab_order_follows_the_focus_navigation_scopes() {
         }
     });
 }
+
+/// The cases `invokers-in-link-enter`, `invokers-in-link-space` and
+/// `invokers-in-link-enter-plain` of `tools/probes/web-top-layer.json` (ADR
+/// 0037, the fix round of 6a): Enter and Space on a focused popover invoker
+/// inside a link open the popover and follow the link, as a button without a
+/// popover follows it. Chromium 148's values are those of
+/// `crates/engine/tests/probe_net/top_layer.rs`.
+#[test]
+fn keys_on_an_invoker_in_a_link_open_the_popover_and_follow_the_link() {
+    on_page_thread(|| {
+        let probe: Value = serde_json::from_str(
+            &std::fs::read_to_string(repo_root().join("tools/probes/web-top-layer.json")).unwrap(),
+        )
+        .unwrap();
+        let want = [
+            (
+                "invokers-in-link-enter",
+                "beforetoggle:div#t(closed>open)! | true | #z",
+            ),
+            (
+                "invokers-in-link-space",
+                "beforetoggle:div#t(closed>open)! | true | #z",
+            ),
+            ("invokers-in-link-enter-plain", " | false | #z"),
+        ];
+        for (name, expected) in want {
+            let case = probe["cases"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|c| c["name"] == name)
+                .unwrap();
+            let site = Site::new(name);
+            let mut page = page_of(&site, case["html"].as_str().unwrap());
+            run_steps(&mut page, case["steps"].as_array().unwrap()).unwrap();
+            let query = case["measure"][0]["js"].as_str().unwrap();
+            assert_eq!(value(&mut page, query), expected, "{name}");
+        }
+    });
+}

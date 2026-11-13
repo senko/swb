@@ -212,7 +212,8 @@ impl MutationSink for Sink {
                 name,
                 old_value,
             } => reactions.on_attribute(self.document, doc, element, name, old_value),
-            Change::Text { .. } => false,
+            // The sink never gets these (`swb_dom::Change::TopLayer`).
+            Change::Text { .. } | Change::TopLayer { .. } => false,
         };
         if attention {
             self.request.set(true);
@@ -554,6 +555,8 @@ impl Registry {
                     record.old_value = old_value.map(str::to_owned);
                 });
             }
+            // No mutation record: no attribute or child changed.
+            Change::TopLayer { .. } => {}
         }
     }
 

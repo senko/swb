@@ -942,3 +942,190 @@ The orchestrator decided them on 2026-11-13: all as recommended.
   `CloseWatcher` interface, `@starting-style` and `overlay` transitions,
   `interactivity`, the `inert` attribute and the `<details>` `toggle` event
   (open questions 5 and 6), fullscreen.
+
+## 6a implementation notes
+
+Facts of sub-feature 6a (the popover model, the algorithms and the bindings)
+that differ from the sections or that later sub-features need. Code:
+`crates/dom/src/top_layer.rs` (state, algorithms, `TopLayerHost`),
+`tree.rs` (`ElementData::flags`), `mutation.rs` (removal and attribute
+hooks), `journal.rs` (`Change::TopLayer`), `transplant.rs`;
+`crates/engine/src/document/top_layer.rs` (`NoScriptHost`), `changes.rs`;
+`crates/style/src/element.rs`; `crates/web/src/html/popover.rs` (`WebHost`,
+the members, invokers, `popoverTargetElement`, the `toggle` task),
+`html/activation.rs`, `dom/attrs.rs`, `events/misc.rs` (`ToggleEvent`),
+`events/dispatch.rs` (`EventInterface::Toggle`), `event_loop.rs`
+(`Task::Toggle`); `crates/web/idl/html.idl`.
+
+**Spec text against Chromium 148.** The HTML Standard of 2026-11-12 differs
+from the measured Chromium in three places; swb follows Chromium:
+
+1. *Nested shows.* The standard has a document-wide "showing popover" flag
+   and a "hiding popover nesting count" that make a `showPopover()` inside a
+   `beforetoggle` listener throw. Chromium runs it (`beforetoggle-mutations`
+   #4, #5): a show of the same element inside its own event opens it once
+   (the outer shows find it showing and return), a show of another popover
+   opens it and the outer show hides it again (with events). swb keeps only
+   the per-element "showing or hiding" flag; a nested show of the same
+   element hides the others without events.
+2. *Hint popovers.* The standard's "hint stack parent" does not explain
+   `hint-popovers` #3 (a hint inside an open auto popover stays open when an
+   unrelated hint opens) and #4 (hiding an auto popover closes an unrelated
+   hint). The model that matches all rows: a hint whose topmost popover
+   ancestor is in the auto list joins the auto list above it; any other hint
+   goes to the hint list; each auto show and each hide of a popover of the
+   auto list first hides the whole hint list. An auto popover whose ancestor
+   is in the hint list goes to the hint list (the standard's downgrade; not
+   measured). Light dismiss with hints (6c) has no measured case: the
+   current `hide_all_popovers_until` with a hint endpoint hides the auto
+   list, which closes all hints too; 6c measures it before it relies on it.
+3. *Messages.* Every error of a hide has Chromium's sentence "This might have
+   been the result of the "beforetoggle" event handler changing the state of
+   this popover.", also the first `NotSupportedError` of `hidePopover`;
+   errors of a show get it only after the event. For template contents and
+   documents without a browsing context "not fully active" comes before
+   "disconnected". Not measured, swb's own words: an element that moved to
+   another document during the algorithm, an open modal dialog, a type
+   change while other popovers were hidden.
+
+**Structures.** `TopLayerState` holds `layer`, the `auto` and `hint` lists,
+`popovers` (per element: list and index, the invoker, the busy flag, the
+pending toggle) and `dialogs`, `pointerdown_target` and the pending attribute
+hides. The index of each popover in its list is kept (a removal from the
+middle renumbers the rest), so the topmost popover ancestor and "hide stack
+until" need no map per call; the ancestor walk tests the `POPOVER_SHOWING`
+bit before it looks up the index, and stops at the top of the lists.
+`DialogData` and `pointerdown_target` have accessors only (6c, 6d fill them).
+`TopLayerHost` has three methods in 6a: `doc`, `fire_beforetoggle` (returns
+`None` when the host stopped: a termination ends the algorithm, which
+returns `PopoverErrorKind::Stopped`; the web host returns the stored
+`VmError`) and `queue_toggle_task(element, serial)`. The focus, `cancel`,
+close task and activation methods of section 2 come with 6c and 6d.
+
+**Toggle tasks.** `queue_toggle` keeps the old state of a pending task and
+gives the new one a serial; the web host removes the queued task of the
+element from the event loop (its `TaskKey`, `DocState::toggle_tasks`) and
+queues the new one at the end, so a script that shows and hides in a loop
+keeps one task per element. The task takes its states with
+`Document::take_toggle(element, serial)`; the engine's host takes them at
+once. A popover that leaves the arena (`take_subtree`) drops its state.
+
+**Attribute steps.** The DOM notes a showing popover whose `popover`
+attribute changed state (`take_popover_attribute_hides`); the web layer's
+attribute change path (`dom/attrs.rs`) runs the hides at once with events
+(the probe sees `beforetoggle` inside the setter), and the engine's drain
+runs any that are left with the host without scripts. Because there is a
+window between the attribute change and the hide, the hides of "hide stack
+until" ignore the attribute (a list member is hidden even if its attribute
+is gone), and the walk removes a member that a hide did not remove, so that
+it always ends.
+
+**Invokers on the script path.** `Kind::Invoker` (`button type=button`,
+`input type=button`) and the submit and reset kinds act as invokers when
+they have a popover target and do not submit or reset a form (Chromium: a
+reset button with a form owner resets and does not toggle, measured; the
+standard toggles after the reset). Their click role is `Interactive` (as
+that of a button that does not act; "Review fixes" below).
+`popoverTargetElement` stores the element by node id per invoker; a write of
+the `popovertarget` content attribute forgets it.
+
+**Answers.** The probe's step cases need the tool's user activation (ADR
+"Measurements"): no 6a case has steps, so 6c sets the mechanism up.
+
+**Numbers** (release builds of cab49f6 and 6a on the same machine):
+`just snapshot` (JavaScript off) byte-identical; `compare --all` and
+`compare --js` of the 8 fixtures unchanged (GitHub with JavaScript on:
+geometry 0.9115, pixels 0.9934, as before: the polyfill's sheet set no
+value that renders); callgrind of `swb --headless --replay` with
+JavaScript off: Wikipedia +0.008 %, Ars Technica +0.002 %, BBC +0.005 %;
+binding rows (instructions per iteration): `setAttribute` +0.6 %, `id`
++0.9 %, append and remove +0.8 %, `textContent` -0.9 %, `innerHTML` +0.4 %,
+`createElement` +0.2 %, `classList.add` +0.6 %, `dispatchEvent` +1.0 %, and
+the empty loop +1.7 % (no code of 6a runs in it: the layout of the binary);
+`showPopover` + `hidePopover` of one manual popover: 11,185 instructions.
+GitHub with JavaScript on: a headless load to the settled DOM in 0.49 s
+(base 0.49 s). Hostile cases: `popover-beforetoggle-reentry` 0.61 s,
+103 MiB (10 `RangeError`s at a nesting of about 400 shows);
+`popover-attribute-flip-100000` 0.85 s, 119 MiB (the loop 321 ms);
+`popover-remove-while-open-100000` 0.80 s, 118 MiB (237 ms);
+`popover-nested-auto-10000` 1.06 s, 108 MiB (the show loop 274 ms).
+
+**Review fixes** (the fix round after the review of 6a; probe cases
+`popover-validity-6a`, `popover-target-arenas`, `invokers-in-link`,
+`invokers-and-labels` and the key cases `invokers-in-link-*`, three equal
+Chromium 148 runs each).
+
+1. *`popoverTargetElement` across arenas.* The table is per document and keyed
+   by node id, and a move to another arena (`state::move_node_state`) gives
+   the nodes new ids. `html::popover::move_targets` now remaps the keys and
+   values of the moved nodes; an entry with one end left behind is dropped
+   (the other end is in another arena: the getter is `null`, as measured).
+   Ids are never reused: an old id reads an empty comment, so no stale entry
+   can name another node. Departure (`TOP_LAYER_DEPARTURES`): Chromium keeps
+   the association when only the invoker leaves its target's document and
+   comes back; swb has lost it. Tests: the iframe row of the probe and
+   `popover_target_element_follows_a_move_to_another_arena` (two documents,
+   with and without the GC stress mode).
+2. *Not fully active.* `check` tests "not fully active" (template contents, a
+   document without a browsing context, an element that moved there inside
+   `beforetoggle`) before the state test, so `hidePopover()` and
+   `togglePopover()` throw `InvalidStateError` there like `showPopover()`
+   does; a hide of a hidden popover of the page that is detached still does
+   nothing (measured). The message of a hide has the `beforetoggle`
+   sentence; that of `togglePopover` does not.
+3. *Invoker in a link.* Chromium opens the popover and follows the link
+   (`invokers-in-link`: every button and input type, `show` and `toggle`, the
+   click on a child, `click()` and Enter and Space on the focused button); a
+   canceled click or a disabled button does neither; a submit or reset button
+   with a form owner submits or resets and does not follow the link; a plain
+   button in a link follows it too (this was already so). The click role of
+   an invoker is `Interactive` now (as a button that does not act, so the
+   link stays the target) and `find_target` runs the invoker besides the
+   target: the nearest invoker below a link, the nearest above a label, or
+   the invoker alone if the walk finds no target. The label rows
+   (`invokers-and-labels`) kept their values. A fragment navigation of a
+   click happens when the task ends: the probe reads `location.hash` in a
+   later task. 6c must give the engine's click path (`page/forms.rs`,
+   `click_role` and its activation) the same split with JavaScript off, and
+   the keys (Enter and Space reach `click_element`).
+4. *Elements of another document.* `popoverTargetElement = element` of
+   another document, and the `source` option of `showPopover` and
+   `togglePopover`, do not throw (Chromium): the setter writes
+   `popovertarget=""` and keeps nothing (the getter gives `null`, a click does
+   nothing); the option reaches `beforetoggle` as `source` through the
+   host (`WebHost::foreign`), not the algorithm. The queued `toggle`
+   event of that show has `source` `null` where Chromium keeps the element
+   (departure; rare). `new ToggleEvent(type, {source})` already accepted such
+   an element (`[SwbAnyDocument]`); the review's report was about the
+   options of `showPopover`. The IDL has `[SwbAnyDocument]` on the setter
+   and on `ShowPopoverOptions.source`; the generic conversion still throws
+   for every other member.
+5. *An open dialog and `showPopover()`.* An open non-modal dialog shows as a
+   popover in Chromium (`popover-validity-6a` #1: the `open` attribute alone);
+   the early return of 6a came from a misread row (`exceptions` #3 only
+   showed that no error is thrown). The check refuses only a modal dialog.
+6. *Topmost popover ancestor.* `topmost_popover_ancestor` takes the highest
+   position over all flat ancestors; HTML's text takes the nearest open
+   popover. The two give the same popover in every state that the algorithms
+   reach: a farther ancestor that shows after a nearer one hides the nearer
+   one (a show hides everything above its own topmost ancestor), so a nearer
+   open ancestor never has a lower position than a farther one.
+7. *Cost of a removal while a popover shows.* A removal scans the removed
+   subtree for popovers and dialogs while any popover or dialog is in the top
+   layer (`top_layer_removed`). Measured by the review: 300 removals and
+   insertions of a 50,000-node subtree take 116 ms without an open popover
+   and 151 ms with one. The cost is linear in the subtree, as the removal
+   itself; no quadratic case was found. Accepted as a known cost; a counter
+   of showing descendants per subtree would remove it if a page needs that.
+8. *Memory budget.* The case `popover-nested-auto-10000` checks the peak
+   resident memory (`rss_limit_mib` of the hostile framework, 160 MiB: the
+   "+50 MB" of section 12 over a script page's 105 MiB); it peaks at 110 MiB.
+
+Numbers of the fix round (release builds of cab49f6 and the fixed tree):
+`just snapshot` byte-identical; `compare --all` and `compare --js` of the 8
+fixtures identical; callgrind JavaScript off: Wikipedia +0.03 %, Ars
+Technica -0.03 %, BBC +0.01 %; binding rows (instructions per iteration)
+at most +0.9 % (`dispatchEvent` 29,297 to 29,558, `id` +0.9 %, `setAttribute`
++0.8 %, the empty loop +0.8 %); `showPopover` + `hidePopover` 11,350.
+Hostile cases: reentry 0.61 s, 105 MiB; flip 0.86 s, 126 MiB; remove
+0.81 s, 114 MiB; nested 1.06 s, 110 MiB.

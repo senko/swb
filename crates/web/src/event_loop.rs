@@ -111,6 +111,15 @@ pub(crate) enum Task {
     /// Fire the first `storage` event that waits for the window of the task's document
     /// (`storage_events.rs`).
     Storage,
+    /// Fire `toggle` at a popover (HTML "queue a popover toggle event task",
+    /// the DOM manipulation task source; `html/popover.rs`): the element and
+    /// the serial of its toggle task.
+    Toggle {
+        /// The element.
+        node: swb_dom::NodeId,
+        /// The serial; a later change of the element replaces the task.
+        serial: u64,
+    },
 }
 
 /// A due time in page time (milliseconds), ordered as a number.

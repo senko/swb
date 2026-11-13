@@ -91,18 +91,25 @@ pub struct ElementData {
     /// The number of the element's custom element definition in the
     /// script runtime's table; 0 for none.
     pub(crate) definition: u32,
-    /// The shadow DOM flags of the element ([`shadow_flags`]; ADR 0036
-    /// section 1): it hosts a shadow root, it is a slot with assigned nodes.
-    /// They fit in the padding: the size of `ElementData` stays 64 bytes.
-    pub(crate) shadow_flags: u8,
+    /// The flags of the element ([`flags`]; ADR 0036 section 1, ADR 0037
+    /// section 1): it hosts a shadow root, it is a slot with assigned nodes,
+    /// it is a showing popover, a modal dialog, in the top layer. They fit
+    /// in the padding: the size of `ElementData` stays 64 bytes.
+    pub(crate) flags: u8,
 }
 
-/// The bits of [`ElementData`]'s shadow DOM flags.
-pub(crate) mod shadow_flags {
+/// The bits of [`ElementData`]'s flags.
+pub(crate) mod flags {
     /// The element is a shadow host.
     pub(crate) const HOST: u8 = 1;
     /// The element is a slot with a non-empty list of assigned nodes.
     pub(crate) const SLOT: u8 = 2;
+    /// HTML "popover visibility state" is "showing" (`top_layer.rs`).
+    pub(crate) const POPOVER_SHOWING: u8 = 4;
+    /// HTML "is modal" of a `dialog` (ADR 0037 sub-feature 6d sets it).
+    pub(crate) const MODAL: u8 = 8;
+    /// The element is in the top layer of its document.
+    pub(crate) const TOP_LAYER: u8 = 16;
 }
 
 impl ElementData {
@@ -120,7 +127,7 @@ impl ElementData {
             script_already_started: false,
             custom_state,
             definition: 0,
-            shadow_flags: 0,
+            flags: 0,
         }
     }
 
@@ -144,7 +151,7 @@ impl ElementData {
             script_already_started: false,
             custom_state,
             definition: 0,
-            shadow_flags: 0,
+            flags: 0,
         }
     }
 
@@ -156,14 +163,33 @@ impl ElementData {
     /// True if the element is a shadow host (it has a shadow root).
     #[inline]
     pub fn is_shadow_host(&self) -> bool {
-        self.shadow_flags & shadow_flags::HOST != 0
+        self.flags & flags::HOST != 0
     }
 
     /// True if the element is a slot in a shadow tree whose list of assigned
     /// nodes is not empty.
     #[inline]
     pub fn has_assigned_nodes(&self) -> bool {
-        self.shadow_flags & shadow_flags::SLOT != 0
+        self.flags & flags::SLOT != 0
+    }
+
+    /// True if the element is a showing popover (HTML "popover visibility
+    /// state" is "showing"; `:popover-open`).
+    #[inline]
+    pub fn is_popover_showing(&self) -> bool {
+        self.flags & flags::POPOVER_SHOWING != 0
+    }
+
+    /// True if the element is a modal dialog (HTML "is modal"; `:modal`).
+    #[inline]
+    pub fn is_modal(&self) -> bool {
+        self.flags & flags::MODAL != 0
+    }
+
+    /// True if the element is in the top layer of its document.
+    #[inline]
+    pub fn in_top_layer(&self) -> bool {
+        self.flags & flags::TOP_LAYER != 0
     }
 
     /// HTML "defined" (`:defined`): the custom element state is
@@ -562,6 +588,10 @@ pub struct Document {
     /// ADR 0036 section 1). `None` until the first shadow root: a page
     /// without one pays one test per change.
     pub(crate) shadow: Option<Box<crate::shadow::ShadowState>>,
+    /// The top layer, the popover lists and the popover and dialog state of
+    /// the arena (`top_layer.rs`; ADR 0037 section 1). `None` until the first
+    /// element is shown as a popover or a dialog.
+    pub(crate) top_layer: Option<Box<crate::top_layer::TopLayerState>>,
     /// The names of the attributes that begin with `on` that an element of
     /// the arena ever had (`handler_attrs.rs`); `None` until the first.
     pub(crate) on_attrs: Option<std::collections::HashSet<Box<str>>>,
@@ -617,6 +647,7 @@ impl Document {
             custom_names: None,
             defined_changed: false,
             shadow: None,
+            top_layer: None,
             on_attrs: None,
             arena_id: NEXT_ARENA_ID.fetch_add(1, Ordering::Relaxed),
         }

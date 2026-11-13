@@ -4,6 +4,32 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-13: M10 6a: popovers in the DOM and for scripts
+
+- `swb_dom::top_layer` holds the top layer, the auto and hint lists and
+  the toggle tasks of an arena, and runs HTML's popover algorithms
+  behind `TopLayerHost`. The web layer's host fires `beforetoggle` and
+  queues `toggle` (one task per element: a new toggle replaces the queued
+  one); the engine's host for pages without scripts fires nothing (6c
+  uses it for invokers). `showPopover`, `hidePopover`, `togglePopover`,
+  `ToggleEvent`, `popoverTargetElement`, `popoverTargetAction`, invokers
+  with scripts, `:popover-open`.
+- Chromium 148 differs from the current standard in nested shows inside
+  `beforetoggle`, in hint popovers and in the messages; swb follows the
+  measurements (ADR 0037 "6a implementation notes").
+- The review found four defects, all fixed and measured: the
+  `popoverTargetElement` table lost its entries when the nodes moved to
+  another arena; `hidePopover()` did not throw in a document that is not
+  fully active; an invoker inside a link did not follow the link (Chromium
+  opens the popover and follows it); an element of another document as
+  target or `source` threw. The fix round also found that an open
+  non-modal dialog shows as a popover. 7 new probe cases; the table has 68
+  cases and 266 queries, the 6a rows match except 4 departures.
+- GitHub's popover polyfill no longer runs, so no sheet is adopted (as in
+  Chromium); targets unchanged; JS-off snapshot identical; callgrind
+  +0.03 % at most; binding rows +0.9 % at most.
+- Next: 6b (the top layer in rendering).
+
 ## 2026-11-13: M10 feature 6: ADR 0037 (popover, dialog and the top layer)
 
 - ADR 0037 decides the design before the code: the top layer, the popover

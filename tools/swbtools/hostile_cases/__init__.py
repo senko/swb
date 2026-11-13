@@ -36,6 +36,7 @@ MODULES = (
     "storage_iterator",
     "custom_elements",
     "shadow_dom",
+    "top_layer",
 )
 for _module in MODULES:
     importlib.import_module(f"{__name__}.{_module}")
