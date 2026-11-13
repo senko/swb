@@ -1,0 +1,10 @@
+# Temporary files of rustc, the linker, build scripts and test binaries go
+# to tmp/ in the checkout (git-ignored), not to /tmp, which is in memory on
+# the development machine. An existing TMPDIR wins.
+[env]
+TMPDIR = { value = "tmp", relative = true }
+
+# Test binaries and `cargo run` get a memory limit (24G; SWB_MEMORY_MAX
+# changes it): a test that allocates without bound is killed alone.
+[target.'cfg(all())']
+runner = ".cargo/run-capped"

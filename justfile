@@ -5,6 +5,10 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 # Prefer the rustup toolchain over a system-wide cargo.
 export PATH := env_var('HOME') + "/.cargo/bin:" + env_var('PATH')
 
+# Temporary files (cargo, tests, the Python tools, Chromium) go to tmp/ in
+# the checkout, not to /tmp, which is in memory on the development machine.
+export TMPDIR := justfile_directory() + "/tmp"
+
 default: check
 
 # Run every check that must pass before a commit.

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Cargo's runner for test binaries and `cargo run` (.cargo/config.toml).
+# Runs the program in its own systemd scope with a memory limit, so that a
+# test that allocates without bound is killed alone and not the terminal
+# with every process in it (a unit test reached 117 GB on 2026-11-13).
+# Without a systemd user manager (CI) it runs the program directly.
+# SWB_MEMORY_MAX changes the limit.
+set -euo pipefail
+if [[ -n "${XDG_RUNTIME_DIR:-}" && -S "$XDG_RUNTIME_DIR/systemd/private" ]] \
+    && command -v systemd-run >/dev/null; then
+    exec systemd-run --user --scope --quiet --collect \
+        -p MemoryMax="${SWB_MEMORY_MAX:-24G}" -p MemorySwapMax=0 -- "$@"
+fi
+exec "$@"

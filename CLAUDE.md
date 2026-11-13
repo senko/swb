@@ -21,6 +21,13 @@ Before you start work, read:
 - Use the rustup toolchain in `~/.cargo/bin`. `/usr/bin/cargo` is too old.
   The justfile sets `PATH`. In raw shell commands, run
   `export PATH="$HOME/.cargo/bin:$PATH"` first.
+- `/tmp` is in memory on the development machine. Temporary files go to
+  `tmp/` in the checkout (git-ignored): cargo and `just` set `TMPDIR` to
+  it (`.cargo/config.toml`, `justfile`). Agents keep scratch files there
+  or in `out/`, not in `/tmp`.
+- Test binaries and `cargo run` run with a memory limit of 24 GB
+  (`.cargo/run-capped`, a systemd scope; `SWB_MEMORY_MAX` changes it), so
+  that a test that allocates without bound is killed alone.
 
 ## Workflow
 

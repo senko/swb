@@ -12,6 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 from PIL import Image
 
+from swbtools import paths
 from swbtools.boxes import read_dump
 from swbtools.capture import chromium_pass
 from swbtools.layout_refs import boxes_path, dump_layout_tests
@@ -41,7 +42,12 @@ def test_layout_dump_uses_the_bundled_fonts(tmp_path):
     asyncio.run(dump_layout_tests([html], system_fonts=False))
     dump = read_dump(boxes_path(html))
     assert dump.viewport == (800, 600)
-    assert dump.url == html.resolve().as_uri()
+    # A file inside the repository has a relative URL (TMPDIR is the
+    # repository's tmp/ under `just`), any other file a file URL.
+    file = html.resolve()
+    root = paths.repo_root()
+    expected = file.relative_to(root).as_posix() if file.is_relative_to(root) else file.as_uri()
+    assert dump.url == expected
     tags = [element.tag for element in dump.elements]
     assert tags == ["html", "head", "style", "body", "div", "span", "br", "span", "br", "span"]
     div = dump.elements[4]

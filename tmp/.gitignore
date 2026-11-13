@@ -1,0 +1,4 @@
+# Temporary files of builds, tests and tools (TMPDIR; see .cargo/config.toml
+# and the justfile). /tmp is in memory on the development machine.
+*
+!.gitignore
