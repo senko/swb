@@ -68,3 +68,5 @@ pub(crate) use items::{UNBOUNDED, path_bounds, stroke_extent};
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod top_layer_tests;

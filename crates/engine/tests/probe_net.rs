@@ -876,8 +876,8 @@ const SHADOW_LATER: &[Later] = &[
 const SUB_6C: &str = "ADR 0037 sub-feature 6c: popover focus steps";
 const SUB_6D: &str = "ADR 0037 sub-feature 6d: dialogs (`show`, `showModal`, `close`, \
      `requestClose`, `returnValue`, `closedBy`)";
-const SUB_6B_6E: &str = "ADR 0037 sub-features 6b (rows 1 to 4: the paint order of the top \
-     layer) and 6e (rows 5 to 10: modal inertness)";
+const SUB_6D_6E: &str = "ADR 0037 sub-features 6d (`showModal`) and 6e (modal inertness); rows \
+     1 to 4 (the paint and hit order of the top layer) run since 6b";
 const SUB_6C_STEPS: &str = "ADR 0037 sub-feature 6c (light dismiss, Escape, invokers with \
      JavaScript off, focus); the case has input steps: it runs in \
      `crates/automation/tests/real_input.rs` or, without scripts, in an engine test";
@@ -917,9 +917,9 @@ const TOP_LAYER_DEPARTURES: &[Departure] = &[
     (
         "api-surface",
         5,
-        r#"":popover-open=true :modal=true :open=true :closed=false ::backdrop=true :popover-open::backdrop=true dialog:modal::backdrop=true ::backdrop:hover=false :fullscreen=true | overlay=false transition-behavior=true interactivity=false position-anchor=false position-try=false display=true""#,
-        "the `overlay` property comes with sub-feature 6b; `interactivity` and CSS anchor \
-         positioning (`position-anchor`, `position-try`) are backlog (ADR 0037 section 11)",
+        r#"":popover-open=true :modal=true :open=true :closed=false ::backdrop=true :popover-open::backdrop=true dialog:modal::backdrop=true ::backdrop:hover=false :fullscreen=true | overlay=true transition-behavior=true interactivity=false position-anchor=false position-try=false display=true""#,
+        "`interactivity` and CSS anchor positioning (`position-anchor`, `position-try`) are \
+         backlog (ADR 0037 section 11)",
     ),
 ];
 
@@ -941,7 +941,12 @@ const TOP_LAYER_LATER: &[Later] = &[
     ("dialog-form", None, SUB_6D),
     ("dialog-focus", None, SUB_6D),
     ("popover-focus", None, SUB_6C),
-    ("top-layer-hit-order", None, SUB_6B_6E),
+    ("top-layer-hit-order", Some(5), SUB_6D_6E),
+    ("top-layer-hit-order", Some(6), SUB_6D_6E),
+    ("top-layer-hit-order", Some(7), SUB_6D_6E),
+    ("top-layer-hit-order", Some(8), SUB_6D_6E),
+    ("top-layer-hit-order", Some(9), SUB_6D_6E),
+    ("top-layer-hit-order", Some(10), SUB_6D_6E),
     ("inert-click", None, SUB_6E_STEPS),
     ("inert-hover", None, SUB_6E_STEPS),
     ("inert-tab", None, SUB_6E_STEPS),

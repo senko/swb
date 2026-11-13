@@ -30,6 +30,8 @@
 //! and list marker numbers) is limited to [`MAX_GENERATED_TEXT`] bytes per
 //! box tree.
 
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use std::sync::Arc;
 
@@ -343,9 +345,39 @@ pub(crate) struct BuildContext<'a> {
     /// The element whose `overflow` applies to the viewport (CSS Overflow 3
     /// §3.3). Its box gets the used overflow `visible`.
     pub(crate) overflow_source: Option<NodeId>,
+    /// True if the document has elements in the top layer: only then are
+    /// elements tested for the flag (see [`BuildContext::placed_style`]).
+    pub(crate) top_layer: bool,
+    /// The top-layer elements that a walk reached at their place (see
+    /// [`BuildContext::placed_style`]), in the order of the walk.
+    pub(crate) reached: RefCell<Vec<NodeId>>,
 }
 
 impl BuildContext<'_> {
+    /// The style of element `node` for a box at its place in the flat tree:
+    /// `None` without a style, and for an element in the top layer, whose
+    /// box is a child of the initial containing block ([`build_top_layer`];
+    /// ADR 0037 section 8). The root element keeps its place. The walk that
+    /// reaches a top-layer element here records it: only a recorded element
+    /// has boxes, so an element that its flat ancestors do not render has
+    /// none.
+    pub(crate) fn placed_style(&self, node: NodeId) -> Option<&Arc<ComputedStyle>> {
+        let style = self.styles.get(node)?;
+        if self.top_layer && self.in_top_layer(node) {
+            self.reached.borrow_mut().push(node);
+            return None;
+        }
+        Some(style)
+    }
+
+    /// True if `node` is an element in the top layer other than the root.
+    fn in_top_layer(&self, node: NodeId) -> bool {
+        self.doc
+            .element(node)
+            .is_some_and(swb_dom::ElementData::in_top_layer)
+            && self.doc.document_element() != Some(node)
+    }
+
     /// The base of the box of element `node` with computed style `style`.
     pub(crate) fn element_base(&self, node: NodeId, style: &Arc<ComputedStyle>) -> BoxBase {
         let style = if self.overflow_source == Some(node) {
@@ -435,16 +467,105 @@ impl BuildState {
     }
 }
 
+/// The boxes of a document: the box of the root element and the boxes of
+/// the top layer.
+pub(crate) struct BoxTree {
+    pub(crate) root: Option<IndependentBox>,
+    /// See [`build_top_layer`].
+    pub(crate) top_layer: Vec<IndependentBox>,
+}
+
+/// Builds the box of the root element and the boxes of the top layer (one
+/// numbering of boxes for both).
+pub(crate) fn build_boxes(ctx: &BuildContext<'_>) -> BoxTree {
+    let mut state = BuildState::default();
+    let root = build_root(ctx, &mut state);
+    let top_layer = if ctx.top_layer {
+        build_top_layer(ctx, &mut state)
+    } else {
+        Vec::new()
+    };
+    BoxTree { root, top_layer }
+}
+
 /// Builds the box of the root element.
-pub(crate) fn build_root(ctx: &BuildContext<'_>) -> Option<IndependentBox> {
+fn build_root(ctx: &BuildContext<'_>, state: &mut BuildState) -> Option<IndependentBox> {
     let root = ctx.doc.document_element()?;
     let style = ctx.styles.get(root)?;
     if style.display == Display::None {
         return None;
     }
-    let mut state = BuildState::default();
     let base = state.numbered(ctx.element_base(root, style));
-    Some(build_independent(ctx, base, &mut state))
+    Some(build_independent(ctx, base, state))
+}
+
+/// Builds the boxes of the top layer (CSS Position 4 §3; ADR 0037 section
+/// 8), children of the initial containing block after the root box: for
+/// each element of the top layer in order, its `::backdrop` box and its own
+/// box. An element has boxes only if a walk of the box tree reached it at
+/// its place ([`BuildContext::placed_style`]): not one inside a
+/// `display: none` ancestor, outside the flat tree, in the fallback content
+/// of a replaced element or in a closed `details` (measured in Chromium
+/// 148, cases `escape-ancestors` and `top-layer-not-rendered-*`; swb has no
+/// `content-visibility`, backlog). An element reached
+/// only in the box of another top-layer element is built after it; the
+/// results are sorted by layer position at the end, so each entry costs
+/// O(1) besides its own boxes. An element with `display: none` has no
+/// boxes. Their depth counts from 1 again.
+fn build_top_layer(ctx: &BuildContext<'_>, state: &mut BuildState) -> Vec<IndependentBox> {
+    let Some(layer) = ctx.doc.top_layer().map(swb_dom::TopLayerState::layer) else {
+        return Vec::new();
+    };
+    let position: HashMap<NodeId, usize> = layer.iter().enumerate().map(|(i, &n)| (n, i)).collect();
+    let mut built: Vec<(usize, Vec<IndependentBox>)> = Vec::new();
+    let mut done: HashSet<NodeId> = HashSet::new();
+    let mut work: Vec<NodeId> = ctx.reached.take();
+    while let Some(node) = work.pop() {
+        if !done.insert(node) {
+            continue;
+        }
+        if let Some(&index) = position.get(&node)
+            && let Some(boxes) = build_top_layer_entry(ctx, node, state)
+        {
+            built.push((index, boxes));
+        }
+        work.extend(ctx.reached.take());
+    }
+    state.depth = 0;
+    built.sort_by_key(|(index, _)| *index);
+    built.into_iter().flat_map(|(_, boxes)| boxes).collect()
+}
+
+/// The boxes of the top-layer element `node`: its backdrop and itself.
+fn build_top_layer_entry(
+    ctx: &BuildContext<'_>,
+    node: NodeId,
+    state: &mut BuildState,
+) -> Option<Vec<IndependentBox>> {
+    let style = ctx.styles.get(node)?;
+    // The fix-up makes every element of the top layer absolutely
+    // positioned and blockifies it; a style without it is from before the
+    // element joined.
+    if !ctx.in_top_layer(node)
+        || !style.is_absolutely_positioned()
+        || matches!(style.display, Display::None | Display::Contents)
+    {
+        return None;
+    }
+    state.depth = 1;
+    let mut boxes = Vec::with_capacity(2);
+    if let Some(backdrop) = ctx.styles.pseudo(node, PseudoKind::Backdrop) {
+        let base = BoxBase {
+            node: Some(node),
+            pseudo: Some(PseudoKind::Backdrop),
+            style: Arc::clone(backdrop),
+            id: state.next_id(),
+        };
+        boxes.push(build_independent(ctx, base, state));
+    }
+    let base = state.numbered(ctx.element_base(node, style));
+    boxes.push(build_independent(ctx, base, state));
+    Some(boxes)
 }
 
 pub(crate) fn build_independent(
@@ -774,7 +895,13 @@ impl ContainerBuilder {
         let summary = ctx.doc.details_summary(details);
         let style = Arc::clone(&self.style);
         let children = ctx.doc.children(details).filter(|&c| Some(c) != summary);
+        // The contents of a closed `details` are laid out but not rendered:
+        // a top-layer element in them is not reached.
+        let reached = ctx.reached.borrow().len();
         self.push_nodes(ctx, children, Some(&style), state);
+        if style.contents_hidden {
+            ctx.reached.borrow_mut().truncate(reached);
+        }
     }
 
     /// Adds `nodes`, the children of an element whose style is
@@ -919,7 +1046,7 @@ impl ContainerBuilder {
         node: NodeId,
         state: &mut BuildState,
     ) {
-        let Some(style) = ctx.styles.get(node) else {
+        let Some(style) = ctx.placed_style(node) else {
             return;
         };
         if style.display == Display::None {
@@ -970,8 +1097,7 @@ impl ContainerBuilder {
                 }
                 NodeData::Element(element) => {
                     if ctx
-                        .styles
-                        .get(node)
+                        .placed_style(node)
                         .is_none_or(|s| s.display == Display::None)
                     {
                         continue;

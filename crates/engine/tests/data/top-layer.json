@@ -1,0 +1,2049 @@
+{
+  "cases": [
+    {
+      "name": "popover-closed",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#p, #q, #s)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": null
+        },
+        {
+          "kind": "boxes",
+          "label": "(#p, #q, #s)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#p, #q, #s)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": null
+        },
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "display": "none",
+            "position": "fixed",
+            "top": "0px",
+            "left": "0px",
+            "right": "0px",
+            "bottom": "0px",
+            "margin-top": "auto",
+            "margin-left": "auto",
+            "border-top-width": "3px",
+            "border-top-style": "solid",
+            "padding-top": "4px",
+            "padding-left": "4px",
+            "width": "100px",
+            "height": "50px",
+            "overflow-x": "auto",
+            "color": "rgb(0, 0, 0)",
+            "background-color": "rgb(255, 255, 255)",
+            "z-index": "auto",
+            "overlay": "none"
+          }
+        },
+        {
+          "kind": "js",
+          "label": "document.querySelector('#p').getClientRects().length",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "name": "popover-open-ua",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#before, #p, #after)[1]",
+          "tag": "p",
+          "index": 4,
+          "rect": [
+            0.0,
+            16.0,
+            800.0,
+            18.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#before, #p, #after)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            348.78,
+            284.0,
+            102.42,
+            32.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#before, #p, #after)[3]",
+          "tag": "p",
+          "index": 7,
+          "rect": [
+            0.0,
+            50.0,
+            800.0,
+            18.0
+          ]
+        },
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "display": "block",
+            "position": "fixed",
+            "top": "0px",
+            "left": "0px",
+            "right": "0px",
+            "bottom": "0px",
+            "margin-top": "284px",
+            "margin-left": "348.781px",
+            "border-top-width": "3px",
+            "border-top-style": "solid",
+            "padding-top": "4px",
+            "padding-left": "4px",
+            "width": "88.4219px",
+            "height": "18px",
+            "overflow-x": "auto",
+            "color": "rgb(0, 0, 0)",
+            "background-color": "rgb(255, 255, 255)",
+            "z-index": "auto",
+            "overlay": "auto"
+          }
+        },
+        {
+          "kind": "js",
+          "label": "['display','position','top','left','right','bottom','background-color','pointer-events','width','height','overlay'].map(function(x){return x+'='+getComputedStyle(document.querySelector('#p'),'::backdrop').getPropertyValue(x)}).join(' ')",
+          "value": "display=block position=fixed top=0px left=0px right=0px bottom=0px background-color=rgba(0, 0, 0, 0) pointer-events=none width=800px height=600px overlay=none"
+        }
+      ]
+    },
+    {
+      "name": "popover-open-inline",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#s[1]",
+          "tag": "span",
+          "index": 4,
+          "rect": [
+            346.56,
+            284.0,
+            106.88,
+            32.0
+          ]
+        },
+        {
+          "kind": "style",
+          "label": "#s[1]",
+          "style": {
+            "display": "block",
+            "position": "fixed",
+            "width": "92.875px",
+            "height": "18px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "popover-open-long",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#p[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            113.0,
+            800.0,
+            374.0
+          ]
+        },
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "width": "786px",
+            "height": "360px",
+            "overflow-y": "auto"
+          }
+        },
+        {
+          "kind": "js",
+          "label": "[document.getElementById('p').scrollHeight,document.getElementById('p').clientHeight]",
+          "value": [
+            368,
+            368
+          ]
+        }
+      ]
+    },
+    {
+      "name": "dialog-nonmodal",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#before, #d, #after, #c)[1]",
+          "tag": "p",
+          "index": 4,
+          "rect": [
+            0.0,
+            16.0,
+            800.0,
+            18.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#before, #d, #after, #c)[2]",
+          "tag": "dialog",
+          "index": 5,
+          "rect": [
+            343.0,
+            50.0,
+            113.98,
+            56.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#before, #d, #after, #c)[3]",
+          "tag": "p",
+          "index": 6,
+          "rect": [
+            0.0,
+            50.0,
+            800.0,
+            18.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#before, #d, #after, #c)[4]",
+          "tag": "dialog",
+          "index": 7,
+          "rect": null
+        },
+        {
+          "kind": "style",
+          "label": "#d[1]",
+          "style": {
+            "display": "block",
+            "position": "absolute",
+            "top": "50px",
+            "left": "0px",
+            "right": "0px",
+            "bottom": "494px",
+            "margin-top": "0px",
+            "margin-left": "343px",
+            "border-top-width": "3px",
+            "border-top-style": "solid",
+            "padding-top": "16px",
+            "padding-left": "16px",
+            "width": "75.9844px",
+            "height": "18px",
+            "overflow-x": "visible",
+            "color": "rgb(0, 0, 0)",
+            "background-color": "rgb(255, 255, 255)",
+            "z-index": "auto",
+            "overlay": "none",
+            "max-width": "none",
+            "max-height": "none",
+            "visibility": "visible",
+            "inset-inline-start": "0px",
+            "inset-inline-end": "0px"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "#c[1]",
+          "style": {
+            "display": "none"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dialog-nonmodal-in-relative",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#w, #d)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            50.0,
+            40.0,
+            300.0,
+            200.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#w, #d)[2]",
+          "tag": "dialog",
+          "index": 5,
+          "rect": [
+            129.23,
+            40.0,
+            141.52,
+            56.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "dialog-modal-ua",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#before, #d, #after)[1]",
+          "tag": "p",
+          "index": 4,
+          "rect": [
+            0.0,
+            16.0,
+            800.0,
+            18.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#before, #d, #after)[2]",
+          "tag": "dialog",
+          "index": 5,
+          "rect": [
+            343.0,
+            272.0,
+            113.98,
+            56.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#before, #d, #after)[3]",
+          "tag": "p",
+          "index": 6,
+          "rect": [
+            0.0,
+            50.0,
+            800.0,
+            18.0
+          ]
+        },
+        {
+          "kind": "style",
+          "label": "#d[1]",
+          "style": {
+            "display": "block",
+            "position": "fixed",
+            "top": "0px",
+            "left": "0px",
+            "right": "0px",
+            "bottom": "0px",
+            "margin-top": "272px",
+            "margin-left": "343px",
+            "border-top-width": "3px",
+            "border-top-style": "solid",
+            "padding-top": "16px",
+            "padding-left": "16px",
+            "width": "75.9844px",
+            "height": "18px",
+            "overflow-x": "auto",
+            "color": "rgb(0, 0, 0)",
+            "background-color": "rgb(255, 255, 255)",
+            "z-index": "auto",
+            "overlay": "auto",
+            "max-width": "calc(100% - 38px)",
+            "max-height": "calc(100% - 38px)",
+            "visibility": "visible",
+            "inset-inline-start": "0px",
+            "inset-inline-end": "0px"
+          }
+        },
+        {
+          "kind": "js",
+          "label": "['display','position','top','left','right','bottom','background-color','pointer-events','width','height','overlay'].map(function(x){return x+'='+getComputedStyle(document.querySelector('#d'),'::backdrop').getPropertyValue(x)}).join(' ')",
+          "value": "display=block position=fixed top=0px left=0px right=0px bottom=0px background-color=rgba(0, 0, 0, 0.1) pointer-events=auto width=800px height=600px overlay=none"
+        }
+      ]
+    },
+    {
+      "name": "dialog-modal-big",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#d[1]",
+          "tag": "dialog",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            600.0
+          ]
+        },
+        {
+          "kind": "style",
+          "label": "#d[1]",
+          "style": {
+            "width": "762px",
+            "height": "562px",
+            "max-width": "calc(100% - 38px)",
+            "max-height": "calc(100% - 38px)",
+            "overflow-x": "auto",
+            "overflow-y": "auto"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dialog-modal-scrolled",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "scrollY",
+          "value": 500
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #a)[1]",
+          "tag": "dialog",
+          "index": 5,
+          "rect": [
+            361.0,
+            772.0,
+            78.0,
+            56.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #a)[2]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            30.0,
+            40.0,
+            35.33,
+            32.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "['d','a'].map(function(i){var r=document.getElementById(i).getBoundingClientRect();return i+':'+r.x+','+r.y}).join(' ')",
+          "value": "d:361,272 a:30,-460"
+        }
+      ]
+    },
+    {
+      "name": "escape-ancestors",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#p1, #p2, #p3, #p4, #p5, #p6)[1]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            300.0,
+            200.0,
+            80.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#p1, #p2, #p3, #p4, #p5, #p6)[2]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            300.0,
+            250.0,
+            80.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#p1, #p2, #p3, #p4, #p5, #p6)[3]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            300.0,
+            300.0,
+            80.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#p1, #p2, #p3, #p4, #p5, #p6)[4]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            300.0,
+            350.0,
+            80.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#p1, #p2, #p3, #p4, #p5, #p6)[5]",
+          "tag": "div",
+          "index": 13,
+          "rect": [
+            300.0,
+            400.0,
+            80.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#p1, #p2, #p3, #p4, #p5, #p6)[6]",
+          "tag": "div",
+          "index": 15,
+          "rect": null
+        },
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              255,
+              0,
+              0
+            ],
+            [
+              255,
+              0,
+              0
+            ],
+            [
+              255,
+              0,
+              0
+            ],
+            [
+              255,
+              0,
+              0
+            ],
+            [
+              255,
+              0,
+              0
+            ]
+          ],
+          "points": [
+            [
+              340,
+              220
+            ],
+            [
+              340,
+              270
+            ],
+            [
+              340,
+              320
+            ],
+            [
+              340,
+              370
+            ],
+            [
+              340,
+              420
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            351.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "document.getElementById('p6').matches(':popover-open')",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "escape-ancestors-modal",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#w, #d)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            32.5,
+            32.5,
+            25.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#w, #d)[2]",
+          "tag": "dialog",
+          "index": 5,
+          "rect": [
+            292.58,
+            272.0,
+            214.84,
+            56.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "top-layer-paint-order",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              255,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              255
+            ],
+            [
+              0,
+              0,
+              255
+            ],
+            [
+              0,
+              255,
+              0
+            ]
+          ],
+          "points": [
+            [
+              25,
+              25
+            ],
+            [
+              75,
+              75
+            ],
+            [
+              125,
+              125
+            ],
+            [
+              175,
+              175
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "backdrop-paint",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              229,
+              0,
+              0
+            ],
+            [
+              229,
+              229,
+              229
+            ]
+          ],
+          "points": [
+            [
+              30,
+              30
+            ],
+            [
+              700,
+              500
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "getComputedStyle(document.getElementById('d'),'::backdrop').backgroundColor",
+          "value": "rgba(0, 0, 0, 0.1)"
+        }
+      ]
+    },
+    {
+      "name": "backdrop-author",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              255,
+              255,
+              255
+            ],
+            [
+              0,
+              0,
+              255
+            ],
+            [
+              0,
+              255,
+              0
+            ],
+            [
+              255,
+              255,
+              255
+            ]
+          ],
+          "points": [
+            [
+              5,
+              5
+            ],
+            [
+              120,
+              120
+            ],
+            [
+              320,
+              320
+            ],
+            [
+              700,
+              500
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "['#d','#p'].map(function(s){return s+':'+['position','top','left','width','height','background-color'].map(function(x){return getComputedStyle(document.querySelector(s),'::backdrop').getPropertyValue(x)}).join('/')}).join(' ')",
+          "value": "#d:fixed/100px/100px/50px/50px/rgb(0, 0, 255) #p:fixed/300px/300px/40px/40px/rgb(0, 255, 0)"
+        }
+      ]
+    },
+    {
+      "name": "popover-author-display",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#p, #h, #x)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            315.45,
+            284.0,
+            169.09,
+            32.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#p, #h, #x)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": null
+        },
+        {
+          "kind": "boxes",
+          "label": "(#p, #h, #x)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            342.56,
+            284.0,
+            114.86,
+            32.0
+          ]
+        },
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "display": "block",
+            "position": "fixed",
+            "overlay": "none"
+          }
+        },
+        {
+          "kind": "js",
+          "label": "['p','h','x'].map(function(i){var e=document.getElementById(i);return i+':'+e.matches(':popover-open')+':'+e.getClientRects().length}).join(' ')",
+          "value": "p:false:1 h:true:0 x:true:1"
+        }
+      ]
+    },
+    {
+      "name": "popover-author-position",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#w, #p, #q, #r)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            100.0,
+            100.0,
+            200.0,
+            200.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#w, #p, #q, #r)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            30.0,
+            40.0,
+            35.33,
+            32.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#w, #p, #q, #r)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            0.0,
+            47.77,
+            32.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#w, #p, #q, #r)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            10.0,
+            10.0,
+            30.88,
+            32.0
+          ]
+        },
+        {
+          "kind": "style",
+          "label": "#q[1]",
+          "style": {
+            "position": "absolute",
+            "display": "block"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "#r[1]",
+          "style": {
+            "position": "absolute"
+          }
+        }
+      ]
+    },
+    {
+      "name": "popover-shadow-host",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#t[1]",
+          "tag": "x-tip",
+          "index": 4,
+          "rect": [
+            10.0,
+            20.0,
+            45.09,
+            32.0
+          ]
+        },
+        {
+          "kind": "style",
+          "label": "#t[1]",
+          "style": {
+            "background-color": "rgb(1, 2, 3)",
+            "position": "absolute",
+            "display": "block",
+            "left": "10px",
+            "top": "20px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "popover-in-shadow-tree",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#h[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            50.0,
+            0.0,
+            20.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(function(){var r=document.getElementById('h').shadowRoot.getElementById('p').getBoundingClientRect();return [r.x,r.y,r.width,r.height]})()",
+          "value": [
+            100,
+            100,
+            94,
+            44
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(function(){var e=document.elementFromPoint(120,110);return e.id+':'+document.getElementById('h').shadowRoot.elementFromPoint(120,110).id})()",
+          "value": "h:p"
+        }
+      ]
+    },
+    {
+      "name": "dialog-modal-in-iframe",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#f, #b)[1]",
+          "tag": "iframe",
+          "index": 4,
+          "rect": [
+            100.0,
+            100.0,
+            300.0,
+            200.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f, #b)[2]",
+          "tag": "button",
+          "index": 5,
+          "rect": [
+            10.0,
+            10.0,
+            46.39,
+            21.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(function(){var r=document.getElementById('d').getBoundingClientRect();return [r.x,r.y,r.width,r.height,document.getElementById('d').matches(':modal')]})()",
+          "value": [
+            104.125,
+            72,
+            91.75,
+            56,
+            true
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "document.elementFromPoint(20,20).id+':'+document.elementFromPoint(250,200).id",
+          "value": "b:f"
+        }
+      ]
+    },
+    {
+      "name": "overlay-and-states",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "['p','d','n','x'].map(function(i){var e=document.getElementById(i);return i+':'+getComputedStyle(e).overlay+':'+[':popover-open',':modal',':open'].filter(function(s){return e.matches(s)}).join('')}).join(' ')",
+          "value": "p:none: d:auto::modal:open n:none::open x:none::open"
+        },
+        {
+          "kind": "style",
+          "label": "#n[1]",
+          "style": {
+            "position": "absolute",
+            "overlay": "none"
+          }
+        }
+      ]
+    },
+    {
+      "name": "popover-and-dialog-js-off",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#p, #d, #c, #t)[1]",
+          "tag": "div",
+          "index": 5,
+          "rect": null
+        },
+        {
+          "kind": "boxes",
+          "label": "(#p, #d, #c, #t)[2]",
+          "tag": "dialog",
+          "index": 6,
+          "rect": [
+            343.45,
+            21.0,
+            113.09,
+            56.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#p, #d, #c, #t)[3]",
+          "tag": "dialog",
+          "index": 7,
+          "rect": null
+        },
+        {
+          "kind": "boxes",
+          "label": "(#p, #d, #c, #t)[4]",
+          "tag": "x-tip",
+          "index": 8,
+          "rect": null
+        },
+        {
+          "kind": "style",
+          "label": "#d[1]",
+          "style": {
+            "position": "absolute",
+            "left": "0px",
+            "top": "21px",
+            "width": "75.0938px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "backdrop-inheritance",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "['color','border-top-color','border-top-width','font-size'].map(function(x){return x+'='+getComputedStyle(document.getElementById('d'),'::backdrop').getPropertyValue(x)}).join(' ')",
+          "value": "color=rgb(1, 1, 1) border-top-color=rgb(1, 1, 1) border-top-width=30px font-size=30px"
+        }
+      ]
+    },
+    {
+      "name": "backdrop-popover",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              255,
+              0,
+              0
+            ],
+            [
+              127,
+              0,
+              0
+            ],
+            [
+              0,
+              127,
+              0
+            ],
+            [
+              0,
+              0,
+              255
+            ],
+            [
+              0,
+              255,
+              0
+            ],
+            [
+              255,
+              255,
+              255
+            ],
+            [
+              1,
+              2,
+              3
+            ]
+          ],
+          "points": [
+            [
+              25,
+              25
+            ],
+            [
+              75,
+              75
+            ],
+            [
+              150,
+              150
+            ],
+            [
+              250,
+              250
+            ],
+            [
+              350,
+              350
+            ],
+            [
+              500,
+              500
+            ],
+            [
+              295,
+              150
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "['display','position','top','left','width','height','background-color','pointer-events','color','border-top-color','border-top-width','font-size','padding-top','overlay','z-index'].map(function(x){return x+'='+getComputedStyle(document.getElementById('b'),'::backdrop').getPropertyValue(x)}).join(' ')",
+          "value": "display=block position=fixed top=50px left=50px width=200px height=200px background-color=rgba(0, 0, 0, 0.5) pointer-events=none color=rgb(1, 2, 3) border-top-color=rgb(1, 2, 3) border-top-width=20px font-size=20px padding-top=7px overlay=none z-index=9"
+        },
+        {
+          "kind": "js",
+          "label": "['display','position','top','left','width','height','background-color','pointer-events','color','border-top-color','border-top-width','font-size','padding-top','overlay','z-index'].map(function(x){return x+'='+getComputedStyle(document.getElementById('a'),'::backdrop').getPropertyValue(x)}).join(' ')",
+          "value": "display=block position=fixed top=0px left=0px width=800px height=600px background-color=rgba(0, 0, 0, 0) pointer-events=none color=rgb(0, 0, 0) border-top-color=rgb(0, 0, 0) border-top-width=0px font-size=16px padding-top=0px overlay=none z-index=auto"
+        },
+        {
+          "kind": "js",
+          "label": "['display','position','top','left','width','height','background-color','pointer-events','color','border-top-color','border-top-width','font-size','padding-top','overlay','z-index'].map(function(x){return x+'='+getComputedStyle(document.getElementById('c'),'::backdrop').getPropertyValue(x)}).join(' ')",
+          "value": "display=block position=absolute top=auto left=auto width=auto height=auto background-color=rgb(255, 255, 0) pointer-events=auto color=rgb(0, 0, 0) border-top-color=rgb(0, 0, 0) border-top-width=0px font-size=16px padding-top=0px overlay=none z-index=auto"
+        },
+        {
+          "kind": "js",
+          "label": "[document.elementFromPoint(150,150).id,document.elementFromPoint(75,75).id,document.elementFromPoint(250,250).id].join()",
+          "value": "z,a,b"
+        }
+      ]
+    },
+    {
+      "name": "popover-static-position",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#w, #s, #a, #t)[1]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            100.0,
+            150.0,
+            220.0,
+            220.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#w, #s, #a, #t)[2]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            0.0,
+            50.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#w, #s, #a, #t)[3]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            0.0,
+            50.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#w, #s, #a, #t)[4]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            10.0,
+            2000.0,
+            50.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[document.scrollingElement.scrollHeight,document.scrollingElement.scrollWidth]",
+          "value": [
+            2020,
+            800
+          ]
+        }
+      ]
+    },
+    {
+      "name": "popover-scrolled",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "scrollY",
+          "value": 500
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #f)[1]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            30.0,
+            540.0,
+            60.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #f)[2]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            200.0,
+            540.0,
+            60.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "['a','f'].map(function(i){var r=document.getElementById(i).getBoundingClientRect();return i+':'+r.x+','+r.y}).join(' ')",
+          "value": "a:30,40 f:200,40"
+        },
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              0,
+              0,
+              255
+            ],
+            [
+              0,
+              0,
+              255
+            ],
+            [
+              255,
+              255,
+              255
+            ],
+            [
+              255,
+              255,
+              255
+            ]
+          ],
+          "points": [
+            [
+              45,
+              545
+            ],
+            [
+              215,
+              545
+            ],
+            [
+              45,
+              600
+            ],
+            [
+              215,
+              700
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            3000.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "popover-in-iframe",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#f[1]",
+          "tag": "iframe",
+          "index": 4,
+          "rect": [
+            100.0,
+            100.0,
+            300.0,
+            200.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(function(){var d=document.getElementById('f').contentDocument,r=d.getElementById('p').getBoundingClientRect();return [r.x,r.y,r.width,r.height,d.getElementById('p').matches(':popover-open'),d.elementFromPoint(20,30).id]})()",
+          "value": [
+            10,
+            20,
+            60,
+            30,
+            true,
+            "p"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "document.elementFromPoint(120,130).id",
+          "value": "f"
+        },
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              0,
+              0,
+              255
+            ],
+            [
+              0,
+              0,
+              255
+            ],
+            [
+              255,
+              255,
+              255
+            ],
+            [
+              255,
+              255,
+              255
+            ]
+          ],
+          "points": [
+            [
+              115,
+              125
+            ],
+            [
+              165,
+              145
+            ],
+            [
+              175,
+              125
+            ],
+            [
+              105,
+              105
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "top-layer-not-rendered-canvas",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "[document.getElementById('p').getClientRects().length,document.getElementById('p').matches(':popover-open'),document.elementFromPoint(30,30).localName]",
+          "value": [
+            0,
+            true,
+            "canvas"
+          ]
+        },
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              255,
+              255,
+              255
+            ],
+            [
+              255,
+              255,
+              255
+            ]
+          ],
+          "points": [
+            [
+              30,
+              30
+            ],
+            [
+              100,
+              100
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            154.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "top-layer-not-rendered-video",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "[document.getElementById('p').getClientRects().length,document.getElementById('p').matches(':popover-open'),document.elementFromPoint(30,30).localName]",
+          "value": [
+            0,
+            true,
+            "video"
+          ]
+        },
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              255,
+              255,
+              255
+            ],
+            [
+              255,
+              255,
+              255
+            ]
+          ],
+          "points": [
+            [
+              30,
+              30
+            ],
+            [
+              100,
+              100
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            154.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "top-layer-not-rendered-object",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "[document.getElementById('p').getClientRects().length,document.getElementById('p').matches(':popover-open'),document.elementFromPoint(30,30).localName]",
+          "value": [
+            0,
+            true,
+            "object"
+          ]
+        },
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              255,
+              255,
+              255
+            ],
+            [
+              255,
+              255,
+              255
+            ]
+          ],
+          "points": [
+            [
+              30,
+              30
+            ],
+            [
+              100,
+              100
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            154.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "top-layer-not-rendered-content-visibility",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "[document.getElementById('p').getClientRects().length,document.getElementById('p').matches(':popover-open'),document.elementFromPoint(30,30).localName]",
+          "value": [
+            0,
+            true,
+            "html"
+          ]
+        },
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              255,
+              255,
+              255
+            ],
+            [
+              255,
+              255,
+              255
+            ]
+          ],
+          "points": [
+            [
+              30,
+              30
+            ],
+            [
+              100,
+              100
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            30.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "top-layer-not-rendered-details",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "[document.getElementById('p').getClientRects().length,document.getElementById('p').matches(':popover-open'),document.elementFromPoint(30,30).localName]",
+          "value": [
+            0,
+            true,
+            "html"
+          ]
+        },
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              255,
+              255,
+              255
+            ],
+            [
+              255,
+              255,
+              255
+            ]
+          ],
+          "points": [
+            [
+              30,
+              30
+            ],
+            [
+              100,
+              100
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            18.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(function(){document.getElementById('d').open=true;var r=document.getElementById('p').getBoundingClientRect();return [document.getElementById('p').getClientRects().length,r.x,r.y,r.width,r.height]})()",
+          "value": [
+            1,
+            20,
+            20,
+            100,
+            100
+          ]
+        }
+      ]
+    },
+    {
+      "name": "top-layer-not-rendered-iframe-child",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "[document.getElementById('p').getClientRects().length,document.getElementById('p').matches(':popover-open')]",
+          "value": [
+            0,
+            true
+          ]
+        },
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              255,
+              255,
+              255
+            ],
+            [
+              255,
+              255,
+              255
+            ]
+          ],
+          "points": [
+            [
+              30,
+              30
+            ],
+            [
+              100,
+              100
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            158.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "top-layer-display-contents",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(function(){var r=document.getElementById('s').getBoundingClientRect();return [document.getElementById('c').getClientRects().length,r.x,r.y,r.width,r.height,document.elementFromPoint(25,25).id]})()",
+          "value": [
+            1,
+            20,
+            20,
+            30,
+            30,
+            "s"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "getComputedStyle(document.getElementById('c')).display+' '+getComputedStyle(document.getElementById('c')).position",
+          "value": "block fixed"
+        },
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              0,
+              0,
+              255
+            ],
+            [
+              255,
+              0,
+              0
+            ],
+            [
+              255,
+              255,
+              255
+            ]
+          ],
+          "points": [
+            [
+              25,
+              25
+            ],
+            [
+              60,
+              40
+            ],
+            [
+              200,
+              200
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "top-layer-nested-outer-first",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(function(){var o=[];for(var id of ['o','in']){var r=document.getElementById(id).getBoundingClientRect();o.push(r.x,r.y,r.width,r.height)}return o})()",
+          "value": [
+            20,
+            20,
+            100,
+            100,
+            50,
+            50,
+            100,
+            100
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[document.elementFromPoint(130,130).id,document.elementFromPoint(40,40).id,document.elementFromPoint(60,60).id].join()",
+          "value": "in,o,in"
+        },
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              0,
+              255,
+              0
+            ],
+            [
+              255,
+              0,
+              0
+            ],
+            [
+              0,
+              255,
+              0
+            ],
+            [
+              255,
+              255,
+              255
+            ]
+          ],
+          "points": [
+            [
+              130,
+              130
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              60,
+              60
+            ],
+            [
+              200,
+              200
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "top-layer-nested-inner-first",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(function(){var o=[];for(var id of ['o','in']){var r=document.getElementById(id).getBoundingClientRect();o.push(r.x,r.y,r.width,r.height)}return o})()",
+          "value": [
+            20,
+            20,
+            100,
+            100,
+            50,
+            50,
+            100,
+            100
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[document.elementFromPoint(130,130).id,document.elementFromPoint(40,40).id,document.elementFromPoint(60,60).id].join()",
+          "value": "in,o,o"
+        },
+        {
+          "kind": "pixels",
+          "label": "body[1]",
+          "pixels": [
+            [
+              0,
+              255,
+              0
+            ],
+            [
+              255,
+              0,
+              0
+            ],
+            [
+              255,
+              0,
+              0
+            ],
+            [
+              255,
+              255,
+              255
+            ]
+          ],
+          "points": [
+            [
+              130,
+              130
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              60,
+              60
+            ],
+            [
+              200,
+              200
+            ]
+          ],
+          "area": [
+            0.0,
+            0.0,
+            800.0,
+            0.0
+          ]
+        }
+      ]
+    }
+  ]
+}

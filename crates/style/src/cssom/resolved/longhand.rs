@@ -803,6 +803,7 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
         "contain-intrinsic-height" => contain_intrinsic(s.contain_intrinsic_height),
         "object-fit" => s.object_fit.as_str().to_owned(),
         "scrollbar-width" => s.scrollbar_width.as_str().to_owned(),
+        "overlay" => s.overlay.as_str().to_owned(),
         "object-position" => format!(
             "{} {}",
             position(&s.object_position[0]),

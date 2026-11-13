@@ -174,8 +174,8 @@ impl DocumentState {
     fn box_geometry(&mut self, node: NodeId) -> Option<&BoxGeometry> {
         let serial = self.layout_serial;
         if self.geometry.as_ref().is_none_or(|(s, _)| *s != serial) {
-            let root = self.fragments.as_ref()?.root.as_ref()?;
-            self.geometry = Some((serial, index_geometry(root)));
+            let tree = self.fragments.as_ref()?;
+            self.geometry = Some((serial, index_geometry(tree)));
         }
         self.geometry.as_ref()?.1.get(&node)
     }
@@ -786,10 +786,13 @@ fn align(position: ScrollAlign) -> Align {
     }
 }
 
-/// The boxes of the elements of the layout whose root fragment is `root`.
-fn index_geometry(root: &BoxFragment) -> GeometryIndex {
+/// The boxes of the elements of a layout: those of the root fragment and
+/// of the top layer.
+fn index_geometry(tree: &swb_layout::FragmentTree) -> GeometryIndex {
     let mut index = GeometryIndex::new();
-    add_box(root, Point::default(), None, &mut index);
+    for root in tree.roots() {
+        add_box(root, Point::default(), None, &mut index);
+    }
     index
 }
 

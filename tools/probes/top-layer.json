@@ -520,6 +520,384 @@
     }
    ],
    "javascript": true
+  },
+  {
+   "name": "backdrop-popover",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:white;color:rgb(9,9,9);--v:3px} [popover]{inset:auto;margin:0;border:0;padding:0;width:100px;height:100px} #z{position:fixed;left:0;top:0;width:400px;height:400px;z-index:2147483647;background:rgb(0,255,0)} #a{left:0;top:0;background:rgb(255,0,0)} #b{left:200px;top:200px;background:rgb(0,0,255);color:rgb(1,2,3);font-size:20px;--v:7px;z-index:-5} #b::backdrop{background:rgba(0,0,0,0.5);inset:auto;left:50px;top:50px;width:200px;height:200px;border:solid currentcolor;border-width:1em;padding:var(--v);z-index:9} #c::backdrop{background:rgb(255,255,0)}</style><div id=z></div><div popover=manual id=a></div><div popover=manual id=b></div><div popover=manual id=c>closed</div><script>document.getElementById('a').showPopover();document.getElementById('b').showPopover()</script>",
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       25,
+       25
+      ],
+      [
+       75,
+       75
+      ],
+      [
+       150,
+       150
+      ],
+      [
+       250,
+       250
+      ],
+      [
+       350,
+       350
+      ],
+      [
+       500,
+       500
+      ],
+      [
+       295,
+       150
+      ]
+     ]
+    },
+    {
+     "js": "['display','position','top','left','width','height','background-color','pointer-events','color','border-top-color','border-top-width','font-size','padding-top','overlay','z-index'].map(function(x){return x+'='+getComputedStyle(document.getElementById('b'),'::backdrop').getPropertyValue(x)}).join(' ')"
+    },
+    {
+     "js": "['display','position','top','left','width','height','background-color','pointer-events','color','border-top-color','border-top-width','font-size','padding-top','overlay','z-index'].map(function(x){return x+'='+getComputedStyle(document.getElementById('a'),'::backdrop').getPropertyValue(x)}).join(' ')"
+    },
+    {
+     "js": "['display','position','top','left','width','height','background-color','pointer-events','color','border-top-color','border-top-width','font-size','padding-top','overlay','z-index'].map(function(x){return x+'='+getComputedStyle(document.getElementById('c'),'::backdrop').getPropertyValue(x)}).join(' ')"
+    },
+    {
+     "js": "[document.elementFromPoint(150,150).id,document.elementFromPoint(75,75).id,document.elementFromPoint(250,250).id].join()"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "popover-static-position",
+   "html": "<!DOCTYPE html><style>body{margin:0} #w{position:relative;left:100px;top:100px;width:200px;height:200px;padding:10px} [popover]{inset:auto;margin:0;width:50px;height:20px;border:0;padding:0} #a{position:absolute} #t{position:absolute;top:2000px;left:10px} #f{top:3000px;left:10px}</style><p>before</p><div id=w><p>in w</p><div popover=manual id=s>s</div><div popover=manual id=a>a</div></div><div popover=manual id=t>t</div><div popover=manual id=f>f</div><script>['s','a','t','f'].forEach(function(i){document.getElementById(i).showPopover()})</script>",
+   "measure": [
+    {
+     "boxes": "#w, #s, #a, #t"
+    },
+    {
+     "js": "[document.scrollingElement.scrollHeight,document.scrollingElement.scrollWidth]"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "popover-scrolled",
+   "html": "<!DOCTYPE html><style>body{margin:0} #tall{height:3000px} #w{position:relative;left:100px;top:100px} [popover]{inset:auto;margin:0;border:0;padding:0;width:60px;height:30px;background:rgb(0,0,255)} #a{position:absolute;left:30px;top:540px} #f{left:200px;top:40px}</style><div id=tall><div id=w><div popover=manual id=a>abs</div><div popover=manual id=f>fixed</div></div></div><script>scrollTo(0,500);document.getElementById('a').showPopover();document.getElementById('f').showPopover()</script>",
+   "measure": [
+    {
+     "js": "scrollY"
+    },
+    {
+     "boxes": "#a, #f"
+    },
+    {
+     "js": "['a','f'].map(function(i){var r=document.getElementById(i).getBoundingClientRect();return i+':'+r.x+','+r.y}).join(' ')"
+    },
+    {
+     "pixels": "body",
+     "points": [
+      [
+       45,
+       545
+      ],
+      [
+       215,
+       545
+      ],
+      [
+       45,
+       600
+      ],
+      [
+       215,
+       700
+      ]
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "popover-in-iframe",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:white} iframe{position:absolute;left:100px;top:100px;width:300px;height:200px;border:0}</style><iframe id=f srcdoc=\"<style>body{margin:0;background:white} #w{transform:translateX(50px);overflow:hidden;width:20px;height:20px} [popover]{inset:auto;left:10px;top:20px;margin:0;border:0;padding:0;width:60px;height:30px;background:rgb(0,0,255)}</style><div id=w><div popover=manual id=p>p</div></div><script>document.getElementById('p').showPopover()</script>\"></iframe>",
+   "measure": [
+    {
+     "boxes": "#f"
+    },
+    {
+     "js": "(function(){var d=document.getElementById('f').contentDocument,r=d.getElementById('p').getBoundingClientRect();return [r.x,r.y,r.width,r.height,d.getElementById('p').matches(':popover-open'),d.elementFromPoint(20,30).id]})()"
+    },
+    {
+     "js": "document.elementFromPoint(120,130).id"
+    },
+    {
+     "pixels": "body",
+     "points": [
+      [
+       115,
+       125
+      ],
+      [
+       165,
+       145
+      ],
+      [
+       175,
+       125
+      ],
+      [
+       105,
+       105
+      ]
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "top-layer-not-rendered-canvas",
+   "html": "<!DOCTYPE html><style>body{margin:0} [popover]{margin:0;border:0;padding:0;width:100px;height:100px;inset:20px auto auto 20px;background:rgb(255,0,0)}</style><canvas id=cv><div popover=manual id=p>q</div></canvas><script>document.getElementById('p').showPopover()</script>",
+   "measure": [
+    {
+     "js": "[document.getElementById('p').getClientRects().length,document.getElementById('p').matches(':popover-open'),document.elementFromPoint(30,30).localName]"
+    },
+    {
+     "pixels": "body",
+     "points": [
+      [
+       30,
+       30
+      ],
+      [
+       100,
+       100
+      ]
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "top-layer-not-rendered-video",
+   "html": "<!DOCTYPE html><style>body{margin:0} [popover]{margin:0;border:0;padding:0;width:100px;height:100px;inset:20px auto auto 20px;background:rgb(255,0,0)}</style><video id=o><div popover=manual id=p>q</div></video><script>document.getElementById('p').showPopover()</script>",
+   "measure": [
+    {
+     "js": "[document.getElementById('p').getClientRects().length,document.getElementById('p').matches(':popover-open'),document.elementFromPoint(30,30).localName]"
+    },
+    {
+     "pixels": "body",
+     "points": [
+      [
+       30,
+       30
+      ],
+      [
+       100,
+       100
+      ]
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "top-layer-not-rendered-object",
+   "html": "<!DOCTYPE html><style>body{margin:0} [popover]{margin:0;border:0;padding:0;width:100px;height:100px;inset:20px auto auto 20px;background:rgb(255,0,0)}</style><object type='text/x-none' id=o><div popover=manual id=p>q</div></object><script>document.getElementById('p').showPopover()</script>",
+   "measure": [
+    {
+     "js": "[document.getElementById('p').getClientRects().length,document.getElementById('p').matches(':popover-open'),document.elementFromPoint(30,30).localName]"
+    },
+    {
+     "pixels": "body",
+     "points": [
+      [
+       30,
+       30
+      ],
+      [
+       100,
+       100
+      ]
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "top-layer-not-rendered-content-visibility",
+   "html": "<!DOCTYPE html><style>body{margin:0} [popover]{margin:0;border:0;padding:0;width:100px;height:100px;inset:20px auto auto 20px;background:rgb(255,0,0)}</style><div id=n style='content-visibility:hidden;height:30px'><div popover=manual id=p>q</div></div><script>document.getElementById('p').showPopover()</script>",
+   "measure": [
+    {
+     "js": "[document.getElementById('p').getClientRects().length,document.getElementById('p').matches(':popover-open'),document.elementFromPoint(30,30).localName]"
+    },
+    {
+     "pixels": "body",
+     "points": [
+      [
+       30,
+       30
+      ],
+      [
+       100,
+       100
+      ]
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "top-layer-not-rendered-details",
+   "html": "<!DOCTYPE html><style>body{margin:0} [popover]{margin:0;border:0;padding:0;width:100px;height:100px;inset:20px auto auto 20px;background:rgb(255,0,0)}</style><details id=d><summary>s</summary><div popover=manual id=p>q</div></details><script>document.getElementById('p').showPopover()</script>",
+   "measure": [
+    {
+     "js": "[document.getElementById('p').getClientRects().length,document.getElementById('p').matches(':popover-open'),document.elementFromPoint(30,30).localName]"
+    },
+    {
+     "pixels": "body",
+     "points": [
+      [
+       30,
+       30
+      ],
+      [
+       100,
+       100
+      ]
+     ]
+    },
+    {
+     "js": "(function(){document.getElementById('d').open=true;var r=document.getElementById('p').getBoundingClientRect();return [document.getElementById('p').getClientRects().length,r.x,r.y,r.width,r.height]})()"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "top-layer-not-rendered-iframe-child",
+   "html": "<!DOCTYPE html><style>body{margin:0} [popover]{margin:0;border:0;padding:0;width:100px;height:100px;inset:20px auto auto 20px;background:rgb(255,0,0)}</style><iframe srcdoc='x' id=f></iframe><script>var p=document.createElement('div');p.setAttribute('popover','manual');p.id='p';document.getElementById('f').appendChild(p);p.showPopover()</script>",
+   "measure": [
+    {
+     "js": "[document.getElementById('p').getClientRects().length,document.getElementById('p').matches(':popover-open')]"
+    },
+    {
+     "pixels": "body",
+     "points": [
+      [
+       30,
+       30
+      ],
+      [
+       100,
+       100
+      ]
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "top-layer-display-contents",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:white} [popover]{margin:0;border:0;padding:0;width:100px;height:50px;inset:20px auto auto 20px;background:rgb(255,0,0)} #c{display:contents} #c span{display:block;width:30px;height:30px;background:rgb(0,0,255)}</style><div popover=manual id=c><span id=s>S</span></div><script>document.getElementById('c').showPopover()</script>",
+   "measure": [
+    {
+     "js": "(function(){var r=document.getElementById('s').getBoundingClientRect();return [document.getElementById('c').getClientRects().length,r.x,r.y,r.width,r.height,document.elementFromPoint(25,25).id]})()"
+    },
+    {
+     "js": "getComputedStyle(document.getElementById('c')).display+' '+getComputedStyle(document.getElementById('c')).position"
+    },
+    {
+     "pixels": "body",
+     "points": [
+      [
+       25,
+       25
+      ],
+      [
+       60,
+       40
+      ],
+      [
+       200,
+       200
+      ]
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "top-layer-nested-outer-first",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:white} [popover]{margin:0;border:0;padding:0;width:100px;height:100px;inset:20px auto auto 20px;background:rgb(255,0,0);overflow:hidden} #in{background:rgb(0,255,0);inset:50px auto auto 50px}</style><div popover=manual id=o><div popover=manual id=in>i</div></div><script>document.getElementById('o').showPopover();document.getElementById('in').showPopover()</script>",
+   "measure": [
+    {
+     "js": "(function(){var o=[];for(var id of ['o','in']){var r=document.getElementById(id).getBoundingClientRect();o.push(r.x,r.y,r.width,r.height)}return o})()"
+    },
+    {
+     "js": "[document.elementFromPoint(130,130).id,document.elementFromPoint(40,40).id,document.elementFromPoint(60,60).id].join()"
+    },
+    {
+     "pixels": "body",
+     "points": [
+      [
+       130,
+       130
+      ],
+      [
+       40,
+       40
+      ],
+      [
+       60,
+       60
+      ],
+      [
+       200,
+       200
+      ]
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "top-layer-nested-inner-first",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:white} [popover]{margin:0;border:0;padding:0;width:100px;height:100px;inset:20px auto auto 20px;background:rgb(255,0,0);overflow:hidden} #in{background:rgb(0,255,0);inset:50px auto auto 50px}</style><div popover=manual id=o><div popover=manual id=in>i</div></div><script>document.getElementById('in').showPopover();document.getElementById('o').showPopover()</script>",
+   "measure": [
+    {
+     "js": "(function(){var o=[];for(var id of ['o','in']){var r=document.getElementById(id).getBoundingClientRect();o.push(r.x,r.y,r.width,r.height)}return o})()"
+    },
+    {
+     "js": "[document.elementFromPoint(130,130).id,document.elementFromPoint(40,40).id,document.elementFromPoint(60,60).id].join()"
+    },
+    {
+     "pixels": "body",
+     "points": [
+      [
+       130,
+       130
+      ],
+      [
+       40,
+       40
+      ],
+      [
+       60,
+       60
+      ],
+      [
+       200,
+       200
+      ]
+     ]
+    }
+   ],
+   "javascript": true
   }
  ]
 }

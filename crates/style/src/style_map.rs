@@ -34,6 +34,12 @@ pub enum PseudoKind {
     /// `details` that has such children. Page style sheets cannot style
     /// it.
     DetailsContent,
+    /// `::backdrop` of an element in the top layer (CSS Position 4 §3.2):
+    /// styled only for elements with the top-layer flag, inheriting from
+    /// the element; layout builds its box as a child of the initial
+    /// containing block, right before the element's box (ADR 0037
+    /// section 8).
+    Backdrop,
 }
 
 /// Computed styles for the elements of a document.

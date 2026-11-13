@@ -4888,7 +4888,20 @@ Steps:
       - 6b the top layer in rendering (`implementer-hard`): `::backdrop`,
         the top-layer fix-ups of `position`, `overlay`, the UA sheet,
         top-layer boxes under the initial containing block, their paint
-        order and hit testing.
+        order and hit testing. Done (2026-11-13): a top-layer element
+        leaves its place in the box tree; if the walk reaches it there,
+        its `::backdrop` box and its own box become children of the
+        initial containing block (`FragmentTree::top_layer`), laid out
+        against the ICB or the viewport and painted after the root
+        stacking context in layer order, without the clips, transforms
+        and groups of its ancestors. In the top layer `position: static`
+        and `relative` compute to `absolute` and `display: contents` to
+        `block`; `overlay` computes; the UA's backdrop rules apply only in
+        the top layer (measured). 24 layout cases match Chromium (11 wait
+        for 6d's `showModal` or for backlog items); `top-layer-hit-order`
+        rows 1 to 4 match. GitHub's hover tooltip renders on top at
+        Chromium's box. Targets unchanged; JS-off snapshot identical;
+        callgrind +0.12 % at most.
       - 6c popover interaction (`implementer`): light dismiss, Escape and
         close watchers, invokers with JavaScript off, the popover focus
         steps and the Tab order after the invoker.
@@ -5026,6 +5039,18 @@ Steps:
   subtree while a popover or dialog is in the top layer (300 removals of
   a 50,000-node subtree: 116 ms without, 151 ms with one open popover);
   a counter of showing descendants per subtree would remove the scan.
+- Top layer (found in 6b): the engine's selection by the mouse
+  (`selection::position_at`) searches only the root's fragments, so text
+  in a top-layer box is selected only by select-all; `offsetParent` and
+  `offsetTop` of a top-layer element follow its DOM ancestors (not
+  measured); a `body` in the top layer (not measured). The show loop of
+  nested auto popovers (6a) is quadratic beyond 10,000 (10,000: 271 ms,
+  20,000: 1,115 ms): 6c finds the step.
+- Rendering (found in 6b): swb has no `content-visibility`; an `<object>`
+  with `type` or `data` renders its fallback children, Chromium does not
+  (measured: a child `div` has no client rect); a gradient `body`
+  background on an `html` of height 0 paints in swb and is white in
+  Chromium (the review's case `rv-backdrop-filter-edge`).
 - Tests (found 2026-11-12, at the 5c-2 commit): Debian's tzdata went from
   2026b to 2026f, which changes Morocco's rules (UTC+00 after 2026).
   Chromium 148's own data predates that, so the recorded values of

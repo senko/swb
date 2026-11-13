@@ -4,6 +4,34 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-13: M10 6b: the top layer renders
+
+- A top-layer element leaves its place in the box tree. If the walk
+  reaches it there, its `::backdrop` box and its own box become children
+  of the initial containing block, laid out against the ICB (`absolute`)
+  or the viewport (`fixed`) and painted after the root stacking context
+  in layer order, without the clips, transforms and groups of its
+  ancestors. `z-index` does not change that order. Hit testing needed no
+  new code.
+- `::backdrop` is a styled pseudo-element that inherits from its
+  element; `overlay` computes; in the top layer `position: static` and
+  `relative` compute to `absolute` and `display: contents` to `block`.
+  Chromium 148 answers in new probe cases: the UA's backdrop rules apply
+  only in the top layer; the static position is the origin, also inside
+  a positioned ancestor; an absolutely positioned top-layer box extends
+  the scrollable area, a fixed one does not; a popover in fallback
+  content or in a closed `details` renders nothing.
+- The review found two box-tree defects (boxes for popovers that their
+  ancestors do not render; `display: contents` lost the children), both
+  fixed with probe cases. 10,000 nested open popovers held one computed
+  style per box and backdrop (153 MiB); equal neighbour styles in the
+  layer are now shared (120 MiB).
+- 24 layout cases match Chromium (11 wait for 6d's `showModal` or for
+  backlog items). GitHub's hover tooltip renders on top at Chromium's
+  box. Targets unchanged; JS-off snapshot identical; callgrind +0.12 % at
+  most.
+- Next: 6c (light dismiss, Escape, invokers with JavaScript off, focus).
+
 ## 2026-11-13: M10 6a: popovers in the DOM and for scripts
 
 - `swb_dom::top_layer` holds the top layer, the auto and hint lists and

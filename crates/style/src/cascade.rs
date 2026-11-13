@@ -2,8 +2,9 @@
 //!
 //! [`compute_styles`] walks the element tree (iteratively, so deep trees
 //! cannot overflow the stack) and computes one style per element, plus
-//! styles for `::before`, `::after`, `::marker` and `::placeholder`, and
-//! for the pseudo-elements of `details` (`style_details_pseudos`).
+//! styles for `::before`, `::after`, `::marker` and `::placeholder`, for
+//! the pseudo-elements of `details` (`style_details_pseudos`), and for the
+//! `::backdrop` of each element in the top layer (ADR 0037 section 8).
 //!
 //! For each element:
 //!
@@ -28,7 +29,10 @@
 //! 3. Compute custom properties, then `font-family` and `font-size`
 //!    (other properties depend on the font size), then all other
 //!    properties. Values with `var()` are substituted and parsed here.
-//! 4. Apply the computed-value fixups: blockification
+//! 4. Apply the computed-value fixups: for an element in the top layer and
+//!    a backdrop, `position` other than `absolute` and `fixed` computes to
+//!    `absolute`, and the element's `overlay` to `auto`
+//!    (`top_layer_fixup`); blockification
 //!    (<https://www.w3.org/TR/css-display-3/#transformations>), `float`
 //!    for absolutely positioned boxes, zero border widths for `none`
 //!    styles, and the `overflow` pairing rule. For elements also:
@@ -48,6 +52,8 @@
 
 #[cfg(test)]
 mod scoping_tests;
+#[cfg(test)]
+mod top_layer_tests;
 pub(crate) mod use_instances;
 
 use std::collections::{HashMap, HashSet};
@@ -81,7 +87,8 @@ use crate::values::{
 const FIXED_FONT_RATIO: f32 = 13.0 / 16.0;
 
 /// Computes styles for all elements (and `::before`, `::after`, `::marker`,
-/// `::placeholder` and the pseudo-elements of `details`) of the document.
+/// `::placeholder`, `::backdrop` and the pseudo-elements of `details`) of
+/// the document.
 pub fn compute_styles(
     doc: &Document,
     stylist: &Stylist,
@@ -306,6 +313,9 @@ struct Styler<'a> {
     filter: Option<AncestorFilter>,
     /// Styles that elements with the same inputs share.
     shared: HashMap<SharingKey, Arc<ComputedStyle>>,
+    /// The last style of an element in the top layer and the last
+    /// `::backdrop` style: an equal next one reuses it ([`share_last`]).
+    last_top_layer: [Option<Arc<ComputedStyle>>; 2],
     scratch: Vec<u32>,
     matched: Vec<u32>,
     /// The tree scope of the element being styled (the document node or a
@@ -401,6 +411,7 @@ impl<'a> Styler<'a> {
             author,
             filter: use_filter.then(AncestorFilter::new),
             shared: HashMap::new(),
+            last_top_layer: [None, None],
             scratch: Vec::new(),
             matched: Vec::new(),
             scope: NodeId::DOCUMENT,
@@ -757,7 +768,13 @@ impl<'a> Styler<'a> {
         // Elements with the same parent style, the same rules and nothing
         // element-specific share one style.
         let stylist = self.cx.stylist;
+        // The fix-up of the top layer is not in the sharing key. The rules
+        // of an element in the top layer differ from those of its siblings
+        // anyway (`:popover-open`, `:modal`); this keeps the cache right
+        // without that.
+        let top_layer = data.in_top_layer();
         let shareable = !is_root
+            && !top_layer
             && hints.is_empty()
             && style_attribute.is_none()
             && matched.iter().all(|&i| !stylist.rule(i).uses_element_data)
@@ -788,6 +805,9 @@ impl<'a> Styler<'a> {
             own,
         };
         let mut style = cascade(&self.cx, &rules, extra, parent, Some(data), is_root);
+        if top_layer {
+            top_layer_fixup(&mut style, true);
+        }
         apply_fixups(&mut style, is_root, layout_parent);
         // Chromium (`StyleAdjuster`): tables do not take the `-webkit-`
         // values of `text-align`, so `<center>` and `align` do not align the
@@ -812,7 +832,22 @@ impl<'a> Styler<'a> {
         }
         self.matched = matched;
         self.scoped_matched = scoped;
-        let style = Arc::new(style);
+        self.finish_style(style, top_layer, key)
+    }
+
+    /// Puts the computed `style` in an `Arc`, shared with an equal previous
+    /// one in the top layer, and in the sharing cache under `key`.
+    fn finish_style(
+        &mut self,
+        style: ComputedStyle,
+        top_layer: bool,
+        key: Option<SharingKey>,
+    ) -> Arc<ComputedStyle> {
+        let style = if top_layer {
+            share_last(&mut self.last_top_layer[0], style)
+        } else {
+            Arc::new(style)
+        };
         if let Some(key) = key {
             self.shared.insert(key, Arc::clone(&style));
         }
@@ -845,18 +880,34 @@ impl<'a> Styler<'a> {
             // The marker of the default summary.
             kinds.push(PseudoKind::Marker);
         }
+        // The backdrop of an element in the top layer (ADR 0037 section 8).
+        if data.in_top_layer() {
+            kinds.push(PseudoKind::Backdrop);
+        }
         for kind in kinds {
             // Markers and placeholders always have a box (the user-agent
             // sheet has rules for both).
             let always = matches!(kind, PseudoKind::Marker | PseudoKind::Placeholder);
-            if let Some(pseudo) =
-                self.style_pseudo_element(el, style, kind, pseudo_layout_parent, false)
-            {
+            // A backdrop's parent box is the initial containing block.
+            let layout_parent = if kind == PseudoKind::Backdrop {
+                None
+            } else {
+                pseudo_layout_parent
+            };
+            if let Some(pseudo) = self.style_pseudo_element(el, style, kind, layout_parent, false) {
+                // `content` does not apply to a backdrop: it has a box
+                // unless it is `display: none`.
                 let generates_box = always
+                    || (kind == PseudoKind::Backdrop && pseudo.display != Display::None)
                     || (!matches!(pseudo.content, Content::Normal | Content::None)
                         && pseudo.display != Display::None);
                 if generates_box {
-                    map.set_pseudo(el.node_id(), kind, Arc::new(pseudo));
+                    let pseudo = if kind == PseudoKind::Backdrop {
+                        share_last(&mut self.last_top_layer[1], pseudo)
+                    } else {
+                        Arc::new(pseudo)
+                    };
+                    map.set_pseudo(el.node_id(), kind, pseudo);
                 }
             }
         }
@@ -916,6 +967,12 @@ impl<'a> Styler<'a> {
                 Some(el.data()),
                 false,
             );
+            // Also the backdrop of an element outside the top layer, for
+            // `getComputedStyle` (measured: `position: absolute` and
+            // `display: block`, case `backdrop-popover`).
+            if kind == PseudoKind::Backdrop {
+                top_layer_fixup(&mut pseudo, false);
+            }
             if !boxed {
                 apply_fixups(&mut pseudo, false, pseudo_layout_parent);
             }
@@ -1488,6 +1545,46 @@ fn adjust_font_size_for_family(style: &mut ComputedStyle, parent: &ComputedStyle
                 style.font_size * FIXED_FONT_RATIO
             };
         }
+    }
+}
+
+/// `style` as an `Arc`, shared with `last` if equal to it. Elements in the
+/// top layer are not in the sharing cache (their parent styles differ in
+/// a chain of nested popovers although the values are equal), so equal
+/// neighbours in the layer share here: 10,000 nested popovers hold one
+/// style of their own and one of their backdrop, not 10,000 of each.
+fn share_last(last: &mut Option<Arc<ComputedStyle>>, style: ComputedStyle) -> Arc<ComputedStyle> {
+    if let Some(last) = last
+        && **last == style
+    {
+        return Arc::clone(last);
+    }
+    let style = Arc::new(style);
+    *last = Some(Arc::clone(&style));
+    style
+}
+
+/// The fix-up of an element in the top layer and of every `::backdrop` (CSS
+/// Position 4 §3.1, <https://drafts.csswg.org/css-position-4/#top-styling>):
+/// a `position` other than `absolute` and `fixed` computes to `absolute`
+/// (measured in Chromium 148 for `static` and `relative`, case
+/// `popover-author-position`). `display: contents` computes to `block` for
+/// the element (measured in Chromium 148, case `contents`: computed
+/// `block`, one client rect, children laid out in it). [`apply_fixups`] then
+/// blockifies the box.
+/// An `element` in the top layer also gets `overlay: auto`, the value of
+/// the user agent's `:popover-open, dialog:modal { overlay: auto
+/// !important }` (HTML §15.3; measured: `popover-open-ua`), set here so
+/// that no rule is tested against every element.
+fn top_layer_fixup(style: &mut ComputedStyle, element: bool) {
+    if !style.position.is_absolutely_positioned() {
+        style.position = crate::values::Position::Absolute;
+    }
+    if element {
+        if style.display == Display::Contents {
+            style.display = Display::Block;
+        }
+        style.overlay = crate::values::Overlay::Auto;
     }
 }
 

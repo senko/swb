@@ -1,7 +1,8 @@
 """Popovers and the top layer (ADR 0037 section 12; sub-feature 6a: the
-popover model, the algorithms and the bindings)."""
+popover model, the algorithms and the bindings; 6b: the top layer in
+rendering)."""
 
-from swbtools.hostile_cases.core import Page, case, doc
+from swbtools.hostile_cases.core import Page, case, doc, steps_args
 
 JS = ("--js", "--settle-ms", "500")
 
@@ -92,7 +93,9 @@ def popover_remove_while_open_100000() -> Page:
     expect_log="nested ok 10000",
     swb_args=JS,
     # ADR 0037 section 12: memory under +50 MB (a page with scripts and a
-    # small DOM peaks near 105 MiB; this case near 111 MiB).
+    # small DOM peaks near 105 MiB; this case near 111 MiB in 6a, near
+    # 150 MiB when 6b rendered the 10,000 open popovers and their backdrops
+    # with one style each, and near 120 MiB with equal styles shared).
     rss_limit_mib=160,
 )
 def popover_nested_auto_10000() -> Page:
@@ -107,3 +110,55 @@ def popover_nested_auto_10000() -> Page:
         "</script>"
     )
     return Page(doc(script))
+
+
+@case(
+    "10,000 open manual popovers, each a fixed box with its own position (sub-feature 6b: "
+    "10,000 entries of the top layer, each with a backdrop box and a stacking context of its "
+    "own after the root's): style, layout and paint, 100 pointer moves over them, then all "
+    "hidden; a timer logs `manual ok` (ADR 0037 section 12)",
+    time_limit_s=20,
+    expect_log="manual ok 0",
+    swb_args=steps_args(
+        [{"hover": [10 + 7 * i, 10 + 5 * i]} for i in range(100)]
+        + [
+            {
+                "eval": "document.querySelectorAll('[popover]').forEach(p => p.hidePopover()), "
+                "setTimeout(() => console.warn('manual ok ' + "
+                "document.querySelectorAll(':popover-open').length), 10)"
+            },
+            {"wait": 100},
+        ]
+    ),
+    rss_limit_mib=400,
+)
+def popover_manual_10000_open() -> Page:
+    script = (
+        "<script>for (let i = 0; i < 10000; i++) { const d = document.createElement('div'); "
+        "d.popover = 'manual'; d.textContent = 'popover ' + i; "
+        "d.style.cssText = 'inset:auto;margin:0;left:' + (i % 700) + 'px;top:' + (i % 500) + 'px'; "
+        "document.body.appendChild(d); d.showPopover(); }</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "1,000 open popovers whose backdrops have `backdrop-filter: blur(20px)` (sub-feature 6b: "
+    "each backdrop fills the viewport and filters everything painted before it; ADR 0033's "
+    "budgets of the filter work and the layers act; ADR 0037 section 12)",
+    time_limit_s=20,
+    expect_log="backdrops ok 1000",
+    swb_args=JS,
+    rss_limit_mib=1024,
+)
+def top_layer_backdrop_filter_1000() -> Page:
+    script = (
+        "<script>for (let i = 0; i < 1000; i++) { const d = document.createElement('div'); "
+        "d.popover = 'manual'; d.textContent = 'p' + i; "
+        "d.style.cssText = 'inset:auto;margin:0;left:' + (i % 700) + 'px;top:' + (i % 500) + 'px'; "
+        "document.body.appendChild(d); d.showPopover(); } "
+        "setTimeout(() => console.warn('backdrops ok ' + "
+        "document.querySelectorAll(':popover-open').length), 10);</script>"
+    )
+    css = "[popover]::backdrop{backdrop-filter:blur(20px);background:rgba(0,0,255,.01)}"
+    return Page(doc(script, css))

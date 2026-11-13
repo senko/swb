@@ -95,11 +95,11 @@ pub enum BoxKind {
 /// The pseudo-element of a `getComputedStyle` call.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PseudoElement {
-    /// One that swb styles: `::before`, `::after`, `::marker`,
+    /// One that swb styles: `::before`, `::after`, `::marker`, `::backdrop`,
     /// `::placeholder`.
     Styled(crate::PseudoKind),
     /// One that Chromium knows and swb does not style (`::first-line`,
-    /// `::selection`, `::backdrop`, ...): its style inherits from the
+    /// `::selection`, ...): its style inherits from the
     /// element and has no box (departure: its rules do not apply).
     Unstyled,
 }

@@ -208,11 +208,11 @@ fn inset(rect: Rect, [top, right, bottom, left]: [f32; 4]) -> Rect {
 }
 
 /// The used boxes of all elements and pseudo-elements of a layout (the
-/// first fragment of each).
+/// first fragment of each), the boxes of the top layer included.
 fn index_boxes(tree: &FragmentTree, viewport: Size) -> BoxIndex {
     let mut index = BoxIndex::new();
-    if let Some(root) = &tree.root {
-        let mut stack = Vec::new();
+    let mut stack = Vec::new();
+    for root in tree.roots() {
         visit(root, 0.0, 0.0, viewport, &mut stack, &mut index);
     }
     index

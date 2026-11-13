@@ -696,7 +696,9 @@ unless named):
 
 - `popover-nested-auto-10000`: 10,000 nested auto popovers shown in order,
   then a click outside and Escape (budget: the show loop under 2 s, the
-  dismissal under 2 s, memory under +50 MB).
+  dismissal under 2 s, memory under +50 MB; since 6b it renders 10,000
+  boxes and backdrops: about 120 MiB of the 160 MiB limit, see "6b fix
+  round").
 - `popover-manual-10000-open`: 10,000 open manual popovers; style, layout,
   paint, 100 pointer moves, then all hidden.
 - `popover-beforetoggle-reentry`: `beforetoggle` handlers that show and
@@ -1129,3 +1131,147 @@ at most +0.9 % (`dispatchEvent` 29,297 to 29,558, `id` +0.9 %, `setAttribute`
 +0.8 %, the empty loop +0.8 %); `showPopover` + `hidePopover` 11,350.
 Hostile cases: reentry 0.61 s, 105 MiB; flip 0.86 s, 126 MiB; remove
 0.81 s, 114 MiB; nested 1.06 s, 110 MiB.
+
+## 6b implementation notes
+
+Facts of sub-feature 6b (the top layer in rendering) that differ from
+section 8 or that later sub-features need. Code: `crates/style/src/
+cascade.rs` (`top_layer_fixup`, the backdrop in `style_pseudo_elements`),
+`stylist.rs` (`RuleTarget` 5, `backdrop_rules`), `style_map.rs`
+(`PseudoKind::Backdrop`), `ua.css`, the `overlay` keyword and longhand;
+`crates/layout/src/box_tree.rs` (`build_boxes`, `build_top_layer`,
+`BuildContext::placed_style`), `positioned.rs` (`lay_out_top_layer`),
+`fragment.rs` (`FragmentTree::top_layer`, `roots`), `scroll.rs`, `lib.rs`;
+`crates/paint/src/display_list/builder.rs` (`top_layer_box`);
+`crates/engine/src/document/geometry.rs`, `resolved.rs`, `selection.rs`;
+`crates/web/src/cssom.rs`.
+
+**Measured answers** (Chromium 148, three equal runs of four new cases of
+`tools/probes/top-layer.json`: `backdrop-popover`,
+`popover-static-position`, `popover-scrolled`, `popover-in-iframe`):
+
+1. *The backdrop of an element outside the top layer.* `getComputedStyle`
+   of a closed popover's `::backdrop` gives the author's values, `display:
+   block`, `position: absolute`, `top: auto`, `pointer-events: auto`: the
+   user agent's backdrop rules do not apply there. The UA sheet of section
+   8 therefore has `:popover-open::backdrop, dialog:modal::backdrop`
+   (display, position, inset), `dialog:modal::backdrop` (the background)
+   and `[popover]:popover-open::backdrop` (`pointer-events`), and the
+   `position` fix-up applies to every backdrop. A backdrop has a box only
+   for an element in the top layer.
+2. *Static position.* A top-layer box with `inset: auto` is at the origin
+   of the initial containing block, also inside a positioned ancestor.
+3. *Scrollable area.* An absolutely positioned top-layer box extends the
+   scrollable area of the viewport (`top: 2000px` gives `scrollHeight`
+   2020); a fixed one does not.
+4. *Inheritance and paint of a popover's backdrop.* It inherits `color`,
+   `font-size` and custom properties from its element; it paints above
+   the earlier top-layer entries and below its element; its `z-index` has
+   no effect; with `pointer-events: none` (UA, `!important`) a hit goes
+   through it.
+5. *Frames.* A popover in a frame is placed in the frame's viewport,
+   outside a transformed, clipped ancestor; the parent's `elementFromPoint`
+   gives the `iframe`.
+
+**Structures.** The fragments of the top layer are not children of the
+root fragment: `FragmentTree::top_layer` holds them in document
+coordinates, and the walkers (`walk`, `walk_painted`, element boxes, the
+used boxes of `getComputedStyle`, the geometry index, the scrollable
+area, the text extents of the selection) visit `FragmentTree::roots()`,
+each with the state of a root (no ancestor transform, clip, scroll
+container or sticky box). The box tree and the root share one box
+numbering (`BuildState`), so the layout cache and the out-of-flow pass can
+key by box number. An element in the top layer is skipped at its place by
+`placed_style` (the box tree, the anonymous tables and the flattening
+below the depth limit), only when the layer is not empty. Its box starts
+at depth 1. A top-layer element with `display: contents` computes to
+`display: block` (the fix-up; measured in Chromium 148, case
+`top-layer-display-contents`: one client rect, children in it). A top-layer
+element gets a box only if the box-tree walk reaches it at its place (its
+flat ancestors render): see "6b fix round" below.
+
+**Paint.** `top_layer_box` opens an empty outer context, so that the box
+is not the root (the root's background paints the canvas, and a
+`backdrop-filter` at outer depth 0 is skipped), then paints the box as a
+stacking context; a box fixed to the viewport gets the viewport clip and
+the scroll transform as a fixed box of the root does. Backdrop roots and
+the tree order of positioned boxes cover the top-layer trees.
+
+**Not done (backlog).** The engine's selection by the mouse
+(`selection::position_at`) searches the root's text only; text in a
+top-layer box is selected only by select-all. `offsetParent` and
+`offsetTop` of a top-layer element follow its DOM ancestors (not
+measured).
+
+**`overlay`.** The UA rule `:popover-open, dialog:modal { overlay: auto
+!important }` of section 8 is the top-layer fix-up instead (the same
+value for every element in the top layer; no author value wins over a UA
+`!important`): as a rule, `:popover-open` was tested against every element
+(callgrind on Wikipedia +0.21 % with it, +0.05 % without).
+
+**Numbers** (release builds of 936a658 and 6b on the same machine):
+`just snapshot` (JavaScript off) byte-identical; `compare --all` and
+`compare --js` of the 8 fixtures identical (GitHub with JavaScript on:
+geometry 0.9115, pixels 0.9934; its tooltips are closed at load); callgrind
+of `swb --headless --replay` with JavaScript off: Wikipedia +0.049 %, Ars
+Technica +0.023 %, BBC -0.005 %; `swbtools perf` within 1 % on every
+fixture (run-to-run noise). GitHub with JavaScript on: a headless load in
+0.465 s (base 0.469 s); the hover over the "..." button that shows the
+tooltip adds 0.165 s of wall time to a run (base 0.168 s; the tooltip was
+at the same box in 6a, as a fixed box in the normal order, but not on top
+of the page). Hostile cases: `popover-manual-10000-open` 0.56 s, 198 MiB;
+`top-layer-backdrop-filter-1000` 2.81 s, 100 MiB;
+`popover-nested-auto-10000` now renders its 10,000 open popovers: 1.11 s,
+149 MiB (6a: 110 MiB; limit 160 MiB).
+
+### 6b fix round
+
+The review of 6b found four things.
+
+**Boxes only where the walk reaches the element.** `build_top_layer`
+tested only that the element has a style, but styles exist for nodes that
+render nothing: the fallback children of `canvas`, `video` and `iframe`,
+and the content of a closed `details`. Chromium gives such a shown popover
+no box (measured, cases `top-layer-not-rendered-*`: `getClientRects()`
+length 0; in the closed `details` case `elementFromPoint` gives `html`).
+`placed_style` now records each top-layer element that a box-tree walk
+reaches at its place in `BuildContext::reached`. `build_top_layer` starts
+from the nodes that the root's walk reached and keeps a worklist: building
+the boxes of an entry walks its subtree and adds the entries reached there
+(a popover inside another popover is reached only in the outer one's box).
+The built boxes are sorted by layer position at the end, so the order is
+that of the layer whichever of two nested popovers was shown first (cases
+`top-layer-nested-outer-first` and `-inner-first`). Each entry costs O(1)
+besides its own boxes: 10,000 nested popovers shown inner first lay out in
+well under a second (unit test). `push_details_content` drops the entries
+reached inside a closed `details` (its `::details-content` box is laid out
+but not rendered). Departures that stay out of the top layer (backlog):
+swb has no `content-visibility` (`top-layer-not-rendered-content-visibility`
+is in `LATER`), and it renders the fallback children of an `object` with a
+`type` or `data`, which Chromium does not (a plain `div` child has no
+client rect there; `top-layer-not-rendered-object` is in `LATER`).
+
+**`display: contents`.** The top-layer fix-up computes `display: contents`
+to `block` for the element (Chromium 148: computed `block`, one client
+rect, the child at its place in the box, pixels painted; case
+`top-layer-display-contents`). A backdrop with `display: contents` is not
+measured.
+
+**Memory of `popover-nested-auto-10000`.** 149 to 153 MiB of 160 in 6b
+(110 MiB in 6a). Elements in the top layer are not in the style sharing
+cache, and in a chain of nested popovers the parent styles differ, so
+each of the 10,000 entries held a computed style of its own and one for
+its backdrop (about 3 KB of the 4 KB per entry; boxes, fragments and the
+display list hold the rest). `Styler::finish_style` and the backdrop loop
+now reuse the previous top-layer element style or backdrop style when the
+new one is equal in value (`share_last`, one comparison per entry): 149 to
+120 MiB (123 MiB in the last run); `popover-manual-10000-open` 199 to 181
+MiB. The limit stays 160 MiB with a margin of 37 MiB.
+
+**Numbers** (release builds of 936a658 and the fixed tree): `just snapshot`
+(JavaScript off, 370 files) byte-identical; `compare --all` and
+`compare --all --js` identical to the base; callgrind with JavaScript
+off: Wikipedia +0.120 %, Ars Technica +0.016 %, BBC -0.019 %. Hostile
+cases: `popover-nested-auto-10000` 1.11 s, 123 MiB;
+`popover-manual-10000-open` 0.55 s, 181 MiB;
+`top-layer-backdrop-filter-1000` 2.81 s, 96 MiB.

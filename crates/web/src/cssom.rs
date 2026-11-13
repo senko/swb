@@ -239,10 +239,10 @@ fn pseudo_target(text: &str) -> Target {
         "after" => styled(PseudoKind::After),
         "marker" => styled(PseudoKind::Marker),
         "placeholder" => styled(PseudoKind::Placeholder),
+        "backdrop" => styled(PseudoKind::Backdrop),
         "first-line"
         | "first-letter"
         | "selection"
-        | "backdrop"
         | "file-selector-button"
         | "grammar-error"
         | "spelling-error"

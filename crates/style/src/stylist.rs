@@ -230,6 +230,7 @@ impl RuleTarget {
             RuleTarget::Pseudo(PseudoKind::After) => Some(2),
             RuleTarget::Pseudo(PseudoKind::Marker) => Some(3),
             RuleTarget::Pseudo(PseudoKind::Placeholder) => Some(4),
+            RuleTarget::Pseudo(PseudoKind::Backdrop) => Some(5),
             RuleTarget::Pseudo(PseudoKind::DetailsSummary | PseudoKind::DetailsContent) => None,
         }
     }
@@ -243,13 +244,14 @@ impl RuleTarget {
             Some(PseudoElement::After) => RuleTarget::Pseudo(PseudoKind::After),
             Some(PseudoElement::Marker) => RuleTarget::Pseudo(PseudoKind::Marker),
             Some(PseudoElement::Placeholder) => RuleTarget::Pseudo(PseudoKind::Placeholder),
+            Some(PseudoElement::Backdrop) => RuleTarget::Pseudo(PseudoKind::Backdrop),
             Some(_) => return None,
         })
     }
 }
 
 /// The number of [`RuleTarget`]s that have rules.
-const TARGETS: usize = 5;
+const TARGETS: usize = 6;
 
 /// The sets of rules of a stylist that match across a shadow boundary (ADR
 /// 0036 section 5): rules whose subject is the featureless host (`:host`,
@@ -311,6 +313,7 @@ pub struct Stylist {
     after_rules: RuleMap,
     marker_rules: RuleMap,
     placeholder_rules: RuleMap,
+    backdrop_rules: RuleMap,
     /// No rules: the pseudo-elements of `details` have no rules.
     no_rules: RuleMap,
     /// All media query lists that rules depend on.
@@ -418,6 +421,7 @@ impl Stylist {
             after_rules: RuleMap::default(),
             marker_rules: RuleMap::default(),
             placeholder_rules: RuleMap::default(),
+            backdrop_rules: RuleMap::default(),
             no_rules: RuleMap::default(),
             media_lists: Vec::new(),
             media_chains: Vec::new(),
@@ -449,6 +453,7 @@ impl Stylist {
             PseudoKind::After,
             PseudoKind::Marker,
             PseudoKind::Placeholder,
+            PseudoKind::Backdrop,
         ] {
             let target = RuleTarget::Pseudo(target);
             if scope.has_rules(target)
@@ -788,6 +793,7 @@ impl Stylist {
                 RuleTarget::Pseudo(PseudoKind::Before) => &mut self.before_rules,
                 RuleTarget::Pseudo(PseudoKind::After) => &mut self.after_rules,
                 RuleTarget::Pseudo(PseudoKind::Marker) => &mut self.marker_rules,
+                RuleTarget::Pseudo(PseudoKind::Backdrop) => &mut self.backdrop_rules,
                 RuleTarget::Pseudo(_) => &mut self.placeholder_rules,
             };
         }
@@ -915,6 +921,7 @@ impl Stylist {
             RuleTarget::Pseudo(PseudoKind::After) => &self.after_rules,
             RuleTarget::Pseudo(PseudoKind::Marker) => &self.marker_rules,
             RuleTarget::Pseudo(PseudoKind::Placeholder) => &self.placeholder_rules,
+            RuleTarget::Pseudo(PseudoKind::Backdrop) => &self.backdrop_rules,
             RuleTarget::Pseudo(PseudoKind::DetailsSummary | PseudoKind::DetailsContent) => {
                 &self.no_rules
             }

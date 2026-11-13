@@ -25,3 +25,7 @@ svgtypes.workspace = true
 thiserror.workspace = true
 tiny-skia.workspace = true
 usvg.workspace = true
+
+[dev-dependencies]
+swb-css.workspace = true
+url.workspace = true

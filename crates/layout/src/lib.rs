@@ -54,6 +54,8 @@ mod shape;
 mod source_map;
 pub mod svg;
 mod table;
+#[cfg(test)]
+mod top_layer_tests;
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -305,26 +307,35 @@ pub(crate) fn layout_with(input: &LayoutInput<'_>, ctx: &mut LayoutContext<'_>) 
         replaced: input.replaced,
         controls: input.controls,
         overflow_source: viewport_overflow.map(|(node, _, _)| node),
+        top_layer: input
+            .document
+            .top_layer()
+            .is_some_and(|t| !t.layer().is_empty()),
+        reached: std::cell::RefCell::default(),
     };
-    let root_box = box_tree::build_root(&build);
+    let boxes = box_tree::build_boxes(&build);
     let icb = ContainingBlock {
         width: input.viewport.width,
         height: Some(input.viewport.height),
     };
-    let root = root_box.map(|root_box| {
+    let mut root = boxes.root.map(|root_box| {
         let mut root = block::layout_root(ctx, &root_box, icb);
         root.is_root = true;
         positioned::place_out_of_flow(ctx, &root_box, &mut root, input.viewport);
-        if input.styles.has_hidden_contents() {
-            // The cached fragments share their children with the tree.
-            ctx.layouts.clear();
-            hide_contents(&mut root);
-        }
         root
     });
-    let scroll_size = scroll::viewport_scroll_size(root.as_ref(), input.viewport);
+    let mut top_layer = positioned::lay_out_top_layer(ctx, &boxes.top_layer, input.viewport);
+    if input.styles.has_hidden_contents() {
+        // The cached fragments share their children with the tree.
+        ctx.layouts.clear();
+        for b in root.iter_mut().chain(&mut top_layer) {
+            hide_contents(b);
+        }
+    }
+    let scroll_size = scroll::viewport_scroll_size(root.iter().chain(&top_layer), input.viewport);
     FragmentTree {
         root,
+        top_layer,
         canvas_background: canvas_background(input.document, input.styles),
         scroll_size,
         viewport_overflow: viewport_overflow

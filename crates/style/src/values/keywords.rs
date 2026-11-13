@@ -624,6 +624,19 @@ keyword_enum! {
 }
 
 keyword_enum! {
+    /// The `overlay` property (CSS Position 4 §3.6): `auto` while the
+    /// element is rendered in the top layer. The user-agent sheet sets it
+    /// for open popovers and modal dialogs; swb renders the top layer from
+    /// the element's top-layer flag, so the value has no effect of its own
+    /// (no transitions delay a removal).
+    Overlay {
+        None = "none",
+        Auto = "auto",
+    }
+    default None
+}
+
+keyword_enum! {
     /// The `user-select` property.
     UserSelect {
         Auto = "auto",

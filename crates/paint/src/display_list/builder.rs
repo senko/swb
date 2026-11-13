@@ -43,12 +43,8 @@ pub fn build_display_list(
         images,
         highlights,
         contexts: Vec::new(),
-        tree_order: tree
-            .root
-            .as_ref()
-            .map(positioned_tree_order)
-            .unwrap_or_default(),
-        backdrop_roots: tree.root.as_ref().map(backdrop_roots).unwrap_or_default(),
+        tree_order: positioned_tree_order(tree.roots()),
+        backdrop_roots: backdrop_roots(tree),
         clips: Vec::new(),
         absolute_clips: 0,
         fixed_clips: 0,
@@ -89,9 +85,12 @@ pub fn build_display_list(
             builder.root_canvas = builder.list.split_off(start);
         }
     }
+    let ancestry = Ancestry::root(tree.viewport);
     if let Some(root) = &tree.root {
-        let ancestry = Ancestry::root(tree.viewport);
         builder.box_contents(root, Point::default(), &[], &ancestry, true);
+    }
+    for b in &tree.top_layer {
+        builder.top_layer_box(b, &ancestry);
     }
     let mut items = builder.list.into_vec();
     finish_groups(&mut items);
@@ -167,11 +166,14 @@ struct Deferred {
 }
 
 /// The index in tree order (pre-order) of each positioned or transformed
-/// box of a fragment tree, by address. The paint phases find positioned
-/// boxes in another order (those in floats and inline content later);
-/// with equal z-index they paint in tree order. The recursion depth is
-/// bounded by the box tree depth (see `swb_layout`'s `box_tree.rs`).
-fn positioned_tree_order(root: &BoxFragment) -> HashMap<*const BoxFragment, u32> {
+/// box below the fragments `roots` (the root and the top layer), by
+/// address. The paint phases find positioned boxes in another order (those
+/// in floats and inline content later); with equal z-index they paint in
+/// tree order. The recursion depth is bounded by the box tree depth (see
+/// `swb_layout`'s `box_tree.rs`).
+fn positioned_tree_order<'a>(
+    roots: impl Iterator<Item = &'a BoxFragment>,
+) -> HashMap<*const BoxFragment, u32> {
     fn visit(b: &BoxFragment, next: &mut u32, order: &mut HashMap<*const BoxFragment, u32>) {
         for child in b.children.iter() {
             if let Fragment::Box(cb) = child {
@@ -184,14 +186,19 @@ fn positioned_tree_order(root: &BoxFragment) -> HashMap<*const BoxFragment, u32>
         }
     }
     let mut order = HashMap::new();
-    visit(root, &mut 0, &mut order);
+    let mut next = 0;
+    for root in roots {
+        visit(root, &mut next, &mut order);
+    }
     order
 }
 
 /// The boxes that are backdrop roots (Filter Effects 2 §2) and have a
-/// descendant with a `backdrop-filter`, by address. The recursion depth is
+/// descendant with a `backdrop-filter`, by address, in the trees of the
+/// root and of the top layer (the root element is the backdrop root of a
+/// box of the top layer that is none itself). The recursion depth is
 /// bounded by the box tree depth (see `swb_layout`'s `box_tree.rs`).
-fn backdrop_roots(root: &BoxFragment) -> HashSet<*const BoxFragment> {
+fn backdrop_roots(tree: &FragmentTree) -> HashSet<*const BoxFragment> {
     /// Returns true if `b` or a box below it has a `backdrop-filter`.
     fn visit(b: &BoxFragment, roots: &mut HashSet<*const BoxFragment>) -> bool {
         let mut below = false;
@@ -206,7 +213,9 @@ fn backdrop_roots(root: &BoxFragment) -> HashSet<*const BoxFragment> {
         below || b.style.has_backdrop_filter()
     }
     let mut roots = HashSet::new();
-    visit(root, &mut roots);
+    for root in tree.roots() {
+        visit(root, &mut roots);
+    }
     roots
 }
 
@@ -427,6 +436,29 @@ impl Builder<'_> {
         {
             deferred.items = self.list.split_off(start);
         }
+    }
+
+    /// Paints a box of the top layer (ADR 0037 section 8): a stacking
+    /// context of its own after the root's, whatever its `z-index`, with
+    /// no clip or group of its DOM ancestors; a box fixed to the viewport
+    /// is clipped to it.
+    fn top_layer_box(&mut self, b: &BoxFragment, ancestry: &Ancestry) {
+        // An outer context: the box is not the root (whose background
+        // paints the canvas), and its own context holds its descendants.
+        self.contexts.push(Vec::new());
+        let viewport_fixed = ancestry.is_viewport_fixed(b);
+        if viewport_fixed {
+            self.list.push(DisplayItem::PushViewportClip);
+        }
+        self.box_contents(b, Point::default(), &[], ancestry, true);
+        if viewport_fixed {
+            self.list.push(DisplayItem::PopClip);
+        }
+        let outer = self.contexts.pop();
+        debug_assert!(
+            outer.is_some_and(|c| c.is_empty()),
+            "the box has its own context"
+        );
     }
 
     /// Paints a box and its descendants. A stacking context root collects

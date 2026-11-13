@@ -125,7 +125,7 @@ fn for_each_child(
                 }
             }
             NodeData::Element(_) => {
-                let Some(style) = ctx.styles.get(child) else {
+                let Some(style) = ctx.placed_style(child) else {
                     continue;
                 };
                 match style.display {
@@ -236,7 +236,7 @@ impl TableBuilder {
         node: NodeId,
         state: &mut BuildState,
     ) {
-        let Some(style) = ctx.styles.get(node) else {
+        let Some(style) = ctx.placed_style(node) else {
             return;
         };
         match style.display {

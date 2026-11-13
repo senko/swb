@@ -71,6 +71,43 @@ pub(crate) fn layout_html_scripting(html: &str) -> TestLayout {
     layout_document(swb_dom::parse_html_with(html, true))
 }
 
+/// A host of the popover algorithms that fires no events.
+pub(crate) struct SilentHost<'a>(pub(crate) &'a mut Document);
+
+impl swb_dom::TopLayerHost for SilentHost<'_> {
+    fn doc(&mut self) -> &mut Document {
+        self.0
+    }
+
+    fn fire_beforetoggle(
+        &mut self,
+        _: NodeId,
+        _: swb_dom::ToggleState,
+        _: swb_dom::ToggleState,
+        _: bool,
+        _: Option<NodeId>,
+    ) -> Option<bool> {
+        Some(true)
+    }
+
+    fn queue_toggle_task(&mut self, element: NodeId, serial: u64) {
+        let _ = self.0.take_toggle(element, serial);
+    }
+}
+
+/// Lays out an HTML document after showing the popovers with the ids
+/// `open`, in order.
+pub(crate) fn layout_with_popovers(html: &str, open: &[&str]) -> TestLayout {
+    let mut doc = parse_html(html);
+    for id in open {
+        let element = doc
+            .element_by_id(id)
+            .unwrap_or_else(|| panic!("no element #{id}"));
+        swb_dom::show_popover(&mut SilentHost(&mut doc), element, true, None).expect("shows");
+    }
+    layout_document(doc)
+}
+
 /// Lays out a document.
 pub(crate) fn layout_document(doc: Document) -> TestLayout {
     let styles = styles_for(&doc);

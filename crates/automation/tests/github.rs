@@ -113,6 +113,7 @@ fn github_module_scripts_run_in_document_order_and_custom_element_callbacks_matc
         shadow_roots(&value(&mut page, SHADOW_ROOTS));
         rendered_times(&mut page);
         let errors_before = console_errors(&page).len();
+        hover_shows_the_tooltip_in_the_top_layer(&mut page);
         tab_order_has_no_shadow_content(&mut page);
         click_on_relative_time_follows_the_link(&mut page);
         // The input reaches page scripts that call APIs swb lacks
@@ -156,6 +157,52 @@ fn tab_order_has_no_shadow_content(page: &mut swb_engine::Page) {
         .collect();
     eprintln!("github tab order ({}): {names:?}", names.len());
     assert!(names.len() > 10, "{names:?}");
+}
+
+/// A hover over the "..." button of the latest-commit line shows its
+/// `TooltipV2` popover (`showPopover` from a React handler) in the top layer
+/// at Chromium's box: 125 x 28 at (166, 358) in the viewport (ADR 0037
+/// "What GitHub needs", the replay's "hover dots" step). The box is the
+/// last item of the paint order, so a hit test at its center finds it. The
+/// test hides it again (the click that does so in Chromium is light
+/// dismiss, sub-feature 6c).
+fn hover_shows_the_tooltip_in_the_top_layer(page: &mut swb_engine::Page) {
+    let at = value(
+        page,
+        "(() => { const r = document.querySelector('[data-testid=latest-commit-details-toggle]')\
+           .getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; })()",
+    );
+    page.mouse_move(
+        at[0].as_f64().unwrap() as f32,
+        at[1].as_f64().unwrap() as f32,
+    );
+    page.run_event_loop(Duration::from_millis(1000), Duration::from_secs(10));
+    let open = value(
+        page,
+        "(() => { const o = Array.from(document.querySelectorAll('[popover]'))\
+           .filter(e => e.matches(':popover-open')); \
+           return o.map(e => { const r = e.getBoundingClientRect(); \
+             const c = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); \
+             return [e.localName + '.' + e.className.split(' ')[0], r.x, r.y, r.width, r.height, \
+               e.contains(c)]; }); })()",
+    );
+    let open = open.as_array().unwrap();
+    assert_eq!(open.len(), 1, "one open popover: {open:?}");
+    let tip = &open[0];
+    assert_eq!(tip[0], "span.prc-TooltipV2-Tooltip-tLeuB", "{tip}");
+    let rect: Vec<f64> = (1..5).map(|i| tip[i].as_f64().unwrap()).collect();
+    let want = [166.0, 358.0, 125.0, 28.0];
+    assert!(
+        rect.iter().zip(want).all(|(a, b)| (a - b).abs() <= 1.0),
+        "the tooltip's box: {rect:?}, Chromium {want:?}"
+    );
+    assert_eq!(tip[5], true, "the tooltip is on top at its center: {tip}");
+    value(
+        page,
+        "document.querySelectorAll(':popover-open').forEach(e => e.hidePopover()), 1",
+    );
+    page.mouse_move(1.0, 1.0);
+    page.run_event_loop(Duration::from_millis(200), Duration::from_secs(10));
 }
 
 /// A click on a `relative-time` inside a link follows the link (ADR 0036

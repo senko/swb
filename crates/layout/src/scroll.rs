@@ -207,7 +207,13 @@ impl ScrollState {
 /// [`box_overflow_rect`]). Rectangles with zero width or height
 /// count with their position: Chromium counts the line boxes of zero-size
 /// inline content (but not a zero-size block, a deviation).
-pub(crate) fn viewport_scroll_size(root: Option<&BoxFragment>, viewport: Size) -> Size {
+/// `roots` are the root fragment and those of the top layer (absolutely
+/// positioned top-layer boxes extend the area, measured in Chromium 148:
+/// case `popover-static-position`).
+pub(crate) fn viewport_scroll_size<'a>(
+    roots: impl Iterator<Item = &'a BoxFragment>,
+    viewport: Size,
+) -> Size {
     /// Whether the content of a box is clipped, and whether the content
     /// of the containing blocks of its absolutely positioned and fixed
     /// descendants is.
@@ -286,7 +292,7 @@ pub(crate) fn viewport_scroll_size(root: Option<&BoxFragment>, viewport: Size) -
         }
     }
     let mut extent = Rect::new(0.0, 0.0, viewport.width, viewport.height);
-    if let Some(root) = root {
+    for root in roots {
         let above = Above {
             origin: Point::default(),
             matrix: &Matrix::IDENTITY,

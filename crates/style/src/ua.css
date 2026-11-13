@@ -102,6 +102,35 @@ dialog {
   background-color: Canvas;
 }
 
+/* The top layer (HTML 15.3, CSS Position 4 3; ADR 0037 section 8). */
+dialog:modal {
+  position: fixed;
+  overflow: auto;
+  inset-block: 0;
+  max-width: calc(100% - 6px - 2em);
+  max-height: calc(100% - 6px - 2em);
+  visibility: visible;
+}
+
+/* `:popover-open, dialog:modal { overlay: auto !important }` is the
+   top-layer fix-up in `cascade.rs` (the same value: every element in the
+   top layer matches one of them, and no author value wins over a UA
+   `!important`); a rule would be tested against every element. */
+
+/* Only for elements in the top layer: Chromium 148 does not apply these
+   rules to the backdrop of other elements (getComputedStyle of a closed
+   popover's backdrop: `position: absolute`, `top: auto`, `pointer-events:
+   auto`; case `backdrop-popover`). */
+:popover-open::backdrop, dialog:modal::backdrop {
+  display: block;
+  position: fixed;
+  inset: 0;
+}
+
+dialog:modal::backdrop { background: rgba(0, 0, 0, 0.1); }
+
+[popover]:popover-open::backdrop { pointer-events: none !important; }
+
 slot {
   display: contents;
 }

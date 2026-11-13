@@ -23,6 +23,13 @@ pub struct FragmentTree {
     /// The fragment of the root element, or `None` if the document has no
     /// rendered root.
     pub root: Option<BoxFragment>,
+    /// The fragments of the top layer (ADR 0037 section 8): for each
+    /// element of the top layer in order, its `::backdrop` box and its own
+    /// box, children of the initial containing block after the root (their
+    /// `border_rect` is in document coordinates, like the root's). Walkers
+    /// visit them after the root, each with the state of a root
+    /// ([`FragmentTree::roots`]).
+    pub top_layer: Vec<BoxFragment>,
     /// The background of the canvas (propagated from the root or body).
     pub canvas_background: Option<CanvasBackground>,
     /// The size of the scrollable area: the union of the initial containing
@@ -60,6 +67,12 @@ pub enum FragmentRef<'a> {
 }
 
 impl FragmentTree {
+    /// The root fragment and the fragments of the top layer, in paint
+    /// order: the boxes that are children of the initial containing block.
+    pub fn roots(&self) -> impl Iterator<Item = &BoxFragment> {
+        self.root.iter().chain(&self.top_layer)
+    }
+
     /// Calls `visit` for every fragment, the root included, in tree order
     /// (parents before children). The second argument is the absolute
     /// position of the fragment's parent border-box origin. Scroll offsets
@@ -96,7 +109,7 @@ impl FragmentTree {
                 }
             }
         }
-        if let Some(root) = &self.root {
+        for root in self.roots() {
             walk_box(
                 root,
                 Point::default(),
@@ -207,7 +220,7 @@ impl FragmentTree {
                 }
             }
         }
-        if let Some(root) = &self.root {
+        for root in self.roots() {
             let above = Above {
                 origin: Point::default(),
                 matrix: Matrix::IDENTITY,

@@ -17,11 +17,11 @@ use crate::values::{
     FontFamily, FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily, GridAutoFlow,
     GridLine, GridTemplateAreas, Hyphens, Image, LengthPercentage, LengthPercentageOrAuto,
     LineHeight, ListStylePosition, ListStyleType, MaskClip, MaskImage, MaskMode, MaxSize,
-    ObjectFit, OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position, PositionComponent,
-    Rgba, ScrollbarWidth, ShapeRendering, Size, StrokeLinecap, StrokeLinejoin, SvgPaint,
-    TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform,
-    TrackBreadth, TrackList, TrackSize, UnicodeBidi, UserSelect, VerticalAlign, Visibility,
-    WhiteSpace, WordBreak, ZIndex,
+    ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents, Position,
+    PositionComponent, Rgba, ScrollbarWidth, ShapeRendering, Size, StrokeLinecap, StrokeLinejoin,
+    SvgPaint, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow,
+    TextTransform, TrackBreadth, TrackList, TrackSize, UnicodeBidi, UserSelect, VerticalAlign,
+    Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 use crate::values::{ClipRect, TransformFunction, TransformOrigin};
 
@@ -246,6 +246,8 @@ pub struct ComputedStyle {
     pub object_fit: ObjectFit,
     /// `scrollbar-width` (not inherited).
     pub scrollbar_width: ScrollbarWidth,
+    /// `overlay` (not inherited).
+    pub overlay: Overlay,
     /// `object-position`: x and y.
     pub object_position: [PositionComponent; 2],
     pub user_select: UserSelect,
@@ -455,6 +457,7 @@ impl ComputedStyle {
             contain_intrinsic_height: ContainIntrinsic::NONE,
             object_fit: ObjectFit::Fill,
             scrollbar_width: ScrollbarWidth::Auto,
+            overlay: Overlay::None,
             object_position: [PositionComponent::CENTER, PositionComponent::CENTER],
             user_select: UserSelect::Auto,
             unicode_bidi: UnicodeBidi::Normal,

@@ -883,6 +883,47 @@ pub(crate) fn layout_absolute_root(
     layout_absolute(ctx, root, cb, position)
 }
 
+/// Lays out the boxes of the top layer (`box_tree::build_top_layer`; ADR
+/// 0037 section 8) and their out-of-flow descendants. Each is an absolutely
+/// positioned box whose containing block is the initial containing block
+/// (`absolute`) or the viewport (`fixed`), both the viewport's size at the
+/// document origin, whatever the transforms, filters, clips and positioned
+/// boxes of its DOM ancestors (measured in Chromium 148: cases
+/// `escape-ancestors`, `popover-author-position`). The static position is
+/// the origin (case `popover-static-position`). The fragments are in
+/// document coordinates.
+pub(crate) fn lay_out_top_layer(
+    ctx: &mut LayoutContext<'_>,
+    boxes: &[IndependentBox],
+    viewport: Size,
+) -> Vec<BoxFragment> {
+    let icb = Rect::new(0.0, 0.0, viewport.width, viewport.height);
+    let position = StaticPosition::aligned(Rect::default(), Alignment::Start, Alignment::Start);
+    let scope = Scope {
+        absolute: icb,
+        fixed: icb,
+        inline: None,
+    };
+    boxes
+        .iter()
+        .map(|ib| {
+            let placeholders = ctx.placeholders;
+            let mut fragment = layout_absolute(ctx, ib, icb, position);
+            if ctx.placeholders != placeholders {
+                // As in `place_out_of_flow`: the walk changes the fragments
+                // in place, without copies of cached children.
+                ctx.layouts.clear();
+                let pass = OutOfFlow {
+                    boxes: out_of_flow_boxes(ib),
+                };
+                let at = fragment.border_rect.origin();
+                let _ = pass.visit(ctx, &mut fragment, scope.translated(at));
+            }
+            fragment
+        })
+        .collect()
+}
+
 /// Lays out the absolutely positioned box `ib` in the containing block
 /// `cb` (a padding box) with the static position `position`, both in the
 /// same coordinates; the fragment is positioned in them.

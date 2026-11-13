@@ -478,7 +478,7 @@ pub(crate) fn control_offset_at(
 /// fragments (also where clipping boxes hide them).
 pub(crate) fn text_extents(tree: &FragmentTree) -> HashMap<NodeId, (u32, u32)> {
     let mut extents: HashMap<NodeId, (u32, u32)> = HashMap::new();
-    if let Some(root) = &tree.root {
+    for root in tree.roots() {
         walk_text(root, Place::ROOT, &NoScroll, &mut |t, _, _| {
             if let Some((start, end)) = t.node_range() {
                 extents
