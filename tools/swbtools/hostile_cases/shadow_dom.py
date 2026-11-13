@@ -1,5 +1,5 @@
 """Shadow trees and slots in the DOM and in rendering, style scoping and adopted style sheets
-(ADR 0036 section 12, sub-features 5a to 5c-2)."""
+(ADR 0036 section 12, sub-features 5a to 5d)."""
 
 from swbtools.hostile_cases.core import Page, case, doc, steps_args
 
@@ -224,8 +224,10 @@ def shadow_nested_100000() -> Page:
 @case(
     "10,000 nested hosts that pass one slot on to the next, with one light child at the top: "
     "the light child's flat parent is the outermost slot, and each slot's the next one, so a "
-    "style pass costs the number of slots, not its square; a click on the text reaches the "
-    "light child (ADR 0036 sections 4 and 12, 5b)",
+    "style pass costs the number of slots, not its square; the `slotchange` of each slot would "
+    'go through the slots after it (DOM "get the parent"), 50 million structs, but no '
+    "listener sees the events, so they skip their path; a click on the text reaches the light "
+    "child (ADR 0036 sections 4, 7 and 12, 5b, 5d)",
     time_limit_s=30,
     expect_log="clicked x",
     swb_args=(*steps_args([{"click": [12, 14]}]), "--settle-ms", "500"),
@@ -290,8 +292,9 @@ def shadow_host_context_nested_10000() -> Page:
 @case(
     "10,000 nested hosts that pass one slot on to the next, each root with a `::slotted(*)` "
     "rule, with one light child at the top: an element gets the `::slotted()` rules of at most "
-    "256 slots of its chain, so the style pass is not quadratic; a click on the text reaches "
-    "the light child (ADR 0036 sections 5 and 12, 5c-1)",
+    "256 slots of its chain, so the style pass is not quadratic (the `slotchange` events skip "
+    "their path, as in `shadow-slot-passthrough-10000`); a click on the text reaches the "
+    "light child (ADR 0036 sections 5, 7 and 12, 5c-1, 5d)",
     time_limit_s=30,
     expect_log="clicked x",
     swb_args=(*steps_args([{"click": [12, 14]}]), "--settle-ms", "500"),
@@ -361,3 +364,51 @@ def shadow_adopted_push_pop_loop() -> Page:
         "setTimeout(() => console.warn('push ok ' + c + ' ' + b), 10);</script>"
     )
     return Page(doc("<p>p</p><div id=h></div>" + script))
+
+
+@case(
+    "A composed event dispatched 1,000 times at the bottom of 10,000 nested shadow trees with "
+    "a listener on the document: the path has 20,000 structs and is built without a walk up "
+    "for each (a struct leaves a tree by one comparison), the document's listener sees the "
+    "outermost host, and a timer logs `paths ok` (ADR 0036 sections 7 and 12, 5d)",
+    time_limit_s=20,
+    expect_log="paths ok",
+    swb_args=JS,
+)
+def shadow_event_path_deep() -> Page:
+    script = (
+        "<script>let e = document.getElementById('h'); const outer = e; "
+        "for (let i = 0; i < 10000; i++) { const r = e.attachShadow({mode: 'open'}); "
+        "const d = document.createElement('div'); r.appendChild(d); e = d; } "
+        "let seen = 0, same = 0; "
+        "document.addEventListener('x', (ev) => { seen++; if (ev.target === outer) same++; }); "
+        "for (let i = 0; i < 1000; i++) "
+        "e.dispatchEvent(new Event('x', {bubbles: true, composed: true})); "
+        "setTimeout(() => console.warn((seen === 1000 && same === 1000 ? 'paths ok ' : "
+        "'paths wrong ') + seen + ' ' + same), 10);</script>"
+    )
+    return Page(doc("<div id=h></div>" + script))
+
+
+@case(
+    "100,000 shadow hosts with one button each, then 30 Tab presses: each press builds the "
+    "scopes of the document and of every host (iteratively, no recursion), and the focus "
+    "moves from the first button on. Each press also restyles and lays out the 300,000 nodes "
+    "(a focus change restyles the whole document, about 0.9 s), so the time is mostly that "
+    "of the restyle; the scopes of a press cost about 0.12 s, so 200 presses would take "
+    "3 minutes (ADR 0036 section 8, 5d)",
+    time_limit_s=40,
+    rss_limit_mib=2048,
+    expect_log="focused 30",
+    swb_args=(*steps_args([{"key": "Tab"}] * 30), "--settle-ms", "500"),
+)
+def shadow_tab_scopes_100000() -> Page:
+    script = (
+        "<script>const f = document.createDocumentFragment(); "
+        "for (let i = 0; i < 100000; i++) { const d = document.createElement('div'); "
+        "d.attachShadow({mode: 'open'}).innerHTML = '<button>b</button>'; f.appendChild(d); } "
+        "document.body.appendChild(f); let n = 0; "
+        "document.addEventListener('focusin', () => { "
+        "if (++n === 30) console.warn('focused 30'); });</script>"
+    )
+    return Page(doc(script))

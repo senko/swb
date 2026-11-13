@@ -116,11 +116,43 @@ impl DocumentState {
         if style.display == Display::None || style.visibility != Visibility::Visible {
             return false;
         }
+        // The flat ancestors: the ancestors of a shadow element are in the
+        // shadow tree and then those of its host.
         let dom = &self.dom;
         let styles = &self.element_styles;
-        dom.ancestors(node)
-            .take_while(|&n| n != NodeId::DOCUMENT)
+        dom.flat_ancestors(node)
+            .filter(|&n| dom.node(n).is_element())
             .all(|n| styles.get(&n).is_some_and(|s| s.display != Display::None))
+    }
+
+    /// HTML "focus delegate" of a shadow host whose root delegates focus
+    /// (measured in Chromium 148, case `focus-shadow`): the first element
+    /// with the `autofocus` attribute that can be focused, else the first
+    /// element that can be, in flat tree order. A host that delegates
+    /// focus is not a focusable area itself and its tree is searched in
+    /// its place (its own `tabindex` does not count). `None` if the host
+    /// does not delegate focus or the tree has no such element.
+    pub(crate) fn script_focus_delegate(&mut self, host: NodeId) -> Option<NodeId> {
+        if !self.dom.delegates_focus(host) {
+            return None;
+        }
+        for autofocus_only in [true, false] {
+            let mut stack: Vec<NodeId> = self.dom.flat_children(host).collect();
+            stack.reverse();
+            while let Some(node) = stack.pop() {
+                let Some(element) = self.dom.element(node) else {
+                    continue;
+                };
+                let wanted = !autofocus_only || element.has_attr("autofocus");
+                if wanted && !self.dom.delegates_focus(node) && self.script_can_focus(node) {
+                    return Some(node);
+                }
+                let mark = stack.len();
+                stack.extend(self.dom.flat_children(node));
+                stack[mark..].reverse();
+            }
+        }
+        None
     }
 
     /// Moves the focus. The styles that depend on `:focus` are outdated

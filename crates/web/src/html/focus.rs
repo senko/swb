@@ -185,6 +185,27 @@ pub(crate) fn focus_with(
         return Ok(());
     }
     let result = (|| {
+        // HTML "focusing steps": a host that delegates focus gives the
+        // focus to its focus delegate, also if it has a `tabindex`; one
+        // without a delegate takes none (measured, case `focus-shadow`). If
+        // the focused element is a shadow-including descendant of the host,
+        // the focus stays there, with no events (HTML "focusing steps" and
+        // "focus delegate"; measured, case `focus-inside-delegating`).
+        let node = if dom(rt)?.delegates_focus(node) {
+            if let Some(current) = focused(rt)?
+                && dom(rt)?
+                    .shadow_including_ancestors(current)
+                    .any(|a| a == node)
+            {
+                return Ok(());
+            }
+            match engine_mut(rt)?.focus_delegate(node) {
+                Some(delegate) => delegate,
+                None => return Ok(()),
+            }
+        } else {
+            node
+        };
         if !focusable(rt, node)? {
             return Ok(());
         }
@@ -266,7 +287,10 @@ pub(crate) fn before_removal(rt: &mut Runtime, node: NodeId, inclusive: bool) ->
     };
     let inside = {
         let document = dom(rt)?;
-        (inclusive && focus == node) || document.ancestors(focus).any(|a| a == node)
+        (inclusive && focus == node)
+            || document
+                .shadow_including_ancestors(focus)
+                .any(|a| a == node)
     };
     if inside {
         move_focus(rt, None, false)?;
@@ -286,14 +310,16 @@ pub(crate) fn hidden_set(rt: &mut Runtime, element: NodeId) -> VmResult<()> {
 }
 
 /// `document.activeElement`: the focused element of the window's
-/// document, else its body (null without one). Other documents
-/// have no focused element.
+/// document (the host of a shadow tree that holds it), else its body (null
+/// without one). Other documents have no focused element.
 pub(crate) fn active_element(cx: &mut Cx<'_>, document: NodeId) -> b::Result<Option<NodeId>> {
     if document == NodeId::DOCUMENT
         && let Some(node) = focused(cx.rt)?.or(engine(cx.rt)?.frame_focus_element())
         && dom(cx.rt)?.is_connected(node)
     {
-        return Ok(Some(node));
+        // `DocumentOrShadowRoot.activeElement`: retargeted against the
+        // document (ADR 0036 section 8).
+        return Ok(Some(dom(cx.rt)?.retarget(node, document)));
     }
     let dom = dom(cx.rt)?;
     let root = dom

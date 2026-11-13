@@ -240,8 +240,16 @@ fn from_to(cx: &Cx<'_>, this: Platform, from: bool) -> b::Result<Option<NodeId>>
     let event = this_data(cx, this)?;
     let related = fields(cx, this)?.mouse.related_target;
     let out = matches!(event.kind.as_str(), "mouseout" | "mouseleave");
-    let object = if out == from { event.target } else { related };
-    Ok(object.and_then(|o| node_of_object(cx, o)))
+    if out == from {
+        return Ok(match event.target {
+            Some(super::Target::Node(key, node)) => {
+                (crate::state::document_key(cx.rt) == Ok(key)).then_some(node)
+            }
+            Some(super::Target::Object(object)) => node_of_object(cx, object),
+            None => None,
+        });
+    }
+    Ok(related.and_then(|o| node_of_object(cx, o)))
 }
 
 impl g::mouse_event::MouseEventImpl for WebState {

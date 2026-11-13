@@ -183,6 +183,9 @@ pub(crate) struct WebState {
     /// The custom element definitions and reactions of the agent
     /// (`custom_elements/`).
     pub(crate) custom: crate::custom_elements::Agent,
+    /// The event types for which a listener or handler was ever added
+    /// (`events/listened.rs`).
+    pub(crate) listened: crate::events::Listened,
 }
 
 /// The binding state of one document and its `Window`.
@@ -628,6 +631,13 @@ pub(crate) fn wrap_node_with_proto(
 /// name).
 pub(crate) fn wrap_node_as(rt: &mut Runtime, node: NodeId, class: ClassId) -> VmResult<Gc<Object>> {
     wrap_node_in(rt, node, None, Some(class))
+}
+
+/// True if a script moved the node of the current document to another
+/// document (its wrapper stands for it: [`wrap_node`]).
+pub(crate) fn node_moved(rt: &Runtime, node: NodeId) -> VmResult<bool> {
+    let moved = &state(rt)?.doc.moved;
+    Ok(!moved.is_empty() && moved.contains_key(&node))
 }
 
 /// The wrapper of `node` of the current document if a script has seen it.

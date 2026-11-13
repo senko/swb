@@ -708,7 +708,7 @@ const CE_LATER: &[Later] = &[
     ("parser-sync-failures", None, SUB_4C),
 ];
 
-const SUB_5D: &str = "ADR 0036 sub-feature 5d: events and focus through shadow trees";
+const STEPS: &str = "the case has input steps: it runs in `crates/automation/tests/real_input.rs`";
 const DECLARATIVE: &str = "backlog (ADR 0036 section 10): declarative shadow roots and the \
      serialization of roots (`getHTML`, `setHTMLUnsafe`, `parseHTMLUnsafe`)";
 
@@ -858,16 +858,12 @@ const SHADOW_DEPARTURES: &[Departure] = &[
 /// The cases and queries of the shadow DOM probe that later sub-features of
 /// ADR 0036 (or the backlog) run.
 const SHADOW_LATER: &[Later] = &[
-    ("composed-path-open", None, SUB_5D),
-    ("composed-path-closed", None, SUB_5D),
-    ("retarget-related", None, SUB_5D),
-    ("focus-shadow", None, SUB_5D),
-    ("tab-order", None, SUB_5D),
-    ("tab-order-backward", None, SUB_5D),
-    // The `:hover` row (2) runs with the input steps in
-    // `crates/automation/tests/real_input.rs` since 5b.
-    ("ui-events-through-shadow", None, SUB_5D),
-    ("slotchange-timing", Some(6), SUB_5D),
+    // These cases have input steps: `crates/automation/tests/real_input.rs`
+    // runs them (5b, 5d).
+    ("tab-order", None, STEPS),
+    ("tab-order-backward", None, STEPS),
+    ("tab-delegating-tabindex-back", None, STEPS),
+    ("ui-events-through-shadow", None, STEPS),
     ("root-properties", Some(10), DECLARATIVE),
     ("declarative-js-on", None, DECLARATIVE),
 ];

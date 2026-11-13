@@ -18,13 +18,15 @@
 //!   events that the engine fires.
 //!
 //! An event object is a host object whose generic data is [`EventData`];
-//! the subclasses keep their attributes in [`Extra`]. swb has no shadow
-//! trees, so `relatedTarget`, retargeting and the touch target list are
-//! left out; the path keeps the fields that shadow trees need.
+//! the subclasses keep their attributes in [`Extra`]. The path goes through
+//! shadow trees (retargeting, `relatedTarget` per struct, closed trees in
+//! `composedPath`; ADR 0036 section 7); the touch target list is left out
+//! (swb has no touch events).
 
 mod dispatch;
 mod handler_names;
 pub(crate) mod handlers;
+mod listened;
 mod listeners;
 pub(crate) mod misc;
 mod mouse;
@@ -37,6 +39,7 @@ pub(crate) use dispatch::{
     dispatch, dispatch_trusted, fire_at_object, fire_trusted, new_event_object,
 };
 pub(crate) use handlers::{Handlers, attribute_changed as handler_attribute_changed};
+pub(crate) use listened::Listened;
 pub(crate) use listeners::Listeners;
 pub(crate) use mouse::new_click_event;
 pub(crate) use target::{TargetData, has_listener_for, remove_listener};
@@ -52,7 +55,7 @@ use crate::generated::types::{
     CustomEventInit, ErrorEventInit, EventInit, MediaQueryListEventInit, PageTransitionEventInit,
     PromiseRejectionEventInit,
 };
-use crate::state::{WebState, state};
+use crate::state::{DocKey, WebState, state};
 
 /// `eventPhase` values (DOM §2.2).
 pub(crate) const NONE: u16 = 0;
@@ -87,20 +90,66 @@ pub(crate) enum Extra {
     Other(Box<misc::Other>),
 }
 
-/// A struct of an event's path (DOM §2.2, "path"): the fields that shadow
-/// trees need are kept so that they can be added.
+/// A target in an event's path: an object (the window, a constructed
+/// target, the first struct's target), or a node of the document whose
+/// wrapper is made when a listener or a script needs it (a path of
+/// thousands of structs makes no wrappers for the nodes without listeners).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum Target {
+    /// An object.
+    Object(Gc<Object>),
+    /// A node of the document with this key (the document of the dispatch,
+    /// whichever document is current when the target is read).
+    Node(DocKey, NodeId),
+}
+
+impl Target {
+    /// The object of the target: the wrapper of a node.
+    pub(crate) fn object(self, rt: &mut Runtime) -> VmResult<Gc<Object>> {
+        match self {
+            Target::Object(object) => Ok(object),
+            Target::Node(key, node) => {
+                // A getter of an event enters the event's own document, which
+                // can differ from the document of the path.
+                let entered = crate::state::switch_if_other(rt, key)?;
+                let wrapper = crate::state::doc_realm(rt).and_then(|realm| {
+                    <WebState as crate::bindings::Host>::wrap_node(rt, realm, node)
+                });
+                crate::state::leave(rt, entered);
+                wrapper
+            }
+        }
+    }
+
+    /// [`Target::object`] for an optional target.
+    pub(crate) fn object_of(
+        rt: &mut Runtime,
+        target: Option<Target>,
+    ) -> VmResult<Option<Gc<Object>>> {
+        target.map(|t| t.object(rt)).transpose()
+    }
+}
+
+/// A struct of an event's path (DOM §2.2, "path").
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PathItem {
     /// The invocation target.
-    pub(crate) target: Gc<Object>,
-    /// Always false without shadow trees.
+    pub(crate) target: Target,
+    /// True if the invocation target's root is a shadow root.
     pub(crate) in_shadow_tree: bool,
     /// The shadow-adjusted target: the target (or the legacy target
-    /// override) for the first struct, `None` for the others.
-    pub(crate) shadow_adjusted_target: Option<Gc<Object>>,
-    /// Always false without shadow trees.
+    /// override) for the first struct, the invocation target for the first
+    /// struct outside a shadow tree that the path leaves, `None` for the
+    /// others.
+    pub(crate) shadow_adjusted_target: Option<Target>,
+    /// The related target of this struct (the event's `relatedTarget`
+    /// retargeted against the invocation target); `None` for an event
+    /// without one.
+    pub(crate) related_target: Option<Gc<Object>>,
+    /// True if the invocation target is a closed shadow root.
     pub(crate) root_of_closed_tree: bool,
-    /// Always false without shadow trees.
+    /// True if the invocation target is a slot in a closed shadow tree that
+    /// the path reached from an assigned node.
     pub(crate) slot_in_closed_tree: bool,
 }
 
@@ -113,10 +162,13 @@ pub(crate) struct EventData {
     pub(crate) composed: bool,
     pub(crate) is_trusted: bool,
     pub(crate) time_stamp: f64,
-    pub(crate) target: Option<Gc<Object>>,
-    pub(crate) current_target: Option<Gc<Object>>,
+    pub(crate) target: Option<Target>,
+    pub(crate) current_target: Option<Target>,
     pub(crate) phase: u16,
     pub(crate) path: Vec<PathItem>,
+    /// DOM "clearTargets": `target` and `relatedTarget` become null after
+    /// the dispatch.
+    pub(crate) clear_targets: bool,
     pub(crate) stop_propagation: bool,
     pub(crate) stop_immediate_propagation: bool,
     pub(crate) canceled: bool,
@@ -141,6 +193,7 @@ impl EventData {
             current_target: None,
             phase: NONE,
             path: Vec::new(),
+            clear_targets: false,
             stop_propagation: false,
             stop_immediate_propagation: false,
             canceled: false,
@@ -148,6 +201,26 @@ impl EventData {
             initialized: true,
             dispatching: false,
             extra,
+        }
+    }
+
+    /// The `relatedTarget` that the event shows now (`FocusEvent` and
+    /// `MouseEvent` and their subclasses).
+    pub(crate) fn related_target(&self) -> Option<Gc<Object>> {
+        match &self.extra {
+            Extra::Ui(f) if f.family == ui::Family::Focus => f.related_target,
+            Extra::Ui(f) if f.family.is_mouse() => f.mouse.related_target,
+            _ => None,
+        }
+    }
+
+    /// Sets what [`EventData::related_target`] shows (DOM "invoke" step 3
+    /// and the clear-targets step); no effect on other events.
+    pub(crate) fn set_related_target(&mut self, value: Option<Gc<Object>>) {
+        match &mut self.extra {
+            Extra::Ui(f) if f.family == ui::Family::Focus => f.related_target = value,
+            Extra::Ui(f) if f.family.is_mouse() => f.mouse.related_target = value,
+            _ => {}
         }
     }
 
@@ -175,12 +248,24 @@ impl EventData {
 
 impl GenericData for EventData {
     fn trace(&self, tracer: &mut Tracer<'_>) {
-        for object in [self.target, self.current_target].into_iter().flatten() {
-            tracer.object(object);
+        let object = |target: Option<Target>| match target {
+            Some(Target::Object(object)) => Some(object),
+            _ => None,
+        };
+        for target in [self.target, self.current_target] {
+            if let Some(object) = object(target) {
+                tracer.object(object);
+            }
         }
         for item in &self.path {
-            tracer.object(item.target);
-            if let Some(object) = item.shadow_adjusted_target {
+            for object in [
+                object(Some(item.target)),
+                object(item.shadow_adjusted_target),
+                item.related_target,
+            ]
+            .into_iter()
+            .flatten()
+            {
                 tracer.object(object);
             }
         }
@@ -281,20 +366,28 @@ impl g::event::EventImpl for WebState {
     }
 
     fn target(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
-        Ok(this_data(cx, this)?.target)
+        let target = this_data(cx, this)?.target;
+        Ok(Target::object_of(cx.rt, target)?)
     }
 
     fn src_element(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
-        Ok(this_data(cx, this)?.target)
+        let target = this_data(cx, this)?.target;
+        Ok(Target::object_of(cx.rt, target)?)
     }
 
     fn current_target(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
-        Ok(this_data(cx, this)?.current_target)
+        let target = this_data(cx, this)?.current_target;
+        Ok(Target::object_of(cx.rt, target)?)
     }
 
     fn composed_path(cx: &mut Cx<'_>, this: Platform) -> b::Result<Vec<Gc<Object>>> {
         let event = this_data(cx, this)?;
-        Ok(dispatch::composed_path(&event.path, event.current_target))
+        let path = dispatch::composed_path(&event.path, event.current_target);
+        let mut objects = Vec::with_capacity(path.len());
+        for target in path {
+            objects.push(target.object(cx.rt)?);
+        }
+        Ok(objects)
     }
 
     fn event_phase(cx: &mut Cx<'_>, this: Platform) -> b::Result<u16> {

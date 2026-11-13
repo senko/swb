@@ -748,3 +748,81 @@ fn a_new_document_of_a_known_frame_takes_over_its_proxy() {
         );
     });
 }
+
+/// A listener moves a node of the path to the other document while the event
+/// goes on: the later listeners and the reads after the dispatch see the node
+/// where it is now (its wrapper stands for it), and the path goes on.
+#[test]
+fn a_node_of_the_path_that_moves_to_another_document_is_read_there() {
+    both_modes(|stress| {
+        let (mut rt, _key) = two_documents(stress);
+        let script = "var o = document.createElement('div'); o.id = 'o'; \
+            var p = document.createElement('div'); p.id = 'p'; \
+            var h = document.createElement('div'); h.id = 'h'; p.appendChild(h); o.appendChild(p); \
+            document.body.appendChild(o); \
+            var r = h.attachShadow({mode: 'open'}); r.innerHTML = '<span id=s>s</span>'; \
+            var s = r.getElementById('s'); var out = []; \
+            function k(e) { return e === null ? 'null' : e.nodeType === 11 ? 'root' : \
+              e.nodeType === 9 ? 'doc' : e === window ? 'win' : \
+              e.localName + (e.id ? '#' + e.id : ''); } \
+            var saved; \
+            s.addEventListener('x', function (e) { saved = e; out.push('s ' + k(e.target)); \
+              other.document.adoptNode(o); \
+              out.push('after ' + k(e.target) + ' ' + (e.target.ownerDocument === other.document) \
+                + ' ' + k(e.currentTarget) + ' ' + e.composedPath().length); }); \
+            o.addEventListener('x', function (e) { \
+              out.push('o ' + k(e.currentTarget) + ' ' + k(e.target) + ' ' \
+                + (e.target.ownerDocument === other.document)); }); \
+            s.dispatchEvent(new Event('x', {bubbles: true, composed: true})); \
+            out.push('post ' + k(saved.target) + ' ' + saved.composedPath().length); \
+            out.join(' | ')";
+        assert_eq!(
+            first(&mut rt, script),
+            expected(
+                r#""s span#s | after span#s true span#s 9 | o div#o div#h true | post div#h 0""#
+            )
+        );
+    });
+}
+
+/// An event of another realm that goes through shadow trees of this
+/// document shows the nodes of this document: its getters enter the event's
+/// own document, and the path remembers the document of its nodes (ADR 0036
+/// "5d implementation notes", review fixes).
+#[test]
+fn an_event_of_another_realm_shows_the_nodes_of_the_dispatch() {
+    both_modes(|stress| {
+        let (mut rt, _key) = two_documents(stress);
+        let setup = "var o = document.createElement('div'); o.id = 'o'; \
+            var h = document.createElement('div'); h.id = 'h'; o.appendChild(h); \
+            document.body.appendChild(o); \
+            var r = h.attachShadow({mode: 'open'}); r.innerHTML = '<span id=s>s</span>'; \
+            var s = r.getElementById('s'); \
+            function k(e) { return e === null ? 'null' : e.nodeType === 11 ? 'root' : \
+              e.nodeType === 9 ? 'doc' : e === window ? 'win' : \
+              e.localName + (e.id ? '#' + e.id : ''); } \
+            var saved; \
+            function run(E) { var out = []; \
+              var f = function (e) { saved = e; \
+                out.push(k(e.currentTarget) + ' ' + k(e.target) + ' ' + \
+                  Array.prototype.map.call(e.composedPath(), k).join(',')); }; \
+              o.addEventListener('x', f); \
+              s.dispatchEvent(new E('x', {bubbles: true, composed: true})); \
+              o.removeEventListener('x', f); \
+              return out.join(' | ') + ' | after ' + k(saved.target) + ' ' + \
+                saved.composedPath().length; }";
+        assert_eq!(
+            first(&mut rt, &format!("{setup} 'ok'")),
+            expected(r#""ok""#)
+        );
+        let same = first(&mut rt, "run(Event)");
+        let cross = first(&mut rt, "run(other.Event)");
+        assert_eq!(same, cross);
+        assert_eq!(
+            cross,
+            expected(
+                r#""div#o div#h span#s,root,div#h,div#o,body#body-a,html,doc,win | after div#h 0""#
+            )
+        );
+    });
+}

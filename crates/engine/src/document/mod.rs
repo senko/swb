@@ -750,6 +750,10 @@ impl swb_web::EngineHost for DocumentState {
         self.script_can_focus(node)
     }
 
+    fn focus_delegate(&mut self, host: NodeId) -> Option<NodeId> {
+        self.script_focus_delegate(host)
+    }
+
     fn set_focus(&mut self, node: Option<NodeId>, visible: bool) {
         self.script_set_focus(node, visible);
     }

@@ -562,6 +562,9 @@ pub struct Document {
     /// ADR 0036 section 1). `None` until the first shadow root: a page
     /// without one pays one test per change.
     pub(crate) shadow: Option<Box<crate::shadow::ShadowState>>,
+    /// The names of the attributes that begin with `on` that an element of
+    /// the arena ever had (`handler_attrs.rs`); `None` until the first.
+    pub(crate) on_attrs: Option<std::collections::HashSet<Box<str>>>,
     arena_id: u64,
 }
 
@@ -614,6 +617,7 @@ impl Document {
             custom_names: None,
             defined_changed: false,
             shadow: None,
+            on_attrs: None,
             arena_id: NEXT_ARENA_ID.fetch_add(1, Ordering::Relaxed),
         }
     }

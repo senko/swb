@@ -1662,3 +1662,194 @@ array of the document at each move (N arrays and M moves cost N x M
 lookups); the arena now lists the moved roots. Not changed: by the review's reading, a change of a sheet by a script of
 another window invalidates the calling window's document, not the sheet's
 (not tested: the binding tests have no frames; backlog).
+
+## 5d implementation notes
+
+Facts of sub-feature 5d (events and focus through shadow trees, sections 7
+and 8) that differ from the sections or that later work needs. Code:
+`crates/dom/src/shadow.rs` (`event_parent`, `event_ancestors`,
+`delegates_focus`, `has_shadow_trees`), `activation.rs` (`click_target`
+takes the path); `crates/web/src/events/dispatch.rs` (`build_path`,
+`walk`, `invoke`), `events/mod.rs` (`Target`, `PathItem`), `html/focus.rs`,
+`html/activation.rs`; `crates/style/src/element.rs` (`:focus` of hosts,
+`DisabledElements` through shadow trees); `crates/engine/src/focus.rs` (the
+scopes), `page/events.rs`, `page/forms.rs`, `document/script_actions.rs`.
+
+**Measured answers.** No new question: the Chromium values of 5a hold. One
+probe case changed. `focus-shadow` #1 differed in one of three runs in 5a
+because the case's `autofocus` on `d2` (inside a tree that delegates focus)
+made Chromium focus `d2` at load, and #1's first events depended on that
+focus having happened. The case now sets the attribute with a script after
+the markup (`autofocus` is read at `focus()`, not processed again), so
+nothing is focused at load. The whole probe file was measured again, three
+equal runs; only `focus-shadow` #1 changed (`focus` events without a
+preceding `blur`).
+
+**Differences from sections 7 and 8.**
+
+1. *The walk.* `Document::event_parent` is "get the parent" (assigned slot of
+   an assigned slottable, parent, host of a root unless the event is not
+   composed and the root is the target's). A struct gets a shadow-adjusted
+   target when it is the host of the root that is the root of the last
+   adjusted target: one comparison, not DOM's "is a shadow-including
+   inclusive ancestor" walk, which makes a path through 10,000 nested trees
+   quadratic. In a document without shadow trees the walk is the list of
+   ancestors (`has_shadow_trees`).
+2. *`relatedTarget`* is retargeted for each struct only when it is a node of
+   a shadow tree (else the retargeting is the identity); it is read and
+   written through `EventData::related_target` for `FocusEvent` and the
+   mouse family.
+3. *Lazy wrappers.* `PathItem::target` is a `Target`, an object or a node
+   with the key of its document (`Target::Node(DocKey, NodeId)`): the
+   wrapper of a path node is made when it has a listener or when a script
+   reads `target`, `currentTarget` or `composedPath()`, in that document,
+   whichever document is current then (a getter of an event of another
+   realm enters the event's own document). The path of the base made a
+   wrapper for each ancestor. A node that a listener moved to another
+   document is wrapped before its turn, as before. The binding row `dispatchEvent` of a bubbling event 10 levels
+   deep (new, no shadow roots): 47,163 instructions per iteration in the
+   base, 37,871 now.
+4. *The activation target* is searched on the nodes of the path (the click's
+   structs, cut at a disabled control: the path itself is cut now, not a
+   `cut` node given to `click_target`); the engine's own walk
+   (`Page::activation_target`, scripts off or stopped) uses the composed
+   ancestors. The link or label origin test follows shadow-including
+   ancestors.
+5. *Engine events.* The target of pointer, mouse, wheel and click events is the
+   hit element (the interim retargeting of 5b is gone; `event_target_of`
+   removed). The chains of `mouseenter` and `mouseleave` and the click's
+   common ancestor use flat ancestors (as the `:hover` chain; not measured).
+   The chains are checked once for the document and again only when the DOM
+   changed (`fire_verified`), because `is_connected` walks through hosts:
+   the 20,000-node flat chain of `shadow-nested-100000` made a 100,000 x
+   walk.
+6. *Focus.* `document.activeElement` is the focused element retargeted
+   against the document. `:focus` matches the focused element and the hosts
+   of the trees that hold it (`StateSet::focus_hosts`); the other pseudo
+   classes are as measured in 5b. A host that delegates focus gives a
+   `focus()` to its focus delegate (the first element with `autofocus` that
+   can be focused, else the first such element in flat tree order; a
+   delegating host is not a candidate itself, also with a `tabindex`), none
+   if there is no such element; the focus stays where it is, with no
+   events, if it is inside the host already (measured, `focus-inside-
+   delegating`); a click on non-focusable content of such a
+   host focuses the delegate (`click_target`). The rendered test of
+   `can_focus` for an element without styles uses the flat ancestors.
+   `DisabledElements` now walks the shadow-including tree, so a disabled
+   control in a shadow tree is not focusable.
+7. *The Tab order* is `focus::flattened_order`: the scope of the document,
+   then the scope of each owner (a host, a slot in a shadow tree) with a
+   stack of iterators (no recursion). The tests of the measured case
+   (`tab-order`, `tab-order-backward`) and of a chain run as unit tests and
+   in `crates/automation/tests/real_input.rs`. A node outside the order
+   starts the navigation at its flat tree position, as without shadow
+   trees. A document without shadow trees takes the old code. A host that
+   delegates focus is not an entry of the order, with a `tabindex` or
+   without (its scope is, in the group of the `tabindex`): measured in
+   `tab-delegating-tabindex-back`, Shift+Tab from the delegate goes to the
+   element before the host (the first version had the host before its
+   scope, and the backward step landed on the host, which focused its
+   delegate again: a keyboard trap).
+8. *The fast path of engine events.* An event that the engine fires
+   (`dispatch_trusted`) skips its path, its objects and its invocations if
+   no listener or handler of its type can exist: `events/listened.rs`
+   keeps the types of every listener and handler ever added in the runtime
+   (`addEventListener` on any target, the IDL handler setters), and the
+   arena (`swb_dom::Document::ever_had_on_attribute`) the names of every
+   `on*` attribute that an element ever had (born with it: the parser,
+   `cloneNode`, the markup setters, a node moved in from another arena; or
+   set later; the check is in `push_node`, `set_attribute` and
+   `add_attrs_if_missing`), so a content attribute that no dispatch has
+   read yet counts. Both are over-approximations: a name stays after its
+   last use, and a runtime that adds listeners of more than 4,096 types
+   answers yes for all. The `click` is never skipped (its activation
+   target comes from the path), and the events that a script dispatches
+   (`dispatchEvent`, `click()`) do not use this entry. The events that a
+   native function fires (`focus()`, `reset()`, `requestSubmit()`) do, as
+   the engine's own: with no listener of their type nothing can see their
+   objects. The result equals the slow path's for an event with no listener
+   (not canceled; a `wheel` is not cancelable then).
+
+**Departures.** (1) `autofocus` is not processed at all in swb (backlog:
+`focus-shadow` is independent of it now). (2) The `slotchange` event of a
+slot that is assigned to another slot goes through all the slots after it
+(DOM "get the parent", measured in the nested row of `slotchange-timing`):
+a chain of N slots costs N² structs for its N events, about 600
+instructions per struct. With a listener of `slotchange` the cost stays
+(Chromium has it too); with none, the fast path (difference 8) skips the
+path: `shadow-slot-passthrough-10000` and `shadow-slotted-passthrough-10000`
+have their 10,000 hosts again (the first version of 5d cut them to 2,000
+and renamed them: 50 million structs ended the setup task at the time
+limit). (3) A focus change restyles the whole document (the base's cost,
+about 0.9 s for 300,000 nodes); `shadow-tab-scopes-100000` presses Tab 30
+times, not 200 (120 s killed the run; the scopes of one press cost about
+0.12 s). (The first version's departure 4, a delegating host with a
+`tabindex` in the order before its scope, was a bug: see the review fixes.)
+
+**Tests.** The probe rows `composed-path-open`, `composed-path-closed`,
+`retarget-related`, `focus-shadow` and `slotchange-timing` #6 match
+Chromium (no departures); `tab-order`, `tab-order-backward` and
+`ui-events-through-shadow` run with their input steps in
+`crates/automation/tests/real_input.rs` and match. New: `crates/web/tests/
+shadow_events.rs` (ten tests, with and without the GC stress mode: nested
+trees, not composed events, slots, closed roots, `relatedTarget`, the
+clearing of targets, a chain of 200 trees), `crates/dom` (`event_parents`;
+`click_target` takes a path), `crates/engine/src/focus.rs` (the scopes), `crates/engine/tests/
+shadow_rendering.rs` (a link and a checkbox in a shadow tree, with and
+without scripts; the delegating host), `crates/style` (`:focus` on hosts),
+`github.rs` (a relative time that the test puts in a link navigates, the
+Tab order has no shadow element and equals the base's first 60 stops, no
+console error that the base lacks). Every new test was checked by a
+mutation of the code it tests.
+
+**Numbers** (base 44d8ea3 against 5d): `just snapshot` byte-identical; all
+scores with JavaScript on and off equal to the base (GitHub with JavaScript
+on: geometry 0.9115, pixels 0.9934; `craigslist-search` 0.0000 in both);
+callgrind of the pages with scripts off (`swb --headless --replay`, base /
+5d with the review fixes): Wikipedia 869.10 M / 869.35 M (+0.03 %), Ars
+Technica 2,137.08 M / 2,137.33 M (+0.01 %), BBC 7,483.66 M / 7,483.60 M
+(0.00 %); the binding rows of ADR 0035 section 11 (instructions per
+iteration, a page whose script runs the row in a loop, 40,000 against
+20,000 iterations): `setAttribute` 4,391 / 4,418 (+0.6 %), `id` 3,906 /
+3,901, `appendChild` with `remove` 4,420 / 4,411, `textContent` 1,951 /
+1,945, `innerHTML` 17,398 / 17,500 (+0.6 %), `createElement` 4,271 /
+4,272, `classList.add` 8,423 / 8,407 (within 1 %); the new row
+`dispatchEvent` of a bubbling event at an element 10 levels deep with one
+listener on the document (no shadow roots) 36,193 / 29,294 (-19 %, the lazy
+wrappers); GitHub with JavaScript on (`--bench 3`, medians): style 23.33 /
+23.38 ms per pass, layout 5.03 / 5.01 ms, the headless load 0.475 / 0.480 s
+(budget 1.56 s). Hostile cases (time, memory, base 44d8ea3 / 5d with the
+review fixes): `shadow-nested-100000` 1.31 s, 554 MiB / 1.46 s, 553 MiB
+(the click's path; the first version of 5d had 1.76 s); the
+`shadow-slot-passthrough-10000` 1.61 s, 184 MiB / 1.61 s, 169 MiB and
+`shadow-slotted-passthrough-10000` 7.28 s, 273 MiB / 7.58 s, 271 MiB (the
+first version had to cut them to 2,000 hosts); the other thirteen `shadow-*`
+cases of the base within 0.1 s and 5 % of it; new `shadow-event-path-deep`
+2.26 s, 107 MiB and `shadow-tab-scopes-100000` 19.2 s, 714 MiB (the base
+does not pass them: no events through trees).
+
+**Review fixes.** (1) *Events of another realm.* `Target::Node` held a node
+id and was resolved against the current document at read time, but a getter
+of an event enters the event's own document: an event made in a frame's
+realm and dispatched at a node of the main document read node ids in the
+frame's arena (`currentTarget` a text node, `target` another element).
+`Target::Node` carries the key of its document, and `Target::object` enters
+it (`documents.rs`: `an_event_of_another_realm_shows_the_nodes_of_the_dispatch`,
+`a_node_of_the_path_that_moves_to_another_document_is_read_there`).
+(2) *Keyboard trap* with a delegating host that has a `tabindex`: see
+difference 7 (measured, `tab-delegating-tabindex-back`: `b2 s1 b1 s3 b2 s1
+b1`). (3) `focus()` on a delegating host while the focus is inside it keeps
+the focus (`focus-inside-delegating`). A click on non-focusable content of
+the host while the focus is inside equals Chromium already (measured by the
+review; the click goes through `click_target`, which gives the delegate).
+(4) *The cost of paths no listener sees*:
+difference 8. Before it, `slotchange` through 10,000 pass-through hosts
+built 50 million structs and stopped the script at its time limit, and the
+click of `shadow-nested-100000` paid for about ten engine events with
+200,000 structs each (+0.86 s). (5) *Tests*: a composed event through a
+slotted host in nested trees whose listeners read `target` at each level
+(the mutation `adjusted = true` failed 1 of 9 tests before, 2 of 10 now);
+tests for each source of handlers (`event_fast_path.rs`), each checked with
+a mutation that removes the source; the two probe cases and their steps.
+(6) The probe file has 41 cases; three equal runs of the whole file; the
+only changes against the data are the two added cases.

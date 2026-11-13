@@ -440,13 +440,12 @@ fn scroll_events_of_elements_are_in_tree_order() {
     });
 }
 
-/// The `:hover` row of the case `ui-events-through-shadow` of
-/// `tools/probes/web-shadow-dom.json` with its input steps (ADR 0036
-/// sub-feature 5b): after a click on shadow text, the host and the shadow
-/// element match `:hover` (the chain follows the flat tree), and the
-/// document's listeners see the host as the target (the interim target rule
-/// of 5b; `composedPath()` comes with 5d). Chromium 148's values are those of
-/// `crates/engine/tests/probe_net/shadow_dom.rs`.
+/// The case `ui-events-through-shadow` of `tools/probes/web-shadow-dom.json`
+/// with its input steps (ADR 0036 sub-features 5b and 5d): after a click on
+/// shadow text, the host and the shadow element match `:hover` (the chain
+/// follows the flat tree), and the document's listeners see the host as the
+/// `target` and the shadow element first in `composedPath()`. Chromium
+/// 148's values are those of `crates/engine/tests/probe_net/shadow_dom.rs`.
 #[test]
 fn shadow_hover_chain_and_targets_follow_the_flat_tree() {
     on_page_thread(|| {
@@ -470,11 +469,51 @@ fn shadow_hover_chain_and_targets_follow_the_flat_tree() {
         let hover = measure[2]["js"].as_str().unwrap();
         assert_eq!(value(&mut page, hover), "true,true,false");
         assert_eq!(
-            value(
-                &mut page,
-                "L.map(function (x) { return x.split('<')[0]; }).join(' ')"
-            ),
-            "pointerover:div#h mouseover:div#h mousedown:div#h mouseup:div#h click:div#h"
+            value(&mut page, measure[1]["js"].as_str().unwrap()),
+            "pointerover:div#h<b#in mouseover:div#h<b#in mousedown:div#h<b#in \
+             mouseup:div#h<b#in click:div#h<b#in"
         );
+    });
+}
+
+/// The cases `tab-order`, `tab-order-backward` and
+/// `tab-delegating-tabindex-back` of
+/// `tools/probes/web-shadow-dom.json` with their key steps (ADR 0036
+/// sub-feature 5d): the order of Tab through hosts, slots, `tabindex`
+/// groups and a host that delegates focus, forward (with the wrap) and
+/// backward. The focus events at the document log the first element of
+/// their composed path. Chromium 148's values are those of
+/// `crates/engine/tests/probe_net/shadow_dom.rs`.
+#[test]
+fn tab_order_follows_the_focus_navigation_scopes() {
+    on_page_thread(|| {
+        let probe: Value = serde_json::from_str(
+            &std::fs::read_to_string(repo_root().join("tools/probes/web-shadow-dom.json")).unwrap(),
+        )
+        .unwrap();
+        let want = [
+            (
+                "tab-order",
+                "b3 b1 s3 s2 s1 b2 h2 s4 b4 s6 l1 s7 l2 s8 b5 b3 b1 s3 s2 s1 b2",
+            ),
+            ("tab-order-backward", "b5 s7 l1 s6 b2 s2 s1 b1 b5"),
+            // A host that delegates focus and has a `tabindex` is not in the
+            // order: Shift+Tab from its delegate goes on (no trap).
+            ("tab-delegating-tabindex-back", "b2 s1 b1 s3 b2 s1 b1"),
+        ];
+        for (name, expected) in want {
+            let case = probe["cases"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|c| c["name"] == name)
+                .unwrap();
+            let site = Site::new(name);
+            let mut page = page_of(&site, case["html"].as_str().unwrap());
+            page.set_viewport(Size::new(400.0, 300.0), 1.0);
+            run_steps(&mut page, case["steps"].as_array().unwrap()).unwrap();
+            let log = case["measure"][1]["js"].as_str().unwrap();
+            assert_eq!(value(&mut page, log), expected, "{name}");
+        }
     });
 }

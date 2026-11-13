@@ -2,9 +2,12 @@
 //! and §2.10, "firing events"), `composedPath` (DOM §2.2), and the entry
 //! for events that the engine fires ([`dispatch_trusted`]).
 //!
-//! Without shadow trees, the path is the target, its ancestors and, for a
-//! node of the window's document (DOM "get the parent" of a document)
-//! and an event other than `load`, the window. Listeners are called with
+//! The path is the target, then the nodes of DOM "get the parent" (the
+//! assigned slot of a slottable, the parent, the host of a shadow root that
+//! a composed event leaves) and, for a node of the window's document and an
+//! event other than `load`, the window (ADR 0036 section 7). A struct that
+//! leaves a shadow tree gets a shadow-adjusted target; `relatedTarget` is
+//! retargeted for each struct. Listeners are called with
 //! [`Runtime::call_function`], so that a call from the engine gets the
 //! semantics of an outermost run and a call from `dispatchEvent` charges
 //! the recursion budget; an exception of a listener is reported (HTML
@@ -15,8 +18,7 @@
 //!
 //! Not implemented: the legacy `webkit` renames of trusted animation
 //! events without listeners (DOM "invoke", step 9; swb fires no animation
-//! events), activation behaviour (feature 6d), `relatedTarget` and touch
-//! targets (no shadow trees, no touch events).
+//! events) and touch targets (swb has no touch events).
 
 use std::rc::Rc;
 
@@ -26,7 +28,7 @@ use swb_js::{ClassId, Gc, Generic, Object, Runtime, ScriptError, Value, VmError,
 use super::listeners::Listener;
 use super::target::{TargetKind, kind_of, listeners_of};
 use super::user::UserEvent;
-use super::{AT_TARGET, BUBBLING_PHASE, CAPTURING_PHASE, EventData, Extra, NONE, PathItem};
+use super::{AT_TARGET, BUBBLING_PHASE, CAPTURING_PHASE, EventData, Extra, NONE, PathItem, Target};
 use crate::bindings::{self as b, Host};
 use crate::generated as g;
 use crate::generated::types::EventInit;
@@ -142,6 +144,12 @@ pub(crate) fn dispatch_trusted(
     target: DispatchTarget,
     event: &TrustedEvent,
 ) -> VmResult<bool> {
+    // An event that no listener of its type can see has no observable
+    // dispatch (its object is not reachable by script): no path, no
+    // objects. The click keeps its walk for the activation behavior.
+    if event.kind != "click" && !super::listened::may_have_listener(rt, &event.kind)? {
+        return Ok(true);
+    }
     let realm = crate::state::doc_realm(rt)?;
     let target_object = match target {
         DispatchTarget::Node(node) => WebState::wrap_node(rt, realm, node)?,
@@ -289,13 +297,9 @@ pub(crate) fn dispatch(
     super::data_mut(rt, handle)?.dispatching = true;
     // Steps 5.4 to 5.10 of "dispatch": the activation target and its
     // legacy-pre-activation behavior (HTML activation behaviors).
-    let activation = disabled_cut(rt, target, handle).and_then(|cut| {
-        let activation = activation_before(rt, target, handle, cut)?;
-        Ok((cut, activation))
-    });
-    let result = activation
-        .and_then(|(cut, activation)| {
-            build_path(rt, realm, target, handle, target_override, cut)?;
+    let result = build_path(rt, realm, target, handle, target_override)
+        .and_then(|nodes| {
+            let activation = activation_before(rt, target, handle, &nodes)?;
             super::mouse::place_at_target(rt, event, handle, target)?;
             run_phases(rt, handle, event)?;
             Ok(activation)
@@ -329,6 +333,10 @@ pub(crate) fn dispatch(
     data.phase = NONE;
     data.current_target = None;
     data.path = Vec::new();
+    if std::mem::take(&mut data.clear_targets) {
+        data.target = None;
+        data.set_related_target(None);
+    }
     data.dispatching = false;
     data.stop_propagation = false;
     data.stop_immediate_propagation = false;
@@ -339,24 +347,25 @@ pub(crate) fn dispatch(
 /// The activation target of a `click` `MouseEvent` and its
 /// legacy-pre-activation behavior (DOM §2.9, "dispatch", steps 5.4 to
 /// 5.10): the target if it has an activation behavior, else, if the event
-/// bubbles, the nearest ancestor that has one. `None` for other events.
+/// bubbles, the nearest element of the path that has one. `nodes` is the
+/// path ([`build_path`]). `None` for other events.
 fn activation_before(
     rt: &mut Runtime,
     target: Gc<Object>,
     handle: Gc<Generic>,
-    cut: Option<NodeId>,
+    nodes: &[NodeId],
 ) -> VmResult<Option<crate::html::activation::Activation>> {
     let event = super::data(rt, handle)?;
     let is_click =
         event.kind == "click" && matches!(&event.extra, Extra::Ui(f) if f.family.is_mouse());
-    if !is_click {
+    if !is_click || nodes.is_empty() {
         return Ok(None);
     }
     let bubbles = event.bubbles;
-    let TargetKind::Node(node) = kind_of(rt, target)? else {
+    if !matches!(kind_of(rt, target)?, TargetKind::Node(_)) {
         return Ok(None);
-    };
-    match crate::html::activation::find_target(rt, node, bubbles, cut)? {
+    }
+    match crate::html::activation::find_target(rt, nodes, bubbles)? {
         Some(activation) => {
             let activation = crate::html::activation::pre_activation(rt, activation)?;
             Ok(Some(activation))
@@ -365,7 +374,7 @@ fn activation_before(
     }
 }
 
-/// The disabled form control that cuts the path of a pointer's mouse event.
+/// True if the event is one that a disabled form control cuts.
 /// Measured in Chromium 148 (`disabled-events-*` of
 /// `tools/probes/web-nested-activation.json`): `mousedown`, `mouseup`,
 /// `click` and `dblclick` of the user's pointer reach a target inside a
@@ -374,77 +383,279 @@ fn activation_before(
 /// window get nothing, and no activation behavior above runs. The
 /// other events (pointer events, `mouseover`, `contextmenu`, `auxclick`) and
 /// the events that scripts dispatch have the whole path.
-fn disabled_cut(rt: &Runtime, target: Gc<Object>, event: Gc<Generic>) -> VmResult<Option<NodeId>> {
-    let data = super::data(rt, event)?;
-    if !data.is_trusted || !matches!(&*data.kind, "mousedown" | "mouseup" | "click" | "dblclick") {
-        return Ok(None);
-    }
-    let TargetKind::Node(node) = kind_of(rt, target)? else {
-        return Ok(None);
-    };
-    let dom = dom(rt)?;
-    Ok(dom.ancestors(node).find(|&a| {
-        dom.element(a).is_some_and(|e| {
-            e.is_html()
-                && matches!(
-                    &**e.local_name(),
-                    "button" | "input" | "select" | "textarea"
-                )
-        }) && swb_style::is_actually_disabled(dom, a)
-    }))
+fn is_cut_event(data: &EventData) -> bool {
+    data.is_trusted && matches!(&*data.kind, "mousedown" | "mouseup" | "click" | "dblclick")
 }
 
-/// Steps 5.3 to 5.9 of "dispatch": the event path, stored in the event. A
-/// path that a disabled control cuts ([`disabled_cut`]) ends below it.
+/// True if `node` is the disabled form control that cuts the path
+/// ([`is_cut_event`]).
+fn is_cut_control(dom: &swb_dom::Document, node: NodeId) -> bool {
+    dom.element(node).is_some_and(|e| {
+        e.is_html()
+            && matches!(
+                &**e.local_name(),
+                "button" | "input" | "select" | "textarea"
+            )
+    }) && swb_style::is_actually_disabled(dom, node)
+}
+
+/// A struct of the path, before its objects are made.
+struct Step {
+    /// The invocation target; `None` for the window.
+    node: Option<NodeId>,
+    /// True if the struct has a shadow-adjusted target (the target of the
+    /// first struct, the parent for a struct that leaves a shadow tree).
+    adjusted: bool,
+    /// The `relatedTarget` retargeted against this struct; `None` leaves
+    /// the event's own.
+    related: Option<NodeId>,
+    in_shadow: bool,
+    root_closed: bool,
+    slot_closed: bool,
+}
+
+/// How the walk up reached a struct.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Via {
+    /// A parent in the same tree.
+    Parent,
+    /// The assigned slot of a slottable.
+    Slot,
+    /// The host of a shadow root.
+    Host,
+}
+
+/// The event's `relatedTarget` retargeted against `against` (DOM
+/// "retarget"), if it is a node of a shadow tree; else `None` (the event's
+/// own value stands).
+fn retarget_related(
+    dom: &swb_dom::Document,
+    related: Option<NodeId>,
+    against: Option<NodeId>,
+) -> Option<NodeId> {
+    let related = related.filter(|&r| dom.in_shadow_tree(r))?;
+    Some(dom.retarget(related, against.unwrap_or(NodeId::DOCUMENT)))
+}
+
+/// Steps 5.3 to 5.9 of "dispatch": the event path, stored in the event;
+/// the result is the nodes of its structs in order, for the activation
+/// target. The walk follows DOM "get the parent" (slots, hosts), marks the
+/// structs that leave a shadow tree (they get a shadow-adjusted target),
+/// retargets `relatedTarget` for each struct, and ends at a struct whose
+/// parent is the retargeted `relatedTarget`. A path that a disabled control
+/// cuts ([`is_cut_event`]) ends below it. The walk is iterative and visits
+/// each node once.
 fn build_path(
     rt: &mut Runtime,
     realm: u32,
     target: Gc<Object>,
     event: Gc<Generic>,
     target_override: Option<Gc<Object>>,
-    cut: Option<NodeId>,
-) -> VmResult<()> {
+) -> VmResult<Vec<NodeId>> {
     let kind = kind_of(rt, target)?;
-    let mut path = vec![PathItem {
-        target,
-        in_shadow_tree: false,
-        shadow_adjusted_target: Some(target_override.unwrap_or(target)),
-        root_of_closed_tree: false,
-        slot_in_closed_tree: false,
-    }];
-    let mut parents = Vec::new();
-    let mut window = false;
+    let related_object = super::data(rt, event)?.related_target();
+    let related_node = match related_object.map(|o| kind_of(rt, o)) {
+        Some(Ok(TargetKind::Node(n))) => Some(n),
+        _ => None,
+    };
+    let mut steps = Vec::with_capacity(16);
+    let mut clear = false;
+    let want_nodes = super::data(rt, event)?.kind == "click";
     if let TargetKind::Node(node) = kind {
-        // Copied out of the DOM before the wrappers are made.
+        let data = super::data(rt, event)?;
+        let (composed, cut, load) = (data.composed, is_cut_event(data), data.kind == "load");
         let dom = dom(rt)?;
-        parents.extend(dom.ancestors(node).take_while(|&a| Some(a) != cut));
-        let root = parents.last().copied().unwrap_or(node);
-        // "Get the parent" of a document: the window, unless the event is
-        // `load` or the document has no browsing context (only the
-        // document of the window has one).
-        window =
-            cut.is_none() && root == NodeId::DOCUMENT && super::data(rt, event)?.kind != "load";
+        walk(dom, node, composed, cut, load, related_node, &mut steps);
+        // DOM "dispatch" step 5.9: the path stays empty if the target
+        // equals its retargeted related target, unless the event's own
+        // related target is the target.
+        let first_related = steps.first().and_then(|s| s.related).or(related_node);
+        if first_related == Some(node) && related_node != Some(node) {
+            steps.clear();
+        }
+        clear = clear_targets(dom, &steps, related_node);
+    } else {
+        steps.push(Step {
+            node: None,
+            adjusted: true,
+            related: None,
+            in_shadow: false,
+            root_closed: false,
+            slot_closed: false,
+        });
     }
-    for node in parents {
-        let wrapper = WebState::wrap_node(rt, realm, node)?;
-        path.push(item(wrapper));
+    // The nodes are for the activation target of a click.
+    let key = crate::state::document_key(rt)?;
+    let mut nodes = Vec::new();
+    let mut path = Vec::with_capacity(steps.len());
+    for (index, step) in steps.iter().enumerate() {
+        let invocation = match (index, step.node) {
+            (0, _) => Target::Object(target),
+            (_, Some(node)) => Target::Node(key, node),
+            (_, None) => Target::Object(crate::state::window_proxy(rt)?),
+        };
+        if want_nodes {
+            nodes.extend(step.node);
+        }
+        let adjusted = match (index, step.adjusted) {
+            (0, _) => Some(Target::Object(target_override.unwrap_or(target))),
+            (_, true) => Some(invocation),
+            _ => None,
+        };
+        let related_target = match step.related {
+            Some(n) if related_node == Some(n) => related_object,
+            Some(n) => Some(WebState::wrap_node(rt, realm, n)?),
+            None => related_object,
+        };
+        path.push(PathItem {
+            target: invocation,
+            in_shadow_tree: step.in_shadow,
+            shadow_adjusted_target: adjusted,
+            related_target,
+            root_of_closed_tree: step.root_closed,
+            slot_in_closed_tree: step.slot_closed,
+        });
     }
-    if window {
-        path.push(item(crate::state::window_proxy(rt)?));
-    }
-    super::data_mut(rt, event)?.path = path;
-    Ok(())
+    let data = super::data_mut(rt, event)?;
+    data.path = path;
+    data.clear_targets = clear;
+    Ok(nodes)
 }
 
-/// A struct of the path for a parent (no shadow-adjusted target).
-fn item(target: Gc<Object>) -> PathItem {
-    PathItem {
-        target,
-        in_shadow_tree: false,
-        shadow_adjusted_target: None,
-        root_of_closed_tree: false,
-        slot_in_closed_tree: false,
+/// The structs of the path of an event at `node`, nearest first (the loop
+/// of DOM "dispatch" step 5.9); `related` is the event's `relatedTarget` if
+/// it is a node of this document.
+fn walk(
+    dom: &swb_dom::Document,
+    node: NodeId,
+    composed: bool,
+    cut: bool,
+    load: bool,
+    related: Option<NodeId>,
+    steps: &mut Vec<Step>,
+) {
+    let plain = |node: Option<NodeId>| Step {
+        node,
+        adjusted: false,
+        related: None,
+        in_shadow: false,
+        root_closed: false,
+        slot_closed: false,
+    };
+    if !dom.has_shadow_trees() {
+        // No shadow trees: the parents, then the window.
+        steps.push(Step {
+            adjusted: true,
+            ..plain(Some(node))
+        });
+        let mut top = node;
+        for ancestor in dom.ancestors(node) {
+            if cut && is_cut_control(dom, ancestor) {
+                return;
+            }
+            steps.push(plain(Some(ancestor)));
+            top = ancestor;
+        }
+        if !load && top == NodeId::DOCUMENT {
+            steps.push(plain(None));
+        }
+        return;
     }
+    let is_closed = |root: NodeId| {
+        dom.shadow_root_data(root)
+            .is_some_and(|d| d.mode == swb_dom::ShadowRootMode::Closed)
+    };
+    // The root of the tree of the target, and the root whose host the path
+    // enters next: a struct that is that root leaves the shadow tree.
+    let target_root = dom.root(node);
+    let mut leaving_root = target_root;
+    let mut in_shadow = dom.shadow_host(target_root).is_some();
+    steps.push(Step {
+        node: Some(node),
+        adjusted: true,
+        related: retarget_related(dom, related, Some(node)),
+        in_shadow,
+        root_closed: is_closed(node),
+        slot_closed: false,
+    });
+    let mut current = node;
+    loop {
+        let parent = dom.event_parent(current, composed, target_root);
+        let Some(parent) = parent else {
+            // "Get the parent" of a document: the window, unless the event
+            // is `load` (the document of the window only has a browsing
+            // context).
+            if !load && current == NodeId::DOCUMENT {
+                steps.push(Step {
+                    node: None,
+                    adjusted: false,
+                    related: retarget_related(dom, related, None),
+                    in_shadow: false,
+                    root_closed: false,
+                    slot_closed: false,
+                });
+            }
+            return;
+        };
+        if cut && is_cut_control(dom, parent) {
+            return;
+        }
+        let via = match dom.parent(current) {
+            Some(p) if p == parent => Via::Parent,
+            Some(_) => Via::Slot,
+            None => Via::Host,
+        };
+        let mut adjusted = false;
+        let mut closed_slot = false;
+        match via {
+            Via::Parent => {}
+            Via::Slot => {
+                in_shadow = true;
+                closed_slot = is_closed(dom.root(parent));
+            }
+            Via::Host => {
+                // `current` is a shadow root. The struct leaves a shadow
+                // tree if that is the tree of the target (or the one that
+                // the last such struct moved to).
+                adjusted = current == leaving_root;
+                let tree_root = dom.root(parent);
+                in_shadow = dom.shadow_host(tree_root).is_some();
+                if adjusted {
+                    leaving_root = tree_root;
+                }
+            }
+        }
+        let related_here = retarget_related(dom, related, Some(parent));
+        // DOM "dispatch" step 5.9.6: a struct that leaves a shadow tree is
+        // not appended, and the path ends, where its parent is the related
+        // target.
+        if adjusted && related_here.or(related) == Some(parent) {
+            return;
+        }
+        steps.push(Step {
+            node: Some(parent),
+            adjusted,
+            related: related_here,
+            in_shadow,
+            root_closed: is_closed(parent),
+            slot_closed: closed_slot,
+        });
+        current = parent;
+    }
+}
+
+/// DOM "dispatch" step 5.11: `target` and `relatedTarget` are cleared after
+/// the dispatch if the last struct with a shadow-adjusted target, or its
+/// related target, is a node of a shadow tree.
+fn clear_targets(dom: &swb_dom::Document, steps: &[Step], related: Option<NodeId>) -> bool {
+    let Some(last) = steps.iter().rfind(|s| s.adjusted) else {
+        return false;
+    };
+    if last.in_shadow && last.node.is_some() {
+        return true;
+    }
+    let related = last.related.or(related);
+    related.is_some_and(|r| dom.in_shadow_tree(r))
 }
 
 /// Steps 5.13 and 5.14 of "dispatch": the capture pass from the end of
@@ -454,7 +665,7 @@ fn run_phases(rt: &mut Runtime, handle: Gc<Generic>, event: Gc<Object>) -> VmRes
     // the struct or of the nearest preceding one (found once, not by a
     // scan per struct). The path holds the objects for the dispatch.
     let mut last = None;
-    let targets: Vec<Option<Gc<Object>>> = super::data(rt, handle)?
+    let targets: Vec<Option<Target>> = super::data(rt, handle)?
         .path
         .iter()
         .map(|item| {
@@ -518,36 +729,85 @@ fn invoke(
     handle: Gc<Generic>,
     event: Gc<Object>,
     index: usize,
-    target: Option<Gc<Object>>,
+    target: Option<Target>,
     phase: Phase,
 ) -> VmResult<()> {
     let item = path_item(rt, handle, index)?;
     let data = super::data_mut(rt, handle)?;
     data.target = target;
+    data.set_related_target(item.related_target);
     if data.stop_propagation {
         return Ok(());
     }
     data.current_target = Some(item.target);
     let kind = data.kind.clone();
-    // A listener can have moved this node of the path to another document.
-    let entered = crate::state::enter_object(rt, item.target)?;
-    let result = (|| {
-        let target_kind = kind_of(rt, item.target)?;
-        super::handlers::sync(rt, target_kind)?;
-        let listeners = listeners_of(rt, target_kind, &kind)?;
-        inner_invoke(
-            rt,
-            handle,
-            event,
-            &listeners,
-            phase,
-            item,
-            target_kind,
-            &kind,
-        )
-    })();
-    crate::state::leave(rt, entered);
-    result
+    // A node of the document keeps its wrapper unmade until a listener or a
+    // script needs it, except one that a listener has moved to another
+    // document: its wrapper then decides the document of the call.
+    let target = match item.target {
+        Target::Node(key, node)
+            if crate::state::document_key(rt)? != key || crate::state::node_moved(rt, node)? =>
+        {
+            Target::Object(item.target.object(rt)?)
+        }
+        other => other,
+    };
+    match target {
+        Target::Object(object) => {
+            let entered = crate::state::enter_object(rt, object)?;
+            let result = (|| {
+                let target_kind = kind_of(rt, object)?;
+                super::handlers::sync(rt, target_kind)?;
+                let listeners = listeners_of(rt, target_kind, &kind)?;
+                let current = Current {
+                    object,
+                    in_shadow_tree: item.in_shadow_tree,
+                };
+                inner_invoke(
+                    rt,
+                    handle,
+                    event,
+                    &listeners,
+                    phase,
+                    current,
+                    target_kind,
+                    &kind,
+                )
+            })();
+            crate::state::leave(rt, entered);
+            result
+        }
+        Target::Node(_, node) => {
+            let target_kind = TargetKind::Node(node);
+            super::handlers::sync(rt, target_kind)?;
+            let listeners = listeners_of(rt, target_kind, &kind)?;
+            if listeners.is_empty() {
+                return Ok(());
+            }
+            let current = Current {
+                object: item.target.object(rt)?,
+                in_shadow_tree: item.in_shadow_tree,
+            };
+            inner_invoke(
+                rt,
+                handle,
+                event,
+                &listeners,
+                phase,
+                current,
+                target_kind,
+                &kind,
+            )
+        }
+    }
+}
+
+/// The current target of an invocation: its object and whether its tree is a
+/// shadow tree.
+#[derive(Clone, Copy)]
+struct Current {
+    object: Gc<Object>,
+    in_shadow_tree: bool,
 }
 
 /// DOM "inner invoke".
@@ -561,7 +821,7 @@ fn inner_invoke(
     event: Gc<Object>,
     listeners: &[Rc<Listener>],
     phase: Phase,
-    item: PathItem,
+    item: Current,
     target: TargetKind,
     kind: &str,
 ) -> VmResult<()> {
@@ -586,8 +846,8 @@ fn inner_invoke(
         super::data_mut(rt, handle)?.in_passive_listener = listener.passive;
         b::keep(rt, Value::Object(listener.callback));
         let result = match listener.handler {
-            Some(name) => super::handlers::call(rt, target, name, event, handle, item.target),
-            None => call_listener(rt, listener.callback, item.target, event, kind),
+            Some(name) => super::handlers::call(rt, target, name, event, handle, item.object),
+            None => call_listener(rt, listener.callback, item.object, event, kind),
         };
         super::data_mut(rt, handle)?.in_passive_listener = false;
         crate::state::set_current_event_of(rt, window, current_event)?;
@@ -664,10 +924,7 @@ fn listener_name(kind: &str) -> String {
 }
 
 /// `composedPath()` (DOM §2.2) of a path with the current target.
-pub(crate) fn composed_path(
-    path: &[PathItem],
-    current_target: Option<Gc<Object>>,
-) -> Vec<Gc<Object>> {
+pub(crate) fn composed_path(path: &[PathItem], current_target: Option<Target>) -> Vec<Target> {
     let Some(current_target) = current_target else {
         return Vec::new();
     };

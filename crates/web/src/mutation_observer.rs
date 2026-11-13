@@ -392,8 +392,8 @@ fn take_slot_signals(rt: &mut Runtime) -> VmResult<Vec<(u32, NodeId)>> {
 
 /// Fires `slotchange` at the slot `slot` of the document `key`: it bubbles,
 /// is not composed and cannot be canceled (measured, case
-/// `slotchange-timing`). Until ADR 0036 sub-feature 5d the path is the
-/// slot's ancestors up to its root.
+/// `slotchange-timing`). The path is the slot's, through the slots it is
+/// assigned to, up to the root of the slot's first target (not composed).
 fn fire_slotchange(rt: &mut Runtime, key: u32, slot: NodeId) -> VmResult<()> {
     let entered = crate::state::switch_if_other(rt, key)?;
     let event = crate::events::TrustedEvent {

@@ -313,7 +313,7 @@
   },
   {
    "name": "focus-shadow",
-   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function p(x){L.push(x)}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e&&e.constructor?e.constructor.name:String(e))+': '+(e&&e.message)}}function k(e){if(e==null)return String(e);if(e===window)return 'win';if(e.nodeType===9)return 'doc';if(e.nodeType===11)return e.host?'root('+k(e.host)+')':'frag';if(e.nodeType===3)return '#t:'+e.data.trim();if(e.nodeType===1)return e.localName+(e.id?'#'+e.id:'');return String(e)}function K(a){return Array.prototype.map.call(a,k).join(',')}window.onerror=function(m,s,l,c,e){L.push('err:'+m+(e&&e.name&&String(m).indexOf(e.message)<0?'['+e.name+': '+e.message+']':'')+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});function S(h,html,o){var r=h.attachShadow(o||{mode:'open'});if(html!=null)r.innerHTML=html;return r}function W(ms){return new Promise(function(r){setTimeout(function(){r(L.join(' '))},ms||20)})}function cs(e,p,ps){return getComputedStyle(e,ps||null).getPropertyValue(p)}</script></head><body><div id=o><div id=h></div></div><button id=b>b</button><div id=dh></div><div id=dh2 tabindex=0></div><div id=dh3></div><div id=sh><input id=si slot=x></div><script>function F(t){['focus','blur','focusin','focusout'].forEach(function(ty){t.addEventListener(ty,function(e){p(ty+'@'+k(e.currentTarget)+':'+k(e.target)+'/'+k(e.relatedTarget)+':'+e.composed)},true)})}var r=S(h,'<input id=i><input id=i2>');var i=r.getElementById('i'),i2=r.getElementById('i2');[document,h,r,i,i2].forEach(F);S(dh,'<span>t</span><input id=d1><input id=d2 autofocus>',{mode:'open',delegatesFocus:true});S(dh2,'<input id=d3>',{mode:'open',delegatesFocus:true});S(dh3,'<span>no focusable</span>',{mode:'open',delegatesFocus:true});S(sh,'<div id=w><slot name=x></slot></div>');</script></body></html>",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function p(x){L.push(x)}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e&&e.constructor?e.constructor.name:String(e))+': '+(e&&e.message)}}function k(e){if(e==null)return String(e);if(e===window)return 'win';if(e.nodeType===9)return 'doc';if(e.nodeType===11)return e.host?'root('+k(e.host)+')':'frag';if(e.nodeType===3)return '#t:'+e.data.trim();if(e.nodeType===1)return e.localName+(e.id?'#'+e.id:'');return String(e)}function K(a){return Array.prototype.map.call(a,k).join(',')}window.onerror=function(m,s,l,c,e){L.push('err:'+m+(e&&e.name&&String(m).indexOf(e.message)<0?'['+e.name+': '+e.message+']':'')+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});function S(h,html,o){var r=h.attachShadow(o||{mode:'open'});if(html!=null)r.innerHTML=html;return r}function W(ms){return new Promise(function(r){setTimeout(function(){r(L.join(' '))},ms||20)})}function cs(e,p,ps){return getComputedStyle(e,ps||null).getPropertyValue(p)}</script></head><body><div id=o><div id=h></div></div><button id=b>b</button><div id=dh></div><div id=dh2 tabindex=0></div><div id=dh3></div><div id=sh><input id=si slot=x></div><script>function F(t){['focus','blur','focusin','focusout'].forEach(function(ty){t.addEventListener(ty,function(e){p(ty+'@'+k(e.currentTarget)+':'+k(e.target)+'/'+k(e.relatedTarget)+':'+e.composed)},true)})}var r=S(h,'<input id=i><input id=i2>');var i=r.getElementById('i'),i2=r.getElementById('i2');[document,h,r,i,i2].forEach(F);S(dh,'<span>t</span><input id=d1><input id=d2>',{mode:'open',delegatesFocus:true});dh.shadowRoot.getElementById('d2').setAttribute('autofocus','');S(dh2,'<input id=d3>',{mode:'open',delegatesFocus:true});S(dh3,'<span>no focusable</span>',{mode:'open',delegatesFocus:true});S(sh,'<div id=w><slot name=x></slot></div>');</script></body></html>",
    "measure": [
     {
      "js": "typeof h"
@@ -957,6 +957,54 @@
      "js": "(function(){var f=document.createElement('iframe');document.body.appendChild(f);var Z=document.createElement('div');document.body.appendChild(Z);var Q=Z.attachShadow({mode:'open'});Q.innerHTML='<b>z</b>';Q.adoptedStyleSheets=[A,A];var arr=Q.adoptedStyleSheets;f.contentDocument.body.appendChild(Z);var x=[arr.length,String(arr[0])];document.body.appendChild(Z);x.push(arr.length);Q.adoptedStyleSheets=[A];Z.remove();document.implementation.createHTMLDocument('').adoptNode(Z);x.push(arr.length,String(arr[0]));document.adoptNode(Z);document.body.appendChild(Z);x.push(arr.length,Q.adoptedStyleSheets.length,arr===Q.adoptedStyleSheets);Z.remove();f.remove();return x.join()})()"
     }
    ]
+  },
+  {
+   "name": "tab-delegating-tabindex-back",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function p(x){L.push(x)}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e&&e.constructor?e.constructor.name:String(e))+': '+(e&&e.message)}}function k(e){if(e==null)return String(e);if(e===window)return 'win';if(e.nodeType===9)return 'doc';if(e.nodeType===11)return e.host?'root('+k(e.host)+')':'frag';if(e.nodeType===3)return '#t:'+e.data.trim();if(e.nodeType===1)return e.localName+(e.id?'#'+e.id:'');return String(e)}function K(a){return Array.prototype.map.call(a,k).join(',')}window.onerror=function(m,s,l,c,e){L.push('err:'+m+(e&&e.name&&String(m).indexOf(e.message)<0?'['+e.name+': '+e.message+']':'')+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});function S(h,html,o){var r=h.attachShadow(o||{mode:'open'});if(html!=null)r.innerHTML=html;return r}function W(ms){return new Promise(function(r){setTimeout(function(){r(L.join(' '))},ms||20)})}function cs(e,p,ps){return getComputedStyle(e,ps||null).getPropertyValue(p)}</script></head><body><button id=b1>1</button><div id=h tabindex=0></div><div id=g tabindex=-1></div><div id=j tabindex=3></div><button id=b2>2</button><script>var FS=new WeakSet();function FL(t){t.addEventListener('focusin',function(e){if(FS.has(e))return;FS.add(e);p(e.composedPath()[0].id)},true)}FL(document);var _S=S;S=function(h,x,o){var r=_S(h,x,o);FL(r);return r};S(h,'<button id=s1>s1</button>',{mode:'open',delegatesFocus:true});S(g,'<button id=s2>s2</button>',{mode:'open',delegatesFocus:true});S(j,'<button id=s3>s3</button>',{mode:'open',delegatesFocus:true});</script></body></html>",
+   "measure": [
+    {
+     "js": "typeof h"
+    },
+    {
+     "js": "L.join(' ')"
+    }
+   ],
+   "steps": [
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "key": "Shift+Tab"
+    }
+   ]
+  },
+  {
+   "name": "focus-inside-delegating",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function p(x){L.push(x)}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e&&e.constructor?e.constructor.name:String(e))+': '+(e&&e.message)}}function k(e){if(e==null)return String(e);if(e===window)return 'win';if(e.nodeType===9)return 'doc';if(e.nodeType===11)return e.host?'root('+k(e.host)+')':'frag';if(e.nodeType===3)return '#t:'+e.data.trim();if(e.nodeType===1)return e.localName+(e.id?'#'+e.id:'');return String(e)}function K(a){return Array.prototype.map.call(a,k).join(',')}window.onerror=function(m,s,l,c,e){L.push('err:'+m+(e&&e.name&&String(m).indexOf(e.message)<0?'['+e.name+': '+e.message+']':'')+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});function S(h,html,o){var r=h.attachShadow(o||{mode:'open'});if(html!=null)r.innerHTML=html;return r}function W(ms){return new Promise(function(r){setTimeout(function(){r(L.join(' '))},ms||20)})}function cs(e,p,ps){return getComputedStyle(e,ps||null).getPropertyValue(p)}</script></head><body><div id=h></div><script>var FS=new WeakSet();function FL(t){t.addEventListener('focusin',function(e){if(FS.has(e))return;FS.add(e);p(e.composedPath()[0].id)},true)}FL(document);var _S=S;S=function(h,x,o){var r=_S(h,x,o);FL(r);return r};var r=S(h,'<input id=a><input id=b>',{mode:'open',delegatesFocus:true});r.getElementById('b').focus();L.push('A:'+k(document.activeElement)+'/'+k(r.activeElement));h.focus();L.push('B:'+k(document.activeElement)+'/'+k(r.activeElement));</script></body></html>",
+   "measure": [
+    {
+     "js": "L.join(' ')"
+    }
+   ],
+   "steps": []
   }
  ]
 }

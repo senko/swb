@@ -272,6 +272,7 @@ impl g::event_target::EventTargetImpl for WebState {
             removed: Cell::new(false),
             handler: None,
         };
+        state_mut(cx.rt)?.listened.note(&kind);
         let added = with_listeners(cx.rt, target, |list| list.add(&kind, listener))?;
         if added && in_document {
             state_mut(cx.rt)?.doc.listener_count += 1;

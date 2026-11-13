@@ -112,7 +112,89 @@ fn github_module_scripts_run_in_document_order_and_custom_element_callbacks_matc
         custom_element_callbacks(&lines);
         shadow_roots(&value(&mut page, SHADOW_ROOTS));
         rendered_times(&mut page);
+        let errors_before = console_errors(&page).len();
+        tab_order_has_no_shadow_content(&mut page);
+        click_on_relative_time_follows_the_link(&mut page);
+        // The input reaches page scripts that call APIs swb lacks
+        // (`createTreeWalker`, `getSelection`, a fetch with no recording):
+        // the base commit logs the same messages. No other error is new.
+        let new: Vec<String> = console_errors(&page)[errors_before..]
+            .iter()
+            .filter(|e| {
+                !["createTreeWalker", "getSelection", "Failed to fetch"]
+                    .iter()
+                    .any(|known| e.contains(known))
+            })
+            .cloned()
+            .collect();
+        assert!(new.is_empty(), "{new:?}");
     });
+}
+
+/// The Tab order of the page (ADR 0036 sub-feature 5d): the shadow trees of
+/// `relative-time` and `tool-tip` have no focusable content, so no element
+/// of the sequence is in a shadow tree and the sequence has no element that
+/// is not in the document tree. Prints the sequence for the notes.
+fn tab_order_has_no_shadow_content(page: &mut swb_engine::Page) {
+    let mut sequence = Vec::new();
+    for _ in 0..60 {
+        page.key_down(&swb_engine::Key::Tab, swb_engine::Modifiers::NONE);
+        let Some(node) = page.focused_element() else {
+            break;
+        };
+        let doc = page.document().unwrap();
+        assert!(!doc.in_shadow_tree(node), "a shadow element has the focus");
+        sequence.push(node);
+    }
+    let doc = page.document().unwrap();
+    let names: Vec<String> = sequence
+        .iter()
+        .map(|&n| {
+            let e = doc.element(n).unwrap();
+            format!("{}#{}", e.local_name(), e.id().unwrap_or(""))
+        })
+        .collect();
+    eprintln!("github tab order ({}): {names:?}", names.len());
+    assert!(names.len() > 10, "{names:?}");
+}
+
+/// A click on a `relative-time` inside a link follows the link (ADR 0036
+/// sub-feature 5d): the target of the click is the span in the shadow tree,
+/// and the activation target is the link around the host. The fixture has
+/// no such link (GitHub's relative times are not in links on this page), so
+/// the test wraps the third one in a link, as the commit lists of GitHub do.
+fn click_on_relative_time_follows_the_link(page: &mut swb_engine::Page) {
+    value(
+        page,
+        "(() => { const e = document.querySelectorAll('relative-time')[2]; \
+           const a = document.createElement('a'); a.id = 'wrap'; a.href = '/senko/swb/commits/x'; \
+           e.parentNode.insertBefore(a, e); a.appendChild(e); \
+           e.shadowRoot.querySelector('span[part=root]').scrollIntoView({block: 'center'}); \
+           return 1; })()",
+    );
+    page.run_event_loop(Duration::from_millis(100), Duration::from_secs(10));
+    let at = value(
+        page,
+        "(() => { const e = document.getElementById('wrap').firstChild; \
+           const r = e.shadowRoot.querySelector('span[part=root]').getBoundingClientRect(); \
+           window.clicks = []; \
+           document.addEventListener('click', ev => clicks.push(ev.target.localName + '<' + \
+             ev.composedPath()[0].localName)); \
+           return [r.x + r.width / 2, r.y + r.height / 2, r.width]; })()",
+    );
+    assert!(at[2].as_f64().unwrap() > 0.0, "the time has a box: {at}");
+    let (x, y) = (
+        at[0].as_f64().unwrap() as f32,
+        at[1].as_f64().unwrap() as f32,
+    );
+    page.click(x, y);
+    assert_eq!(
+        value(page, "clicks.join()"),
+        "relative-time<span",
+        "the listener on the document sees the host; the path starts at the span"
+    );
+    let url = page.url().unwrap();
+    assert_eq!(url.path(), "/senko/swb/commits/x", "{url}");
 }
 
 /// The text that renders in each `relative-time` host (ADR 0036 sub-feature

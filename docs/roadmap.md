@@ -4829,7 +4829,20 @@ Steps:
         callgrind within 0.01 %.
       - 5d events and focus (`implementer`): retargeting, `composedPath`,
         `relatedTarget`, `activeElement`, `delegatesFocus`, the Tab order
-        with scopes.
+        with scopes. Done (2026-11-13): the event path follows DOM "get
+        the parent" with retargeting, `relatedTarget` per struct and clear
+        targets; path nodes get a wrapper only when a listener or a script
+        needs one; the engine's events go to the real hit element and the
+        activation target is searched on the path, so a link or a button
+        inside a shadow tree activates and a click on shadow content in a
+        light link follows it, with scripts on and off; `:focus` on hosts,
+        `activeElement` retargeted, `delegatesFocus`, the Tab order by
+        focus navigation scopes. An engine event that no listener or
+        handler of its type can see skips its path. The 5d probe rows
+        match Chromium (41 cases). Targets unchanged (GitHub JS on
+        geometry 0.9115, pixels 0.9934; its Tab order unchanged); JS-off
+        snapshot identical; callgrind +0.03 % at most.
+      Feature 5 complete (2026-11-13).
    6. Popover, dialog and the top layer (`implementer-hard`; new ADR; JS on
       and off): the `popover` attribute and its states, `showPopover`,
       `hidePopover`, `togglePopover`, `popovertarget` (also without
@@ -4887,10 +4900,8 @@ Steps:
   them GitHub's `command` polyfill runs in swb and wraps `attachShadow`).
   The diagnosis's "`adoptedStyleSheets` set once" was the tools' own
   `stop_animations` sheet; GitHub's page uses none.
-- Shadow DOM, found in 5b: until 5d, a link or button inside a shadow
-  tree shows as hovered, but a click goes to the outermost host and does
-  not activate it (the interim event target; GitHub has none);
-  `selectstart` goes to the shadow hit node and stops at its root;
+- Shadow DOM, found in 5b: `selectstart` goes to the shadow hit node and
+  stops at its root;
   layout dumps (`boxes.rs`) list light elements only; 1,000 nested hosts
   exceed `MAX_BOX_DEPTH` (256), so the deepest content has no box (probe
   `nesting-depth`, ADR 0036 section 12).
@@ -4929,6 +4940,24 @@ Steps:
   take 2.8 s). By the review's reading (not tested: the binding tests have
   no frames), a change of a constructed sheet by a script of another window
   invalidates the calling window's document, not the sheet's.
+- Shadow DOM, found in 5d: `autofocus` is not processed (the focus
+  delegate reads it; the probe case `focus-shadow` no longer depends on
+  it). A focus change restyles and lays out the whole document (about
+  0.9 s for 300,000 nodes), so `shadow-tab-scopes-100000` presses Tab 30
+  times, not 200. With a `slotchange` listener, the events of a chain of N
+  pass-through slots cost N² path structs (DOM "get the parent"; about 600
+  instructions each); without a listener they cost nothing. The set of
+  listened event types never forgets a type and answers yes for all after
+  4,096 types. Not measured in Chromium: the `mouseenter` and
+  `mouseleave` chains and the click's common ancestor use flat ancestors
+  (as the `:hover` chain); a host that delegates focus, has a `tabindex`
+  and no focusable content is not in the Tab order; `focus()` on such a
+  host keeps the focus of a light child of the host. From the delta
+  review: `fromElement` and `toElement` of a mouse event made in another
+  realm give null for a node of the dispatch's document; reading `target`
+  of a held event after its frame's document is gone throws a `TypeError`.
+  GitHub: input events raise page-script errors from `createTreeWalker`
+  and `getSelection` (also before 5d; feature 9).
 - Tests (found 2026-11-12, at the 5c-2 commit): Debian's tzdata went from
   2026b to 2026f, which changes Morocco's rules (UTC+00 after 2026).
   Chromium 148's own data predates that, so the recorded values of

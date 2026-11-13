@@ -377,3 +377,33 @@ fn a_transplant_takes_the_roots() {
     assert_eq!(b.assigned_nodes(slots[1]), &light[1..]);
     assert_eq!(b.assigned_slot(light[1]), Some(slots[1]));
 }
+
+/// DOM "get the parent" for an event path: an assigned slottable goes to
+/// its slot, a root to its host only for a composed event or when the
+/// target is outside the root.
+#[test]
+fn event_parents() {
+    let mut doc =
+        crate::parse_html("<div id=o><div id=h><b id=s slot=x>s</b><i id=u>u</i></div></div>");
+    let (o, h, s, u) = (id(&doc, "o"), id(&doc, "h"), id(&doc, "s"), id(&doc, "u"));
+    let root = doc.attach_shadow(h, open(), false).expect("root");
+    let inner = element(&mut doc, "div");
+    doc.append_child(root, inner).expect("append");
+    let slot = element(&mut doc, "slot");
+    doc.set_attr(slot, "name", "x").expect("name");
+    doc.append_child(inner, slot).expect("append");
+    let path = |n: NodeId, composed: bool| -> Vec<NodeId> {
+        std::iter::once(n)
+            .chain(doc.event_ancestors(n, composed))
+            .collect()
+    };
+    // A slotted node: through the slot, the shadow tree, the host.
+    assert_eq!(path(s, true)[..6], [s, slot, inner, root, h, o]);
+    // Not composed: the event stops at the root of the first target (the
+    // slotted node is in the document tree, so it goes on).
+    assert_eq!(path(s, false)[..6], [s, slot, inner, root, h, o]);
+    assert_eq!(path(inner, false), [inner, root]);
+    assert_eq!(path(inner, true)[..4], [inner, root, h, o]);
+    // A node that no slot takes has the host as parent.
+    assert_eq!(path(u, true)[..3], [u, h, o]);
+}

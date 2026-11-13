@@ -238,6 +238,123 @@ fn the_link_around_a_host_activates_without_scripts() {
     });
 }
 
+/// A page with a link, a checkbox and a button inside a shadow tree (ADR
+/// 0036 sub-feature 5d): a click goes to the element in the tree, and the
+/// activation target search walks the composed path.
+const CONTROLS_PAGE: &str = "<!DOCTYPE html><body style='margin:0;font:16px/20px sans-serif'>\
+    <div id=h></div>\
+    <script>var L = []; var R = document.getElementById('h').attachShadow({mode: 'open'});\
+    R.innerHTML = '<a id=sa href=\"#shadowgo\">shadow link</a><br>\
+      <input id=sc type=checkbox><br><button id=sb>b</button>';\
+    document.addEventListener('click', function (e) { \
+      L.push('doc:' + e.target.id + '<' + e.composedPath()[0].id); });\
+    R.addEventListener('click', function (e) { L.push('root:' + e.target.id); });\
+    R.getElementById('sc').addEventListener('change', function (e) { L.push('change'); });\
+    </script>";
+
+/// The middle of the element `id` of the root of `CONTROLS_PAGE`.
+fn control_point(page: &mut Page, id: &str) -> (f32, f32) {
+    let at = answer(
+        page,
+        &format!(
+            "(() => {{ const r = R.getElementById('{id}').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }})()"
+        ),
+    );
+    (number(&at[0]) as f32, number(&at[1]) as f32)
+}
+
+/// A link in a shadow tree follows its href when clicked; the document's
+/// listener sees the host as the target and the link first in the path;
+/// the root's listener sees the link; a checkbox in the tree toggles and
+/// fires `change`.
+#[test]
+fn a_link_and_a_checkbox_in_a_shadow_tree_activate() {
+    common::on_page_thread(|| {
+        let mut page = open(CONTROLS_PAGE, Size::new(400.0, 300.0));
+        let (x, y) = control_point(&mut page, "sc");
+        page.click(x, y);
+        assert_eq!(answer(&mut page, "R.getElementById('sc').checked"), true);
+        assert_eq!(
+            answer(&mut page, "L.join()"),
+            "root:sc,doc:h<sc,change",
+            "the checkbox is the target in the tree; `change` follows the click"
+        );
+        let (x, y) = control_point(&mut page, "sa");
+        page.click(x, y);
+        assert!(page.url().unwrap().as_str().ends_with("#shadowgo"));
+        assert_eq!(answer(&mut page, "L.slice(3).join()"), "root:sa,doc:h<sa");
+    });
+}
+
+/// A click on non-focusable content of a host that delegates focus focuses
+/// the host's focus delegate; the host matches `:focus` and is the
+/// document's `activeElement` (ADR 0036 section 8); a click on a focusable
+/// element in a tree focuses it itself.
+#[test]
+fn a_click_in_a_delegating_host_focuses_its_delegate() {
+    common::on_page_thread(|| {
+        let html = "<!DOCTYPE html><body style='margin:0;font:16px/20px sans-serif'>\
+            <div id=h></div><input id=x>\
+            <script>var R = document.getElementById('h').attachShadow({mode: 'open', delegatesFocus: true});\
+            R.innerHTML = '<span id=t>some text</span><br><input id=a><input id=b>';\
+            var L = []; ['focus', 'blur'].forEach(function (t) { \
+              document.addEventListener(t, function (e) { L.push(t + ':' + e.target.id); }, true); });\
+            </script>";
+        let mut page = open(html, Size::new(400.0, 300.0));
+        let at = |page: &mut Page, id: &str| {
+            let v = answer(
+                page,
+                &format!(
+                    "(() => {{ const r = R.getElementById('{id}').getBoundingClientRect(); return [r.x + 2, r.y + r.height / 2]; }})()"
+                ),
+            );
+            (number(&v[0]) as f32, number(&v[1]) as f32)
+        };
+        let (x, y) = at(&mut page, "t");
+        page.click(x, y);
+        assert_eq!(
+            answer(
+                &mut page,
+                "[document.activeElement.id, R.activeElement.id, document.getElementById('h').matches(':focus')].join()"
+            ),
+            "h,a,true"
+        );
+        let (x, y) = at(&mut page, "b");
+        page.click(x, y);
+        assert_eq!(answer(&mut page, "R.activeElement.id"), "b");
+        // A move inside one tree is not seen outside it (measured).
+        assert_eq!(answer(&mut page, "L.join()"), "focus:h");
+    });
+}
+
+/// The same without scripts: the engine's own activation walk follows the
+/// composed path.
+#[test]
+fn a_link_and_a_checkbox_in_a_shadow_tree_activate_without_scripts() {
+    common::on_page_thread(|| {
+        let mut page = open(CONTROLS_PAGE, Size::new(400.0, 300.0));
+        let (sx, sy) = control_point(&mut page, "sc");
+        let (lx, ly) = control_point(&mut page, "sa");
+        let runtime = page.script_runtime_mut().unwrap();
+        runtime.set_time_limit(Duration::from_millis(30));
+        for _ in 0..3 {
+            page.evaluate("while (true);", swb_engine::JsonForm::Strict);
+        }
+        assert!(page.script_runtime_mut().unwrap().stopped());
+        page.click(sx, sy);
+        let doc = page.document().unwrap();
+        let host = doc.element_by_id("h").unwrap();
+        let root = doc.shadow_root(host).unwrap();
+        let checkbox = doc
+            .descendants(root)
+            .find(|&n| doc.element(n).and_then(|e| e.id()) == Some("sc"))
+            .unwrap();
+        assert_eq!(page.control_checked(checkbox), Some(true));
+        assert!(page.click(lx, ly));
+        assert!(page.url().unwrap().as_str().ends_with("#shadowgo"));
+    });
+}
+
 /// The scroll containers of a shadow element are its flat ancestors: its
 /// box moves with the light scroll container around the host.
 #[test]

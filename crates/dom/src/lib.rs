@@ -14,6 +14,7 @@ mod custom;
 mod dump;
 mod encoding;
 mod flat;
+mod handler_attrs;
 mod id_index;
 mod iterator;
 mod journal;

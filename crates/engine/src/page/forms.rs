@@ -295,14 +295,10 @@ impl Page {
     /// [`swb_dom::click_target`] (Chromium, measured), the same as for the
     /// scripts' `click` events; the roles come from the form state. A
     /// disabled control gets no click events, so nothing above it activates.
-    /// A node in a shadow tree starts the walk at its outermost host (the
-    /// interim rule of `DocumentState::event_target_of`, ADR 0036
-    /// sub-feature 5b): a click on a relative time in a link follows the
-    /// link.
+    /// The walk follows the event path of the click, which is composed: from
+    /// a node in a shadow tree it goes through the host (ADR 0036 section 7):
+    /// a click on a relative time in a link follows the link.
     pub(super) fn activation_target(&self, node: NodeId, point: Point) -> Option<ClickTarget> {
-        let node = self
-            .document()
-            .map_or(node, |d| d.retarget(node, NodeId::DOCUMENT));
         self.click_target_at(node, Some(point), None)
     }
 
@@ -316,7 +312,10 @@ impl Page {
     ) -> Option<ClickTarget> {
         let doc = self.document()?;
         let mut labels = LabelMemo::default();
-        swb_dom::click_target(doc, node, true, |n, skip_labels| {
+        let path: Vec<NodeId> = std::iter::once(node)
+            .chain(doc.event_ancestors(node, true))
+            .collect();
+        swb_dom::click_target(&path, true, |n, skip_labels| {
             if Some(n) == skip {
                 ClickRole::Plain
             } else {

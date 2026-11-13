@@ -240,6 +240,19 @@ impl Document {
         self.get(root)?.data.as_shadow_root()
     }
 
+    /// True if a shadow root was ever attached in this arena (the walks of
+    /// a page without shadow trees take their plain paths).
+    pub fn has_shadow_trees(&self) -> bool {
+        self.shadow.is_some()
+    }
+
+    /// True if `host` has a shadow root that delegates focus.
+    pub fn delegates_focus(&self, host: NodeId) -> bool {
+        self.shadow_root(host)
+            .and_then(|root| self.shadow_root_data(root))
+            .is_some_and(|data| data.delegates_focus)
+    }
+
     /// The host of the shadow root `root`.
     pub fn shadow_host(&self, root: NodeId) -> Option<NodeId> {
         self.shadow_root_data(root).map(|d| d.host)
@@ -280,6 +293,54 @@ impl Document {
     /// True if `ancestor` is a shadow-including inclusive ancestor of `node`.
     pub fn is_shadow_including_inclusive_ancestor(&self, ancestor: NodeId, node: NodeId) -> bool {
         node == ancestor || self.shadow_including_ancestors(node).any(|a| a == ancestor)
+    }
+
+    /// DOM "get the parent" of a node for an event path (DOM §2.9 "get the
+    /// parent" of `Node` and `ShadowRoot`): the assigned slot of an assigned
+    /// slottable, else the parent; for a shadow root, its host, or `None`
+    /// when the event is not `composed` and the root is `target_root`, the
+    /// root of the first struct's target. The window above the document is
+    /// the caller's.
+    /// <https://dom.spec.whatwg.org/#get-the-parent>
+    #[inline]
+    pub fn event_parent(
+        &self,
+        node: NodeId,
+        composed: bool,
+        target_root: NodeId,
+    ) -> Option<NodeId> {
+        let n = self.node(node);
+        if let Some(parent) = n.parent {
+            if self.shadow.is_some()
+                && self
+                    .element(parent)
+                    .is_some_and(crate::tree::ElementData::is_shadow_host)
+                && let Some(slot) = self.assigned_slot(node)
+            {
+                return Some(slot);
+            }
+            return Some(parent);
+        }
+        let host = n.data.as_shadow_root()?.host;
+        (composed || node != target_root).then_some(host)
+    }
+
+    /// The nodes above `node` on the path of an event dispatched at it,
+    /// nearest first (the chain of [`Document::event_parent`]; the window
+    /// is not a node and is left out).
+    pub fn event_ancestors(
+        &self,
+        node: NodeId,
+        composed: bool,
+    ) -> impl Iterator<Item = NodeId> + '_ {
+        let target_root = if self.shadow.is_some() {
+            self.root(node)
+        } else {
+            node
+        };
+        std::iter::successors(self.event_parent(node, composed, target_root), move |&n| {
+            self.event_parent(n, composed, target_root)
+        })
     }
 
     /// DOM "retarget `a` against `b`": while `a`'s root is a shadow root

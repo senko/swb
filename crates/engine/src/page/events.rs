@@ -135,14 +135,14 @@ impl Page {
     }
 
     /// The event target at a point in viewport coordinates: the element of
-    /// the hit node retargeted against the document (the interim rule of
-    /// `DocumentState::event_target_of`), else the root element (a point
-    /// outside every box is on the canvas of the root element, as in
-    /// Chromium).
+    /// the hit node (an element of a shadow tree is the target; the dispatch
+    /// retargets it for listeners outside the tree, ADR 0036 section 7),
+    /// else the root element (a point outside every box is on the canvas of
+    /// the root element, as in Chromium).
     pub(super) fn target_at(&mut self, point: Point) -> Option<NodeId> {
         let hit = self.hit_doc(point.x, point.y);
         let doc = self.doc.as_ref()?;
-        hit.and_then(|h| doc.event_target_of(h.node))
+        hit.and_then(|h| doc.element_of(h.node))
             .or_else(|| doc.dom().element_children(NodeId::DOCUMENT).next())
     }
 
@@ -165,8 +165,24 @@ impl Page {
     /// Fires `event` of type `kind` at `target` as a task. Returns false
     /// if a listener canceled it. A target that left the document gets
     /// nothing (true).
-    fn fire(&mut self, kind: &str, target: NodeId, mut event: UserEvent) -> bool {
-        if !self.is_connected(target) {
+    fn fire(&mut self, kind: &str, target: NodeId, event: UserEvent) -> bool {
+        self.fire_verified(kind, target, event, None)
+    }
+
+    /// [`Page::fire`] for a node of a chain that was checked to be in the
+    /// document when the DOM had the generation `verified`: while the DOM
+    /// has not changed since, the node is still in the document, and the
+    /// walk up that [`swb_dom::Document::is_connected`] costs is not
+    /// repeated for each of thousands of nodes (a chain through nested
+    /// shadow trees).
+    fn fire_verified(
+        &mut self,
+        kind: &str,
+        target: NodeId,
+        mut event: UserEvent,
+        verified: Option<u64>,
+    ) -> bool {
+        if !self.still_connected(target, verified) {
             return true;
         }
         let spec = spec(kind);
@@ -289,11 +305,47 @@ impl Page {
         detail: u32,
         movement: (f32, f32),
     ) -> bool {
-        if !self.is_connected(target) {
+        self.fire_mouse_verified(
+            kind,
+            target,
+            point,
+            related,
+            (button, detail, movement),
+            None,
+        )
+    }
+
+    /// [`Page::fire_mouse`] for a node of a chain (see [`Page::fire_verified`]).
+    fn fire_mouse_verified(
+        &mut self,
+        kind: &str,
+        target: NodeId,
+        point: Point,
+        related: Option<NodeId>,
+        (button, detail, movement): (i16, u32, (f32, f32)),
+        verified: Option<u64>,
+    ) -> bool {
+        if !self.still_connected(target, verified) {
             return true;
         }
         let event = self.mouse_event(kind, target, point, related, button, detail, movement);
-        self.fire(kind, target, event)
+        self.fire_verified(kind, target, event, verified)
+    }
+
+    /// True if `node` is in the document: at once if the DOM still has the
+    /// generation `verified` (the node was in it then), else by a walk up.
+    fn still_connected(&self, node: NodeId, verified: Option<u64>) -> bool {
+        match (self.document(), verified) {
+            (Some(doc), Some(generation)) if doc.generation() == generation => true,
+            _ => self.is_connected(node),
+        }
+    }
+
+    /// The generation of the DOM if `node` is in the document (for
+    /// [`Page::fire_verified`]).
+    fn verify(&self, node: NodeId) -> Option<u64> {
+        let doc = self.document()?;
+        doc.is_connected(node).then(|| doc.generation())
     }
 
     /// The chains of nodes that the pointer leaves and enters when it moves
@@ -303,8 +355,9 @@ impl Page {
         let Some(doc) = self.document() else {
             return (Vec::new(), Vec::new());
         };
-        let path =
-            |n: NodeId| -> Vec<NodeId> { std::iter::once(n).chain(doc.ancestors(n)).collect() };
+        let path = |n: NodeId| -> Vec<NodeId> {
+            std::iter::once(n).chain(doc.flat_ancestors(n)).collect()
+        };
         let new_path = path(new);
         let old_path = old.map(path).unwrap_or_default();
         let common = old_path.iter().find(|n| new_path.contains(n)).copied();
@@ -329,6 +382,7 @@ impl Page {
     /// of the new chain.
     fn boundary_events(&mut self, old: Option<NodeId>, new: NodeId, point: Point) {
         let (leave, enter) = self.boundary_chains(old, new);
+        let (old_verified, new_verified) = (old.and_then(|o| self.verify(o)), self.verify(new));
         for prefix in ["pointer", "mouse"] {
             if let Some(old) = old {
                 self.fire_mouse(
@@ -342,13 +396,15 @@ impl Page {
                 );
                 for &node in &leave {
                     let kind = format!("{prefix}leave");
-                    self.fire_mouse(&kind, node, point, Some(new), 0, 0, (0.0, 0.0));
+                    let rest = (0, 0, (0.0, 0.0));
+                    self.fire_mouse_verified(&kind, node, point, Some(new), rest, old_verified);
                 }
             }
             self.fire_mouse(&format!("{prefix}over"), new, point, old, 0, 0, (0.0, 0.0));
             for &node in &enter {
                 let kind = format!("{prefix}enter");
-                self.fire_mouse(&kind, node, point, old, 0, 0, (0.0, 0.0));
+                let rest = (0, 0, (0.0, 0.0));
+                self.fire_mouse_verified(&kind, node, point, old, rest, new_verified);
             }
         }
     }
@@ -394,12 +450,16 @@ impl Page {
         let Some(doc) = self.document() else {
             return;
         };
-        let chain: Vec<NodeId> = std::iter::once(old).chain(doc.ancestors(old)).collect();
+        let chain: Vec<NodeId> = std::iter::once(old)
+            .chain(doc.flat_ancestors(old))
+            .collect();
+        let verified = self.verify(old);
         for prefix in ["pointer", "mouse"] {
             self.fire_mouse(&format!("{prefix}out"), old, point, None, 0, 0, (0.0, 0.0));
             for &node in &chain {
                 let kind = format!("{prefix}leave");
-                self.fire_mouse(&kind, node, point, None, 0, 0, (0.0, 0.0));
+                let rest = (0, 0, (0.0, 0.0));
+                self.fire_mouse_verified(&kind, node, point, None, rest, verified);
             }
         }
     }
@@ -520,9 +580,9 @@ impl Page {
     /// The nearest common inclusive ancestor of two nodes.
     fn common_ancestor(&self, a: NodeId, b: NodeId) -> Option<NodeId> {
         let doc = self.document()?;
-        let b_path: Vec<NodeId> = std::iter::once(b).chain(doc.ancestors(b)).collect();
+        let b_path: Vec<NodeId> = std::iter::once(b).chain(doc.flat_ancestors(b)).collect();
         std::iter::once(a)
-            .chain(doc.ancestors(a))
+            .chain(doc.flat_ancestors(a))
             .find(|n| b_path.contains(n))
     }
 

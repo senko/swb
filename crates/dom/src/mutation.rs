@@ -140,6 +140,7 @@ impl Document {
             _ => (false, false),
         };
         self.text_bytes += data_bytes(&data);
+        self.note_on_attributes(&data);
         if undefined {
             self.note_custom_name(&data);
         }
@@ -892,6 +893,7 @@ impl Document {
                 name: name.clone(),
                 value: value.to_owned(),
             });
+            self.note_on_attribute(&name.local);
             None
         };
         self.text_bytes = (self.text_bytes + new_bytes).saturating_sub(old_bytes);
@@ -964,6 +966,7 @@ impl Document {
             if is_id(&name) {
                 self.reindex_id(element, None, Some(&attr.value));
             }
+            self.note_on_attribute(&name.local);
             if let Some(e) = self.element_mut(element) {
                 e.attrs.push(attr);
             }

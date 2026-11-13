@@ -357,6 +357,17 @@ pub(crate) fn sync(rt: &mut Runtime, target: TargetKind) -> VmResult<()> {
 }
 
 fn sync_node(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
+    // An element without attributes has no handler to read, and is not
+    // marked: a path of thousands of such nodes (the `slotchange` of a
+    // chain of slots) costs no set insertions, and an attribute that comes
+    // later is read by the next `sync`.
+    let document = dom(rt)?;
+    let Some(element) = document.element(node) else {
+        return Ok(());
+    };
+    if element.attributes().is_empty() {
+        return Ok(());
+    }
     if !state_mut(rt)?.doc.handlers.synced.insert(node) {
         return Ok(());
     }
@@ -462,6 +473,7 @@ fn set_value(rt: &mut Runtime, key: Key, name: &'static Name, value: Value_) -> 
         removed: Cell::new(false),
         handler: Some(name),
     };
+    state_mut(rt)?.listened.note(name.event);
     with_listeners(rt, target, |list| list.add(name.event, listener))?;
     if in_document {
         state_mut(rt)?.doc.listener_count += 1;

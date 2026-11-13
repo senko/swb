@@ -29,7 +29,7 @@
 //! controls (the scripts' DOM and the engine's form state differ in how they
 //! tell the form owner and the disabled state).
 
-use crate::{Document, NodeId};
+use crate::NodeId;
 
 /// What an element does with a click that reaches it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -101,22 +101,24 @@ enum Above {
     Found(Option<NodeId>),
 }
 
-/// The element that a click at `target` activates, or `None`. With
-/// `bubbles` false the target itself is the only candidate. `role_of` tells
+/// The element that a click activates, or `None`; `path` is the event's
+/// path of nodes, the target first (the window left out), as
+/// [`Document::event_ancestors`] gives it. With `bubbles` false the target
+/// itself is the only candidate. `role_of` tells
 /// the role of each element on the path; its second argument is true when the
 /// answer for a `label` does not matter (interactive content is below it, or
 /// only a button is looked for): it may then skip the search for the control
 /// of a label and return `Plain`. See [`LabelMemo`].
 pub fn click_target(
-    dom: &Document,
-    target: NodeId,
+    path: &[NodeId],
     bubbles: bool,
     mut role_of: impl FnMut(NodeId, bool) -> ClickRole,
 ) -> Option<ClickTarget> {
+    let target = *path.first()?;
     let mut interactive = false;
     let mut above = Above::Unknown;
-    let path = std::iter::once(target).chain(dom.ancestors(target));
-    for node in path.take(if bubbles { usize::MAX } else { 1 }) {
+    let len = if bubbles { path.len() } else { 1 };
+    for (index, &node) in path.iter().enumerate().take(len) {
         let role = role_of(node, interactive);
         let plain = |role| {
             Some(ClickTarget {
@@ -134,7 +136,7 @@ pub fn click_target(
                 let button = if inert {
                     None
                 } else {
-                    button_above(dom, node, &mut role_of, &mut above)
+                    button_above(&path[index + 1..], &mut role_of, &mut above)
                 };
                 if !inert && (node == target || button.is_none()) {
                     let also = button.filter(|_| role == ClickRole::Label);
@@ -148,20 +150,20 @@ pub fn click_target(
     None
 }
 
-/// The nearest button that acts above `node`, before a disabled control.
-/// `above` keeps the answer for the elements further up the same walk.
+/// The nearest button that acts in `rest`, the path above a node, before a
+/// disabled control. `above` keeps the answer for the elements further up
+/// the same walk.
 fn button_above(
-    dom: &Document,
-    node: NodeId,
+    rest: &[NodeId],
     role_of: &mut impl FnMut(NodeId, bool) -> ClickRole,
     above: &mut Above,
 ) -> Option<NodeId> {
     if let Above::Found(found) = above {
         return *found;
     }
-    let found = dom
-        .ancestors(node)
-        .map(|a| (a, role_of(a, true)))
+    let found = rest
+        .iter()
+        .map(|&a| (a, role_of(a, true)))
         .find(|(_, role)| matches!(role, ClickRole::Button | ClickRole::Blocked))
         .and_then(|(a, role)| (role == ClickRole::Button).then_some(a));
     *above = Above::Found(found);
@@ -171,7 +173,7 @@ fn button_above(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{QualName, ns, parse_html};
+    use crate::{Document, QualName, ns, parse_html};
 
     /// Roles by tag name: `a` link, `label` label, `summary` summary,
     /// `b` a button that acts, `i` interactive, `u` a disabled control, `c` a
@@ -194,8 +196,15 @@ mod tests {
         let by_id = |id: &str| dom.get_element_by_id(NodeId::DOCUMENT, id);
         let name = |n: NodeId| dom.element(n).unwrap().local_name().to_string();
         let target = by_id("t")?;
-        click_target(&dom, target, bubbles, |n, _| role(&dom, n))
+        click_target(&path_of(&dom, target), bubbles, |n, _| role(&dom, n))
             .map(|t| (name(t.node), t.role, t.also.map(name)))
+    }
+
+    /// The path of a composed event at `target`.
+    fn path_of(dom: &Document, target: NodeId) -> Vec<NodeId> {
+        std::iter::once(target)
+            .chain(dom.event_ancestors(target, true))
+            .collect()
     }
 
     #[test]
@@ -275,11 +284,11 @@ mod tests {
         }
         let role_of = |n: NodeId, _| roles.get(&n).copied().unwrap_or(ClickRole::Plain);
         // The target is a link: it takes the click itself.
-        let got = click_target(&dom, innermost_link, true, role_of);
+        let got = click_target(&path_of(&dom, innermost_link), true, role_of);
         assert_eq!(got.map(|t| t.node), Some(innermost_link));
         // The target is the select below it: every link above yields to the
         // button.
-        let got = click_target(&dom, parent, true, role_of);
+        let got = click_target(&path_of(&dom, parent), true, role_of);
         assert_eq!(got.map(|t| t.node), Some(button));
     }
 
@@ -309,7 +318,7 @@ mod tests {
             let target = make(&mut dom, "span", parent);
             let searched = std::cell::Cell::new(0);
             let mut memo = LabelMemo::default();
-            let got = click_target(&dom, target, true, |n, skip| {
+            let got = click_target(&path_of(&dom, target), true, |n, skip| {
                 if n == button {
                     ClickRole::Button
                 } else if labels.contains(&n) && !skip {

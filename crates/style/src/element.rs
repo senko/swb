@@ -191,8 +191,8 @@ impl DisabledElements {
         // and outside that fieldset's first legend.
         let mut in_fieldset = vec![false; doc.len()];
         let mut disabled = vec![false; doc.len()];
-        // Parents come before their children in tree order.
-        for node in doc.descendants(NodeId::DOCUMENT) {
+        // Parents come before their children in shadow-including tree order.
+        for node in doc.shadow_including_descendants(NodeId::DOCUMENT) {
             let Some(e) = doc.element(node) else {
                 continue;
             };
@@ -272,6 +272,9 @@ pub(crate) struct StateSet<'a> {
     hover_chain: Vec<NodeId>,
     active_chain: Vec<NodeId>,
     focus_chain: Vec<NodeId>,
+    /// The hosts whose shadow tree holds the focused element: they match
+    /// `:focus` (CSS Scoping; measured, ADR 0036 section 8).
+    focus_hosts: Vec<NodeId>,
     focus: Option<NodeId>,
     focus_visible: bool,
     target: Option<NodeId>,
@@ -377,6 +380,25 @@ impl<'a> StateSet<'a> {
             hover_chain: chain(states.hover),
             active_chain: chain(states.active),
             focus_chain: chain(states.focus),
+            focus_hosts: {
+                let mut hosts: Vec<NodeId> = states
+                    .focus
+                    .filter(|&n| doc.get(n).is_some())
+                    .map(|n| {
+                        // The host of the root of the tree of the element,
+                        // then of the host's tree, and so on.
+                        let mut hosts = Vec::new();
+                        let mut at = n;
+                        while let Some(host) = doc.shadow_host(doc.root(at)) {
+                            hosts.push(host);
+                            at = host;
+                        }
+                        hosts
+                    })
+                    .unwrap_or_default();
+                hosts.sort_unstable();
+                hosts
+            },
             focus: states.focus,
             focus_visible: states.focus_visible,
             target: states.target,
@@ -493,6 +515,9 @@ impl<'a> StateSet<'a> {
         }
         if self.focus_chain.binary_search(&id).is_ok() {
             state |= ElementState::FOCUS_WITHIN;
+        }
+        if !self.focus_hosts.is_empty() && self.focus_hosts.binary_search(&id).is_ok() {
+            state |= ElementState::FOCUS;
         }
         if self.focus == Some(id) && !self.is_iframe(id) {
             state |= ElementState::FOCUS;
@@ -882,6 +907,67 @@ mod tests {
         let s = StateSet::new(&doc, &states);
         assert!(matches(&doc, &s, "inner", ":focus-visible"));
         assert!(!matches(&doc, &s, "outer", ":focus-visible"));
+    }
+
+    /// `:focus` matches the focused element and every host whose shadow
+    /// tree holds it; `:focus-within` the flat ancestors (a host, a slot);
+    /// `:focus-visible` the focused element only (measured, case
+    /// `focus-shadow`).
+    #[test]
+    fn hosts_match_focus_of_their_tree() {
+        use swb_dom::{ShadowRootInit, ShadowRootMode, SlotAssignment};
+        let mut doc =
+            parse_html("<div id=o><div id=h><input id=l slot=x></div></div><div id=other></div>");
+        let (h, l) = (find(&doc, "h"), find(&doc, "l"));
+        let init = ShadowRootInit {
+            mode: ShadowRootMode::Open,
+            slot_assignment: SlotAssignment::Named,
+            delegates_focus: false,
+            clonable: false,
+            serializable: false,
+        };
+        let root = doc.attach_shadow(h, init, false).expect("root");
+        let qual = |n: &str| swb_dom::QualName::new(None, swb_dom::ns!(html), n.into());
+        let wrap = doc.create_element(qual("div"), Vec::new()).expect("div");
+        let slot = doc.create_element(qual("slot"), Vec::new()).expect("slot");
+        doc.set_attr(slot, "name", "x").expect("name");
+        let inner = doc
+            .create_element(qual("input"), Vec::new())
+            .expect("input");
+        doc.append_child(root, wrap).expect("append");
+        doc.append_child(wrap, slot).expect("append");
+        doc.append_child(wrap, inner).expect("append");
+        let state = |focus| ElementStates {
+            focus: Some(focus),
+            focus_visible: true,
+            ..ElementStates::default()
+        };
+        let check = |s: &StateSet<'_>, n: NodeId, selector: &str| {
+            let el = DomElement::new(&doc, n, s).expect("element");
+            let list = SelectorList::parse_str(selector).expect("valid selector");
+            matches_any(&list, &el, &mut MatchingContext::new(QuirksMode::NoQuirks))
+        };
+        // Focus inside the tree: the host matches `:focus` and
+        // `:focus-within`, the document's ancestors of the host only
+        // `:focus-within`, `:focus-visible` is the input's.
+        let s = StateSet::new(&doc, &state(inner));
+        assert!(check(&s, inner, ":focus"));
+        assert!(check(&s, h, ":focus"));
+        assert!(check(&s, h, ":focus-within"));
+        assert!(!check(&s, h, ":focus-visible"));
+        assert!(check(&s, wrap, ":focus-within"));
+        assert!(!check(&s, wrap, ":focus"));
+        let o = find(&doc, "o");
+        assert!(check(&s, o, ":focus-within"));
+        assert!(!check(&s, o, ":focus"));
+        assert!(!check(&s, find(&doc, "other"), ":focus"));
+        // A slotted light element: its slot and the host match
+        // `:focus-within`. The host does not match `:focus`: its shadow tree
+        // does not hold the element, which is in the light tree.
+        let s = StateSet::new(&doc, &state(l));
+        assert!(check(&s, slot, ":focus-within"));
+        assert!(check(&s, h, ":focus-within"));
+        assert!(!check(&s, h, ":focus"));
     }
 
     #[test]

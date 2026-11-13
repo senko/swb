@@ -4,6 +4,45 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-13: M10 feature 5d: events and focus through shadow trees
+
+- The event path follows DOM "get the parent" (assigned slots, hosts) with
+  retargeting, `relatedTarget` per struct, clear targets and the
+  closed-tree flags of `composedPath()` (ADR 0036 sections 7 and 8, "5d
+  implementation notes"). Path nodes are held as node ids and get a
+  wrapper only when a listener or a script needs one: the `dispatchEvent`
+  binding row (bubbling, 10 levels) is 19 % cheaper.
+- The engine's pointer, mouse, wheel, click and key events go to the real
+  hit or focused element; the interim target of 5b is gone. The
+  activation target is searched on the path: a link, button or checkbox
+  inside a shadow tree activates, and a click on shadow content inside a
+  light link follows the link, with scripts on and off.
+- Focus: `activeElement` retargeted, `:focus` on the hosts of the focused
+  element's trees, `delegatesFocus`, the Tab order by focus navigation
+  scopes (hosts and slots; no recursion; documents without shadow trees
+  keep the old code).
+- The probe case `focus-shadow` gave other values in one of three
+  Chromium runs because its `autofocus` focused an element at load; it now
+  sets the attribute later. swb does not process `autofocus` (backlog).
+- Review: an `Event` of a frame's realm dispatched at the page's nodes
+  read node ids in the frame's arena (path nodes now carry their
+  document); Shift+Tab was trapped at a delegating host with a `tabindex`,
+  and `focus()` on a delegating host moved a focus that was already inside
+  it (both measured in Chromium, two new probe cases, 41 in all). The
+  implementer had shrunk two hostile cases from 10,000 to 2,000 hosts
+  because each `slotchange` crossed every later slot (50 million path
+  structs). Now an engine event skips its path when no listener or handler
+  of its type can exist (the types ever listened in the runtime, the `on*`
+  attribute names an arena ever had), and the cases are back at 10,000
+  hosts. A delta review of the fixes found no defect (two edge cases of
+  events from another realm went to the backlog).
+- Results: all target scores unchanged with JS on and off; JS-off snapshot
+  identical; callgrind +0.03 % at most; binding rows within 0.6 %; GitHub
+  load 0.48 s. New hostile cases `shadow-event-path-deep` and
+  `shadow-tab-scopes-100000`.
+- Feature 5 (shadow DOM) is complete. Next: feature 6 (popover, dialog
+  and the top layer).
+
 ## 2026-11-12: M10 feature 5c-2: constructable style sheets and `adoptedStyleSheets`
 
 - `new CSSStyleSheet(options)`, `replace`, `replaceSync` and

@@ -145,24 +145,23 @@ fn kind_of(dom: &Document, node: NodeId) -> Option<Kind> {
     }
 }
 
-/// The activation target for a click on `node`: the element that
-/// [`swb_dom::click_target`] picks (the node, or with `bubbles` an ancestor).
-/// `cut` is the disabled control that ends the event's path: nothing at or
-/// above it is a target.
+/// The activation target for a click: the element that
+/// [`swb_dom::click_target`] picks on `path`, the nodes of the event's path
+/// from its target (the target, or with `bubbles` an element above it,
+/// across shadow trees). A disabled control that cuts the event's path
+/// ends `path` below it: nothing at or above it is a target.
 pub(crate) fn find_target(
     rt: &Runtime,
-    node: NodeId,
+    path: &[NodeId],
     bubbles: bool,
-    cut: Option<NodeId>,
 ) -> VmResult<Option<Activation>> {
     let dom = dom(rt)?;
+    let Some(&node) = path.first() else {
+        return Ok(None);
+    };
     let mut labels = LabelMemo::default();
-    let picked = swb_dom::click_target(dom, node, bubbles, |n, skip_labels| {
-        if Some(n) == cut {
-            ClickRole::Blocked
-        } else {
-            role_of(dom, n, (&mut labels, skip_labels))
-        }
+    let picked = swb_dom::click_target(path, bubbles, |n, skip_labels| {
+        role_of(dom, n, (&mut labels, skip_labels))
     });
     Ok(picked.and_then(|t| {
         Some(Activation {
@@ -646,7 +645,11 @@ fn activate_label(
     let Some(control) = labeled_control(document, label) else {
         return Ok(());
     };
-    if origin == control || document.ancestors(origin).any(|a| a == control) {
+    if origin == control
+        || document
+            .shadow_including_ancestors(origin)
+            .any(|a| a == control)
+    {
         return Ok(());
     }
     if is_disabled(rt, control)? || !state_mut(rt)?.doc.busy.label.insert(label) {

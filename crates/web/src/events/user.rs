@@ -192,7 +192,8 @@ pub(crate) fn has_blocking_listener(
     let mut targets = vec![target];
     if let TargetKind::Node(node) = target {
         let document = dom(rt)?;
-        targets.extend(document.ancestors(node).map(TargetKind::Node));
+        // The engine's wheel event is composed: its path crosses shadow trees.
+        targets.extend(document.event_ancestors(node, true).map(TargetKind::Node));
         if document.is_connected(node) {
             targets.push(TargetKind::Window);
         }

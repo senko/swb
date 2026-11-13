@@ -762,6 +762,14 @@ pub trait EngineHost: Any {
         false
     }
 
+    /// The focus delegate of a shadow host whose root delegates focus (HTML
+    /// "focus delegate"); `None` for other elements and for a tree without
+    /// an element that can be focused.
+    fn focus_delegate(&mut self, host: NodeId) -> Option<NodeId> {
+        let _ = host;
+        None
+    }
+
     /// Moves the focus to `node` or removes it. `visible` sets
     /// `:focus-visible`. The engine does not restyle at once: a loop of
     /// `focus()` calls stays linear.
