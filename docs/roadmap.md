@@ -4523,6 +4523,7 @@ Steps:
    shadow DOM, the top layer); the orchestrator reads it before the code.
    ADR 0034 (modules): accepted 2026-11-07. ADR 0035 (custom elements):
    accepted 2026-11-08. ADR 0036 (shadow DOM): accepted 2026-11-09.
+   ADR 0037 (popover, dialog and the top layer): accepted 2026-11-13.
 3. Features, in this order. Each feature ends with a review and a
    commit, with the checks of M9: JavaScript off by default; the other
    targets keep their scores with JavaScript on and off; a change of a
@@ -4849,6 +4850,37 @@ Steps:
       scripts), `beforetoggle` and `toggle`, light dismiss, `:popover-open`,
       `showModal` and `close`, `::backdrop`, the paint order and hit
       testing of the top layer, Escape.
+      [ADR 0037](adr/0037-top-layer.md), accepted 2026-11-13. What GitHub
+      needs (Chromium replay): 10 popovers, all closed at the load (9
+      `popover=auto` tooltips that its scripts show on hover, and
+      `tool-tip`, `popover=manual`); `:popover-open`; the top-layer
+      rendering of the tooltip; light dismiss on a click. No
+      `popovertarget`, `commandfor` or `<dialog>`. The "..." button of the
+      latest-commit line (list item 7) expands the commit message in the
+      page and opens no popover: the diagnosis counted the hover tooltip.
+      With `popover` in swb, GitHub's popover polyfill no longer runs (as
+      in Chromium); the other targets use none of these features. Five
+      sub-features (scope, files, tests and exit of each in the ADR, "The
+      plan of sub-features"):
+      - 6a popover model, algorithms and bindings (`implementer-hard`):
+        the top-layer state in `swb_dom` with a host trait for scripts and
+        for pages without scripts, show and hide with `beforetoggle` and
+        coalesced `toggle` tasks, the auto and hint stacks, removal and
+        attribute steps, `ToggleEvent`, the popover members, invokers on
+        the script path, `:popover-open`.
+      - 6b the top layer in rendering (`implementer-hard`): `::backdrop`,
+        the top-layer fix-ups of `position`, `overlay`, the UA sheet,
+        top-layer boxes under the initial containing block, their paint
+        order and hit testing.
+      - 6c popover interaction (`implementer`): light dismiss, Escape and
+        close watchers, invokers with JavaScript off, the popover focus
+        steps and the Tab order after the invoker.
+      - 6d dialogs (`implementer-hard`): `show`, `showModal`, `close`,
+        `requestClose`, `returnValue`, `closedBy`, `cancel` and `close`,
+        `method=dialog` with JavaScript on and off, the dialog focus steps,
+        modal dialogs in the top layer.
+      - 6e modal inertness (`implementer`): hit testing, focus, the Tab
+        order, `:hover` and the engine's selection under a modal dialog.
    7. Smaller CSS features (`implementer`; JS on and off): `@container`
       (size queries, container units, names), `@property`,
       `field-sizing`, `color-mix()` with `currentcolor` and transparency,
@@ -4958,6 +4990,16 @@ Steps:
   of a held event after its frame's document is gone throws a `TypeError`.
   GitHub: input events raise page-script errors from `createTreeWalker`
   and `getSelection` (also before 5d; feature 9).
+- Top layer (ADR 0037 section 11; no target uses these): `command`,
+  `commandfor` and `CommandEvent` (GitHub's `command` polyfill keeps
+  running); `interestfor`; the `CloseWatcher` interface (the watchers stay
+  internal); `@starting-style`, `transition-behavior: allow-discrete` and
+  the `overlay` transition (swb has no CSS transitions); the
+  `interactivity` property; the `inert` attribute (the inert style flag
+  of 6e is the place for it); the `toggle` event of `<details>` (the
+  coalesced toggle task of 6a is the mechanism); fullscreen. Not copied:
+  under a modal dialog, Chromium's double click on text outside the
+  dialog selects a word of the dialog.
 - Tests (found 2026-11-12, at the 5c-2 commit): Debian's tzdata went from
   2026b to 2026f, which changes Morocco's rules (UTC+00 after 2026).
   Chromium 148's own data predates that, so the recorded values of

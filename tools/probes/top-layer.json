@@ -1,0 +1,525 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "cases": [
+  {
+   "name": "popover-closed",
+   "html": "<!DOCTYPE html><style>body{margin:0} div{width:100px;height:50px}</style><div popover id=p>hi</div><div id=q>q</div><span popover=manual id=s>s</span>",
+   "measure": [
+    {
+     "boxes": "#p, #q, #s"
+    },
+    {
+     "style": "#p",
+     "props": [
+      "display",
+      "position",
+      "top",
+      "left",
+      "right",
+      "bottom",
+      "margin-top",
+      "margin-left",
+      "border-top-width",
+      "border-top-style",
+      "padding-top",
+      "padding-left",
+      "width",
+      "height",
+      "overflow-x",
+      "color",
+      "background-color",
+      "z-index",
+      "overlay"
+     ]
+    },
+    {
+     "js": "document.querySelector('#p').getClientRects().length"
+    }
+   ]
+  },
+  {
+   "name": "popover-open-ua",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><p id=before>before</p><div popover id=p>hello popover</div><span popover id=s>inline popover</span><p id=after>after</p><script>document.getElementById('p').showPopover()</script>",
+   "measure": [
+    {
+     "boxes": "#before, #p, #after"
+    },
+    {
+     "style": "#p",
+     "props": [
+      "display",
+      "position",
+      "top",
+      "left",
+      "right",
+      "bottom",
+      "margin-top",
+      "margin-left",
+      "border-top-width",
+      "border-top-style",
+      "padding-top",
+      "padding-left",
+      "width",
+      "height",
+      "overflow-x",
+      "color",
+      "background-color",
+      "z-index",
+      "overlay"
+     ]
+    },
+    {
+     "js": "['display','position','top','left','right','bottom','background-color','pointer-events','width','height','overlay'].map(function(x){return x+'='+getComputedStyle(document.querySelector('#p'),'::backdrop').getPropertyValue(x)}).join(' ')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "popover-open-inline",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><span popover=manual id=s>inline popover</span><script>document.getElementById('s').showPopover()</script>",
+   "measure": [
+    {
+     "boxes": "#s"
+    },
+    {
+     "style": "#s",
+     "props": [
+      "display",
+      "position",
+      "width",
+      "height"
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "popover-open-long",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><div popover id=p>word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word </div><script>document.getElementById('p').showPopover()</script>",
+   "measure": [
+    {
+     "boxes": "#p"
+    },
+    {
+     "style": "#p",
+     "props": [
+      "width",
+      "height",
+      "overflow-y"
+     ]
+    },
+    {
+     "js": "[document.getElementById('p').scrollHeight,document.getElementById('p').clientHeight]"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "dialog-nonmodal",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><p id=before>before</p><dialog open id=d>hello dialog</dialog><p id=after>after</p><dialog id=c>closed</dialog>",
+   "measure": [
+    {
+     "boxes": "#before, #d, #after, #c"
+    },
+    {
+     "style": "#d",
+     "props": [
+      "display",
+      "position",
+      "top",
+      "left",
+      "right",
+      "bottom",
+      "margin-top",
+      "margin-left",
+      "border-top-width",
+      "border-top-style",
+      "padding-top",
+      "padding-left",
+      "width",
+      "height",
+      "overflow-x",
+      "color",
+      "background-color",
+      "z-index",
+      "overlay",
+      "max-width",
+      "max-height",
+      "visibility",
+      "inset-inline-start",
+      "inset-inline-end"
+     ]
+    },
+    {
+     "style": "#c",
+     "props": [
+      "display"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "dialog-nonmodal-in-relative",
+   "html": "<!DOCTYPE html><style>body{margin:0} #w{position:relative;margin:40px;width:300px;height:200px;transform:translateX(10px)}</style><div id=w><dialog open id=d>in a relative box</dialog></div>",
+   "measure": [
+    {
+     "boxes": "#w, #d"
+    }
+   ]
+  },
+  {
+   "name": "dialog-modal-ua",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><p id=before>before</p><dialog id=d>hello modal</dialog><p id=after>after</p><script>document.getElementById('d').showModal()</script>",
+   "measure": [
+    {
+     "boxes": "#before, #d, #after"
+    },
+    {
+     "style": "#d",
+     "props": [
+      "display",
+      "position",
+      "top",
+      "left",
+      "right",
+      "bottom",
+      "margin-top",
+      "margin-left",
+      "border-top-width",
+      "border-top-style",
+      "padding-top",
+      "padding-left",
+      "width",
+      "height",
+      "overflow-x",
+      "color",
+      "background-color",
+      "z-index",
+      "overlay",
+      "max-width",
+      "max-height",
+      "visibility",
+      "inset-inline-start",
+      "inset-inline-end"
+     ]
+    },
+    {
+     "js": "['display','position','top','left','right','bottom','background-color','pointer-events','width','height','overlay'].map(function(x){return x+'='+getComputedStyle(document.querySelector('#d'),'::backdrop').getPropertyValue(x)}).join(' ')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "dialog-modal-big",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><dialog id=d><div style='width:2000px;height:2000px'>big</div></dialog><script>document.getElementById('d').showModal()</script>",
+   "measure": [
+    {
+     "boxes": "#d"
+    },
+    {
+     "style": "#d",
+     "props": [
+      "width",
+      "height",
+      "max-width",
+      "max-height",
+      "overflow-x",
+      "overflow-y"
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "dialog-modal-scrolled",
+   "html": "<!DOCTYPE html><style>body{margin:0} #tall{height:3000px}</style><div id=tall></div><dialog id=d>modal</dialog><div popover id=p>pop</div><div popover=manual id=a style='position:absolute;inset:auto;left:30px;top:40px;margin:0'>abs</div><script>scrollTo(0,500);document.getElementById('d').showModal();document.getElementById('a').showPopover()</script>",
+   "measure": [
+    {
+     "js": "scrollY"
+    },
+    {
+     "boxes": "#d, #a"
+    },
+    {
+     "js": "['d','a'].map(function(i){var r=document.getElementById(i).getBoundingClientRect();return i+':'+r.x+','+r.y}).join(' ')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "escape-ancestors",
+   "html": "<!DOCTYPE html><style>body{margin:0;padding-top:1px} .w{margin:20px;width:50px;height:50px} [popover]{inset:auto;left:300px;top:200px;margin:0;width:80px;height:40px;background:rgb(255,0,0);border:0;padding:0}</style><div class=w style='transform:translate(30px,30px)'><div popover=manual id=p1>t</div></div><div class=w style='overflow:hidden;position:relative'><div popover=manual id=p2 style='top:250px'>o</div></div><div class=w style='contain:paint'><div popover=manual id=p3 style='top:300px'>c</div></div><div class=w style='filter:blur(0px)'><div popover=manual id=p4 style='top:350px'>f</div></div><div class=w style='opacity:0.5'><div popover=manual id=p5 style='top:400px'>o</div></div><div class=w style='display:none'><div popover=manual id=p6 style='top:450px'>n</div></div><script>for(var i=1;i<=6;i++)document.getElementById('p'+i).showPopover()</script>",
+   "measure": [
+    {
+     "boxes": "#p1, #p2, #p3, #p4, #p5, #p6"
+    },
+    {
+     "pixels": "body",
+     "points": [
+      [
+       340,
+       220
+      ],
+      [
+       340,
+       270
+      ],
+      [
+       340,
+       320
+      ],
+      [
+       340,
+       370
+      ],
+      [
+       340,
+       420
+      ]
+     ]
+    },
+    {
+     "js": "document.getElementById('p6').matches(':popover-open')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "escape-ancestors-modal",
+   "html": "<!DOCTYPE html><style>body{margin:0} #w{margin:20px;width:50px;height:50px;overflow:hidden;transform:scale(0.5)}</style><div id=w><dialog id=d>modal in a transformed clip</dialog></div><script>document.getElementById('d').showModal()</script>",
+   "measure": [
+    {
+     "boxes": "#w, #d"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "top-layer-paint-order",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:white} [popover]{inset:auto;margin:0;border:0;padding:0;width:100px;height:100px} #a{left:0;top:0;background:rgb(255,0,0);z-index:5} #b{left:50px;top:50px;background:rgb(0,0,255);z-index:-5} #z{position:fixed;left:0;top:0;width:200px;height:200px;z-index:2147483647;background:rgb(0,255,0)}</style><div id=z></div><div popover=manual id=a></div><div popover=manual id=b></div><script>document.getElementById('a').showPopover();document.getElementById('b').showPopover()</script>",
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       25,
+       25
+      ],
+      [
+       75,
+       75
+      ],
+      [
+       125,
+       125
+      ],
+      [
+       175,
+       175
+      ]
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "backdrop-paint",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:white} #d{width:50px;height:30px} #e::backdrop{background:rgb(0,0,255)} #m{inset:auto;left:0;top:0;margin:0;width:60px;height:60px;background:rgb(255,0,0);border:0}</style><div popover=manual id=m></div><dialog id=d>d</dialog><script>document.getElementById('m').showPopover();document.getElementById('d').showModal()</script>",
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       30,
+       30
+      ],
+      [
+       700,
+       500
+      ]
+     ]
+    },
+    {
+     "js": "getComputedStyle(document.getElementById('d'),'::backdrop').backgroundColor"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "backdrop-author",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:white} #d{width:50px;height:30px} #d::backdrop{background:rgb(0,0,255);inset:auto;top:100px;left:100px;width:50px;height:50px} #p::backdrop{background:rgb(0,255,0);inset:auto;left:300px;top:300px;width:40px;height:40px} #p{inset:auto;left:600px;top:400px;margin:0}</style><dialog id=d>d</dialog><div popover=manual id=p>p</div><script>document.getElementById('d').showModal();document.getElementById('p').showPopover()</script>",
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       5,
+       5
+      ],
+      [
+       120,
+       120
+      ],
+      [
+       320,
+       320
+      ],
+      [
+       700,
+       500
+      ]
+     ]
+    },
+    {
+     "js": "['#d','#p'].map(function(s){return s+':'+['position','top','left','width','height','background-color'].map(function(x){return getComputedStyle(document.querySelector(s),'::backdrop').getPropertyValue(x)}).join('/')}).join(' ')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "popover-author-display",
+   "html": "<!DOCTYPE html><style>body{margin:0} [popover]{display:block} #h{display:none}</style><div popover id=p>closed but display block</div><div popover=manual id=h>open but display none</div><div popover=manual hidden id=x>hidden attribute</div><script>document.getElementById('h').showPopover();document.getElementById('x').showPopover()</script>",
+   "measure": [
+    {
+     "boxes": "#p, #h, #x"
+    },
+    {
+     "style": "#p",
+     "props": [
+      "display",
+      "position",
+      "overlay"
+     ]
+    },
+    {
+     "js": "['p','h','x'].map(function(i){var e=document.getElementById(i);return i+':'+e.matches(':popover-open')+':'+e.getClientRects().length}).join(' ')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "popover-author-position",
+   "html": "<!DOCTYPE html><style>body{margin:0} #w{position:relative;left:100px;top:100px;width:200px;height:200px} #p{position:absolute;inset:auto;left:30px;top:40px;margin:0} #q{position:static;margin:0} #r{position:relative;inset:auto;left:10px;top:10px}</style><div id=w><div popover=manual id=p>abs</div><div popover=manual id=q>static</div><div popover=manual id=r>rel</div></div><script>['p','q','r'].forEach(function(i){document.getElementById(i).showPopover()})</script>",
+   "measure": [
+    {
+     "boxes": "#w, #p, #q, #r"
+    },
+    {
+     "style": "#q",
+     "props": [
+      "position",
+      "display"
+     ]
+    },
+    {
+     "style": "#r",
+     "props": [
+      "position"
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "popover-shadow-host",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><x-tip id=t popover=manual>label</x-tip><script>var r=document.getElementById('t').attachShadow({mode:'open'});r.innerHTML='<style>:host{position:absolute;inset:auto;left:10px;top:20px;margin:0;padding:4px} :host(:popover-open){background:rgb(1,2,3)}</style><slot></slot>';document.getElementById('t').showPopover()</script>",
+   "measure": [
+    {
+     "boxes": "#t"
+    },
+    {
+     "style": "#t",
+     "props": [
+      "background-color",
+      "position",
+      "display",
+      "left",
+      "top"
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "popover-in-shadow-tree",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><div id=h style='transform:translateX(50px);overflow:hidden;width:20px;height:20px'></div><script>var r=document.getElementById('h').attachShadow({mode:'open'});r.innerHTML='<div popover id=p style=\"inset:auto;left:100px;top:100px;margin:0;width:80px;height:30px\">in shadow</div>';r.getElementById('p').showPopover()</script>",
+   "measure": [
+    {
+     "boxes": "#h"
+    },
+    {
+     "js": "(function(){var r=document.getElementById('h').shadowRoot.getElementById('p').getBoundingClientRect();return [r.x,r.y,r.width,r.height]})()"
+    },
+    {
+     "js": "(function(){var e=document.elementFromPoint(120,110);return e.id+':'+document.getElementById('h').shadowRoot.elementFromPoint(120,110).id})()"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "dialog-modal-in-iframe",
+   "html": "<!DOCTYPE html><style>body{margin:0} iframe{position:absolute;left:100px;top:100px;width:300px;height:200px;border:0}</style><iframe id=f srcdoc=\"<style>body{margin:0}</style><dialog id=d>in frame</dialog><script>document.getElementById('d').showModal()</script>\"></iframe><button id=b style='position:absolute;left:10px;top:10px'>outer</button>",
+   "measure": [
+    {
+     "boxes": "#f, #b"
+    },
+    {
+     "js": "(function(){var r=document.getElementById('d').getBoundingClientRect();return [r.x,r.y,r.width,r.height,document.getElementById('d').matches(':modal')]})()",
+     "frame": "#f"
+    },
+    {
+     "js": "document.elementFromPoint(20,20).id+':'+document.elementFromPoint(250,200).id"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "overlay-and-states",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><div popover id=p>p</div><dialog id=d>d</dialog><dialog id=n>n</dialog><details id=x open><summary>s</summary>t</details><script>document.getElementById('p').showPopover();document.getElementById('d').showModal();document.getElementById('n').show()</script>",
+   "measure": [
+    {
+     "js": "['p','d','n','x'].map(function(i){var e=document.getElementById(i);return i+':'+getComputedStyle(e).overlay+':'+[':popover-open',':modal',':open'].filter(function(s){return e.matches(s)}).join('')}).join(' ')"
+    },
+    {
+     "style": "#n",
+     "props": [
+      "position",
+      "overlay"
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "popover-and-dialog-js-off",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><button popovertarget=p>open</button><div popover id=p>p</div><dialog open id=d>open dialog</dialog><dialog id=c>closed</dialog><x-tip popover=manual id=t class=a>tip</x-tip>",
+   "measure": [
+    {
+     "boxes": "#p, #d, #c, #t"
+    },
+    {
+     "style": "#d",
+     "props": [
+      "position",
+      "left",
+      "top",
+      "width"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "backdrop-inheritance",
+   "html": "<!DOCTYPE html><style>body{margin:0;color:rgb(9,9,9);--v:body} #d{color:rgb(1,1,1);--v:dialog;font-size:30px} #d::backdrop{border:solid currentcolor;border-width:1em;padding:var(--v)}</style><dialog id=d>d</dialog><script>document.getElementById('d').showModal()</script>",
+   "measure": [
+    {
+     "js": "['color','border-top-color','border-top-width','font-size'].map(function(x){return x+'='+getComputedStyle(document.getElementById('d'),'::backdrop').getPropertyValue(x)}).join(' ')"
+    }
+   ],
+   "javascript": true
+  }
+ ]
+}

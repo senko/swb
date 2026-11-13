@@ -1,0 +1,944 @@
+# ADR 0037: Popover, dialog and the top layer
+
+- Status: accepted
+- Date: 2026-11-13
+
+## Context
+
+M10 feature 6 (roadmap, M10 step 3): the `popover` attribute and its states,
+`showPopover`, `hidePopover`, `togglePopover`, `popovertarget` and
+`popovertargetaction` (also with JavaScript off), `beforetoggle` and
+`toggle`, light dismiss, `:popover-open`, `<dialog>` (`show`, `showModal`,
+`close`, `returnValue`, the `open` attribute, `cancel` and `close`,
+`form method=dialog`), modal inertness, `::backdrop`, `:modal`, the paint
+order and hit testing of the top layer, and Escape (close requests). JS on
+and off.
+
+What exists (read in swb's code at a7198f2):
+
+- **Selectors.** `ElementState` (`crates/css/src/selector/matching.rs`) has
+  the bits `OPEN` (25), `MODAL` (26), `FULLSCREEN` (27) and `POPOVER_OPEN`
+  (28); bits 29 to 31 are free. `:open`, `:modal`, `:popover-open` and
+  `:fullscreen` parse (`STATE_PSEUDO_CLASSES`). `::backdrop` parses
+  (`PseudoElement::Backdrop`). `DomElement::attribute_form_state`
+  (`crates/style/src/element.rs`) sets `OPEN` for `details` and `dialog`
+  with an `open` attribute. Nothing sets `MODAL` or `POPOVER_OPEN`, so
+  `:modal` and `:popover-open` never match.
+- **Style.** The UA sheet (`crates/style/src/ua.css`) has `dialog` (block,
+  `position: absolute`, `inset-inline: 0`, `fit-content`, `margin: auto`,
+  `border: solid`, `padding: 1em`), `dialog:not([open]) { display: none }`,
+  `[popover]:not(:popover-open):not(dialog[open]) { display: none }` and
+  `[popover]` (`position: fixed`, `inset: 0`, `fit-content`, `margin: auto`,
+  `border: solid`, `padding: .25em`, `overflow: auto`). There is no
+  `::backdrop` and no `dialog:modal` rule. `RuleTarget::of`
+  (`crates/style/src/stylist.rs`) keeps rules for `::before`, `::after`,
+  `::marker` and `::placeholder` and drops all other pseudo-element rules,
+  `::backdrop` included. `PseudoKind` (`style_map.rs`) has no backdrop.
+  `getComputedStyle(el, '::backdrop')` gives the element's inherited values
+  (`PseudoElement::Unstyled`).
+- **`inert`.** The `inert` attribute is only reflected (`html.idl`); no code
+  reads it. (`crates/style/src/properties/inert.rs` is about CSS
+  properties without effect, not about this.)
+- **Layout.** `layout_with` builds the box of the root element, lays it out
+  and then places out-of-flow boxes (`positioned.rs`,
+  `place_out_of_flow` with a `Scope { absolute, fixed }` that follows
+  transforms and filters). `contain: paint` does not make a containing
+  block in swb. The box tree has `MAX_BOX_DEPTH` 256.
+- **Paint and hit testing.** `build_display_list`
+  (`crates/paint/src/display_list/builder.rs`) paints the root stacking
+  context; positioned boxes are deferred per context and sorted by
+  `(z, tree order)`. `hit_test_with` walks the items in paint order; the last
+  region that contains the point wins. `HitRegion` items come from
+  `paint_box` for visible boxes without `pointer-events: none`.
+- **Input.** `page/input.rs`: `mouse_down` and `mouse_up` dispatch pointer
+  and mouse events (JS on) or run the engine's activation
+  (`page/forms.rs`, `activate`, JS off). `key_down` dispatches `keydown`
+  and then runs `key_default` (Tab, Enter, Space, Ctrl+A, scroll keys).
+  Escape has no default action in the page; the frame tree records
+  activations (`Frames::note_activation`, sticky activation only) and
+  Escape is no activation.
+- **Forms.** `forms/submit.rs` logs "dialog forms are not supported" for
+  `method=dialog` and does not submit.
+- **Events.** No `toggle` event is fired anywhere: `<details>` changes its
+  `open` attribute without events (JS on: `crates/web/src/html/activation.rs`,
+  JS off: `page/forms.rs`). The handler names `onbeforetoggle`, `ontoggle`,
+  `oncancel`, `onclose` and `oncommand` exist.
+- **Bindings.** `HTMLDialogElement` has only `open`
+  (`crates/web/idl/html.idl`); `HTMLElement` has no popover members;
+  `HTMLButtonElement` and `HTMLInputElement` have no `popoverTarget*`;
+  `ToggleEvent` does not exist.
+- **DOM.** `ElementData` is 64 bytes (pinned by a test). Its
+  `shadow_flags: u8` (ADR 0036) uses the bits `HOST` and `SLOT`; bits 2 to
+  7 are free. `Document` has per-arena side state behind `Option<Box<_>>`
+  (`shadow`), which costs one test on pages that do not use it.
+- **Frames.** Each document has its own `DocumentState`
+  (`crates/engine/src/document/mod.rs`; ADR 0031), with its own style,
+  layout, display list and hit testing.
+
+Sources: the HTML Standard (§6.12 "The popover attribute": the states,
+"check popover validity", "show popover", "hide popover algorithm",
+"topmost popover ancestor", "nearest inclusive open popover", "hide all
+popovers until", "light dismiss open popovers", "topmost clicked popover",
+"popover target attributes", "queue a popover toggle event task",
+`ToggleEvent`; §4.11.4 "The dialog element": `show`, `showModal`,
+`close`, `requestClose`, "close the dialog", "dialog focusing steps",
+"previously focused element", `closedby`, `returnValue`; §6.6.1 "inert
+subtrees" and "blocked by a modal dialog"; §6.4 "Close requests and close
+watchers": the close watcher manager, groups, "request close", "process
+close watchers"; §4.10.21.3 form submission with method `dialog`; §15.3
+the rendering of `dialog`, `[popover]` and `::backdrop`), CSS Position 4
+(§"Top layer": the rendering of top-layer elements, the `::backdrop`
+pseudo-element, the `overlay` property), Selectors 4 (`:modal`,
+`:popover-open`, `:open`), UI Events (the keys that are not activation),
+text of 2026-11-13. Measurements in Chromium 148 (below). The session that
+wrote this ADR read no browser or engine source code and no polyfill
+internals beyond the calls that the pages make.
+
+### What GitHub needs
+
+Measured in Chromium's replay of `fixtures/js/github-swb` with an init
+script that wraps `showPopover`, `hidePopover`, `togglePopover`, the
+`popover` accessors, the `HTMLDialogElement` members, `popoverTargetElement`,
+`popoverTargetAction`, `command` and `commandForElement` of buttons and
+inputs, `setAttribute` of the top-layer attributes, `matches`,
+`querySelector*` and `closest` with top-layer selectors, `CSS.supports`,
+`addEventListener` for `beforetoggle`, `toggle`, `cancel`, `close` and
+`command`, and that logs those events in the capture phase at the window
+(`swbtools replay github-swb --init-script FILE --steps FILE --record
+EXPR`). Steps: a wait of 2 s; a hover over the latest-commit "..." button;
+a click on it; Escape; a click on it again; a click outside; a click on
+the Code button; Escape; the branch selector; Escape; the "Platform" menu;
+Escape; a hover over the check icon; three Tab presses.
+
+| Item | Chromium replay |
+|---|---|
+| `popover` elements | 10, all closed after the load: `tool-tip` (`popover=manual`, the only one in the HTML), 7 `span.prc-TooltipV2-Tooltip` (`popover=auto`, set with `setAttribute` by React after `load`), 2 `div.Primer_Brand__Tooltip` (`popover=auto`) |
+| `showPopover` | 1 per hover: the hover over the "..." button shows a TooltipV2 span (an auto popover, 125 x 28 px at (166, 358)); the hover over the check icon shows another one (59 x 28 at (235, 358)). The `beforetoggle` and `toggle` events are trusted |
+| `hidePopover`, `togglePopover` | 0. The click on the "..." button hides the open tooltip by light dismiss (`beforetoggle` `open>closed` without a call) |
+| `popovertarget`, `commandfor`, `<dialog>`, `showModal`, `requestClose` | 0 in the DOM and 0 calls |
+| `popoverTargetElement` | 2 reads, by `tool-tip` on its button at its upgrade |
+| Selectors | `matches(':popover-open')` on the tooltips (10 per step), `matches(':modal')` once, `querySelectorAll('dialog:modal, [role="dialog"][aria-modal="true"]')` on each Escape |
+| `CSS.supports` | `position-anchor --name` (anchor positioning: backlog) |
+| The "..." button, Code, branch selector, header menus | not popovers: the "..." button expands the commit message in the page; Code, the branch selector and the menus are React portal `div`s (Primer `AnchoredOverlay`), which ADR 0036 and feature 9 cover |
+
+So GitHub's first view and list items 3 to 7 need: auto popovers shown by
+script, `:popover-open`, the top-layer rendering of the tooltip (fixed
+position, outside its clipping ancestors), light dismiss on a click, and
+`dialog:modal` as a valid selector that matches nothing. The diagnosis's
+"the latest-commit '...' button opens a popover (`:popover-open` 1 after
+the click)" was the hover tooltip: the hover step came before the click.
+
+Paths that change in swb once it has `popover` (read in the fixture's
+files; the targets must keep their scores and integration tests):
+
+- **The popover polyfill** (`8c15e77219dac0be.js`) installs only if
+  `!("popover" in HTMLElement.prototype)`. With feature 6 it no longer
+  runs: it no longer wraps `attachShadow`, no longer rewrites
+  `:popover-open` in `querySelector`, `matches` and `closest` to the class
+  `.\:popover-open`, no longer defines `window.ToggleEvent`, and no longer
+  adopts its constructed sheet into the document and the 24 shadow roots.
+  `crates/automation/tests/github.rs` asserts that sheet (ADR 0036 5c-2:
+  `tool-tip:1`, `relative-time:1`, `documentAdopted` 1, `adoptedSheets` 1);
+  sub-feature 6a changes those assertions to Chromium's values (no adopted
+  sheet anywhere).
+- **The `command` polyfill** (`c54db17eb2a4141c.js`) tests
+  `"command" in HTMLButtonElement.prototype && "source" in
+  CommandEvent.prototype` and another helper tests that
+  `document.body.showPopover` is native (`/native code/` in its
+  `toString()`; swb's natives print `function showPopover() { [native code]
+  }`, as Chromium). It keeps running in swb (no `command`, section 11).
+- **TooltipV2 and `tool-tip`** take their native paths: `showPopover` on
+  hover and focus, `:popover-open` in their CSS.
+- **Other targets** (same tracer, load and the steps of their integration
+  tests: `crates/automation/tests/data/bbc-steps.json`,
+  `ars-technica-steps.json`): no `popover`, no `<dialog>`, no call. BBC's
+  "Save" popover is a React portal `div` (`togglePopover` in BBC's bundle is
+  a React prop name); React registers `cancel`, `close` and `toggle`
+  listeners on its root (its non-delegated events), which nothing fires.
+  Ars Technica has Tailwind's `*,::backdrop,:after,:before{--tw-...}` and
+  Alpine's `[x-dialog]`. Wikipedia, Hacker News, Craigslist and senko.net:
+  nothing. JS-off fixtures: GitHub's closed `tool-tip` (hidden by the UA
+  sheet, as today) and 4 `::backdrop` rules, which apply only to elements
+  in the top layer. Expected change for all targets other than GitHub: none.
+
+### Measurements
+
+Two new probe files: `tools/probes/web-top-layer.json` (JavaScript and
+events; 61 cases, 237 queries; 43 cases with input `steps`) and
+`tools/probes/top-layer.json` (boxes, computed values and pixels; 22 cases,
+51 queries; 18 with JavaScript to open popovers and dialogs). The web file
+has the logging header of `web-shadow-dom.json` with helpers: `on(target,
+types)` logs events as `type:target(old>new)` with `!` for a cancelable
+event, `OP()` lists the open popovers and dialogs (`*` for modal), `WR()`
+waits 30 ms for the event tasks, `CL()` closes everything and `mk()` makes
+a popover. Each query that starts with `CL();` first closes everything and
+waits until the `toggle` tasks have fired, so that a query sees only its own
+events. Cases with steps read their log after 150 ms. Chromium runs a
+dialog's `close` task and its `toggle` task in either order (two task
+sources; varies between runs): the dialog cases list those two kinds sorted
+after `||` (`NZ()`). The JS-off invoker cases (`noscript-*`) run with a
+`Content-Security-Policy: script-src 'none'` meta element: Chromium does not
+run the page's scripts, the probe's queries still run (`typeof window.RAN`
+is `"undefined"` in each).
+
+**User activation in the probe tool.** The tool evaluates scripts in the
+top-level page after `load` and before the steps (`wait_for_fonts`,
+`stop_animations`); Playwright's evaluations count as a user gesture. So
+every probe page has a sticky, a transient and a history-action activation
+before its first step (measured in the four main-frame Escape cases, which
+log `navigator.userActivation` from the page's own script: `false/false`
+at `load`, `true/true` at the first Escape's `keydown`). Watchers made
+before that activation (in `load` handlers) are still in the first group.
+The `xo-*` cases measure the state without any activation: their dialogs
+and popovers are in a cross-origin iframe (`$OTHER`), which the parent
+focuses at `load`; Chromium gives an activation to the frame, its
+ancestors and the frames of the same origin, so the cross-origin frame has
+none (`false/false` at each Escape) until a step clicks in it. The swb
+tests must reproduce this: before the steps of a main-frame case, note one
+user activation for the top-level page after `load` (with the frame tree's
+existing rule: the frame, its ancestors and the same-origin frames); a
+cross-origin frame gets none.
+
+Chromium 148, three runs of each file, equal values.
+
+| Question | Case | Chromium |
+|---|---|---|
+| Members | `api-surface` | `HTMLDialogElement.prototype`: `close, closedBy, open, requestClose, returnValue, show, showModal`; `HTMLElement`: `popover, showPopover, hidePopover, togglePopover, onbeforetoggle, ontoggle, oncommand, oncancel, onclose, inert`, no `interestForElement`; `HTMLButtonElement`: `popoverTargetElement, popoverTargetAction, command, commandForElement, interestForElement`; `HTMLInputElement`: `popoverTargetElement, popoverTargetAction`; `ToggleEvent`, `CommandEvent`, `CloseWatcher` exist; `ToggleEvent.prototype`: `newState, oldState, source`; lengths: `showPopover`, `togglePopover`, `hidePopover`, `close`, `show`, `requestClose` 0, `ToggleEvent` 1. `CSS.supports`: `:popover-open`, `:modal`, `:open`, `::backdrop`, `:popover-open::backdrop`, `dialog:modal::backdrop`, `:fullscreen` true; `:closed`, `::backdrop:hover` false; `overlay`, `transition-behavior`, `interactivity`, `position-anchor`, `position-try` true. `new ToggleEvent('toggle', {oldState, newState})`: not bubbling, not cancelable, not composed, `source` null; without arguments: `TypeError: Failed to construct 'ToggleEvent': 1 argument required, but only 0 present.`; `{source: 5}`: `... Failed to read the 'source' property from 'ToggleEventInit': Failed to convert value to 'Element'.`. Natives print `function showPopover() { [native code] }` |
+| Reflection | `popover-reflection` | `popover`: missing → `null`; `""`, `auto`, `AUTO` → `auto`; `manual`, `Manual` → `manual`; `hint` → `hint`; `bogus`, `" auto"` → `manual`; setting `null` or `undefined` removes the attribute. `popoverTargetAction`: missing, `""`, invalid → `toggle`; ASCII case-insensitive. `popoverTargetElement`: the element with the id in the same tree, also when it is not a popover; setting an element writes `popovertarget=""`; `null` removes the attribute; an element in a shadow tree below the button's tree gives `null`; a button in a shadow tree returns an element of the document (an ancestor tree); a detached button returns `null`; a target that was removed gives `null`. `closedBy`: `any`, `closerequest`, `none` (case-insensitive), invalid and empty → `none`; missing → `closerequest` for a modal dialog, `none` otherwise. `returnValue` is a string (`5` → `"5"`); `open = true` writes `open=""` and does not make the dialog modal |
+| Show and hide | `show-hide-events` | `showPopover`: `beforetoggle` (`closed>open`, cancelable) in the call, the element matches `:popover-open` when the call returns, `toggle` in a later task; a second `showPopover` does nothing (no event, no exception); `hidePopover`: `beforetoggle` (`open>closed`, not cancelable), `toggle` later; on a hidden popover nothing. `togglePopover()` returns the new state; `togglePopover(true)` on an open popover returns true without events; `{force: true}` works as `true`; `{}` toggles. Both events: `ToggleEvent`, `bubbles` false, `composed` false, trusted, `source` null when no source was given. `onbeforetoggle` and the `ontoggle` content attribute run |
+| `toggle` coalescing | `toggle-coalescing` | one `toggle` task per element: show + hide in one task → one `toggle` `closed>closed`; show, hide, show → `closed>open`; hide, show → `open>open`; the old state is kept and the task moves to the end (`pa` show, `pb` hide, `pa` hide → `pb(open>closed)` then `pa(closed>closed)`); show and a hide in a microtask: one event; show and a hide in a timer: two events |
+| Cancel | `beforetoggle-cancel` | `preventDefault()` on the show event: the popover stays closed, no `toggle`, no exception, `togglePopover()` returns false; the hide event cannot be canceled; an invoker's show can be canceled |
+| Exceptions | `exceptions` | not a popover: `NotSupportedError: Failed to execute 'showPopover' on 'HTMLElement': Not supported on elements that are not popovers.` (same for `togglePopover`; `hidePopover` adds ` This might have been the result of the "beforetoggle" event handler changing the state of this popover.`); disconnected: `InvalidStateError: ...: Invalid on disconnected popover elements.` for `showPopover` and `togglePopover`, `hidePopover` does nothing; an open non-modal `<dialog popover>`: `showPopover` does nothing; a popover in a document without a browsing context or in template contents: `InvalidStateError: ...: Invalid for popovers within documents that are not fully active.`; `showModal` there: `... Invalid for dialogs within documents that are not fully active.`; `{source: 5}`: `TypeError: ...: Failed to read the 'source' property from 'ShowPopoverOptions': Failed to convert value to 'HTMLElement'.`; `showPopover(5)`: `... The provided value is not of type 'ShowPopoverOptions'.`; `showPopover(null)` shows |
+| Changes in `beforetoggle` | `beforetoggle-mutations` | removal in the show event: `InvalidStateError: ...: Invalid on disconnected popover elements. This might have been the result of the "beforetoggle" event handler changing the state of this popover.`; a `popover` change from auto to manual in the event: the popover opens (as manual); `hidePopover()` in the show event: no effect, the popover opens; showing another auto popover in the event: that one opens and is closed again by the first one's show; `showPopover()` of the same element in its own event recurses (each inner call fires a new event and returns) and the element opens once; `hidePopover()` in the `toggle` handler hides it; `showPopover()` in the hide event: the hide continues |
+| Removal and attribute changes | `removal-and-attribute-while-open` | removal (also of an ancestor, also a move with `appendChild`, also adoption into another document) hides the popover without `beforetoggle`; its pending `toggle` task still fires; changing `popover` to another state (`manual`, `hint`, `bogus`, removed) while open: `beforetoggle` `open>closed` (not cancelable), then hidden, `toggle` later; the same state in another spelling (`AUTO`, `""`) keeps it open |
+| Auto stack, DOM | `auto-stack-dom` | nested popovers stay open together; an unrelated auto popover closes the stack from the top (`p3`, `p2`, `p1` events in that order) before its own `toggle`; `hidePopover` of a middle popover closes the ones above it first; a manual popover stays open; showing a nested popover whose parent popover is closed closes the others; a popover inside an open manual popover is not nested in it |
+| Auto stack, invoker and source | `auto-stack-invoker-and-source` | a popover shown by an invoker inside an open popover is nested (stays open); shown by script without a source it is not (the first closes); `showPopover({source})` and `togglePopover({source, force: true})` nest like an invoker; a second click on an invoker hides its popover; `popovertargetaction=show` and `hide` act once; hiding the outer popover through its invoker hides the nested one first; removing the source button after the show breaks the nesting for later shows |
+| Hint | `hint-popovers` | a new hint closes an unrelated open hint; an auto popover closes the open hints; a hint inside an open auto popover stays open, also when another hint opens after it; hiding an auto popover closes the open hints |
+| Invoker controls | `invokers-types` | with `popovertarget` and a synthetic `click()`: `button` (any type, outside a form), `input` `button`, `submit`, `reset`, `image` toggle the popover; `checkbox`, `text`, `a`, `div`, a disabled button and a button in a disabled `fieldset` do nothing; a target that is not a popover or a missing id: nothing; in a form: a submit button submits and does not toggle, a reset button resets and does not toggle, `type=button` and `input type=button` toggle. A dispatched `MouseEvent` or `PointerEvent` `click` toggles, a plain `Event('click')` does not; a canceled `click` does not; a click on a child of the button does. An invoker inside its own popover: `toggle` on a closed popover opens it, on an open one closes it. A `<dialog popover>` target opens as a popover (`open` stays false) |
+| Invokers and shadow trees | `invokers-shadow` | an id resolves in the button's own tree only (a light button does not find a shadow id and the reverse); `popoverTargetElement` to an element in an ancestor tree works; to a descendant tree gives `null` and does nothing. A host can be a popover (`tool-tip`): `:host(:popover-open)` matches, `position` computes to `fixed`. A popover in a shadow tree inside an open popover is nested in it (flat tree) |
+| Dialog | `dialog-basics` | `show()`: `beforetoggle` (`closed>open`, cancelable) and `toggle` fire for dialogs too; `open` attribute set; `:open` matches, `:modal` not. `showModal()` on an open non-modal dialog: `InvalidStateError: Failed to execute 'showModal' on 'HTMLDialogElement': The dialog is already open as a non-modal dialog, and therefore cannot be opened as a modal dialog.`; `show()` on a modal one: `... 'show' ...: The dialog is already open as a modal dialog, and therefore cannot be opened as a non-modal dialog.`; `showModal()` on an open modal dialog does nothing; on an open popover dialog: `... The dialog is already open as a Popover, and therefore cannot be opened as a modal dialog.`; on a detached dialog: `... The element is not in a Document.`; `show()` on a detached dialog works. `close(rv)`: `beforetoggle` `open>closed`, `returnValue` set, `close` (task, not bubbling, not cancelable, `Event`); `close()` on a closed dialog: nothing, `returnValue` unchanged. Two modal dialogs: both `:modal`. `requestClose(rv)`: `cancel` (`Event`, cancelable, not bubbling) then the close; a canceled `cancel` keeps it open and keeps the old `returnValue`; `closedby=none`: `requestClose` still fires `cancel` and closes. `removeAttribute('open')` on a modal dialog: `open` false, `:modal` stays true, no events; the dialog stays in the top layer and the document stays blocked (the next queries cannot focus outside it), and `close()` then does nothing. `open = true`/`false` by script: no events |
+| `method=dialog` | `dialog-form` | `submit` fires (cancelable); then the dialog closes with the submitter's value (`button value`, `input type=submit value`, `input type=image` with the click coordinates `"0,0"`); a submitter without a value keeps the old `returnValue`; `formmethod=dialog` on a button of a normal form works; a `method=dialog` form outside a dialog: `submit`, no navigation, nothing else; `requestSubmit()` and `submit()` close the dialog without changing `returnValue`; a canceled `submit` keeps it open; a modal dialog closes the same way |
+| Dialog focus | `dialog-focus` | `showModal` and `show` focus: the `autofocus` descendant, else the first focusable area in tree order (also `tabindex=-1`, also inside a shadow tree: the host's root `activeElement`), else the dialog itself; an `autofocus` attribute on the dialog is ignored (its first input gets focus). `close()` focuses the element that had focus before the show, also when the focus moved inside; if that element is gone, the focus stays where it is |
+| Popover focus | `popover-focus` | showing a popover focuses its `autofocus` descendant, or the popover itself if it has `autofocus`, else the focus does not move; `hidePopover` focuses the element focused before the show if the focus is inside the popover, else nothing; without a previous element (body) or with a removed one the focus stays |
+| Top layer and hit tests | `top-layer-hit-order` | the popover shown last is on top (`elementsFromPoint`: `b, a, z, html`) whatever `z-index` they have; a hidden and re-shown popover moves to the top; `position: fixed; z-index: 2147483647` stays below every top-layer element; a nested popover is on top of its parent. With a modal dialog: points outside the dialog give the dialog (its backdrop) and `elementsFromPoint` lists only `dialog, html`; a popover outside the dialog shown after it is drawn but inert (the hit is the dialog); a popover inside the dialog is hit normally; `showModal` closes the open auto popovers; a non-modal dialog changes nothing |
+| Inertness under a modal dialog | `inert-click`, `inert-hover`, `inert-tab`, `inert-selection`, `inert-backdrop-click` | clicks on a button, an input, an iframe and text outside the dialog: the events go to the dialog (pointerdown, mousedown, click); the first such click focuses the dialog; the iframe gets no event; the frame's document is not blocked (its own `elementFromPoint` works). `:hover` over an outside button: `html, body, dialog` match, the button not. `interactivity` computes to `auto` and `inert` is false everywhere (Chromium does not express modal inertness in style values). Tab from the dialog's first control: `di`, (focus leaves the document), `db`, `di`, (leaves), and Shift+Tab `di`. A double click on outside text selects the word "in" of the dialog's button; a script range over outside text gives `""` from `getSelection().toString()`. A click on the backdrop does not close a dialog |
+| `closedby=any` | `inert-closedby-any` | a click on the backdrop closes the dialog (`returnValue` `""`) |
+| Escape | `escape-*`, `xo-*` | Escape on a modal dialog: `cancel` (cancelable) then close; `returnValue` unchanged. A canceled `cancel`: the dialog stays; the next Escape fires a `cancel` that is not cancelable and closes it (main frame: the tool's activation makes the first `cancel` cancelable). Without any activation (`xo-escape-no-activation`) the first `cancel` is not cancelable and the first Escape closes the dialog; after a click in the frame the first `cancel` is cancelable and the second is not (`xo-escape-cancel-after-click`); a second click after a canceled `cancel` does not make the next `cancel` cancelable again (`xo-escape-cancel-click-between`). Two modal dialogs, two auto popovers inside a dialog, or two nested auto popovers, all opened before any activation: one Escape closes all of them, top first (one close watcher group; `xo-groups-no-activation`, `xo-popovers-no-activation`, and the main-frame cases, whose watchers are made in `load` before the tool's activation); a manual popover stays. A dialog opened by a click after them gets a new group: the first Escape closes it, the second closes the earlier ones together (`xo-groups-after-click`, `xo-groups-two-before-click`). Opened by clicks (`noscript-escape`): one Escape closes only the top one. A `keydown` listener that cancels Escape: nothing closes. A non-modal dialog stays open (no close watcher); a non-modal dialog with `closedby=closerequest` closes; a modal dialog with `closedby=none` stays. After Escape the focus returns to the invoker of the popover (`escape-focus-return`) |
+| Popover Tab order | `popover-tab-order` | an open popover's content follows its invoker: `inv pb1 pb2 y z`, and backward `y pb2 pb1 inv` |
+| Light dismiss | `light-dismiss-*` | a click outside the open auto popovers closes them at the `pointerup` (the `beforetoggle` events come between `pointerdown` and `pointerup` listeners), top first; a click inside a nested popover keeps all; a click inside the parent closes only the child; press outside and release inside (or the reverse): nothing closes; a click on the invoker: the child closes at `pointerup`, then the invoker's click closes the popover; a right click closes; a click on a manual popover closes the auto popovers and keeps the manual one; `preventDefault()` on `pointerdown` and `mousedown` does not stop the dismissal |
+| Without script | `noscript-*` | invokers toggle, show and hide; a nested invoker nests; a click outside closes both; Escape closes the top one; Enter and Space on a focused invoker toggle; `form method=dialog` closes `<dialog open>` with `returnValue` `"yes"`; Escape does not close `<dialog open>`; in a form, `type=button` toggles and a submit button submits (`#sent`) without toggling |
+| UA styles | `popover-closed`, `popover-open-ua`, `popover-open-inline`, `popover-open-long`, `dialog-nonmodal`, `dialog-modal-ua`, `dialog-modal-big` | closed popover: `display: none`, computed `position: fixed`, `inset: 0`, `margin: auto`, `border: 3px solid`, `padding: 4px` (0.25em), `overflow: auto`, `overlay: none`, no client rects. Open: centered in the viewport (`margin` resolves to 284 px and 348.78 px at 800 x 600), `width` fit-content, `overlay: auto`; an inline `span` becomes `display: block`; long text: the box is the viewport width minus the border (786 px content) and as tall as its text, centered. Non-modal dialog: `position: absolute`, in flow position of its static box (y 50 after a paragraph), centered horizontally, `padding: 16px`, `overlay: none`; it does not take space (the next paragraph is at y 50). Modal: `position: fixed`, centered (272 px, 343 px margins), `max-width` and `max-height` `calc(100% - 38px)` (6px + 2em), `overflow: auto`, `visibility: visible`, `overlay: auto`; big content: 762 x 562 px content in an 800 x 600 box at (0, 0) |
+| `::backdrop` | `popover-open-ua`, `dialog-modal-ua`, `backdrop-paint`, `backdrop-author`, `backdrop-inheritance` | `display: block`, `position: fixed`, `inset: 0`, 800 x 600; a dialog's backdrop `rgba(0, 0, 0, 0.1)` with `pointer-events: auto`; a popover's backdrop transparent with `pointer-events: none`; authors can move and size it (`inset: auto; top: 100px; ...`); it paints right below its element and above earlier top-layer elements (a red manual popover under a modal dialog's backdrop gives (229, 0, 0)); it inherits from its element (`color`, `font-size` 30 px, `1em` = 30 px) |
+| Escaping ancestors | `escape-ancestors`, `escape-ancestors-modal`, `popover-in-shadow-tree` | an open popover inside an ancestor with `transform`, `overflow: hidden` with `position: relative`, `contain: paint`, `filter` or `opacity: 0.5` has its box and color as without the ancestor (red (255, 0, 0) at full opacity, not clipped); inside a `display: none` ancestor it has no box although it matches `:popover-open`; a modal dialog inside a transformed, clipped ancestor is centered in the viewport; a popover in a shadow tree of a clipped, transformed host is at its own position, `elementFromPoint` gives the host, the root's `elementFromPoint` the popover |
+| Containing block and `position` | `dialog-modal-scrolled`, `popover-author-position` | `position: absolute` on a top-layer element: the containing block is the initial containing block (box at (30, 40) of the document also when scrolled by 500 px, in a relative ancestor at (100, 100)); `static` and `relative` compute to `absolute`; `fixed` stays fixed to the viewport |
+| `display` | `popover-author-display` | an author `[popover] { display: block }` shows a closed popover as a normal fixed box (not in the top layer: `overlay: none`); an author `display: none` keeps an open popover without a box; the `hidden` attribute does not hide an open popover (it has a box) |
+| Paint order | `top-layer-paint-order` | pixels: later top-layer element on top of the earlier one, both above a `z-index: 2147483647` fixed element, their own `z-index` (5, −5) ignored |
+| Frames | `dialog-modal-in-iframe` | a modal dialog in an iframe is centered in the frame's viewport and matches `:modal`; the parent document is not blocked (`elementFromPoint` finds the parent's button) |
+| `overlay` and states | `overlay-and-states` | `overlay`: `auto` for a modal dialog, `none` for a non-modal dialog, a closed popover and `details`; `:open` matches open dialogs and `details`, `:modal` only the modal dialog |
+| JS off | `popover-and-dialog-js-off` | `<dialog open>` renders (absolute, centered); closed popovers and `tool-tip` have no box |
+
+## Decision
+
+### 1. The model in `swb_dom`
+
+The top layer, the popover lists and the dialog state belong to the
+document: DOM operations (removal, adoption, attribute changes) change
+them, and both the web layer (scripts) and the engine (JS off, input)
+use them. A new module `crates/dom/src/top_layer.rs` holds the state and
+the algorithms.
+
+- **The flag byte.** `ElementData::shadow_flags` becomes `flags` (one
+  mechanical rename in 6a); three new bits: `POPOVER_SHOWING` (the
+  popover visibility state is "showing"), `MODAL` (the dialog's "is modal"
+  flag) and `TOP_LAYER` (the element is in the top layer). `ElementData`
+  stays 64 bytes. Style reads the byte (no lookup) for `:popover-open` and
+  `:modal`; the box tree reads `TOP_LAYER`.
+- **The side state.** `Document::top_layer: Option<Box<TopLayerState>>`,
+  `None` until the first element is shown as a popover or a dialog (a
+  parsed `<dialog open>` does not create it):
+  - `layer: Vec<NodeId>`: the top layer in order (CSS Position 4); an
+    element is at most once; adding moves it to the end.
+  - `auto_list`, `hint_list: Vec<NodeId>`: the showing auto and hint
+    popover lists (HTML).
+  - `popovers: HashMap<NodeId, PopoverData>`: for each showing or
+    recently toggled popover: the invoker (`Option<NodeId>`), the
+    previously focused element, the "showing or hiding" flag, the pending
+    toggle task (the old state; at most one per element, section 2), its
+    close watcher.
+  - `dialogs: HashMap<NodeId, DialogData>`: the previously focused element,
+    the close watcher, the request-close return value and the
+    "enable close watcher for request close" state.
+  - `pointerdown_target: Option<NodeId>`: light dismiss (section 4).
+  - `watchers: CloseWatcherManager` (section 6). The HTML Standard puts the
+    manager on the window; swb has one document per window and keeps it
+    with the document's state.
+  Entries are removed when an element is hidden or closed and its toggle
+  task has run; the map sizes are bounded by the showing elements.
+- **Blocked by a modal dialog.** `TopLayerState::blocking(&self) ->
+  Option<NodeId>`: the last element of `layer` with the `MODAL` bit (HTML
+  "blocked by a modal dialog"). One field read on documents without a top
+  layer.
+- **DOM steps.** The removing steps of an element (`swb_dom`'s removal
+  path; the flag byte decides): if it or a shadow-including descendant
+  is a showing popover, run "hide popover" without events and without
+  focus changes (measured: no `beforetoggle`; the toggle task that is
+  already queued still fires); if it is in the top layer, remove it. The
+  same at adoption into another document (measured). The attribute change
+  steps of `popover`: a change between states while showing hides with
+  `beforetoggle` (not cancelable) and a toggle task (measured); a change of
+  spelling only (`AUTO`, `""`) does nothing. No attribute change steps for
+  `open` (measured: removing `open` from a modal dialog keeps it modal and
+  in the top layer; Chromium's behaviour, which the HTML Standard does not
+  describe in the same way; section 11).
+- **Journal.** Showing and hiding change no attribute of a popover, so
+  the journal gets a new entry kind `Change::TopLayer` (the element), which
+  the engine's drain turns into a restyle (as every change does today)
+  and which mutation observers ignore. `showModal`, `show` and `close`
+  change the `open` attribute, which is an ordinary attribute change.
+
+### 2. The algorithms and their events
+
+The HTML algorithms fire synchronous events in their middle
+(`beforetoggle`, `cancel`) and re-check the state after each one, because
+a listener can change the DOM. swb's web layer cannot hold a borrow of the
+document while scripts run. So the algorithms in `top_layer.rs` take a
+host:
+
+```rust
+pub trait TopLayerHost {
+    fn doc(&mut self) -> &mut Document;           // short borrows only
+    fn fire_beforetoggle(&mut self, el: NodeId, old: State, new: State, cancelable: bool, source: Option<NodeId>) -> bool; // false: canceled
+    fn fire_cancel(&mut self, dialog: NodeId, cancelable: bool) -> bool;
+    fn queue_toggle_task(&mut self, el: NodeId);  // the task reads the coalesced states from TopLayerState
+    fn queue_close_task(&mut self, dialog: NodeId);
+    fn focus(&mut self, el: Option<NodeId>, why: FocusReason);
+    fn has_history_action_activation(&mut self) -> bool;
+    fn consume_history_action_activation(&mut self);
+}
+```
+
+Two implementations: the web layer's (events are dispatched through the
+bindings; the `toggle` and `close` tasks go to the DOM manipulation task
+source) and the engine's for documents without scripts (events are no-ops
+that return "not canceled"; tasks do nothing but clear the pending state).
+The engine's JS-off paths and the bindings call the same functions:
+`show_popover(host, el, throw, source) -> Result<(), PopoverError>`,
+`hide_popover(host, el, focus_previous, fire_events, throw, ignore_dom)`,
+`toggle_popover`, `hide_all_popovers_until`, `topmost_popover_ancestor`,
+`show_dialog`, `show_modal`, `close_dialog`, `request_close_dialog`,
+`popover_target_activation(host, invoker)`, `light_dismiss_down`,
+`light_dismiss_up`, `process_close_watchers`. Errors are an enum with
+Chromium's texts (table above); the bindings throw them, the engine logs
+them at `debug!`.
+
+Measured behaviour that the functions follow (HTML's algorithms, with the
+measured details):
+
+- **Show.** Check validity (not a popover → `NotSupportedError`; already
+  showing → return; not connected → `InvalidStateError`; a document that
+  is not fully active, which includes template contents and documents
+  without a browsing context → `InvalidStateError`; an open dialog →
+  return), set "showing or hiding", fire `beforetoggle` (cancelable), check
+  validity again (the measured message with "This might have been the
+  result of the beforetoggle event handler ..."), for auto and hint: find
+  the topmost popover ancestor and hide all popovers until it (with
+  events), check again, then add to the list and the top layer, set the
+  flag bit, record the previously focused element, run the popover
+  focusing steps (section 5), queue the toggle task. Recursion: a
+  `showPopover` from inside its own `beforetoggle` runs a full nested show
+  (measured: four events, one open); the "showing or hiding" flag only
+  stops the hide paths, as the HTML Standard says.
+- **Hide.** As HTML "hide popover algorithm": for auto and hint first hide
+  the popovers above it (top first), fire `beforetoggle` (not cancelable),
+  re-check, remove from the list and the top layer, focus the previous
+  element when asked and the focus is inside, queue the toggle task.
+- **Toggle tasks.** HTML "queue a popover toggle event task": if the
+  element has a pending task, keep its old state, drop it and queue a new
+  one with the new state at the end (measured: `pb` then `pa`). The task
+  fires `toggle` (`ToggleEvent`, not cancelable, `source` the source
+  element or null). Dialogs use the same mechanism for their toggle
+  events (measured `beforetoggle`/`toggle` on `show`, `showModal`,
+  `close`).
+- **Topmost popover ancestor.** The flat tree ancestors (ADR 0036
+  `flat_parent`), the invoker of each showing popover and the source
+  element of a show: the highest position in the list wins. Positions
+  come from a map built once per call (`HashMap<NodeId, usize>` of the
+  list). The walk stops at the first ancestor whose position is the top of
+  the list (the common case: a nested popover shown over its parent), so
+  a chain of N nested popovers shown in order costs O(N), not O(N²).
+- **Hint popovers.** In, as measured: their own list; an auto show hides
+  the hints that are not its ancestors; a hint inside an open auto
+  popover stays with it.
+
+### 3. Invokers
+
+- **The activation behaviour.** HTML "popover target attribute
+  activation behavior" in `top_layer.rs`: the invoker is a `button` or
+  an `input` of type `button`, `submit`, `reset` or `image` (measured), not
+  disabled (also through a `fieldset`), and not a submit or reset button
+  with a form owner (measured: those submit or reset instead); the target
+  is `popoverTargetElement` (an element reference or the id in the
+  invoker's tree, measured); it must be a popover. Then by
+  `popovertargetaction`: `toggle` (hide if showing, else show with the
+  invoker as source), `show`, `hide`. A `<dialog popover>` target opens as
+  a popover (measured).
+- **JS on.** The script path's activation (`crates/web/src/html/
+  activation.rs`, `after_dispatch`) gets a role `PopoverInvoker`: a click
+  that is a `MouseEvent` (also `PointerEvent`, also synthetic `click()` and
+  `dispatchEvent`) and not canceled runs it; a plain `Event('click')` does
+  not (measured).
+- **JS off.** The engine's `click_role` (`page/forms.rs`) gets the same
+  role and `activate` calls the function with the engine's host. Enter and
+  Space on a focused invoker already end in `click_element` (measured:
+  toggle).
+- **`popoverTargetElement`.** An element reflection (HTML
+  "attr-associated element"): the setter stores the element in a side
+  table of the web layer (a weak reference: the button keeps the target
+  alive no longer than the DOM does) and writes `popovertarget=""`; the
+  getter returns the stored element if it is a descendant of one of the
+  button's shadow-including ancestors (HTML "attr-associated element"),
+  else `null`; without a stored element it resolves the id in the
+  button's tree (measured: an element of an ancestor tree yes, of a
+  descendant tree `null`, a detached button `null`). The engine's JS-off
+  path reads only the id.
+
+### 4. Light dismiss
+
+HTML "light dismiss open popovers", hooked into the pointer path for the
+primary and the other buttons (measured: a right click dismisses):
+
+- At `pointerdown`: if the auto or hint list is not empty, store the
+  "topmost clicked popover" of the hit node (the higher of the nearest
+  inclusive open popover and the nearest inclusive target popover of an
+  invoker, both through flat tree ancestors) in `pointerdown_target`.
+- At `pointerup`, before the `pointerup` listeners run (measured order:
+  `pointerdown`, `beforetoggle`..., `pointerup`, `click`): compute the
+  topmost clicked popover again; if it is the same as at `pointerdown`,
+  hide all popovers until it (or all, if it is none), with events and
+  without focus changes. Clear `pointerdown_target`. A canceled
+  `pointerdown` or `mousedown` does not stop it (measured).
+- JS on: the hooks are in `scripted_down` and `scripted_up`
+  (`page/events.rs`) between the hit test and the dispatch; JS off: in
+  `press_in_document` and `release_in_document`.
+- `closedby=any` dialogs: a click whose `pointerdown` and `pointerup` are
+  both on the dialog's backdrop (outside its border box) runs "request
+  close" (measured: closes, `returnValue` `""`).
+- Fast path: one test of `top_layer` and of the two lists.
+
+### 5. Focus
+
+- **Popover focusing steps.** At show: the popover itself if it has
+  `autofocus`, else its first `autofocus` descendant in flat tree order
+  that is focusable, else no change (measured). swb does not process
+  document `autofocus` (ADR 0036 5d notes); these steps read the attribute
+  directly.
+- **Dialog focusing steps.** At `show` and `showModal`: the first
+  `autofocus` descendant, else the first focusable area in flat tree order
+  (also `tabindex=-1`, also through a shadow host's focus delegate), else
+  the dialog itself (measured; the dialog's own `autofocus` attribute is
+  not used, measured).
+- **Previously focused element.** Recorded at show; at hide (popovers:
+  when the focus is inside the popover; dialogs: always) it gets the focus
+  if it is still connected and focusable; else the focus stays (measured).
+- **Tab order.** An open popover with an invoker is placed in the
+  sequential order right after its invoker (measured `inv pb1 pb2 y`);
+  its content is not visited at its DOM position. `next_in_order`
+  (`crates/engine/src/focus.rs`) treats such a popover like a scope owner
+  of ADR 0036 section 8, owned by the invoker.
+- **Modal dialogs.** The Tab order is the dialog's (inert nodes are not
+  focusable); after the last element the focus leaves the document as at
+  the end of a document today (measured: one stop without a focused
+  element, then the first control again).
+
+### 6. Close requests and Escape
+
+- **Close watchers** (HTML §6.4) as an internal mechanism (no
+  `CloseWatcher` interface, section 11): the manager has a list of groups
+  and an "allowed number of groups" (starts at 1; each user activation
+  that the frame tree records adds one, up to the number of groups + 1).
+  A new watcher goes into a new group if the number of groups is below the
+  allowed number, else into the last group (measured: popovers and dialogs
+  opened without user activation close together with one Escape; opened by
+  clicks, one at a time).
+- **Who gets a watcher.** Each showing auto and hint popover, each modal
+  dialog with `closedby` other than `none`, each non-modal dialog with
+  `closedby=closerequest` or `any` (measured: a plain non-modal dialog has
+  none).
+- **The key path.** Escape's `keydown` is dispatched first; if it is not
+  canceled, the default action "process close watchers" runs (measured: a
+  canceled `keydown` closes nothing), in `key_default` for JS on and off.
+  It takes the last group and requests close for its watchers from the
+  last to the first: a popover hides (with events, focus to the previous
+  element), a dialog fires `cancel` and closes.
+- **Groups** (measured with the `xo-*` cases, without the probe tool's
+  activation): watchers made before any activation share the first group;
+  a watcher made after an activation starts a new group; Escape closes the
+  last group, top first.
+- **`cancel` cancelable.** The HTML Standard's rule ("request close":
+  `cancel` is cancelable if the number of groups is below the allowed
+  number and the window has a history-action activation; a canceled
+  `cancel` consumes the history-action activation), which the `xo-*` cases
+  confirm: without any activation the first `cancel` is not cancelable and
+  the dialog closes; with an activation the first is cancelable and, once
+  canceled, the next is not. Measured detail: a further click after a
+  canceled `cancel` did not make the next `cancel` cancelable
+  (`xo-escape-cancel-click-between`); the implementer of 6d checks this
+  against the standard's allowed-groups count before choosing the model
+  and records the result. History-action activation: a per-window flag
+  that each activation sets and that a canceled `cancel` clears; it does
+  not expire (unlike the transient activation of 5 s). The swb tests give
+  the probe pages the tool's activation (section "Measurements"). Escape
+  is no user activation (already in `key_down`).
+- **`requestClose()`** runs the same request-close steps (measured:
+  `cancel`, then close; also with `closedby=none`).
+
+### 7. Modal inertness
+
+- **The rule.** While `TopLayerState::blocking()` is a dialog, every node
+  of the document that is not that dialog or a flat tree descendant of it
+  is inert (HTML "blocked by a modal dialog"). The `inert` attribute is
+  not part of feature 6 (open question 5).
+- **In style.** `ComputedStyle` gets an internal inherited flag `inert`
+  (not a CSS property; Chromium's `interactivity` stays `auto`, measured):
+  the style walk sets it at the root element when the document is
+  blocked and clears it at the blocking dialog. One branch per element
+  when the document is not blocked. A top-layer change restyles (section
+  1, journal).
+- **Hit testing.** `paint_box` emits no `HitRegion` for an inert box, so
+  hits fall through to what is below; under a modal dialog that is the
+  dialog's backdrop, whose element is the dialog (measured: clicks and
+  `elementFromPoint` outside the dialog give the dialog;
+  `elementsFromPoint` lists only non-inert elements and the root). An
+  iframe that is inert gets no events (measured).
+- **Focus.** `is_focusable` is false for inert elements; a click whose hit
+  is the dialog through its backdrop focuses the dialog (measured).
+- **`:hover` and `:active`** chains start at the hit node, so inert
+  elements do not match (measured: `html, body, dialog`).
+- **Selection.** The engine's selection does not start or extend into
+  inert text (swb has no `getSelection`; the measured `""` for a script
+  range is out of scope). The measured double-click result (Chromium
+  selects the word of the dialog's button) is a Chromium detail that swb
+  does not copy (section 11).
+- **Frames.** A frame's document has its own top layer; a modal dialog in
+  a parent makes the iframe element inert, so input does not reach the
+  frame; the frame's own document is not blocked (measured).
+
+### 8. Rendering
+
+**Style.**
+
+- `::backdrop` becomes a styled pseudo-element: `PseudoKind::Backdrop`,
+  `RuleTarget::Backdrop` (rules with `::backdrop` are no longer dropped),
+  styled in `style_pseudo_elements` only for elements with the
+  `TOP_LAYER` bit, with the element's style as the parent (measured
+  inheritance). `getComputedStyle(el, '::backdrop')` computes it with
+  rules (`compute_pseudo_element_style`).
+- `:popover-open` and `:modal` from the flag byte in
+  `DomElement::state`; `:open` stays as it is (measured: `dialog[open]`
+  and `details[open]`).
+- Top-layer fix-ups in `apply_fixups`: `position` other than `absolute`
+  and `fixed` computes to `absolute` (measured: `static` and `relative`);
+  the box is blockified (already for absolute positions; measured `span`
+  → `block`); `overlay` computes to `auto` (UA rule).
+- The `overlay` property: parsed (`none | auto`), not inherited, settable
+  only by the UA sheet in effect (author `overlay` is valid and computes,
+  but swb has no transitions, so it never delays a removal).
+- UA sheet additions (HTML §15.3 and measured values):
+
+  ```css
+  dialog:modal { position: fixed; overflow: auto; inset-block: 0;
+    max-width: calc(100% - 6px - 2em); max-height: calc(100% - 6px - 2em);
+    visibility: visible; }
+  :popover-open, dialog:modal { overlay: auto !important; }
+  ::backdrop { display: block; position: fixed; inset: 0; }
+  dialog::backdrop { background: rgba(0, 0, 0, 0.1); }
+  [popover]::backdrop { pointer-events: none !important; }
+  ```
+
+  The existing `[popover]` and `dialog` rules match the measured values.
+
+**Box tree** (`crates/layout/src/box_tree.rs`). When the document has a
+top layer (one test otherwise):
+
+- An element with the `TOP_LAYER` bit generates no box at its place in the
+  flat tree walk (no placeholder).
+- After the root element's box, for each element of `layer` in order:
+  if it and its flat ancestors are not `display: none` (measured: no box
+  inside a `display: none` ancestor) and it is in the flat tree, its
+  `::backdrop` box (unless `display: none`) and then its own box are
+  built as children of the initial containing block, after the root box.
+- The depth counter starts again at these boxes (they are at depth 1).
+
+**Layout.** Top-layer boxes are out-of-flow boxes whose containing block is
+the initial containing block for `absolute` and the viewport for `fixed`
+(measured), with no transform, filter or clip of their DOM ancestors:
+`place_out_of_flow` places them after the root's out-of-flow boxes with a
+fresh `Scope { absolute: icb, fixed: icb }` (measured: `#q`, `static` with
+the UA's `inset: 0` and an author `margin: 0`, is at (0, 0) of the ICB,
+not in its relative parent at (100, 100)).
+
+**Paint.** After the root stacking context, the builder paints each
+top-layer entry in order as its own root-level stacking context: the
+backdrop, then the element. `z-index` has no effect on this order
+(measured). Clips: only the viewport. Ancestors' `opacity`, `filter`,
+`transform`, `clip-path` and `backdrop-filter` groups do not apply
+(measured: full red under `opacity: 0.5`). A `backdrop-filter` on a
+`::backdrop` works as ADR 0033 describes; its backdrop root is the root
+(it reads everything painted before it).
+
+**Hit testing** needs no new code: the items of the top layer come last
+in paint order, so they win. `elementFromPoint` retargets as before
+(measured for a popover in a shadow tree).
+
+**Frames.** Each `DocumentState` renders its own top layer inside its
+viewport (measured).
+
+### 9. Bindings
+
+- `HTMLElement`: `[CEReactions] attribute DOMString? popover` (nullable
+  enumerated reflection with the measured keywords: `auto` for `""`,
+  `manual` for invalid, `null` for missing), `showPopover(optional
+  ShowPopoverOptions options = {})`, `hidePopover()`,
+  `togglePopover(optional (TogglePopoverOptions or boolean) options =
+  {})` returning `boolean`. Dictionaries `ShowPopoverOptions { HTMLElement
+  source; }` and `TogglePopoverOptions : ShowPopoverOptions { boolean
+  force; }` with Chromium's conversion messages.
+- `HTMLButtonElement` and `HTMLInputElement`: `[CEReactions] attribute
+  Element? popoverTargetElement` (section 3), `[CEReactions, Reflect]
+  attribute DOMString popoverTargetAction` with `SwbKeywords="toggle show
+  hide"`, missing and invalid `toggle`.
+- `HTMLDialogElement`: `open`, `[CEReactions] attribute DOMString
+  returnValue` (a string in the dialog's side data, not an attribute),
+  `[CEReactions, Reflect] closedBy` (keywords `any closerequest none`,
+  missing: computed from the state, invalid `none`), `show()`,
+  `showModal()`, `close(optional DOMString result)`, `requestClose(optional
+  DOMString result)`.
+- `ToggleEvent : Event` with `oldState`, `newState`, `source` and the
+  constructor `(DOMString type, optional ToggleEventInit eventInitDict)`
+  (measured messages; the `source` is retargeted against the listener's
+  tree as HTML says).
+- The comment in `html.idl` that says the popover members and the dialog
+  methods are cut changes.
+
+### 10. JavaScript off
+
+- Invokers: section 3 (engine activation, keyboard).
+- Light dismiss: section 4 (engine press and release).
+- Escape: section 6 (engine key default).
+- `form method=dialog` and `formmethod=dialog`: `submit_form`
+  (`forms/submit.rs`) closes the form's nearest `dialog` ancestor with the
+  submitter's value instead of logging "dialog forms are not supported"
+  (measured with and without scripts; outside a dialog nothing happens).
+- `<dialog open>` renders as today (UA sheet; measured).
+- Modal dialogs and script-shown popovers do not exist without scripts.
+
+### 11. Scope and departures
+
+In feature 6: the `popover` attribute with `auto`, `manual` and `hint`;
+`showPopover`, `hidePopover`, `togglePopover` with `source`; `ToggleEvent`
+and the toggle task coalescing; the auto and hint stacks; invokers with
+`popovertarget`, `popovertargetaction`, `popoverTargetElement`; light
+dismiss; the popover and dialog focusing steps and the popover Tab order;
+`HTMLDialogElement` with `show`, `showModal`, `close`, `requestClose`,
+`returnValue`, `closedBy`; `cancel` and `close`; `method=dialog`;
+internal close watchers and Escape; modal inertness; the top layer in
+style, layout, paint and hit testing; `::backdrop`; `:popover-open`,
+`:modal`; the `overlay` computed value.
+
+Out (backlog), with reasons:
+
+- `command`, `commandfor`, `CommandEvent` (Chromium 148 has them): no
+  element of any target uses them (0 in GitHub's DOM). GitHub's `command`
+  polyfill keeps running in swb and keeps wrapping `attachShadow`, as
+  ADR 0036 recorded. Its `commandfor` handling calls `showPopover`, which
+  then works.
+- `interestfor` and `interestForElement` (Chromium 148 has them on
+  buttons): no target.
+- The `CloseWatcher` interface: no target; the watchers stay internal.
+- `@starting-style`, `transition-behavior: allow-discrete` and the
+  `overlay` transition: swb has no CSS transitions.
+- CSS anchor positioning (`position-anchor`, `anchor()`): already on the
+  M10 backlog (owner decision of 2026-11-07); GitHub tests it with
+  `CSS.supports` and positions its tooltips with script when it is
+  missing.
+- The `interactivity` property (Chromium 148 parses it).
+- The `inert` attribute: open question 5.
+- Fullscreen (`:fullscreen`, `requestFullscreen`).
+
+Departures from the HTML Standard that follow Chromium (measured):
+
+- Removing the `open` attribute of a modal dialog keeps it modal and in
+  the top layer (section 1).
+- The order of a dialog's `close` and `toggle` tasks: Chromium varies;
+  swb queues `toggle` first (one task source for both).
+
+Not copied: the word that Chromium's double click selects in a modal
+dialog when the click is outside it (section 7).
+
+### 12. Budgets
+
+Chromium has no limits that the cases found. swb's bounds:
+
+| Resource | Limit | Result |
+|---|---|---|
+| Top layer, popover lists, side maps | one entry per showing element: bounded by the arena's node limit (1,048,576) | none of their own |
+| Toggle tasks | at most one pending per element (coalescing) | |
+| Nested `showPopover` from `beforetoggle` | the JavaScript stack limit (each nesting is a script call); the task's time limit | `RangeError`, termination |
+| `toggle` handlers that show and hide forever | each round is a new task; the event loop stays responsive (as a `setTimeout(0)` loop) | |
+| Topmost popover ancestor | flat ancestors of the element, the invoker and the source: O(depth) per show, O(1) for a chain shown in order (section 2); charged to the task's time | termination |
+| Hide all popovers until | one hide per entry above the target; each fires one event | task time |
+| Close watcher groups | one per watcher at most; Escape requests close for one group | |
+| Top-layer boxes | one box and one backdrop box per entry; the box tree's existing limits | |
+| Inertness | one flag per computed style | |
+
+Hostile cases (`tools/swbtools/hostile_cases/top_layer.py`, JavaScript on
+unless named):
+
+- `popover-nested-auto-10000`: 10,000 nested auto popovers shown in order,
+  then a click outside and Escape (budget: the show loop under 2 s, the
+  dismissal under 2 s, memory under +50 MB).
+- `popover-manual-10000-open`: 10,000 open manual popovers; style, layout,
+  paint, 100 pointer moves, then all hidden.
+- `popover-beforetoggle-reentry`: `beforetoggle` handlers that show and
+  hide other popovers and their own element; a `toggle` handler that
+  toggles again forever (the page stays responsive; the case ends after
+  5 s).
+- `popover-attribute-flip-100000`: the `popover` attribute changed 100,000
+  times on an open popover.
+- `popover-remove-while-open-100000`: show, then remove an ancestor,
+  100,000 times.
+- `dialog-modal-over-100000-nodes`: a modal dialog over 100,000 elements;
+  30 Tab presses and 30 clicks outside (the Tab walk skips inert
+  subtrees at their root).
+- `dialog-showmodal-1000-stacked`: 1,000 modal dialogs, then Escape 1,000
+  times.
+- `top-layer-backdrop-filter-1000`: 1,000 open popovers with
+  `::backdrop { backdrop-filter: blur(20px) }` (ADR 0033's budgets apply).
+- `close-watchers-100000-without-activation`: 100,000 popovers and dialogs
+  shown by a script, one Escape (one group).
+- `invoker-chain-10000-js-off`: 10,000 nested popovers each with the
+  invoker of the next; clicks along the chain with JavaScript off.
+
+### 13. Performance
+
+Most pages have no top layer. The costs for them:
+
+- `Document::top_layer` is `None`: the box tree, the paint builder, the
+  pointer path (light dismiss), the key path (Escape) and the style walk
+  (inertness) each test it once per pass or per input event. `:popover-open`
+  and `:modal` read the flag byte that the element's state reads anyway.
+- The removal path tests the flag byte of the removed root and walks
+  descendants only when the document has showing popovers or a top layer
+  (one test otherwise).
+- Measure (base: the commit before each sub-feature; release builds):
+  `just snapshot` before and after (no change for the targets with
+  JavaScript off and on, except GitHub with JavaScript on); `swbtools
+  perf` on the JS-off targets within the run-to-run noise; callgrind of
+  `swb --headless` on Wikipedia, Ars Technica and BBC with JavaScript off:
+  +0.3 % at most; GitHub with JavaScript on: the `load` time (feature 8's
+  budget, 1.56 s) and the time of a hover that opens a tooltip.
+
+### 14. Tests
+
+- Probe cases: `tools/probes/web-top-layer.json` runs in Rust against
+  Chromium's values (`crates/engine/tests/probe_net.rs`, a generated table
+  as for custom elements and shadow DOM, with departures and "later" rows
+  per sub-feature); the cases with `steps` run in
+  `crates/automation/tests/real_input.rs`'s way. `noscript-*`: swb has no
+  Content-Security-Policy, so these run in an engine test with scripts
+  off and the same steps, compared with Chromium's values.
+  `tools/probes/top-layer.json` with `just probe --with-swb` and as layout
+  tests (`crates/engine/tests/top_layer.rs`, boxes within 0.5 px, the
+  `pixels` rows within 2 per channel, as `backdrop_filter.rs` does).
+- Unit tests: `swb_dom` (`top_layer.rs`: show and hide with a recording
+  host, re-entrant hosts that change the DOM in each event, coalescing,
+  the stacks with DOM, invoker and source nesting, hint lists, removal and
+  adoption steps, attribute changes, close watcher groups, the
+  `ElementData` size); `swb_style` (`::backdrop` rule routing and
+  inheritance, the top-layer `position` fix-up, `overlay`, the inert
+  flag); `swb_layout` (top-layer boxes as children of the ICB, the
+  `display: none` ancestor rule); `swb_paint` (order and hit regions of
+  top-layer items, no hit regions for inert boxes); `crates/web`
+  (`ToggleEvent`, the IDL conversions, `popoverTargetElement`); the engine
+  (light dismiss and Escape with JS on and off, the Tab order with a
+  popover and with a modal dialog, `method=dialog`).
+- `crates/automation/tests/github.rs`: the popover polyfill does not run
+  (no adopted sheet; the 5c-2 assertions change to Chromium's values); a
+  hover over the "..." button opens the TooltipV2 popover at Chromium's
+  box (125 x 28 at (166, 358)) and the click hides it, as in the replay
+  records; no new console error.
+- Hostile cases of section 12.
+
+### The plan of sub-features
+
+Five sessions, each with a review and a commit. The order lets GitHub's
+tooltips work first (6a, 6b, 6c); dialogs follow.
+
+**6a. Popover model, algorithms and bindings** (`implementer-hard`).
+Scope: section 1 (the flag byte, `TopLayerState`, removal, adoption and
+attribute steps, the journal entry), section 2 (show, hide, toggle tasks,
+coalescing, topmost popover ancestor, auto and hint lists, the host
+trait with the web layer's host and the engine's no-script host),
+section 3's activation behaviour on the script path, section 9's popover
+members and `ToggleEvent`, `:popover-open` in style. Until 6b an open
+popover renders as a fixed box in the normal stacking order (UA sheet).
+Files: new `crates/dom/src/top_layer.rs`; `crates/dom/src/tree.rs`
+(`flags`), `mutation.rs`, `journal.rs`; `crates/style/src/element.rs`;
+`crates/web/idl/html.idl`, `dom.idl` or `events.idl` (`ToggleEvent`);
+new `crates/web/src/html/popover.rs`; `crates/web/src/html/activation.rs`;
+`crates/web/src/events/misc.rs`; `crates/engine/src/document/changes.rs`;
+`crates/automation/tests/github.rs` (the polyfill assertions).
+Tests: probe cases `api-surface` (popover rows), `popover-reflection`
+(popover rows), `show-hide-events`, `toggle-coalescing`,
+`beforetoggle-cancel`, `exceptions` (popover rows), `beforetoggle-mutations`,
+`removal-and-attribute-while-open`, `auto-stack-dom`,
+`auto-stack-invoker-and-source`, `hint-popovers`, `invokers-types`,
+`invokers-shadow`; unit tests; hostile cases
+`popover-beforetoggle-reentry`, `popover-attribute-flip-100000`,
+`popover-remove-while-open-100000`, `popover-nested-auto-10000` (the show
+part).
+Exit: the cases match Chromium; GitHub's polyfill path is gone and
+`github.rs` passes with the new values; the other targets unchanged (JS
+on and off); `just check`.
+Risk: high (re-entrant algorithms across the DOM and the bindings).
+
+**6b. The top layer in rendering** (`implementer-hard`).
+Scope: section 8: `::backdrop` styles, the top-layer fix-ups, `overlay`,
+the UA sheet, top-layer boxes under the ICB, their containing blocks,
+the paint order, the `display: none` ancestor rule; section 13's
+measurements.
+Files: `crates/style/src/stylist.rs`, `style_map.rs`, `cascade.rs`,
+`ua.css`, the `overlay` property; `crates/layout/src/box_tree.rs`,
+`lib.rs`, `positioned.rs`; `crates/paint/src/display_list/builder.rs`;
+`crates/engine/src/document/pipeline.rs`, `cssom` (`getComputedStyle`
+of `::backdrop`).
+Tests: `tools/probes/top-layer.json` without the modal cases
+(`dialog-modal-*`, `escape-ancestors-modal`, `dialog-modal-in-iframe`,
+`backdrop-paint`, `backdrop-author`, `backdrop-inheritance`, the modal
+rows of `overlay-and-states`: 6d); `top-layer-hit-order` rows 1 to 4; unit
+tests; hostile cases `popover-manual-10000-open`,
+`top-layer-backdrop-filter-1000`; `just snapshot` and the performance
+rows.
+Exit: the boxes and pixels match; GitHub's hover tooltip renders at
+Chromium's box; the targets unchanged; `just check`.
+Risk: high (the box tree root, out-of-flow placement and the paint
+order).
+
+**6c. Popover interaction** (`implementer`).
+Scope: section 4 (light dismiss, JS on and off), section 6 for popovers
+(close watchers, groups, user activation, Escape in the key path), section
+3 with JavaScript off, section 5 for popovers (focusing steps, previous
+focus, the Tab order after the invoker).
+Files: `crates/dom/src/top_layer.rs` (watchers); `crates/engine/src/page/
+input.rs`, `events.rs`, `forms.rs`, `frame_focus.rs`; `crates/engine/src/
+focus.rs`; `crates/engine/src/frames/mod.rs` (activation notifications to
+the manager).
+Tests: `light-dismiss-*`, `escape-popovers`, `xo-popovers-no-activation`,
+`escape-focus-return`,
+`popover-tab-order`, `popover-focus`, `noscript-*` (the popover cases);
+hostile cases `popover-nested-auto-10000` (the dismissal),
+`invoker-chain-10000-js-off`, `close-watchers-100000-without-activation`
+(popovers).
+Exit: the cases match; on GitHub a hover shows the tooltip and the click
+on the "..." button hides it as in the replay; `just check`.
+Risk: medium (the pointer and key paths are central, the hooks are small).
+
+**6d. Dialogs** (`implementer-hard`).
+Scope: section 9's dialog members, `show`, `showModal`, `close`,
+`requestClose`, `closedBy`, `returnValue`, dialog toggle events, `cancel`
+and `close` tasks, close watchers of dialogs with the measured `cancel`
+rule, `closedby=any` light dismiss, `method=dialog` (JS on and off), the
+dialog focusing steps and focus restore, modal dialogs in the top layer
+with their backdrop.
+Files: `crates/dom/src/top_layer.rs`; new `crates/web/src/html/dialog.rs`;
+`crates/web/idl/html.idl`; `crates/engine/src/forms/submit.rs`,
+`page/forms.rs`, `page/input.rs`.
+Tests: `dialog-basics`, `dialog-form`, `dialog-focus`, `escape-modal`,
+`escape-cancel-prevented`, `escape-no-activation`, `escape-nested-dialogs`,
+`escape-popover-in-dialog`, `escape-keydown-prevented`,
+`escape-nonmodal-and-closedby`, `xo-escape-*`, `xo-groups-*`,
+`inert-closedby-any` (the closing part),
+`noscript-dialog-*`, the dialog rows of `api-surface`, `exceptions` and
+`popover-reflection`; layout cases `dialog-modal-*`,
+`escape-ancestors-modal`, `dialog-modal-in-iframe`, `backdrop-*`,
+`overlay-and-states`; hostile case `dialog-showmodal-1000-stacked`.
+Exit: the cases match; the targets unchanged; `just check`.
+Risk: medium-high (many small rules; the form path with JS off).
+
+**6e. Modal inertness** (`implementer`).
+Scope: section 7: the inert style flag, hit regions, `elementFromPoint`
+and `elementsFromPoint`, focusability and the click focus on the backdrop,
+the Tab order under a modal dialog, `:hover` chains, the engine's
+selection, frames under a dialog.
+Files: `crates/style/src/cascade.rs`, `computed.rs`;
+`crates/paint/src/display_list/builder.rs`; `crates/engine/src/focus.rs`,
+`hit_test.rs`, `document/geometry.rs`, `document/queries.rs`,
+`selection.rs`, `page/frame_input.rs`.
+Tests: `inert-click`, `inert-hover`, `inert-tab`, `inert-backdrop-click`,
+`inert-selection` (the engine-selection part as an engine test),
+`top-layer-hit-order` rows 5 to 10; hostile case
+`dialog-modal-over-100000-nodes`.
+Exit: the cases match; `just check`.
+Risk: medium (one flag, many readers).
+
+Feature 6's exit after 6e: GitHub's tooltips open, render and close as in
+Chromium's replay; the probe cases match but the listed departures; the
+targets keep their scores with JavaScript on and off.
+
+## Open questions
+
+The orchestrator decided them on 2026-11-13: all as recommended.
+
+1. **Five sub-features.** Recommendation: 6a to 6e as above. 6a alone is
+   a full session (re-entrant algorithms, bindings, the GitHub test). If
+   the orchestrator wants fewer commits, 6d and 6e can merge, at the risk
+   of a session that does not finish.
+2. **The algorithms in `swb_dom` with a host trait.** Recommendation: yes
+   (section 2): one implementation for JS on and off. Alternative: the
+   algorithms in `crates/web` and a reduced copy in the engine for JS off
+   (the pattern of `<details>` today); simpler borrows, but two copies of
+   the stack rules.
+3. **`hint` popovers.** Chromium 148 has them (measured); no target uses
+   them. Recommendation: in (a second list in the same algorithms;
+   without it `popover="hint"` would reflect as `hint` and behave as
+   `manual`). Alternative: map `hint` to `manual` and list it as a
+   departure.
+4. **The `open` removal of a modal dialog.** Recommendation: follow
+   Chromium (section 11). Alternative: the HTML Standard's rule; the probe
+   row would then be a departure. (The `cancel` rule needs no decision: a
+   control without the probe tool's activation showed that Chromium follows
+   the standard, section 6; the earlier "cancelable without activation" was
+   the tool's activation.)
+5. **The `inert` attribute.** Not in the feature's scope and not used by
+   the targets' first views (GitHub's CSS has one `[inert]` rule). The
+   mechanism of section 7 covers it with one more condition in the style
+   walk. Recommendation: backlog, with a note that 6e's flag is the place.
+   Alternative: in 6e, with its own probe cases.
+6. **The `toggle` event of `<details>`.** swb fires none today. The
+   coalesced toggle task of section 2 is the same mechanism (HTML uses it
+   for `details` too). Recommendation: backlog (no target listens to it in
+   its first view; BBC's React registers a `toggle` listener on its root
+   that sees nothing in Chromium's replay either).
+7. **Budgets of section 12.** Recommendation: accept.
+
+## Consequences
+
+- `popover`, `showPopover`, `ToggleEvent` and the dialog methods appear
+  for every page with JavaScript on; feature tests take their native paths
+  (GitHub's popover polyfill no longer runs; its adopted sheets are gone,
+  as in Chromium).
+- `swb_dom` gets the top-layer state, popover and dialog algorithms with a
+  host trait, and removal and attribute steps for popovers; the flag byte
+  of `ElementData` gets three bits and a general name.
+- Style gets `::backdrop` as a styled pseudo-element, the top-layer
+  fix-ups, the `overlay` property and an internal inert flag; the box
+  tree builds top-layer boxes as children of the ICB; the display list
+  paints them after the root stacking context.
+- The pointer path gets light dismiss and the key path close requests,
+  both with JavaScript on and off; the Tab order places open popovers
+  after their invokers.
+- `form method=dialog` works with JavaScript off.
+- Backlog: `command`/`commandfor`/`CommandEvent`, `interestfor`, the
+  `CloseWatcher` interface, `@starting-style` and `overlay` transitions,
+  `interactivity`, the `inert` attribute and the `<details>` `toggle` event
+  (open questions 5 and 6), fullscreen.

@@ -4,6 +4,40 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-13: M10 feature 6: ADR 0037 (popover, dialog and the top layer)
+
+- ADR 0037 decides the design before the code: the top layer, the popover
+  lists and the dialog state in `swb_dom` (three bits in the element flag
+  byte, a per-document state behind `Option<Box<_>>`), the HTML algorithms
+  with a host trait so that scripts and pages without scripts use one
+  implementation, coalesced `toggle` tasks, internal close watchers for
+  Escape, light dismiss at `pointerup`, top-layer boxes as children of
+  the initial containing block painted after the root, `::backdrop` as a
+  styled pseudo-element, and modal inertness as an internal inherited
+  style flag.
+- What GitHub needs (Chromium replay with a tracer): 10 popovers (9 auto
+  tooltips shown by script on hover, `tool-tip` manual), `:popover-open`,
+  the top-layer rendering and light dismiss. The "..." button of the
+  latest-commit line expands the message in the page; the diagnosis's
+  open popover was the hover tooltip. With `popover` in swb, GitHub's
+  popover polyfill stops running, as in Chromium. No other target uses
+  these features.
+- Probe files `web-top-layer.json` (61 cases, 237 queries) and
+  `top-layer.json` (22 layout cases), three equal Chromium 148 runs.
+- The first draft said that Chromium's first `cancel` is cancelable
+  without a user activation. A control showed that the probe tool gives
+  each page an activation (Playwright's evaluations after `load` count as
+  a user gesture, and a history-action activation does not expire); in a
+  cross-origin frame without activation Chromium follows the HTML
+  Standard. The swb tests must give probe pages the same activation.
+- Decisions: five sub-features (6a popover model and bindings, 6b
+  rendering, 6c popover interaction, 6d dialogs, 6e modal inertness);
+  `hint` popovers in; removing `open` from a modal dialog keeps it modal,
+  as in Chromium; `command`, `interestfor`, the `CloseWatcher` interface,
+  the `inert` attribute and the `toggle` event of `<details>` to the
+  backlog.
+- Next: 6a.
+
 ## 2026-11-13: M10 feature 5d: events and focus through shadow trees
 
 - The event path follows DOM "get the parent" (assigned slots, hosts) with
