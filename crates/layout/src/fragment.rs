@@ -672,7 +672,7 @@ impl TextFragment {
     /// True if the text comes from a text node and can be selected
     /// (`user-select` is not `none`).
     pub fn is_selectable(&self) -> bool {
-        !self.carets.is_empty() && self.style.user_select != swb_style::UserSelect::None
+        !self.carets.is_empty() && self.style.is_user_selectable()
     }
 
     /// The range of node offsets that the fragment shows.

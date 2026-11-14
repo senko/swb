@@ -714,7 +714,11 @@ unless named):
   100,000 times.
 - `dialog-modal-over-100000-nodes`: a modal dialog over 100,000 elements;
   30 Tab presses and 30 clicks outside (the Tab walk skips inert
-  subtrees at their root).
+  subtrees at their root). 100,000 buttons, a dialog with three; the log
+  shows the active element (the dialog) and 0 clicks that reached anything
+  but the dialog. Since 6e: 16.5 s, 469 MiB, limit 30 s: the time is the
+  restyle and layout of the whole document at each focus change (backlog of
+  5d), which the base has too ("6e implementation notes").
 - `dialog-showmodal-1000-stacked`: 1,000 modal dialogs, then Escape 1,000
   times. A script opens them without a user activation, so their watchers
   share one group: the first Escape closes all of them (each `cancel` cannot
@@ -1553,3 +1557,139 @@ GitHub with JavaScript on: a headless load in 0.472 s (median of 5; base
 100,000 dialog opens and closes, each with its events, a `close` task and the
 dialog focusing steps, take the difference); the whole set passes (466 ok,
 the known failure `nest-div-100000`).
+
+## 6e implementation notes
+
+Facts of sub-feature 6e (modal inertness) that differ from section 7 or
+that a later session needs. Code: `crates/style/src/computed.rs`
+(`modal_inert`, `receives_pointer_events`, `is_user_selectable`),
+`cascade.rs` (`Styler::blocked`, the flag in `style_element`),
+`crates/dom/src/top_layer.rs` (`Document::blocking_dialog`,
+`is_modal_inert`, `is_inert_under`), `crates/paint/src/display_list/
+builder.rs` (hit regions, `Frame.interactive`), `crates/layout/src/svg/
+draw.rs` (hit shapes), `crates/layout/src/fragment.rs` and
+`crates/engine/src/selection.rs`, `page/events.rs` (selection),
+`crates/engine/src/focus.rs` (`is_focusable`, `next_in_order`,
+`click_target`), `crates/web/src/html/focus.rs` (`user_focus`).
+
+**What differs from the design.**
+
+1. *Where the flag is set.* In `Styler::style_element`, not in the walk of
+   `run`, so that `compute_element_styles` (`getComputedStyle`) agrees. The
+   styler reads `Document::blocking_dialog` once (O(1), see the review
+   fixes below); an element then costs one `Option` test. The root
+   and the dialog are never shared (`shareable`: the root is excluded, a dialog
+   is in the top layer), so a shared style never needs a different flag; the
+   children of the root and of the dialog have different parent styles, and
+   `share_last` compares whole styles, flag included (unit tests in
+   `top_layer_tests/modal.rs`). Pseudo-elements and anonymous boxes inherit
+   the flag (`copy_inherited_from`); the dialog's `::backdrop` inherits the
+   dialog's `false`, which is what puts a hit region with the dialog as its
+   element under every inert point. A popover shown after the dialog, outside
+   it, and its backdrop are inert (measured row 7); one inside is not.
+2. *Selection through the style.* `ComputedStyle::is_user_selectable()` is
+   `user-select` not `none` and not inert; the fragment's `is_selectable`, the
+   text of the selection and `selectstart` read it, so inert text gets no
+   caret position, no word or paragraph, no highlight, no copy and no select
+   all, and the engine's code did not change. A double click on outside text
+   selects nothing in swb (Chromium selects a word of the dialog's button:
+   section 11, not copied). A single press whose nearest selectable text is in
+   the dialog (the backdrop of a dialog) can start a collapsed selection there.
+3. *Focus through the DOM.* `Document::is_modal_inert(node)` climbs the flat
+   ancestors (the flat depth, once per call) and `is_focusable` uses it, so a
+   script's `focus()`, `Page::focus` and a click ignore inert elements without
+   a style pass (measured: `e-script`, the focus stays in the dialog). The
+   Tab walk (`next_in_order`) starts at the dialog: the plain walk iterates the
+   dialog's subtree, the scope walk starts its document scope at the dialog,
+   so an inert subtree is skipped at its root (the walk is linear in the
+   dialog). A start that is not in the dialog counts as no start, as at the
+   end of the order (measured: after the last control the focus leaves the
+   document; Shift+Tab then enters at the last control, `e-tab-backward`). A
+   popover is placed after its invoker only if the popover and the invoker are
+   both in the dialog (`Popovers::of` adds the dialog to the nodes that the
+   `Climbs` helper knows); one with an inert invoker stays at its place in the
+   dialog, one outside is not in the order (`e-tab-popover-in-dialog`).
+4. *The click focus is broader than section 7.* Measured with the `e-click-*`
+   and `e-nonmodal-*` cases: a click on the text, the padding or the backdrop
+   of an open dialog focuses the dialog (focus events `focusout` of the old
+   element, `focusin` at the dialog), also when it is not modal and also
+   when the focus was on `body`; a control that is nearer wins (its own
+   focus); a dialog that has the focus already gets no event; the dialog needs
+   no `tabindex`. `focus::click_target` takes an open `dialog` that is rendered
+   as a click target, and `user_focus` of the web layer routes it to
+   `focus_dialog` (it is no focusable area). This also removes the departure of
+   `inert-closedby-any` #1 (6d).
+5. *`elementsFromPoint`* needed no code: a point with no hit region under the
+   backdrop is covered by the backdrop of the dialog, and the root element is
+   added at the end as before (`dialog, html`).
+6. *Frames.* The iframe element is inert like any other: it gets no hit
+   region, and the `Frame` item is not `interactive`, so the point falls
+   through to the dialog. The frame's own document has its own top layer
+   (measured: `inert-click` #5).
+7. *SVG.* `hit_shape` ignores an inert shape, as `pointer-events: none`.
+
+**Measured answers that the design did not have** (cases added to
+`tools/probes/web-top-layer.json`, generator `out/m10-f6e/gen_probes_6e.py`,
+three equal runs; the old cases are unchanged byte for byte, the table of
+`escape-popovers` flakes as in 6c and the committed run is kept): the
+`e-click-*` and `e-nonmodal-*` rows above; `e-tabindex-click-backdrop` (the same
+with a `tabindex` on the dialog); `e-empty-click-backdrop` (a dialog that has
+the focus already: no event); `e-tab-popover-in-dialog` (`Enter` on the
+invoker shows its popover; Tab: `ipb`, `di2`, leave, `di1`; Shift+Tab leaves,
+then `di2`); `e-tab-backward` (leave, `di`, `db`, leave); `e-script`
+(`ob.focus()`, `body.focus()`: `activeElement` stays `db`; `:focus` matches
+nothing outside).
+
+**Departures** (the rows that stay): `inert-click` #3 and #4 read
+`getComputedStyle(el).interactivity` (`undefined` in swb: the property is
+backlog, section 11); `inert-selection` is not run in `popover_input.rs`
+(both queries use `getSelection()`, which swb lacks; the step is the
+Chromium detail of section 11); `crates/engine/tests/modal_inert.rs` checks the
+engine's selection instead.
+
+**Feature 6 is complete.** The probe rows that stay outside the run, with
+the reason: `api-surface` #3 (`command`, `commandForElement`,
+`interestForElement`), #4 (`CommandEvent`, `CloseWatcher`) and #5
+(`interactivity`, anchor positioning): backlog, no target uses them;
+`popover-target-arenas` #2 and #10 (6a fix round); `invoker-inner-text` and
+`-textarea`, `popover-tab-order-source-other-tree` (6c); `inert-click` #3 and
+#4, `inert-selection` (above); `invokers-in-link-*` (key cases of
+`real_input.rs`); two rendering cases in `LATER` of `tests/top_layer.rs`
+(`top-layer-not-rendered-object`, `-content-visibility`: not the top layer).
+
+**Review fixes.** (1) `selectstart` fires for a press on the text of an open
+dialog and on a modal dialog's backdrop (`Document::press_focuses_element`: a
+dialog that only the dialog rule of `click_target` picked is no focus target;
+event targets measured: the text node, `dialog#d` for the backdrop; `x-selectstart-*`).
+(2) The click focus rule covers a `dialog` that shows as a popover (no `open`
+attribute), with scripts and without (`x-popover-dialog`;
+`Document::is_shown_dialog`). (3) One `is_open_dialog`, `Document::is_open_dialog`
+in `swb_dom`; the engine, the web layer and light dismiss use it. (4) The
+focus test of a popover in a dialog with an inert invoker puts the popover
+first in the dialog (`x-popover-inert-invoker-f` and `-b`). (5)
+`TopLayerState::blocking` is O(1): the field is made again by
+`Document::refresh_blocking` after a modal show, a modal close and a removal that
+takes an element out of the top layer (the only places that change the `MODAL`
+flag or the layer membership of a modal dialog); `invariants` of the dom
+tests compares it with the walk `blocking_scan` after every step. The review
+added 31 cases `x-*` to `tools/probes/web-top-layer.json` (the cases that match
+Chromium; not added: `x-dialog-tabindex` and `x-popover-inert-invoker`, which show
+that Chromium keeps the sequential focus starting point at an element after
+`blur()` and swb restarts at the edge: older than 6e, backlog).
+
+**Numbers** (release builds of 234c11f and 6e on the same machine): `just
+snapshot` (JavaScript off, 370 files) byte-identical; `compare --all` and
+`compare --all --js` identical to the base (GitHub with JavaScript on:
+geometry 0.9115, pixels 0.9934; `craigslist-search` JavaScript on: geometry 0
+in both, older); callgrind of `swb --headless --replay` with JavaScript off:
+Wikipedia 650,833,615 to 650,804,582 Ir (-0.004 %), Ars Technica
+1,970,622,916 to 1,970,962,699 (+0.017 %), BBC 7,331,292,810 to 7,332,178,582
+(+0.012 %); GitHub with JavaScript on: a headless load in 0.464 s (median of
+10 runs for each build; base 0.463 s). Hostile case
+`dialog-modal-over-100000-nodes`: 16.5 s and 469 MiB (the case's limit is
+30 s); the whole hostile set passes (467 ok, the known failure
+`nest-div-100000`). The cost of the new case is older than 6e: every focus change restyles and lays out the
+whole document (backlog of 5d); on the same page the base build takes 0.66 s
+to load, 11.6 s for 30 Tab presses (0.35 s each) and 6.6 s for 30 clicks
+outside, 6e takes 0.68 s, 11.2 s and 5.9 s: the Tab walk is linear in the
+dialog now, but a walk of 100,000 buttons was not what the time went to.

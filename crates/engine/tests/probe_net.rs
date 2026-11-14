@@ -873,8 +873,6 @@ const SHADOW_LATER: &[Later] = &[
     ("declarative-js-on", None, DECLARATIVE),
 ];
 
-const SUB_6E: &str = "ADR 0037 sub-feature 6e (modal inertness: hits outside a modal dialog go \
-     to the dialog); rows 1 to 4 run since 6b, rows 8 to 10 since 6d";
 const STEPS_6C: &str = "the case has input steps: it runs in \
      `crates/automation/tests/popover_input.rs` (ADR 0037 sub-feature 6c)";
 const STEPS_6D: &str = "the case has input steps: it runs in \
@@ -882,8 +880,8 @@ const STEPS_6D: &str = "the case has input steps: it runs in \
 const SUB_6D_STEPS: &str = "ADR 0037 sub-feature 6d (dialogs, close requests); the case has \
      input steps: it runs in `crates/automation/tests/real_input.rs` or, without scripts, in an \
      engine test";
-const SUB_6E_STEPS: &str = "ADR 0037 sub-feature 6e (modal inertness); the case has input \
-     steps: it runs in `crates/automation/tests/real_input.rs`";
+const SUB_6E_STEPS: &str = "the case has input steps: it runs in \
+     `crates/automation/tests/popover_input.rs` (ADR 0037 sub-feature 6e)";
 
 /// The departures of the top layer probe (ADR 0037 section 11, "6a
 /// implementation notes"). The members that later sub-features add change
@@ -936,15 +934,53 @@ const TOP_LAYER_LATER: &[Later] = &[
     ("invokers-in-link-enter", None, STEPS),
     ("invokers-in-link-space", None, STEPS),
     ("invokers-in-link-enter-plain", None, STEPS),
-    ("top-layer-hit-order", Some(5), SUB_6E),
-    ("top-layer-hit-order", Some(6), SUB_6E),
-    ("top-layer-hit-order", Some(7), SUB_6E),
     ("inert-click", None, SUB_6E_STEPS),
     ("inert-hover", None, SUB_6E_STEPS),
     ("inert-tab", None, SUB_6E_STEPS),
     ("inert-selection", None, SUB_6E_STEPS),
     ("inert-backdrop-click", None, SUB_6E_STEPS),
     ("inert-closedby-any", None, SUB_6D_STEPS),
+    ("e-click-padding", None, SUB_6E_STEPS),
+    ("e-click-text", None, SUB_6E_STEPS),
+    ("e-click-backdrop", None, SUB_6E_STEPS),
+    ("e-click-backdrop-blurred", None, SUB_6E_STEPS),
+    ("e-click-padding-blurred", None, SUB_6E_STEPS),
+    ("e-empty-click-backdrop", None, SUB_6E_STEPS),
+    ("e-empty-click-text", None, SUB_6E_STEPS),
+    ("e-tabindex-click-backdrop", None, SUB_6E_STEPS),
+    ("e-tab-popover-in-dialog", None, SUB_6E_STEPS),
+    ("e-tab-backward", None, SUB_6E_STEPS),
+    ("e-nonmodal-click-text", None, SUB_6E_STEPS),
+    ("e-nonmodal-click-padding", None, SUB_6E_STEPS),
+    ("x-popover-dialog", None, SUB_6E_STEPS),
+    ("x-wheel", None, SUB_6E_STEPS),
+    ("x-wheel-doc", None, SUB_6E_STEPS),
+    ("x-dialog-tab-ae", None, SUB_6E_STEPS),
+    ("x-frame-keys", None, SUB_6E_STEPS),
+    ("x-frame-modal", None, SUB_6E_STEPS),
+    ("x-display-none-modal", None, SUB_6E_STEPS),
+    ("x-click-disabled", None, SUB_6E_STEPS),
+    ("x-shadow-slot", None, SUB_6E_STEPS),
+    ("x-shadow-dialog-tab", None, SUB_6E_STEPS),
+    ("x-dialog-iframe-tab", None, SUB_6E_STEPS),
+    ("x-delegate-in-dialog", None, SUB_6E_STEPS),
+    ("x-slotted-dialog-tab", None, SUB_6E_STEPS),
+    ("x-two-modal", None, SUB_6E_STEPS),
+    ("x-selectstart-nonmodal", None, SUB_6E_STEPS),
+    ("x-selectstart-modal", None, SUB_6E_STEPS),
+    ("x-selectstart-plain", None, SUB_6E_STEPS),
+    ("x-close-restore", None, SUB_6E_STEPS),
+    ("x-popover-inert-invoker-f", None, SUB_6E_STEPS),
+    ("x-popover-inert-invoker-b", None, SUB_6E_STEPS),
+    ("x-backdrop-none", None, SUB_6E_STEPS),
+    ("x-backdrop-pe-none", None, SUB_6E_STEPS),
+    ("x-dialog-pe-none", None, SUB_6E_STEPS),
+    ("x-selectstart-backdrop-text", None, SUB_6E_STEPS),
+    ("x-selectstart-backdrop-blank", None, SUB_6E_STEPS),
+    ("x-click-start-point-modal", None, SUB_6E_STEPS),
+    ("x-click-start-point-nonmodal", None, SUB_6E_STEPS),
+    ("x-wheel-frame", None, SUB_6E_STEPS),
+    ("x-wheel-frame-none", None, SUB_6E_STEPS),
     ("escape-modal", None, SUB_6D_STEPS),
     ("escape-cancel-prevented", None, SUB_6D_STEPS),
     ("escape-no-activation", None, SUB_6D_STEPS),

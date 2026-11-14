@@ -11,6 +11,8 @@ use super::*;
 use crate::values::Position;
 use crate::values::*;
 
+mod modal;
+
 /// A host of the popover algorithms that fires no events.
 struct Silent<'a>(&'a mut Document);
 

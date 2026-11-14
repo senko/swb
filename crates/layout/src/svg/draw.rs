@@ -590,6 +590,8 @@ fn hit_shape(
     let fill_painted = !matches!(style.fill, SvgPaint::None);
     let stroke_painted = !matches!(style.stroke, SvgPaint::None);
     let (fill, stroke) = match style.pointer_events {
+        // An element that a modal dialog makes inert gets no hit either.
+        _ if style.modal_inert => (false, false),
         PointerEvents::None => (false, false),
         PointerEvents::Auto | PointerEvents::VisiblePainted => {
             (visible && fill_painted, visible && stroke_painted)

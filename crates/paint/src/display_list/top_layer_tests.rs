@@ -42,14 +42,18 @@ impl TopLayerHost for Silent<'_> {
 }
 
 /// The display list of `html` in an 800×600 viewport after showing the
-/// popovers `open` in order (an id after `-` is hidden), and the document.
+/// popovers `open` in order (an id after `-` is hidden, one after `*` is a
+/// dialog that opens as a modal dialog), and the document.
 fn paint(html: &str, open: &[&str]) -> (Document, DisplayList) {
     let mut doc = parse_html(html);
     for op in open {
         let (hide, id) = op.strip_prefix('-').map_or((false, *op), |id| (true, id));
+        let (modal, id) = id.strip_prefix('*').map_or((false, id), |id| (true, id));
         let element = doc.element_by_id(id).expect("a popover");
         let host = &mut Silent(&mut doc);
-        if hide {
+        if modal {
+            swb_dom::show_modal(host, element, None).expect("shows");
+        } else if hide {
             swb_dom::hide_popover(host, element, swb_dom::HideOptions::default()).expect("hides");
         } else {
             swb_dom::show_popover(host, element, true, None).expect("shows");
@@ -220,4 +224,86 @@ fn the_backdrop_paints_right_below_its_element() {
         "a {a}, backdrop {backdrop}, b {b}"
     );
     assert_eq!(ids_at(&doc, &list, 30.0, 30.0), ["a"]);
+}
+
+const MODAL_PAGE: &str = "<!DOCTYPE html><style>body { margin: 0 } \
+    #out { position: absolute; left: 0; top: 0; width: 100px; height: 100px } \
+    #fr { position: absolute; left: 0; top: 150px; width: 100px; height: 40px } \
+    dialog { width: 60px; height: 60px; padding: 0; border: 0 } \
+    [popover] { position: absolute; inset: auto; margin: 0; border: 0; padding: 0; width: 50px; \
+    height: 50px } #p { left: 200px; top: 0 } #q { left: 200px; top: 100px }</style>\
+    <div id=out>outside text</div><iframe id=fr></iframe>\
+    <div id=p popover=manual>p</div>\
+    <dialog id=d>d<div id=q popover=manual>q</div></dialog>";
+
+#[test]
+fn an_inert_box_has_no_hit_region_and_the_backdrop_catches_the_hit() {
+    // `inert-click` and `top-layer-hit-order` rows 5 to 7: under a modal
+    // dialog a hit outside it is the dialog (the backdrop's element); a
+    // popover outside, shown after the dialog, is drawn but not hit; one
+    // inside is hit.
+    let (doc, list) = paint(MODAL_PAGE, &["*d", "p", "q"]);
+    assert_eq!(ids_at(&doc, &list, 20.0, 20.0), ["d"], "the outside box");
+    assert_eq!(
+        ids_at(&doc, &list, 20.0, 160.0),
+        ["d"],
+        "the outside iframe's box"
+    );
+    assert_eq!(
+        ids_at(&doc, &list, 220.0, 20.0),
+        ["d"],
+        "the popover outside"
+    );
+    assert_eq!(
+        ids_at(&doc, &list, 220.0, 120.0)[0],
+        "q",
+        "the popover inside"
+    );
+    // The text of the outside box has no hit region either: every region
+    // under the point is the dialog's.
+    for node in list.hit_test_all(Point::new(5.0, 5.0), Point::default()) {
+        assert!(
+            doc.element(node)
+                .is_some_and(|e| e.local_name() == "dialog"),
+            "only the dialog is hit, not {node:?}"
+        );
+    }
+    // Without the modal dialog the same points hit the boxes.
+    let (doc, list) = paint(MODAL_PAGE, &["p"]);
+    assert_eq!(ids_at(&doc, &list, 20.0, 20.0)[0], "out");
+    assert_eq!(ids_at(&doc, &list, 220.0, 20.0)[0], "p");
+}
+
+#[test]
+fn an_inert_svg_shape_has_no_hit_shape() {
+    let html = "<!DOCTYPE html><style>body { margin: 0 } dialog { width: 60px; height: 60px }</style>\
+        <svg width=50 height=50><rect width=50 height=50 fill=red /></svg><dialog id=d>d</dialog>";
+    let shapes = |list: &DisplayList| {
+        list.items
+            .iter()
+            .filter(|i| matches!(i, DisplayItem::HitShape { .. }))
+            .count()
+    };
+    let (_, list) = paint(html, &[]);
+    assert_eq!(shapes(&list), 1);
+    let (_, list) = paint(html, &["*d"]);
+    assert_eq!(shapes(&list), 0);
+}
+
+#[test]
+fn an_inert_frame_is_not_interactive() {
+    // `inert-click`: the iframe gets no input under a modal dialog.
+    let frame = |list: &DisplayList| {
+        list.items
+            .iter()
+            .find_map(|i| match i {
+                DisplayItem::Frame { interactive, .. } => Some(*interactive),
+                _ => None,
+            })
+            .expect("a frame item")
+    };
+    let (_, list) = paint(MODAL_PAGE, &["*d"]);
+    assert!(!frame(&list));
+    let (_, list) = paint(MODAL_PAGE, &[]);
+    assert!(frame(&list));
 }

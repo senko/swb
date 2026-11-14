@@ -423,6 +423,12 @@ pub struct TopLayerState {
     attribute_hides: Vec<NodeId>,
     /// The serial of the last toggle task.
     serial: u64,
+    /// The modal dialog that blocks the document (HTML "blocked by a modal
+    /// dialog"): the last element of `layer` that has the flag `MODAL`. It
+    /// is made again by [`Document::refresh_blocking`] after each change of
+    /// the flag or of the layer membership of a modal dialog (show, close,
+    /// removal), so that [`TopLayerState::blocking`] costs O(1).
+    blocking: Option<NodeId>,
 }
 
 impl TopLayerState {
@@ -544,8 +550,14 @@ impl TopLayerState {
     }
 
     /// HTML "blocked by a modal dialog": the last element of the top layer
-    /// that is a modal dialog.
-    pub fn blocking(&self, doc: &Document) -> Option<NodeId> {
+    /// that is a modal dialog (kept by [`Document::refresh_blocking`]).
+    pub fn blocking(&self) -> Option<NodeId> {
+        self.blocking
+    }
+
+    /// [`TopLayerState::blocking`] by a walk over the top layer from its end
+    /// (the length of the top layer).
+    pub(crate) fn blocking_scan(&self, doc: &Document) -> Option<NodeId> {
         self.layer
             .iter()
             .rev()
@@ -580,6 +592,69 @@ impl Document {
         self.top_layer
             .as_ref()
             .is_some_and(|s| !s.layer.is_empty() || !s.open_dialogs.is_empty())
+    }
+
+    /// The modal dialog that blocks the document: the last modal dialog of
+    /// the top layer (HTML "blocked by a modal dialog"). O(1).
+    pub fn blocking_dialog(&self) -> Option<NodeId> {
+        self.top_layer.as_deref()?.blocking()
+    }
+
+    /// Makes [`TopLayerState::blocking`] again, after a change of the `MODAL`
+    /// flag or of the layer membership of a modal dialog. Costs the length
+    /// of the top layer (a walk from its end that stops at the first modal
+    /// dialog).
+    pub(crate) fn refresh_blocking(&mut self) {
+        let Some(state) = self.top_layer.as_deref() else {
+            return;
+        };
+        let blocking = state.blocking_scan(self);
+        if let Some(state) = self.top_layer.as_deref_mut() {
+            state.blocking = blocking;
+        }
+    }
+
+    /// True if `node` is an HTML `dialog` element with the `open` attribute.
+    pub fn is_open_dialog(&self, node: NodeId) -> bool {
+        self.element(node)
+            .is_some_and(|e| e.is_html_named(&local_name!("dialog")) && e.has_attr("open"))
+    }
+
+    /// True if `node` is a `dialog` that is shown: open (the `open`
+    /// attribute) or showing as a popover. A click on its text, padding or
+    /// backdrop focuses it (Chromium 148, measured: `e-click-*`,
+    /// `x-popover-dialog` of `tools/probes/web-top-layer.json`).
+    pub fn is_shown_dialog(&self, node: NodeId) -> bool {
+        self.is_open_dialog(node)
+            || (self.is_popover_showing(node)
+                && self
+                    .element(node)
+                    .is_some_and(|e| e.is_html_named(&local_name!("dialog"))))
+    }
+
+    /// True if a modal dialog blocks the document and `node` is not that
+    /// dialog or a flat tree descendant of it: the node is inert (ADR 0037
+    /// section 7). A node outside the document's flat tree is not (it is not
+    /// in the document). Costs the flat tree depth of `node`; the style walk
+    /// does not use it (it sets `ComputedStyle::modal_inert` once per
+    /// document).
+    pub fn is_modal_inert(&self, node: NodeId) -> bool {
+        match self.blocking_dialog() {
+            Some(dialog) => self.is_inert_under(node, dialog),
+            None => false,
+        }
+    }
+
+    /// [`Document::is_modal_inert`] for the blocking dialog `dialog`.
+    pub fn is_inert_under(&self, node: NodeId, dialog: NodeId) -> bool {
+        let mut top = node;
+        for ancestor in std::iter::once(node).chain(self.flat_ancestors(node)) {
+            if ancestor == dialog {
+                return false;
+            }
+            top = ancestor;
+        }
+        matches!(self.node(top).data, crate::NodeData::Document)
     }
 
     /// True if `element` is a showing popover.
@@ -737,6 +812,7 @@ impl Document {
                 })
             })
             .collect();
+        let mut left_layer = false;
         for element in found {
             // HTML "removing steps" of `dialog`: an open dialog runs the
             // dialog cleanup steps; a modal one leaves the top layer below.
@@ -758,12 +834,16 @@ impl Document {
                 .element(element)
                 .is_some_and(crate::ElementData::in_top_layer)
             {
+                left_layer = true;
                 self.set_flags(element, flags::TOP_LAYER | flags::MODAL, false);
                 if let Some(state) = self.top_layer.as_deref_mut() {
                     state.remove_from_layer(element);
                 }
                 self.record_top_layer(element);
             }
+        }
+        if left_layer {
+            self.refresh_blocking();
         }
     }
 

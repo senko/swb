@@ -4,6 +4,35 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-14: M10 6e: modal inertness; feature 6 complete
+
+- While a modal dialog is in the top layer, everything outside it is
+  inert: no hit, focus, Tab stop, `:hover`, `:active` or selection, and an
+  inert `iframe` gets no input. One inherited style flag (`modal_inert`,
+  set at the root and cleared at the dialog) serves the hit regions, SVG
+  hit shapes, frames and selectable text; focus reads the DOM
+  (`Document::is_modal_inert`). Hits outside the dialog fall to its
+  backdrop, whose element is the dialog, so `elementFromPoint`,
+  `elementsFromPoint`, `:hover` and `:active` needed no code.
+- Found in Chromium: a click on the text, padding or backdrop of any open
+  dialog (also a non-modal one, also a `<dialog popover>`) focuses the
+  dialog if no control is nearer; Tab under a modal dialog leaves the
+  document after the dialog's last control, and Shift+Tab enters at the
+  last. A dialog that shows as a popover is displayed (the UA rule had hid
+  it).
+- The review found two bugs, both measured: a press on a dialog's text or
+  backdrop fired no `selectstart`, and a click on a `<dialog popover>` did
+  not focus it. Also: the blocking dialog is kept per top-layer change
+  (O(1) to read), one `is_open_dialog`, a focus test that could not fail.
+- 44 new probe cases; all `inert-*` rows run except `inert-selection` (no
+  `getSelection`); 2 departures (`interactivity`). Targets unchanged;
+  JS-off snapshot identical; callgrind +0.03 % at most; GitHub `load`
+  0.464 s. A modal dialog over 100,000 buttons takes 16.8 s for 30 Tab
+  presses and 30 clicks, nearly all of it the older whole-document restyle
+  at each focus change.
+- Feature 6 (popover, dialog, top layer) is complete. Next: feature 7
+  (smaller CSS features).
+
 ## 2026-11-14: M10 6d: dialogs
 
 - `HTMLDialogElement` (`show`, `showModal`, `close`, `requestClose`,

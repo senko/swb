@@ -60,9 +60,14 @@ fn focusable_by_default(doc: &Document, node: NodeId, element: &ElementData) -> 
 }
 
 /// The element that a click on `node` focuses: the nearest element of the
-/// click's (composed) event path that is focusable and rendered; a shadow
-/// host that delegates focus, reached without one, gives its focus delegate
-/// ([`focus_delegate`], ADR 0036 section 8).
+/// click's (composed) event path that is focusable and rendered, or a shown
+/// `dialog` (open, or showing as a popover; Chromium 148, measured, cases
+/// `e-click-*` and `x-popover-dialog` of
+/// `tools/probes/web-top-layer.json`: a click on a dialog's text, padding or
+/// backdrop focuses the dialog, also when it is not modal, unless a
+/// focusable element is nearer); a shadow host that delegates focus,
+/// reached without one, gives its focus delegate ([`focus_delegate`], ADR
+/// 0036 section 8).
 pub(crate) fn click_target(
     doc: &Document,
     node: NodeId,
@@ -74,7 +79,7 @@ pub(crate) fn click_target(
             if doc.delegates_focus(n) {
                 focus_delegate(doc, n, &rendered)
             } else {
-                (is_focusable(doc, n) && rendered(n)).then_some(n)
+                ((is_focusable(doc, n) || doc.is_shown_dialog(n)) && rendered(n)).then_some(n)
             }
         })
 }
@@ -108,9 +113,11 @@ pub(crate) fn focus_delegate(
 }
 
 /// True if `node` can be focused (with a click or a script) when it is
-/// rendered.
+/// rendered. An inert node (not in the modal dialog that blocks the
+/// document: HTML "blocked by a modal dialog", ADR 0037 section 7) is not
+/// focusable.
 pub(crate) fn is_focusable(doc: &Document, node: NodeId) -> bool {
-    tab_index(doc, node, || is_actually_disabled(doc, node)).is_some()
+    tab_index(doc, node, || is_actually_disabled(doc, node)).is_some() && !doc.is_modal_inert(node)
 }
 
 /// The next element in sequential focus order after `from` (or before it,
@@ -128,6 +135,13 @@ pub(crate) fn next_in_order(
     rendered: impl Fn(NodeId) -> bool,
 ) -> Option<NodeId> {
     let popovers = Popovers::of(doc);
+    // Under a modal dialog the order is the dialog's: the walk starts at the
+    // dialog (the inert rest of the tree is skipped at its root), and a start
+    // outside it counts as no start: the order is entered at its edge.
+    let from = match popovers.modal {
+        Some(dialog) => from.filter(|&f| !doc.is_inert_under(f, dialog)),
+        None => from,
+    };
     if doc.has_shadow_trees() || !popovers.moved.is_empty() {
         return next_in_scopes(doc, from, backward, &rendered, &popovers);
     }
@@ -135,7 +149,8 @@ pub(crate) fn next_in_order(
     // (tabindex group, tree position, node); group 0 is tabindex 0.
     let mut order: Vec<(i32, usize, NodeId)> = Vec::new();
     let mut from_key = None;
-    for (position, node) in doc.descendants(NodeId::DOCUMENT).enumerate() {
+    let root = popovers.modal.unwrap_or(NodeId::DOCUMENT);
+    for (position, node) in doc.descendants(root).enumerate() {
         if Some(node) == from {
             from_key = Some(match tab_index(doc, node, || disabled.contains(node)) {
                 Some(index) if index > 0 => (index, position),
@@ -206,6 +221,9 @@ struct Popovers {
     moved: HashSet<NodeId>,
     /// The same in top layer order (a fixed order for the walk).
     layer_order: Vec<NodeId>,
+    /// The modal dialog that blocks the document, if any: the order is the
+    /// order of its subtree (ADR 0037 section 7).
+    modal: Option<NodeId>,
 }
 
 impl Popovers {
@@ -218,6 +236,7 @@ impl Popovers {
         let Some(state) = doc.top_layer().filter(|s| !s.layer().is_empty()) else {
             return popovers;
         };
+        popovers.modal = state.blocking();
         let candidates: Vec<(NodeId, NodeId)> = state
             .layer()
             .iter()
@@ -228,9 +247,22 @@ impl Popovers {
         if candidates.is_empty() {
             return popovers;
         }
-        let mut climbs = Climbs::new(doc, candidates.iter().map(|&(popover, _)| popover));
+        // Under a modal dialog only the popovers inside it and the invokers
+        // inside it matter: the rest of the tree is not in the order, and a
+        // popover that follows an inert invoker would be lost (it stays at
+        // its place in the dialog instead).
+        let modal = popovers.modal;
+        let mut climbs = Climbs::new(
+            doc,
+            candidates.iter().map(|&(popover, _)| popover).chain(modal),
+        );
         for (popover, invoker) in candidates {
             if !climbs.connected(invoker) || climbs.inside(invoker, popover) {
+                continue;
+            }
+            if let Some(dialog) = modal
+                && !(climbs.inside(popover, dialog) && climbs.inside(invoker, dialog))
+            {
                 continue;
             }
             popovers.after.entry(invoker).or_default().push(popover);
@@ -431,7 +463,12 @@ fn scope_entries(
     owner: NodeId,
 ) -> Vec<Entry> {
     let mut entries = Vec::new();
-    let mut stack: Vec<Visit> = doc.flat_children(owner).map(Visit::Enter).collect();
+    // Under a modal dialog the document's scope is the dialog and what it
+    // holds: the inert rest of the tree is skipped at its root.
+    let mut stack: Vec<Visit> = match popovers.modal.filter(|_| owner == NodeId::DOCUMENT) {
+        Some(dialog) => vec![Visit::Enter(dialog)],
+        None => doc.flat_children(owner).map(Visit::Enter).collect(),
+    };
     stack.reverse();
     while let Some(visit) = stack.pop() {
         let node = match visit {
@@ -962,6 +999,103 @@ mod tests {
         );
         show(&mut doc, "pp", Some("s"));
         assert_eq!(sequence(&doc, false), ["x", "y", "b1", "z"]);
+    }
+
+    /// Opens the dialog `dialog` as a modal dialog, without events.
+    fn show_modal(doc: &mut Document, dialog: &str) {
+        let d = id(doc, dialog);
+        let mut host = Show(std::mem::take(doc));
+        swb_dom::show_modal(&mut host, d, None).unwrap();
+        *doc = host.0;
+    }
+
+    /// Under a modal dialog the order is the dialog's, and a start outside
+    /// it counts as no start (`inert-tab`, `e-tab-backward`; ADR 0037
+    /// section 5).
+    #[test]
+    fn a_modal_dialog_has_its_own_tab_order() {
+        let mut doc = parse_html(
+            "<button id=x>x</button><dialog id=d><button id=a>a</button>\
+             <button id=b>b</button></dialog><button id=y>y</button>",
+        );
+        // (Every element counts as rendered here.)
+        assert_eq!(sequence(&doc, false), ["x", "a", "b", "y"]);
+        show_modal(&mut doc, "d");
+        assert_eq!(sequence(&doc, false), ["a", "b"]);
+        assert_eq!(sequence(&doc, true), ["b", "a"]);
+        // A start outside the dialog enters it at the edge; its own end ends
+        // the order.
+        let x = Some(id(&doc, "x"));
+        assert_eq!(next_in_order(&doc, x, false, |_| true), Some(id(&doc, "a")));
+        assert_eq!(next_in_order(&doc, x, true, |_| true), Some(id(&doc, "b")));
+        let b = Some(id(&doc, "b"));
+        assert_eq!(next_in_order(&doc, b, false, |_| true), None);
+        // Nothing outside is focusable; inside, the dialog's controls are.
+        assert!(!is_focusable(&doc, id(&doc, "x")));
+        assert!(!is_focusable(&doc, id(&doc, "y")));
+        assert!(is_focusable(&doc, id(&doc, "a")));
+        // The same in a document with a shadow tree (the walk of scopes): a
+        // start in the inert tree, in the light tree or the shadow tree,
+        // enters at the edge in both directions.
+        let mut doc = parse_html(
+            "<button id=x>x</button><div id=h></div><dialog id=d><button id=a>a</button>\
+             <button id=b>b</button></dialog>",
+        );
+        shadow(&mut doc, "h", false, &[("button", "sh", &[])]);
+        show_modal(&mut doc, "d");
+        assert_eq!(sequence(&doc, false), ["a", "b"]);
+        assert_eq!(sequence(&doc, true), ["b", "a"]);
+        for start in [
+            id(&doc, "x"),
+            doc.flat_children(id(&doc, "h")).next().unwrap(),
+        ] {
+            let from = Some(start);
+            assert_eq!(
+                next_in_order(&doc, from, false, |_| true),
+                Some(id(&doc, "a"))
+            );
+            assert_eq!(
+                next_in_order(&doc, from, true, |_| true),
+                Some(id(&doc, "b"))
+            );
+        }
+    }
+
+    /// A popover in the modal dialog follows its invoker in the dialog; one
+    /// whose invoker is inert stays at its place in the dialog; one outside
+    /// the dialog is not visited, also with an invoker inside it. Also in a
+    /// document with a shadow tree (the walk of scopes).
+    #[test]
+    fn popovers_under_a_modal_dialog() {
+        let page = "<button id=x>x</button><div id=out popover=manual><button id=ob>ob</button></div>\
+             <dialog id=d><button id=inv>inv</button><button id=a>a</button>\
+             <div id=in popover=manual><button id=ib>ib</button></div></dialog>{shadow}";
+        for shadow in ["", "<div id=h></div>"] {
+            let mut doc = parse_html(&page.replace("{shadow}", shadow));
+            if !shadow.is_empty() {
+                self::shadow(&mut doc, "h", false, &[("button", "sh", &[])]);
+            }
+            show_modal(&mut doc, "d");
+            // The popover inside, with its invoker inside: after the invoker.
+            show(&mut doc, "in", Some("inv"));
+            assert_eq!(sequence(&doc, false), ["inv", "ib", "a"], "{shadow}");
+            // The popover outside, with an invoker inside: not visited.
+            show(&mut doc, "out", Some("a"));
+            assert_eq!(sequence(&doc, false), ["inv", "ib", "a"], "{shadow}");
+        }
+        // The popover inside with an invoker outside (inert): at its place.
+        // It comes first in the dialog, so that a popover that is lost or
+        // appended at the end gives another sequence (`x-popover-inert-
+        // invoker-f` and `-b` of `tools/probes/web-top-layer.json`).
+        let mut doc = parse_html(
+            "<button id=x>x</button><dialog id=d><div id=in popover=manual>\
+             <button id=ib>ib</button></div><button id=inv>inv</button>\
+             <button id=a>a</button></dialog>",
+        );
+        show_modal(&mut doc, "d");
+        show(&mut doc, "in", Some("x"));
+        assert_eq!(sequence(&doc, false), ["ib", "inv", "a"]);
+        assert_eq!(sequence(&doc, true), ["a", "inv", "ib"]);
     }
 
     /// Nested popovers follow their invokers inside the scope of the outer

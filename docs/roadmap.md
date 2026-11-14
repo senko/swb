@@ -4951,6 +4951,25 @@ Steps:
         identical; callgrind -0.07 % to 0 %.
       - 6e modal inertness (`implementer`): hit testing, focus, the Tab
         order, `:hover` and the engine's selection under a modal dialog.
+        Done (2026-11-14): while a modal dialog is in the top layer,
+        everything outside it gets no hit, focus, Tab stop, `:hover`,
+        `:active` or selection, and an inert `iframe` gets no input; hits
+        outside the dialog fall to its backdrop (element: the dialog). An
+        internal inherited style flag (`modal_inert`) serves hit testing
+        and selection; focus reads `Document::is_modal_inert`. Measured
+        and implemented: a click on the text, padding or backdrop of an
+        open dialog (also non-modal, also `<dialog popover>`) focuses the
+        dialog unless a control is nearer; Tab under a modal dialog leaves
+        the document after the dialog's last control. From the review:
+        `selectstart` fires for a press on a dialog's text or backdrop; a
+        `<dialog popover>` is displayed and takes the click focus; the
+        blocking dialog is O(1) to read. 44 new probe cases; all `inert-*`
+        rows run except `inert-selection` (no `getSelection`); 2
+        departures (`interactivity`). Targets unchanged; JS-off snapshot
+        identical; callgrind +0.03 % at most.
+
+      Feature 6 is complete (2026-11-14). The probe rows that stay `Later`
+      or departures are listed in ADR 0037 "6e implementation notes".
    7. Smaller CSS features (`implementer`; JS on and off): `@container`
       (size queries, container units, names), `@property`,
       `field-sizing`, `color-mix()` with `currentcolor` and transparency,
@@ -5114,6 +5133,18 @@ Steps:
   `close-watchers-100000-without-activation` takes 2.5 s (0.45 s in 6c):
   its 100,000 `showModal` and `close` pairs each fire two events and run
   the focusing steps.
+- Top layer (found in 6e): `dialog-modal-over-100000-nodes` takes 16.8 s
+  (limit 30 s), nearly all of it the whole-document restyle and relayout
+  at each focus change (the 5d item; about 0.35 s per Tab press at
+  100,000 nodes). `Document::is_modal_inert` walks the flat ancestors, so
+  `focus_delegate` over a deep delegating host under a modal dialog costs
+  O(n × depth) (only at a click or `focus()`). Chromium keeps the
+  sequential focus starting point at an element after `blur()`; swb
+  restarts at the edge of the document (the review's `x-dialog-tabindex`
+  and `x-popover-inert-invoker`; older than 6e). swb does not blur an
+  element that becomes inert while it has the focus (the dialog focusing
+  steps move the focus first, so no case shows it). The `inert`
+  attribute, `interactivity` and `getSelection` stay in the item above.
 - Rendering (found in 6b): swb has no `content-visibility`; an `<object>`
   with `type` or `data` renders its fallback children, Chromium does not
   (measured: a child `div` has no client rect); a gradient `body`

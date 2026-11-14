@@ -585,5 +585,171 @@
   ],
   "n-baseline": [
     "cancel cancelable=true | open=true"
+  ],
+  "e-click-padding": [
+    "object",
+    "pointerdown:dialog#d mousedown:dialog#d focusout:button#db focusin:dialog#d click:dialog#d ae:dialog#d"
+  ],
+  "e-click-text": [
+    "object",
+    "pointerdown:p#pt mousedown:p#pt focusout:button#db focusin:dialog#d click:p#pt ae:dialog#d"
+  ],
+  "e-click-backdrop": [
+    "object",
+    "pointerdown:dialog#d mousedown:dialog#d focusout:button#db focusin:dialog#d click:dialog#d ae:dialog#d"
+  ],
+  "e-click-backdrop-blurred": [
+    "object",
+    "dialog#d",
+    "pointerdown:dialog#d mousedown:dialog#d focusin:dialog#d click:dialog#d ae:dialog#d"
+  ],
+  "e-click-padding-blurred": [
+    "object",
+    "dialog#d",
+    "pointerdown:dialog#d mousedown:dialog#d focusin:dialog#d click:dialog#d ae:dialog#d"
+  ],
+  "e-empty-click-backdrop": [
+    "object",
+    "pointerdown:dialog#d mousedown:dialog#d click:dialog#d ae:dialog#d"
+  ],
+  "e-empty-click-text": [
+    "object",
+    "pointerdown:p#pt mousedown:p#pt focusin:dialog#d click:p#pt ae:dialog#d"
+  ],
+  "e-tabindex-click-backdrop": [
+    "object",
+    "pointerdown:dialog#d mousedown:dialog#d focusout:button#db focusin:dialog#d click:dialog#d ae:dialog#d"
+  ],
+  "e-tab-popover-in-dialog": [
+    "object",
+    "focusin:button#ipb focusin:button#di2 focusin:button#di1 focusin:button#di2"
+  ],
+  "e-tab-backward": [
+    "object",
+    "focusin:input#di focusin:button#db"
+  ],
+  "e-nonmodal-click-text": [
+    "object",
+    "pointerdown:p#pt mousedown:p#pt focusout:button#ob focusin:dialog#d click:p#pt ae:dialog#d"
+  ],
+  "e-nonmodal-click-padding": [
+    "object",
+    "pointerdown:dialog#d mousedown:dialog#d focusout:button#ob focusin:dialog#d click:dialog#d ae:dialog#d"
+  ],
+  "x-popover-dialog": [
+    "object",
+    "focusin:dialog#d click:dialog#d ae:dialog#d"
+  ],
+  "x-wheel": [
+    "object",
+    "0 100"
+  ],
+  "x-wheel-doc": [
+    "object",
+    100
+  ],
+  "x-dialog-tab-ae": [
+    "object",
+    "dialog#d button#a button#b dialog#d ae:dialog#d"
+  ],
+  "x-frame-keys": [
+    "object",
+    "top-key:a top-key:b ae:button#db fi: fae:body"
+  ],
+  "x-frame-modal": [
+    "undefined",
+    "top-click:button#ob ae:button#ob"
+  ],
+  "x-display-none-modal": [
+    "object",
+    "click:html ae:body"
+  ],
+  "x-click-disabled": [
+    "object",
+    "focusin:dialog#d ae:dialog#d"
+  ],
+  "x-shadow-slot": [
+    "object",
+    "click:button#sl focusin:div#h click:div#h ae:div#h hov:false auto"
+  ],
+  "x-shadow-dialog-tab": [
+    "object",
+    "div#h ae:div#h"
+  ],
+  "x-dialog-iframe-tab": [
+    "object",
+    "button#b button#a ae:body"
+  ],
+  "x-delegate-in-dialog": [
+    "object",
+    "button#b div#h ae:div#h"
+  ],
+  "x-slotted-dialog-tab": [
+    "object",
+    "button#a button#a ae:button#a"
+  ],
+  "x-two-modal": [
+    "object",
+    "button#b dialog#d2 ae:dialog#d2"
+  ],
+  "x-selectstart-nonmodal": [
+    "object",
+    "mousedown:p#pt focusin:dialog#d selectstart:#t:text in the dialog click:p#pt ae:dialog#d"
+  ],
+  "x-selectstart-modal": [
+    "object",
+    "mousedown:p#pt selectstart:#t:text in the dialog click:p#pt ae:dialog#d"
+  ],
+  "x-selectstart-plain": [
+    "undefined",
+    "mousedown:p#pt selectstart:#t:text in the page click:p#pt ae:body"
+  ],
+  "x-close-restore": [
+    "object",
+    "ob-focus ae:button#ob"
+  ],
+  "x-popover-inert-invoker-f": [
+    "object",
+    "button#b button#ib ae:button#ib"
+  ],
+  "x-popover-inert-invoker-b": [
+    "object",
+    "button#ib button#b ae:button#b"
+  ],
+  "x-backdrop-none": [
+    "object",
+    "pointerdown:html click:html ae:body efp:html hov:false"
+  ],
+  "x-backdrop-pe-none": [
+    "object",
+    "pointerdown:html click:html ae:body efp:html hov:false"
+  ],
+  "x-dialog-pe-none": [
+    "object",
+    "pointerdown:html click:html ae:body efp:html hov:false"
+  ],
+  "x-selectstart-backdrop-text": [
+    "object",
+    "mousedown:dialog#d selectstart:dialog#d click:dialog#d ae:dialog#d"
+  ],
+  "x-selectstart-backdrop-blank": [
+    "object",
+    "mousedown:dialog#d selectstart:dialog#d click:dialog#d ae:dialog#d"
+  ],
+  "x-click-start-point-modal": [
+    "object",
+    "dialog#d button#a ae:button#a"
+  ],
+  "x-click-start-point-nonmodal": [
+    "object",
+    "dialog#d button#a ae:button#a"
+  ],
+  "x-wheel-frame": [
+    "object",
+    "0 100"
+  ],
+  "x-wheel-frame-none": [
+    "undefined",
+    "100 0"
   ]
 }

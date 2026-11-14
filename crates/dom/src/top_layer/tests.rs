@@ -217,6 +217,8 @@ fn invariants(doc: &Document) {
             assert!(state.layer.contains(&n), "{n:?} in a list is in the layer");
         }
     }
+    // The kept blocking dialog is the one that a walk of the layer finds.
+    assert_eq!(state.blocking(), state.blocking_scan(doc), "blocking");
     for &n in &state.layer {
         assert!(doc.element(n).unwrap().in_top_layer(), "{n:?} has its bit");
         assert_eq!(state.layer.iter().filter(|&&m| m == n).count(), 1);

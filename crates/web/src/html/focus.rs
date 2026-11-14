@@ -151,6 +151,12 @@ pub(crate) fn commit_change(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
 /// the events of the focusing steps. The page scrolls the element itself.
 pub(crate) fn user_focus(rt: &mut Runtime, new: Option<NodeId>, visible: bool) -> VmResult<()> {
     match new {
+        // A click on a shown dialog's text, padding or backdrop focuses the
+        // dialog, which is no focusable area (measured, ADR 0037 "6e
+        // implementation notes").
+        Some(node) if dom(rt)?.is_shown_dialog(node) && !focusable(rt, node)? => {
+            focus_dialog(rt, node).map(|_| ())
+        }
         Some(node) => focus_with(rt, node, visible, true),
         None => move_focus(rt, None, false),
     }

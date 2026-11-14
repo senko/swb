@@ -579,6 +579,16 @@ impl DocumentState {
         })
     }
 
+    /// True if a press on `node` focuses a focusable element, so that no
+    /// selection starts with a `selectstart`. A shown dialog that only the
+    /// dialog rule of `click_target` picked (its text, padding or backdrop;
+    /// no `tabindex`) is no such element: Chromium 148 fires `selectstart`
+    /// there (`x-selectstart-*` of `tools/probes/web-top-layer.json`).
+    pub(crate) fn press_focuses_element(&self, node: NodeId) -> bool {
+        self.click_focus_target(node)
+            .is_some_and(|target| focus::is_focusable(&self.dom, target))
+    }
+
     /// The element of a hit node: the node itself, or the parent of a text
     /// node.
     pub(crate) fn element_of(&self, node: NodeId) -> Option<NodeId> {

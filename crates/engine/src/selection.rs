@@ -14,7 +14,7 @@ use swb_layout::{
     ScrollState, TextFragment, clip_property_area, forms_stacking_context,
     is_absolute_containing_block, is_fixed_containing_block,
 };
-use swb_style::{ComputedStyle, Display, StyleMap, UserSelect, Visibility, WhiteSpace};
+use swb_style::{ComputedStyle, Display, StyleMap, Visibility, WhiteSpace};
 
 /// A position in a text node: a byte offset in its data, at a character
 /// boundary.
@@ -638,8 +638,7 @@ pub(crate) fn selected_text(
                 let Some(style) = doc.parent(node).and_then(|p| styles.get(p)) else {
                     continue;
                 };
-                if style.visibility != Visibility::Visible || style.user_select == UserSelect::None
-                {
+                if style.visibility != Visibility::Visible || !style.is_user_selectable() {
                     continue;
                 }
                 let from = if node == start.node { start.offset } else { 0 };

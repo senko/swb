@@ -316,6 +316,9 @@ struct Styler<'a> {
     /// The last style of an element in the top layer and the last
     /// `::backdrop` style: an equal next one reuses it ([`share_last`]).
     last_top_layer: [Option<Arc<ComputedStyle>>; 2],
+    /// The modal dialog that blocks the document, if any (HTML "blocked by a
+    /// modal dialog").
+    blocked: Option<NodeId>,
     scratch: Vec<u32>,
     matched: Vec<u32>,
     /// The tree scope of the element being styled (the document node or a
@@ -412,6 +415,7 @@ impl<'a> Styler<'a> {
             filter: use_filter.then(AncestorFilter::new),
             shared: HashMap::new(),
             last_top_layer: [None, None],
+            blocked: doc.blocking_dialog(),
             scratch: Vec::new(),
             matched: Vec::new(),
             scope: NodeId::DOCUMENT,
@@ -823,6 +827,7 @@ impl<'a> Styler<'a> {
         if contents_is_none && style.display == Display::Contents {
             style.display = Display::None;
         }
+        self.apply_modal_inert(&mut style, el.node_id(), is_root);
         // HTML rendering: `noscript { display: none !important }` when
         // scripting is enabled (the element is also not rendered if an
         // author sets `display`; measured in Chromium 148). Chromium keeps
@@ -833,6 +838,20 @@ impl<'a> Styler<'a> {
         self.matched = matched;
         self.scoped_matched = scoped;
         self.finish_style(style, top_layer, key)
+    }
+
+    /// HTML "blocked by a modal dialog" (ADR 0037 section 7): the root starts
+    /// the inert subtree, the dialog ends it. The flag is inherited, so the
+    /// elements in between need nothing. The root and the dialog are never
+    /// shared (`shareable`), so a shared style never needs a different flag.
+    fn apply_modal_inert(&self, style: &mut ComputedStyle, node: NodeId, is_root: bool) {
+        if let Some(dialog) = self.blocked {
+            if node == dialog {
+                style.modal_inert = false;
+            } else if is_root {
+                style.modal_inert = true;
+            }
+        }
     }
 
     /// Puts the computed `style` in an `Arc`, shared with an equal previous

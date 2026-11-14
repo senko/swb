@@ -116,6 +116,12 @@ pub struct ComputedStyle {
     pub stroke_opacity: f32,
     /// The custom properties (`--*`), `None` if there are none.
     pub custom_properties: Option<Arc<CustomProperties>>,
+    /// True if a modal dialog blocks the element's document and the element
+    /// is not that dialog or one of its flat tree descendants (HTML "blocked
+    /// by a modal dialog", ADR 0037 section 7). Not a CSS property:
+    /// inherited, set at the root element and cleared at the dialog; the
+    /// element gets no hit region, no focus and no `:hover`.
+    pub modal_inert: bool,
 
     // ----- Non-inherited properties -----
     pub display: Display,
@@ -339,6 +345,7 @@ impl ComputedStyle {
             stroke_dashoffset: LengthPercentage::ZERO,
             stroke_opacity: 1.0,
             custom_properties: None,
+            modal_inert: false,
 
             display: Display::Inline,
             original_display: Display::Inline,
@@ -497,6 +504,20 @@ impl ComputedStyle {
             }
         }
         self.custom_properties.clone_from(&parent.custom_properties);
+        self.modal_inert = parent.modal_inert;
+    }
+
+    /// True if the user can select the element's text: `user-select` is not
+    /// `none` and a modal dialog does not make the element inert (HTML
+    /// "inert nodes": the user cannot select them).
+    pub fn is_user_selectable(&self) -> bool {
+        self.user_select != UserSelect::None && !self.modal_inert
+    }
+
+    /// True if the box can be the target of a pointer event: `pointer-events`
+    /// is not `none` and a modal dialog does not make the element inert.
+    pub fn receives_pointer_events(&self) -> bool {
+        self.pointer_events != PointerEvents::None && !self.modal_inert
     }
 
     /// The border widths (top, right, bottom, left), for test assertions.

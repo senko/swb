@@ -91,7 +91,7 @@ fn show_modal_puts_the_dialog_in_the_top_layer() {
     assert!(is_modal(&h, "d") && is_modal(&h, "d2"));
     let layer = h.doc.top_layer().unwrap().layer().to_vec();
     assert_eq!(layer, [h.id("d"), h.id("d2")]);
-    let blocking = h.doc.top_layer().unwrap().blocking(&h.doc);
+    let blocking = h.doc.top_layer().unwrap().blocking();
     assert_eq!(blocking, Some(h.id("d2")));
     // The first element that the host can focus (the recording host can
     // focus any element).
@@ -104,6 +104,97 @@ fn show_modal_puts_the_dialog_in_the_top_layer() {
     let layer = h.doc.top_layer().unwrap().layer().to_vec();
     assert_eq!(layer, [h.id("d")]);
     invariants(&h.doc);
+}
+
+#[test]
+fn the_blocking_dialog_is_kept_in_step_with_the_top_layer() {
+    // `blocking_dialog` is O(1): the dialog is noted at each show, close,
+    // removal and adoption. `invariants` compares it with a walk of the
+    // layer.
+    let mut h = Rec::new(
+        "<dialog id=d1>1</dialog><dialog id=d2>2</dialog><dialog id=d3>3</dialog>\
+         <div id=pp popover=manual>p</div><div id=w><dialog id=d4>4</dialog></div>",
+    );
+    let (d1, d2, d3, d4) = (h.id("d1"), h.id("d2"), h.id("d3"), h.id("d4"));
+    assert_eq!(h.doc.blocking_dialog(), None);
+    modal(&mut h, "d1").unwrap();
+    modal(&mut h, "d2").unwrap();
+    // A popover above the modal dialogs does not block.
+    h.show("pp").unwrap();
+    modal(&mut h, "d3").unwrap();
+    assert_eq!(h.doc.blocking_dialog(), Some(d3));
+    invariants(&h.doc);
+    // The close of a dialog below the top one keeps the top one; the close
+    // of the top one gives the blocking to the next.
+    close(&mut h, "d2", None);
+    assert_eq!(h.doc.blocking_dialog(), Some(d3));
+    invariants(&h.doc);
+    close(&mut h, "d3", None);
+    assert_eq!(h.doc.blocking_dialog(), Some(d1));
+    invariants(&h.doc);
+    // A removal of the blocking dialog, with its subtree.
+    modal(&mut h, "d4").unwrap();
+    assert_eq!(h.doc.blocking_dialog(), Some(d4));
+    let w = h.id("w");
+    h.doc.remove(w);
+    assert_eq!(h.doc.blocking_dialog(), Some(d1));
+    invariants(&h.doc);
+    // An adoption into another document of the arena.
+    let other = h.doc.create_document().unwrap();
+    h.doc.adopt(d1, other).unwrap();
+    assert_eq!(h.doc.blocking_dialog(), None);
+    invariants(&h.doc);
+    // A dialog that shows again gets the blocking once more.
+    modal(&mut h, "d2").unwrap();
+    assert_eq!(h.doc.blocking_dialog(), Some(d2));
+    invariants(&h.doc);
+}
+
+#[test]
+fn a_dialog_is_shown_when_it_is_open_or_a_popover_that_shows() {
+    // The click focus rule (`x-popover-dialog`, `e-click-*`).
+    let mut h = Rec::new(
+        "<dialog id=d>d</dialog><dialog id=dp popover=manual>p</dialog>\
+         <div id=dv popover=manual>v</div><div id=nn>n</div>",
+    );
+    let (d, dp, dv, nn) = (h.id("d"), h.id("dp"), h.id("dv"), h.id("nn"));
+    for node in [d, dp, dv, nn] {
+        assert!(!h.doc.is_shown_dialog(node));
+    }
+    show(&mut h, "d").unwrap();
+    h.show("dp").unwrap();
+    h.show("dv").unwrap();
+    assert!(h.doc.is_shown_dialog(d) && h.doc.is_open_dialog(d));
+    assert!(h.doc.is_shown_dialog(dp) && !h.doc.is_open_dialog(dp));
+    assert!(!h.doc.is_shown_dialog(dv) && !h.doc.is_shown_dialog(nn));
+}
+
+#[test]
+fn a_modal_dialog_makes_the_other_nodes_of_the_document_inert() {
+    // ADR 0037 section 7: the dialog and its flat descendants are not inert;
+    // the rest of the document, a modal dialog below the topmost one, and
+    // the document itself are; a detached node is not in the document.
+    let mut h = Rec::new(DIALOGS);
+    let (ob, d, db, d2, t2) = (h.id("ob"), h.id("d"), h.id("db"), h.id("d2"), h.id("t2"));
+    assert_eq!(h.doc.blocking_dialog(), None);
+    assert!(!h.doc.is_modal_inert(ob));
+    modal(&mut h, "d").unwrap();
+    assert_eq!(h.doc.blocking_dialog(), Some(d));
+    assert!(h.doc.is_modal_inert(ob) && h.doc.is_modal_inert(d2));
+    assert!(!h.doc.is_modal_inert(d) && !h.doc.is_modal_inert(db));
+    assert!(h.doc.is_modal_inert(NodeId::DOCUMENT));
+    modal(&mut h, "d2").unwrap();
+    assert_eq!(h.doc.blocking_dialog(), Some(d2));
+    assert!(h.doc.is_modal_inert(d) && h.doc.is_modal_inert(db));
+    assert!(!h.doc.is_modal_inert(d2) && !h.doc.is_modal_inert(t2));
+    let name = crate::QualName::new(None, crate::ns!(html), "div".into());
+    let detached = h.doc.create_element(name, Vec::new()).unwrap();
+    assert!(!h.doc.is_modal_inert(detached));
+    // The close of the topmost one gives the blocking back to the first.
+    close(&mut h, "d2", None);
+    assert_eq!(h.doc.blocking_dialog(), Some(d));
+    close(&mut h, "d", None);
+    assert!(!h.doc.is_modal_inert(ob));
 }
 
 #[test]

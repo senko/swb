@@ -26,8 +26,8 @@
 //!
 //! The dialog cases of sub-feature 6d (close requests, `cancel`, the close
 //! watcher groups, `closedby=any`, the form method `dialog` without scripts)
-//! run here too. The cases of sub-feature 6e (inertness) and the key cases
-//! of `real_input.rs` are not run here.
+//! run here too, and the inertness cases of sub-feature 6e (`inert-*`). The
+//! key cases of `real_input.rs` are not run here.
 
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
@@ -48,12 +48,14 @@ use swb_net::{Fetcher, Headers, NetError, Request, Response};
 const MAIN: &str = "http://127.0.0.1:8000";
 const OTHER: &str = "http://127.0.0.1:8001";
 
-/// Cases that other tests or later sub-features run: inertness (6e; its
-/// case `inert-closedby-any` runs here for the close by light dismiss), and
-/// the key cases of `real_input.rs`.
+/// Cases that this test does not run: the key cases of `real_input.rs`, and
+/// `inert-selection`, whose queries read `getSelection()` (swb has none:
+/// backlog) and whose step (a double click on outside text selects a word of
+/// the dialog) is a Chromium detail that swb does not copy (ADR 0037
+/// section 11); `crates/engine/tests/modal_inert.rs` checks the engine's
+/// selection instead.
 fn is_later(name: &str) -> bool {
-    (name.starts_with("inert-") && name != "inert-closedby-any")
-        || name.starts_with("invokers-in-link-")
+    name.starts_with("invokers-in-link-") || name == "inert-selection"
 }
 
 /// Queries where swb's value differs on purpose: (case, query index, swb's
@@ -65,16 +67,20 @@ const TEXT_IN_INVOKER: &str = "a click on a text field inside an invoking button
      the popover in the one click (two `beforetoggle` events, no change); swb does nothing (ADR 0037 \
      \"6c implementation notes\")";
 
+/// The reason of the rows of `inert-click` that read `interactivity`.
+const NO_INTERACTIVITY: &str = "`getComputedStyle(el).interactivity` is `undefined` in swb: the property is backlog \
+     (ADR 0037 section 11); the rest of the row (`inert` false everywhere, the frame's \
+     document) matches";
+
 const DEPARTURES: &[Departure] = &[
     (
-        "inert-closedby-any",
-        1,
-        "pointerdown:button#db mousedown:button#db click:button#db pointerdown:dialog#d \
-         mousedown:dialog#d click:dialog#d open:false:\"\"",
-        "a click on the backdrop of a modal dialog focuses the dialog in Chromium (`focusin`); \
-         swb does not yet: that is the modal inertness of sub-feature 6e (ADR 0037 section 7). \
-         The light dismiss of `closedby=any` matches",
+        "inert-click",
+        3,
+        "button#ob:undefined:false dialog#d:undefined:false button#db:undefined:false \
+         html:undefined:false body:undefined:false iframe#fr:undefined:false",
+        NO_INTERACTIVITY,
     ),
+    ("inert-click", 4, "undefined:button#fb", NO_INTERACTIVITY),
     (
         "invoker-inner-text",
         1,

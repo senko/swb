@@ -17,8 +17,6 @@
 //! that an invoker names; the caller knows how (the script layer's
 //! `popoverTargetElement` table, or the id), so it passes the lookup.
 
-use html5ever::local_name;
-
 use super::watchers::request_close;
 use super::{
     ClosedBy, Document, NodeId, PopoverError, PopoverState, TopLayerHost, WatcherKind,
@@ -162,19 +160,15 @@ pub fn light_dismiss_up<H: TopLayerHost + ?Sized>(
 /// and its flat tree ancestors.
 /// <https://html.spec.whatwg.org/multipage/interactive-elements.html#nearest-clicked-dialog>
 fn nearest_clicked_dialog(doc: &Document, node: NodeId, outside_modal: bool) -> Option<NodeId> {
-    let is_open_dialog = |n: NodeId| {
-        doc.element(n)
-            .is_some_and(|e| e.is_html_named(&local_name!("dialog")) && e.has_attr("open"))
-    };
     if outside_modal
-        && is_open_dialog(node)
+        && doc.is_open_dialog(node)
         && doc.element(node).is_some_and(crate::ElementData::is_modal)
     {
         return None;
     }
     let mut current = Some(node);
     while let Some(n) = current {
-        if is_open_dialog(n) {
+        if doc.is_open_dialog(n) {
             return Some(n);
         }
         current = doc.flat_parent(n);

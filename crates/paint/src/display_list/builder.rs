@@ -16,8 +16,8 @@ use swb_layout::{
     rounded_path,
 };
 use swb_style::{
-    BackgroundBox, BorderStyle, ComputedStyle, Display, FillRule, Image, PointerEvents, Position,
-    Rgba, TextDecorationLine, Visibility, ZIndex,
+    BackgroundBox, BorderStyle, ComputedStyle, Display, FillRule, Image, Position, Rgba,
+    TextDecorationLine, Visibility, ZIndex,
 };
 
 use super::items::{
@@ -963,7 +963,7 @@ impl Builder<'_> {
         }
         let rect = b.border_rect.translate(origin);
         if let Some(node) = b.node
-            && style.pointer_events != PointerEvents::None
+            && style.receives_pointer_events()
         {
             self.list.push(DisplayItem::HitRegion { rect, node });
         }
@@ -1055,7 +1055,7 @@ impl Builder<'_> {
                 self.list.push(DisplayItem::Frame {
                     node: *node,
                     rect: content,
-                    interactive: style.pointer_events != PointerEvents::None,
+                    interactive: style.receives_pointer_events(),
                 });
                 if rounded.is_some() {
                     self.list.push(unclip_item(rounded));
@@ -1359,7 +1359,7 @@ impl Builder<'_> {
             return;
         }
         let rect = t.rect.translate(origin);
-        if style.pointer_events != PointerEvents::None {
+        if style.receives_pointer_events() {
             self.list
                 .push(DisplayItem::HitRegion { rect, node: t.node });
         }

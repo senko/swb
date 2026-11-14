@@ -436,14 +436,13 @@ impl Page {
                     self.regain_window_focus();
                 }
                 self.scripted_focus(focus, false);
-                // A press that focuses nothing starts a selection, if no
-                // listener cancels `selectstart`.
-                if focus.is_none() && !self.fire_selectstart(point) {
-                    if let Some(press) = &mut self.input.press {
-                        press.anchor = None;
-                    }
-                } else {
+                // A press that focuses no element starts a selection, if no
+                // listener cancels `selectstart` (a dialog that only the
+                // dialog rule focuses does not count as an element).
+                if self.fire_selectstart(point) {
                     self.set_selection(selection);
+                } else if let Some(press) = &mut self.input.press {
+                    press.anchor = None;
                 }
             }
         } else {

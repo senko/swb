@@ -1,6 +1,6 @@
 """Popovers, dialogs and the top layer (ADR 0037 section 12; sub-feature 6a:
 the popover model, the algorithms and the bindings; 6b: the top layer in
-rendering; 6c: popover interaction; 6d: dialogs)."""
+rendering; 6c: popover interaction; 6d: dialogs; 6e: modal inertness)."""
 
 import json
 
@@ -277,3 +277,38 @@ def dialog_showmodal_1000_stacked() -> Page:
         "document.body.appendChild(d); d.showModal(); }</script>"
     )
     return Page(doc(script))
+
+
+@case(
+    "A modal dialog over 100,000 elements (buttons, all inert): 30 Tab presses (the order is "
+    "the dialog's three buttons, the focus leaves the document after the last) and 30 clicks "
+    "outside the dialog (each hits the backdrop and focuses the dialog; none reaches an inert "
+    "button); a timer logs `modal ok` with the active element and the number of clicks that "
+    "reached an element other than the dialog (ADR 0037 sections 7 and 12, sub-feature 6e; "
+    "every focus change restyles the whole document, a cost older than 6e)",
+    time_limit_s=30,
+    expect_log="modal ok d 0",
+    rss_limit_mib=600,
+    swb_args=steps_args(
+        [{"key": "Tab"}] * 30
+        + [{"click": [5 + 20 * i, 5 + 10 * i]} for i in range(30)]
+        + [
+            {
+                "eval": "console.warn('modal ok ' + document.activeElement.id + ' ' + "
+                "window.__outside), 1"
+            },
+            {"wait": 50},
+        ]
+    ),
+)
+def dialog_modal_over_100000_nodes() -> Page:
+    script = (
+        "<script>window.__outside = 0; document.addEventListener('click', e => { "
+        "if (e.target.id !== 'd') window.__outside++; }, true); "
+        "document.getElementById('d').showModal();</script>"
+    )
+    body = (
+        "<button>b</button>" * 100000
+        + "<dialog id=d><button>1</button><button>2</button><button>3</button></dialog>"
+    )
+    return Page(doc(body + script))

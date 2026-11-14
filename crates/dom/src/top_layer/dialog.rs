@@ -319,6 +319,7 @@ pub fn show_modal<H: TopLayerHost + ?Sized>(
             doc.top_layer_state().add_to_layer(dialog);
         }
         doc.set_flags(dialog, flags::MODAL | flags::TOP_LAYER, true);
+        doc.refresh_blocking();
         doc.record_top_layer(dialog);
     }
     after_open(host, dialog)
@@ -367,6 +368,7 @@ pub fn close_dialog<H: TopLayerHost + ?Sized>(
     }
     if was_modal {
         doc.set_flags(dialog, flags::MODAL, false);
+        doc.refresh_blocking();
         doc.record_top_layer(dialog);
     }
     let data = doc.dialog_data_mut(dialog);

@@ -506,7 +506,8 @@ impl Page {
     }
 
     /// `selectstart` (Selection API) at the node under `point`, for a press
-    /// that starts a selection: it focuses nothing, and the text is
+    /// that starts a selection: it focuses no element (a dialog that only the
+    /// dialog rule of the click focus picks does not count), and the text is
     /// selectable. Returns false if a listener canceled it (no selection
     /// starts).
     pub(super) fn fire_selectstart(&mut self, point: Point) -> bool {
@@ -519,8 +520,8 @@ impl Page {
         let selectable = doc
             .element_of(hit.node)
             .and_then(|e| doc.styles()?.get(e))
-            .is_none_or(|style| style.user_select != swb_style::UserSelect::None);
-        if doc.click_focus_target(hit.node).is_some() || !selectable {
+            .is_none_or(|style| style.is_user_selectable());
+        if doc.press_focuses_element(hit.node) || !selectable {
             return true;
         }
         let mut event = TrustedEvent::new("selectstart");

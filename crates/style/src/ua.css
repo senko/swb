@@ -72,7 +72,9 @@ listing, plaintext, pre, xmp {
 /* Chromium: centers block children too. */
 center { text-align: -webkit-center; }
 
-dialog:not([open]) { display: none; }
+/* A dialog that shows as a popover has no `open` attribute and is displayed
+   (Chromium 148, measured: `x-popover-dialog`). */
+dialog:not([open]):not(:popover-open) { display: none; }
 dialog {
   position: absolute;
   inset-inline-start: 0; inset-inline-end: 0;
