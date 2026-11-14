@@ -1,0 +1,214 @@
+{
+ "load": {
+  "header black top": [
+   0,
+   0,
+   0
+  ],
+  "header black middle": [
+   0,
+   0,
+   0
+  ],
+  "search button": [
+   0,
+   0,
+   0
+  ],
+  "sign in button": [
+   0,
+   0,
+   0
+  ],
+  "sign up button": [
+   31,
+   31,
+   31
+  ],
+  "settings button": [
+   0,
+   0,
+   0
+  ],
+  "crumb bar": [
+   246,
+   248,
+   250
+  ],
+  "crumb bar left": [
+   246,
+   248,
+   250
+  ],
+  "tab bar": [
+   246,
+   248,
+   250
+  ],
+  "tab underline code": [
+   253,
+   140,
+   115
+  ],
+  "repo header white": [
+   255,
+   255,
+   255
+  ],
+  "repo header line": [
+   223,
+   228,
+   233
+  ],
+  "notifications button": [
+   246,
+   248,
+   250
+  ],
+  "fork button": [
+   246,
+   248,
+   250
+  ],
+  "star button": [
+   246,
+   248,
+   250
+  ],
+  "public label": [
+   255,
+   255,
+   255
+  ],
+  "branch button": [
+   246,
+   248,
+   250
+  ],
+  "branch button lower": [
+   246,
+   248,
+   250
+  ],
+  "go to file input": [
+   255,
+   255,
+   255
+  ],
+  "go to file input lower": [
+   255,
+   255,
+   255
+  ],
+  "code button": [
+   31,
+   136,
+   61
+  ],
+  "code button lower": [
+   31,
+   136,
+   61
+  ],
+  "commit box": [
+   246,
+   248,
+   250
+  ],
+  "commit box right": [
+   246,
+   248,
+   250
+  ],
+  "commit box top border": [
+   209,
+   217,
+   224
+  ],
+  "commit box bottom border": [
+   209,
+   217,
+   224
+  ],
+  "row 1": [
+   255,
+   255,
+   255
+  ],
+  "row 1 border": [
+   209,
+   217,
+   224
+  ],
+  "row 2 border": [
+   209,
+   217,
+   224
+  ],
+  "row 3 border": [
+   209,
+   217,
+   224
+  ],
+  "row 4": [
+   255,
+   255,
+   255
+  ],
+  "row 5": [
+   255,
+   255,
+   255
+  ],
+  "row 10 border": [
+   209,
+   217,
+   224
+  ],
+  "folder icon": [
+   84,
+   174,
+   255
+  ],
+  "folder icon lower": [
+   84,
+   174,
+   255
+  ],
+  "table left border": [
+   209,
+   217,
+   224
+  ],
+  "table right border": [
+   209,
+   217,
+   224
+  ],
+  "sidebar white": [
+   255,
+   255,
+   255
+  ],
+  "sidebar white lower": [
+   255,
+   255,
+   255
+  ],
+  "sidebar line": [
+   209,
+   217,
+   224
+  ],
+  "page left": [
+   255,
+   255,
+   255
+  ],
+  "page right": [
+   255,
+   255,
+   255
+  ]
+ }
+}

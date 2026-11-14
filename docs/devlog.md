@@ -4,6 +4,24 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-14: M10 8b: GitHub first-view test; feature 8 complete
+
+- `crates/automation/tests/github_swb.rs` compares GitHub's first view
+  with JavaScript on against Chromium's record: rectangles and texts of
+  the header, the repository header, the branch bar, the latest-commit
+  line, the 21 file rows and the sidebar, the hydration state of the 5
+  React islands (element and React fiber counts), 42 pixel points, the
+  console and the 8 `fetch` calls. `github.rs` keeps the platform checks
+  and the relative times.
+- Rectangles compare within 1 px: with 3 px (as in `bbc.rs`) the test did
+  not catch an undone 8a fix. Mutations of the page's CSS, its import map
+  and swb's line alignment fail the test.
+- Time (release, median of 7): `load` 0.597 s, final DOM 1.198 s (budget
+  1.514 s).
+- Found: the avatars' rounded corners and the `box-shadow` line under the
+  tabs are missing (backlog).
+- Next: feature 9, the interactions (items 3 to 8 and 10).
+
 ## 2026-11-14: M10 8a: line-relative alignment, breaks around atomic inlines
 
 - Diagnosis of feature 8: with features 1 to 7, GitHub's page works with

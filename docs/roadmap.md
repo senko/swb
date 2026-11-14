@@ -5064,6 +5064,19 @@ Steps:
         island counts, pixel points), the console and the relative times;
         `github.rs` stays for the platform checks (modules, custom
         elements, shadow roots), and each file's header names the other.
+        Done (2026-11-14): one record of 49 keys after the load
+        (rectangles within 1 px and texts of the header, the repository
+        header, the branch bar, the latest-commit line, the 21 file rows
+        and the sidebar; for each React island its element count and the
+        number of elements with a React fiber), 42 pixel points of the
+        first screen, the console and the 8 `fetch` calls, against
+        Chromium's record (three equal runs). 3 px, the tolerance of
+        `bbc.rs`, did not catch an undone 8a fix (a 3 px error). Items 1,
+        2 and 12 hold, item 9 in `github.rs`, item 11 in `compare`. Time
+        (release, median of 7): `load` 0.597 s, final DOM 1.198 s (budget
+        1.514 s).
+
+      Feature 8 is complete (2026-11-14).
    9. Interactions (`implementer`): items 3 to 8 and 10 of the list in the
       integration test, with Chromium's records of the same steps.
 
@@ -5267,6 +5280,11 @@ Steps:
   would save most of it. The pixels that remain: the avatars (image
   resampling), `text-overflow: ellipsis` in the commit message column,
   glyph edges.
+- GitHub (found in 8b): the avatars have square corners in swb, rounded
+  in Chromium; the 1 px line under the repository tabs is missing
+  (`box-shadow: inset`, see the `box-shadow` item of M8). In one of ten
+  Chromium runs the `react-app` had two elements fewer (not understood;
+  `github_swb.rs` compares its counts within 3).
 - Inline layout (found in the 8a review, older than 8a): an inline-block
   in `<div dir=rtl>` sits at x 10.67 in swb, 79.33 in Chromium;
   `::first-line { font-size: 30px }` gives another line height;

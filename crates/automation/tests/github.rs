@@ -25,6 +25,9 @@
 //! the `relative-time` hosts (sub-feature 5b).
 //! One test does all: the logger is global, and two loads at once would mix
 //! their lines.
+//!
+//! `github_swb.rs` checks the first view of the same page (rectangles,
+//! texts, islands, pixels, console) against Chromium's record.
 
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
