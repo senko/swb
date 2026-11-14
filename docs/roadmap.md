@@ -5137,8 +5137,27 @@ Steps:
           snapshot unchanged; callgrind within 0.06 %.
         - 9b-3 the contents operations (`extractContents`,
           `cloneContents`, `deleteContents`, `insertNode`,
-          `surroundContents`), `createContextualFragment` and the range
-          geometry.
+          `surroundContents`), `createContextualFragment`, the range
+          geometry and `Selection.deleteFromDocument`. Done (2026-11-14):
+          the operations are iterative functions of `swb_dom` built on
+          the change functions, with Chromium's order of mutation records
+          (measured: the start's side, the end's side, then the middle)
+          and the live range steps once per run of children that leave,
+          so a range at the bottom of a chain of 100,000 levels or over
+          100,000 children costs nodes plus boundary points;
+          `createContextualFragment` parses in the context of the start's
+          element and leaves its scripts runnable; `getClientRects` and
+          `getBoundingClientRect` come from the engine's boxes and text
+          fragments, one rectangle per line as in Chromium; after a
+          contents operation moved the selection's range, the selection
+          reports `Range` and `forward`, as Chromium does (ADR 0039 "9b-3
+          implementation notes"). 6 new probe cases (`web-range.json` 66
+          cases, `web-selection.json` 32); every row equals Chromium's
+          except `Range.expand` (absent). Review fixes: a rotated line is
+          one rectangle, an empty line of preserved line breaks gives a
+          rectangle of width 0, a collapsed space before `<br>` gives none
+          (probe case `geometry-review`). Scores and the JS-off snapshot
+          unchanged; callgrind within 0.02 %.
       - 9c the interaction test (`implementer`): the steps and Chromium's
         records of items 3 to 8 and 10 in `github_swb.rs`; the warning
         "Web workers are not available" as a departure (no `Worker`).
@@ -5379,6 +5398,20 @@ Steps:
   compare event logs exactly); `String(getSelection())` after a DOM
   change flushes the layout and rebuilds the tree order (16 ms per call
   on a page of 20,000 elements).
+  Found in 9b-3: `createContextualFragment` of 100,000 nested elements
+  ends at the time limit in the fragment parser, as `innerHTML` and the
+  hostile case `nest-div-100000` do; range geometry does not enter shadow
+  trees (unmeasured in Chromium); `Element.getBoundingClientRect` keeps
+  rectangles of width 0 in the union, the range variant drops them
+  (measured for ranges only); what ends Chromium's stale `Range`/`forward`
+  report of the selection, other than a change of the selection, is not
+  measured; swb blurs a focused element that a contents operation
+  removes before the walk, Chromium when the element leaves (a blur
+  listener that changes the tree gives other results, and Chromium can
+  throw NotFoundError; a departure in ADR 0039); an empty line of
+  preserved line breaks before the first or after the last fragment of a
+  text node gives no rectangle, and the x of an empty line's rectangle is
+  the next fragment's left edge (`text-align: center` not measured).
 - GitHub (found in 8b): the avatars have square corners in swb, rounded
   in Chromium; the 1 px line under the repository tabs is missing
   (`box-shadow: inset`, see the `box-shadow` item of M8). In one of ten
@@ -5431,7 +5464,6 @@ Steps:
     shorthands `column-rule` and `text-emphasis`;
     `getComputedStyle(details, '::details-content')` gives the initial
     style; a gradient with a `currentcolor` mix is written unresolved.
-    `document.createRange` and `getSelection` are not defined.
 - Rendering (found in 6b): an `<object>`
   with `type` or `data` renders its fallback children, Chromium does not
   (measured: a child `div` has no client rect); a gradient `body`
@@ -6725,9 +6757,8 @@ Steps:
   input", swb "Unexpected token ')'").
 - `web` (found in the 6d1 review): writes to `Attr.nodeValue` and
   `Attr.textContent` do not change the attribute (and so not its
-  handler). There is no `document.createRange`; check that a focused
-  element that `innerText=` removes is blurred as in Chromium (with
-  `blur` and without `focusout`). A
+  handler). Check that a focused element that `innerText=` removes is
+  blurred as in Chromium (with `blur` and without `focusout`). A
   termination of the script during the click of a checkbox leaves the
   checkbox toggled.
 - Engine (found in feature 6d2): the engine's `Key` has no modifier

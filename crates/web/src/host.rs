@@ -1135,6 +1135,17 @@ pub trait EngineHost: Any {
         dom.visual_range(range, &|node| swb_dom::Flow::of_dom(dom, node))
     }
 
+    /// `Range.getClientRects` (CSSOM View §6.2; ADR 0039 section 2): the
+    /// border boxes of the elements that `range` contains and whose parent it
+    /// does not, then the rectangles of the selected parts of its text nodes,
+    /// in tree order and viewport coordinates
+    /// (`swb_dom::Document::range_pieces`), after a layout flush. A host
+    /// without rendering gives none.
+    fn range_rects(&mut self, range: swb_dom::LiveRange) -> Vec<DomRect> {
+        let _ = range;
+        Vec::new()
+    }
+
     /// `getBBox` and `getTotalLength` of an SVG element: its fill bounding
     /// box in its user space and the length of its path (0 for other
     /// elements), after a layout flush; `None` if layout drew nothing for

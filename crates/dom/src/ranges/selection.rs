@@ -38,6 +38,12 @@ pub struct SelectionState {
     pub backward: bool,
     /// The text control that owns the selection, if any.
     pub control: Option<NodeId>,
+    /// True while the selection reports the type `Range` and the direction
+    /// `forward` although its range may be collapsed: Chromium does so after
+    /// `extractContents` or `deleteContents` moved the selection's range,
+    /// until the selection changes again (measured,
+    /// `delete-from-document-more`).
+    pub stale_type: bool,
 }
 
 impl SelectionState {
@@ -84,6 +90,8 @@ struct Current {
     control: Option<NodeId>,
     /// True while a script object owns the entry too.
     object: bool,
+    /// [`SelectionState::stale_type`].
+    stale_type: bool,
 }
 
 impl LiveRanges {
@@ -103,11 +111,33 @@ impl LiveRanges {
     pub(super) fn note_selection_change(&mut self, report: bool) {
         let slot = &mut self.selection;
         slot.generation = slot.generation.wrapping_add(1);
+        if let Some(current) = &mut slot.current {
+            current.stale_type = false;
+        }
         if report {
             slot.changed = true;
             if let Some(work) = &self.work {
                 work.ask();
             }
+        }
+    }
+
+    /// A script changed the selection's range through its `Range` object:
+    /// the anchor is the start from now on (measured: a backward selection
+    /// whose range a script changes reports `forward`).
+    pub(super) fn selection_forward(&mut self) {
+        if let Some(current) = &mut self.selection.current {
+            current.backward = false;
+        }
+    }
+
+    /// The contents operation that just changed the selection's range makes
+    /// the selection report `Range` and `forward` until its next change
+    /// ([`SelectionState::stale_type`]).
+    pub(super) fn mark_selection_type_stale(&mut self) {
+        if let Some(current) = &mut self.selection.current {
+            current.backward = false;
+            current.stale_type = true;
         }
     }
 
@@ -165,6 +195,7 @@ impl Document {
             range,
             backward: current.backward,
             control: current.control,
+            stale_type: current.stale_type,
         })
     }
 
@@ -225,6 +256,7 @@ impl Document {
                 backward,
                 control: None,
                 object: false,
+                stale_type: false,
             });
         }
         ranges.note_selection_change(report);
@@ -250,6 +282,7 @@ impl Document {
             backward: false,
             control: None,
             object: true,
+            stale_type: false,
         });
         ranges.note_selection_change(true);
         true
@@ -280,6 +313,7 @@ impl Document {
             backward: false,
             control: Some(control),
             object: false,
+            stale_type: false,
         });
         ranges.note_selection_change(false);
         true

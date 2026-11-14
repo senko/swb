@@ -40,6 +40,195 @@
           ]
         }
       ]
+    },
+    {
+      "name": "geometry",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "[G(r => { r.setStart(TX('a'), 6); r.setEnd(TX('a'), 10); }), G(r => { r.setStart(TX('a'), 0); r.setEnd(TX('a'), 30); }), G(r => r.selectNodeContents(TX('a'))), G(r => { r.setStart(TX('a'), 6); r.setEnd(TX('a'), 6); }), G(r => { r.setStart(TX('a'), 5); r.setEnd(TX('a'), 6); }), G(r => r.selectNode(document.getElementById('a'))), G(r => r.selectNodeContents(document.getElementById('a')))]",
+          "value": [
+            "51.59,9,31.14,17 | 51.59,9,31.14,17",
+            "8,9,171.67,17 8,29,50.7,17 | 8,9,171.67,37",
+            "8,9,171.67,17 8,29,152.11,17 | 8,9,171.67,37",
+            "51.59,9,0,17 | 51.59,9,0,17",
+            "47.14,9,4.45,17 | 47.14,9,4.45,17",
+            "8,8,200,40 8,9,171.67,17 8,29,152.11,17 | 8,8,200,40",
+            "8,9,171.67,17 8,29,152.11,17 | 8,9,171.67,37"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[G(r => { r.setStart(TX('b'), 2); r.setEnd(TX('bb'), 3); }), G(r => r.selectNode(document.getElementById('bb'))), G(r => r.selectNodeContents(document.getElementById('b'))), G(r => r.selectNode(document.getElementById('b'))), G(r => { r.setStart(document.getElementById('b'), 1); r.setEnd(document.getElementById('b'), 1); }), G(r => { r.setStart(document.getElementById('b'), 3); r.setEnd(document.getElementById('b'), 5); })]",
+          "value": [
+            "25.8,59,13.34,17 39.14,59,27.55,17 | 25.8,59,40.89,17",
+            "39.14,59,71.13,17 39.14,59,71.13,17 | 39.14,59,71.13,17",
+            "8,59,31.14,17 39.14,59,71.13,17 39.14,59,71.13,17 110.27,59,32.02,17 142.28,59,0,17 8,79,24.91,17 | 8,59,134.28,37",
+            "8,58,384,40 8,59,31.14,17 39.14,59,71.13,17 110.27,59,32.02,17 8,79,24.91,17 | 8,58,384,40",
+            " | 0,0,0,0",
+            "142.28,59,0,17 8,79,24.91,17 | 8,79,24.91,17"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[G(r => r.selectNode(document.getElementById('c'))), G(r => r.selectNodeContents(document.getElementById('c'))), G(r => { r.setStart(document.body, 2); r.setEnd(document.body, 3); }), G(r => r.selectNodeContents(document.getElementById('h'))), G(r => r.selectNode(document.getElementById('h'))), G(r => { r.selectNodeContents(document.createElement('div')); }), G(r => {}), G(r => r.selectNodeContents(document.body))]",
+          "value": [
+            "28,108,60,40 | 28,108,60,40",
+            " | 0,0,0,0",
+            "28,108,60,40 | 28,108,60,40",
+            " | 0,0,0,0",
+            " | 0,0,0,0",
+            " | 0,0,0,0",
+            " | 0,0,0,0",
+            "8,8,200,40 8,9,171.67,17 8,29,152.11,17 8,58,384,40 8,59,31.14,17 39.14,59,71.13,17 110.27,59,32.02,17 8,79,24.91,17 28,108,60,40 8,148,384,40 8,149,16.91,17 8,169,16.91,17 8,189,16.91,17 8,188,384,1200 | 8,8,384,1380"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(() => { document.getElementById('sc').scrollTop = 15; scrollTo(0, 30); const o = [G(r => r.selectNodeContents(document.getElementById('sc'))), G(r => r.selectNode(document.getElementById('c'))), G(r => { r.setStart(TX('a'), 6); r.setEnd(TX('a'), 10); })]; const l = (() => { const r = new Range(); r.selectNode(document.getElementById('c')); return r.getClientRects(); })(); o.push(l.constructor.name, l.length, l.item(0).constructor.name, String(l.item(5)), Object.prototype.toString.call(new Range().getBoundingClientRect())); scrollTo(0, 0); return o; })()",
+          "value": [
+            "8,103,384,20 8,104,16.91,17 8,123,384,20 8,124,16.91,17 8,143,384,20 8,144,16.91,17 | 8,103,384,60",
+            "28,78,60,40 | 28,78,60,40",
+            "51.59,-21,31.14,17 | 51.59,-21,31.14,17",
+            "DOMRectList",
+            1,
+            "DOMRect",
+            "null",
+            "[object DOMRect]"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "geometry-more",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "[G(r => { r.setStart(TX('t'), 0); r.setEnd(TX('t'), 2); }), G(r => r.selectNode(EL('t'))), G(r => r.selectNodeContents(EL('t')))]",
+          "value": [
+            "18,15,32,34 | 18,15,32,34",
+            "18,13,200,40 18,15,72.91,34 | 18,13,200,40",
+            "18,15,72.91,34 | 18,15,72.91,34"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[G(r => r.selectNodeContents(EL('w'))), G(r => { r.setStart(TX('w1'), 1); r.setEnd(TX('w2'), 2); }), G(r => { r.setStart(EL('w'), 1); r.setEnd(EL('w'), 2); }), G(r => r.selectNodeContents(EL('w').childNodes[1]))]",
+          "value": [
+            "8,68,384,20 8,69,17.8,17 8,88,384,20 8,89,22.25,17 35.25,89,38.25,17 78.5,89,22.25,17 | 8,68,384,40",
+            "16.89,69,8.91,17 8,89,17.8,17 | 8,69,17.8,37",
+            " | 0,0,0,0",
+            " | 0,0,0,0"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[G(r => r.selectNodeContents(EL('sp'))), G(r => r.selectNode(EL('sp'))), G(r => { r.setStart(TX('sp'), 1); r.setEnd(TX('sp'), 4); }), G(r => { r.setStart(TX('w2'), 3); r.setEnd(EL('w2').lastChild, 1); })]",
+          "value": [
+            "35.25,89,38.25,17 | 35.25,89,38.25,17",
+            "30.25,88,48.25,19 35.25,89,38.25,17 | 30.25,88,48.25,19",
+            "43.25,89,21.34,17 | 43.25,89,21.34,17",
+            "30.23,89,0,17 30.25,88,48.25,19 35.25,89,38.25,17 78.5,89,4.45,17 | 30.25,88,52.7,19"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[G(r => r.selectNode(EL('ibs'))), G(r => r.selectNodeContents(EL('ib'))), G(r => { r.setStart(TX('ib'), 0); r.setEnd(EL('ib').lastChild, 1); }), G(r => { r.setStart(TX('ibs'), 1); r.setEnd(TX('ibs'), 1); })]",
+          "value": [
+            "16,108,40,30 16,109,12.45,17 | 16,108,40,30",
+            "8,109,8,17 16,108,40,30 16,109,12.45,17 56,109,8,17 | 8,108,56,30",
+            "8,109,8,17 16,108,40,30 16,109,12.45,17 56,109,8,17 | 8,108,56,30",
+            "19.55,109,0,17 | 19.55,109,0,17"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[G(r => r.selectNodeContents(TX('pr'))), G(r => { r.setStart(TX('pr'), 1); r.setEnd(TX('pr'), 3); }), G(r => { r.setStart(TX('pr'), 4); r.setEnd(TX('pr'), 5); })]",
+          "value": [
+            "8,139,26.69,17 34.69,139,0,17 8,159,5.33,17 | 8,139,26.69,37",
+            "16.89,139,8.91,17 | 16.89,139,8.91,17",
+            "34.69,139,0,17 | 34.69,139,0,17"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "geometry-frames",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(() => { const f = EL('f'); const d = f.contentDocument; const w = f.contentWindow; const q = d.getElementById('q'); const r = new w.Range(); r.setStart(q.firstChild, 6); r.setEnd(q.firstChild, 10); const s = document.createRange(); s.selectNodeContents(q); const l = s.getClientRects(); return [RL(r.getClientRects()), RC(r.getBoundingClientRect()), RL(l), RC(s.getBoundingClientRect()), l instanceof DOMRectList, l instanceof w.DOMRectList, s.getBoundingClientRect() instanceof DOMRect, r.getBoundingClientRect() instanceof w.DOMRect]; })()",
+          "value": [
+            "50.34,6,25.8,17",
+            "50.34,6,25.8,17",
+            "5,6,107.61,17",
+            "5,6,107.61,17",
+            true,
+            false,
+            true,
+            true
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(() => { const f = EL('f'); const d = f.contentDocument; const q = d.getElementById('q'); f.style.left = '60px'; d.body.style.marginTop = '15px'; const r = d.createRange(); r.selectNode(q); const a = [RL(r.getClientRects()), RC(r.getBoundingClientRect())]; f.style.left = '30px'; d.body.style.marginTop = '5px'; return a; })()",
+          "value": [
+            "5,15,190,20 5,16,107.61,17",
+            "5,15,190,20"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "geometry-review",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "[G(r => r.selectNodeContents(EL('rot'))), G(r => { r.setStart(TX('rot'), 4); r.setEnd(TX('rot'), 11); }), G(r => r.selectNode(EL('rot')))]",
+          "value": [
+            "28.89,-4.91,118.59,37.13 | 28.89,-4.91,118.59,37.13",
+            "59.56,0.5,57.25,26.32 | 59.56,0.5,57.25,26.32",
+            "28.54,-5.9,298.92,71.79 28.89,-4.91,118.59,37.13 | 28.54,-5.9,298.92,71.79"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[G(r => r.selectNodeContents(EL('pre'))), G(r => { r.setStart(TX('pre'), 0); r.setEnd(TX('pre'), 5); }), G(r => { r.setStart(TX('pre'), 3); r.setEnd(TX('pre'), 4); }), G(r => { r.setStart(TX('pre'), 2); r.setEnd(TX('pre'), 6); })]",
+          "value": [
+            "8,101,12.45,17 20.45,101,0,17 8,121,0,17 8,141,12.45,17 | 8,101,12.45,57",
+            "8,101,12.45,17 20.45,101,0,17 8,121,0,17 8,141,3.56,17 | 8,101,12.45,57",
+            "8,121,0,17 | 8,121,0,17",
+            "20.45,101,0,17 8,121,0,17 8,141,12.45,17 | 8,141,12.45,17"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[G(r => r.selectNodeContents(EL('sb'))), G(r => r.selectNodeContents(EL('sb').childNodes[2])), G(r => { r.setStart(EL('sb').childNodes[2], 1); r.setEnd(EL('sb').childNodes[2], 1); }), G(r => { r.setStart(EL('sb').firstChild, 0); r.setEnd(EL('sb').childNodes[3], 0); }), G(r => r.selectNodeContents(EL('sc')))]",
+          "value": [
+            "8,161,22.25,17 30.25,161,19.55,17 30.25,161,19.55,17 49.8,161,0,17 8,181,16,17 | 8,161,41.8,37",
+            " | 0,0,0,0",
+            " | 0,0,0,0",
+            "8,161,22.25,17 30.25,161,19.55,17 30.25,161,19.55,17 | 8,161,41.8,17",
+            "8,201,17.8,17 25.8,201,0,17 8,221,16,17 | 8,201,17.8,37"
+          ]
+        }
+      ]
     }
   ]
 }

@@ -26,7 +26,7 @@ const SWB_VALUES: &[Departure] = &[
     (
         "api",
         0,
-        r#"["function",0,"function Selection() { [native code] }",true,true,"[object Selection]","length,name,prototype","anchorNode,anchorOffset,focusNode,focusOffset,isCollapsed,rangeCount,type,direction,baseNode,baseOffset,extentNode,extentOffset,addRange,collapse,collapseToEnd,collapseToStart,containsNode,empty,extend,getRangeAt,removeAllRanges,removeRange,selectAllChildren,setBaseAndExtent,setPosition,toString,constructor","TypeError: Failed to construct 'Selection': Illegal constructor","TypeError: Illegal constructor"]"#,
+        r#"["function",0,"function Selection() { [native code] }",true,true,"[object Selection]","length,name,prototype","anchorNode,anchorOffset,focusNode,focusOffset,isCollapsed,rangeCount,type,direction,baseNode,baseOffset,extentNode,extentOffset,addRange,collapse,collapseToEnd,collapseToStart,containsNode,deleteFromDocument,empty,extend,getRangeAt,removeAllRanges,removeRange,selectAllChildren,setBaseAndExtent,setPosition,toString,constructor","TypeError: Failed to construct 'Selection': Illegal constructor","TypeError: Illegal constructor"]"#,
         MISSING_MEMBERS,
     ),
     (
@@ -39,7 +39,7 @@ const SWB_VALUES: &[Departure] = &[
     (
         "api",
         2,
-        r#"["addRange:1:addRange","collapse:1:collapse","collapseToEnd:0:collapseToEnd","collapseToStart:0:collapseToStart","containsNode:1:containsNode","empty:0:empty","extend:1:extend","getRangeAt:1:getRangeAt","removeAllRanges:0:removeAllRanges","removeRange:1:removeRange","selectAllChildren:1:selectAllChildren","setBaseAndExtent:4:setBaseAndExtent","setPosition:1:setPosition","toString:0:toString","constructor:0:Selection",0,0,false,false]"#,
+        r#"["addRange:1:addRange","collapse:1:collapse","collapseToEnd:0:collapseToEnd","collapseToStart:0:collapseToStart","containsNode:1:containsNode","deleteFromDocument:0:deleteFromDocument","empty:0:empty","extend:1:extend","getRangeAt:1:getRangeAt","removeAllRanges:0:removeAllRanges","removeRange:1:removeRange","selectAllChildren:1:selectAllChildren","setBaseAndExtent:4:setBaseAndExtent","setPosition:1:setPosition","toString:0:toString","constructor:0:Selection",0,0,false,false]"#,
         MISSING_MEMBERS,
     ),
     (
@@ -66,15 +66,14 @@ const SWB_VALUES: &[Departure] = &[
     ),
 ];
 
-const MISSING_MEMBERS: &str = "getComposedRanges and modify are absent (ADR 0039 section 5; \
-     backlog); deleteFromDocument comes with Range.deleteContents (9b-3)";
+const MISSING_MEMBERS: &str =
+    "getComposedRanges and modify are absent (ADR 0039 section 5; backlog)";
 
 /// The cases and queries that run elsewhere or later: (case, query index or
 /// `None` for all, why). The queries still run, so that none of them panics.
 const ELSEWHERE: &[(&str, Option<usize>, &str)] = &[
     ("api", Some(4), ENGINE_FRAMES),
     ("add-remove", Some(1), ENGINE_FRAMES),
-    ("collapse-extend", Some(5), DELETE_FROM_DOCUMENT),
     ("to-string", None, ENGINE_TEXT),
     ("events-timing", Some(4), ENGINE_CONTROLS),
     ("events-timing", Some(5), ENGINE_CONTROLS),
@@ -100,6 +99,7 @@ const ELSEWHERE: &[(&str, Option<usize>, &str)] = &[
     ("frames-user-click-contains", None, ENGINE_INPUT),
     ("frames-user-click-partial", None, ENGINE_INPUT),
     ("frames-user-drag-click", None, ENGINE_INPUT),
+    ("delete-from-document-more", Some(2), ENGINE_CONTROLS),
 ];
 
 const ENGINE_FRAMES: &str = "needs a frame: crates/automation/tests/selection.rs runs it";
@@ -108,8 +108,6 @@ const ENGINE_TEXT: &str =
 const ENGINE_CONTROLS: &str =
     "needs the state of text controls: crates/automation/tests/selection.rs runs it";
 const ENGINE_INPUT: &str = "the case has input steps: crates/automation/tests/selection.rs";
-const DELETE_FROM_DOCUMENT: &str =
-    "deleteFromDocument needs Range.deleteContents, which comes with 9b-3";
 
 /// The time that an evaluation may wait for its promise.
 const SETTLE: Duration = Duration::from_secs(10);

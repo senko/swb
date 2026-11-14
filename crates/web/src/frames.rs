@@ -466,6 +466,18 @@ pub(crate) fn container_load(rt: &mut Runtime) -> VmResult<bool> {
 /// document: the frames of the `iframe` elements inside are destroyed
 /// (`contentWindow` is `null` at once; a move makes a new frame, measured).
 pub(crate) fn before_removal(rt: &mut Runtime, node: NodeId, inclusive: bool) -> VmResult<()> {
+    before_removal_of(rt, |document, container| {
+        (inclusive && container == node) || document.ancestors(container).any(|a| a == node)
+    })
+}
+
+/// Before the frame containers of the current document for which `leaves`
+/// is true leave it: their frames are destroyed (as [`before_removal`]; the
+/// contents operations of `Range` remove what the range contains).
+pub(crate) fn before_removal_of(
+    rt: &mut Runtime,
+    leaves: impl Fn(&swb_dom::Document, NodeId) -> bool,
+) -> VmResult<()> {
     let state_now = state(rt)?;
     if state_now.frame_count.get() == 0 || state_now.doc.retired {
         return Ok(());
@@ -482,9 +494,7 @@ pub(crate) fn before_removal(rt: &mut Runtime, node: NodeId, inclusive: bool) ->
         children
             .into_iter()
             .filter(|&(_, container)| {
-                (inclusive && container == node)
-                    || (document.get(container).is_some()
-                        && document.ancestors(container).any(|a| a == node))
+                document.get(container).is_some() && leaves(document, container)
             })
             .map(|(child, _)| child)
             .collect()

@@ -303,14 +303,43 @@ fn client_rects(rt: &mut Runtime, element: NodeId) -> b::Result<Vec<DomRect>> {
 pub(crate) fn get_client_rects(cx: &mut Cx<'_>, element: NodeId) -> b::Result<Gc<Object>> {
     let rects = client_rects(cx.rt, element)?;
     let realm = cx.realm();
+    Ok(rect_list(cx.rt, realm, rects)?)
+}
+
+/// A new `DOMRectList` of `realm` with new `DOMRect`s of `rects`.
+pub(crate) fn rect_list(rt: &mut Runtime, realm: u32, rects: Vec<DomRect>) -> VmResult<Gc<Object>> {
     let mut objects = Vec::with_capacity(rects.len());
     for rect in rects {
-        let object = new_rect(cx.rt, realm, rect)?;
-        b::keep(cx.rt, object.into());
+        let object = new_rect(rt, realm, rect)?;
+        b::keep(rt, object.into());
         objects.push(object);
     }
-    let data = cx.rt.alloc_host_data(RectListData(objects))?;
-    Ok(cx.rt.new_host_object(realm, g::DOM_RECT_LIST, data)?)
+    let data = rt.alloc_host_data(RectListData(objects))?;
+    rt.new_host_object(realm, g::DOM_RECT_LIST, data)
+}
+
+/// A new `DOMRect` of `realm` with the bounding rectangle of the client
+/// rectangles `rects` of a range (`Range.getBoundingClientRect`): the union of
+/// those with a width and a height, the first one if none has both, or zero.
+/// Chromium leaves out the rectangles of width 0 that a range has (a `br`, a
+/// boundary point at the end of a text node; measured, case `geometry`),
+/// where the union of an element's rectangles keeps them.
+pub(crate) fn range_bounding_rect(
+    rt: &mut Runtime,
+    realm: u32,
+    rects: &[DomRect],
+) -> VmResult<Gc<Object>> {
+    let sized: Vec<DomRect> = rects
+        .iter()
+        .filter(|r| r.width != 0.0 && r.height != 0.0)
+        .copied()
+        .collect();
+    let rect = if sized.is_empty() {
+        rects.first().copied().unwrap_or_default()
+    } else {
+        bounding_rect(&sized)
+    };
+    new_rect(rt, realm, rect)
 }
 
 /// The value of `getBoundingClientRect()` of `element` as a rectangle (for

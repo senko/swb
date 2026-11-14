@@ -359,6 +359,34 @@ pub(crate) fn before_removal(rt: &mut Runtime, node: NodeId, inclusive: bool) ->
     Ok(())
 }
 
+/// Before the contents operations of `Range` remove what `range` (of the
+/// current document) contains: as [`before_removal`] for each contained
+/// node, the frames of contained `iframe` elements are destroyed and a
+/// focused element in the contents loses the focus while it is still in the
+/// document.
+pub(crate) fn before_contents_removal(rt: &mut Runtime, range: swb_dom::LiveRange) -> VmResult<()> {
+    crate::frames::before_removal_of(rt, |document, container| {
+        document.range_contains_node(range, container)
+    })?;
+    let Some(focus) = focused(rt)? else {
+        return Ok(());
+    };
+    let inside = {
+        let document = dom(rt)?;
+        let root = document.root(range.start.node);
+        // The node of the range's tree that holds the focus: the focused
+        // element, or the host of the shadow tree that holds it.
+        std::iter::once(focus)
+            .chain(document.shadow_including_ancestors(focus))
+            .find(|&n| document.root(n) == root)
+            .is_some_and(|n| document.range_contains_node(range, n))
+    };
+    if inside {
+        move_focus(rt, None, false)?;
+    }
+    Ok(())
+}
+
 /// The `hidden` attribute of `element` was set: the element itself loses
 /// the focus if it has it. A focused element below `element` keeps it
 /// (Chromium 148, also for `hidden=until-found`; `display: none` from a

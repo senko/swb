@@ -406,7 +406,11 @@ with `textContent = ''` of a parent of 100,000 children, `normalize` of
 100,000 elements followed by 100,000 text nodes, `normalize` of 100,000
 empty text nodes with 100,000 ranges at their parent, `normalize` of 50,000
 runs with 50,000 ranges at their parent and a run in an element before each,
-and a fragment of 100,000 children inserted at the front. Hostile cases of
+and a fragment of 100,000 children inserted at the front; since 9b-3,
+`deleteContents` with 100,000 live ranges in the removed children,
+`createContextualFragment` of 2 MB and of 10,000 nested elements (deeper
+nesting is slow in the tree builder, as the known `nest-div-100000`), and
+`getClientRects` of a range over 100,000 text nodes. Hostile cases of
 the selection (`selection.py`, 9b-2): a loop of `addRange` and
 `removeAllRanges` and a loop of `collapse`; a `selectionchange` listener
 that changes the selection again; a selection over 100,000 text nodes,
@@ -549,6 +553,97 @@ What 9b-2 did differently from section 3, or added after new measurements
   (Chromium the word after it); the event logs of input steps differ in how
   many `selectionchange` events coalesce (Chromium handles input before the
   event's task, `run_steps` runs the tasks after each step).
+
+## 9b-3 implementation notes
+
+What 9b-3 did differently from section 2, or added after new measurements
+(three equal runs each of the 5 cases that 9b-3 added to
+`tools/probes/web-range.json`, `contents-live`, `contents-records`,
+`contextual-fragment-more`, `geometry-more`, `geometry-frames`,
+`geometry-review`, and of
+`delete-from-document-more` in `tools/probes/web-selection.json`):
+
+- **Order of the changes.** Chromium's mutation records of extract and
+  delete come in an order that differs from the standard's (whose result is
+  the same): the start's side (the selected data of a start node of
+  character data, then the children after the start's path, from the
+  bottom up), the end's side likewise (its data, then the children before
+  its path, from the bottom up), then the contained children of the common
+  ancestor. Each child that leaves has its own record; a replacement of no
+  data (a boundary point at the end of a text node) still makes a
+  `characterData` record. `swb_dom` (`ranges/contents.rs`) follows that
+  order: it makes the copies of the partially contained nodes first (a
+  shallow copy each, the selected data for a boundary node of character
+  data), then moves, copies or removes the runs of children level by level.
+  No recursion: a range at the bottom of a chain of 100,000 levels costs its
+  depth.
+- **Batched steps.** A run of consecutive children that leave one after the
+  other runs the live range steps once (`removing_run`: one index walk, one
+  pass over the boundary points at the parent, the subtree search for each
+  child), so one call costs nodes plus boundary points; the node
+  iterators' steps run for each child as it leaves.
+- **Outside the DOM.** Before the contents leave, the frames of contained
+  `iframe` elements are destroyed and a focused element in them loses the
+  focus, as for a single removal (`focus::before_contents_removal`);
+  inserted scripts run their steps (`scripts::after_insertion`); copies get
+  the cloning steps (scripts, `input` and `textarea`) and upgrade reactions
+  (the whole fragment for clone; the copies of the partially contained
+  elements for extract). `surroundContents` is composed in the bindings from
+  the steps of the standard, each with its exceptions (an extract that
+  succeeded stays when the insertion then fails, as measured). The range's
+  document is the current one for the call.
+- **The selection.** A script's change of the selection's range through its
+  `Range` object makes the anchor the start (direction `forward`; measured).
+  When extract or delete changes the selection's range in its last step (the
+  collapse to the new point), Chromium reports the type `Range` and the
+  direction `forward` until the next change of the selection, also though
+  the range is collapsed (`SelectionState::stale_type`); this is the quirk of
+  `deleteFromDocument` that 9b-2 measured, and it also follows
+  `extractContents` of the selection's range. A deletion inside one text node
+  does not set the range (the standard's step returns early) and reports
+  `Caret`. While a text control owns the selection, `deleteFromDocument`
+  deletes nothing (the range is collapsed at the control's place), as in
+  Chromium.
+- **`createContextualFragment`** parses as the HTML standard says (the
+  element at the start, the parent element of a text node or comment, a
+  `body` without one or for the `html` element) and clears the "already
+  started" flag of the fragment's scripts; custom elements of the fragment
+  get their upgrade reactions at once, as for `innerHTML` (measured: the
+  constructor runs before the method returns; a `DOMParser` document has no
+  registry).
+- **Geometry.** `swb_dom::Document::range_pieces` lists the contained
+  elements whose parent is not contained and the selected part of each text
+  node, in tree order; the engine (`script_range_rects`) gives the border
+  boxes of the elements from its index of client rectangles and the
+  rectangles of the text parts from the text fragments (an index built at the
+  first query, kept with that index), one rectangle per line (swb splits a
+  line's text into fragments at words; they are joined), in layout units. A
+  collapsed part, a boundary point at the end of a text node and a selected
+  preserved line break give rectangles of width 0, also each empty line
+  between preserved line breaks (placed evenly between the fragments around
+  it); a text node of collapsed white space gives none. A line's fragments
+  are joined before the transform of the box maps them, so a rotated line is
+  one rectangle (the bounding box of the mapped line). `getBoundingClientRect`
+  of a range leaves out the rectangles of width 0 (measured; the union of an
+  element's rectangles keeps them). The objects belong to the realm of the
+  method; a range in a frame's document gives the frame's viewport
+  coordinates. The geometry rows run in the engine within 0.5 px (the
+  probe's `sans-serif` is a bundled test font in swb).
+- **Departures**: `Range.expand` is absent (api row). When the focused
+  element is in the contents that extract or delete remove, swb blurs it
+  (`blur` and `focusout` listeners run) before the walk starts
+  (`focus::before_contents_removal`); Chromium blurs it in the middle of the
+  walk, when the node leaves. A listener that changes the tree sees all
+  nodes still in place in swb, and can make Chromium's walk throw
+  `NotFoundError` ("The node to be removed is no longer a child of this
+  node. Perhaps it was moved in a 'blur' event handler?"), where swb returns
+  normally (`extractContents`, `deleteContents`, `surroundContents`;
+  measured by the review, not in a probe case). The range and the nodes stay
+  valid in swb: the operations read the live range again after the
+  listeners. Not fixed: an unusual case, and a fix needs events in the
+  middle of the walk. Known gap of the geometry: empty lines before the first
+  and after the last fragment of a text node with preserved line breaks give
+  no rectangle (not measured).
 
 ## Consequences
 

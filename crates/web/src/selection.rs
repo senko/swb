@@ -24,11 +24,16 @@
 //!   (`swb_dom::Document::visual_range`; decision 4, a measured departure from
 //!   the standard);
 //! - a change queues `selectionchange` at the document
-//!   (`html/selection_events.rs`).
+//!   (`html/selection_events.rs`);
+//! - `deleteFromDocument` deletes the contents of the range (9b-3); after it,
+//!   and after a contents operation of the range's `Range` object that moved
+//!   it, the selection reports the type `Range` and the direction `forward`
+//!   until its next change, also when collapsed (Chromium, measured:
+//!   `SelectionState::stale_type`).
 //!
 //! Departures: anchor and focus in different trees (a shadow tree) collapse at
-//! the focus; `deleteFromDocument` comes with `Range.deleteContents` (9b-3);
-//! `modify`, `getComposedRanges` and `ShadowRoot.getSelection` are absent.
+//! the focus; `modify`, `getComposedRanges` and `ShadowRoot.getSelection` are
+//! absent.
 
 use std::cmp::Ordering;
 
@@ -194,7 +199,7 @@ impl g::selection::SelectionImpl for WebState {
         };
         let collapsed = match control_range(cx)? {
             Some(c) => c.start == c.end,
-            None => s.range.is_collapsed(),
+            None => s.range.is_collapsed() && !s.stale_type,
         };
         Ok((if collapsed { "Caret" } else { "Range" }).to_owned())
     }
@@ -207,7 +212,7 @@ impl g::selection::SelectionImpl for WebState {
         };
         let (collapsed, backward) = match control_range(cx)? {
             Some(c) => (c.start == c.end, c.backward),
-            None => (s.range.is_collapsed(), s.backward),
+            None => (s.range.is_collapsed() && !s.stale_type, s.backward),
         };
         Ok(match (collapsed, backward) {
             (true, _) => "none",
@@ -293,6 +298,15 @@ impl g::selection::SelectionImpl for WebState {
             state::dom(cx.rt)?.visually_contains(shown, node.node, text, allow_partial_containment);
         cx.rt.check_time()?;
         Ok(contains)
+    }
+
+    /// `deleteFromDocument`: `deleteContents` of the selection's range.
+    fn delete_from_document(cx: &mut Cx<'_>, _this: Platform) -> b::Result<()> {
+        let Some(s) = current(cx)? else {
+            return Ok(());
+        };
+        range::contents::delete(cx.rt, s.id, s.range)?;
+        finish(cx)
     }
 
     fn empty(cx: &mut Cx<'_>, _this: Platform) -> b::Result<()> {

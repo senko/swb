@@ -1796,4 +1796,258 @@ const OPS = (build, op) => PAIRS(build).map(([i, j]) => { const root = build(); 
             ),
         ],
     },
+    Case {
+        name: r"contents-live",
+        html: r#"<!DOCTYPE html><html><head><script>
+const E = g => { try { const v = g(); return v === undefined ? 'undefined' : typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { return e.name + ': ' + e.message; } };
+const J = JSON.stringify;
+const N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? (n === document ? '#document' : '#doc2') : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? (n.host ? '#shadow' : '#fragment') : '#' + n.nodeType;
+const P = (n, o) => N(n) + ',' + o;
+const R = r => r ? P(r.startContainer, r.startOffset) + '-' + P(r.endContainer, r.endOffset) : 'null';
+const X = n => n.nodeType === 1 ? '<' + n.localName + (n.id ? '#' + n.id : '') + '>' + [...n.childNodes].map(X).join('|') + '</>' : n.nodeType === 3 ? '"' + n.data + '"' : n.nodeType === 8 ? '<!' + n.data + '>' : n.nodeType === 11 || n.nodeType === 9 ? '[' + [...n.childNodes].map(X).join('|') + ']' : N(n);
+const D = (o, k) => { const d = Object.getOwnPropertyDescriptor(o, k); return d ? ['get' in d ? 'acc' : 'val', typeof d.get, typeof d.set, typeof d.value, d.enumerable, d.configurable, d.writable].join(':') : 'none'; };
+const LEN = n => n.nodeType === 3 || n.nodeType === 8 || n.nodeType === 7 ? n.length : n.childNodes.length;
+const NODES = root => { const o = []; const w = document.createTreeWalker(root, 0xFFFFFFFF); let n = w.currentNode; while (n) { o.push(n); n = w.nextNode(); } return o; };
+const POINTS = root => NODES(root).flatMap(n => Array.from({length: LEN(n) + 1}, (_, i) => [n, i]));
+const MK = (html, id) => { const d = document.createElement('div'); d.id = id || 'r'; d.innerHTML = html; return d; };
+const T = () => MK('a<p id=p>bc<i id=i>d</i>e</p><!--f--><s id=s>gh</s>');
+const TC = () => { const d = T(); document.body.append(d); return d; };
+const T2 = () => { const d = document.createElement('div'); d.id = 'r'; d.append('ab', '', 'cd'); const p = document.createElement('p'); p.id = 'p'; p.append('ef', 'g'); d.append(p, 'h', 'ij'); return d; };
+const LIVE = (build, mutate) => { const root = build(); const pts = POINTS(root); const rs = pts.map(([n, i]) => { const a = new Range(); a.setStart(n, i); a.setEnd(root, LEN(root)); const b = new Range(); b.setStart(root, 0); b.setEnd(n, i); return [a, b]; }); const labels = pts.map(([n, i]) => P(n, i)); const err = E(() => { mutate(root); }); const out = pts.map(([n, i], k) => labels[k] + '>' + P(rs[k][0].startContainer, rs[k][0].startOffset) + '|' + P(rs[k][1].endContainer, rs[k][1].endOffset)); if (root.isConnected) root.remove(); return (err === 'undefined' ? '' : 'ERR ' + err + ' ') + out.join(' '); };
+const C = () => MK('ab<p id=p>cd<i id=i>e</i></p><!--f-->g');
+const PAIRS = build => { const root = build(); const pts = POINTS(root); const o = []; for (let i = 0; i < pts.length; i++) for (let j = 0; j < pts.length; j++) { const r = new Range(); r.setStart(pts[i][0], pts[i][1]); r.setEnd(pts[j][0], pts[j][1]); if (r.startContainer === pts[i][0] && r.startOffset === pts[i][1] && r.endContainer === pts[j][0] && r.endOffset === pts[j][1]) o.push([i, j]); } return o; };
+const OPS = (build, op) => PAIRS(build).map(([i, j]) => { const root = build(); const pts = POINTS(root); const r = new Range(); r.setStart(pts[i][0], pts[i][1]); r.setEnd(pts[j][0], pts[j][1]); const label = R(r); const res = E(() => { const v = op(r, root); return v && v.nodeType ? X(v) : String(v); }); return label + ' => ' + res + ' ; ' + X(root) + ' ; ' + R(r); });
+</script></head><body></body></html>"#,
+        queries: &[
+            (
+                r"LIVE(C, root => { const r = new Range(); r.setStart(root.firstChild, 1); r.setEnd(root.querySelector('i').firstChild, 1); r.extractContents(); })",
+                r#""div#r,0>div#r,0|div#r,0 div#r,1>div#r,1|div#r,1 div#r,2>div#r,2|div#r,2 div#r,3>div#r,3|div#r,3 div#r,4>div#r,4|div#r,4 t:ab,0>t:a,0|t:a,0 t:ab,1>t:a,1|t:a,1 t:ab,2>t:a,1|t:a,1 p#p,0>p#p,0|p#p,0 p#p,1>p#p,0|p#p,0 p#p,2>p#p,1|p#p,1 t:cd,0>p#p,0|p#p,0 t:cd,1>p#p,0|p#p,0 t:cd,2>p#p,0|p#p,0 i#i,0>i#i,0|i#i,0 i#i,1>i#i,1|i#i,1 t:e,0>t:,0|t:,0 t:e,1>t:,0|t:,0 c:f,0>c:f,0|c:f,0 c:f,1>c:f,1|c:f,1 t:g,0>t:g,0|t:g,0 t:g,1>t:g,1|t:g,1""#,
+            ),
+            (
+                r"LIVE(C, root => { const r = new Range(); r.setStart(root.querySelector('p').firstChild, 1); r.setEnd(root.lastChild, 1); r.extractContents(); })",
+                r#""div#r,0>div#r,0|div#r,0 div#r,1>div#r,1|div#r,1 div#r,2>div#r,2|div#r,2 div#r,3>div#r,2|div#r,2 div#r,4>div#r,3|div#r,3 t:ab,0>t:ab,0|t:ab,0 t:ab,1>t:ab,1|t:ab,1 t:ab,2>t:ab,2|t:ab,2 p#p,0>p#p,0|p#p,0 p#p,1>p#p,1|p#p,1 p#p,2>p#p,1|p#p,1 t:cd,0>t:c,0|t:c,0 t:cd,1>t:c,1|t:c,1 t:cd,2>t:c,1|t:c,1 i#i,0>p#p,1|p#p,1 i#i,1>p#p,1|p#p,1 t:e,0>p#p,1|p#p,1 t:e,1>p#p,1|p#p,1 c:f,0>div#r,2|div#r,2 c:f,1>div#r,2|div#r,2 t:g,0>t:,0|t:,0 t:g,1>t:,0|t:,0""#,
+            ),
+            (
+                r"LIVE(C, root => { const r = new Range(); r.setStart(root.firstChild, 1); r.setEnd(root.querySelector('i').firstChild, 1); r.deleteContents(); })",
+                r#""div#r,0>div#r,0|div#r,0 div#r,1>div#r,1|div#r,1 div#r,2>div#r,2|div#r,2 div#r,3>div#r,3|div#r,3 div#r,4>div#r,4|div#r,4 t:ab,0>t:a,0|t:a,0 t:ab,1>t:a,1|t:a,1 t:ab,2>t:a,1|t:a,1 p#p,0>p#p,0|p#p,0 p#p,1>p#p,0|p#p,0 p#p,2>p#p,1|p#p,1 t:cd,0>p#p,0|p#p,0 t:cd,1>p#p,0|p#p,0 t:cd,2>p#p,0|p#p,0 i#i,0>i#i,0|i#i,0 i#i,1>i#i,1|i#i,1 t:e,0>t:,0|t:,0 t:e,1>t:,0|t:,0 c:f,0>c:f,0|c:f,0 c:f,1>c:f,1|c:f,1 t:g,0>t:g,0|t:g,0 t:g,1>t:g,1|t:g,1""#,
+            ),
+            (
+                r"LIVE(C, root => { const r = new Range(); r.setStart(root, 1); r.setEnd(root, 3); r.deleteContents(); })",
+                r#""div#r,0>div#r,0|div#r,0 div#r,1>div#r,1|div#r,1 div#r,2>div#r,1|div#r,1 div#r,3>div#r,1|div#r,1 div#r,4>div#r,2|div#r,2 t:ab,0>t:ab,0|t:ab,0 t:ab,1>t:ab,1|t:ab,1 t:ab,2>t:ab,2|t:ab,2 p#p,0>div#r,1|div#r,1 p#p,1>div#r,1|div#r,1 p#p,2>div#r,1|div#r,1 t:cd,0>div#r,1|div#r,1 t:cd,1>div#r,1|div#r,1 t:cd,2>div#r,1|div#r,1 i#i,0>div#r,1|div#r,1 i#i,1>div#r,1|div#r,1 t:e,0>div#r,1|div#r,1 t:e,1>div#r,1|div#r,1 c:f,0>div#r,1|div#r,1 c:f,1>div#r,1|div#r,1 t:g,0>t:g,0|t:g,0 t:g,1>t:g,1|t:g,1""#,
+            ),
+            (
+                r"LIVE(C, root => { const r = new Range(); r.setStart(root.querySelector('p').firstChild, 1); r.insertNode(new Text('N')); })",
+                r#""div#r,0>div#r,0|div#r,0 div#r,1>div#r,1|div#r,1 div#r,2>div#r,2|div#r,2 div#r,3>div#r,3|div#r,3 div#r,4>div#r,4|div#r,4 t:ab,0>t:ab,0|t:ab,0 t:ab,1>t:ab,1|t:ab,1 t:ab,2>t:ab,2|t:ab,2 p#p,0>p#p,0|p#p,0 p#p,1>p#p,3|p#p,3 p#p,2>p#p,4|p#p,4 t:cd,0>t:c,0|t:c,0 t:cd,1>t:c,1|t:c,1 t:cd,2>t:d,1|t:d,1 i#i,0>i#i,0|i#i,0 i#i,1>i#i,1|i#i,1 t:e,0>t:e,0|t:e,0 t:e,1>t:e,1|t:e,1 c:f,0>c:f,0|c:f,0 c:f,1>c:f,1|c:f,1 t:g,0>t:g,0|t:g,0 t:g,1>t:g,1|t:g,1""#,
+            ),
+            (
+                r"LIVE(C, root => { const r = new Range(); r.setStart(root.querySelector('p'), 1); const f = document.createDocumentFragment(); f.append('M', document.createElement('u')); r.insertNode(f); })",
+                r#""div#r,0>div#r,0|div#r,0 div#r,1>div#r,1|div#r,1 div#r,2>div#r,2|div#r,2 div#r,3>div#r,3|div#r,3 div#r,4>div#r,4|div#r,4 t:ab,0>t:ab,0|t:ab,0 t:ab,1>t:ab,1|t:ab,1 t:ab,2>t:ab,2|t:ab,2 p#p,0>p#p,0|p#p,0 p#p,1>p#p,1|p#p,1 p#p,2>p#p,4|p#p,4 t:cd,0>t:cd,0|t:cd,0 t:cd,1>t:cd,1|t:cd,1 t:cd,2>t:cd,2|t:cd,2 i#i,0>i#i,0|i#i,0 i#i,1>i#i,1|i#i,1 t:e,0>t:e,0|t:e,0 t:e,1>t:e,1|t:e,1 c:f,0>c:f,0|c:f,0 c:f,1>c:f,1|c:f,1 t:g,0>t:g,0|t:g,0 t:g,1>t:g,1|t:g,1""#,
+            ),
+            (
+                r"LIVE(C, root => { const r = new Range(); r.setStart(root, 1); r.setEnd(root, 2); r.surroundContents(document.createElement('u')); })",
+                r#""div#r,0>div#r,0|div#r,0 div#r,1>div#r,1|div#r,1 div#r,2>div#r,1|div#r,1 div#r,3>div#r,3|div#r,3 div#r,4>div#r,4|div#r,4 t:ab,0>t:ab,0|t:ab,0 t:ab,1>t:ab,1|t:ab,1 t:ab,2>t:ab,2|t:ab,2 p#p,0>div#r,1|div#r,1 p#p,1>div#r,1|div#r,1 p#p,2>div#r,1|div#r,1 t:cd,0>div#r,1|div#r,1 t:cd,1>div#r,1|div#r,1 t:cd,2>div#r,1|div#r,1 i#i,0>div#r,1|div#r,1 i#i,1>div#r,1|div#r,1 t:e,0>div#r,1|div#r,1 t:e,1>div#r,1|div#r,1 c:f,0>c:f,0|c:f,0 c:f,1>c:f,1|c:f,1 t:g,0>t:g,0|t:g,0 t:g,1>t:g,1|t:g,1""#,
+            ),
+            (
+                r"LIVE(C, root => { const r = new Range(); r.setStart(root.firstChild, 1); r.setEnd(root.lastChild, 1); r.surroundContents(document.createElement('u')); })",
+                r#""div#r,0>div#r,0|div#r,0 div#r,1>div#r,1|div#r,1 div#r,2>div#r,1|div#r,1 div#r,3>div#r,1|div#r,1 div#r,4>div#r,3|div#r,3 t:ab,0>t:a,0|t:a,0 t:ab,1>t:a,1|t:a,1 t:ab,2>t:a,1|t:a,1 p#p,0>div#r,1|div#r,1 p#p,1>div#r,1|div#r,1 p#p,2>div#r,1|div#r,1 t:cd,0>div#r,1|div#r,1 t:cd,1>div#r,1|div#r,1 t:cd,2>div#r,1|div#r,1 i#i,0>div#r,1|div#r,1 i#i,1>div#r,1|div#r,1 t:e,0>div#r,1|div#r,1 t:e,1>div#r,1|div#r,1 c:f,0>div#r,1|div#r,1 c:f,1>div#r,1|div#r,1 t:g,0>t:,0|t:,0 t:g,1>t:,0|t:,0""#,
+            ),
+        ],
+    },
+    Case {
+        name: r"contents-records",
+        html: r#"<!DOCTYPE html><html><head><script>
+const E = g => { try { const v = g(); return v === undefined ? 'undefined' : typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { return e.name + ': ' + e.message; } };
+const J = JSON.stringify;
+const N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? (n === document ? '#document' : '#doc2') : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? (n.host ? '#shadow' : '#fragment') : '#' + n.nodeType;
+const P = (n, o) => N(n) + ',' + o;
+const R = r => r ? P(r.startContainer, r.startOffset) + '-' + P(r.endContainer, r.endOffset) : 'null';
+const X = n => n.nodeType === 1 ? '<' + n.localName + (n.id ? '#' + n.id : '') + '>' + [...n.childNodes].map(X).join('|') + '</>' : n.nodeType === 3 ? '"' + n.data + '"' : n.nodeType === 8 ? '<!' + n.data + '>' : n.nodeType === 11 || n.nodeType === 9 ? '[' + [...n.childNodes].map(X).join('|') + ']' : N(n);
+const D = (o, k) => { const d = Object.getOwnPropertyDescriptor(o, k); return d ? ['get' in d ? 'acc' : 'val', typeof d.get, typeof d.set, typeof d.value, d.enumerable, d.configurable, d.writable].join(':') : 'none'; };
+const LEN = n => n.nodeType === 3 || n.nodeType === 8 || n.nodeType === 7 ? n.length : n.childNodes.length;
+const NODES = root => { const o = []; const w = document.createTreeWalker(root, 0xFFFFFFFF); let n = w.currentNode; while (n) { o.push(n); n = w.nextNode(); } return o; };
+const POINTS = root => NODES(root).flatMap(n => Array.from({length: LEN(n) + 1}, (_, i) => [n, i]));
+const MK = (html, id) => { const d = document.createElement('div'); d.id = id || 'r'; d.innerHTML = html; return d; };
+const T = () => MK('a<p id=p>bc<i id=i>d</i>e</p><!--f--><s id=s>gh</s>');
+const TC = () => { const d = T(); document.body.append(d); return d; };
+const T2 = () => { const d = document.createElement('div'); d.id = 'r'; d.append('ab', '', 'cd'); const p = document.createElement('p'); p.id = 'p'; p.append('ef', 'g'); d.append(p, 'h', 'ij'); return d; };
+const LIVE = (build, mutate) => { const root = build(); const pts = POINTS(root); const rs = pts.map(([n, i]) => { const a = new Range(); a.setStart(n, i); a.setEnd(root, LEN(root)); const b = new Range(); b.setStart(root, 0); b.setEnd(n, i); return [a, b]; }); const labels = pts.map(([n, i]) => P(n, i)); const err = E(() => { mutate(root); }); const out = pts.map(([n, i], k) => labels[k] + '>' + P(rs[k][0].startContainer, rs[k][0].startOffset) + '|' + P(rs[k][1].endContainer, rs[k][1].endOffset)); if (root.isConnected) root.remove(); return (err === 'undefined' ? '' : 'ERR ' + err + ' ') + out.join(' '); };
+const C = () => MK('ab<p id=p>cd<i id=i>e</i></p><!--f-->g');
+const PAIRS = build => { const root = build(); const pts = POINTS(root); const o = []; for (let i = 0; i < pts.length; i++) for (let j = 0; j < pts.length; j++) { const r = new Range(); r.setStart(pts[i][0], pts[i][1]); r.setEnd(pts[j][0], pts[j][1]); if (r.startContainer === pts[i][0] && r.startOffset === pts[i][1] && r.endContainer === pts[j][0] && r.endOffset === pts[j][1]) o.push([i, j]); } return o; };
+const OPS = (build, op) => PAIRS(build).map(([i, j]) => { const root = build(); const pts = POINTS(root); const r = new Range(); r.setStart(pts[i][0], pts[i][1]); r.setEnd(pts[j][0], pts[j][1]); const label = R(r); const res = E(() => { const v = op(r, root); return v && v.nodeType ? X(v) : String(v); }); return label + ' => ' + res + ' ; ' + X(root) + ' ; ' + R(r); });
+</script><script>const D9 = () => MK('ab<p id=p>cd<i id=i>e</i>f</p><!--g--><s id=s>hi</s>jk');const D10 = () => MK('ab<p id=p>cd<i id=i>ef<b>x</b></i>gh</p>ij<s id=s>kl<u id=u><b>y</b>mn</u>op</s>');const REC = (op, build) => { const root = (build || D9)(); const mo = new MutationObserver(() => {}); mo.observe(root, {childList: true, characterData: true, subtree: true, characterDataOldValue: true}); const r = new Range(); const res = E(() => { const v = op(root, r, id => root.querySelector('#' + id)); return v && v.nodeType ? X(v) : String(v); }); const recs = mo.takeRecords().map(m => m.type[0] + ':' + N(m.target) + ' +' + [...m.addedNodes].map(N).join(',') + ' -' + [...m.removedNodes].map(N).join(',') + ' p=' + N(m.previousSibling) + ' n=' + N(m.nextSibling) + (m.oldValue === null ? '' : ' o=' + m.oldValue)); mo.disconnect(); return res + ' ; ' + X(root) + ' ; ' + R(r) + ' ; ' + recs.join(' / '); };const REC2 = op => REC(op, D10);</script></head><body></body></html>"#,
+        queries: &[
+            (
+                r"[REC((root, r, $) => { r.setStart(root.firstChild, 1); r.setEnd($('i').firstChild, 1); return r.extractContents(); }), REC((root, r, $) => { r.setStart($('p').firstChild, 1); r.setEnd(root.lastChild, 1); return r.extractContents(); }), REC((root, r, $) => { r.setStart(root, 1); r.setEnd(root, 4); return r.extractContents(); }), REC((root, r, $) => { r.setStart(root.firstChild, 1); r.setEnd($('i').firstChild, 1); return r.cloneContents(); })]",
+                r#"["[\"b\"|<p#p>\"cd\"|<i#i>\"e\"</></>] ; <div#r>\"a\"|<p#p><i#i>\"\"</>|\"f\"</>|<!g>|<s#s>\"hi\"</>|\"jk\"</> ; div#r,1-div#r,1 ; c:t:a + - p=null n=null o=ab / c:t: + - p=null n=null o=e / c:p#p + -t:cd p=null n=i#i", "[<p#p>\"d\"|<i#i>\"e\"</>|\"f\"</>|<!g>|<s#s>\"hi\"</>|\"j\"] ; <div#r>\"ab\"|<p#p>\"c\"</>|\"k\"</> ; div#r,2-div#r,2 ; c:t:c + - p=null n=null o=cd / c:p#p + -i#i p=t:c n=t:f / c:p#p + -t:f p=t:c n=null / c:t:k + - p=null n=null o=jk / c:div#r + -c:g p=p#p n=s#s / c:div#r + -s#s p=p#p n=t:k", "[<p#p>\"cd\"|<i#i>\"e\"</>|\"f\"</>|<!g>|<s#s>\"hi\"</>] ; <div#r>\"ab\"|\"jk\"</> ; div#r,1-div#r,1 ; c:div#r + -p#p p=t:ab n=c:g / c:div#r + -c:g p=t:ab n=s#s / c:div#r + -s#s p=t:ab n=t:jk", "[\"b\"|<p#p>\"cd\"|<i#i>\"e\"</></>] ; <div#r>\"ab\"|<p#p>\"cd\"|<i#i>\"e\"</>|\"f\"</>|<!g>|<s#s>\"hi\"</>|\"jk\"</> ; t:ab,1-t:e,1 ; "]"#,
+            ),
+            (
+                r"[REC((root, r, $) => { r.setStart(root.firstChild, 1); r.setEnd($('i').firstChild, 1); return r.deleteContents(); }), REC((root, r, $) => { r.setStart($('p').firstChild, 1); r.setEnd($('s').firstChild, 1); return r.deleteContents(); }), REC((root, r, $) => { r.setStart(root, 1); r.setEnd(root, 4); return r.deleteContents(); })]",
+                r#"["undefined ; <div#r>\"a\"|<p#p><i#i>\"\"</>|\"f\"</>|<!g>|<s#s>\"hi\"</>|\"jk\"</> ; div#r,1-div#r,1 ; c:t:a + - p=null n=null o=ab / c:t: + - p=null n=null o=e / c:p#p + -t:cd p=null n=i#i", "undefined ; <div#r>\"ab\"|<p#p>\"c\"</>|<s#s>\"i\"</>|\"jk\"</> ; div#r,2-div#r,2 ; c:t:c + - p=null n=null o=cd / c:p#p + -i#i p=t:c n=t:f / c:p#p + -t:f p=t:c n=null / c:t:i + - p=null n=null o=hi / c:div#r + -c:g p=p#p n=s#s", "undefined ; <div#r>\"ab\"|\"jk\"</> ; div#r,1-div#r,1 ; c:div#r + -p#p p=t:ab n=c:g / c:div#r + -c:g p=t:ab n=s#s / c:div#r + -s#s p=t:ab n=t:jk"]"#,
+            ),
+            (
+                r"[REC((root, r, $) => { r.setStart($('p').firstChild, 1); return r.insertNode(new Text('N')); }), REC((root, r, $) => { r.setStart($('p'), 1); const f = document.createDocumentFragment(); f.append('M', document.createElement('u')); return r.insertNode(f); }), REC((root, r, $) => { r.setStart($('p').firstChild, 1); return r.insertNode($('s')); }), REC((root, r, $) => { r.setStart($('p').firstChild, 1); r.setEnd(root.lastChild, 1); return r.insertNode(new Text('N')); })]",
+                r#"["undefined ; <div#r>\"ab\"|<p#p>\"c\"|\"N\"|\"d\"|<i#i>\"e\"</>|\"f\"</>|<!g>|<s#s>\"hi\"</>|\"jk\"</> ; t:c,1-p#p,2 ; c:t:c + - p=null n=null o=cd / c:p#p +t:d - p=t:c n=i#i / c:p#p +t:N - p=t:c n=t:d", "undefined ; <div#r>\"ab\"|<p#p>\"cd\"|\"M\"|<u></>|<i#i>\"e\"</>|\"f\"</>|<!g>|<s#s>\"hi\"</>|\"jk\"</> ; p#p,1-p#p,3 ; c:p#p +t:M,u - p=t:cd n=i#i", "undefined ; <div#r>\"ab\"|<p#p>\"c\"|<s#s>\"hi\"</>|\"d\"|<i#i>\"e\"</>|\"f\"</>|<!g>|\"jk\"</> ; t:c,1-p#p,2 ; c:t:c + - p=null n=null o=cd / c:p#p +t:d - p=t:c n=i#i / c:div#r + -s#s p=c:g n=t:jk / c:p#p +s#s - p=t:c n=t:d", "undefined ; <div#r>\"ab\"|<p#p>\"c\"|\"N\"|\"d\"|<i#i>\"e\"</>|\"f\"</>|<!g>|<s#s>\"hi\"</>|\"jk\"</> ; t:c,1-t:jk,1 ; c:t:c + - p=null n=null o=cd / c:p#p +t:d - p=t:c n=i#i / c:p#p +t:N - p=t:c n=t:d"]"#,
+            ),
+            (
+                r"[REC((root, r, $) => { r.setStart(root, 1); r.setEnd(root, 3); return r.surroundContents(document.createElement('u')); }), REC((root, r, $) => { r.setStart(root.firstChild, 1); r.setEnd(root.lastChild, 1); const u = document.createElement('u'); u.append('old'); return r.surroundContents(u); })]",
+                r#"["undefined ; <div#r>\"ab\"|<u><p#p>\"cd\"|<i#i>\"e\"</>|\"f\"</>|<!g></>|<s#s>\"hi\"</>|\"jk\"</> ; div#r,1-div#r,2 ; c:div#r + -p#p p=t:ab n=c:g / c:div#r + -c:g p=t:ab n=s#s / c:div#r +u - p=t:ab n=s#s / c:u +p#p,c:g - p=null n=null", "undefined ; <div#r>\"a\"|<u>\"b\"|<p#p>\"cd\"|<i#i>\"e\"</>|\"f\"</>|<!g>|<s#s>\"hi\"</>|\"j\"</>|\"k\"</> ; div#r,1-div#r,2 ; c:t:a + - p=null n=null o=ab / c:t:k + - p=null n=null o=jk / c:div#r + -p#p p=t:a n=c:g / c:div#r + -c:g p=t:a n=s#s / c:div#r + -s#s p=t:a n=t:k / c:div#r +u - p=t:a n=t:k / c:u +t:b,p#p,c:g,s#s,t:j - p=null n=null"]"#,
+            ),
+            (
+                r"[REC2((root, r, $) => { r.setStart($('i').firstChild, 1); r.setEnd($('u').lastChild, 1); return r.extractContents(); }), REC2((root, r, $) => { r.setStart($('i').firstChild, 1); r.setEnd($('u').lastChild, 1); return r.deleteContents(); }), REC2((root, r, $) => { r.setStart($('i').firstChild, 2); r.setEnd($('u'), 0); return r.extractContents(); }), REC2((root, r, $) => { r.setStart($('p'), 3); r.setEnd(root.lastChild.firstChild, 0); return r.extractContents(); })]",
+                r#"["[<p#p><i#i>\"f\"|<b>\"x\"</></>|\"gh\"</>|\"ij\"|<s#s>\"kl\"|<u#u><b>\"y\"</>|\"m\"</></>] ; <div#r>\"ab\"|<p#p>\"cd\"|<i#i>\"e\"</></>|<s#s><u#u>\"n\"</>|\"op\"</></> ; div#r,2-div#r,2 ; c:t:e + - p=null n=null o=ef / c:i#i + -b p=t:e n=null / c:p#p + -t:gh p=i#i n=null / c:t:n + - p=null n=null o=mn / c:u#u + -b p=null n=t:n / c:s#s + -t:kl p=null n=u#u / c:div#r + -t:ij p=p#p n=s#s", "undefined ; <div#r>\"ab\"|<p#p>\"cd\"|<i#i>\"e\"</></>|<s#s><u#u>\"n\"</>|\"op\"</></> ; div#r,2-div#r,2 ; c:t:e + - p=null n=null o=ef / c:i#i + -b p=t:e n=null / c:p#p + -t:gh p=i#i n=null / c:t:n + - p=null n=null o=mn / c:u#u + -b p=null n=t:n / c:s#s + -t:kl p=null n=u#u / c:div#r + -t:ij p=p#p n=s#s", "[<p#p><i#i>\"\"|<b>\"x\"</></>|\"gh\"</>|\"ij\"|<s#s>\"kl\"|<u#u></></>] ; <div#r>\"ab\"|<p#p>\"cd\"|<i#i>\"ef\"</></>|<s#s><u#u><b>\"y\"</>|\"mn\"</>|\"op\"</></> ; div#r,2-div#r,2 ; c:t:ef + - p=null n=null o=ef / c:i#i + -b p=t:ef n=null / c:p#p + -t:gh p=i#i n=null / c:s#s + -t:kl p=null n=u#u / c:div#r + -t:ij p=p#p n=s#s", "[<p#p></>|\"ij\"|<s#s>\"\"</>] ; <div#r>\"ab\"|<p#p>\"cd\"|<i#i>\"ef\"|<b>\"x\"</></>|\"gh\"</>|<s#s>\"kl\"|<u#u><b>\"y\"</>|\"mn\"</>|\"op\"</></> ; div#r,2-div#r,2 ; c:t:kl + - p=null n=null o=kl / c:div#r + -t:ij p=p#p n=s#s"]"#,
+            ),
+        ],
+    },
+    Case {
+        name: r"contextual-fragment-more",
+        html: r#"<!DOCTYPE html><html><head><script>
+const E = g => { try { const v = g(); return v === undefined ? 'undefined' : typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { return e.name + ': ' + e.message; } };
+const J = JSON.stringify;
+const N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? (n === document ? '#document' : '#doc2') : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? (n.host ? '#shadow' : '#fragment') : '#' + n.nodeType;
+const P = (n, o) => N(n) + ',' + o;
+const R = r => r ? P(r.startContainer, r.startOffset) + '-' + P(r.endContainer, r.endOffset) : 'null';
+const X = n => n.nodeType === 1 ? '<' + n.localName + (n.id ? '#' + n.id : '') + '>' + [...n.childNodes].map(X).join('|') + '</>' : n.nodeType === 3 ? '"' + n.data + '"' : n.nodeType === 8 ? '<!' + n.data + '>' : n.nodeType === 11 || n.nodeType === 9 ? '[' + [...n.childNodes].map(X).join('|') + ']' : N(n);
+const D = (o, k) => { const d = Object.getOwnPropertyDescriptor(o, k); return d ? ['get' in d ? 'acc' : 'val', typeof d.get, typeof d.set, typeof d.value, d.enumerable, d.configurable, d.writable].join(':') : 'none'; };
+const LEN = n => n.nodeType === 3 || n.nodeType === 8 || n.nodeType === 7 ? n.length : n.childNodes.length;
+const NODES = root => { const o = []; const w = document.createTreeWalker(root, 0xFFFFFFFF); let n = w.currentNode; while (n) { o.push(n); n = w.nextNode(); } return o; };
+const POINTS = root => NODES(root).flatMap(n => Array.from({length: LEN(n) + 1}, (_, i) => [n, i]));
+const MK = (html, id) => { const d = document.createElement('div'); d.id = id || 'r'; d.innerHTML = html; return d; };
+const T = () => MK('a<p id=p>bc<i id=i>d</i>e</p><!--f--><s id=s>gh</s>');
+const TC = () => { const d = T(); document.body.append(d); return d; };
+const T2 = () => { const d = document.createElement('div'); d.id = 'r'; d.append('ab', '', 'cd'); const p = document.createElement('p'); p.id = 'p'; p.append('ef', 'g'); d.append(p, 'h', 'ij'); return d; };
+const LIVE = (build, mutate) => { const root = build(); const pts = POINTS(root); const rs = pts.map(([n, i]) => { const a = new Range(); a.setStart(n, i); a.setEnd(root, LEN(root)); const b = new Range(); b.setStart(root, 0); b.setEnd(n, i); return [a, b]; }); const labels = pts.map(([n, i]) => P(n, i)); const err = E(() => { mutate(root); }); const out = pts.map(([n, i], k) => labels[k] + '>' + P(rs[k][0].startContainer, rs[k][0].startOffset) + '|' + P(rs[k][1].endContainer, rs[k][1].endOffset)); if (root.isConnected) root.remove(); return (err === 'undefined' ? '' : 'ERR ' + err + ' ') + out.join(' '); };
+const C = () => MK('ab<p id=p>cd<i id=i>e</i></p><!--f-->g');
+const PAIRS = build => { const root = build(); const pts = POINTS(root); const o = []; for (let i = 0; i < pts.length; i++) for (let j = 0; j < pts.length; j++) { const r = new Range(); r.setStart(pts[i][0], pts[i][1]); r.setEnd(pts[j][0], pts[j][1]); if (r.startContainer === pts[i][0] && r.startOffset === pts[i][1] && r.endContainer === pts[j][0] && r.endOffset === pts[j][1]) o.push([i, j]); } return o; };
+const OPS = (build, op) => PAIRS(build).map(([i, j]) => { const root = build(); const pts = POINTS(root); const r = new Range(); r.setStart(pts[i][0], pts[i][1]); r.setEnd(pts[j][0], pts[j][1]); const label = R(r); const res = E(() => { const v = op(r, root); return v && v.nodeType ? X(v) : String(v); }); return label + ' => ' + res + ' ; ' + X(root) + ' ; ' + R(r); });
+</script><script>const EL = id => document.getElementById(id);</script></head><body><template id=tp></template><table id=tb><tbody id=tbd><tr id=trr><td>c</td></tr></tbody></table><select id=se></select><svg id=sv><foreignObject id=fo></foreignObject></svg><p id=pc>x<!--cm-->y</p><script id=sc></script><style id=st></style><div id=dv></div></body></html>"#,
+        queries: &[
+            (
+                r#"(() => { const XN = n => n.nodeType === 1 ? '<' + (n.namespaceURI === 'http://www.w3.org/2000/svg' ? 'svg:' : n.namespaceURI === 'http://www.w3.org/1999/xhtml' ? '' : n.namespaceURI + ':') + n.localName + '>' + [...n.childNodes].map(XN).join('|') + '</>' : n.nodeType === 3 ? '"' + n.data + '"' : n.nodeType === 8 ? '<!' + n.data + '>' : '[' + [...n.childNodes].map(XN).join('|') + ']'; const o = []; const r = new Range(); const F = (setup, s) => { setup(); return E(() => XN(r.createContextualFragment(s))); }; o.push(F(() => r.selectNodeContents(EL('tp')), '<td>a</td><tr><td>b</td></tr>x')); o.push(F(() => r.selectNodeContents(EL('tb')), '<tr><td>a</td></tr><td>b')); o.push(F(() => r.selectNodeContents(EL('tbd')), '<tr><td>a<td>b')); o.push(F(() => r.selectNodeContents(EL('trr')), '<td>a</td>b')); o.push(F(() => r.selectNodeContents(EL('se')), '<option>a<option>b<p>c')); o.push(F(() => r.selectNodeContents(EL('fo')), '<p>a</p><rect/>')); o.push(F(() => r.selectNodeContents(EL('sv')), '<foreignObject><p>a</p></foreignObject><circle/>')); o.push(F(() => r.setStart(EL('pc').childNodes[1], 1), '<li>a<li>b')); o.push(F(() => r.selectNodeContents(EL('sc')), '<b>a</b>')); o.push(F(() => r.selectNodeContents(EL('st')), '<b>a</b>')); o.push(F(() => r.selectNodeContents(document.createElement('table')), '<tr><td>a')); o.push(F(() => r.selectNodeContents(document.head), '<title>t</title><p>x')); o.push(F(() => r.setStart(document, 1), '<p>a')); return o; })()"#,
+                r#"["[<td>\"a\"</>|<td>\"b\"</>|\"x\"]", "[<tbody><tr><td>\"a\"</></>|<tr><td>\"b\"</></></>]", "[<tr><td>\"a\"</>|<td>\"b\"</></>]", "[<td>\"a\"</>|\"b\"]", "[<option>\"a\"</>|<option>\"b\"|<p>\"c\"</></>]", "[<p>\"a\"</>|<rect></>]", "[<svg:foreignObject><p>\"a\"</></>|<svg:circle></>]", "[<li>\"a\"</>|<li>\"b\"</>]", "[\"<b>a</b>\"]", "[\"<b>a</b>\"]", "[<tbody><tr><td>\"a\"</></></>]", "[<title>\"t\"</>|<p>\"x\"</>]", "[<p>\"a\"</>]"]"#,
+            ),
+            (
+                r"(() => { const o = []; window.log = []; customElements.define('x-q', class extends HTMLElement { constructor() { super(); log.push('ctor:' + this.isConnected); } connectedCallback() { log.push('conn'); } }); const r = new Range(); r.selectNodeContents(EL('dv')); const f = r.createContextualFragment('<x-q></x-q><p>t</p>'); o.push(log.join(), f.firstChild.constructor.name, f.ownerDocument === document); EL('dv').append(f); o.push(log.join(), EL('dv').firstChild.constructor.name); const g = new DOMParser().parseFromString('<p id=gp>q</p>', 'text/html'); const r2 = g.createRange(); r2.selectNodeContents(g.getElementById('gp')); const f2 = r2.createContextualFragment('<x-q></x-q>'); o.push(f2.ownerDocument === g, f2.firstChild.constructor.name, log.join()); const d = document.createElement('div'); const r3 = new Range(); r3.selectNodeContents(d); const f3 = r3.createContextualFragment('<x-q></x-q>'); o.push(f3.firstChild.constructor.name, log.join()); EL('dv').textContent = ''; return o; })()",
+                r#"["ctor:false", "", true, "ctor:false,conn", "", true, "HTMLElement", "ctor:false,conn", "", "ctor:false,conn,ctor:false"]"#,
+            ),
+        ],
+    },
+    Case {
+        name: r"geometry-more",
+        html: r#"<!DOCTYPE html><html><head><script>
+const E = g => { try { const v = g(); return v === undefined ? 'undefined' : typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { return e.name + ': ' + e.message; } };
+const J = JSON.stringify;
+const N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? (n === document ? '#document' : '#doc2') : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? (n.host ? '#shadow' : '#fragment') : '#' + n.nodeType;
+const P = (n, o) => N(n) + ',' + o;
+const R = r => r ? P(r.startContainer, r.startOffset) + '-' + P(r.endContainer, r.endOffset) : 'null';
+const X = n => n.nodeType === 1 ? '<' + n.localName + (n.id ? '#' + n.id : '') + '>' + [...n.childNodes].map(X).join('|') + '</>' : n.nodeType === 3 ? '"' + n.data + '"' : n.nodeType === 8 ? '<!' + n.data + '>' : n.nodeType === 11 || n.nodeType === 9 ? '[' + [...n.childNodes].map(X).join('|') + ']' : N(n);
+const D = (o, k) => { const d = Object.getOwnPropertyDescriptor(o, k); return d ? ['get' in d ? 'acc' : 'val', typeof d.get, typeof d.set, typeof d.value, d.enumerable, d.configurable, d.writable].join(':') : 'none'; };
+const LEN = n => n.nodeType === 3 || n.nodeType === 8 || n.nodeType === 7 ? n.length : n.childNodes.length;
+const NODES = root => { const o = []; const w = document.createTreeWalker(root, 0xFFFFFFFF); let n = w.currentNode; while (n) { o.push(n); n = w.nextNode(); } return o; };
+const POINTS = root => NODES(root).flatMap(n => Array.from({length: LEN(n) + 1}, (_, i) => [n, i]));
+const MK = (html, id) => { const d = document.createElement('div'); d.id = id || 'r'; d.innerHTML = html; return d; };
+const T = () => MK('a<p id=p>bc<i id=i>d</i>e</p><!--f--><s id=s>gh</s>');
+const TC = () => { const d = T(); document.body.append(d); return d; };
+const T2 = () => { const d = document.createElement('div'); d.id = 'r'; d.append('ab', '', 'cd'); const p = document.createElement('p'); p.id = 'p'; p.append('ef', 'g'); d.append(p, 'h', 'ij'); return d; };
+const LIVE = (build, mutate) => { const root = build(); const pts = POINTS(root); const rs = pts.map(([n, i]) => { const a = new Range(); a.setStart(n, i); a.setEnd(root, LEN(root)); const b = new Range(); b.setStart(root, 0); b.setEnd(n, i); return [a, b]; }); const labels = pts.map(([n, i]) => P(n, i)); const err = E(() => { mutate(root); }); const out = pts.map(([n, i], k) => labels[k] + '>' + P(rs[k][0].startContainer, rs[k][0].startOffset) + '|' + P(rs[k][1].endContainer, rs[k][1].endOffset)); if (root.isConnected) root.remove(); return (err === 'undefined' ? '' : 'ERR ' + err + ' ') + out.join(' '); };
+const C = () => MK('ab<p id=p>cd<i id=i>e</i></p><!--f-->g');
+const PAIRS = build => { const root = build(); const pts = POINTS(root); const o = []; for (let i = 0; i < pts.length; i++) for (let j = 0; j < pts.length; j++) { const r = new Range(); r.setStart(pts[i][0], pts[i][1]); r.setEnd(pts[j][0], pts[j][1]); if (r.startContainer === pts[i][0] && r.startOffset === pts[i][1] && r.endContainer === pts[j][0] && r.endOffset === pts[j][1]) o.push([i, j]); } return o; };
+const OPS = (build, op) => PAIRS(build).map(([i, j]) => { const root = build(); const pts = POINTS(root); const r = new Range(); r.setStart(pts[i][0], pts[i][1]); r.setEnd(pts[j][0], pts[j][1]); const label = R(r); const res = E(() => { const v = op(r, root); return v && v.nodeType ? X(v) : String(v); }); return label + ' => ' + res + ' ; ' + X(root) + ' ; ' + R(r); });
+</script><script>const RC = r => [r.x, r.y, r.width, r.height].map(v => Math.round(v * 100) / 100).join(',');const RL = l => [...l].map(RC).join(' ');const G = (setup) => { const r = new Range(); setup(r); return RL(r.getClientRects()) + ' | ' + RC(r.getBoundingClientRect()); };const TX = id => document.getElementById(id).firstChild; const EL = id => document.getElementById(id);</script></head><body><div id=t style='transform:translate(10px,5px) scale(2);transform-origin:0 0;width:100px;font:16px/20px sans-serif'>xx yy</div><div id=w style='font:16px/20px sans-serif;margin-top:40px'><p id=w1 style='margin:0'>aa</p>
+<p id=w2 style='margin:0'>bb <span id=sp style='padding:0 4px;border:1px solid'>cc dd</span> ee</p></div><div id=ib style='font:16px/20px sans-serif'>x<span id=ibs style='display:inline-block;width:40px;height:30px'>in</span>y</div><div id=pr style='font:16px/20px sans-serif;white-space:pre'>p  q
+r</div></body></html>"#,
+        queries: &[
+            (
+                r"[G(r => { r.setStart(TX('t'), 0); r.setEnd(TX('t'), 2); }), G(r => r.selectNode(EL('t'))), G(r => r.selectNodeContents(EL('t')))]",
+                r#"["18,15,32,34 | 18,15,32,34", "18,13,200,40 18,15,72.91,34 | 18,13,200,40", "18,15,72.91,34 | 18,15,72.91,34"]"#,
+            ),
+            (
+                r"[G(r => r.selectNodeContents(EL('w'))), G(r => { r.setStart(TX('w1'), 1); r.setEnd(TX('w2'), 2); }), G(r => { r.setStart(EL('w'), 1); r.setEnd(EL('w'), 2); }), G(r => r.selectNodeContents(EL('w').childNodes[1]))]",
+                r#"["8,68,384,20 8,69,17.8,17 8,88,384,20 8,89,22.25,17 35.25,89,38.25,17 78.5,89,22.25,17 | 8,68,384,40", "16.89,69,8.91,17 8,89,17.8,17 | 8,69,17.8,37", " | 0,0,0,0", " | 0,0,0,0"]"#,
+            ),
+            (
+                r"[G(r => r.selectNodeContents(EL('sp'))), G(r => r.selectNode(EL('sp'))), G(r => { r.setStart(TX('sp'), 1); r.setEnd(TX('sp'), 4); }), G(r => { r.setStart(TX('w2'), 3); r.setEnd(EL('w2').lastChild, 1); })]",
+                r#"["35.25,89,38.25,17 | 35.25,89,38.25,17", "30.25,88,48.25,19 35.25,89,38.25,17 | 30.25,88,48.25,19", "43.25,89,21.34,17 | 43.25,89,21.34,17", "30.23,89,0,17 30.25,88,48.25,19 35.25,89,38.25,17 78.5,89,4.45,17 | 30.25,88,52.7,19"]"#,
+            ),
+            (
+                r"[G(r => r.selectNode(EL('ibs'))), G(r => r.selectNodeContents(EL('ib'))), G(r => { r.setStart(TX('ib'), 0); r.setEnd(EL('ib').lastChild, 1); }), G(r => { r.setStart(TX('ibs'), 1); r.setEnd(TX('ibs'), 1); })]",
+                r#"["16,108,40,30 16,109,12.45,17 | 16,108,40,30", "8,109,8,17 16,108,40,30 16,109,12.45,17 56,109,8,17 | 8,108,56,30", "8,109,8,17 16,108,40,30 16,109,12.45,17 56,109,8,17 | 8,108,56,30", "19.55,109,0,17 | 19.55,109,0,17"]"#,
+            ),
+            (
+                r"[G(r => r.selectNodeContents(TX('pr'))), G(r => { r.setStart(TX('pr'), 1); r.setEnd(TX('pr'), 3); }), G(r => { r.setStart(TX('pr'), 4); r.setEnd(TX('pr'), 5); })]",
+                r#"["8,139,26.69,17 34.69,139,0,17 8,159,5.33,17 | 8,139,26.69,37", "16.89,139,8.91,17 | 16.89,139,8.91,17", "34.69,139,0,17 | 34.69,139,0,17"]"#,
+            ),
+        ],
+    },
+    Case {
+        name: r"geometry-frames",
+        html: r#"<!DOCTYPE html><html><head><script>
+const E = g => { try { const v = g(); return v === undefined ? 'undefined' : typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { return e.name + ': ' + e.message; } };
+const J = JSON.stringify;
+const N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? (n === document ? '#document' : '#doc2') : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? (n.host ? '#shadow' : '#fragment') : '#' + n.nodeType;
+const P = (n, o) => N(n) + ',' + o;
+const R = r => r ? P(r.startContainer, r.startOffset) + '-' + P(r.endContainer, r.endOffset) : 'null';
+const X = n => n.nodeType === 1 ? '<' + n.localName + (n.id ? '#' + n.id : '') + '>' + [...n.childNodes].map(X).join('|') + '</>' : n.nodeType === 3 ? '"' + n.data + '"' : n.nodeType === 8 ? '<!' + n.data + '>' : n.nodeType === 11 || n.nodeType === 9 ? '[' + [...n.childNodes].map(X).join('|') + ']' : N(n);
+const D = (o, k) => { const d = Object.getOwnPropertyDescriptor(o, k); return d ? ['get' in d ? 'acc' : 'val', typeof d.get, typeof d.set, typeof d.value, d.enumerable, d.configurable, d.writable].join(':') : 'none'; };
+const LEN = n => n.nodeType === 3 || n.nodeType === 8 || n.nodeType === 7 ? n.length : n.childNodes.length;
+const NODES = root => { const o = []; const w = document.createTreeWalker(root, 0xFFFFFFFF); let n = w.currentNode; while (n) { o.push(n); n = w.nextNode(); } return o; };
+const POINTS = root => NODES(root).flatMap(n => Array.from({length: LEN(n) + 1}, (_, i) => [n, i]));
+const MK = (html, id) => { const d = document.createElement('div'); d.id = id || 'r'; d.innerHTML = html; return d; };
+const T = () => MK('a<p id=p>bc<i id=i>d</i>e</p><!--f--><s id=s>gh</s>');
+const TC = () => { const d = T(); document.body.append(d); return d; };
+const T2 = () => { const d = document.createElement('div'); d.id = 'r'; d.append('ab', '', 'cd'); const p = document.createElement('p'); p.id = 'p'; p.append('ef', 'g'); d.append(p, 'h', 'ij'); return d; };
+const LIVE = (build, mutate) => { const root = build(); const pts = POINTS(root); const rs = pts.map(([n, i]) => { const a = new Range(); a.setStart(n, i); a.setEnd(root, LEN(root)); const b = new Range(); b.setStart(root, 0); b.setEnd(n, i); return [a, b]; }); const labels = pts.map(([n, i]) => P(n, i)); const err = E(() => { mutate(root); }); const out = pts.map(([n, i], k) => labels[k] + '>' + P(rs[k][0].startContainer, rs[k][0].startOffset) + '|' + P(rs[k][1].endContainer, rs[k][1].endOffset)); if (root.isConnected) root.remove(); return (err === 'undefined' ? '' : 'ERR ' + err + ' ') + out.join(' '); };
+const C = () => MK('ab<p id=p>cd<i id=i>e</i></p><!--f-->g');
+const PAIRS = build => { const root = build(); const pts = POINTS(root); const o = []; for (let i = 0; i < pts.length; i++) for (let j = 0; j < pts.length; j++) { const r = new Range(); r.setStart(pts[i][0], pts[i][1]); r.setEnd(pts[j][0], pts[j][1]); if (r.startContainer === pts[i][0] && r.startOffset === pts[i][1] && r.endContainer === pts[j][0] && r.endOffset === pts[j][1]) o.push([i, j]); } return o; };
+const OPS = (build, op) => PAIRS(build).map(([i, j]) => { const root = build(); const pts = POINTS(root); const r = new Range(); r.setStart(pts[i][0], pts[i][1]); r.setEnd(pts[j][0], pts[j][1]); const label = R(r); const res = E(() => { const v = op(r, root); return v && v.nodeType ? X(v) : String(v); }); return label + ' => ' + res + ' ; ' + X(root) + ' ; ' + R(r); });
+</script><script>const RC = r => [r.x, r.y, r.width, r.height].map(v => Math.round(v * 100) / 100).join(',');const RL = l => [...l].map(RC).join(' ');const G = (setup) => { const r = new Range(); setup(r); return RL(r.getClientRects()) + ' | ' + RC(r.getBoundingClientRect()); };const TX = id => document.getElementById(id).firstChild; const EL = id => document.getElementById(id);</script></head><body><p style='margin:0'>top</p><iframe id=f style='border:0;margin:0;width:200px;height:100px;position:absolute;left:30px;top:40px' srcdoc="<body style='margin:5px;font:16px/20px sans-serif'><p id=q style='margin:0'>frame text here</p></body>"></iframe></body></html>"#,
+        queries: &[
+            (
+                r"(() => { const f = EL('f'); const d = f.contentDocument; const w = f.contentWindow; const q = d.getElementById('q'); const r = new w.Range(); r.setStart(q.firstChild, 6); r.setEnd(q.firstChild, 10); const s = document.createRange(); s.selectNodeContents(q); const l = s.getClientRects(); return [RL(r.getClientRects()), RC(r.getBoundingClientRect()), RL(l), RC(s.getBoundingClientRect()), l instanceof DOMRectList, l instanceof w.DOMRectList, s.getBoundingClientRect() instanceof DOMRect, r.getBoundingClientRect() instanceof w.DOMRect]; })()",
+                r#"["50.34,6,25.8,17", "50.34,6,25.8,17", "5,6,107.61,17", "5,6,107.61,17", true, false, true, true]"#,
+            ),
+            (
+                r"(() => { const f = EL('f'); const d = f.contentDocument; const q = d.getElementById('q'); f.style.left = '60px'; d.body.style.marginTop = '15px'; const r = d.createRange(); r.selectNode(q); const a = [RL(r.getClientRects()), RC(r.getBoundingClientRect())]; f.style.left = '30px'; d.body.style.marginTop = '5px'; return a; })()",
+                r#"["5,15,190,20 5,16,107.61,17", "5,15,190,20"]"#,
+            ),
+        ],
+    },
+    Case {
+        name: r"geometry-review",
+        html: r#"<!DOCTYPE html><html><head><script>
+const E = g => { try { const v = g(); return v === undefined ? 'undefined' : typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { return e.name + ': ' + e.message; } };
+const J = JSON.stringify;
+const N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? (n === document ? '#document' : '#doc2') : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? (n.host ? '#shadow' : '#fragment') : '#' + n.nodeType;
+const P = (n, o) => N(n) + ',' + o;
+const R = r => r ? P(r.startContainer, r.startOffset) + '-' + P(r.endContainer, r.endOffset) : 'null';
+const X = n => n.nodeType === 1 ? '<' + n.localName + (n.id ? '#' + n.id : '') + '>' + [...n.childNodes].map(X).join('|') + '</>' : n.nodeType === 3 ? '"' + n.data + '"' : n.nodeType === 8 ? '<!' + n.data + '>' : n.nodeType === 11 || n.nodeType === 9 ? '[' + [...n.childNodes].map(X).join('|') + ']' : N(n);
+const D = (o, k) => { const d = Object.getOwnPropertyDescriptor(o, k); return d ? ['get' in d ? 'acc' : 'val', typeof d.get, typeof d.set, typeof d.value, d.enumerable, d.configurable, d.writable].join(':') : 'none'; };
+const LEN = n => n.nodeType === 3 || n.nodeType === 8 || n.nodeType === 7 ? n.length : n.childNodes.length;
+const NODES = root => { const o = []; const w = document.createTreeWalker(root, 0xFFFFFFFF); let n = w.currentNode; while (n) { o.push(n); n = w.nextNode(); } return o; };
+const POINTS = root => NODES(root).flatMap(n => Array.from({length: LEN(n) + 1}, (_, i) => [n, i]));
+const MK = (html, id) => { const d = document.createElement('div'); d.id = id || 'r'; d.innerHTML = html; return d; };
+const T = () => MK('a<p id=p>bc<i id=i>d</i>e</p><!--f--><s id=s>gh</s>');
+const TC = () => { const d = T(); document.body.append(d); return d; };
+const T2 = () => { const d = document.createElement('div'); d.id = 'r'; d.append('ab', '', 'cd'); const p = document.createElement('p'); p.id = 'p'; p.append('ef', 'g'); d.append(p, 'h', 'ij'); return d; };
+const LIVE = (build, mutate) => { const root = build(); const pts = POINTS(root); const rs = pts.map(([n, i]) => { const a = new Range(); a.setStart(n, i); a.setEnd(root, LEN(root)); const b = new Range(); b.setStart(root, 0); b.setEnd(n, i); return [a, b]; }); const labels = pts.map(([n, i]) => P(n, i)); const err = E(() => { mutate(root); }); const out = pts.map(([n, i], k) => labels[k] + '>' + P(rs[k][0].startContainer, rs[k][0].startOffset) + '|' + P(rs[k][1].endContainer, rs[k][1].endOffset)); if (root.isConnected) root.remove(); return (err === 'undefined' ? '' : 'ERR ' + err + ' ') + out.join(' '); };
+const C = () => MK('ab<p id=p>cd<i id=i>e</i></p><!--f-->g');
+const PAIRS = build => { const root = build(); const pts = POINTS(root); const o = []; for (let i = 0; i < pts.length; i++) for (let j = 0; j < pts.length; j++) { const r = new Range(); r.setStart(pts[i][0], pts[i][1]); r.setEnd(pts[j][0], pts[j][1]); if (r.startContainer === pts[i][0] && r.startOffset === pts[i][1] && r.endContainer === pts[j][0] && r.endOffset === pts[j][1]) o.push([i, j]); } return o; };
+const OPS = (build, op) => PAIRS(build).map(([i, j]) => { const root = build(); const pts = POINTS(root); const r = new Range(); r.setStart(pts[i][0], pts[i][1]); r.setEnd(pts[j][0], pts[j][1]); const label = R(r); const res = E(() => { const v = op(r, root); return v && v.nodeType ? X(v) : String(v); }); return label + ' => ' + res + ' ; ' + X(root) + ' ; ' + R(r); });
+</script><script>const RC = r => [r.x, r.y, r.width, r.height].map(v => Math.round(v * 100) / 100).join(',');const RL = l => [...l].map(RC).join(' ');const G = (setup) => { const r = new Range(); setup(r); return RL(r.getClientRects()) + ' | ' + RC(r.getBoundingClientRect()); };const TX = id => document.getElementById(id).firstChild; const EL = id => document.getElementById(id);</script></head><body><div id=rot style='transform:rotate(10deg);width:300px;margin:20px;font:16px/20px sans-serif'>aaa bbb ccc ddd</div><pre id=pre style='margin:60px 0 0;font:16px/20px sans-serif'>l1
+
+l3</pre><p id=sb style='margin:0;font:16px/20px sans-serif'>aa <b id=bb>bb</b> <br>cc</p><p id=sc style='margin:0;font:16px/20px sans-serif'>aa <br>cc</p></body></html>"#,
+        queries: &[
+            (
+                r"[G(r => r.selectNodeContents(EL('rot'))), G(r => { r.setStart(TX('rot'), 4); r.setEnd(TX('rot'), 11); }), G(r => r.selectNode(EL('rot')))]",
+                r#"["28.89,-4.91,118.59,37.13 | 28.89,-4.91,118.59,37.13", "59.56,0.5,57.25,26.32 | 59.56,0.5,57.25,26.32", "28.54,-5.9,298.92,71.79 28.89,-4.91,118.59,37.13 | 28.54,-5.9,298.92,71.79"]"#,
+            ),
+            (
+                r"[G(r => r.selectNodeContents(EL('pre'))), G(r => { r.setStart(TX('pre'), 0); r.setEnd(TX('pre'), 5); }), G(r => { r.setStart(TX('pre'), 3); r.setEnd(TX('pre'), 4); }), G(r => { r.setStart(TX('pre'), 2); r.setEnd(TX('pre'), 6); })]",
+                r#"["8,101,12.45,17 20.45,101,0,17 8,121,0,17 8,141,12.45,17 | 8,101,12.45,57", "8,101,12.45,17 20.45,101,0,17 8,121,0,17 8,141,3.56,17 | 8,101,12.45,57", "8,121,0,17 | 8,121,0,17", "20.45,101,0,17 8,121,0,17 8,141,12.45,17 | 8,141,12.45,17"]"#,
+            ),
+            (
+                r"[G(r => r.selectNodeContents(EL('sb'))), G(r => r.selectNodeContents(EL('sb').childNodes[2])), G(r => { r.setStart(EL('sb').childNodes[2], 1); r.setEnd(EL('sb').childNodes[2], 1); }), G(r => { r.setStart(EL('sb').firstChild, 0); r.setEnd(EL('sb').childNodes[3], 0); }), G(r => r.selectNodeContents(EL('sc')))]",
+                r#"["8,161,22.25,17 30.25,161,19.55,17 30.25,161,19.55,17 49.8,161,0,17 8,181,16,17 | 8,161,41.8,37", " | 0,0,0,0", " | 0,0,0,0", "8,161,22.25,17 30.25,161,19.55,17 30.25,161,19.55,17 | 8,161,41.8,17", "8,201,17.8,17 25.8,201,0,17 8,221,16,17 | 8,201,17.8,37"]"#,
+            ),
+        ],
+    },
 ];

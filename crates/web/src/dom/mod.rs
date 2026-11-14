@@ -23,7 +23,7 @@ mod element;
 pub(crate) mod element_lists;
 mod implementation;
 pub(crate) mod lists;
-mod markup;
+pub(crate) mod markup;
 mod queries;
 pub(crate) mod shadow;
 pub(crate) mod string_map;
@@ -491,19 +491,30 @@ pub(super) fn clone(
     // The copies of defined names get an upgrade reaction (DOM "clone a
     // node" creates them without the synchronous custom elements flag).
     crate::custom_elements::upgrade::enqueue_copies(cx.rt, cloned.root)?;
-    for (original, copy) in cloned.scripts {
-        if crate::scripts::has_started(cx.rt, original)? {
-            dom_mut(cx.rt)?.mark_script_started(copy);
-        }
-    }
-    // The cloning steps of `input` and `textarea` (HTML §4.10.5, §4.10.11):
-    // the copy gets the value and the checkedness with their dirty flags.
-    for (original, copy) in cloned.controls {
-        if engine_mut(cx.rt)?.copy_control_state(original, copy) == crate::ControlWrite::OverLimit {
-            return Err(cx.rt.terminate("the budget of form control values").into());
-        }
-    }
+    cloning_steps(cx.rt, &cloned.scripts, &cloned.controls)?;
     Ok(cloned.root)
+}
+
+/// The cloning steps of HTML for the copies of a clone: the copy of a script
+/// that has started has started too (§4.12.1.1); the copy of an `input` or
+/// `textarea` gets the value and the checkedness with their dirty flags
+/// (§4.10.5, §4.10.11). Each pair is (original, copy).
+pub(crate) fn cloning_steps(
+    rt: &mut Runtime,
+    scripts: &[(NodeId, NodeId)],
+    controls: &[(NodeId, NodeId)],
+) -> b::Result<()> {
+    for &(original, copy) in scripts {
+        if crate::scripts::has_started(rt, original)? {
+            dom_mut(rt)?.mark_script_started(copy);
+        }
+    }
+    for &(original, copy) in controls {
+        if engine_mut(rt)?.copy_control_state(original, copy) == crate::ControlWrite::OverLimit {
+            return Err(rt.terminate("the budget of form control values").into());
+        }
+    }
+    Ok(())
 }
 
 /// `ParentNode.firstElementChild`.

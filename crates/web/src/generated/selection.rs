@@ -60,6 +60,9 @@ pub trait SelectionImpl: b::Host {
     /// `boolean containsNode(Node node, optional boolean allowPartialContainment)`.
     fn contains_node(cx: &mut b::Cx<'_>, this: b::Platform, node: b::NodeRef, allow_partial_containment: bool) -> b::Result<bool>;
 
+    /// `undefined deleteFromDocument()`.
+    fn delete_from_document(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<()>;
+
     /// `undefined empty()`.
     fn empty(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<()>;
 
@@ -238,6 +241,14 @@ fn op_contains_node<H: SelectionImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
     })
 }
 
+fn op_delete_from_document<H: SelectionImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Selection", "deleteFromDocument"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::SELECTION)?;
+        b::ce::scope(rt, |rt| <H as SelectionImpl>::delete_from_document(&mut b::Cx::new(rt, call, super::SELECTION), this))?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 fn op_empty<H: SelectionImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Selection", "empty"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::SELECTION)?;
@@ -361,6 +372,7 @@ pub fn define<H: SelectionImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js:
     rt.define_method(realm, target, "collapseToEnd", 0, op_collapse_to_end::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "collapseToStart", 0, op_collapse_to_start::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "containsNode", 1, op_contains_node::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "deleteFromDocument", 0, op_delete_from_document::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "empty", 0, op_empty::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "extend", 1, op_extend::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "getRangeAt", 1, op_get_range_at::<H>, swb_js::Attributes::MEMBER)?;

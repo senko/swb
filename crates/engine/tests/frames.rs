@@ -325,10 +325,21 @@ fn open_case(name: &str) -> (Page, Arc<Sim>) {
 
 /// [`open`] with the page at the URL `top`, whose path is `/case/case.html`.
 fn open_at(top: &str, html: &str, resources: &[(&str, Res)], javascript: bool) -> (Page, Arc<Sim>) {
+    open_sized(top, html, resources, javascript, Size::new(800.0, 600.0))
+}
+
+/// [`open_at`] with a viewport of `viewport` (a probe case's).
+fn open_sized(
+    top: &str,
+    html: &str,
+    resources: &[(&str, Res)],
+    javascript: bool,
+    viewport: Size,
+) -> (Page, Arc<Sim>) {
     let mut all: Vec<(&str, Res)> = vec![("/case/case.html", Res::html(html))];
     all.extend(resources.iter().cloned());
     let sim = Sim::new(&all);
-    let mut page = new_page(sim.clone(), 4, Size::new(800.0, 600.0));
+    let mut page = new_page(sim.clone(), 4, viewport);
     page.set_javascript(javascript);
     page.navigate(url(top));
     finish_loading(&mut page, Duration::from_secs(20));

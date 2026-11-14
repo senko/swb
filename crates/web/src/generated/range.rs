@@ -15,6 +15,9 @@ pub trait RangeImpl: b::Host {
     /// `constructor()`.
     fn constructor(cx: &mut b::Cx<'_>) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `object cloneContents()`.
+    fn clone_contents(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `Range cloneRange()`.
     fn clone_range(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
@@ -27,8 +30,26 @@ pub trait RangeImpl: b::Host {
     /// `short comparePoint(Node node, unsigned long offset)`.
     fn compare_point(cx: &mut b::Cx<'_>, this: b::Platform, node: b::NodeRef, offset: u32) -> b::Result<i16>;
 
+    /// `object createContextualFragment(DOMString string)`.
+    fn create_contextual_fragment(cx: &mut b::Cx<'_>, this: b::Platform, string: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `undefined deleteContents()`.
+    fn delete_contents(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<()>;
+
     /// `undefined detach()`.
     fn detach(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<()>;
+
+    /// `object extractContents()`.
+    fn extract_contents(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `DOMRect getBoundingClientRect()`.
+    fn get_bounding_client_rect(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `DOMRectList getClientRects()`.
+    fn get_client_rects(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `undefined insertNode(Node node)`.
+    fn insert_node(cx: &mut b::Cx<'_>, this: b::Platform, node: b::NodeRef) -> b::Result<()>;
 
     /// `boolean intersectsNode(Node node)`.
     fn intersects_node(cx: &mut b::Cx<'_>, this: b::Platform, node: b::NodeRef) -> b::Result<bool>;
@@ -60,6 +81,9 @@ pub trait RangeImpl: b::Host {
     /// `undefined setStartBefore(Node node)`.
     fn set_start_before(cx: &mut b::Cx<'_>, this: b::Platform, node: b::NodeRef) -> b::Result<()>;
 
+    /// `undefined surroundContents(Node newParent)`.
+    fn surround_contents(cx: &mut b::Cx<'_>, this: b::Platform, new_parent: b::NodeRef) -> b::Result<()>;
+
     /// `stringifier;`: the `toString` of the interface.
     fn stringify(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<String>;
 
@@ -77,6 +101,14 @@ pub(super) fn construct<H: RangeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
     b::glue::run(rt, call, b::Context::Constructor("Range"), super::DOM_EXCEPTION, |rt| {
         let result = <H as RangeImpl>::constructor(&mut b::Cx::new(rt, call, super::RANGE))?;
         Ok(swb_js::Value::Object(result))
+    })
+}
+
+fn op_clone_contents<H: RangeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Range", "cloneContents"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::RANGE)?;
+        let result = b::ce::scope(rt, |rt| <H as RangeImpl>::clone_contents(&mut b::Cx::new(rt, call, super::RANGE), this))?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
 
@@ -124,10 +156,64 @@ fn op_compare_point<H: RangeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nativ
     })
 }
 
+fn op_create_contextual_fragment<H: RangeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Range", "createContextualFragment"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::RANGE)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let result = b::ce::scope(rt, |rt| <H as RangeImpl>::create_contextual_fragment(&mut b::Cx::new(rt, call, super::RANGE), this, a0))?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn op_delete_contents<H: RangeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Range", "deleteContents"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::RANGE)?;
+        b::ce::scope(rt, |rt| <H as RangeImpl>::delete_contents(&mut b::Cx::new(rt, call, super::RANGE), this))?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 fn op_detach<H: RangeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Range", "detach"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::RANGE)?;
         <H as RangeImpl>::detach(&mut b::Cx::new(rt, call, super::RANGE), this)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_extract_contents<H: RangeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Range", "extractContents"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::RANGE)?;
+        let result = b::ce::scope(rt, |rt| <H as RangeImpl>::extract_contents(&mut b::Cx::new(rt, call, super::RANGE), this))?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn op_get_bounding_client_rect<H: RangeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Range", "getBoundingClientRect"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::RANGE)?;
+        let result = <H as RangeImpl>::get_bounding_client_rect(&mut b::Cx::new(rt, call, super::RANGE), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn op_get_client_rects<H: RangeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Range", "getClientRects"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::RANGE)?;
+        let result = <H as RangeImpl>::get_client_rects(&mut b::Cx::new(rt, call, super::RANGE), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn op_insert_node<H: RangeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Range", "insertNode"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::RANGE)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        b::ce::scope(rt, |rt| <H as RangeImpl>::insert_node(&mut b::Cx::new(rt, call, super::RANGE), this, a0))?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -248,6 +334,17 @@ fn op_set_start_before<H: RangeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Na
     })
 }
 
+fn op_surround_contents<H: RangeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Range", "surroundContents"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::RANGE)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        b::ce::scope(rt, |rt| <H as RangeImpl>::surround_contents(&mut b::Cx::new(rt, call, super::RANGE), this, a0))?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 fn op_to_string<H: RangeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Range", "toString"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::RANGE)?;
@@ -271,11 +368,18 @@ pub fn define<H: RangeImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmR
     rt.define_value(interface.prototype, "END_TO_END", swb_js::Value::Int(2), swb_js::Attributes::CONSTANT)?;
     rt.define_value(interface.object, "END_TO_START", swb_js::Value::Int(3), swb_js::Attributes::CONSTANT)?;
     rt.define_value(interface.prototype, "END_TO_START", swb_js::Value::Int(3), swb_js::Attributes::CONSTANT)?;
+    rt.define_method(realm, target, "cloneContents", 0, op_clone_contents::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "cloneRange", 0, op_clone_range::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "collapse", 0, op_collapse::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "compareBoundaryPoints", 2, op_compare_boundary_points::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "comparePoint", 2, op_compare_point::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "createContextualFragment", 1, op_create_contextual_fragment::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "deleteContents", 0, op_delete_contents::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "detach", 0, op_detach::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "extractContents", 0, op_extract_contents::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "getBoundingClientRect", 0, op_get_bounding_client_rect::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "getClientRects", 0, op_get_client_rects::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "insertNode", 1, op_insert_node::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "intersectsNode", 1, op_intersects_node::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "isPointInRange", 2, op_is_point_in_range::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "selectNode", 1, op_select_node::<H>, swb_js::Attributes::MEMBER)?;
@@ -286,6 +390,7 @@ pub fn define<H: RangeImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmR
     rt.define_method(realm, target, "setStart", 2, op_set_start::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "setStartAfter", 1, op_set_start_after::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "setStartBefore", 1, op_set_start_before::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "surroundContents", 1, op_surround_contents::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "toString", 0, op_to_string::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)

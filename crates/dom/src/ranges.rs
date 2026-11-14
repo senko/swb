@@ -37,10 +37,12 @@ use crate::subtree_search::{self, SCAN_BELOW};
 use crate::tree::{Document, NodeData, NodeId};
 use crate::work::ArenaWork;
 
+mod contents;
 mod normalize;
 mod selection;
 mod visual;
 
+pub use contents::Contents;
 pub(crate) use normalize::NormalizeSteps;
 pub use selection::{HOST_ID_LIMIT, SelectionState};
 pub use visual::Flow;
@@ -305,6 +307,74 @@ impl LiveRanges {
         }
     }
 
+    /// The live range pre-remove steps for the consecutive children `run` of
+    /// `parent`, removed one after the other from the first (the moves and
+    /// removals of the contents operations): a boundary point in the subtree
+    /// of one of them goes to `(parent, index)`, where `index` is the index of
+    /// the first; an offset at `parent` in `index + 1 ..= index + n` becomes
+    /// `index`, a greater one shrinks by `n`. This equals the steps of each
+    /// removal in turn, with one index walk and one pass over the boundary
+    /// points at `parent` for the whole run.
+    fn removing_run(&mut self, doc: &Document, parent: NodeId, run: &[NodeId]) {
+        self.drop_dead();
+        let Some(&first) = run.first() else {
+            return;
+        };
+        if self.entries.is_empty() {
+            return;
+        }
+        let mut steps = 1;
+        let few = self.entries.len() <= SCAN_BELOW;
+        let mut hits = Vec::new();
+        for &node in run {
+            let positions = self.entries.iter().flat_map(|(&id, r)| {
+                [
+                    ((id, End::Start), r.start.node),
+                    ((id, End::End), r.end.node),
+                ]
+            });
+            hits.extend(subtree_search::pointers_in_subtree(
+                doc,
+                node,
+                few,
+                positions,
+                |descendant, hits, steps| {
+                    for &(_, id, end) in self.at(descendant) {
+                        *steps += 1;
+                        hits.push((id, if end { End::End } else { End::Start }));
+                    }
+                },
+                &mut steps,
+            ));
+        }
+        if hits.is_empty() && !self.has(parent) {
+            self.charge(steps);
+            return;
+        }
+        let index = index_counted(doc, first, &mut steps);
+        self.charge(steps);
+        let count = u32::try_from(run.len()).unwrap_or(u32::MAX);
+        let last = index.saturating_add(count);
+        self.update_at(parent, |o| {
+            if *o > last {
+                *o -= count;
+            } else if *o > index {
+                *o = index;
+            }
+        });
+        let to = Boundary::new(parent, index);
+        for (id, end) in hits {
+            let Some(mut range) = self.entries.get(&id).copied() else {
+                continue;
+            };
+            match end {
+                End::Start => range.start = to,
+                End::End => range.end = to,
+            }
+            self.place(id, range);
+        }
+    }
+
     /// The live range steps of "replace data": `count` bytes from `offset` of
     /// `node` became `len` bytes.
     /// <https://dom.spec.whatwg.org/#concept-cd-replace>
@@ -355,8 +425,8 @@ impl Document {
     }
 
     /// Adds (or replaces) live range `id`. If it is the selection's range, a
-    /// change is a change of the selection, and a range in another root
-    /// leaves the selection (measured).
+    /// change is a change of the selection whose anchor is the start from now
+    /// on, and a range in another root leaves the selection (measured).
     pub fn set_live_range(&mut self, id: u32, range: LiveRange) {
         let ranges = self.ranges.get_or_insert_with(Box::default);
         let before = ranges.entries.get(&id).copied();
@@ -366,6 +436,7 @@ impl Document {
         }
         if self.is_in_document_tree(range) {
             if let Some(ranges) = self.ranges.as_deref_mut() {
+                ranges.selection_forward();
                 ranges.note_selection_change(true);
             }
         } else {
@@ -560,6 +631,17 @@ impl Document {
             return;
         };
         ranges.removing_all(self, parent);
+        self.ranges = Some(ranges);
+    }
+
+    /// The live range pre-remove steps for the consecutive children `run` of
+    /// `parent`, which leave one after the other from the first. Call before
+    /// the first removal; the removals then skip the steps.
+    pub(crate) fn range_remove_run_steps(&mut self, parent: NodeId, run: &[NodeId]) {
+        let Some(mut ranges) = self.ranges.take() else {
+            return;
+        };
+        ranges.removing_run(self, parent, run);
         self.ranges = Some(ranges);
     }
 
@@ -778,6 +860,101 @@ impl Document {
         self.charge_range_work(steps);
         out
     }
+
+    /// What `Range.getClientRects` reads, in tree order (CSSOM View §6.2):
+    /// each element that the range contains and whose parent it does not
+    /// contain, and the selected part (bytes) of each text node that it
+    /// contains or partially contains, also an empty part at a boundary
+    /// point in a text node.
+    /// <https://drafts.csswg.org/cssom-view/#dom-range-getclientrects>
+    pub fn range_pieces(&self, range: LiveRange) -> Vec<RangePiece> {
+        let (start, end) = (range.start, range.end);
+        let is_text = |node: NodeId| matches!(self.node(node).data, NodeData::Text(_));
+        if start.node == end.node && self.is_character_data(start.node) {
+            if !is_text(start.node) {
+                return Vec::new();
+            }
+            return vec![RangePiece::Text {
+                node: start.node,
+                start: start.offset,
+                end: end.offset,
+            }];
+        }
+        let mut out = Vec::new();
+        if is_text(start.node) {
+            out.push(RangePiece::Text {
+                node: start.node,
+                start: start.offset,
+                end: self.node_length(start.node),
+            });
+        }
+        // The inclusive ancestors of the end node: the range contains none of
+        // them (they hold its end).
+        let holders: std::collections::HashSet<NodeId> = std::iter::once(end.node)
+            .chain(self.ancestors(end.node))
+            .collect();
+        let stop = if self.is_character_data(end.node) {
+            Some(end.node)
+        } else {
+            self.first_after(end)
+        };
+        // While the walk is in the subtree of an element that it reported,
+        // the node after that subtree.
+        let mut inside: Option<Option<NodeId>> = None;
+        let mut steps = holders.len();
+        let mut current = self.first_after(start);
+        while let Some(n) = current {
+            if Some(n) == stop {
+                break;
+            }
+            steps += 1;
+            if inside == Some(Some(n)) {
+                inside = None;
+            }
+            match &self.node(n).data {
+                NodeData::Element(_) if inside.is_none() && !holders.contains(&n) => {
+                    out.push(RangePiece::Element(n));
+                    inside = Some(self.after_subtree(n));
+                }
+                NodeData::Text(t) => out.push(RangePiece::Text {
+                    node: n,
+                    start: 0,
+                    end: u32::try_from(t.len()).unwrap_or(u32::MAX),
+                }),
+                _ => {}
+            }
+            current = match self.node(n).first_child() {
+                Some(child) => Some(child),
+                None => self.after_subtree(n),
+            };
+        }
+        if is_text(end.node) {
+            out.push(RangePiece::Text {
+                node: end.node,
+                start: 0,
+                end: end.offset,
+            });
+        }
+        self.charge_range_work(steps);
+        out
+    }
+}
+
+/// A part of a range that has client rectangles
+/// ([`Document::range_pieces`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RangePiece {
+    /// An element whose border boxes count.
+    Element(NodeId),
+    /// The bytes `start..end` of a text node.
+    Text {
+        /// The text node.
+        node: NodeId,
+        /// The first byte.
+        start: u32,
+        /// The end (exclusive).
+        end: u32,
+    },
 }
 
 #[cfg(test)]

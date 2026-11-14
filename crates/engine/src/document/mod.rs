@@ -987,6 +987,10 @@ impl swb_web::EngineHost for DocumentState {
         self.script_visual_range(range)
     }
 
+    fn range_rects(&mut self, range: LiveRange) -> Vec<swb_web::DomRect> {
+        self.script_range_rects(range)
+    }
+
     fn svg_geometry(&mut self, element: NodeId) -> Option<(swb_web::DomRect, f64)> {
         self.script_svg_geometry(element)
     }

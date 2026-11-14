@@ -253,6 +253,38 @@ fn ensure_valid_across(
     ensure_valid_in(dom(rt)?, parent, other, node.node, child, replace)
 }
 
+/// The checks of an insertion of `node` (of any document of the runtime) into
+/// `parent` before `child` (DOM "ensure pre-insertion validity"), with
+/// Chromium's exceptions (`Range.insertNode`).
+pub(crate) fn check_insertion(
+    rt: &mut swb_js::Runtime,
+    parent: NodeId,
+    node: NodeRef,
+    child: Option<NodeId>,
+) -> b::Result<()> {
+    match node.here(rt) {
+        Some(here) => ensure_valid(dom(rt)?, parent, here, child, false),
+        None => ensure_valid_across(rt, parent, node, Reference::of(child), false),
+    }
+}
+
+/// Chromium's exception for a `node` (of any document of the runtime) that
+/// `parent` cannot take (a comment or processing instruction parent).
+pub(crate) fn type_error(
+    rt: &mut swb_js::Runtime,
+    parent: NodeId,
+    node: NodeRef,
+) -> b::Result<Exception> {
+    state::ensure_lent(rt, node.document)?;
+    let node_dom = state::dom_of(rt, node.document)?;
+    Ok(hierarchy(&type_message(
+        dom(rt)?,
+        node_dom,
+        node.node,
+        parent,
+    )))
+}
+
 /// [`pre_insert`] of native arguments, which can belong to other documents.
 pub(crate) fn pre_insert_ref(
     cx: &mut Cx<'_>,

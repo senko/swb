@@ -10,9 +10,9 @@
 // swb's cut (M10 sub-feature 9b-2, ADR 0039): the members are in Chromium's
 // order (measured, case `api` of `tools/probes/web-selection.json`), with
 // Chromium's aliases `baseNode`, `baseOffset`, `extentNode` and `extentOffset`.
-// Left out: `getComposedRanges` and `ShadowRoot.getSelection` (backlog),
-// Chromium's `modify` (non-standard; backlog), and `deleteFromDocument`
-// (needs `Range.deleteContents`, sub-feature 9b-3). The node arguments are
+// Left out: `getComposedRanges` and `ShadowRoot.getSelection` (backlog) and
+// Chromium's `modify` (non-standard; backlog); `deleteFromDocument` since
+// sub-feature 9b-3. The node arguments are
 // nodes of any document of the runtime (`[SwbAnyDocument]`): a node of another
 // document is ignored, as in Chromium. `setBaseAndExtent` takes `null` nodes
 // as Chromium does (a `null` anchor empties the selection, a `null` focus
@@ -38,6 +38,7 @@ interface Selection {
   undefined collapseToEnd();
   undefined collapseToStart();
   boolean containsNode([SwbAnyDocument] Node node, optional boolean allowPartialContainment = false);
+  [CEReactions] undefined deleteFromDocument();
   undefined empty();
   undefined extend([SwbAnyDocument] Node node, optional unsigned long offset = 0);
   Range getRangeAt(unsigned long index);

@@ -998,4 +998,45 @@ const RESET = () => { getSelection().removeAllRanges(); LOG.length = 0; };
             ),
         ],
     },
+    Case {
+        name: r"delete-from-document-more",
+        html: r#"<!DOCTYPE html><html><head><script>
+const E = g => { try { const v = g(); return v === undefined ? 'undefined' : typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { return e.name + ': ' + e.message; } };
+const J = JSON.stringify;
+const N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 9 ? (n === document ? '#document' : '#doc2') : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? (n.host ? '#shadow' : '#fragment') : '#' + n.nodeType;
+const P = (n, o) => N(n) + ',' + o;
+const R = r => r ? P(r.startContainer, r.startOffset) + '-' + P(r.endContainer, r.endOffset) : 'null';
+const X = n => n.nodeType === 1 ? '<' + n.localName + (n.id ? '#' + n.id : '') + '>' + [...n.childNodes].map(X).join('|') + '</>' : n.nodeType === 3 ? '"' + n.data + '"' : n.nodeType === 8 ? '<!' + n.data + '>' : n.nodeType === 11 ? '[' + [...n.childNodes].map(X).join('|') + ']' : N(n);
+const D = (o, k) => { const d = Object.getOwnPropertyDescriptor(o, k); return d ? ['get' in d ? 'acc' : 'val', typeof d.get, typeof d.set, typeof d.value, d.enumerable, d.configurable, d.writable].join(':') : 'none'; };
+const SEL = s => [s.type, s.rangeCount, P(s.anchorNode, s.anchorOffset), P(s.focusNode, s.focusOffset), s.isCollapsed, s.direction, s.rangeCount ? R(s.getRangeAt(0)) : '-'].join(' ');
+const S = () => SEL(getSelection());
+const TX = id => document.getElementById(id).firstChild;
+const EL = id => document.getElementById(id);
+window.LOG = [];
+document.addEventListener('selectionchange', e => LOG.push('sc:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '') + (e.isTrusted ? '' : ':untrusted') + (e.constructor === Event ? '' : ':' + e.constructor.name)), true);
+document.addEventListener('selectstart', e => LOG.push('ss:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '')), true);
+const TICK = () => new Promise(r => setTimeout(r, 0));
+const TAKE = () => { const l = LOG.join(' '); LOG.length = 0; return l; };
+const FLUSH = async () => { await TICK(); await TICK(); return TAKE(); };
+const RESET = () => { getSelection().removeAllRanges(); LOG.length = 0; };
+</script></head><body style='margin:8px'><p id=a style='font:20px/30px monospace;margin:0'>alpha beta gamma</p><p id=b style='font:20px/30px monospace;margin:0'>one <b id=bb>two</b> three</p><div id=c style='font:20px/30px monospace'>c1<span id=cs>c2</span><!--cc-->c3</div><input id=in value='input text' style='font:16px monospace'><textarea id=ta style='font:16px monospace'>area text</textarea></body></html>"#,
+        queries: &[
+            (
+                r"(async () => { await FLUSH(); const s = getSelection(); const o = []; const keep = EL('c').innerHTML; s.setBaseAndExtent(TX('c'), 1, EL('c').lastChild, 1); await FLUSH(); s.deleteFromDocument(); o.push(S(), X(EL('c')), 'del:' + await FLUSH()); TX('a').insertData(0, 'Z'); o.push(S()); EL('c').append('q'); o.push(S(), 'append:' + await FLUSH()); s.getRangeAt(0).setEnd(EL('c'), 3); o.push(S(), 'set-end:' + await FLUSH()); TX('a').deleteData(0, 1); EL('c').innerHTML = keep; await FLUSH(); s.setBaseAndExtent(TX('c'), 1, EL('c').lastChild, 1); s.deleteFromDocument(); s.collapse(TX('c'), 1); o.push(S()); EL('c').innerHTML = keep; s.setBaseAndExtent(TX('c'), 1, EL('c').lastChild, 1); s.deleteFromDocument(); s.setBaseAndExtent(TX('c'), 0, TX('c'), 1); o.push(S()); EL('c').innerHTML = keep; s.removeAllRanges(); await FLUSH(); return o; })()",
+                r#"["Range 1 div#c,1 div#c,1 true forward div#c,1-div#c,1", "<div#c>\"c\"|\"3\"</>", "del:sc:#document", "Range 1 div#c,1 div#c,1 true forward div#c,1-div#c,1", "Range 1 div#c,1 div#c,1 true forward div#c,1-div#c,1", "append:", "Range 1 div#c,1 div#c,3 false forward div#c,1-div#c,3", "set-end:sc:#document", "Caret 1 t:c,1 t:c,1 true none t:c,1-t:c,1", "Range 1 t:c,0 t:c,1 false forward t:c,0-t:c,1"]"#,
+            ),
+            (
+                r"(async () => { await FLUSH(); const s = getSelection(); const o = []; const keep = EL('c').innerHTML; s.setBaseAndExtent(TX('c'), 0, TX('c'), 2); await FLUSH(); s.getRangeAt(0).deleteContents(); o.push(S(), X(EL('c')), 'range-del:' + await FLUSH()); EL('c').innerHTML = keep; await FLUSH(); s.setBaseAndExtent(TX('c'), 1, TX('cs'), 1); await FLUSH(); const f = s.getRangeAt(0).extractContents(); o.push(S(), X(f), X(EL('c')), 'extract:' + await FLUSH()); EL('c').innerHTML = keep; await FLUSH(); s.collapse(TX('c'), 1); await FLUSH(); s.getRangeAt(0).insertNode(document.createElement('u')); o.push(S(), X(EL('c')), 'insert:' + await FLUSH()); EL('c').innerHTML = keep; await FLUSH(); s.setBaseAndExtent(EL('c'), 1, EL('c'), 2); await FLUSH(); s.getRangeAt(0).surroundContents(document.createElement('u')); o.push(S(), X(EL('c')), 'surround:' + await FLUSH()); EL('c').innerHTML = keep; await FLUSH(); s.setBaseAndExtent(EL('c').lastChild, 2, TX('c'), 0); await FLUSH(); s.getRangeAt(0).cloneContents(); o.push(S(), 'clone:' + await FLUSH()); s.removeAllRanges(); await FLUSH(); return o; })()",
+                r#"["Caret 1 t:,0 t:,0 true none t:,0-t:,0", "<div#c>\"\"|<span#cs>\"c2\"</>|<!cc>|\"c3\"</>", "range-del:sc:#document", "Range 1 div#c,1 div#c,1 true forward div#c,1-div#c,1", "[\"1\"|<span#cs>\"c\"</>]", "<div#c>\"c\"|<span#cs>\"2\"</>|<!cc>|\"c3\"</>", "extract:sc:#document", "Range 1 t:c,1 div#c,2 false forward t:c,1-div#c,2", "<div#c>\"c\"|<u></>|\"1\"|<span#cs>\"c2\"</>|<!cc>|\"c3\"</>", "insert:sc:#document", "Range 1 div#c,1 div#c,2 false forward div#c,1-div#c,2", "<div#c>\"c1\"|<u><span#cs>\"c2\"</></>|<!cc>|\"c3\"</>", "surround:sc:#document", "Range 1 t:c3,2 t:c1,0 false backward t:c1,0-t:c3,2", "clone:"]"#,
+            ),
+            (
+                r"(async () => { await FLUSH(); const s = getSelection(); const o = []; EL('in').focus(); EL('in').setSelectionRange(1, 4); await FLUSH(); s.deleteFromDocument(); o.push(S(), EL('in').value, EL('in').selectionStart + ',' + EL('in').selectionEnd, document.activeElement.id, await FLUSH()); EL('in').value = 'input text'; EL('in').blur(); s.removeAllRanges(); await FLUSH(); return o; })()",
+                r#"["Range 1 body,3 body,3 true forward body,3-body,3", "input text", "1,4", "in", ""]"#,
+            ),
+            (
+                r"(async () => { await FLUSH(); const s = getSelection(); const o = []; s.setBaseAndExtent(TX('a'), 3, TX('a'), 1); s.getRangeAt(0).collapse(true); o.push(S()); s.setBaseAndExtent(TX('a'), 3, TX('a'), 1); s.getRangeAt(0).setEnd(TX('a'), 1); o.push(S()); s.setBaseAndExtent(TX('a'), 3, TX('a'), 1); s.getRangeAt(0).setEnd(TX('a'), 2); o.push(S()); s.setBaseAndExtent(TX('a'), 3, TX('a'), 1); s.getRangeAt(0).selectNodeContents(EL('bb')); o.push(S()); s.setBaseAndExtent(EL('c'), 3, EL('c'), 1); s.getRangeAt(0).deleteContents(); o.push(S(), X(EL('c'))); s.removeAllRanges(); await FLUSH(); return o; })()",
+                r#"["Caret 1 t:alpha beta gamma,1 t:alpha beta gamma,1 true none t:alpha beta gamma,1-t:alpha beta gamma,1", "Caret 1 t:alpha beta gamma,1 t:alpha beta gamma,1 true none t:alpha beta gamma,1-t:alpha beta gamma,1", "Range 1 t:alpha beta gamma,1 t:alpha beta gamma,2 false forward t:alpha beta gamma,1-t:alpha beta gamma,2", "Range 1 b#bb,0 b#bb,1 false forward b#bb,0-b#bb,1", "Caret 1 div#c,1 div#c,1 true none div#c,1-div#c,1", "<div#c>\"c1\"|\"c3\"</>"]"#,
+            ),
+        ],
+    },
 ];

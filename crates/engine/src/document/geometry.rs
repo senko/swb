@@ -29,7 +29,8 @@ use std::sync::Arc;
 
 use swb_dom::{NodeId, QuirksMode, local_name, ns};
 use swb_layout::{
-    BoxContent, BoxFragment, Fragment, FragmentRef, Matrix, Point, Rect, Size, scrolling_area,
+    BoxContent, BoxFragment, Caret, Fragment, FragmentRef, Matrix, Point, Rect, Size,
+    scrolling_area,
 };
 use swb_style::cssom::resolved::layout_unit;
 use swb_style::{Display, Position};
@@ -80,6 +81,24 @@ pub(crate) struct RectIndex {
     scroll: Point,
     offsets: HashMap<NodeId, Point>,
     rects: HashMap<NodeId, Vec<Rect>>,
+    /// The text fragments of each text node at the same state, built at the
+    /// first `Range.getClientRects` ([`DocumentState::script_range_rects`]).
+    texts: Option<HashMap<NodeId, Vec<TextPiece>>>,
+}
+
+/// A text fragment as painted, for the client rectangles of ranges.
+#[derive(Debug)]
+struct TextPiece {
+    /// The rectangle of the fragment (its content area) in document
+    /// coordinates as layout placed it, with the scroll offsets of scroll
+    /// containers.
+    rect: Rect,
+    /// The transform to painted document coordinates.
+    matrix: Matrix,
+    /// The caret stops of the fragment.
+    carets: Arc<[Caret]>,
+    /// True if its `white-space` preserves line breaks.
+    breaks: bool,
 }
 
 /// `value` in Chromium's layout units (a multiple of 1/64 px).
@@ -183,6 +202,16 @@ impl DocumentState {
     /// The client rectangles of `node` in document coordinates (after a
     /// flush).
     fn painted_rects(&mut self, node: NodeId) -> &[Rect] {
+        self.update_rect_index();
+        self.client_rects
+            .as_ref()
+            .and_then(|i| i.rects.get(&node))
+            .map_or(&[], Vec::as_slice)
+    }
+
+    /// Builds the index of client rectangles again if the layout or a
+    /// scroll offset changed since it was built (after a flush).
+    fn update_rect_index(&mut self) {
         let serial = self.layout_serial;
         let current = self.client_rects.as_ref().is_some_and(|i| {
             i.serial == serial && i.scroll == self.scroll && &i.offsets == self.scrollers.offsets()
@@ -193,12 +222,53 @@ impl DocumentState {
                 scroll: self.scroll,
                 offsets: self.scrollers.offsets().clone(),
                 rects: index_rects(tree, self.scrollers.offsets(), self.scroll),
+                texts: None,
             });
         }
-        self.client_rects
-            .as_ref()
-            .and_then(|i| i.rects.get(&node))
-            .map_or(&[], Vec::as_slice)
+    }
+
+    /// `Range.getClientRects` (CSSOM View §6.2) of `range`, in viewport
+    /// coordinates: for each piece of [`swb_dom::Document::range_pieces`] in
+    /// tree order, the client rectangles of an element, or the rectangles of
+    /// the selected part of a text node on each of its fragments (width 0 for
+    /// an empty part: a collapsed range, or a boundary point at the end of a
+    /// text node). Empty for a range outside the document.
+    pub(crate) fn script_range_rects(&mut self, range: swb_dom::LiveRange) -> Vec<DomRect> {
+        if !self.geometry_flush(range.start.node) {
+            return Vec::new();
+        }
+        let pieces = self.dom.range_pieces(range);
+        self.update_rect_index();
+        let (Some(index), Some(tree)) = (self.client_rects.as_mut(), self.fragments.as_ref())
+        else {
+            return Vec::new();
+        };
+        let texts = index
+            .texts
+            .get_or_insert_with(|| index_texts(tree, &index.offsets, index.scroll));
+        let mut out = Vec::new();
+        for piece in pieces {
+            match piece {
+                swb_dom::RangePiece::Element(node) => {
+                    out.extend(index.rects.get(&node).into_iter().flatten().copied());
+                }
+                swb_dom::RangePiece::Text { node, start, end } => {
+                    if let Some(list) = texts.get(&node) {
+                        let data = self.dom.node(node).as_text().unwrap_or_default();
+                        text_rects(list, data, start, end, &mut out);
+                    }
+                }
+            }
+        }
+        let scroll = self.scroll;
+        out.iter()
+            .map(|r| DomRect {
+                x: f64::from(r.x) - f64::from(scroll.x),
+                y: f64::from(r.y) - f64::from(scroll.y),
+                width: f64::from(r.width),
+                height: f64::from(r.height),
+            })
+            .collect()
     }
 
     /// `getClientRects()` of `node`, in viewport coordinates.
@@ -864,6 +934,205 @@ fn index_rects(
         }
     });
     rects
+}
+
+/// The fragments of each text node as painted (see [`index_rects`]); the
+/// text of pseudo-elements and list markers has no caret stops and no node.
+fn index_texts(
+    tree: &swb_layout::FragmentTree,
+    offsets: &dyn swb_layout::ScrollOffsets,
+    scroll: Point,
+) -> HashMap<NodeId, Vec<TextPiece>> {
+    let mut texts: HashMap<NodeId, Vec<TextPiece>> = HashMap::new();
+    tree.walk_painted_with_hidden(offsets, scroll, |fragment, rect, matrix| {
+        let FragmentRef::Text(t) = fragment else {
+            return;
+        };
+        if t.carets.is_empty() {
+            return;
+        }
+        texts.entry(t.node).or_default().push(TextPiece {
+            rect,
+            matrix: *matrix,
+            carets: Arc::clone(&t.carets),
+            breaks: !matches!(
+                t.style.white_space,
+                swb_style::WhiteSpace::Normal | swb_style::WhiteSpace::Nowrap
+            ),
+        });
+    });
+    texts
+}
+
+/// A line's selected part before its fragment's transform: the rectangle in
+/// layout units and the index of the fragment whose transform maps it.
+type Line = (Rect, usize);
+
+/// The rectangles of the bytes `start..end` of a text node with the text
+/// `data` on its fragments `pieces`, one per line as Chromium gives them (the
+/// fragments of a line, which swb splits at words, are joined before the
+/// transform maps them): the selected part of each line; a rectangle of width 0
+/// at the end of a line whose preserved line break is selected, and one on each
+/// empty line between preserved line breaks; for a collapsed part (or one that
+/// no fragment shows), a rectangle of width 0 at the first caret stop at its
+/// start. A text node of collapsed white space shows nothing and has no
+/// rectangle (measured, cases `geometry`, `geometry-more` and
+/// `geometry-review`).
+fn text_rects(pieces: &[TextPiece], data: &str, start: u32, end: u32, out: &mut Vec<Rect>) {
+    if shows_nothing(pieces, data) {
+        return;
+    }
+    let mut lines: Vec<Line> = Vec::new();
+    if start < end {
+        selected_lines(pieces, data, (start, end), &mut lines);
+    }
+    if lines.is_empty() {
+        for (i, piece) in pieces.iter().enumerate() {
+            if let Some(caret) = piece.carets.iter().find(|c| c.offset == start) {
+                out.push(mapped(pieces, (piece_box(piece, (caret.x, caret.x)), i)));
+                return;
+            }
+        }
+        return;
+    }
+    out.extend(lines.iter().map(|&line| mapped(pieces, line)));
+}
+
+/// True if a text node shows nothing: white space that collapsed, with no
+/// width on any fragment.
+fn shows_nothing(pieces: &[TextPiece], data: &str) -> bool {
+    data.bytes()
+        .all(|b| matches!(b, b' ' | b'\t' | b'\n' | b'\r' | 0x0c))
+        && pieces.iter().all(|p| {
+            !p.breaks
+                && p.carets
+                    .first()
+                    .zip(p.carets.last())
+                    .is_none_or(|(a, b)| a.x == b.x)
+        })
+}
+
+/// The lines of the selected bytes `start..end`: the part of each fragment,
+/// joined per line, and the preserved line breaks between fragments.
+fn selected_lines(
+    pieces: &[TextPiece],
+    data: &str,
+    (start, end): (u32, u32),
+    lines: &mut Vec<Line>,
+) {
+    for (i, piece) in pieces.iter().enumerate() {
+        let (Some(first), Some(last)) = (piece.carets.first(), piece.carets.last()) else {
+            continue;
+        };
+        let (low, high) = (first.offset.min(last.offset), first.offset.max(last.offset));
+        if low < end
+            && high > start
+            && let Some(span) = caret_span(&piece.carets, start.max(low), end.min(high))
+        {
+            join_or_push(lines, (piece_box(piece, span), i));
+        }
+        if piece.breaks {
+            line_breaks(pieces, data, i, (start, end), lines);
+        }
+    }
+}
+
+/// The selected preserved line breaks between the fragment `i` and the next
+/// one: the first ends the line of fragment `i` (width 0 at its end); each
+/// further one is an empty line, a width 0 rectangle at the start of the next
+/// fragment's line, on the lines evenly spaced between the two fragments.
+fn line_breaks(
+    pieces: &[TextPiece],
+    data: &str,
+    i: usize,
+    (start, end): (u32, u32),
+    lines: &mut Vec<Line>,
+) {
+    let piece = &pieces[i];
+    let Some(next) = pieces.get(i + 1) else {
+        return;
+    };
+    let high = piece.carets.iter().map(|c| c.offset).max().unwrap_or(0);
+    let next_low = next.carets.iter().map(|c| c.offset).min().unwrap_or(0);
+    if next_low <= high {
+        return;
+    }
+    let gap = data
+        .as_bytes()
+        .get(high as usize..next_low as usize)
+        .unwrap_or_default();
+    let mut breaks: Vec<u32> = gap
+        .iter()
+        .zip(high..)
+        .filter(|&(&b, _)| b == b'\n')
+        .map(|(_, at)| at)
+        .collect();
+    if breaks.is_empty() {
+        breaks.push(high);
+    }
+    let count = breaks.len();
+    for (k, &at) in breaks.iter().enumerate() {
+        if at < start || at >= end {
+            continue;
+        }
+        if k == 0 {
+            if let Some(caret) = piece.carets.iter().find(|c| c.offset == high) {
+                lines.push((piece_box(piece, (caret.x, caret.x)), i));
+            }
+            continue;
+        }
+        let Some(left) = next.carets.first() else {
+            continue;
+        };
+        let mut rect = piece_box(next, (left.x, left.x));
+        let share = k as f32 / count as f32;
+        rect.y = unit(piece.rect.y + (next.rect.y - piece.rect.y) * share);
+        lines.push((rect, i + 1));
+    }
+}
+
+/// Adds `line` to `lines`, joined with the last one if it continues it on the
+/// same line (neither is empty).
+fn join_or_push(lines: &mut Vec<Line>, line: Line) {
+    let rect = line.0;
+    if let Some((last, _)) = lines.last_mut()
+        && last.width > 0.0
+        && rect.width > 0.0
+        && (last.y - rect.y).abs() < 0.01
+        && (last.height - rect.height).abs() < 0.01
+        && rect.x >= last.x
+        && rect.x - last.right() < 0.5
+    {
+        let right = last.right().max(rect.right());
+        last.width = right - last.x;
+        return;
+    }
+    lines.push(line);
+}
+
+/// The horizontal extent (relative to the fragment's left edge) of the caret
+/// stops with offsets in `from..=to`.
+fn caret_span(carets: &[Caret], from: u32, to: u32) -> Option<(f32, f32)> {
+    let mut span: Option<(f32, f32)> = None;
+    for c in carets.iter().filter(|c| (from..=to).contains(&c.offset)) {
+        span = Some(span.map_or((c.x, c.x), |(a, b)| (a.min(c.x), b.max(c.x))));
+    }
+    span
+}
+
+/// The rectangle of the horizontal extent `span` of a text fragment, before
+/// its transform, in layout units.
+fn piece_box(piece: &TextPiece, (left, right): (f32, f32)) -> Rect {
+    let x0 = unit(piece.rect.x + left);
+    let x1 = unit(piece.rect.x + right);
+    Rect::new(x0, unit(piece.rect.y), x1 - x0, unit(piece.rect.height))
+}
+
+/// `line` as painted: mapped through the transform of its fragment.
+fn mapped(pieces: &[TextPiece], (rect, piece): Line) -> Rect {
+    pieces
+        .get(piece)
+        .map_or(rect, |p| clamp(map_rect(&p.matrix, rect)))
 }
 
 /// `rect` within the range of layout lengths.

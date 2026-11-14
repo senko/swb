@@ -4,6 +4,38 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-14: M10 9b-3: Range contents, createContextualFragment, geometry
+
+- The five contents operations are iterative functions of `swb_dom`:
+  they walk the paths of the boundary points below the common ancestor,
+  copy the partly contained nodes first, then move runs of children
+  level by level. A run of children that leaves runs the live range steps
+  once, so a range at the bottom of a 100,000-level chain or over 100,000
+  children costs nodes plus boundary points.
+- Chromium 148 records the changes in another order than the standard:
+  the start's side, the end's side, then the middle; a zero-count replace
+  data still records. swb follows Chromium.
+- After a contents operation moved the selection's range, Chromium's
+  selection reports `Range` and `forward` until its next change (the
+  `deleteFromDocument` quirk, also after `extractContents`). swb does the
+  same.
+- `createContextualFragment` parses in the context of the start's element
+  and leaves the fragment's scripts runnable; its custom elements are
+  upgraded at creation.
+- Range geometry comes from the engine's boxes and text fragments, one
+  rectangle per line; empty parts, line ends and preserved line breaks
+  give rectangles of width 0, which `getBoundingClientRect` leaves out
+  (measured).
+- 6 new probe cases; every row equals Chromium's except `Range.expand`
+  (absent). The review found three geometry differences (a rotated line,
+  an empty preserved line, a collapsed space before `<br>`), now fixed
+  with a seventh probe case. swb blurs a focused element in the removed
+  contents before the walk, Chromium during it: a departure.
+- Two `LATER` rows of `css_small_features.rs` that waited for
+  `createRange` now match. Scores and the JS-off snapshot unchanged;
+  callgrind within 0.02 %.
+- Next: 9c, the interaction test of GitHub.
+
 ## 2026-11-14: M10 9b-2: Selection
 
 - The document's selection is one live range entry in the arena, with

@@ -220,16 +220,6 @@ const LATER: &[(&str, &[usize], &str)] = &[
         "`Element.checkVisibility` is not implemented (backlog)",
     ),
     (
-        "cv-hidden-inner-text",
-        &[1],
-        "`document.createRange` is not implemented (backlog)",
-    ),
-    (
-        "cv-auto-focus",
-        &[1],
-        "`document.createRange` is not implemented (backlog)",
-    ),
-    (
         "cv-details-content",
         &[4],
         "`getComputedStyle(details, '::details-content')` gives the initial style (backlog)",

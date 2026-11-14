@@ -254,3 +254,126 @@ def range_100000_fragment_insertion_js_on() -> Page:
         "live[0].startOffset + ' ' + live[99999].startOffset);</script>"
     )
     return Page(doc("<p>ranges</p>" + script))
+
+
+@case(
+    "cloneContents and extractContents of a range over 100,000 elements with a text node each "
+    "(M10 sub-feature 9b-3): the copies and the moves are loops, and the live range steps of the "
+    "moved children run once for the run of children",
+    swb_args=JS,
+    time_limit_s=20,
+    rss_limit_mib=1536,
+    expect_log="range contents done 200001 200001 0 1",
+)
+def range_contents_100000_subtree_js_on() -> Page:
+    script = (
+        "<script>const a = document.createElement('div'); document.body.appendChild(a); "
+        "for (let i = 0; i < 100000; i++) { const b = document.createElement('b'); "
+        "b.append('t'); a.appendChild(b); } a.append('end'); "
+        "const r = new Range(); r.setStart(a, 0); r.setEnd(a.lastChild, 2); "
+        "const c = r.cloneContents(); const x = r.extractContents(); "
+        "const count = f => { let n = 0; const w = document.createTreeWalker(f); "
+        "while (w.nextNode()) n++; return n; }; "
+        "console.warn('range contents done ' + count(c) + ' ' + count(x) + ' ' + "
+        "r.startOffset + ' ' + a.childNodes.length);</script>"
+    )
+    return Page(doc("<p>contents</p>" + script))
+
+
+@case(
+    "A range from the bottom of a chain of 100,000 nested elements to a text after the chain, "
+    "with cloneContents, extractContents, deleteContents and surroundContents (M10 sub-feature "
+    "9b-3): the partially contained elements are copied by a loop down the path of the boundary "
+    "point, without recursion",
+    swb_args=JS,
+    time_limit_s=20,
+    rss_limit_mib=1536,
+    expect_log="range chain contents done 100002 100002 d true",
+)
+def range_contents_deep_chain_js_on() -> Page:
+    script = (
+        "<script>const outer = document.createElement('div'); document.body.appendChild(outer); "
+        "let cur = outer; "
+        "for (let i = 0; i < 100000; i++) { const d = document.createElement('div'); "
+        "cur.appendChild(d); cur = d; } "
+        "cur.append('deep'); outer.append('tail'); "
+        "const r = new Range(); r.setStart(cur.firstChild, 1); r.setEnd(outer.lastChild, 2); "
+        "const count = f => { let n = 0; const w = document.createTreeWalker(f); "
+        "while (w.nextNode()) n++; return n; }; "
+        "const c = count(r.cloneContents()); const x = count(r.extractContents()); "
+        "const left = cur.firstChild.data; "
+        "const s = new Range(); s.setStart(cur.firstChild, 0); s.setEnd(outer.lastChild, 1); "
+        "s.deleteContents(); "
+        "const u = new Range(); u.selectNodeContents(outer); "
+        "u.surroundContents(document.createElement('section')); "
+        "console.warn('range chain contents done ' + c + ' ' + x + ' ' + left + ' ' "
+        "+ (outer.firstChild.localName === 'section'));</script>"
+    )
+    return Page(doc("<p>chain</p>" + script))
+
+
+@case(
+    "100,000 live ranges in the children of a parent of 100,000 elements, 100,000 more at every "
+    "offset of the parent, and deleteContents of all children (M10 sub-feature 9b-3): the "
+    "removals of the run of children run the live range steps once, so the call costs the "
+    "children plus the boundary points",
+    swb_args=JS,
+    time_limit_s=20,
+    rss_limit_mib=1536,
+    expect_log="range delete done 200000 0",
+)
+def range_delete_100000_live_js_on() -> Page:
+    script = (
+        "<script>const a = document.createElement('div'); document.body.appendChild(a); "
+        "const live = []; for (let i = 0; i < 100000; i++) { "
+        "const b = document.createElement('b'); a.appendChild(b); "
+        "const r = new Range(); r.setStart(b, 0); live.push(r); } "
+        "for (let i = 0; i < 100000; i++) { const r = new Range(); r.setStart(a, i + 1); "
+        "live.push(r); } "
+        "const all = new Range(); all.selectNodeContents(a); all.deleteContents(); "
+        "let ok = 0; for (const r of live) if (r.startContainer === a && r.startOffset === 0 "
+        "&& r.collapsed) ok++; "
+        "console.warn('range delete done ' + ok + ' ' + a.childNodes.length);</script>"
+    )
+    return Page(doc("<p>delete</p>" + script))
+
+
+@case(
+    "createContextualFragment of 2 MB of markup and of 10,000 nested elements (M10 sub-feature "
+    "9b-3): the fragment parser is iterative and the result stays within the DOM limits (deeper "
+    "nesting is slow in the tree builder, as the known failure nest-div-100000 shows)",
+    swb_args=JS,
+    time_limit_s=20,
+    rss_limit_mib=1536,
+    expect_log="range fragment parse done 250000 div",
+)
+def range_contextual_fragment_large_js_on() -> Page:
+    script = (
+        "<script>const r = new Range(); r.selectNodeContents(document.body); "
+        "const big = r.createContextualFragment('<p>x</p>'.repeat(250000)); "
+        "const deep = r.createContextualFragment('<div>'.repeat(10000) + 'z'); "
+        "document.body.append(deep); "
+        "console.warn('range fragment parse done ' + big.childNodes.length + ' ' + "
+        "document.body.lastChild.localName);</script>"
+    )
+    return Page(doc("<p>parse</p>" + script))
+
+
+@case(
+    "getClientRects and getBoundingClientRect of a range over 100,000 text nodes (M10 "
+    "sub-feature 9b-3): one layout, one index of the text fragments, and a list of 100,000 "
+    "rectangles charged to the heap",
+    swb_args=JS,
+    time_limit_s=30,
+    rss_limit_mib=2048,
+    expect_log="range rects done",
+)
+def range_client_rects_100000_texts_js_on() -> Page:
+    script = (
+        "<script>const a = document.createElement('div'); document.body.appendChild(a); "
+        "for (let i = 0; i < 100000; i++) a.appendChild(document.createTextNode('w ')); "
+        "const r = new Range(); r.selectNodeContents(a); const l = r.getClientRects(); "
+        "const b = r.getBoundingClientRect(); "
+        "console.warn('range rects done ' + (l.length > 0) + ' ' + (b.height > 0));</script>"
+    )
+    return Page(doc("<p>rects</p>" + script))

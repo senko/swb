@@ -19,6 +19,12 @@ use common::{Case, Departure, answer, expected, load, on_big_stack};
 /// swb's value, why).
 const SWB_VALUES: &[Departure] = &[
     (
+        "api",
+        1,
+        r#"["length,name,prototype,START_TO_START,START_TO_END,END_TO_END,END_TO_START","commonAncestorContainer,START_TO_START,START_TO_END,END_TO_END,END_TO_START,cloneContents,cloneRange,collapse,compareBoundaryPoints,comparePoint,createContextualFragment,deleteContents,detach,extractContents,getBoundingClientRect,getClientRects,insertNode,intersectsNode,isPointInRange,selectNode,selectNodeContents,setEnd,setEndAfter,setEndBefore,setStart,setStartAfter,setStartBefore,surroundContents,toString,constructor","length,name,prototype","startContainer,startOffset,endContainer,endOffset,collapsed,constructor","length,name,prototype","constructor"]"#,
+        "Chromium's non-standard Range.prototype.expand is absent (ADR 0039 section 5)",
+    ),
+    (
         "static-range",
         1,
         r#"["t:abcd,99-t:abcd,0 false","p#p,7-#document,2 false","InvalidNodeTypeError: Failed to construct 'StaticRange': Neither startContainer nor endContainer can be a DocumentType or Attribute node.","InvalidNodeTypeError: Failed to construct 'StaticRange': Neither startContainer nor endContainer can be a DocumentType or Attribute node.","TypeError: Failed to construct 'StaticRange': Failed to read the 'startContainer' property from 'StaticRangeInit': Failed to convert value to 'Node'.","t:abcd,4294967295-t:abcd,0 false","t:abcd,0-t:abcd,1 false","t:abcd,0-b,0 false","TypeError: Failed to construct 'StaticRange': Failed to read the 'startContainer' property from 'StaticRangeInit': Failed to convert value to 'Node'."]"#,
@@ -37,84 +43,25 @@ const SWB_VALUES: &[Departure] = &[
     ),
 ];
 
-/// The cases and queries that later sub-features cover: (case, query index or
-/// `None` for all, why). The queries still run, so that none of them panics.
-const LATER: &[(&str, Option<usize>, &str)] = &[
-    (
-        "api",
-        Some(1),
-        "the contents, geometry and createContextualFragment members come with 9b-3 \
-         (Chromium's non-standard expand stays out: a departure then)",
-    ),
-    (
-        "api",
-        Some(2),
-        "the geometry and createContextualFragment members come with 9b-3",
-    ),
-    (
-        "api",
-        Some(3),
-        "the contents, geometry and createContextualFragment members come with 9b-3",
-    ),
-    (
-        "contents-clone",
-        None,
-        "the contents operations come with 9b-3",
-    ),
-    (
-        "contents-extract",
-        None,
-        "the contents operations come with 9b-3",
-    ),
-    (
-        "contents-delete",
-        None,
-        "the contents operations come with 9b-3",
-    ),
-    (
-        "contents-insert-text",
-        None,
-        "the contents operations come with 9b-3",
-    ),
-    (
-        "contents-insert-element",
-        None,
-        "the contents operations come with 9b-3",
-    ),
-    (
-        "contents-insert-fragment",
-        None,
-        "the contents operations come with 9b-3",
-    ),
-    (
-        "contents-surround",
-        None,
-        "the contents operations come with 9b-3",
-    ),
-    (
-        "contents-errors",
-        None,
-        "the contents operations come with 9b-3",
-    ),
-    (
-        "contextual-fragment",
-        None,
-        "createContextualFragment comes with 9b-3",
-    ),
-    ("geometry", None, "the geometry comes with 9b-3"),
-    (
-        "range-frames",
-        None,
-        "needs frames: crates/engine/tests/frames/range.rs runs it",
-    ),
+/// The cases and queries that run elsewhere: (case, query index or `None` for
+/// all, why). The queries still run, so that none of them panics.
+const ELSEWHERE: &[(&str, Option<usize>, &str)] = &[
+    ("geometry", None, NEEDS_LAYOUT),
+    ("geometry-more", None, NEEDS_LAYOUT),
+    ("geometry-review", None, NEEDS_LAYOUT),
+    ("geometry-frames", None, NEEDS_FRAMES),
+    ("range-frames", None, NEEDS_FRAMES),
 ];
+
+const NEEDS_LAYOUT: &str = "needs layout: crates/engine/tests/frames/range.rs runs it";
+const NEEDS_FRAMES: &str = "needs frames: crates/engine/tests/frames/range.rs runs it";
 
 /// The cases that the GC stress mode makes too slow for the time limit of one
 /// evaluation (the collector runs at every allocation): they run without it.
 const NO_STRESS: &[&str] = &[];
 
-fn later(case: &str, index: usize) -> bool {
-    LATER
+fn elsewhere(case: &str, index: usize) -> bool {
+    ELSEWHERE
         .iter()
         .any(|l| l.0 == case && l.1.is_none_or(|i| i == index))
 }
@@ -129,7 +76,7 @@ fn check(case: &Case, stress: bool) -> Vec<String> {
             .find(|v| v.0 == case.name && v.1 == index)
             .map_or(chromium, |v| v.2);
         let got = answer(&mut rt, query);
-        if later(case.name, index) {
+        if elsewhere(case.name, index) {
             continue;
         }
         if got != expected(want) {

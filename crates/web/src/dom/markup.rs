@@ -66,7 +66,7 @@ pub(super) fn outer_html(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
 
 /// The fragment that the markup makes in the context of the element
 /// `context`.
-fn parse_in(cx: &mut Cx<'_>, context: NodeId, markup: &str) -> b::Result<NodeId> {
+pub(crate) fn parse_in(cx: &mut Cx<'_>, context: NodeId, markup: &str) -> b::Result<NodeId> {
     let result = swb_dom::parse_fragment(dom_mut(cx.rt)?, context, markup);
     let fragment = dom_result(cx.rt, result)?;
     // HTML "create an element for the token" for the fragment parser: an

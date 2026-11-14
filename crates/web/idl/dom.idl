@@ -22,8 +22,8 @@
 // copied on 2026-11-07, M9 feature 15a); TreeWalker and
 // `Document.createTreeWalker` since M10 feature 9a; AbstractRange,
 // StaticRange, Range and `Document.createRange` since M10 sub-feature 9b-1
-// (section 5 of the standard, copied on 2026-11-14; ADR 0039; Range without
-// the contents operations, which come with 9b-3).
+// (section 5 of the standard, copied on 2026-11-14; ADR 0039; the contents
+// operations since 9b-3).
 // Document has no constructor yet (`new Document()` makes an XML
 // document); it lacks createCDATASection, createProcessingInstruction
 // and the other members that the roadmap backlog lists;
@@ -603,15 +603,15 @@ callback interface NodeFilter {
 };
 
 // DOM section 5, Ranges (https://dom.spec.whatwg.org/#ranges; M10
-// sub-feature 9b-1, ADR 0039). swb's types: the containers are `object` (a
-// boundary point can be a node of another document of the runtime, whose
-// wrapper comes from that document), and the node arguments are nodes of any
-// document of the runtime (`[SwbAnyDocument]`). The members of Range are in
-// Chromium's order (alphabetical after the attribute and the constants);
-// `deleteContents`, `extractContents`, `cloneContents`, `insertNode`,
-// `surroundContents` (DOM), `createContextualFragment` (DOM Parsing),
-// `getClientRects` and `getBoundingClientRect` (CSSOM View) come with
-// sub-feature 9b-3; Chromium's non-standard `expand` is left out.
+// sub-features 9b-1 and 9b-3, ADR 0039). swb's types: the containers and the
+// fragments are `object` (a boundary point can be a node of another document
+// of the runtime, whose wrapper comes from that document), and the node
+// arguments are nodes of any document of the runtime (`[SwbAnyDocument]`).
+// The members of Range are in Chromium's order (alphabetical after the
+// attribute and the constants), with `createContextualFragment` of DOM
+// Parsing and Serialization (a `DOMString`: swb has no Trusted Types) and
+// `getClientRects` and `getBoundingClientRect` of CSSOM View; Chromium's
+// non-standard `expand` is left out.
 partial interface Document {
   [NewObject] Range createRange();
 };
@@ -650,11 +650,18 @@ interface Range : AbstractRange {
   const unsigned short END_TO_END = 2;
   const unsigned short END_TO_START = 3;
 
+  [CEReactions, NewObject] object cloneContents();
   [NewObject] Range cloneRange();
   undefined collapse(optional boolean toStart = false);
   short compareBoundaryPoints(unsigned short how, Range sourceRange);
   short comparePoint([SwbAnyDocument] Node node, unsigned long offset);
+  [CEReactions, NewObject] object createContextualFragment(DOMString string);
+  [CEReactions] undefined deleteContents();
   undefined detach();
+  [CEReactions, NewObject] object extractContents();
+  [NewObject] DOMRect getBoundingClientRect();
+  DOMRectList getClientRects();
+  [CEReactions] undefined insertNode([SwbAnyDocument] Node node);
   boolean intersectsNode([SwbAnyDocument] Node node);
   boolean isPointInRange([SwbAnyDocument] Node node, unsigned long offset);
   undefined selectNode([SwbAnyDocument] Node node);
@@ -665,5 +672,6 @@ interface Range : AbstractRange {
   undefined setStart([SwbAnyDocument] Node node, unsigned long offset);
   undefined setStartAfter([SwbAnyDocument] Node node);
   undefined setStartBefore([SwbAnyDocument] Node node);
+  [CEReactions] undefined surroundContents([SwbAnyDocument] Node newParent);
   stringifier;
 };

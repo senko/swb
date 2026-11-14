@@ -112,7 +112,7 @@ fn is_open(name: &QualName) -> bool {
 
 /// How [`Document::check_insertion`] treats the parent's children.
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Validity {
+pub(crate) enum Validity {
     /// "Ensure pre-insertion validity" before `child`.
     PreInsert,
     /// The checks of "replace": `child` is replaced.
@@ -818,7 +818,7 @@ impl Document {
 
     /// The checks of "ensure pre-insertion validity" and of "replace"
     /// (<https://dom.spec.whatwg.org/#concept-node-ensure-pre-insertion-validity>).
-    fn check_insertion(
+    pub(crate) fn check_insertion(
         &self,
         parent: NodeId,
         node: NodeId,

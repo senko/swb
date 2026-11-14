@@ -29,7 +29,7 @@ const DEPARTURES: &[(&str, usize, &str, &str)] = &[
     (
         "api",
         0,
-        r#"["function",0,"function Selection() { [native code] }",true,true,"[object Selection]","length,name,prototype","anchorNode,anchorOffset,focusNode,focusOffset,isCollapsed,rangeCount,type,direction,baseNode,baseOffset,extentNode,extentOffset,addRange,collapse,collapseToEnd,collapseToStart,containsNode,empty,extend,getRangeAt,removeAllRanges,removeRange,selectAllChildren,setBaseAndExtent,setPosition,toString,constructor","TypeError: Failed to construct 'Selection': Illegal constructor","TypeError: Illegal constructor"]"#,
+        r#"["function",0,"function Selection() { [native code] }",true,true,"[object Selection]","length,name,prototype","anchorNode,anchorOffset,focusNode,focusOffset,isCollapsed,rangeCount,type,direction,baseNode,baseOffset,extentNode,extentOffset,addRange,collapse,collapseToEnd,collapseToStart,containsNode,deleteFromDocument,empty,extend,getRangeAt,removeAllRanges,removeRange,selectAllChildren,setBaseAndExtent,setPosition,toString,constructor","TypeError: Failed to construct 'Selection': Illegal constructor","TypeError: Illegal constructor"]"#,
         MISSING_MEMBERS,
     ),
     (
@@ -42,7 +42,7 @@ const DEPARTURES: &[(&str, usize, &str, &str)] = &[
     (
         "api",
         2,
-        r#"["addRange:1:addRange","collapse:1:collapse","collapseToEnd:0:collapseToEnd","collapseToStart:0:collapseToStart","containsNode:1:containsNode","empty:0:empty","extend:1:extend","getRangeAt:1:getRangeAt","removeAllRanges:0:removeAllRanges","removeRange:1:removeRange","selectAllChildren:1:selectAllChildren","setBaseAndExtent:4:setBaseAndExtent","setPosition:1:setPosition","toString:0:toString","constructor:0:Selection",0,0,false,false]"#,
+        r#"["addRange:1:addRange","collapse:1:collapse","collapseToEnd:0:collapseToEnd","collapseToStart:0:collapseToStart","containsNode:1:containsNode","deleteFromDocument:0:deleteFromDocument","empty:0:empty","extend:1:extend","getRangeAt:1:getRangeAt","removeAllRanges:0:removeAllRanges","removeRange:1:removeRange","selectAllChildren:1:selectAllChildren","setBaseAndExtent:4:setBaseAndExtent","setPosition:1:setPosition","toString:0:toString","constructor:0:Selection",0,0,false,false]"#,
         MISSING_MEMBERS,
     ),
     (
@@ -91,16 +91,8 @@ const DEPARTURES: &[(&str, usize, &str, &str)] = &[
     ),
 ];
 
-const MISSING_MEMBERS: &str = "getComposedRanges and modify are absent (ADR 0039 section 5; \
-     backlog); deleteFromDocument comes with Range.deleteContents (9b-3)";
-
-/// The queries that a later sub-feature covers or that swb leaves out: (case,
-/// query index, why). The queries still run.
-const SKIPPED: &[(&str, usize, &str)] = &[(
-    "collapse-extend",
-    5,
-    "deleteFromDocument needs Range.deleteContents, which comes with 9b-3",
-)];
+const MISSING_MEMBERS: &str =
+    "getComposedRanges and modify are absent (ADR 0039 section 5; backlog)";
 
 /// A directory with test pages, removed at the end of the test.
 struct Site(PathBuf);
@@ -217,9 +209,6 @@ fn probe_cases() {
             for (index, query) in case["measure"].as_array().unwrap().iter().enumerate() {
                 let source = query["js"].as_str().unwrap();
                 let got = value(&mut page, source);
-                if SKIPPED.iter().any(|s| s.0 == name && s.1 == index) {
-                    continue;
-                }
                 let want = DEPARTURES
                     .iter()
                     .find(|d| d.0 == name && d.1 == index)

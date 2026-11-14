@@ -585,5 +585,51 @@
   "\"lpha beta gamma\\n\\none tw\"",
   "ss:t:alpha beta gamma:b:c sc:#document",
   "Caret 1 t:frame text,3 t:frame text,3 true none t:frame text,3-t:frame text,3"
+ ],
+ "delete-from-document-more": [
+  [
+   "Range 1 div#c,1 div#c,1 true forward div#c,1-div#c,1",
+   "<div#c>\"c\"|\"3\"</>",
+   "del:sc:#document",
+   "Range 1 div#c,1 div#c,1 true forward div#c,1-div#c,1",
+   "Range 1 div#c,1 div#c,1 true forward div#c,1-div#c,1",
+   "append:",
+   "Range 1 div#c,1 div#c,3 false forward div#c,1-div#c,3",
+   "set-end:sc:#document",
+   "Caret 1 t:c,1 t:c,1 true none t:c,1-t:c,1",
+   "Range 1 t:c,0 t:c,1 false forward t:c,0-t:c,1"
+  ],
+  [
+   "Caret 1 t:,0 t:,0 true none t:,0-t:,0",
+   "<div#c>\"\"|<span#cs>\"c2\"</>|<!cc>|\"c3\"</>",
+   "range-del:sc:#document",
+   "Range 1 div#c,1 div#c,1 true forward div#c,1-div#c,1",
+   "[\"1\"|<span#cs>\"c\"</>]",
+   "<div#c>\"c\"|<span#cs>\"2\"</>|<!cc>|\"c3\"</>",
+   "extract:sc:#document",
+   "Range 1 t:c,1 div#c,2 false forward t:c,1-div#c,2",
+   "<div#c>\"c\"|<u></>|\"1\"|<span#cs>\"c2\"</>|<!cc>|\"c3\"</>",
+   "insert:sc:#document",
+   "Range 1 div#c,1 div#c,2 false forward div#c,1-div#c,2",
+   "<div#c>\"c1\"|<u><span#cs>\"c2\"</></>|<!cc>|\"c3\"</>",
+   "surround:sc:#document",
+   "Range 1 t:c3,2 t:c1,0 false backward t:c1,0-t:c3,2",
+   "clone:"
+  ],
+  [
+   "Range 1 body,3 body,3 true forward body,3-body,3",
+   "input text",
+   "1,4",
+   "in",
+   ""
+  ],
+  [
+   "Caret 1 t:alpha beta gamma,1 t:alpha beta gamma,1 true none t:alpha beta gamma,1-t:alpha beta gamma,1",
+   "Caret 1 t:alpha beta gamma,1 t:alpha beta gamma,1 true none t:alpha beta gamma,1-t:alpha beta gamma,1",
+   "Range 1 t:alpha beta gamma,1 t:alpha beta gamma,2 false forward t:alpha beta gamma,1-t:alpha beta gamma,2",
+   "Range 1 b#bb,0 b#bb,1 false forward b#bb,0-b#bb,1",
+   "Caret 1 div#c,1 div#c,1 true none div#c,1-div#c,1",
+   "<div#c>\"c1\"|\"c3\"</>"
+  ]
  ]
 }

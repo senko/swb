@@ -359,6 +359,23 @@ impl Document {
         }
     }
 
+    /// Clears the "already started" flag of the `script` elements in the
+    /// subtree of `root`: the scripts of a fragment that
+    /// `createContextualFragment` parsed run when it is inserted into a
+    /// document (HTML, step 8 of the method).
+    /// <https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment>
+    pub fn unmark_scripts_started(&mut self, root: NodeId) {
+        let marked: Vec<NodeId> = self
+            .descendants(root)
+            .filter(|&n| self.element(n).is_some_and(|e| e.script_already_started))
+            .collect();
+        for node in marked {
+            if let Some(e) = self.element_mut(node) {
+                e.script_already_started = false;
+            }
+        }
+    }
+
     /// HTML "reset the form owner" after the ancestors of the subtree of
     /// `root` changed: the elements lose the form pointer that the parser
     /// gave them (the form owner is then the form attribute or the nearest

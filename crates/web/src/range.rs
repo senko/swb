@@ -1,6 +1,7 @@
 //! `AbstractRange`, `StaticRange`, `Range` and `Document.createRange` (DOM
-//! section 5, <https://dom.spec.whatwg.org/#ranges>; M10 sub-feature 9b-1,
-//! ADR 0039).
+//! section 5, <https://dom.spec.whatwg.org/#ranges>; M10 sub-features 9b-1 and
+//! 9b-3, ADR 0039). The contents operations and `createContextualFragment`
+//! are in `range/contents.rs`, the geometry in `range/geometry.rs`.
 //!
 //! The boundary points of a live range are Rust data in the arena that holds
 //! its nodes (`swb_dom::Document::set_live_range`): the change functions of the
@@ -37,6 +38,9 @@ use crate::bindings::{self as b, Cx, Exception, NodeRef, Platform};
 use crate::generated as g;
 use crate::node_iterator::wrapper_in;
 use crate::state::{self, DocKey, DocState, WebState, state_mut};
+
+pub(crate) mod contents;
+mod geometry;
 
 /// The live ranges of the runtime.
 #[derive(Default)]
@@ -512,6 +516,42 @@ impl g::range::RangeImpl for WebState {
         let (_, key, range) = current(cx.rt, this)?;
         let node = arena_or_error(cx.rt, key)?.range_common_ancestor(range);
         container(cx.rt, key, node)
+    }
+
+    fn clone_contents(cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
+        contents::clone_contents(cx, this)
+    }
+
+    fn create_contextual_fragment(
+        cx: &mut Cx<'_>,
+        this: Platform,
+        string: String,
+    ) -> b::Result<Gc<Object>> {
+        contents::create_contextual_fragment(cx, this, &string)
+    }
+
+    fn delete_contents(cx: &mut Cx<'_>, this: Platform) -> b::Result<()> {
+        contents::delete_contents(cx, this)
+    }
+
+    fn extract_contents(cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
+        contents::extract_contents(cx, this)
+    }
+
+    fn get_bounding_client_rect(cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
+        geometry::get_bounding_client_rect(cx, this)
+    }
+
+    fn get_client_rects(cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
+        geometry::get_client_rects(cx, this)
+    }
+
+    fn insert_node(cx: &mut Cx<'_>, this: Platform, node: NodeRef) -> b::Result<()> {
+        contents::insert_node(cx, this, node)
+    }
+
+    fn surround_contents(cx: &mut Cx<'_>, this: Platform, new_parent: NodeRef) -> b::Result<()> {
+        contents::surround_contents(cx, this, new_parent)
     }
 
     /// `new Range()`: a range at `(document, 0)` of the current global's
