@@ -497,9 +497,12 @@ fn multiply(a: [f64; 6], b: [f64; 6]) -> [f64; 6] {
 #[allow(clippy::too_many_lines)] // One line per property.
 fn computed(name: &str, r: &Resolver<'_>) -> String {
     let s = r.style;
-    let color = |c: Color| rgba(c.resolve(s.color));
+    let color = |c: Color| c.resolved_text(s.color);
     match name {
-        "color" => rgba(s.color),
+        "color" => s.color_exact.map_or_else(
+            || rgba(s.color),
+            |id| Color::Special(id).resolved_text(s.color),
+        ),
         "font-family" => font_family(s),
         "font-size" => px(s.font_size),
         "font-weight" => number(s.font_weight),
@@ -800,6 +803,13 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
         "counter-set" => counters(&s.counter_set),
         "contain" => contain(s),
         "container-type" => s.container_type.as_str().to_owned(),
+        "field-sizing" => s.field_sizing.as_str().to_owned(),
+        "content-visibility" => if s.contents_hidden {
+            "hidden"
+        } else {
+            s.content_visibility.as_str()
+        }
+        .to_owned(),
         "container-name" => match &s.container_name {
             None => "none".to_owned(),
             Some(names) => {
@@ -813,8 +823,8 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
                 out
             }
         },
-        "contain-intrinsic-width" => contain_intrinsic(s.contain_intrinsic_width),
-        "contain-intrinsic-height" => contain_intrinsic(s.contain_intrinsic_height),
+        "contain-intrinsic-width" => contain_intrinsic(s.contain_intrinsic_width, s),
+        "contain-intrinsic-height" => contain_intrinsic(s.contain_intrinsic_height, s),
         "object-fit" => s.object_fit.as_str().to_owned(),
         "scrollbar-width" => s.scrollbar_width.as_str().to_owned(),
         "overlay" => s.overlay.as_str().to_owned(),
@@ -877,7 +887,7 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
 }
 
 /// A computed length or percentage.
-pub(super) fn lp(v: &LengthPercentage) -> String {
+pub(crate) fn lp(v: &LengthPercentage) -> String {
     match v {
         LengthPercentage::Px(v) => px(*v),
         LengthPercentage::Percent(p) => percent(*p),
@@ -1073,6 +1083,7 @@ pub(super) fn image(i: &Image) -> String {
             for (color, stop) in &g.stops {
                 let color = match color {
                     Color::Rgba(c) => rgba(*c),
+                    Color::Special(_) => color.computed_text(),
                     Color::CurrentColor => "currentcolor".to_owned(),
                 };
                 parts.push(match stop {
@@ -1110,7 +1121,7 @@ fn filter(s: &ComputedStyle, value: &crate::values::Filter) -> String {
             F::Sepia(v) => format!("sepia({})", number(*v)),
             F::DropShadow(d) => format!(
                 "drop-shadow({} {} {} {})",
-                rgba(d.color.resolve(s.color)),
+                d.color.resolved_text(s.color),
                 px(d.x),
                 px(d.y),
                 px(d.blur)
@@ -1124,9 +1135,9 @@ fn filter(s: &ComputedStyle, value: &crate::values::Filter) -> String {
 fn paint(p: &SvgPaint, s: &ComputedStyle) -> String {
     match p {
         SvgPaint::None => "none".to_owned(),
-        SvgPaint::Color(c) => rgba(c.resolve(s.color)),
+        SvgPaint::Color(c) => c.resolved_text(s.color),
         SvgPaint::Url { url: u, fallback } => match fallback {
-            Some(c) => format!("{} {}", url(u), rgba(c.resolve(s.color))),
+            Some(c) => format!("{} {}", url(u), c.resolved_text(s.color)),
             None => url(u),
         },
     }
@@ -1393,9 +1404,11 @@ fn contain(s: &ComputedStyle) -> String {
     }
 }
 
-fn contain_intrinsic(c: crate::values::ContainIntrinsic) -> String {
+/// `contain-intrinsic-*`: `content-visibility: auto` makes the value
+/// start with `auto` (measured in Chromium 148, `cv-computed`).
+fn contain_intrinsic(c: crate::values::ContainIntrinsic, s: &ComputedStyle) -> String {
     let length = c.length.map_or_else(|| "none".to_owned(), px);
-    if c.auto {
+    if c.auto || s.content_visibility == crate::values::ContentVisibility::Auto {
         format!("auto {length}")
     } else {
         length

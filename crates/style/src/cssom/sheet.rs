@@ -34,9 +34,9 @@ use std::sync::Arc;
 
 use swb_css::{
     ComponentValue, ContainerCondition, CssRule, Declaration, FontFaceRule, ImportLayer,
-    ImportRule, KeyframesRule, LayerName, MediaQueryList, SelectorList, SupportsCondition,
-    parse_rule, parse_stylesheet, serialize_component_values, serialize_identifier,
-    serialize_string,
+    ImportRule, KeyframesRule, LayerName, MediaQueryList, PropertyRule, SelectorList,
+    SupportsCondition, parse_rule, parse_stylesheet, serialize_component_values,
+    serialize_identifier, serialize_string, trim_whitespace,
 };
 use swb_dom::NodeId;
 use url::Url;
@@ -48,6 +48,7 @@ use super::memory::{declarations_bytes, rule_bytes, rules_bytes, selectors_bytes
 use super::{StyleDeclarations, format_number};
 use crate::parse::ParserContext;
 use crate::properties::DeclarationBlock;
+use crate::registered::Registration;
 
 /// A shared style sheet.
 pub type SheetRef = Rc<RefCell<StyleSheet>>;
@@ -151,6 +152,8 @@ pub enum RuleKind {
     Import(ImportRule),
     /// `@font-face` (`CSSFontFaceRule`).
     FontFace(FontFaceRule),
+    /// `@property` (`CSSPropertyRule`); only valid rules are kept.
+    Property(PropertyRule),
     /// `@keyframes` (`CSSKeyframesRule`). swb runs no animations.
     Keyframes(KeyframesRule),
     /// `@layer name { ... }` and `@layer { ... }` (`CSSLayerBlockRule`).
@@ -477,7 +480,38 @@ impl StyleSheet {
     }
 }
 
+/// What a `CSSPropertyRule` reports (CSS Properties and Values API 1,
+/// section 3.1).
+#[derive(Clone, Debug, PartialEq)]
+pub struct PropertyInfo {
+    /// `name`.
+    pub name: String,
+    /// `syntax`, as written.
+    pub syntax: String,
+    /// `inherits`.
+    pub inherits: bool,
+    /// `initialValue`; `None` (null) if the descriptor is missing.
+    pub initial_value: Option<String>,
+}
+
 impl Rule {
+    /// The members of a `CSSPropertyRule`; `None` for other rules.
+    pub fn property_info(&self) -> Option<PropertyInfo> {
+        let RuleKind::Property(rule) = &self.kind else {
+            return None;
+        };
+        let registration = Registration::from_rule(rule)?;
+        Some(PropertyInfo {
+            name: registration.name.to_string(),
+            syntax: registration.syntax_text.clone(),
+            inherits: registration.inherits,
+            initial_value: registration
+                .initial_text
+                .as_ref()
+                .map(|t| serialize_component_values(trim_whitespace(t))),
+        })
+    }
+
     /// The `CSSRule.type` constant of the rule.
     pub fn type_number(&self) -> u16 {
         match self.kind {
@@ -487,7 +521,8 @@ impl Rule {
             RuleKind::Import(_) => rule_type::IMPORT,
             RuleKind::FontFace(_) => rule_type::FONT_FACE,
             RuleKind::Keyframes(_) => rule_type::KEYFRAMES,
-            RuleKind::LayerBlock { .. }
+            RuleKind::Property(_)
+            | RuleKind::LayerBlock { .. }
             | RuleKind::LayerStatement { .. }
             | RuleKind::Container { .. } => rule_type::NONE,
         }
@@ -601,6 +636,9 @@ impl Rule {
                 }
             }
             RuleKind::Keyframes(keyframes) => keyframes_text(keyframes, quirks),
+            RuleKind::Property(rule) => Registration::from_rule(rule)
+                .map(|r| r.css_text())
+                .unwrap_or_default(),
         }
     }
 }
@@ -862,6 +900,9 @@ fn convert_inserted(
     parent_sheet: &Weak<RefCell<StyleSheet>>,
     memory: &StyleMemory,
 ) -> Result<RuleRef, RuleError> {
+    if is_invalid_property_rule(&rule) {
+        return Err(RuleError::Syntax);
+    }
     let mut budget = Some(
         memory
             .reserve(rule_bytes(&rule), "insertRule")
@@ -884,8 +925,15 @@ fn convert(
 ) -> Vec<RuleRef> {
     rules
         .into_iter()
+        .filter(|r| !is_invalid_property_rule(r))
         .map(|r| convert_one(r, parent_rule, parent_sheet, memory, budget))
         .collect()
+}
+
+/// True for an `@property` rule whose descriptors are not valid: it is
+/// not in the CSSOM (and `insertRule` throws).
+fn is_invalid_property_rule(rule: &CssRule) -> bool {
+    matches!(rule, CssRule::Property(p) if Registration::from_rule(p).is_none())
 }
 
 /// Converts one parsed rule (and the rules inside it).
@@ -931,6 +979,7 @@ fn convert_one(
         ),
         CssRule::Import(import) => (RuleKind::Import(import), None),
         CssRule::FontFace(face) => (RuleKind::FontFace(face), None),
+        CssRule::Property(rule) => (RuleKind::Property(rule), None),
         CssRule::Keyframes(keyframes) => (RuleKind::Keyframes(keyframes), None),
         CssRule::LayerBlock(layer) => (
             RuleKind::LayerBlock {

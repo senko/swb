@@ -47,6 +47,13 @@ use props::{Property, TABLE};
 
 pub(crate) use value::format_number;
 
+/// `rgb()` or `rgba()` as Chromium writes a computed color.
+pub(crate) fn rgba_text(c: crate::values::Rgba) -> String {
+    let mut out = String::new();
+    value::write_rgba(c, &mut out);
+    out
+}
+
 pub use memory::WriteBudget;
 pub use props::{attribute_names, property_of_attribute};
 

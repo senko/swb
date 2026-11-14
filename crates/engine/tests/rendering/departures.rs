@@ -5,12 +5,6 @@
 /// The departures.
 pub(crate) const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
-        r"hidden",
-        12,
-        r#""cv""#,
-        r"swb has no `content-visibility`, so the content of a `content-visibility: hidden` element is rendered text",
-    ),
-    (
         r"replaced",
         8,
         r#""axb""#,

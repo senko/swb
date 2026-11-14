@@ -27,9 +27,9 @@
 //! of its blocks; `select` lists its options on lines of their own; the
 //! children of `textarea`, `input`, `img`, `canvas`, `video`, `audio`,
 //! `iframe`, `progress` and `meter` give nothing; a closed `details` gives
-//! its summary; SVG `text` is a block. Departures: `content-visibility`
-//! (swb has none), the math elements (Chromium maps `mi` to mathematical italic
-//! letters), and a part of a line (the `innerText` of an inline element
+//! its summary; SVG `text` is a block; `content-visibility: hidden` gives
+//! nothing. Departures: the math elements (Chromium maps `mi` to
+//! mathematical italic letters), and a part of a line (the `innerText` of an inline element
 //! starts a line in swb; Chromium keeps a space at its start when the line
 //! has text before it).
 
@@ -98,6 +98,9 @@ fn children_of(dom: &Document, styles: &StyleMap, element: NodeId) -> Children {
     };
     if e.name.ns != ns!(html) {
         return Children::All;
+    }
+    if styles.get(element).is_some_and(|s| s.skips_contents()) {
+        return Children::None;
     }
     match &*e.name.local {
         "input" | "textarea" | "img" | "canvas" | "video" | "audio" | "iframe" | "embed"
@@ -249,6 +252,12 @@ fn enter(
         return;
     };
     if style.display == Display::None {
+        return;
+    }
+    // The contents of `content-visibility: hidden` are not rendered text, and
+    // the element gives no line breaks (measured in Chromium 148,
+    // `cv-hidden-inner-text`).
+    if !root && style.skips_contents() {
         return;
     }
     let children = children_of(dom, styles, node);

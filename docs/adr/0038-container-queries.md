@@ -490,3 +490,264 @@ The review of 7a found these; each has a probe case in
    `Option<NodeId>` (one hash write and compare less per element). Callgrind
    numbers are in the devlog entry.
 6. Docs: `docs/testing.md` lists the real departures (4) and later rows (4).
+
+## 7b: small CSS features
+
+M10 sub-feature 7b adds `@property`, `field-sizing`, `color-mix()` with
+`currentcolor`, `content-visibility` and the formatting contexts of
+`contain: layout`. This section holds the decisions (no new ADR: they
+follow the containment work above). Chromium 148 measurements:
+`tools/probes/css-small-features.json` (196 cases, three equal runs: 155 of 7b and 41 of the review fixes) and
+four cases of `tools/probes/github-css.json`; the Rust test
+`crates/engine/tests/css_small_features.rs` runs every row against them.
+The `DEPARTURES` and `LATER` lists of the test hold each row that differs,
+with its reason.
+
+### 7b.1 `@property`
+
+- **Rule validity** (`registered.rs`, `Registration::from_rule`). The
+  parser keeps an `@property` with a name of `--` and one more character
+  (`CssRule::Property`, raw descriptors). The style crate drops a rule that
+  has no valid `syntax` string (single or double quotes; `<LENGTH>` is
+  invalid, `length` is a keyword), no `inherits: true | false`, an
+  `!important` descriptor, or, unless the syntax is `*`, no `initial-value`
+  that matches the syntax and is computationally independent (`1em` and
+  `var()` are not; `0` and `calc(1px + 2px)` are). The CSSOM does not keep
+  an invalid rule and `insertRule` throws `SyntaxError`. The last valid rule
+  of a name wins; `@media`, `@supports` and `@layer` around a rule are
+  allowed, and `@media not all` keeps the rule in the CSSOM without
+  registering it; rules in shadow trees' sheets and in `@container` do not
+  register.
+- **Syntaxes**: `*`, `<length>`, `<number>`, `<integer>`, `<percentage>`,
+  `<length-percentage>`, `<color>`, `<angle>`, `<time>`, `<resolution>`,
+  `<custom-ident>`, `<string>`, keywords, `|`, and `+` and `#`. `<url>`,
+  `<image>`, `<transform-function>` and `<transform-list>` accept the
+  shapes of their values and keep them as written (lengths in transform
+  arguments are computed).
+- **Computed value**: the value of the custom property after `var()`
+  substitution is matched against the syntax and computed (lengths in px
+  with six significant digits, `calc()` of lengths evaluated, `<color>` in
+  its computed form with `currentcolor` and mixes with it kept, `<angle>` in
+  deg, `<time>` in s). A value that does not match is the initial value; a
+  failed `var()` is the initial value too, except for `*`, where it is the
+  guaranteed-invalid value (measured, `ap-universal-guaranteed-invalid`).
+  `em` and `rem` use the element's own font size: the cascade computes the
+  custom properties first with the parent's font size and again after the
+  font size when the element declares a registered property (one extra
+  computation only for those elements). Exception, a dependency cycle
+  (`font_cycle.rs`, CSS Properties and Values API 1, "Dependency cycles via
+  relative units"; measured, `ap-font-size-cycle-*`): a registered property
+  with a font-relative unit (`em`, `ex`, `ch`, `cap`, `ic`, `lh`; on the
+  root element also `rem` and `rlh`) that the winning `font-size`
+  references through `var()`, directly or through other custom properties,
+  has its initial value, and the `font-size` declaration is invalid at
+  computed-value time (`unset`). `lh` does the same for `line-height`.
+  Properties that no font property references keep the element's own font
+  size.
+- **Inheritance**: a registered property that is not in an element's map
+  has its initial value (`CustomProperties::get`, the names list, `var()`
+  substitution): the maps do not copy the registry's initial values, so an
+  element that declares one custom property holds one entry, not one per
+  registration (the review's page with 10,000 rules and 50,000 declaring
+  elements took 31.7 GB when the maps held them all). A registered property
+  with an initial value that is invalid on an element (a failed `var()` in a
+  `*` syntax) is a `None` entry. A property that does not inherit is reset
+  by dropping its entry from the copy of the parent's map; the cost is in
+  proportion to the entries of the parent's map, and a map that holds no
+  such entry (a flag) is shared when nothing is declared. Pages without
+  `@property` pay one `Option` test per element.
+- **CSSOM**: `CSSPropertyRule` (`name`, `syntax`, `inherits`, `initialValue`
+  or null, `cssText` as `@property --p { syntax: "<length>"; inherits:
+  false; initial-value: 0; }`, type 0).
+- **Departures**: `CSS.registerProperty` and `CSS.unregisterProperty`
+  (backlog: GitHub's scripts do not call them); `oklch()`, `lab()` and
+  `color(display-p3 ...)` values of `<color>` are converted to 8-bit sRGB
+  (Chromium keeps them as written); `calc()` in `<angle>` and `<time>`;
+  white space and comments inside `*` values (as for all custom
+  properties); the order of the custom property names in the
+  `getComputedStyle` enumeration (swb sorts them);
+  `CSS.supports('at-rule(@property)')`.
+
+### 7b.2 `color-mix()`
+
+- **Measured**: Chromium keeps the result of `color-mix()` as a color with
+  float coordinates in the mix space, serialized as `color(srgb 0.5 0 0.5)`,
+  `oklab(...)`, `lch(...)`, `color(xyz-d65 ...)` (`hsl` and `hwb` mixes are
+  in sRGB), with six significant digits and `/ alpha` when the alpha is
+  below 1. A mix with `currentcolor` stays a mix until the used value:
+  `getComputedStyle` of `border-color` shows the mix resolved with the
+  element's own `color`; an inherited mix (the `border-color: inherit` of a
+  child with another `color`) follows the child's color; a custom property
+  or a registered `<color>` keeps `currentcolor` (`color-mix(in srgb,
+  currentcolor, rgba(0, 0, 0, 0))`). The `color` property takes the
+  parent's exact color for `currentcolor`.
+- **Representation** (`values/color_mix.rs`). `Color` gets one variant,
+  `Special(ColorId)`; the id indexes a process-wide table of `Wide` colors
+  (space, three `f32`, alpha) and `Mix` values (a mix with `currentcolor`:
+  the space, the hue method, two items and the normalized percentages).
+  `Color` stays `Copy` and 8 bytes. The table is shared by all documents of
+  the process (all pages, frames and tabs) and never shrinks. It holds at
+  most 2^20 entries (about 40 MB). When it is full, a `Wide` color (the mix
+  of two concrete colors, or the resolved mix of the `color` property)
+  becomes the 8-bit `Color::Rgba` of the same color: paint stays right, and
+  only the digits that `getComputedStyle` shows differ; only a mix with
+  `currentcolor` is invalid. One page can fill the table with distinct mixes
+  (the review: 1.1 million mixes in 6 s of script), so a full table must not
+  break other pages, and it does not. There is one table, not one per
+  document, because a table per document needs a table handle at every
+  parse, cascade, CSSOM and paint site, and values move between documents
+  (adopted nodes, a moved `style` attribute), so the id of one table would
+  be wrong in another (backlog: a color table per document). Mixing follows
+  CSS Color 5:
+  premultiplied alpha, hue fix-up for `lch`, `oklch`, `hsl` and `hwb`
+  (`shorter`, `longer`, `increasing`, `decreasing`; a gray's hue is missing
+  and takes the other color's), percentages that add up to less than 100%
+  scale the alpha; a sum of 0 or a percentage outside 0 to 100 is invalid.
+  A color with a mix is painted as 8-bit sRGB (`Wide::to_rgba`).
+- **`color`**: `ComputedStyle::color_exact` keeps the float color when the
+  `color` property came from a mix (inherited with `color`), so that
+  `getComputedStyle(el).color` and a `currentcolor` mix of a child match.
+- **CSSOM** (`element.style`, `cssText`): the mix is written as Chromium
+  writes it: `in oklab` is left out, the percentages are normalized (none
+  for 50/50, one if they add up to 100, else both), colors are in `rgb()` or
+  names in lower case.
+- **Percentages**: `calc()` (and `min()`, `max()`, `clamp()`) that gives a
+  percentage is accepted, clamped to 0 to 100 (measured: `calc(150%)` is
+  100%, `calc(-20%)` is 0%, `calc(infinity * 1%)` is 100%).
+- **Departures**: a `color-mix()` inside a `color-mix()` with `currentcolor`
+  is invalid (the nested mix of two concrete colors is fine); `none`
+  components in `hsl()` and `lab()` are 0 (Chromium keeps them missing, so a
+  mix takes the other color's value); the hue of a gray that swb writes in
+  a mix result is a number, Chromium writes `none`; a color outside the
+  gamut, `color(srgb 2 0 -1)`, is clamped when it is parsed (Chromium keeps
+  the coordinates); `calc(NaN * 1%)` is invalid (Chromium: 0%); the
+  `element.style` text of a `calc()` percentage is not normalized (Chromium
+  simplifies it and writes it after the color); Lab, Lch,
+  Oklab and XYZ results differ from Chromium in the fifth significant digit
+  (Chromium converts through D50); color functions are 8-bit before they are
+  mixed (`hsl(0 50% 50%)` is `rgb(191, 64, 64)`); `caret-color`,
+  `-webkit-text-fill-color` and the other properties that swb has no
+  computed value for stay empty (also the shorthands `column-rule` and
+  `text-emphasis`); a gradient with a mix of `currentcolor` writes the mix
+  unresolved in `getComputedStyle`. The shorthands `text-decoration`,
+  `background`, `border`, `outline` write a mix color as the longhands
+  do.
+
+### 7b.3 `field-sizing`
+
+- `field-sizing: content | fixed` (not inherited). With `content`, a text
+  field of the text-like types (`text`, `search`, `url`, `tel`, `email`,
+  `password`, `number`), a text area and a select are sized by their
+  content (`control.rs`, `fitted_width`): the width of the value, else of
+  the placeholder, with at least 1 px of content; a `number` or `search`
+  field that shows a value or nothing keeps 15 px for its inner buttons (not
+  with a placeholder); `size`, `cols` and `rows` do not count; a text area is
+  as high as its lines (a final line feed counts; one line at least); a
+  select is as wide as the selected option (not the widest, not rounded up)
+  and an empty one is 22 by 4 px. `min-width`, `max-width`, `width`, padding
+  and borders apply as usual (the content box). The other input types that
+  swb shows as text fields (`range`, `color`, dates) and the buttons keep
+  their sizes (`Control::content_fit` is `None`).
+- **Departures**: list boxes (`select` with `multiple` or `size` above 1)
+  are not supported by swb at all; swb's select is 1 px taller than
+  Chromium's at `line-height: normal` (the probe sets the height).
+
+### 7b.4 `content-visibility`
+
+- `content-visibility: visible | auto | hidden` is a property (not
+  inherited). The closed `details` flag (`contents_hidden`) stays; the
+  property merges with it (`ComputedStyle::skips_contents`, the one
+  question that all sites ask), and `getComputedStyle` shows `hidden` for it.
+  `hidden` has no effect on a non-atomic inline box and on `display:
+  contents` (measured, `cv-inline-hidden`, `cv-contents-hidden`: the text
+  is painted, in `innerText`, focusable; containment does not apply there),
+  so `skips_contents` is `contents_hidden || (hidden && layout containment
+  applies)`. `<span hidden=until-found>` is such an inline box. An
+  inline-block with `hidden` skips its contents. `auto` computes
+  `contain-intrinsic-width` and `-height` as `auto none` when they are not
+  declared (measured).
+- **Containment** (`ComputedStyle::has_layout_containment`,
+  `has_paint_containment`, `has_size_containment`): `hidden` and `auto` have
+  layout, paint and style containment; `hidden` also size containment (the
+  size of the box is `contain-intrinsic-size`, or 0). The skipped contents
+  are laid out as usual (a script's `getBoundingClientRect` of a descendant
+  gives the box that it would have), but they are out of the fragment tree
+  for paint, hit testing (the box itself is hit), the selection and
+  `innerText` (the skipped element gives no line breaks), the focus (not
+  focusable, not in the tab order) and the top layer (an element in them is
+  not rendered). A containment box is the containing block of absolute and
+  fixed boxes and the offset parent of its descendants.
+- **`auto` is not skipped**: in Chromium's JS-off GitHub reference no
+  element has `content-visibility: auto` (the rules match elements that the
+  scripts make), so skipping changes no target's score. Measured in
+  Chromium: an off-screen `auto` box is sized by its `contain-intrinsic-size`
+  (0 without), its descendants report their normal boxes, the scroll height
+  of the page uses the intrinsic sizes, and the relevance is computed after
+  the first frame (the first measurement of a JS-off page shows even
+  on-screen `auto` boxes as skipped: two states, 18 or 100 px for the box
+  `a` of `content-visibility-and-text-wrap`). Skipping, the remembered size
+  of `contain-intrinsic-size: auto`, `contentvisibilityautostatechange`,
+  `checkVisibility()` and find in page are backlog. Images under skipped
+  contents: measured, an eager `<img>` loads in Chromium and swb, a lazy one
+  loads in neither (nothing to do).
+- `[hidden=until-found]` has `content-visibility: hidden` in the
+  user-agent sheet instead of `display: none` (find in page, which reveals
+  it, is backlog).
+
+### 7b.5 `contain: layout` and `paint`
+
+Measured (`ct-*`): `contain: layout`, `paint`, `content` and `strict` make an
+independent formatting context (the box contains floats, margins do not
+collapse through it, it avoids floats beside it), a stacking context (the
+`z-index` of descendants stays inside), the containing block of absolute and
+fixed boxes, and a box without a baseline (an inline-block sits on its
+bottom margin edge); paint containment also clips to the padding box
+(`clips_x`, `clips_y`, and the scrollable overflow does not propagate).
+Layout containment does not apply to non-atomic inline boxes and internal
+table boxes. `contain: style` and `size` alone have none of these.
+
+### 7b.6 Review fixes
+
+The review of 7b found nine items; the fixes (the cases are in the probe
+file, `cv-inline-*`, `cv-contents-hidden`, `cv-until-found-inline`,
+`cm-shorthand-*`, `ap-font-size-*`, `ap-line-height-em`, `cm-form-*`):
+
+- The color table: a full table gives the 8-bit color for `Wide` colors
+  (7b.2); a unit test with a small limit covers both cases.
+- `@property` amplification: the maps do not copy initial values (7b.1);
+  hostile case `registered-property-10000-rules-50000-declarers`.
+- `content-visibility: hidden` on inline boxes and `display: contents`:
+  one question (`skips_contents`) at every site (7b.4).
+- `getComputedStyle` of `text-decoration` and `background` with a mix color
+  uses the longhands' serialization.
+- Font-relative units in registered properties that `font-size` uses are a
+  cycle (7b.1).
+- `calc()` percentages in `color-mix()`, and the departure list (7b.2).
+- A layout test that fails without the containment terms of
+  `forms_stacking_context`.
+- `StyleMap::has_hidden_contents` is a flag that the cascade sets when it
+  stores a style, not a scan of all styles per layout.
+- The cascade visits only the longhands that have a winner (a bit set in
+  `Winners`, in the order of `LonghandId::ALL`), not all 370 for each
+  element. The fixes above cost instructions (the maps of custom properties
+  in the cascade of Ars Technica); this change more than pays for them.
+
+### 7b.7 Results
+
+- Probe rows: 196 cases; the test has 16 departure rows and 45 later rows
+  (named in the test with reasons); the other rows pass.
+- JS off and on: no change in any fixture score (GitHub 0.9221 / 0.9939 and
+  0.9115 / 0.9934); `just snapshot` JS off: no file changes.
+- GitHub JS on, load: 0.60 s (base 0.60 s; budget 1.56 s).
+- Callgrind, JS off, total instructions against the release build of 581abaa
+  (the same session): 7b as first reviewed Wikipedia +0.19 %, Ars Technica
+  +0.09 %, BBC +0.04 %; with the review fixes Wikipedia -1.48 %, Ars
+  Technica -0.37 %, BBC -0.04 % (budget +0.3 %).
+- Hostile cases (`small_features.py`): `property-rules-10000` 0.6 s,
+  102 MiB; `registered-property-100000-users` 0.8 s, 292 MiB;
+  `content-visibility-120000-boxes` 1.5 s, 801 MiB (the same page with
+  200,000 boxes takes 1.2 GiB without the property too);
+  `color-mix-chain-1000-custom-properties` and `color-mix-nested-1000-deep`
+  0.05 s; `color-mix-200000-distinct-colors` 1.8 s, 934 MiB;
+  `field-sizing-20000-controls` 1.2 s, 533 MiB; `contain-layout-50000-nested`
+  3.1 s, 141 MiB.

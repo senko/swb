@@ -39,17 +39,11 @@ const TOLERANCE: i32 = 2;
 const BOX_TOLERANCE: f64 = 0.5;
 
 /// The cases that a later sub-feature of ADR 0037 runs: (case, why).
-const LATER: &[(&str, &str)] = &[
-    (
-        "top-layer-not-rendered-object",
-        "swb renders the fallback children of an `object` with a `type` or `data`, Chromium \
+const LATER: &[(&str, &str)] = &[(
+    "top-layer-not-rendered-object",
+    "swb renders the fallback children of an `object` with a `type` or `data`, Chromium \
          does not (measured: a child `div` has no client rect; backlog, not the top layer)",
-    ),
-    (
-        "top-layer-not-rendered-content-visibility",
-        "swb has no `content-visibility` (backlog; the closed `details` case covers the rule)",
-    ),
-];
+)];
 
 const PAGE: &str = common::CASE_PAGE;
 

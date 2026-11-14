@@ -53,6 +53,8 @@ mod positioned;
 mod replaced;
 mod scroll;
 mod shape;
+#[cfg(test)]
+mod small_features_tests;
 mod source_map;
 pub mod svg;
 mod table;
@@ -356,7 +358,7 @@ pub(crate) fn layout_with(input: &LayoutInput<'_>, ctx: &mut LayoutContext<'_>) 
 /// them. Runs after the out-of-flow pass, which places the boxes in the
 /// hidden contents. The recursion depth is bounded by the box tree depth.
 fn hide_contents(b: &mut BoxFragment) {
-    if b.style.contents_hidden {
+    if b.style.skips_contents() {
         b.hidden = Some(std::mem::take(&mut b.children));
         return;
     }

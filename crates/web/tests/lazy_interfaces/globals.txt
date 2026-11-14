@@ -79,6 +79,7 @@ CSSLayerBlockRule:dwc
 CSSLayerStatementRule:dwc
 CSSFontFaceRule:dwc
 CSSKeyframesRule:dwc
+CSSPropertyRule:dwc
 DOMParser:dwc
 Event:dwc
 CustomEvent:dwc

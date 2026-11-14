@@ -2,6 +2,8 @@
 //! values (as stored in [`crate::ComputedStyle`]).
 
 mod color;
+pub(crate) mod color_mix;
+pub use color_mix::ColorId;
 mod filter;
 mod grid;
 mod keywords;

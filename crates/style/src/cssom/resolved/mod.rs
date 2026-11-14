@@ -26,6 +26,7 @@
 //! items are `0px`.
 
 mod longhand;
+pub(crate) use longhand::lp as length_percentage_text;
 mod shape;
 mod shorthand;
 #[cfg(test)]
@@ -210,7 +211,7 @@ pub fn custom_property_names(style: &ComputedStyle) -> Vec<String> {
     let mut names: Vec<String> = style
         .custom_properties
         .as_ref()
-        .map(|props| props.keys().map(ToString::to_string).collect())
+        .map(|props| props.names().into_iter().map(ToString::to_string).collect())
         .unwrap_or_default();
     names.sort_unstable();
     names

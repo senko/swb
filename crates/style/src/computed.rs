@@ -1,10 +1,9 @@
 //! The computed style of an element: one value per supported longhand
 //! property.
 
-use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 
-use swb_css::ComponentValue;
+use crate::custom::CustomProperties;
 
 use crate::font_settings::{FontFeatureSettings, FontVariationSettings};
 
@@ -12,22 +11,19 @@ use crate::properties::inert::InertStyle;
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
     BackgroundSize, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, ClipPath, Color,
-    CompositeOperator, Contain, ContainIntrinsic, ContainerName, ContainerType, Content,
-    CornerRadius, CounterList, Cursor, Direction, Display, EmptyCells, FillRule, Filter, FlexBasis,
-    FlexDirection, FlexWrap, Float, FontFamily, FontSizeOrigin, FontStyle, FontVariantCaps, Gap,
-    GenericFamily, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens, Image, LengthPercentage,
-    LengthPercentageOrAuto, LineHeight, ListStylePosition, ListStyleType, MaskClip, MaskImage,
-    MaskMode, MaxSize, ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents,
-    Position, PositionComponent, Rgba, ScrollbarWidth, ShapeRendering, Size, StrokeLinecap,
-    StrokeLinejoin, SvgPaint, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle,
-    TextOverflow, TextTransform, TrackBreadth, TrackList, TrackSize, UnicodeBidi, UserSelect,
-    VerticalAlign, Visibility, WhiteSpace, WordBreak, ZIndex,
+    ColorId, CompositeOperator, Contain, ContainIntrinsic, ContainerName, ContainerType, Content,
+    ContentVisibility, CornerRadius, CounterList, Cursor, Direction, Display, EmptyCells,
+    FieldSizing, FillRule, Filter, FlexBasis, FlexDirection, FlexWrap, Float, FontFamily,
+    FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily, GridAutoFlow, GridLine,
+    GridTemplateAreas, Hyphens, Image, LengthPercentage, LengthPercentageOrAuto, LineHeight,
+    ListStylePosition, ListStyleType, MaskClip, MaskImage, MaskMode, MaxSize, ObjectFit,
+    OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents, Position, PositionComponent,
+    Rgba, ScrollbarWidth, ShapeRendering, Size, StrokeLinecap, StrokeLinejoin, SvgPaint,
+    TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform,
+    TrackBreadth, TrackList, TrackSize, UnicodeBidi, UserSelect, VerticalAlign, Visibility,
+    WhiteSpace, WordBreak, ZIndex,
 };
 use crate::values::{ClipRect, TransformFunction, TransformOrigin};
-
-/// Custom properties (`--name: value`) of an element, after `var()`
-/// substitution. Shared with the parent when unchanged.
-pub type CustomProperties = HashMap<Arc<str>, Arc<[ComponentValue]>>;
 
 /// The computed values of all supported properties for one element (or
 /// pseudo-element).
@@ -39,6 +35,9 @@ pub type CustomProperties = HashMap<Arc<str>, Arc<[ComponentValue]>>;
 pub struct ComputedStyle {
     // ----- Inherited properties -----
     pub color: Rgba,
+    /// The `color` as `getComputedStyle` shows it when it came from a
+    /// `color-mix()` (float coordinates, not 8-bit); inherited with `color`.
+    pub color_exact: Option<ColorId>,
     /// `color-scheme`: `None` for `normal`, else the words of the value. See
     /// [`crate::used_color_scheme`].
     pub color_scheme: Option<Arc<str>>,
@@ -247,6 +246,8 @@ pub struct ComputedStyle {
     pub contain: Contain,
     /// `container-type` (not inherited; ADR 0038).
     pub container_type: ContainerType,
+    pub field_sizing: FieldSizing,
+    pub content_visibility: ContentVisibility,
     /// `container-name` (not inherited).
     pub container_name: ContainerName,
     /// `contain-intrinsic-width`.
@@ -299,6 +300,7 @@ impl ComputedStyle {
         let medium_border = 3.0;
         ComputedStyle {
             color: Rgba::BLACK,
+            color_exact: None,
             color_scheme: None,
             font_family: Arc::from([FontFamily::Generic(GenericFamily::Serif)]),
             font_size: 16.0,
@@ -465,6 +467,8 @@ impl ComputedStyle {
             counter_set: CounterList::default(),
             contain: Contain::NONE,
             container_type: ContainerType::Normal,
+            field_sizing: FieldSizing::Fixed,
+            content_visibility: ContentVisibility::Visible,
             container_name: None,
             contain_intrinsic_width: ContainIntrinsic::NONE,
             contain_intrinsic_height: ContainIntrinsic::NONE,
@@ -628,8 +632,77 @@ impl ComputedStyle {
     /// `strict`) or `container-type: size`, if it applies to the box
     /// ([`Self::size_containment_applies`]).
     pub fn has_size_containment(&self) -> bool {
-        (self.contain.size || self.container_type == ContainerType::Size)
+        (self.contain.size || self.container_type == ContainerType::Size || self.skips_contents())
             && self.size_containment_applies()
+    }
+
+    /// True if the box skips its contents: `content-visibility: hidden`
+    /// where containment applies, and the content of a closed `details`
+    /// ([`ComputedStyle::contents_hidden`]). The contents are laid out when
+    /// a script asks for their boxes, but not painted, hit, selected,
+    /// focused or in `innerText` (CSS Containment 2 §4, measured in
+    /// Chromium 148, `cv-hidden-*`). On a non-atomic inline box and on
+    /// `display: contents` the value has no effect (measured, `cv-inline-*`
+    /// and `cv-contents-*`). Every site that asks whether contents are
+    /// skipped uses this method.
+    pub fn skips_contents(&self) -> bool {
+        self.contents_hidden
+            || (self.content_visibility == ContentVisibility::Hidden
+                && self.layout_containment_applies())
+    }
+
+    /// True if layout and paint containment can apply to the box (CSS
+    /// Containment 2 §3.2, §3.3): not to non-atomic inline boxes and
+    /// internal table or ruby boxes except table cells.
+    pub fn layout_containment_applies(&self) -> bool {
+        !matches!(
+            self.display,
+            Display::None
+                | Display::Contents
+                | Display::Inline
+                | Display::TableRowGroup
+                | Display::TableHeaderGroup
+                | Display::TableFooterGroup
+                | Display::TableRow
+                | Display::TableColumnGroup
+                | Display::TableColumn
+                | Display::TableCaption
+        )
+    }
+
+    /// The effective layout containment: `contain: layout` (also `content`
+    /// and `strict`), or a `content-visibility` other than `visible`. The
+    /// box is an independent formatting context, the containing block of
+    /// absolutely positioned and fixed boxes, a stacking context and
+    /// has no baseline (measured in Chromium 148, `ct-*`).
+    pub fn has_layout_containment(&self) -> bool {
+        (self.contain.layout
+            || self.content_visibility != ContentVisibility::Visible
+            || self.contents_hidden)
+            && self.layout_containment_applies()
+    }
+
+    /// True if the box clips its content in the inline axis: `overflow-x`
+    /// other than `visible`, or paint containment (the padding box).
+    pub fn clips_x(&self) -> bool {
+        self.overflow_x.clips() || self.has_paint_containment()
+    }
+
+    /// True if the box clips its content in the block axis (see
+    /// [`ComputedStyle::clips_x`]).
+    pub fn clips_y(&self) -> bool {
+        self.overflow_y.clips() || self.has_paint_containment()
+    }
+
+    /// The effective paint containment: `contain: paint` (also `content`
+    /// and `strict`), or a `content-visibility` other than `visible`. The
+    /// box clips its content to its padding box and has the same effects
+    /// as layout containment on formatting and positioning.
+    pub fn has_paint_containment(&self) -> bool {
+        (self.contain.paint
+            || self.content_visibility != ContentVisibility::Visible
+            || self.contents_hidden)
+            && self.layout_containment_applies()
     }
 
     /// The effective inline-size containment (without size containment):

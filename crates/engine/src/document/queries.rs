@@ -41,8 +41,15 @@ pub struct ElementScroll {
     pub scrollable: bool,
 }
 
+/// True if an ancestor of `node` skips its contents with
+/// `content-visibility: hidden` (not rendered: no focus, no tab stop).
+pub(crate) fn in_skipped_contents(doc: &Document, styles: &StyleMap, node: NodeId) -> bool {
+    doc.flat_ancestors(node)
+        .any(|a| styles.get(a).is_some_and(|s| s.skips_contents()))
+}
+
 /// True if the element has a box, is visible and is not in the content of
-/// a closed `details`.
+/// a closed `details` or of a box with `content-visibility: hidden`.
 pub(crate) fn is_rendered_in(
     doc: &Document,
     tree: &FragmentTree,
@@ -51,6 +58,7 @@ pub(crate) fn is_rendered_in(
 ) -> bool {
     tree.element_boxes().contains_key(&node)
         && !doc.in_closed_details_content(node)
+        && !in_skipped_contents(doc, styles, node)
         && styles
             .get(node)
             .is_some_and(|s| s.visibility == Visibility::Visible)
@@ -67,6 +75,7 @@ pub(crate) fn rendered_test<'a>(
     move |node| {
         boxes.contains_key(&node)
             && !doc.in_closed_details_content(node)
+            && !in_skipped_contents(doc, styles, node)
             && styles
                 .get(node)
                 .is_some_and(|s| s.visibility == Visibility::Visible)

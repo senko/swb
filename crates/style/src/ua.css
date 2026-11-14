@@ -31,9 +31,9 @@ noframes, param, rp, script, style, template, title {
   display: none;
 }
 
-/* swb has no content-visibility: hidden=until-found content is hidden. */
+/* The contents are skipped (no find in page yet: they cannot be revealed). */
 [hidden=until-found i]:not(embed) {
-  display: none;
+  content-visibility: hidden;
 }
 
 embed[hidden] { display: inline; height: 0; width: 0; }

@@ -200,12 +200,10 @@ pub fn has_transform(fragment: &BoxFragment) -> bool {
 
 /// True if the box is the containing block of its absolutely positioned
 /// descendants: positioned (CSS 2.2 §10.1), transformed (CSS Transforms 1
-/// §1), or with layout containment (hidden contents, CSS Containment 2
-/// §3.2).
+/// §1), or with layout or paint containment (`contain`,
+/// `content-visibility`; CSS Containment 2 §3.2, §3.3).
 pub fn is_absolute_containing_block(fragment: &BoxFragment) -> bool {
-    fragment.style.position != Position::Static
-        || is_fixed_containing_block(fragment)
-        || fragment.style.contents_hidden
+    fragment.style.position != Position::Static || is_fixed_containing_block(fragment)
 }
 
 /// True if the box is the containing block of its fixed descendants
@@ -217,12 +215,16 @@ pub fn is_absolute_containing_block(fragment: &BoxFragment) -> bool {
 /// `will-change` of `filter` or `backdrop-filter` counts too (CSS Will
 /// Change 1 §3, measured in Chromium 148; `will-change: transform` does
 /// not in swb).
-/// Deviation: layout containment (hidden contents) does not count, so a
-/// fixed box in the hidden contents of a closed `details` is relative to
-/// the viewport.
+/// Layout containment and paint containment count (`contain: layout`,
+/// `paint`, `content`, `strict`, `content-visibility` other than
+/// `visible`; not for inline boxes and not for the root element; measured
+/// in Chromium 148, `ct-containing-block`).
 pub fn is_fixed_containing_block(fragment: &BoxFragment) -> bool {
     has_transform(fragment)
         || (fragment.style.is_filter_containing_block() && !fragment.is_inline && !fragment.is_root)
+        || ((fragment.style.has_layout_containment() || fragment.style.has_paint_containment())
+            && !fragment.is_inline
+            && !fragment.is_root)
 }
 
 /// The area of the `clip` property of an absolutely positioned box whose
@@ -247,7 +249,8 @@ pub fn clip_property_area(fragment: &BoxFragment, border_rect: Rect) -> Option<R
 /// True if the box forms a stacking context in paint (CSS 2.2 Appendix E,
 /// CSS Transforms 1 §3, CSS Masking 1): a transform, fixed or sticky
 /// positioning, a positioned box with an integer `z-index`, opacity below
-/// 1, a `filter` other than `none` (also `url()` and the identity
+/// 1, layout or paint containment (`contain`, `content-visibility`;
+/// measured in Chromium 148, `ct-stacking-and-clip`), a `filter` other than `none` (also `url()` and the identity
 /// functions, measured in Chromium), a mask, or a `clip-path` that is a
 /// basic shape or a geometry box
 /// (measured in Chromium: a `z-index: -1` child paints above the
@@ -260,6 +263,8 @@ pub fn forms_stacking_context(fragment: &BoxFragment) -> bool {
         || matches!(style.position, Position::Fixed | Position::Sticky)
         || (style.position != Position::Static && style.z_index != swb_style::ZIndex::Auto)
         || style.opacity < 1.0
+        || style.has_layout_containment()
+        || style.has_paint_containment()
         || style.has_filter_effect()
         || style.will_change_makes_stacking_context()
         || style.has_mask()

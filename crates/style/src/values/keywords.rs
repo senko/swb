@@ -650,6 +650,29 @@ keyword_enum! {
 }
 
 keyword_enum! {
+    /// The `field-sizing` property (CSS Sizing 4): `content` sizes text
+    /// fields, text areas and selects by their content (M10 7b, ADR 0038).
+    FieldSizing {
+        Fixed = "fixed",
+        Content = "content",
+    }
+    default Fixed
+}
+
+keyword_enum! {
+    /// The `content-visibility` property (CSS Containment 2). `hidden`
+    /// skips the contents of the box. `auto` has layout, paint and style
+    /// containment; swb never skips the contents of an `auto` box (they
+    /// would be skipped while off-screen; ADR 0038, section "7b").
+    ContentVisibility {
+        Visible = "visible",
+        Auto = "auto",
+        Hidden = "hidden",
+    }
+    default Visible
+}
+
+keyword_enum! {
     /// The `user-select` property.
     UserSelect {
         Auto = "auto",

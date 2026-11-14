@@ -109,7 +109,7 @@ impl DocumentState {
         if let Some(styles) = &self.styles {
             return styles.get(node).is_some_and(|s| {
                 s.display != Display::None && s.visibility == Visibility::Visible
-            });
+            }) && !super::queries::in_skipped_contents(&self.dom, styles, node);
         }
         // After a DOM change: the styles of the element and its ancestors
         // only, not of the whole document (a loop of "append an input,

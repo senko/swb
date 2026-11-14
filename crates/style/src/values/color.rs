@@ -2,6 +2,8 @@
 //!
 //! <https://www.w3.org/TR/css-color-4/>
 
+use super::color_mix::{ColorId, Special, Wide};
+
 /// An sRGB color with 8-bit channels and 8-bit alpha (non-premultiplied).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub struct Rgba {
@@ -64,6 +66,9 @@ pub enum Color {
     CurrentColor,
     /// A concrete color.
     Rgba(Rgba),
+    /// A `color-mix()` result with float coordinates, or a mix with
+    /// `currentcolor` (see [`super::color_mix`]).
+    Special(ColorId),
 }
 
 impl Color {
@@ -75,6 +80,56 @@ impl Color {
         match self {
             Color::CurrentColor => current_color,
             Color::Rgba(c) => c,
+            Color::Special(id) => id.resolve(current_color),
+        }
+    }
+
+    /// The color with float coordinates that `self` resolves to, if it is a
+    /// `color-mix()`: what `getComputedStyle` shows for the `color`
+    /// property.
+    pub fn resolved_id(self, current_color: Rgba, exact: Option<ColorId>) -> Option<ColorId> {
+        let Color::Special(id) = self else {
+            return None;
+        };
+        match id.get() {
+            Special::Wide(_) => Some(id),
+            Special::Mix(m) => {
+                // `currentcolor` of the `color` property is the exact color
+                // of the parent, if it has one.
+                let current = match exact.map(ColorId::get) {
+                    Some(Special::Wide(w)) => w,
+                    _ => Wide::from_rgba(current_color),
+                };
+                // `None` if the table is full: the caller uses the 8-bit
+                // color.
+                ColorId::intern(Special::Wide(m.resolve_wide(current)))
+            }
+        }
+    }
+
+    /// The computed value as `getComputedStyle` of a property shows it:
+    /// `currentcolor` is the element's color, a mix with float
+    /// coordinates is serialized in its space.
+    pub fn resolved_text(self, current_color: Rgba) -> String {
+        match self {
+            Color::Special(id) => match id.get() {
+                Special::Wide(w) => w.serialize(),
+                Special::Mix(m) => m.resolve(current_color).serialize(),
+            },
+            other => crate::cssom::rgba_text(other.resolve(current_color)),
+        }
+    }
+
+    /// The computed value of a registered `<color>` custom property:
+    /// `currentcolor` and mixes with it stay as they are.
+    pub fn computed_text(self) -> String {
+        match self {
+            Color::CurrentColor => "currentcolor".to_owned(),
+            Color::Rgba(c) => crate::cssom::rgba_text(c),
+            Color::Special(id) => match id.get() {
+                Special::Wide(w) => w.serialize(),
+                Special::Mix(m) => m.serialize(),
+            },
         }
     }
 }

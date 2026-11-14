@@ -79,7 +79,13 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
     use LonghandValue as V;
     match value {
         // `color: currentColor` is `color: inherit`.
-        V::Color(c) => s.color = c.resolve(cx.parent.color),
+        V::Color(c) => {
+            s.color_exact = c.resolved_id(cx.parent.color, cx.parent.color_exact);
+            s.color = match s.color_exact {
+                Some(id) => id.resolve(cx.parent.color),
+                None => c.resolve(cx.parent.color),
+            };
+        }
         V::ColorScheme(v) => s.color_scheme.clone_from(v),
         V::FontFamily(f) => s.font_family = Arc::clone(f),
         V::FontSize(v) => {
@@ -252,6 +258,8 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::CounterSet(v) => s.counter_set = v.clone(),
         V::Contain(v) => s.contain = *v,
         V::ContainerType(v) => s.container_type = *v,
+        V::FieldSizing(v) => s.field_sizing = *v,
+        V::ContentVisibility(v) => s.content_visibility = *v,
         V::ContainerName(v) => s.container_name.clone_from(v),
         V::ContainIntrinsicWidth(v) => s.contain_intrinsic_width = v.compute(cx),
         V::ContainIntrinsicHeight(v) => s.contain_intrinsic_height = v.compute(cx),

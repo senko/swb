@@ -506,8 +506,8 @@ fn build_root(ctx: &BuildContext<'_>, state: &mut BuildState) -> Option<Independ
 /// its place ([`BuildContext::placed_style`]): not one inside a
 /// `display: none` ancestor, outside the flat tree, in the fallback content
 /// of a replaced element or in a closed `details` (measured in Chromium
-/// 148, cases `escape-ancestors` and `top-layer-not-rendered-*`; swb has no
-/// `content-visibility`, backlog). An element reached
+/// 148, cases `escape-ancestors` and `top-layer-not-rendered-*`, also in
+/// the skipped contents of `content-visibility: hidden`). An element reached
 /// only in the box of another top-layer element is built after it; the
 /// results are sorted by layer position at the end, so each entry costs
 /// O(1) besides its own boxes. An element with `display: none` has no
@@ -857,12 +857,17 @@ impl ContainerBuilder {
         {
             self.push_details_children(ctx, parent, state);
         } else {
+            // A top-layer element in skipped contents is not reached.
+            let reached = ctx.reached.borrow().len();
             self.push_nodes(
                 ctx,
                 ctx.doc.flat_children(parent),
                 parent_style.as_ref(),
                 state,
             );
+            if parent_style.as_ref().is_some_and(|s| s.skips_contents()) {
+                ctx.reached.borrow_mut().truncate(reached);
+            }
         }
         if parent_style.is_some() {
             self.push_pseudo(ctx, parent, PseudoKind::After, state);
@@ -1323,8 +1328,11 @@ fn build_block_level(
         || style.overflow_x.is_scroll_container()
         || style.overflow_y.is_scroll_container()
         || multicol
-        // Layout containment: hidden contents are a block formatting context.
-        || style.contents_hidden
+        // Layout and paint containment (`contain`, `content-visibility`)
+        // make an independent formatting context (measured in Chromium
+        // 148, `ct-layout`, `ct-paint`, `ct-content`; ADR 0038, "7b").
+        || style.has_layout_containment()
+        || style.has_paint_containment()
         // `container-type: size` and `inline-size` make an independent
         // formatting context (measured in Chromium 148,
         // `containment-layout-effects`; ADR 0038). `contain: size` and

@@ -5,7 +5,7 @@
 //! with every part of each layer, `font` without its `normal` parts.
 
 use super::longhand::{self, area_rows, grid_line, lp, track_list, track_size};
-use super::{Resolver, number, px, rgba};
+use super::{Resolver, number, px};
 use crate::values::{
     Color, FontStyle, FontVariantCaps, GridLine, LineHeight, PositionComponent, TextDecorationStyle,
 };
@@ -241,7 +241,7 @@ fn background(r: &Resolver<'_>) -> String {
     for i in 0..count {
         let mut parts = Vec::new();
         if i + 1 == count {
-            parts.push(rgba(s.background_color.resolve(s.color)));
+            parts.push(s.background_color.resolved_text(s.color));
         }
         parts.push(
             s.background_image
@@ -396,8 +396,8 @@ fn text_decoration(r: &Resolver<'_>) -> String {
     if s.text_decoration_style != TextDecorationStyle::Solid {
         parts.push(s.text_decoration_style.as_str().to_owned());
     }
-    if let Color::Rgba(c) = s.text_decoration_color {
-        parts.push(rgba(c));
+    if s.text_decoration_color != Color::CurrentColor {
+        parts.push(s.text_decoration_color.resolved_text(s.color));
     }
     if parts.is_empty() {
         "none".to_owned()

@@ -1443,12 +1443,10 @@ pub(crate) fn layout_sized(
     let mut children = layout_contents(ctx, ib, child_cb, limits, &mut markers);
     place_unplaced_markers(ctx, ib.marker.as_ref(), style, &mut markers, &mut children);
     let inflow = children.inflow;
-    // Size containment: hidden contents have no height of their own; with
-    // `contain: size` or `container-type: size`, the content height is
-    // `contain-intrinsic-block-size` (ADR 0038).
-    let natural_height = if style.contents_hidden {
-        0.0
-    } else if style.has_size_containment() {
+    // Size containment (`contain: size`, `container-type: size`, skipped
+    // contents): the content height is `contain-intrinsic-block-size`
+    // (ADR 0038).
+    let natural_height = if style.has_size_containment() {
         style.contain_intrinsic_height.size()
     } else {
         children.content_height
@@ -1458,8 +1456,9 @@ pub(crate) fn layout_sized(
         content = content.max(children.content_height);
     }
     let height = limits.clamp(content);
-    // Hidden contents have no baseline (size containment).
-    let baselines = if style.contents_hidden {
+    // A box with layout containment has no baseline (measured in Chromium
+    // 148, `ct-layout-baseline`); skipped contents have none either.
+    let baselines = if style.has_layout_containment() || style.skips_contents() {
         Baselines::default()
     } else {
         children.baselines.offset(edge_sum.top)

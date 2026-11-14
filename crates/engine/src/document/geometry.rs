@@ -380,6 +380,10 @@ impl DocumentState {
                 s.position != Position::Static
                     || s.has_transform()
                     || (s.is_filter_containing_block() && Some(ancestor) != root)
+                    // Layout and paint containment make a containing block
+                    // (measured in Chromium 148, `cv-hidden-boxes`).
+                    || ((s.has_layout_containment() || s.has_paint_containment())
+                        && Some(ancestor) != root)
             }) {
                 return Some(ancestor);
             }
@@ -646,7 +650,7 @@ impl DocumentState {
                 _ => ObservedPosition::Relative,
             },
             transformed: style.has_transform() || style.is_filter_containing_block(),
-            clips: style.overflow_x.clips() || style.overflow_y.clips(),
+            clips: style.clips_x() || style.clips_y(),
         })
     }
 

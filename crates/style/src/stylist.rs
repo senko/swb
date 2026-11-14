@@ -36,7 +36,7 @@
 //! `::slotted()` rules: they match nothing there.
 
 use std::collections::HashMap;
-use std::sync::{Arc, LazyLock};
+use std::sync::{Arc, LazyLock, OnceLock};
 
 use log::trace;
 use swb_css::{
@@ -56,6 +56,7 @@ use crate::font_face::FontFace;
 use crate::layers::{LayerTree, UNLAYERED};
 use crate::parse::ParserContext;
 use crate::properties::{DeclarationBlock, is_supported};
+use crate::registered::{Registration, Registry};
 use crate::style_map::PseudoKind;
 
 /// The user-agent stylesheet.
@@ -344,6 +345,12 @@ pub struct Stylist {
     font_faces: Vec<(FontFace, Option<u32>)>,
     /// True if `@font-face` rules beyond [`MAX_FONT_FACES`] were ignored.
     font_faces_truncated: bool,
+    /// The valid `@property` rules in document order, with their media
+    /// chain (ADR 0038, section "7b"). Rules of shadow trees' sheets and
+    /// inside `@container` do not register.
+    registrations: Vec<(Registration, Option<u32>)>,
+    /// [`Stylist::registry`] when no registration depends on `@media`.
+    registry_cache: OnceLock<Option<Arc<Registry>>>,
     /// See [`Stylist::set_dark_canvas_text`].
     dark_canvas_text: bool,
     /// True for the stylist of a shadow tree's sheets ([`Stylist::new_scoped`]).
@@ -445,6 +452,8 @@ impl Stylist {
             state_dependencies: ElementState::empty(),
             font_faces: Vec::new(),
             font_faces_truncated: false,
+            registrations: Vec::new(),
+            registry_cache: OnceLock::new(),
             dark_canvas_text: false,
             scoped: true,
             shadow_maps: None,
@@ -586,6 +595,7 @@ impl Stylist {
                 }
                 CssRule::LayerStatement(s) => self.declare_layers(&s.names, scope),
                 CssRule::FontFace(rule) => self.add_font_face(rule, cx, scope),
+                CssRule::Property(rule) => self.add_registration(rule, scope),
                 CssRule::Import(import) => self.declare_import_layer(import, scope),
                 CssRule::Keyframes(_) => {}
                 CssRule::Container(c) => {
@@ -690,6 +700,7 @@ impl Stylist {
                 }
                 RuleKind::LayerStatement { names } => self.declare_layers(names, scope),
                 RuleKind::FontFace(face) => self.add_font_face(face, cx, scope),
+                RuleKind::Property(rule) => self.add_registration(rule, scope),
                 RuleKind::Import(import) => self.declare_import_layer(import, scope),
                 RuleKind::Keyframes(_) => {}
                 RuleKind::Container { condition, rules } => {
@@ -750,6 +761,40 @@ impl Stylist {
     /// a shadow tree's stylist).
     pub(crate) fn has_container_units(&self) -> bool {
         self.container_units || self.scopes.iter().any(Stylist::has_container_units)
+    }
+
+    /// Adds the registration of a valid `@property` rule. Rules in a
+    /// shadow tree's sheet and inside `@container` are ignored.
+    fn add_registration(&mut self, rule: &swb_css::PropertyRule, scope: Scope) {
+        if self.scoped || scope.container.is_some() {
+            trace!("ignored @property in a shadow tree or inside @container");
+            return;
+        }
+        if let Some(registration) = Registration::from_rule(rule) {
+            self.registrations.push((registration, scope.media));
+        }
+    }
+
+    /// The registered custom properties for the evaluated `@media`
+    /// conditions `media` ([`Stylist::evaluate_media`]); `None` without
+    /// registrations.
+    pub(crate) fn registry(&self, media: &[bool]) -> Option<Arc<Registry>> {
+        if self.registrations.is_empty() {
+            return None;
+        }
+        let build = |applies: &dyn Fn(Option<u32>) -> bool| {
+            let regs = self
+                .registrations
+                .iter()
+                .filter(|(_, chain)| applies(*chain))
+                .map(|(r, _)| r);
+            let registry = Registry::new(regs);
+            (!registry.is_empty()).then(|| Arc::new(registry))
+        };
+        if self.registrations.iter().all(|(_, chain)| chain.is_none()) {
+            return self.registry_cache.get_or_init(|| build(&|_| true)).clone();
+        }
+        build(&|chain| chain.is_none_or(|c| media.get(c as usize).copied().unwrap_or(false)))
     }
 
     /// Adds a valid `@font-face` rule, up to [`MAX_FONT_FACES`]. Rules

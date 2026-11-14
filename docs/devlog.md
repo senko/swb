@@ -4,6 +4,33 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-14: M10 7b: small CSS features; feature 7 complete
+
+- `@property` (a registry in the cascade, `CSSPropertyRule`),
+  `color-mix()` as float colors and mixes that follow `currentcolor`,
+  `field-sizing: content`, `content-visibility` as a property, and the
+  formatting context, stacking context, containing block and clip of
+  `contain: layout` and `paint`. Decisions in ADR 0038 section "7b"; 196
+  probe cases against Chromium 148.
+- `content-visibility: auto` gets containment but does not skip
+  off-screen boxes: GitHub's JS-off page has no `auto` element, so skipping
+  cannot change a score. Chromium computes relevance only after the first
+  frame.
+- `Color` stays `Copy` and 8 bytes: float colors and mixes live in a
+  process-wide table. The review filled it from one page (1.1 million
+  mixes in 6 s of script); now a full table gives 8-bit colors, and only
+  a mix with `currentcolor` fails. A table per document is backlog.
+- The review also found 31.7 GB of memory for 10,000 `@property` rules
+  and 50,000 elements that each declare a custom property: each map
+  copied all initial values. A registered property that is missing from
+  a map now has its initial value. The older cost (each declaring element
+  copies its parent's whole map) is backlog.
+- The cascade visits only the longhands that have a winner (a bitset).
+  Callgrind JS off against 581abaa: Wikipedia −1.48 %, Ars Technica
+  −0.37 %, BBC −0.04 %. Scores and the JS-off snapshot unchanged; GitHub
+  JS on `load` 0.615 s.
+- Next: feature 8, the first view of GitHub with JavaScript on.
+
 ## 2026-11-14: M10 7a: container queries
 
 - Feature 7 is split: 7a `@container` (ADR 0038), 7b the other small CSS

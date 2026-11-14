@@ -1,0 +1,116 @@
+{
+  "cases": [
+    {
+      "name": "color-mix",
+      "viewport": [
+        1280,
+        800
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "JSON.stringify([getComputedStyle(document.getElementById('p')).color,getComputedStyle(document.getElementById('q')).color])",
+          "value": "[\"color(srgb 0.5 0 0.5)\",\"color(srgb 0 0 0 / 0.2)\"]"
+        }
+      ]
+    },
+    {
+      "name": "at-property",
+      "viewport": [
+        1280,
+        800
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#d[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            5.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "field-sizing",
+      "viewport": [
+        1280,
+        800
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#i[1]",
+          "tag": "input",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            76.48,
+            18.0
+          ]
+        },
+        {
+          "kind": "style",
+          "label": "#i[1]",
+          "style": {
+            "field-sizing": "content"
+          }
+        }
+      ]
+    },
+    {
+      "name": "content-visibility-and-text-wrap",
+      "viewport": [
+        1280,
+        800
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#a, #b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            1264.0,
+            18.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #b)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            8.0,
+            26.0,
+            200.0,
+            36.0
+          ]
+        },
+        {
+          "kind": "style",
+          "label": "(#a, #b)[1]",
+          "style": {
+            "content-visibility": "auto",
+            "text-wrap": "wrap"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "(#a, #b)[2]",
+          "style": {
+            "content-visibility": "visible",
+            "text-wrap": "balance"
+          }
+        }
+      ]
+    }
+  ]
+}

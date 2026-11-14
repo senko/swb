@@ -7,6 +7,11 @@ use swb_layout::{Control, ControlKind, FormControls, MAX_SELECT_OPTIONS, Point};
 
 use super::{ControlState, ControlType, Forms, InputType, normalize_newlines, option_label};
 
+/// The width of the spin buttons of a number field and of the cancel
+/// button of a search field, which `field-sizing: content` keeps (measured
+/// in Chromium 148, `fs-input-types`).
+const INNER_BUTTON_WIDTH: f32 = 15.0;
+
 /// The bullet that shows one character of a password.
 const BULLET: char = '\u{2022}';
 
@@ -49,6 +54,7 @@ impl Forms {
             scroll: Point::default(),
             checked: state.checked,
             disabled: state.disabled,
+            content_fit: None,
         };
         match state.ty {
             ControlType::Input(InputType::Hidden) => return None,
@@ -64,6 +70,18 @@ impl Forms {
                     20
                 };
                 control.kind = ControlKind::TextField { size };
+                // The types of `field-sizing: content` (the other types that
+                // swb shows as text fields keep their size); a number field
+                // and a search field keep room for their inner buttons.
+                control.content_fit = match t {
+                    InputType::Number | InputType::Search => Some(INNER_BUTTON_WIDTH),
+                    InputType::Text
+                    | InputType::Tel
+                    | InputType::Url
+                    | InputType::Email
+                    | InputType::Password => Some(0.0),
+                    _ => None,
+                };
                 text_view(e, state, &mut control, focus == Some(node));
             }
             ControlType::TextArea => {
@@ -71,12 +89,14 @@ impl Forms {
                     cols: positive_attr(e, "cols", 20),
                     rows: positive_attr(e, "rows", 2),
                 };
+                control.content_fit = Some(0.0);
                 text_view(e, state, &mut control, focus == Some(node));
                 // A text area keeps its scroll position without the focus.
                 control.scroll = state.scroll;
             }
             ControlType::Select => {
                 control.kind = ControlKind::Select;
+                control.content_fit = Some(0.0);
                 select_view(doc, state, &mut control);
             }
             ControlType::Button(_) => control.kind = ControlKind::ButtonElement,

@@ -19,7 +19,8 @@
 use swb_css::{ComponentValue, ParseError, Parser};
 
 use super::{ParseResult, parse_hue, parse_number};
-use crate::values::{Color, Rgba, named_color, system_color};
+use crate::values::color_mix::{self, HueMethod, Item, Mix, Space, Special, Wide};
+use crate::values::{Color, ColorId, Rgba, named_color, system_color};
 
 /// Consumes a `<color>`.
 pub(crate) fn parse_color(p: &mut Parser<'_>) -> ParseResult<Color> {
@@ -94,12 +95,12 @@ fn parse_hex(digits: &str) -> Option<Rgba> {
 fn parse_color_function(name: &str, mut args: Parser<'_>) -> ParseResult<Color> {
     let lower = name.to_ascii_lowercase();
     let rgba = match lower.as_str() {
+        "color-mix" => return args.parse_entirely(parse_color_mix),
         "rgb" | "rgba" => parse_rgb(&mut args)?,
         "hsl" | "hsla" => parse_hsl(&mut args)?,
         "hwb" => args.parse_entirely(parse_hwb)?,
         "lab" | "lch" | "oklab" | "oklch" => args.parse_entirely(|p| parse_lab_like(p, &lower))?,
         "color" => args.parse_entirely(parse_color_space_function)?,
-        "color-mix" => args.parse_entirely(parse_color_mix)?,
         "light-dark" => {
             let colors = args.parse_comma_separated(parse_color)?;
             return match colors.as_slice() {
@@ -279,121 +280,112 @@ fn parse_color_space_function(p: &mut Parser<'_>) -> ParseResult<Rgba> {
     Ok(linear_srgb_to_rgba(linear, alpha))
 }
 
-/// The color space of `color-mix()`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum MixSpace {
-    Srgb,
-    SrgbLinear,
-    Lab,
-    Oklab,
-    Xyz,
+/// A percentage of `color-mix()`: a `<percentage>`, or a math function that
+/// gives one. The result of a math function is clamped to 0..=100
+/// (`calc(infinity * 1%)` is 100%, as in Chromium); `NaN` is not
+/// supported.
+fn mix_percentage(p: &mut Parser<'_>) -> Option<f32> {
+    if let Ok(v) = p.expect_percentage() {
+        return Some(v);
+    }
+    p.try_parse(|p| {
+        let expr = super::length::parse_math_function(p)?;
+        if expr.kind != super::length::CalcKind::Percentage {
+            return Err(ParseError::Invalid);
+        }
+        let fraction = expr.as_number_or_percentage().ok_or(ParseError::Invalid)?;
+        Ok((fraction * 100.0).clamp(0.0, 100.0))
+    })
+    .ok()
 }
 
-/// `color-mix([in <space>,]? <color> <percentage>?, <color> <percentage>?)`.
+/// `color-mix([in <space> [<hue-method> hue]?,]? <color> <percentage>?, <color>
+/// <percentage>?)`. A mix of two concrete colors is computed here; a mix with
+/// `currentcolor` stays a mix until the used value ([`Mix`]).
 /// <https://www.w3.org/TR/css-color-5/#color-mix>
-fn parse_color_mix(p: &mut Parser<'_>) -> ParseResult<Rgba> {
-    let space = if p.expect_ident_matching("in").is_ok() {
+fn parse_color_mix(p: &mut Parser<'_>) -> ParseResult<Color> {
+    let (space, hue) = if p.expect_ident_matching("in").is_ok() {
         let name = p.expect_ident()?.to_ascii_lowercase();
-        let space = match name.as_str() {
-            "srgb" | "hsl" | "hwb" => MixSpace::Srgb,
-            "srgb-linear" => MixSpace::SrgbLinear,
-            "lab" | "lch" => MixSpace::Lab,
-            "oklab" | "oklch" => MixSpace::Oklab,
-            "xyz" | "xyz-d65" | "xyz-d50" => MixSpace::Xyz,
-            _ => return Err(ParseError::Invalid),
-        };
-        // An optional hue interpolation method for polar spaces.
-        let _ = p.try_parse(|p| {
-            p.expect_one_of(&[
-                ("shorter", ()),
-                ("longer", ()),
-                ("increasing", ()),
-                ("decreasing", ()),
-            ])?;
-            p.expect_ident_matching("hue")
-        });
+        let space = Space::from_name(&name).ok_or(ParseError::Invalid)?;
+        let mut hue = HueMethod::Shorter;
+        if space.is_polar() {
+            let method = p.try_parse(|p| {
+                let m = p.expect_one_of(&[
+                    ("shorter", HueMethod::Shorter),
+                    ("longer", HueMethod::Longer),
+                    ("increasing", HueMethod::Increasing),
+                    ("decreasing", HueMethod::Decreasing),
+                ])?;
+                p.expect_ident_matching("hue")?;
+                Ok::<_, ParseError>(m)
+            });
+            if let Ok(m) = method {
+                hue = m;
+            }
+        }
         p.expect_comma()?;
-        space
+        (space, hue)
     } else {
-        MixSpace::Oklab
+        (Space::Oklab, HueMethod::Shorter)
     };
-    let item = |p: &mut Parser<'_>| -> ParseResult<(Rgba, Option<f32>)> {
-        let mut pct = p.expect_percentage().ok();
+    let item = |p: &mut Parser<'_>| -> ParseResult<(Item, Option<f32>)> {
+        let mut pct = mix_percentage(p);
         let color = parse_color(p)?;
         if pct.is_none() {
-            pct = p.expect_percentage().ok();
+            pct = mix_percentage(p);
         }
         if pct.is_some_and(|v| !(0.0..=100.0).contains(&v)) {
             return Err(ParseError::Invalid);
         }
-        match color {
-            Color::Rgba(c) => Ok((c, pct)),
-            Color::CurrentColor => Err(ParseError::Invalid),
-        }
+        let item = match color {
+            Color::CurrentColor => Item::Current,
+            Color::Rgba(c) => Item::Color(Wide::from_rgba(c)),
+            Color::Special(id) => match id.get() {
+                Special::Wide(w) => Item::Color(w),
+                // A mix inside a mix with `currentcolor`: not supported.
+                Special::Mix(_) => return Err(ParseError::Invalid),
+            },
+        };
+        Ok((item, pct))
     };
-    let (c1, p1) = item(p)?;
+    let (first, p1) = item(p)?;
     p.expect_comma()?;
-    let (c2, p2) = item(p)?;
+    let (second, p2) = item(p)?;
     let (p1, p2) = match (p1, p2) {
         (None, None) => (50.0, 50.0),
         (Some(a), None) => (a, 100.0 - a),
         (None, Some(b)) => (100.0 - b, b),
         (Some(a), Some(b)) => (a, b),
     };
-    let sum = p1 + p2;
-    if sum <= 0.0 {
+    if p1 + p2 <= 0.0 {
         return Err(ParseError::Invalid);
     }
-    let alpha_multiplier = (sum / 100.0).min(1.0);
-    Ok(mix(space, c1, c2, p2 / sum, alpha_multiplier))
-}
-
-/// Interpolates from `a` to `b` by `t` (0..1) with premultiplied alpha.
-fn mix(space: MixSpace, a: Rgba, b: Rgba, t: f32, alpha_multiplier: f32) -> Rgba {
-    let to_space = |c: Rgba| -> [f32; 3] {
-        let srgb = [c.r, c.g, c.b].map(|v| f32::from(v) / 255.0);
-        let linear = srgb.map(srgb_to_linear);
-        match space {
-            MixSpace::Srgb => srgb,
-            MixSpace::SrgbLinear => linear,
-            MixSpace::Lab => xyz_d50_to_lab(d65_to_d50(mul(&LINEAR_SRGB_TO_XYZ_D65, linear))),
-            MixSpace::Oklab => linear_srgb_to_oklab(linear),
-            MixSpace::Xyz => mul(&LINEAR_SRGB_TO_XYZ_D65, linear),
+    let special = match (first, second) {
+        (Item::Color(a), Item::Color(b)) => {
+            return Ok(color_mix::wide_color(color_mix::mix(
+                space,
+                hue,
+                a,
+                b,
+                [p1, p2],
+            )));
         }
+        _ => Special::Mix(Mix::new(space, hue, first, second, [p1, p2])),
     };
-    let from_space = |v: [f32; 3]| -> [f32; 3] {
-        match space {
-            MixSpace::Srgb => v.map(srgb_to_linear),
-            MixSpace::SrgbLinear => v,
-            MixSpace::Lab => xyz_d65_to_linear_srgb(d50_to_d65(lab_to_xyz_d50(v))),
-            MixSpace::Oklab => oklab_to_linear_srgb(v),
-            MixSpace::Xyz => xyz_d65_to_linear_srgb(v),
-        }
-    };
-    let (aa, ab) = (a.alpha_f32(), b.alpha_f32());
-    let alpha = aa * (1.0 - t) + ab * t;
-    let (va, vb) = (to_space(a), to_space(b));
-    let mut out = [0.0; 3];
-    for i in 0..3 {
-        let premultiplied = va[i] * aa * (1.0 - t) + vb[i] * ab * t;
-        out[i] = if alpha > 0.0 {
-            premultiplied / alpha
-        } else {
-            0.0
-        };
-    }
-    linear_srgb_to_rgba(from_space(out), alpha * alpha_multiplier)
+    ColorId::intern(special)
+        .map(Color::Special)
+        .ok_or(ParseError::Invalid)
 }
 
 // ----- Color space conversions (CSS Color 4, section 18) -----
 
-type Matrix = [[f32; 3]; 3];
+pub(crate) type Matrix = [[f32; 3]; 3];
 
-fn mul(m: &Matrix, v: [f32; 3]) -> [f32; 3] {
+pub(crate) fn mul(m: &Matrix, v: [f32; 3]) -> [f32; 3] {
     [0, 1, 2].map(|i| m[i][0] * v[0] + m[i][1] * v[1] + m[i][2] * v[2])
 }
 
-const LINEAR_SRGB_TO_XYZ_D65: Matrix = [
+pub(crate) const LINEAR_SRGB_TO_XYZ_D65: Matrix = [
     [0.412_390_8, 0.357_584_33, 0.180_480_8],
     [0.212_639, 0.715_168_7, 0.072_192_32],
     [0.019_330_818, 0.119_194_78, 0.950_532_14],
@@ -417,7 +409,7 @@ const D65_TO_D50: Matrix = [
     [-0.009_243_041, 0.015_055_191, 0.751_874_3],
 ];
 
-const P3_TO_XYZ_D65: Matrix = [
+pub(crate) const P3_TO_XYZ_D65: Matrix = [
     [0.486_570_95, 0.265_667_7, 0.198_217_29],
     [0.228_974_56, 0.691_738_5, 0.079_286_91],
     [0.0, 0.045_113_38, 1.043_944_4],
@@ -426,19 +418,19 @@ const P3_TO_XYZ_D65: Matrix = [
 /// The D50 white point.
 const D50_WHITE: [f32; 3] = [0.3457 / 0.3585, 1.0, (1.0 - 0.3457 - 0.3585) / 0.3585];
 
-fn d50_to_d65(v: [f32; 3]) -> [f32; 3] {
+pub(crate) fn d50_to_d65(v: [f32; 3]) -> [f32; 3] {
     mul(&D50_TO_D65, v)
 }
 
-fn d65_to_d50(v: [f32; 3]) -> [f32; 3] {
+pub(crate) fn d65_to_d50(v: [f32; 3]) -> [f32; 3] {
     mul(&D65_TO_D50, v)
 }
 
-fn xyz_d65_to_linear_srgb(v: [f32; 3]) -> [f32; 3] {
+pub(crate) fn xyz_d65_to_linear_srgb(v: [f32; 3]) -> [f32; 3] {
     mul(&XYZ_D65_TO_LINEAR_SRGB, v)
 }
 
-fn srgb_to_linear(c: f32) -> f32 {
+pub(crate) fn srgb_to_linear(c: f32) -> f32 {
     let abs = c.abs();
     if abs <= 0.040_45 {
         c / 12.92
@@ -447,7 +439,7 @@ fn srgb_to_linear(c: f32) -> f32 {
     }
 }
 
-fn linear_to_srgb(c: f32) -> f32 {
+pub(crate) fn linear_to_srgb(c: f32) -> f32 {
     let abs = c.abs();
     if abs > 0.003_130_8 {
         c.signum() * (1.055 * abs.powf(1.0 / 2.4) - 0.055)
@@ -456,7 +448,7 @@ fn linear_to_srgb(c: f32) -> f32 {
     }
 }
 
-fn linear_srgb_to_rgba(linear: [f32; 3], alpha: f32) -> Rgba {
+pub(crate) fn linear_srgb_to_rgba(linear: [f32; 3], alpha: f32) -> Rgba {
     let [r, g, b] = linear.map(|c| linear_to_srgb(c) * 255.0);
     let finite = |v: f32| if v.is_finite() { v } else { 0.0 };
     Rgba::from_f32(finite(r), finite(g), finite(b), alpha)
@@ -465,7 +457,7 @@ fn linear_srgb_to_rgba(linear: [f32; 3], alpha: f32) -> Rgba {
 const LAB_KAPPA: f32 = 24389.0 / 27.0;
 const LAB_EPSILON: f32 = 216.0 / 24389.0;
 
-fn lab_to_xyz_d50([l, a, b]: [f32; 3]) -> [f32; 3] {
+pub(crate) fn lab_to_xyz_d50([l, a, b]: [f32; 3]) -> [f32; 3] {
     let f1 = (l + 16.0) / 116.0;
     let f0 = a / 500.0 + f1;
     let f2 = f1 - b / 200.0;
@@ -487,7 +479,7 @@ fn lab_to_xyz_d50([l, a, b]: [f32; 3]) -> [f32; 3] {
     [x * D50_WHITE[0], y * D50_WHITE[1], z * D50_WHITE[2]]
 }
 
-fn xyz_d50_to_lab(xyz: [f32; 3]) -> [f32; 3] {
+pub(crate) fn xyz_d50_to_lab(xyz: [f32; 3]) -> [f32; 3] {
     let f = |i: usize| {
         let v = xyz[i] / D50_WHITE[i];
         if v > LAB_EPSILON {
@@ -501,7 +493,7 @@ fn xyz_d50_to_lab(xyz: [f32; 3]) -> [f32; 3] {
 }
 
 /// <https://bottosson.github.io/posts/oklab/>
-fn oklab_to_linear_srgb([l, a, b]: [f32; 3]) -> [f32; 3] {
+pub(crate) fn oklab_to_linear_srgb([l, a, b]: [f32; 3]) -> [f32; 3] {
     let l_ = l + 0.396_337_78 * a + 0.215_803_76 * b;
     let m_ = l - 0.105_561_346 * a - 0.063_854_17 * b;
     let s_ = l - 0.089_484_18 * a - 1.291_485_5 * b;
@@ -513,20 +505,9 @@ fn oklab_to_linear_srgb([l, a, b]: [f32; 3]) -> [f32; 3] {
     ]
 }
 
-fn linear_srgb_to_oklab([r, g, b]: [f32; 3]) -> [f32; 3] {
-    let l = (0.412_221_46 * r + 0.536_332_55 * g + 0.051_445_995 * b).cbrt();
-    let m = (0.211_903_5 * r + 0.680_699_5 * g + 0.107_396_96 * b).cbrt();
-    let s = (0.088_302_46 * r + 0.281_718_85 * g + 0.629_978_7 * b).cbrt();
-    [
-        0.210_454_26 * l + 0.793_617_8 * m - 0.004_072_047 * s,
-        1.977_998_5 * l - 2.428_592_2 * m + 0.450_593_7 * s,
-        0.025_904_037 * l + 0.782_771_77 * m - 0.808_675_77 * s,
-    ]
-}
-
 /// HSL to sRGB (0..1), saturation and lightness as fractions.
 /// <https://www.w3.org/TR/css-color-4/#hsl-to-rgb>
-fn hsl_to_srgb(hue: f32, sat: f32, light: f32) -> [f32; 3] {
+pub(crate) fn hsl_to_srgb(hue: f32, sat: f32, light: f32) -> [f32; 3] {
     let hue = hue.rem_euclid(360.0);
     let (sat, light) = (sat.clamp(0.0, 1.0), light.clamp(0.0, 1.0));
     let f = |n: f32| {
@@ -538,7 +519,7 @@ fn hsl_to_srgb(hue: f32, sat: f32, light: f32) -> [f32; 3] {
 }
 
 /// HWB to sRGB (0..1). <https://www.w3.org/TR/css-color-4/#hwb-to-rgb>
-fn hwb_to_srgb(hue: f32, white: f32, black: f32) -> [f32; 3] {
+pub(crate) fn hwb_to_srgb(hue: f32, white: f32, black: f32) -> [f32; 3] {
     let (white, black) = (white.clamp(0.0, 1.0), black.clamp(0.0, 1.0));
     if white + black >= 1.0 {
         let gray = white / (white + black);
@@ -680,7 +661,7 @@ mod tests {
     }
 
     fn close(a: Option<Color>, b: Rgba) -> bool {
-        let Some(Color::Rgba(a)) = a else {
+        let Some(a) = a.map(|c| c.resolve(Rgba::BLACK)) else {
             return false;
         };
         let d = |x: u8, y: u8| (i16::from(x) - i16::from(y)).abs() <= 1;
@@ -726,9 +707,56 @@ mod tests {
         ));
         assert!(c("color-mix(in oklab, red, blue)").is_some());
         assert!(c("color-mix(in oklch longer hue, red, blue)").is_some());
-        assert_eq!(c("color-mix(in srgb, currentColor, blue)"), None);
+        assert_eq!(c("color-mix(in srgb red, blue)"), None);
+        assert_eq!(c("color-mix(in srgb, red, blue, green)"), None);
+        assert_eq!(c("color-mix(in srgb, red -10%, blue)"), None);
+        assert_eq!(c("color-mix(in srgb shorter hue, red, blue)"), None);
         assert_eq!(c("color-mix(in srgb, red 0%, blue 0%)"), None);
         assert_eq!(c("color-mix(in nope, red, blue)"), None);
+    }
+
+    #[test]
+    fn color_mix_accepts_calc_percentages() {
+        let purple = Rgba::rgb(128, 0, 128);
+        assert!(close(c("color-mix(in srgb, red calc(50%), blue)"), purple));
+        assert!(close(
+            c("color-mix(in srgb, calc(20% + 30%) red, blue)"),
+            purple
+        ));
+        // Clamped to 100%, as Chromium does for `calc(infinity * 1%)`.
+        assert!(close(
+            c("color-mix(in srgb, red calc(infinity * 1%), blue)"),
+            Rgba::rgb(255, 0, 0)
+        ));
+        assert!(close(
+            c("color-mix(in srgb, red calc(-20%), blue)"),
+            Rgba::rgb(0, 0, 255)
+        ));
+        // A number or a length is not a percentage.
+        assert_eq!(c("color-mix(in srgb, red calc(50), blue)"), None);
+        assert_eq!(c("color-mix(in srgb, red calc(5px), blue)"), None);
+    }
+
+    #[test]
+    fn color_mix_with_currentcolor_resolves_per_element() {
+        let css = "color-mix(in srgb, currentcolor 50%, transparent)";
+        let used = |current| c(css).map(|color| color.resolve(current));
+        assert_eq!(used(Rgba::rgb(255, 0, 0)), Some(Rgba::new(255, 0, 0, 128)));
+        assert_eq!(used(Rgba::rgb(0, 0, 255)), Some(Rgba::new(0, 0, 255, 128)));
+        let color = c(css).expect("parses");
+        assert_eq!(
+            color.computed_text(),
+            "color-mix(in srgb, currentcolor, rgba(0, 0, 0, 0))"
+        );
+        assert_eq!(
+            color.resolved_text(Rgba::rgb(0, 128, 0)),
+            "color(srgb 0 0.501961 0 / 0.5)"
+        );
+        // A mix inside a mix with `currentcolor` is not supported.
+        assert_eq!(
+            c("color-mix(in srgb, color-mix(in srgb, currentcolor, red), blue)"),
+            None
+        );
     }
 
     #[test]

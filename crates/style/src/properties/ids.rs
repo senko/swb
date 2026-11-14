@@ -23,14 +23,14 @@ use crate::parse::image::SpecifiedImage;
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
     BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color, CompositeOperator, Contain,
-    ContainerName, ContainerType, CounterList, Cursor, Direction, Display, EmptyCells, FillRule,
-    FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontVariantCaps, GridAutoFlow, GridLine,
-    GridTemplateAreas, Hyphens, ListStylePosition, ListStyleType, MaskClip, MaskMode, ObjectFit,
-    OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents, Position, ScrollbarWidth,
-    ShapeRendering, SpecifiedLengthPercentage as Lp, SpecifiedTrackList, SpecifiedTrackSize,
-    StrokeLinecap, StrokeLinejoin, SvgPaint, TableLayout, TextDecorationLine, TextDecorationStyle,
-    TextOverflow, TextTransform, UnicodeBidi, UserSelect, Visibility, WhiteSpace, WordBreak,
-    ZIndex,
+    ContainerName, ContainerType, ContentVisibility, CounterList, Cursor, Direction, Display,
+    EmptyCells, FieldSizing, FillRule, FlexDirection, FlexWrap, Float, FontFamily, FontStyle,
+    FontVariantCaps, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens, ListStylePosition,
+    ListStyleType, MaskClip, MaskMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay,
+    PointerEvents, Position, ScrollbarWidth, ShapeRendering, SpecifiedLengthPercentage as Lp,
+    SpecifiedTrackList, SpecifiedTrackSize, StrokeLinecap, StrokeLinejoin, SvgPaint, TableLayout,
+    TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi, UserSelect,
+    Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 
 macro_rules! longhands {
@@ -85,6 +85,9 @@ macro_rules! longhands {
                 }
                 if self == LonghandId::FontSize {
                     to.font_size_origin = from.font_size_origin;
+                }
+                if self == LonghandId::Color {
+                    to.color_exact = from.color_exact;
                 }
             }
         }
@@ -268,6 +271,8 @@ longhands! {
     CounterSet "counter-set" reset counter_set: CounterList;
     Contain "contain" reset contain: Contain;
     ContainerType "container-type" reset container_type: ContainerType;
+    FieldSizing "field-sizing" reset field_sizing: FieldSizing;
+    ContentVisibility "content-visibility" reset content_visibility: ContentVisibility;
     ContainerName "container-name" reset container_name: ContainerName;
     ContainIntrinsicWidth "contain-intrinsic-width" reset contain_intrinsic_width: SpecifiedContainIntrinsic;
     ContainIntrinsicHeight "contain-intrinsic-height" reset contain_intrinsic_height: SpecifiedContainIntrinsic;

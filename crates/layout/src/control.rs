@@ -51,7 +51,8 @@ use std::sync::Arc;
 
 use swb_dom::NodeId;
 use swb_style::{
-    BackgroundBox, BorderStyle, BoxSizing, ComputedStyle, Display, PseudoKind, Rgba, WhiteSpace,
+    BackgroundBox, BorderStyle, BoxSizing, ComputedStyle, Display, FieldSizing, PseudoKind, Rgba,
+    WhiteSpace,
 };
 
 use crate::LayoutContext;
@@ -151,6 +152,11 @@ pub struct Control {
     pub checked: bool,
     /// True if the control is disabled.
     pub disabled: bool,
+    /// `Some` if the control takes `field-sizing: content` (text fields of
+    /// the text-like types, text areas and selects): the width of the inner
+    /// buttons that the field keeps while it shows a value or nothing (the
+    /// spin buttons of a number field, the cancel button of a search field).
+    pub content_fit: Option<f32>,
 }
 
 /// The box of a form control.
@@ -308,12 +314,19 @@ pub(crate) fn content_sizes(
     control: &ControlBox,
 ) -> ContentSizes {
     let style = &*base.style;
+    if fits_content(style, control) {
+        let width = clamp_length(fitted_width(ctx, style, control));
+        return ContentSizes {
+            min: width,
+            max: width,
+        };
+    }
     let width = match (&control.control.kind, &control.contents) {
         (ControlKind::TextField { size }, _) => text_field_width(ctx, style, *size),
         (ControlKind::TextArea { cols, .. }, _) => text_area_width(ctx, style, *cols),
         (ControlKind::Checkbox | ControlKind::Radio, _) => checkbox_content_size(style, true),
         (ControlKind::Select, _) => {
-            options_width(ctx, style, &control.control.options)
+            options_width(ctx, style, &control.control.options, true)
                 + SELECT_PADDING.0
                 + SELECT_PADDING.1
         }
@@ -335,6 +348,44 @@ pub(crate) fn content_sizes(
     ContentSizes {
         min: width,
         max: width,
+    }
+}
+
+/// True if the control is sized by its content: `field-sizing: content` on
+/// a control that takes it.
+fn fits_content(style: &ComputedStyle, control: &ControlBox) -> bool {
+    style.field_sizing == FieldSizing::Content && control.control.content_fit.is_some()
+}
+
+/// The content-box width of a control with `field-sizing: content`
+/// (CSS Sizing 4 section 6.1; measured in Chromium 148, `fs-*`): the width
+/// of the text it shows (the value, else the placeholder) and at least
+/// 1 px, plus the inner buttons of a number or search field that shows a
+/// value or nothing; for a select, the selected option. `size`, `cols` and
+/// `rows` do not count.
+fn fitted_width(ctx: &mut LayoutContext<'_>, style: &ComputedStyle, control: &ControlBox) -> f32 {
+    let text = match &control.contents {
+        ControlContents::Text { ifc, style } => inline::content_sizes(ctx, ifc, style).max,
+        _ => 0.0,
+    };
+    let buttons = if control.control.placeholder {
+        0.0
+    } else {
+        control.control.content_fit.unwrap_or(0.0)
+    };
+    match control.control.kind {
+        ControlKind::TextField { .. } => text.max(1.0) + buttons,
+        ControlKind::TextArea { .. } => text.max(1.0),
+        ControlKind::Select => {
+            options_width(
+                ctx,
+                style,
+                std::slice::from_ref(&control.control.text),
+                false,
+            ) + SELECT_PADDING.0
+                + SELECT_PADDING.1
+        }
+        _ => 0.0,
     }
 }
 
@@ -394,7 +445,13 @@ pub(crate) fn layout(
     let (inner, height) = container.unwrap_or_else(|| {
         let inner = layout_inner(ctx, base.node, control, style, text_width);
         let height = content_height.unwrap_or_else(|| {
-            let intrinsic = intrinsic_height(ctx, style, kind, inner.height);
+            let fit = fits_content(style, control).then(|| {
+                (
+                    control.control.text.is_empty(),
+                    control.control.text.matches('\n').count() + 1,
+                )
+            });
+            let intrinsic = intrinsic_height(ctx, style, kind, inner.height, fit);
             let vertical = edge_sum.vertical();
             let specified = resolve_size(&style.height, cb.height, style.box_sizing, vertical);
             clamp_height(style, specified.unwrap_or(intrinsic), cb.height, vertical)
@@ -452,11 +509,20 @@ fn intrinsic_height(
     style: &ComputedStyle,
     kind: ControlKind,
     inner_height: f32,
+    fit: Option<(bool, usize)>,
 ) -> f32 {
-    match kind {
-        ControlKind::TextArea { rows, .. } => clamp_length(rows as f32 * line_height(ctx, style)),
-        ControlKind::Checkbox | ControlKind::Radio => checkbox_content_size(style, false),
-        ControlKind::Select => inner_height + SELECT_PADDING.2 + SELECT_PADDING.3,
+    match (kind, fit) {
+        // With `field-sizing: content` the lines of the text count (also an
+        // empty last line); a select without text has no line.
+        (ControlKind::TextArea { .. }, Some((_, lines))) => {
+            clamp_length(inner_height.max(lines as f32 * line_height(ctx, style)))
+        }
+        (ControlKind::TextArea { rows, .. }, None) => {
+            clamp_length(rows as f32 * line_height(ctx, style))
+        }
+        (ControlKind::Checkbox | ControlKind::Radio, _) => checkbox_content_size(style, false),
+        (ControlKind::Select, Some((true, _))) => SELECT_PADDING.2 + SELECT_PADDING.3,
+        (ControlKind::Select, _) => inner_height + SELECT_PADDING.2 + SELECT_PADDING.3,
         _ => inner_height,
     }
 }
@@ -802,7 +868,12 @@ fn ceil_px(v: f32) -> f32 {
 }
 
 /// The width of the widest option label in the select's font, rounded up.
-fn options_width(ctx: &mut LayoutContext<'_>, style: &ComputedStyle, options: &[String]) -> f32 {
+fn options_width(
+    ctx: &mut LayoutContext<'_>,
+    style: &ComputedStyle,
+    options: &[String],
+    round_up: bool,
+) -> f32 {
     let families = fonts::family_names(&style.font_family);
     let query = fonts::query(style, &families);
     let shape_options = swb_text::ShapeOptions::default();
@@ -820,7 +891,11 @@ fn options_width(ctx: &mut LayoutContext<'_>, style: &ComputedStyle, options: &[
         }
         widest = widest.max(width);
     }
-    ceil_px(widest)
+    if round_up {
+        ceil_px(widest)
+    } else {
+        clamp_length(widest)
+    }
 }
 
 /// True if the control has Chromium's native look: always for checkboxes

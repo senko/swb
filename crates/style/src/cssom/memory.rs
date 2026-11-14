@@ -159,6 +159,7 @@ pub(crate) fn rule_bytes(rule: &CssRule) -> usize {
                     + rules_bytes(&container.rules)
             }
             CssRule::FontFace(face) => declarations_bytes(&face.declarations),
+            CssRule::Property(rule) => rule.name.len() + declarations_bytes(&rule.declarations),
             CssRule::Keyframes(keyframes) => {
                 keyframes.name.len()
                     + keyframes

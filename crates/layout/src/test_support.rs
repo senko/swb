@@ -150,13 +150,9 @@ impl FormControls for TestControls<'_> {
         };
         let value = |default: &str| e.attr("value").unwrap_or(default).to_owned();
         let mut options = Vec::new();
-        let (kind, text) = match &**e.local_name() {
-            "input" => match e
-                .attr("type")
-                .unwrap_or("text")
-                .to_ascii_lowercase()
-                .as_str()
-            {
+        let ty = e.attr("type").unwrap_or("text").to_ascii_lowercase();
+        let (kind, mut text) = match &**e.local_name() {
+            "input" => match ty.as_str() {
                 "hidden" => return None,
                 "checkbox" => (ControlKind::Checkbox, String::new()),
                 "radio" => (ControlKind::Radio, String::new()),
@@ -183,18 +179,46 @@ impl FormControls for TestControls<'_> {
                     .filter(|&n| doc.is_html_element(n, &local_name!("option")))
                     .map(|n| doc.text_content(n))
                     .collect();
+                let selected = doc
+                    .descendants(node)
+                    .find(|&n| doc.element(n).is_some_and(|o| o.has_attr("selected")))
+                    .map(|n| doc.text_content(n));
                 (
                     ControlKind::Select,
-                    options.first().cloned().unwrap_or_default(),
+                    selected
+                        .or_else(|| options.first().cloned())
+                        .unwrap_or_default(),
                 )
             }
             "button" => (ControlKind::ButtonElement, String::new()),
             _ => return None,
         };
+        let placeholder = matches!(
+            kind,
+            ControlKind::TextField { .. } | ControlKind::TextArea { .. }
+        ) && text.is_empty()
+            && e.attr("placeholder").is_some_and(|p| !p.is_empty());
+        if placeholder {
+            e.attr("placeholder")
+                .unwrap_or_default()
+                .clone_into(&mut text);
+        }
+        // The types that take `field-sizing: content`, with the width of
+        // the inner buttons of number and search fields.
+        let content_fit = match kind {
+            ControlKind::TextField { .. } => match ty.as_str() {
+                "search" | "number" => Some(15.0),
+                "range" | "color" | "date" | "time" | "month" | "week" | "datetime-local" => None,
+                _ => Some(0.0),
+            },
+            ControlKind::TextArea { .. } | ControlKind::Select => Some(0.0),
+            _ => None,
+        };
         Some(Control {
             kind,
             text,
-            placeholder: false,
+            placeholder,
+            content_fit,
             options,
             caret: None,
             focus: None,

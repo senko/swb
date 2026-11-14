@@ -250,7 +250,7 @@ pub(crate) fn viewport_scroll_size<'a>(
             let area = box_overflow_rect(b, above.limit).translate(above.origin);
             *extent = extent.union(&matrix.map_rect(&area));
         }
-        let content = clipped || (b.style.overflow_x.clips() && b.style.overflow_y.clips());
+        let content = clipped || (b.style.clips_x() && b.style.clips_y());
         let inner = Clipped {
             content,
             absolute: if is_absolute_containing_block(b) {
@@ -588,8 +588,8 @@ fn add_box(
         extent.add(box_overflow_rect(b, limit).translate(origin));
     }
     let style = &b.style;
-    // Hidden contents (paint containment) are clipped.
-    if style.contents_hidden || style.overflow_x.clips() && style.overflow_y.clips() {
+    // Paint containment clips the overflow of the box.
+    if style.clips_x() && style.clips_y() {
         return;
     }
     let mut inner = Extent::NONE;
@@ -604,11 +604,11 @@ fn add_box(
     // `overflow: clip` on one axis clips the content at the padding box on
     // that axis (`overflow-clip-margin` is not supported).
     let padding_box = b.padding_rect().translate(origin);
-    if style.overflow_x.clips() {
+    if style.clips_x() {
         inner.left = inner.left.max(padding_box.x);
         inner.right = inner.right.min(padding_box.right());
     }
-    if style.overflow_y.clips() {
+    if style.clips_y() {
         inner.top = inner.top.max(padding_box.y);
         inner.bottom = inner.bottom.min(padding_box.bottom());
     }

@@ -138,6 +138,7 @@ fn rule_counts() {
             CssRule::LayerBlock(_) => "layer",
             CssRule::LayerStatement(_) => "layer-statement",
             CssRule::Container(_) => "container",
+            CssRule::Property(_) => "property",
         })
         .collect();
     assert_eq!(

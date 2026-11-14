@@ -1,0 +1,2159 @@
+{
+ "viewport": [
+  1280,
+  800
+ ],
+ "cases": [
+  {
+   "name": "ap-length",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: false; initial-value: 5px }</style><div class=t></div><div class=t style=\"--p:2em\"></div><div class=t style=\"--p:calc(1px + 2px)\"></div><div class=t style=\"--p:red\"></div><div class=t style=\"--p:10\"></div><div class=t style=\"--p:1in\"></div><div class=t style=\"--p:50%\"></div><div class=t style=\"--p:initial\"></div><div class=t style=\"--p:inherit\"></div><div class=t style=\"--p:unset\"></div><div class=t style=\"--p:3rem\"></div><div class=t style=\"--p:10vw\"></div><div class=t style=\"--p:calc(2 * 3px)\"></div><div class=t style=\"--p:  7px  \"></div><div class=t style=\"--p:0\"></div><div class=t style=\"--p:-1px\"></div><div class=t style=\"--p:1e1px\"></div><div class=t style=\"--p:var(--u)\"></div><div class=t style=\"--p:revert\"></div><div class=t style=\"--p:calc(1px * 1.5)\"></div><div class=t style=\"--p:1Q\"></div><div class=t style=\"--p:1cm\"></div><div class=t style=\"--p:1pt\"></div><div class=t style=\"--p:3PX\"></div><div class=t style=\"--p:+4px\"></div><div class=t style=\"--p:.5px\"></div><div class=t style=\"--p:calc(10px / 4)\"></div><div class=t style=\"--p:min(1px, 2px)\"></div><div class=t style=\"--p:max(1px, 2em)\"></div><div class=t style=\"--p:1px 2px\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-number",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<number>'; inherits: false; initial-value: 1 }</style><div class=t></div><div class=t style=\"--p:3\"></div><div class=t style=\"--p: 3.50 \"></div><div class=t style=\"--p:calc(1 + 2)\"></div><div class=t style=\"--p:1e2\"></div><div class=t style=\"--p:3px\"></div><div class=t style=\"--p:50%\"></div><div class=t style=\"--p:-0\"></div><div class=t style=\"--p:+7\"></div><div class=t style=\"--p:.5\"></div><div class=t style=\"--p:calc(1/3)\"></div><div class=t style=\"--p:red\"></div><div class=t style=\"--p:inherit\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-percentage",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<percentage>'; inherits: false; initial-value: 10% }</style><div class=t></div><div class=t style=\"--p:50%\"></div><div class=t style=\"--p:calc(10% + 5%)\"></div><div class=t style=\"--p:3\"></div><div class=t style=\"--p:5px\"></div><div class=t style=\"--p:0%\"></div><div class=t style=\"--p:-5%\"></div><div class=t style=\"--p:100.50%\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-length-percentage",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length-percentage>'; inherits: false; initial-value: 0px }</style><div class=t></div><div class=t style=\"--p:5px\"></div><div class=t style=\"--p:50%\"></div><div class=t style=\"--p:calc(10px + 50%)\"></div><div class=t style=\"--p:calc(1em + 1%)\"></div><div class=t style=\"--p:2em\"></div><div class=t style=\"--p:red\"></div><div class=t style=\"--p:calc(50% - 5px)\"></div><div class=t style=\"--p:calc(2 * 10%)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-color",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<color>'; inherits: false; initial-value: red }</style><div class=t></div><div class=t style=\"--p:blue\"></div><div class=t style=\"--p:#00f\"></div><div class=t style=\"--p:rgb(1 2 3 / 50%)\"></div><div class=t style=\"--p:currentcolor\"></div><div class=t style=\"--p:transparent\"></div><div class=t style=\"--p:hsl(120 100% 25%)\"></div><div class=t style=\"--p:color-mix(in srgb, red, blue)\"></div><div class=t style=\"--p:color-mix(in srgb, currentcolor 50%, transparent)\"></div><div class=t style=\"--p:5px\"></div><div class=t style=\"--p:inherit\"></div><div class=t style=\"--p:light-dark(red, blue)\"></div><div class=t style=\"--p:canvas\"></div><div class=t style=\"--p:oklch(0.5 0.1 100)\"></div><div class=t style=\"--p:color(display-p3 1 0 0)\"></div><div class=t style=\"--p:lab(50 20 20)\"></div><div class=t style=\"--p:rgb(300 0 0)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-integer",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<integer>'; inherits: false; initial-value: 7 }</style><div class=t></div><div class=t style=\"--p:3\"></div><div class=t style=\"--p:3.5\"></div><div class=t style=\"--p:-2\"></div><div class=t style=\"--p:calc(1 + 2)\"></div><div class=t style=\"--p:1e2\"></div><div class=t style=\"--p:calc(1.5 + 1.5)\"></div><div class=t style=\"--p:+4\"></div><div class=t style=\"--p:calc(7/2)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-universal",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '*'; inherits: false; initial-value: x }</style><div class=t></div><div class=t style=\"--p:anything goes\"></div><div class=t style=\"--p:  spaced   out  \"></div><div class=t style=\"--p:1px+2px\"></div><div class=t style=\"--p:var(--u)\"></div><div class=t style=\"--p:{a:b}\"></div><div class=t style=\"--p:initial\"></div><div class=t style=\"--p:\"></div><div class=t style=\"--p:calc(1px + 2px)\"></div><div class=t style=\"--p:2em\"></div><div class=t style=\"--p:red\"></div><div class=t style=\"--p:RED\"></div><div class=t style=\"--p:/* c */ a /* d */ b\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-universal-noinitial",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '*'; inherits: false }</style><div class=t></div><div class=t style=\"--p:abc\"></div><div class=t style=\"--p:inherit\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-alternatives",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length> | <percentage>'; inherits: false; initial-value: 1px }</style><div class=t></div><div class=t style=\"--p:5px\"></div><div class=t style=\"--p:5%\"></div><div class=t style=\"--p:calc(5px + 5%)\"></div><div class=t style=\"--p:5\"></div><div class=t style=\"--p:auto\"></div><div class=t style=\"--p:2em\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-keyword-alternatives",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: 'auto | <length>'; inherits: false; initial-value: auto }</style><div class=t></div><div class=t style=\"--p:5px\"></div><div class=t style=\"--p:auto\"></div><div class=t style=\"--p:AUTO\"></div><div class=t style=\"--p:none\"></div><div class=t style=\"--p:2em\"></div><div class=t style=\"--p:calc(1px + 1px)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-list-space",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>+'; inherits: false; initial-value: 1px }</style><div class=t></div><div class=t style=\"--p:1px 2px\"></div><div class=t style=\"--p:1px   2em\"></div><div class=t style=\"--p:1px, 2px\"></div><div class=t style=\"--p:1px\"></div><div class=t style=\"--p:red\"></div><div class=t style=\"--p:calc(1px+2px)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-list-comma",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>#'; inherits: false; initial-value: 1px }</style><div class=t></div><div class=t style=\"--p:1px, 2px\"></div><div class=t style=\"--p:1px,2em\"></div><div class=t style=\"--p:1px 2px\"></div><div class=t style=\"--p:1px\"></div><div class=t style=\"--p:\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-custom-ident",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<custom-ident>'; inherits: false; initial-value: foo }</style><div class=t></div><div class=t style=\"--p:bar\"></div><div class=t style=\"--p:FOO\"></div><div class=t style=\"--p:initial\"></div><div class=t style=\"--p:5px\"></div><div class=t style=\"--p:default\"></div><div class=t style=\"--p:inherit\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-string",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<string>'; inherits: false; initial-value: 'a' }</style><div class=t></div><div class=t style=\"--p:\"b\"\"></div><div class=t style=\"--p:'c'\"></div><div class=t style=\"--p:abc\"></div><div class=t style=\"--p:'a' 'b'\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-angle",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<angle>'; inherits: false; initial-value: 0deg }</style><div class=t></div><div class=t style=\"--p:90deg\"></div><div class=t style=\"--p:1turn\"></div><div class=t style=\"--p:100grad\"></div><div class=t style=\"--p:1rad\"></div><div class=t style=\"--p:5px\"></div><div class=t style=\"--p:calc(10deg + 1turn)\"></div><div class=t style=\"--p:0\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-time",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<time>'; inherits: false; initial-value: 0s }</style><div class=t></div><div class=t style=\"--p:1s\"></div><div class=t style=\"--p:500ms\"></div><div class=t style=\"--p:1.5s\"></div><div class=t style=\"--p:5px\"></div><div class=t style=\"--p:calc(1s + 500ms)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-resolution",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<resolution>'; inherits: false; initial-value: 1dppx }</style><div class=t></div><div class=t style=\"--p:2dppx\"></div><div class=t style=\"--p:96dpi\"></div><div class=t style=\"--p:1x\"></div><div class=t style=\"--p:5px\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-transform-function",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<transform-function>'; inherits: false; initial-value: scale(1) }</style><div class=t></div><div class=t style=\"--p:rotate(10deg)\"></div><div class=t style=\"--p:translate(1px, 2em)\"></div><div class=t style=\"--p:scale(1) rotate(1deg)\"></div><div class=t style=\"--p:none\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-transform-list",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<transform-list>'; inherits: false; initial-value: none }</style><div class=t></div><div class=t style=\"--p:rotate(10deg) scale(2)\"></div><div class=t style=\"--p:translate(1px, 2em)\"></div><div class=t style=\"--p:none\"></div><div class=t style=\"--p:5px\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-image",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<image>'; inherits: false; initial-value: none }</style><div class=t></div><div class=t style=\"--p:linear-gradient(red, blue)\"></div><div class=t style=\"--p:5px\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-two-lengths",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length> <length>'; inherits: false; initial-value: 1px 2px }</style><div class=t></div><div class=t style=\"--p:3px 4px\"></div><div class=t style=\"--p:3px\"></div><div class=t style=\"--p:3px 4px 5px\"></div><div class=t style=\"--p:1em 2em\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-syntax-whitespace",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '  <length>  |  auto  '; inherits: false; initial-value: auto }</style><div class=t></div><div class=t style=\"--p:1px\"></div><div class=t style=\"--p:foo\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-inherits-true",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: true; initial-value: 5px }</style><div class=t></div><div class=t style=\"--p:2em\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => getComputedStyle(e).getPropertyValue('--p'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-valid-basic",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: false; initial-value: 0 }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-valid-zero-unitless",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<number>'; inherits: false; initial-value: 0 }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-invalid-no-initial",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: false }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-invalid-no-syntax",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { inherits: false; initial-value: 0px }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-invalid-no-inherits",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; initial-value: 0px }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-invalid-maybe",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: maybe; initial-value: 0px }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-invalid-initial-em",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: false; initial-value: 1em }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-valid-initial-calc",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: false; initial-value: calc(1px + 2px) }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-invalid-initial-wrong",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: false; initial-value: red }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-invalid-initial-percent",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: false; initial-value: 5% }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-valid-universal-no-initial",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '*'; inherits: false }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-valid-universal-empty-initial",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '*'; inherits: false; initial-value: }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-invalid-syntax-bad",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: 'length'; inherits: false; initial-value: 0px }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-invalid-syntax-unquoted",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: <length>; inherits: false; initial-value: 0px }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-valid-syntax-doublequote",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: \"<length>\"; inherits: false; initial-value: 0px }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-invalid-name",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property p { syntax: '<length>'; inherits: false; initial-value: 0px }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-invalid-name-double-dash-only",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property -- { syntax: '<length>'; inherits: false; initial-value: 0px }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-duplicate-later-wins",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: false; initial-value: 1px } @property --p { syntax: '<number>'; inherits: false; initial-value: 2 }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-duplicate-later-invalid",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: false; initial-value: 1px } @property --p { syntax: '<number>'; inherits: false }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-in-media",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@media all { @property --p { syntax: '<length>'; inherits: false; initial-value: 1px } }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-in-supports",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@supports (color: red) { @property --p { syntax: '<length>'; inherits: false; initial-value: 1px } }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-in-layer",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@layer a { @property --p { syntax: '<length>'; inherits: false; initial-value: 1px } }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-in-media-false",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@media not all { @property --p { syntax: '<length>'; inherits: false; initial-value: 1px } }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-unknown-descriptor",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: false; initial-value: 1px; foo: bar }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-important",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: false !important; initial-value: 1px }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-uppercase",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { SYNTAX: '<length>'; INHERITS: FALSE; INITIAL-VALUE: 1PX }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-syntax-case",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<LENGTH>'; inherits: false; initial-value: 1px }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-cssom",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: true; initial-value: 1px }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-cssom-with-space",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property   --p   {syntax:'<length>';inherits:true;initial-value:1px}</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-cssom-universal",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '*'; inherits: false }</style><div id=d style='--p:7px'><div id=k></div></div><div id=o style='--p:7px'></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.querySelector('#d')).getPropertyValue('--p'),getComputedStyle(document.querySelector('#k')).getPropertyValue('--p'),document.styleSheets[0].cssRules.length,Array.from(document.styleSheets[0].cssRules).map(r => r.cssText).join('|')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-cssom-object",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: true; initial-value: 1px } @property --q { syntax: '*'; inherits: false }</style><div id=d></div>",
+   "measure": [
+    {
+     "js": "(() => { const r = document.styleSheets[0].cssRules[1], q = document.styleSheets[0].cssRules[2]; return [r.constructor.name, r.type, r.name, r.syntax, r.inherits, r.initialValue, r.cssText, r.parentRule === null, Object.getPrototypeOf(r.constructor).name, typeof CSSPropertyRule, q.initialValue, q.syntax, q.cssText, 'style' in r, 'cssRules' in r, r.parentStyleSheet === document.styleSheets[0]]; })()"
+    }
+   ]
+  },
+  {
+   "name": "ap-cssom-insert-delete",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=d></div>",
+   "measure": [
+    {
+     "js": "(() => { const s = document.styleSheets[0]; const out = []; out.push(s.insertRule('@property --p { syntax: \"<length>\"; inherits: false; initial-value: 4px }', 0)); out.push(getComputedStyle(d).getPropertyValue('--p')); out.push(s.cssRules[0].cssText); s.deleteRule(0); out.push(getComputedStyle(d).getPropertyValue('--p')); out.push(s.cssRules.length); try { s.insertRule('@property --p { syntax: \"<length>\"; inherits: false }', 0); out.push(s.cssRules.length); } catch (e) { out.push(e.name); } return out; })()"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "ap-inheritance",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --a { syntax: '<length>'; inherits: false; initial-value: 1px } @property --b { syntax: '<length>'; inherits: true; initial-value: 2px } #p { --a: 10px; --b: 20px; --c: 30px; font-size: 10px } #k { --d: 2em } #g { --d: inherit }</style><div id=p><div id=k><div id=g></div></div></div><div id=r></div>",
+   "measure": [
+    {
+     "js": "['#p','#k','#g','#r'].map(s => ['--a','--b','--c','--d'].map(n => getComputedStyle(document.querySelector(s)).getPropertyValue(n)).join(','))"
+    }
+   ]
+  },
+  {
+   "name": "ap-inheritance-em",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --l { syntax: '<length>'; inherits: true; initial-value: 0px } #p { font-size: 10px; --l: 2em } #k { font-size: 20px } #k2 { font-size: 20px; width: var(--l); height: 5px }</style><div id=p><div id=k></div><div id=k2></div></div>",
+   "measure": [
+    {
+     "js": "['#p','#k','#k2'].map(s => getComputedStyle(document.querySelector(s)).getPropertyValue('--l'))"
+    },
+    {
+     "boxes": "#k2"
+    }
+   ]
+  },
+  {
+   "name": "ap-var-use",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --w { syntax: '<length>'; inherits: false; initial-value: 5px } @property --n { syntax: '<number>'; inherits: false; initial-value: 3 } div { height: 10px; width: var(--w) } #b { --w: 20px } #c { --w: 10 } #d { --w: 2em; font-size: 10px } #e { width: var(--w, 99px) } #f { --w: var(--zz) } #g { width: calc(var(--n) * 10px) } #h { --w: calc(var(--n) * 1px) } #i { --w: 3px; width: calc(var(--w) * 2) } #j { --w: var(--u); --u: 8px } #k { --w: var(--u); --u: 8 }</style><div id=a></div><div id=b></div><div id=c></div><div id=d></div><div id=e></div><div id=f></div><div id=g></div><div id=h></div><div id=i></div><div id=j></div><div id=k></div>",
+   "measure": [
+    {
+     "boxes": "#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('div')).map(e => getComputedStyle(e).getPropertyValue('--w') + '/' + getComputedStyle(e).width)"
+    }
+   ]
+  },
+  {
+   "name": "ap-var-cycle",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --w { syntax: '<length>'; inherits: false; initial-value: 5px } #a { --w: var(--x); --x: var(--w); width: var(--w) }</style><div id=a style='height:2px'></div>",
+   "measure": [
+    {
+     "boxes": "#a"
+    },
+    {
+     "js": "getComputedStyle(document.querySelector('#a')).getPropertyValue('--w')"
+    }
+   ]
+  },
+  {
+   "name": "ap-style-attr",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: false; initial-value: 5px }</style><div id=d style='--p: 3em'></div>",
+   "measure": [
+    {
+     "js": "(() => { const d = document.querySelector('#d'); const out = [d.style.getPropertyValue('--p'), d.style.cssText, getComputedStyle(d).getPropertyValue('--p')]; d.style.setProperty('--p', 'abc'); out.push(d.style.getPropertyValue('--p'), getComputedStyle(d).getPropertyValue('--p')); d.style.removeProperty('--p'); out.push(getComputedStyle(d).getPropertyValue('--p')); return out; })()"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "ap-computed-style-enumeration",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --p { syntax: '<length>'; inherits: false; initial-value: 5px } @property --q { syntax: '<length>'; inherits: false }</style><div id=d style='--z: 1'></div>",
+   "measure": [
+    {
+     "js": "(() => { const cs = getComputedStyle(document.querySelector('#d')); const names = []; for (let i = 0; i < cs.length; i++) if (cs[i].startsWith('--')) names.push(cs[i]); return [names.join(','), cs.getPropertyValue('--q'), cs.getPropertyValue('--zz'), cs.getPropertyValue('--z')]; })()"
+    }
+   ]
+  },
+  {
+   "name": "ap-universal-guaranteed-invalid",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --u { syntax: '*'; inherits: false } div { width: var(--u, 30px); height: 4px } #b { --u: ; }</style><div id=a></div><div id=b></div>",
+   "measure": [
+    {
+     "boxes": "#a, #b"
+    },
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('--u'), getComputedStyle(b).getPropertyValue('--u')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-github-dialog",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --dialog-scrollgutter { syntax: '<length>'; inherits: false; initial-value: 0 } @property --prc-dialog-scrollgutter { syntax: '<length>'; inherits: false; initial-value: 0 } body { padding-right: var(--dialog-scrollgutter) } #b { --dialog-scrollgutter: 15px; padding-left: var(--dialog-scrollgutter) }</style><div id=a>x</div><div id=b>y</div>",
+   "measure": [
+    {
+     "boxes": "body, #a, #b"
+    },
+    {
+     "js": "[getComputedStyle(document.body).getPropertyValue('--dialog-scrollgutter'), getComputedStyle(document.body).getPropertyValue('--prc-dialog-scrollgutter'), getComputedStyle(document.body).paddingRight, getComputedStyle(b).paddingLeft]"
+    }
+   ]
+  },
+  {
+   "name": "ap-register-property",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=d style='--x: 2em; --y: 3px; font-size: 10px'><div id=k></div></div>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; const g = n => getComputedStyle(d).getPropertyValue(n); out.push(typeof CSS.registerProperty); out.push(CSS.registerProperty({name: '--x', syntax: '<length>', inherits: false, initialValue: '1px'})); out.push(g('--x')); out.push(getComputedStyle(k).getPropertyValue('--x')); try { CSS.registerProperty({name: '--x', syntax: '<length>', inherits: false, initialValue: '1px'}); out.push('no throw'); } catch (e) { out.push(e.name); } try { CSS.registerProperty({name: 'x', syntax: '<length>', inherits: false, initialValue: '1px'}); } catch (e) { out.push(e.name); } try { CSS.registerProperty({name: '--n', syntax: '<length>', inherits: false}); } catch (e) { out.push(e.name); } try { CSS.registerProperty({name: '--n', syntax: '*', inherits: false}); out.push('ok universal'); } catch (e) { out.push(e.name); } try { CSS.registerProperty({name: '--m', syntax: '<length>', initialValue: '1px'}); } catch (e) { out.push(e.name); } try { CSS.registerProperty({name: '--e', syntax: '<length>', inherits: true, initialValue: '1em'}); } catch (e) { out.push(e.name); } try { CSS.registerProperty({name: '--s', syntax: 'bogus', inherits: true, initialValue: '1em'}); } catch (e) { out.push(e.name); } out.push(CSS.registerProperty({name: '--y', syntax: '<number>', inherits: true, initialValue: '1'})); out.push(g('--y')); out.push(typeof CSS.unregisterProperty); return out; })()"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "ap-register-property-sheet-conflict",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --x { syntax: '<length>'; inherits: false; initial-value: 5px }</style><div id=d></div>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; try { CSS.registerProperty({name: '--x', syntax: '<number>', inherits: false, initialValue: '1'}); out.push('no throw'); } catch (e) { out.push(e.name); } out.push(getComputedStyle(d).getPropertyValue('--x')); return out; })()"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "ap-sheet-after-register",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=d></div>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; CSS.registerProperty({name: '--x', syntax: '<length>', inherits: false, initialValue: '1px'}); const s = document.styleSheets[0]; s.insertRule('@property --x { syntax: \"<number>\"; inherits: false; initial-value: 2 }', 0); out.push(getComputedStyle(d).getPropertyValue('--x')); return out; })()"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "ap-supports",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=d></div>",
+   "measure": [
+    {
+     "js": "[CSS.supports('(--p: 1)'), CSS.supports('--p', 'abc'), CSS.supports('at-rule(@property)'), CSS.supports('selector(a)')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-length-percentage-use",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --lp { syntax: '<length-percentage>'; inherits: false; initial-value: 10px } #w { width: 200px } #a { width: var(--lp); height: 4px; --lp: 50% } #b { width: var(--lp); height: 4px; --lp: calc(50% + 10px) } #c { width: var(--lp); height: 4px }</style><div id=w><div id=a></div><div id=b></div><div id=c></div></div>",
+   "measure": [
+    {
+     "boxes": "#a, #b, #c"
+    },
+    {
+     "js": "['#a','#b','#c'].map(s => getComputedStyle(document.querySelector(s)).getPropertyValue('--lp'))"
+    }
+   ]
+  },
+  {
+   "name": "ap-color-use-currentcolor",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}@property --c { syntax: '<color>'; inherits: true; initial-value: red } #p { color: blue; --c: currentcolor } #k { color: green; background: var(--c); width: 4px; height: 4px } #p2 { color: blue; --c: color-mix(in srgb, currentcolor 50%, white) } #k2 { color: green; background: var(--c); width: 4px; height: 4px }</style><div id=p><div id=k></div></div><div id=p2><div id=k2></div></div>",
+   "measure": [
+    {
+     "js": "['#p','#k','#p2','#k2'].map(s => getComputedStyle(document.querySelector(s)).getPropertyValue('--c')).concat(['#k','#k2'].map(s => getComputedStyle(document.querySelector(s)).backgroundColor))"
+    }
+   ]
+  },
+  {
+   "name": "cm-spaces",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red 30%, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red, blue 30%)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red 20%, blue 30%)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red 60%, blue 60%)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red 0%, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red 100%, blue 0%)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red, blue 120%)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red 0%, blue 0%)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb-linear, red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in oklab, red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in oklch, red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in oklch longer hue, red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in lab, red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in lch, red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in hsl, red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in hsl, hsl(0 50% 50%), hsl(120 50% 50%))\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in hwb, red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in xyz, red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in xyz-d50, red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in xyz-d65, red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in display-p3, red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, white, black)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, #f6f8fa 50%, transparent)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, rgb(0 0 0 / 0.5), white)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, transparent, transparent)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red, transparent)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in oklab, red, transparent)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in lch, red, transparent)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red 50%, rgb(0 0 255 / 0.5))\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, var(--none, red), blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: COLOR-MIX(IN SRGB, RED, BLUE)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb,red 25%,blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, color-mix(in srgb, red, blue), white)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, #123456 33.3%, #abcdef)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, rgb(10 20 30), rgb(15 25 35))\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, rgb(0 0 0 / 0.1) 50%, rgb(0 0 0 / 0.2))\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, white 4%, black)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, #0969da 16%, white)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red, blue, green)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in foo, red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb red, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red -10%, blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, 50% red, 50% blue)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red 50% blue)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('background-color'), e.style.getPropertyValue('background-color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-currentcolor",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, currentcolor 50%, transparent)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, currentcolor, white)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, currentcolor 25%, white)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, transparent, currentcolor 50%)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, red, currentcolor)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in oklab, currentcolor, white)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, currentcolor, currentcolor)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, currentcolor 20%, currentcolor 30%)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in lch, currentcolor 10%, transparent)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, currentColor 50%, transparent)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, currentcolor 100%, white)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, currentcolor 0%, white)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in hsl, currentcolor, white)\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, currentcolor 10%, rgb(255 0 0 / 0.5))\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('background-color'), e.style.getPropertyValue('background-color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-currentcolor-nested",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, currentcolor, color-mix(in srgb, currentcolor, red))\"></div><div class=t style=\"color: rgb(0, 128, 0); background-color: color-mix(in srgb, color-mix(in srgb, currentcolor 50%, white) 50%, black)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('background-color'), e.style.getPropertyValue('background-color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-border_top_color",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); border-top-color: color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('border-top-color'), e.style.getPropertyValue('border-top-color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-outline_color",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); outline-color: color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('outline-color'), e.style.getPropertyValue('outline-color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-text_decoration_color",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); text-decoration-color: color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('text-decoration-color'), e.style.getPropertyValue('text-decoration-color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-color",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); color: color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('color'), e.style.getPropertyValue('color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-caret_color",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); caret-color: color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('caret-color'), e.style.getPropertyValue('caret-color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-fill",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); fill: color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('fill'), e.style.getPropertyValue('fill')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-stroke",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); stroke: color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('stroke'), e.style.getPropertyValue('stroke')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-box_shadow",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); box-shadow: 1px 2px 3px color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('box-shadow'), e.style.getPropertyValue('box-shadow')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-text_shadow",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); text-shadow: 1px 2px 3px color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('text-shadow'), e.style.getPropertyValue('text-shadow')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-column_rule_color",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); column-rule-color: color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('column-rule-color'), e.style.getPropertyValue('column-rule-color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-webkit_text_fill_color",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); -webkit-text-fill-color: color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('-webkit-text-fill-color'), e.style.getPropertyValue('-webkit-text-fill-color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-webkit_text_stroke_color",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); -webkit-text-stroke-color: color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('-webkit-text-stroke-color'), e.style.getPropertyValue('-webkit-text-stroke-color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-text_emphasis_color",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); text-emphasis-color: color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('text-emphasis-color'), e.style.getPropertyValue('text-emphasis-color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-accent_color",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); accent-color: color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('accent-color'), e.style.getPropertyValue('accent-color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-background_image",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); background-image: linear-gradient(color-mix(in srgb, currentcolor 50%, transparent), blue)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('background-image'), e.style.getPropertyValue('background-image')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-border_image_source",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); border-image-source: linear-gradient(color-mix(in srgb, currentcolor 50%, transparent), blue)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('border-image-source'), e.style.getPropertyValue('border-image-source')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-filter",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); filter: drop-shadow(1px 2px color-mix(in srgb, currentcolor 50%, transparent))\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('filter'), e.style.getPropertyValue('filter')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-stop_color",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); stop-color: color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('stop-color'), e.style.getPropertyValue('stop-color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-flood_color",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); flood-color: color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('flood-color'), e.style.getPropertyValue('flood-color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-prop-lighting_color",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div class=t style=\"color: rgb(0, 128, 0); lighting-color: color-mix(in srgb, currentcolor 50%, transparent)\"></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('.t')).map(e => [getComputedStyle(e).getPropertyValue('lighting-color'), e.style.getPropertyValue('lighting-color')].join(' ; '))"
+    }
+   ]
+  },
+  {
+   "name": "cm-inheritance",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}#p { color: rgb(255, 0, 0); caret-color: color-mix(in srgb, currentcolor 50%, white); fill: color-mix(in srgb, currentcolor 50%, transparent); --c: color-mix(in srgb, currentcolor 50%, transparent); border: 4px solid; border-color: color-mix(in srgb, currentcolor 50%, transparent); text-decoration-color: color-mix(in srgb, currentcolor 50%, transparent); -webkit-text-fill-color: color-mix(in srgb, currentcolor 50%, white) } #k { color: rgb(0, 0, 255); border: 4px solid; border-color: var(--c); background: var(--c); text-decoration-color: inherit; } #m { color: rgb(0, 128, 0); border: 4px solid; border-color: inherit } #n { color: rgb(0, 128, 0); border: 4px solid; border-color: color-mix(in srgb, currentcolor 50%, transparent); }</style><div id=p>p<div id=k>k</div><div id=m>m</div><div id=n>n</div></div>",
+   "measure": [
+    {
+     "js": "['#p','#k','#m','#n'].map(s => { const c = getComputedStyle(document.querySelector(s)); return ['fill','border-top-color','background-color','text-decoration-color','color'].map(p => c.getPropertyValue(p)).join(' ; '); })"
+    },
+    {
+     "js": "getComputedStyle(document.querySelector('#k')).getPropertyValue('--c')"
+    },
+    {
+     "js": "getComputedStyle(document.querySelector('#p')).getPropertyValue('--c')"
+    }
+   ]
+  },
+  {
+   "name": "cm-inheritance-caret",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}#p { color: rgb(255, 0, 0); caret-color: color-mix(in srgb, currentcolor 50%, white); -webkit-text-fill-color: color-mix(in srgb, currentcolor 50%, white) } #k { color: rgb(0, 0, 255) }</style><div id=p>p<div id=k>k</div></div>",
+   "measure": [
+    {
+     "js": "['#p','#k'].map(s => { const c = getComputedStyle(document.querySelector(s)); return ['caret-color','-webkit-text-fill-color'].map(p => c.getPropertyValue(p)).join(' ; '); })"
+    }
+   ]
+  },
+  {
+   "name": "cm-inheritance-color-self",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}#p { color: rgb(255, 0, 0) } #k { color: color-mix(in srgb, currentcolor 50%, white) } #k2 { color: color-mix(in srgb, currentcolor 50%, white) } #g { }</style><div id=p><div id=k><div id=k2><div id=g></div></div></div></div>",
+   "measure": [
+    {
+     "js": "['#p','#k','#k2','#g'].map(s => getComputedStyle(document.querySelector(s)).color)"
+    }
+   ]
+  },
+  {
+   "name": "cm-pixels",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}div { width: 20px; height: 20px } #a { color: rgb(0, 128, 0); background: color-mix(in srgb, currentcolor 50%, transparent) } #b { background: color-mix(in srgb, #f6f8fa 50%, transparent); border: 2px solid color-mix(in srgb, rgb(9, 105, 218) 20%, transparent) } #c { background: color-mix(in oklab, red, blue) } #d { color: rgb(200, 0, 0); background: color-mix(in srgb, currentcolor 20%, rgb(0 0 255 / 0.5)) }</style><div id=a></div><div id=b></div><div id=c></div><div id=d></div>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    },
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       1,
+       1
+      ]
+     ]
+    },
+    {
+     "pixels": "#c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    },
+    {
+     "pixels": "#d",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cm-var-substitution",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}:root { --a: color-mix(in srgb, currentcolor 50%, transparent); --b: red; --m: color-mix(in srgb, var(--b) 50%, blue) } #t { color: rgb(0, 128, 0); background: var(--a); border-color: var(--m); border: 2px solid var(--m); width: 10px; height: 10px }</style><div id=t></div>",
+   "measure": [
+    {
+     "js": "(() => { const c = getComputedStyle(document.querySelector('#t')); return [c.backgroundColor, c.borderTopColor, c.getPropertyValue('--a'), c.getPropertyValue('--m')]; })()"
+    }
+   ]
+  },
+  {
+   "name": "cm-cssom-text",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=d></div>",
+   "measure": [
+    {
+     "js": "(() => { const d = document.querySelector('#d'); const out = []; for (const v of ['color-mix(in srgb, red, blue)', 'color-mix(in srgb, currentcolor 50%, transparent)', 'color-mix(in oklab, red 30%, blue)', 'COLOR-MIX(in srgb, RED 50%, blue)', 'color-mix(in srgb, red, blue 50%)', 'color-mix(in srgb, red 50%, blue 50%)']) { d.style.color = ''; d.style.color = v; out.push(d.style.color + ' | ' + d.style.cssText + ' | ' + d.style.getPropertyValue('color')); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "cm-supports",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=d></div>",
+   "measure": [
+    {
+     "js": "['color: color-mix(in srgb, currentcolor, red)', 'color: color-mix(in srgb, red, blue)', 'color: color-mix(in lch, red, blue)', 'color: color-mix(red, blue)', 'color: color-mix(in srgb, red 150%, blue)', 'color: color-mix(in srgb, red)', 'color: color-mix(in srgb currentcolor, red)', 'color: color-mix(in srgb, red, blue, green)', 'color: color-mix(in srgb, var(--x), blue)', 'color: color-mix(in srgb, currentcolor 50%, transparent)', 'background-color: color-mix(in hsl shorter hue, red, blue)', 'background-color: color-mix(in hsl shorter, red, blue)', 'background-color: color-mix(in srgb shorter hue, red, blue)', 'background-color: color-mix(in oklch increasing hue, red, blue)'].map(v => CSS.supports(v))"
+    }
+   ]
+  },
+  {
+   "name": "cm-github-forms",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}div { width: 4px; height: 4px; color: rgb(31, 35, 40) } #a { background: color-mix(in srgb, var(--bgColor-muted, #f6f8fa) 50%, transparent) } #b { background: color-mix(in srgb, #1a7f37, #000 35%) } #c { background: color-mix(in srgb, #1a7f37, #fff 65%) } #d { background: color-mix(in srgb, #0969da 20%, transparent) } #e { background: color-mix(in srgb, #fff 0.4%, transparent) } #f { background: color-mix(in srgb, #1a7f37, black 16%) } #g { background: color-mix(in srgb, #8c959f, white 8%) } #h { background: color-mix(in srgb, #1f2328 12%, transparent) } #i { background: color-mix(in lch, red, blue) }</style><div id=a></div><div id=b></div><div id=c></div><div id=d></div><div id=e></div><div id=f></div><div id=g></div><div id=h></div><div id=i></div>",
+   "measure": [
+    {
+     "js": "Array.from(document.querySelectorAll('div')).map(e => getComputedStyle(e).backgroundColor)"
+    }
+   ]
+  },
+  {
+   "name": "fs-input-basic",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea,button{font:16px/20px sans-serif;margin:0}select{font:16px sans-serif;margin:0;height:21px;vertical-align:top}.c{field-sizing:content}.f{field-sizing:fixed}div{height:30px}</style><div><input id=a></div><div><input id=b class=c></div><div><input id=c class=c value=abc></div><div><input id=d class=c placeholder=hello></div><div><input id=e class=c value=abc placeholder=hello></div><div><input id=f class=c size=30></div><div><input id=g class=c size=30 value=ab></div><div><input id=h class=f value=abcdefghijklmnop></div><div><input id=i value=abcdefghijklmnop></div><div><input id=j class=c value=abcdefghijklmnop></div><div><input id=k class=c style='min-width:100px' value=a></div><div><input id=l class=c style='max-width:30px' value=abcdefghijklmnop></div><div><input id=m class=c style='width:200px' value=a></div><div><input id=n class=c style='width:50%' value=a></div><div><input id=o class=c value='a b   c'></div><div><input id=p class=c style='padding:5px;border:3px solid' value=abc></div><div><input id=q class=c style='box-sizing:border-box;padding:5px;border:3px solid' value=abc></div>",
+   "measure": [
+    {
+     "boxes": "input, textarea, select"
+    }
+   ]
+  },
+  {
+   "name": "fs-input-types",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea,button{font:16px/20px sans-serif;margin:0}select{font:16px sans-serif;margin:0;height:21px;vertical-align:top}.c{field-sizing:content}.f{field-sizing:fixed}div{height:30px}</style><div><input id=t_text class=c type=text value='abc'></div><div><input id=t_search class=c type=search value='abc'></div><div><input id=t_url class=c type=url value='abc'></div><div><input id=t_tel class=c type=tel value='abc'></div><div><input id=t_email class=c type=email value='abc'></div><div><input id=t_password class=c type=password value='abc'></div><div><input id=t_number class=c type=number value='123'></div><div><input id=t_checkbox class=c type=checkbox value=''></div><div><input id=t_radio class=c type=radio value=''></div>",
+   "measure": [
+    {
+     "boxes": "input, textarea, select"
+    }
+   ]
+  },
+  {
+   "name": "fs-input-types-empty",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea,button{font:16px/20px sans-serif;margin:0}select{font:16px sans-serif;margin:0;height:21px;vertical-align:top}.c{field-sizing:content}.f{field-sizing:fixed}div{height:30px}</style><div><input id=t_text class=c type=text></div><div><input id=t_search class=c type=search></div><div><input id=t_number class=c type=number></div><div><input id=t_password class=c type=password></div><div><input id=t_email class=c type=email></div><div><input id=t_tel class=c type=tel></div><div><input id=t_url class=c type=url></div>",
+   "measure": [
+    {
+     "boxes": "input, textarea, select"
+    }
+   ]
+  },
+  {
+   "name": "fs-input-placeholder-types",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea,button{font:16px/20px sans-serif;margin:0}select{font:16px sans-serif;margin:0;height:21px;vertical-align:top}.c{field-sizing:content}.f{field-sizing:fixed}div{height:30px}</style><div><input id=t_text class=c type=text placeholder='hello world'></div><div><input id=t_search class=c type=search placeholder='hello world'></div><div><input id=t_number class=c type=number placeholder='hello world'></div><div><input id=t_password class=c type=password placeholder='hello world'></div><div><input id=t_email class=c type=email placeholder='hello world'></div><div><input id=t_tel class=c type=tel placeholder='hello world'></div><div><input id=t_url class=c type=url placeholder='hello world'></div>",
+   "measure": [
+    {
+     "boxes": "input, textarea, select"
+    }
+   ]
+  },
+  {
+   "name": "fs-textarea",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea,button{font:16px/20px sans-serif;margin:0}select{font:16px sans-serif;margin:0;height:21px;vertical-align:top}.c{field-sizing:content}.f{field-sizing:fixed}div{height:30px}</style><div><textarea id=a></textarea></div><div><textarea id=b class=c></textarea></div><div><textarea id=c class=c>abc</textarea></div><div><textarea id=d class=c>line one\nline two is longer\nthree</textarea></div><div><textarea id=e class=c placeholder='place holder'></textarea></div><div><textarea id=f class=c placeholder='p1\np2 longer\np3'></textarea></div><div><textarea id=g class=c cols=40 rows=5>abc</textarea></div><div><textarea id=h class=c cols=40 rows=5></textarea></div><div><textarea id=i class=f>line one\nline two is longer\nthree</textarea></div><div><textarea id=j class=c style='min-height:100px;min-width:100px'>a</textarea></div><div><textarea id=k class=c style='max-height:30px;max-width:50px'>aaaa aaaa aaaa\naaa\naaaa\naaaa</textarea></div><div><textarea id=l class=c style='width:200px'>a\nb\nc</textarea></div><div><textarea id=m class=c style='height:100px'>aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa</textarea></div><div><textarea id=n class=c>aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa</textarea></div><div><textarea id=o class=c wrap=off>aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa\nbb</textarea></div><div><textarea id=p class=c>a\n</textarea></div><div><textarea id=q class=c>\n\n\n</textarea></div><div><textarea id=r class=c style='resize:none'>abc</textarea></div><div><textarea id=s class=c style='overflow:hidden'>abc\ndef</textarea></div>",
+   "measure": [
+    {
+     "boxes": "input, textarea, select"
+    }
+   ]
+  },
+  {
+   "name": "fs-select",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea,button{font:16px/20px sans-serif;margin:0}select{font:16px sans-serif;margin:0;height:21px;vertical-align:top}.c{field-sizing:content}.f{field-sizing:fixed}div{height:30px}</style><div><select id=a><option>a<option>bbbbbbbbbb</select></div><div><select id=b class=c><option>a<option>bbbbbbbbbb</select></div><div><select id=c class=c><option>a<option selected>bbbbbbbbbb</select></div><div><select id=d class=c><option selected>a<option>bbbbbbbbbb</select></div><div><select id=e class=c></select></div><div><select id=f class=c><option></select></div><div><select id=g class=f><option>a<option>bbbbbbbbbb</select></div><div><select id=j class=c size=1><option>a<option selected>bbbbbbbbbb</select></div><div><select id=k class=c style='min-width:200px'><option>a</select></div><div><select id=l class=c style='width:200px'><option>a</select></div><div><select id=m class=c><optgroup label='group label long'><option>a</optgroup></select></div><div><select id=n class=c><option>a</option><option hidden>bbbbbbbbbbbbbbbbbbbb</option></select></div><div><select id=o class=c><option>a</option><option disabled>bbbbbbbbbb</option></select></div><div><select id=p class=c style='padding:5px'><option>a</select></div>",
+   "measure": [
+    {
+     "boxes": "input, textarea, select"
+    }
+   ]
+  },
+  {
+   "name": "fs-select-empty",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea,button{font:16px/20px sans-serif;margin:0}select{font:16px sans-serif;margin:0;height:21px;vertical-align:top}.c{field-sizing:content}.f{field-sizing:fixed}div{height:30px}</style><div><select id=b class=c style='display:block;height:auto'></select></div><div><select id=c class=c style='display:block;height:auto'><option></select></div>",
+   "measure": [
+    {
+     "boxes": "input, textarea, select"
+    }
+   ]
+  },
+  {
+   "name": "fs-select-multiple-sizes",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea,button{font:16px/20px sans-serif;margin:0}select{font:16px sans-serif;margin:0;height:21px;vertical-align:top}.c{field-sizing:content}.f{field-sizing:fixed}div{height:30px}</style><div><select id=a multiple><option>a<option>bbbbbbbbbb<option>c<option>d<option>e</select></div><div><select id=b class=c multiple><option>a<option>bbbbbbbbbb<option>c<option>d<option>e</select></div><div><select id=c class=c multiple size=2><option>a<option>bbbbbbbbbb<option>c<option>d<option>e</select></div><div><select id=d class=c multiple><option>a</select></div><div><select id=e class=c multiple></select></div><div><select id=f class=c size=6><option>a<option>b</select></div>",
+   "measure": [
+    {
+     "boxes": "input, textarea, select"
+    }
+   ]
+  },
+  {
+   "name": "fs-others",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea,button{font:16px/20px sans-serif;margin:0}select{font:16px sans-serif;margin:0;height:21px;vertical-align:top}.c{field-sizing:content}.f{field-sizing:fixed}div{height:30px}</style><div><button id=a class=c>abc</button></div><div><button id=b class=c style='width:50px'>abc abc abc</button></div><div><div id=d2 class=c style='height:auto'>abc</div></div><div><span id=sp class=c>abc</span></div><div><input id=i class=c type=text style='display:block' value=abc></div><div><input id=j class=c type=text style='display:inline-block;width:auto' value=abc></div>",
+   "measure": [
+    {
+     "boxes": "input, textarea, select"
+    }
+   ]
+  },
+  {
+   "name": "fs-in-flex-grid",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea,button{font:16px/20px sans-serif;margin:0}select{font:16px sans-serif;margin:0;height:21px;vertical-align:top}.c{field-sizing:content}.f{field-sizing:fixed}div{height:30px}</style><div><div style='display:flex;width:300px;height:auto'><input id=a class=c value=abc><input id=b class=c value=abcdefghijklmnop style='flex:1'></div></div><div><div style='display:flex;width:300px;height:auto;flex-direction:column'><input id=c class=c value=abc><textarea id=d class=c>abc\ndef</textarea></div></div><div><div style='display:grid;width:300px;height:auto'><input id=e class=c value=abc><select id=f class=c><option>aaa<option>bbbbbbbb</select></div></div><div><div style='display:inline-block;height:auto'><input id=g class=c value=abc></div></div><div><div style='float:left;height:auto'><input id=h class=c value=abcdefghij></div></div><div><table><tr><td><input id=i class=c value=abcdefghij></td></tr></table></div>",
+   "measure": [
+    {
+     "boxes": "input, textarea, select"
+    }
+   ]
+  },
+  {
+   "name": "fs-block-input",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea,button{font:16px/20px sans-serif;margin:0}select{font:16px sans-serif;margin:0;height:21px;vertical-align:top}.c{field-sizing:content}.f{field-sizing:fixed}div{height:30px}</style><div><input id=a class=c style='display:block' value=abc></div><div><input id=b class=c style='display:block;width:auto' value=abc></div><div><input id=c class=c style='width:min-content' value=abc></div><div><input id=d class=c style='width:max-content' value=abcdef></div><div><input id=e class=c style='width:fit-content' value=abcdef></div><div><input id=g class=c style='height:auto' value=abc></div><div><input id=i class=c style='font-family:monospace' value=abc></div><div><input id=j class=c style='letter-spacing:5px' value=abc></div><div><input id=k class=c style='text-indent:20px' value=abc></div><div><input id=l class=c style='padding:0 20px' value=abc></div><div><input id=m class=c style='text-align:right' value=abc></div><div><input id=n class=c style='white-space:pre' value='a   b'></div><div><input id=o class=c style='text-transform:uppercase' value=abc></div>",
+   "measure": [
+    {
+     "boxes": "input, textarea, select"
+    }
+   ]
+  },
+  {
+   "name": "fs-input-more",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea,button{font:16px/20px sans-serif;margin:0}select{font:16px sans-serif;margin:0;height:21px;vertical-align:top}.c{field-sizing:content}.f{field-sizing:fixed}div{height:30px}</style><div><input id=a class=c value=''></div><div><input id=b class=c value=' '></div><div><input id=c class=c value='iiii'></div><div><input id=d class=c value='WWWW'></div><div><input id=e class=c value='\u65e5\u672c\u8a9e'></div><div><input id=f class=c value='a' size=1></div><div><input id=g class=c value='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'></div><div><input id=h class=c value='abc' maxlength=2></div><div><input id=i class=c value='abc' readonly></div><div><input id=j class=c value='abc' disabled></div><div><input id=k class=c type=number value='123456789'></div><div><input id=l class=c type=number placeholder='12'></div><div><input id=n class=c type=search value=abc></div><div><input id=o class=c type=password value=abcdef></div>",
+   "measure": [
+    {
+     "boxes": "input, textarea, select"
+    }
+   ]
+  },
+  {
+   "name": "fs-computed-values",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea,button{font:16px/20px sans-serif;margin:0}select{font:16px sans-serif;margin:0;height:21px;vertical-align:top}.c{field-sizing:content}.f{field-sizing:fixed}div{height:30px}</style><div><input id=a class=c></div><div><input id=b></div><div><input id=c class=f></div><div><div id=d class=c></div></div><div><textarea id=e class=c></textarea></div><div><div id=f style='field-sizing:content'><span id=g></span></div></div><div><div id=h style='field-sizing:foo'></div></div><div><div id=i style='field-sizing:CONTENT'></div></div><div><div id=j style='field-sizing:inherit'></div></div>",
+   "measure": [
+    {
+     "boxes": "input, textarea, select"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('[id]')).map(e => getComputedStyle(e).fieldSizing + '/' + e.style.fieldSizing)"
+    },
+    {
+     "js": "[CSS.supports('field-sizing: content'), CSS.supports('field-sizing: fixed'), CSS.supports('field-sizing: auto'), CSS.supports('field-sizing', 'content')]"
+    }
+   ]
+  },
+  {
+   "name": "fs-inheritance",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div style='field-sizing:content'><div id=k></div><input id=i></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(k).fieldSizing, getComputedStyle(i).fieldSizing]"
+    }
+   ]
+  },
+  {
+   "name": "fs-github-size-to-fit",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea{font:13px/18px sans-serif;margin:0}@supports (field-sizing: content){.size-to-fit{field-sizing:content;min-width:60px;max-width:100%}}div{width:300px;height:40px}</style><div><input id=a class=size-to-fit value=abc></div><div><input id=b class=size-to-fit value='a long value, a long value, a long value, a long value, a long value, a long value'></div><div><textarea id=c class=size-to-fit></textarea></div><div><textarea id=d class=size-to-fit>one\ntwo\nthree\nfour</textarea></div>",
+   "measure": [
+    {
+     "boxes": "input, textarea"
+    }
+   ]
+  },
+  {
+   "name": "fs-typed-value",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea,button{font:16px/20px sans-serif;margin:0}select{font:16px sans-serif;margin:0;height:21px;vertical-align:top}.c{field-sizing:content}.f{field-sizing:fixed}div{height:30px}</style><div><input id=a class=c></div><div><input id=b class=c value=abc></div><div><textarea id=c class=c></textarea></div><div><textarea id=d class=c>abc</textarea></div><div><select id=e class=c><option>a<option>bbbbbbbbbb</select></div><div><input id=f class=c placeholder=hello></div><div><input id=g class=c type=number></div>",
+   "measure": [
+    {
+     "js": "(() => { const r = () => ['a','b','c','d','e','f','g'].map(i => { const b = document.getElementById(i).getBoundingClientRect(); return [b.width, b.height]; }); const out = [r()]; a.value = 'hello world'; b.value = 'a much longer value than before'; c.value = 'x\\ny\\nz'; d.value = 'abc def ghi'; e.selectedIndex = 1; f.value = 'abcdefghijkl'; g.value = '12345'; out.push(r()); a.value = ''; b.value = ''; c.value = ''; f.value = ''; out.push(r()); a.setAttribute('size', '40'); a.value = 'x'; out.push(r()); a.removeAttribute('size'); a.style.fieldSizing = 'fixed'; a.value = 'a much longer value than before'; out.push(r()); return out; })()"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "fs-select-options-change",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}input,textarea,button{font:16px/20px sans-serif;margin:0}select{font:16px sans-serif;margin:0;height:21px;vertical-align:top}.c{field-sizing:content}.f{field-sizing:fixed}div{height:30px}</style><div><select id=a class=c><option>a<option>bbbbbbbbbb</select></div>",
+   "measure": [
+    {
+     "js": "(() => { const w = () => a.getBoundingClientRect().width; const out = [w()]; a.add(new Option('cccccccccccccccccccccccccc')); out.push(w()); a.selectedIndex = 2; out.push(w()); a.remove(2); out.push(w()); a.options[0].text = 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'; out.push(w()); return out; })()"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cv-hidden-boxes",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px} .in{height:100px;background:rgb(255,0,0)}#h{content-visibility:hidden} #h2{content-visibility:hidden;contain-intrinsic-size:150px 60px} #h3{content-visibility:hidden;height:30px} #h4{content-visibility:hidden;contain-intrinsic-height:40px} #h5{content-visibility:hidden;contain-intrinsic-width:90px;display:inline-block} #h6{content-visibility:hidden;contain-intrinsic-size:auto 70px;display:block}</style><div class=k id=h><div class=in id=c1>text</div></div><div class=k id=h2><div class=in id=c2>text</div></div><div class=k id=h3><div class=in id=c3></div></div><div class=k id=h4><div class=in id=c4></div></div><div id=h5><div class=in id=c5></div></div><div class=k id=h6><div class=in id=c6></div></div><div id=after style='height:5px'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "js": "['c1','c2','c3','c4','c5','c6'].map(i => { const e = document.getElementById(i); const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height, e.getClientRects().length, e.offsetWidth, e.offsetHeight, e.offsetParent && e.offsetParent.id]; })"
+    },
+    {
+     "js": "['h','h2','h3','h4','h5','h6'].map(i => { const e = document.getElementById(i); return [e.scrollWidth, e.scrollHeight, e.clientHeight, e.offsetHeight]; })"
+    }
+   ]
+  },
+  {
+   "name": "cv-computed",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px} .in{height:100px;background:rgb(255,0,0)}#h{content-visibility:hidden} #a{content-visibility:auto} #v{content-visibility:visible} #x{content-visibility:foo} #u{content-visibility:AUTO}</style><div id=h></div><div id=a></div><div id=v></div><div id=x></div><div id=u></div><div id=n></div><div id=i style='content-visibility:inherit'></div>",
+   "measure": [
+    {
+     "style": "#h, #a, #v, #x, #u, #n, #i",
+     "props": [
+      "content-visibility",
+      "contain",
+      "display",
+      "overflow-x",
+      "position",
+      "z-index",
+      "contain-intrinsic-size",
+      "contain-intrinsic-width",
+      "contain-intrinsic-height",
+      "will-change"
+     ]
+    },
+    {
+     "js": "[CSS.supports('content-visibility: auto'), CSS.supports('content-visibility: hidden'), CSS.supports('content-visibility: visible'), CSS.supports('content-visibility: foo'), CSS.supports('content-visibility: hidden !important'), CSS.supports('content-visibility', 'auto')]"
+    },
+    {
+     "js": "(() => { const e = document.createElement('div'); e.style.contentVisibility = 'hidden'; return [e.style.contentVisibility, e.style.cssText, 'contentVisibility' in e.style]; })()"
+    }
+   ]
+  },
+  {
+   "name": "cv-hidden-interaction",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;height:80px;content-visibility:hidden} .in{height:40px}</style><div class=k id=h style='background:rgb(0,0,255)'><div class=in id=c1><a href=# id=link>link</a><input id=inp></div></div><div id=h2 class=k style='content-visibility:visible'><div id=c2><a href=# id=link2>link</a><input id=inp2></div></div>",
+   "measure": [
+    {
+     "boxes": "#h, #c1, #link, #inp, #h2, #c2"
+    },
+    {
+     "js": "[document.elementFromPoint(10, 10) && document.elementFromPoint(10, 10).id, document.elementsFromPoint(10, 10).map(e => e.id).join(','), h.innerText, h.textContent, h.innerText.length]"
+    },
+    {
+     "js": "(() => { inp.focus(); link.focus(); return [document.activeElement.localName, document.activeElement.id]; })()"
+    },
+    {
+     "js": "[h.checkVisibility(), c1.checkVisibility(), c1.checkVisibility({contentVisibilityAuto: true}), h2.checkVisibility(), c2.checkVisibility()]"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cv-hidden-inner-text",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px}</style><div class=k id=h style='content-visibility:hidden'>hidden <span>span text</span></div><div id=p>before<div style='content-visibility:hidden'>inner hidden</div>after</div>",
+   "measure": [
+    {
+     "js": "[h.innerText, p.innerText, document.body.innerText]"
+    },
+    {
+     "js": "(() => { const r = document.createRange(); r.selectNodeContents(h); return [r.getBoundingClientRect().height, r.getClientRects().length]; })()"
+    }
+   ]
+  },
+  {
+   "name": "cv-pixels",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:60px;height:40px;background:rgb(0,0,255)} .in{width:20px;height:20px;background:rgb(255,0,0)}</style><div class=k id=h style='content-visibility:hidden'><div class=in></div></div><div class=k id=a style='content-visibility:auto;margin-top:10px'><div class=in style='width:100px;height:100px'></div></div><div class=k id=v style='margin-top:10px'><div class=in style='width:100px;height:100px'></div></div>",
+   "measure": [
+    {
+     "pixels": "#h",
+     "points": [
+      [
+       5,
+       5
+      ],
+      [
+       30,
+       20
+      ]
+     ]
+    },
+    {
+     "pixels": "#a",
+     "points": [
+      [
+       5,
+       5
+      ],
+      [
+       30,
+       30
+      ],
+      [
+       30,
+       60
+      ],
+      [
+       80,
+       10
+      ]
+     ]
+    },
+    {
+     "pixels": "#v",
+     "points": [
+      [
+       5,
+       5
+      ],
+      [
+       30,
+       30
+      ],
+      [
+       30,
+       60
+      ],
+      [
+       80,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cv-auto-offscreen",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;content-visibility:auto} .in{height:100px}</style><div class=k id=tp><div class=in id=t1>text</div></div><div style='height:3000px'></div><div class=k id=far><div class=in id=f1>text</div><div class=in id=f2>text</div></div><div class=k id=far2 style='contain-intrinsic-size:150px 60px'><div class=in id=f3></div></div><div class=k id=far3 style='contain-intrinsic-size:auto 70px'><div class=in id=f4></div></div><div class=k id=far4 style='contain-intrinsic-height:auto 80px'><div class=in id=f5></div></div><div id=end style='height:5px'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "js": "['tp','far','far2','far3','far4'].map(i => { const e = document.getElementById(i); return [e.offsetWidth, e.offsetHeight, e.scrollHeight, e.clientHeight]; })"
+    },
+    {
+     "js": "['t1','f1','f2','f3','f4','f5'].map(i => { const r = document.getElementById(i).getBoundingClientRect(); return [r.top + scrollY, r.width, r.height, document.getElementById(i).getClientRects().length]; })"
+    },
+    {
+     "js": "[document.documentElement.scrollHeight, document.body.scrollHeight, document.body.offsetHeight]"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 300
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cv-auto-state",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;content-visibility:auto} .in{height:100px}</style><div class=k id=tp><div class=in id=t1>text</div></div><div style='height:3000px'></div><div class=k id=far><div class=in id=f1>text</div></div>",
+   "measure": [
+    {
+     "js": "['tp','far'].map(i => [getComputedStyle(document.getElementById(i)).contentVisibility, getComputedStyle(document.getElementById(i)).contain, getComputedStyle(document.getElementById(i)).display])"
+    },
+    {
+     "js": "[tp.checkVisibility({contentVisibilityAuto: true}), t1.checkVisibility({contentVisibilityAuto: true}), far.checkVisibility({contentVisibilityAuto: true}), f1.checkVisibility({contentVisibilityAuto: true}), f1.checkVisibility()]"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 300
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cv-auto-onscreen-boxes",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;content-visibility:auto} .in{height:100px}</style><div class=k id=a><div class=in id=a1>x</div></div><div class=k id=b style='height:20px'><div class=in id=b1>x</div></div><div class=k id=c style='contain-intrinsic-size:150px 60px'><div class=in id=c1>x</div></div><div id=end style='height:5px'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 300
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cv-auto-viewport-edge",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;content-visibility:auto} .in{height:100px}</style><div style='height:790px'></div><div class=k id=a><div class=in id=a1>x</div></div><div style='height:100px'></div><div class=k id=b style='contain-intrinsic-size:100px 100px'><div class=in id=b1>x</div></div><div style='height:100px'></div><div class=k id=c style='contain-intrinsic-size:100px 100px'><div class=in id=c1>x</div></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "js": "['a','b','c'].map(i => document.getElementById(i).offsetHeight)"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 300
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cv-auto-scroll-into-view",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;content-visibility:auto;contain-intrinsic-size:auto 150px} .in{height:100px}</style><div style='height:2000px'></div><div class=k id=far><div class=in id=f1>text</div></div><div id=end style='height:2000px'></div>",
+   "measure": [
+    {
+     "js": "(() => { const out = [far.offsetHeight]; scrollTo(0, 1900); out.push(far.offsetHeight, far.getBoundingClientRect().top, f1.getBoundingClientRect().height); scrollTo(0, 0); out.push(far.offsetHeight); return out; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 300
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cv-auto-focus",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;content-visibility:auto;height:100px}</style><div style='height:2000px'></div><div class=k id=far><a href=# id=l>link</a><input id=i></div>",
+   "measure": [
+    {
+     "js": "(() => { const out = []; i.focus(); out.push(document.activeElement.id, scrollY); return out; })()"
+    },
+    {
+     "js": "(() => { const r = document.createRange(); r.selectNodeContents(far); const b = r.getBoundingClientRect(); return [b.width, b.height]; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 300
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cv-auto-contain-effects",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;content-visibility:auto;background:rgb(0,0,255)} .in{width:100px;height:100px;background:rgb(255,0,0)}</style><div class=k id=a><div class=in id=a1></div></div><div class=k id=b style='margin-top:10px'><div style='float:left;width:50px;height:50px'></div></div><div class=k id=c style='margin-top:10px'><div style='margin-top:30px;height:10px' id=c1></div></div><div class=k id=d style='position:relative;height:30px'><div style='position:absolute;left:5px;top:5px;width:10px;height:10px' id=d1></div></div><div id=e style='margin-top:10px'>x</div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "pixels": "#a",
+     "points": [
+      [
+       150,
+       50
+      ],
+      [
+       50,
+       50
+      ]
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "wait": 300
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cv-auto-stacking",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:100px;height:50px;content-visibility:auto;margin-bottom:5px}</style><div style='position:relative;height:200px'><div style='position:absolute;left:0;top:0;width:60px;height:60px;background:rgb(255,0,0);z-index:1'></div><div class=k id=a style='background:rgb(0,0,255)'><div style='position:relative;z-index:5;height:30px;background:rgb(0,255,0)'></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       80,
+       40
+      ]
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "wait": 300
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cv-details-content",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><details id=d><summary>s</summary><div id=c style='height:30px'>c</div></details><details id=o open><summary>s</summary><div id=c2 style='height:30px'>c</div></details>",
+   "measure": [
+    {
+     "boxes": "#d, #c, #o, #c2"
+    },
+    {
+     "js": "['d','o'].map(i => getComputedStyle(document.getElementById(i), '::details-content').contentVisibility)"
+    },
+    {
+     "js": "[getComputedStyle(c).contentVisibility, getComputedStyle(c2).contentVisibility]"
+    }
+   ]
+  },
+  {
+   "name": "cv-hidden-child-styles",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;content-visibility:hidden} #c{width:50%;height:20px;color:rgb(0,128,0);counter-increment:n} #c::before{content:counter(n)}</style><div class=k id=h><div id=c>x</div></div>",
+   "measure": [
+    {
+     "style": "#c",
+     "props": [
+      "width",
+      "height",
+      "color",
+      "display"
+     ]
+    },
+    {
+     "js": "[getComputedStyle(c, '::before').content, getComputedStyle(c).width]"
+    }
+   ]
+  },
+  {
+   "name": "cv-hidden-toggle",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=h style='content-visibility:hidden;width:200px'><div id=c style='height:50px;width:100px'><span id=s>text</span></div></div><div id=n style='height:5px'></div>",
+   "measure": [
+    {
+     "js": "[c.getBoundingClientRect().height, c.offsetHeight, c.offsetTop, c.clientHeight, s.getBoundingClientRect().width, h.offsetHeight, document.getElementById('n').getBoundingClientRect().y]"
+    },
+    {
+     "js": "(() => { h.style.contentVisibility = 'visible'; return [c.getBoundingClientRect().height, h.offsetHeight, n.getBoundingClientRect().y]; })()"
+    },
+    {
+     "js": "(() => { h.style.contentVisibility = 'hidden'; return [c.getBoundingClientRect().height, h.offsetHeight, n.getBoundingClientRect().y]; })()"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cv-until-found",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=h hidden=until-found style='width:200px'><div id=c style='height:50px'>text</div></div><div id=n style='height:5px'></div>",
+   "measure": [
+    {
+     "style": "#h",
+     "props": [
+      "content-visibility",
+      "display"
+     ]
+    },
+    {
+     "boxes": "#h, #c, #n"
+    }
+   ]
+  },
+  {
+   "name": "cv-hidden-attribute-values",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=h hidden style='width:200px'><div id=c style='height:50px'>text</div></div><div id=n hidden=until-found style='width:200px'>x</div><div id=m hidden=foo style='width:200px'>x</div>",
+   "measure": [
+    {
+     "style": "#h, #n, #m",
+     "props": [
+      "content-visibility",
+      "display"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ct-layout",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div class=k id=a style='contain:layout;'><div style='float:left;width:50px;height:50px;background:rgb(255,0,0)' id=f></div></div><div class=k id=b style='contain:layout;;margin-top:10px'><div id=m style='margin-top:30px;height:10px;background:rgb(255,0,0)'></div></div><div id=pp style='contain:layout;;position:relative;margin-top:10px;width:100px;height:100px;background:rgb(0,0,255)'><div id=abs style='position:absolute;left:5px;top:7px;width:10px;height:10px;background:rgb(255,0,0)'></div><div id=ov style='width:300px;height:150px;background:rgb(0,255,0)'></div></div><div class=k id=c style='contain:layout;;margin-top:10px;margin-bottom:20px'><div style='margin-bottom:30px;height:10px'></div></div><div id=d style='margin-top:5px;height:5px'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "js": "[getComputedStyle(a).contain, getComputedStyle(a).position, getComputedStyle(a).zIndex, getComputedStyle(a).overflowX]"
+    }
+   ]
+  },
+  {
+   "name": "ct-paint",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div class=k id=a style='contain:paint;'><div style='float:left;width:50px;height:50px;background:rgb(255,0,0)' id=f></div></div><div class=k id=b style='contain:paint;;margin-top:10px'><div id=m style='margin-top:30px;height:10px;background:rgb(255,0,0)'></div></div><div id=pp style='contain:paint;;position:relative;margin-top:10px;width:100px;height:100px;background:rgb(0,0,255)'><div id=abs style='position:absolute;left:5px;top:7px;width:10px;height:10px;background:rgb(255,0,0)'></div><div id=ov style='width:300px;height:150px;background:rgb(0,255,0)'></div></div><div class=k id=c style='contain:paint;;margin-top:10px;margin-bottom:20px'><div style='margin-bottom:30px;height:10px'></div></div><div id=d style='margin-top:5px;height:5px'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "js": "[getComputedStyle(a).contain, getComputedStyle(a).position, getComputedStyle(a).zIndex, getComputedStyle(a).overflowX]"
+    }
+   ]
+  },
+  {
+   "name": "ct-content",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div class=k id=a style='contain:content;'><div style='float:left;width:50px;height:50px;background:rgb(255,0,0)' id=f></div></div><div class=k id=b style='contain:content;;margin-top:10px'><div id=m style='margin-top:30px;height:10px;background:rgb(255,0,0)'></div></div><div id=pp style='contain:content;;position:relative;margin-top:10px;width:100px;height:100px;background:rgb(0,0,255)'><div id=abs style='position:absolute;left:5px;top:7px;width:10px;height:10px;background:rgb(255,0,0)'></div><div id=ov style='width:300px;height:150px;background:rgb(0,255,0)'></div></div><div class=k id=c style='contain:content;;margin-top:10px;margin-bottom:20px'><div style='margin-bottom:30px;height:10px'></div></div><div id=d style='margin-top:5px;height:5px'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "js": "[getComputedStyle(a).contain, getComputedStyle(a).position, getComputedStyle(a).zIndex, getComputedStyle(a).overflowX]"
+    }
+   ]
+  },
+  {
+   "name": "ct-strict",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div class=k id=a style='contain:strict;'><div style='float:left;width:50px;height:50px;background:rgb(255,0,0)' id=f></div></div><div class=k id=b style='contain:strict;;margin-top:10px'><div id=m style='margin-top:30px;height:10px;background:rgb(255,0,0)'></div></div><div id=pp style='contain:strict;;position:relative;margin-top:10px;width:100px;height:100px;background:rgb(0,0,255)'><div id=abs style='position:absolute;left:5px;top:7px;width:10px;height:10px;background:rgb(255,0,0)'></div><div id=ov style='width:300px;height:150px;background:rgb(0,255,0)'></div></div><div class=k id=c style='contain:strict;;margin-top:10px;margin-bottom:20px'><div style='margin-bottom:30px;height:10px'></div></div><div id=d style='margin-top:5px;height:5px'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "js": "[getComputedStyle(a).contain, getComputedStyle(a).position, getComputedStyle(a).zIndex, getComputedStyle(a).overflowX]"
+    }
+   ]
+  },
+  {
+   "name": "ct-style",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div class=k id=a style='contain:style;'><div style='float:left;width:50px;height:50px;background:rgb(255,0,0)' id=f></div></div><div class=k id=b style='contain:style;;margin-top:10px'><div id=m style='margin-top:30px;height:10px;background:rgb(255,0,0)'></div></div><div id=pp style='contain:style;;position:relative;margin-top:10px;width:100px;height:100px;background:rgb(0,0,255)'><div id=abs style='position:absolute;left:5px;top:7px;width:10px;height:10px;background:rgb(255,0,0)'></div><div id=ov style='width:300px;height:150px;background:rgb(0,255,0)'></div></div><div class=k id=c style='contain:style;;margin-top:10px;margin-bottom:20px'><div style='margin-bottom:30px;height:10px'></div></div><div id=d style='margin-top:5px;height:5px'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "js": "[getComputedStyle(a).contain, getComputedStyle(a).position, getComputedStyle(a).zIndex, getComputedStyle(a).overflowX]"
+    }
+   ]
+  },
+  {
+   "name": "ct-size",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div class=k id=a style='contain:size;'><div style='float:left;width:50px;height:50px;background:rgb(255,0,0)' id=f></div></div><div class=k id=b style='contain:size;;margin-top:10px'><div id=m style='margin-top:30px;height:10px;background:rgb(255,0,0)'></div></div><div id=pp style='contain:size;;position:relative;margin-top:10px;width:100px;height:100px;background:rgb(0,0,255)'><div id=abs style='position:absolute;left:5px;top:7px;width:10px;height:10px;background:rgb(255,0,0)'></div><div id=ov style='width:300px;height:150px;background:rgb(0,255,0)'></div></div><div class=k id=c style='contain:size;;margin-top:10px;margin-bottom:20px'><div style='margin-bottom:30px;height:10px'></div></div><div id=d style='margin-top:5px;height:5px'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "js": "[getComputedStyle(a).contain, getComputedStyle(a).position, getComputedStyle(a).zIndex, getComputedStyle(a).overflowX]"
+    }
+   ]
+  },
+  {
+   "name": "ct-inline-size",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div class=k id=a style='contain:inline-size;'><div style='float:left;width:50px;height:50px;background:rgb(255,0,0)' id=f></div></div><div class=k id=b style='contain:inline-size;;margin-top:10px'><div id=m style='margin-top:30px;height:10px;background:rgb(255,0,0)'></div></div><div id=pp style='contain:inline-size;;position:relative;margin-top:10px;width:100px;height:100px;background:rgb(0,0,255)'><div id=abs style='position:absolute;left:5px;top:7px;width:10px;height:10px;background:rgb(255,0,0)'></div><div id=ov style='width:300px;height:150px;background:rgb(0,255,0)'></div></div><div class=k id=c style='contain:inline-size;;margin-top:10px;margin-bottom:20px'><div style='margin-bottom:30px;height:10px'></div></div><div id=d style='margin-top:5px;height:5px'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "js": "[getComputedStyle(a).contain, getComputedStyle(a).position, getComputedStyle(a).zIndex, getComputedStyle(a).overflowX]"
+    }
+   ]
+  },
+  {
+   "name": "ct-none",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div class=k id=a style='contain:none;'><div style='float:left;width:50px;height:50px;background:rgb(255,0,0)' id=f></div></div><div class=k id=b style='contain:none;;margin-top:10px'><div id=m style='margin-top:30px;height:10px;background:rgb(255,0,0)'></div></div><div id=pp style='contain:none;;position:relative;margin-top:10px;width:100px;height:100px;background:rgb(0,0,255)'><div id=abs style='position:absolute;left:5px;top:7px;width:10px;height:10px;background:rgb(255,0,0)'></div><div id=ov style='width:300px;height:150px;background:rgb(0,255,0)'></div></div><div class=k id=c style='contain:none;;margin-top:10px;margin-bottom:20px'><div style='margin-bottom:30px;height:10px'></div></div><div id=d style='margin-top:5px;height:5px'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "js": "[getComputedStyle(a).contain, getComputedStyle(a).position, getComputedStyle(a).zIndex, getComputedStyle(a).overflowX]"
+    }
+   ]
+  },
+  {
+   "name": "ct-layout-style",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div class=k id=a style='contain:layout style;'><div style='float:left;width:50px;height:50px;background:rgb(255,0,0)' id=f></div></div><div class=k id=b style='contain:layout style;;margin-top:10px'><div id=m style='margin-top:30px;height:10px;background:rgb(255,0,0)'></div></div><div id=pp style='contain:layout style;;position:relative;margin-top:10px;width:100px;height:100px;background:rgb(0,0,255)'><div id=abs style='position:absolute;left:5px;top:7px;width:10px;height:10px;background:rgb(255,0,0)'></div><div id=ov style='width:300px;height:150px;background:rgb(0,255,0)'></div></div><div class=k id=c style='contain:layout style;;margin-top:10px;margin-bottom:20px'><div style='margin-bottom:30px;height:10px'></div></div><div id=d style='margin-top:5px;height:5px'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "js": "[getComputedStyle(a).contain, getComputedStyle(a).position, getComputedStyle(a).zIndex, getComputedStyle(a).overflowX]"
+    }
+   ]
+  },
+  {
+   "name": "ct-size-paint",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div class=k id=a style='contain:size paint;'><div style='float:left;width:50px;height:50px;background:rgb(255,0,0)' id=f></div></div><div class=k id=b style='contain:size paint;;margin-top:10px'><div id=m style='margin-top:30px;height:10px;background:rgb(255,0,0)'></div></div><div id=pp style='contain:size paint;;position:relative;margin-top:10px;width:100px;height:100px;background:rgb(0,0,255)'><div id=abs style='position:absolute;left:5px;top:7px;width:10px;height:10px;background:rgb(255,0,0)'></div><div id=ov style='width:300px;height:150px;background:rgb(0,255,0)'></div></div><div class=k id=c style='contain:size paint;;margin-top:10px;margin-bottom:20px'><div style='margin-bottom:30px;height:10px'></div></div><div id=d style='margin-top:5px;height:5px'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "js": "[getComputedStyle(a).contain, getComputedStyle(a).position, getComputedStyle(a).zIndex, getComputedStyle(a).overflowX]"
+    }
+   ]
+  },
+  {
+   "name": "ct-flow-root-compare",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div class=k id=a style='contain:none;display:flow-root'><div style='float:left;width:50px;height:50px;background:rgb(255,0,0)' id=f></div></div><div class=k id=b style='contain:none;display:flow-root;margin-top:10px'><div id=m style='margin-top:30px;height:10px;background:rgb(255,0,0)'></div></div><div id=pp style='contain:none;display:flow-root;position:relative;margin-top:10px;width:100px;height:100px;background:rgb(0,0,255)'><div id=abs style='position:absolute;left:5px;top:7px;width:10px;height:10px;background:rgb(255,0,0)'></div><div id=ov style='width:300px;height:150px;background:rgb(0,255,0)'></div></div><div class=k id=c style='contain:none;display:flow-root;margin-top:10px;margin-bottom:20px'><div style='margin-bottom:30px;height:10px'></div></div><div id=d style='margin-top:5px;height:5px'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "js": "[getComputedStyle(a).contain, getComputedStyle(a).position, getComputedStyle(a).zIndex, getComputedStyle(a).overflowX]"
+    }
+   ]
+  },
+  {
+   "name": "ct-containing-block",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div id=a style='contain:layout;width:100px;height:100px;margin:20px'><div id=a1 style='position:absolute;right:0;bottom:0;width:10px;height:10px'></div><div id=a2 style='position:fixed;left:0;top:0;width:10px;height:10px'></div></div><div id=b style='contain:paint;width:100px;height:100px;margin:20px'><div id=b1 style='position:absolute;right:0;bottom:0;width:10px;height:10px'></div><div id=b2 style='position:fixed;left:0;top:0;width:10px;height:10px'></div></div><div id=c style='contain:strict;width:100px;height:100px;margin:20px'><div id=c1 style='position:absolute;right:0;bottom:0;width:10px;height:10px'></div></div><div id=d style='contain:content;width:100px;height:100px;margin:20px'><div id=d1 style='position:absolute;right:0;bottom:0;width:10px;height:10px'></div></div><div id=e style='contain:style;width:100px;height:100px;margin:20px'><div id=e1 style='position:absolute;right:0;bottom:0;width:10px;height:10px'></div></div><div id=f style='contain:size;width:100px;height:100px;margin:20px'><div id=f1 style='position:absolute;right:0;bottom:0;width:10px;height:10px'></div></div><div id=g style='contain:layout;display:inline;width:100px;height:100px;margin:20px'><div id=g1 style='position:absolute;right:0;bottom:0;width:10px;height:10px'></div></div><div id=h style='content-visibility:auto;width:100px;height:100px;margin:20px'><div id=h1 style='position:absolute;right:0;bottom:0;width:10px;height:10px'></div></div><div id=i style='content-visibility:hidden;width:100px;height:100px;margin:20px'><div id=i1 style='position:absolute;right:0;bottom:0;width:10px;height:10px'></div></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    }
+   ]
+  },
+  {
+   "name": "ct-stacking-and-clip",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div style='position:relative;height:300px'><div style='position:absolute;left:0;top:0;width:60px;height:60px;background:rgb(255,0,0);z-index:1'></div><div id=a style='contain:layout;width:100px;height:50px;background:rgb(0,0,255)'><div style='position:relative;z-index:5;height:30px;background:rgb(0,255,0)'></div></div><div id=b style='contain:paint;width:100px;height:50px;margin-top:20px;background:rgb(0,0,255)'><div style='width:200px;height:200px;background:rgb(0,255,0)'></div></div><div id=c style='contain:layout;width:100px;height:50px;margin-top:20px;background:rgb(0,0,255)'><div style='width:200px;height:200px;background:rgb(0,255,0)'></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       80,
+       40
+      ]
+     ]
+    },
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       150,
+       10
+      ],
+      [
+       10,
+       100
+      ]
+     ]
+    },
+    {
+     "pixels": "#c",
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       150,
+       10
+      ],
+      [
+       10,
+       100
+      ]
+     ]
+    },
+    {
+     "js": "['a','b','c'].map(i => [getComputedStyle(document.getElementById(i)).zIndex, getComputedStyle(document.getElementById(i)).contain].join(','))"
+    }
+   ]
+  },
+  {
+   "name": "ct-layout-inline-and-table",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><span id=a style='contain:layout'>inline</span><div id=t style='display:table;contain:layout'><div id=tc style='display:table-cell'>x</div></div><span id=ib style='display:inline-block;contain:layout;width:50px;height:20px'></span>",
+   "measure": [
+    {
+     "boxes": "body *"
+    },
+    {
+     "js": "getComputedStyle(a).contain"
+    }
+   ]
+  },
+  {
+   "name": "ct-layout-flex-grid-items",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div style='display:flex;width:300px'><div id=a style='contain:layout;flex:1'><div style='float:left;height:50px;width:10px'></div></div><div id=b style='flex:1'>x</div></div><div style='display:grid;width:300px'><div id=c style='contain:layout'><div style='margin-top:20px;height:10px'></div></div></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    }
+   ]
+  },
+  {
+   "name": "ct-layout-float-clear",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div style='float:left;width:50px;height:80px;background:rgb(255,0,0)'></div><div id=a style='contain:layout;width:100px;height:20px;background:rgb(0,0,255)'>text</div><div id=b style='width:100px;height:20px;background:rgb(0,128,0)'>text</div><div id=c style='contain:layout;clear:both'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    }
+   ]
+  },
+  {
+   "name": "ct-layout-margins",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div id=a style='margin-top:10px'><div id=b style='contain:layout;margin-top:20px;height:10px'><div id=c style='margin-top:30px;height:5px'></div></div></div><div id=d style='contain:layout;margin-top:15px;height:0'></div><div id=e style='margin-top:25px;height:5px'></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    }
+   ]
+  },
+  {
+   "name": "ct-layout-baseline",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.k{width:200px;background:rgb(0,0,255)}</style><div style='font:16px/20px sans-serif'>text <span id=a style='display:inline-block;contain:layout;width:30px'>inner</span> <span id=b style='display:inline-block;width:30px'>inner</span> <span id=c style='display:inline-block;contain:layout;width:30px;overflow:visible'></span></div>",
+   "measure": [
+    {
+     "boxes": "body *"
+    }
+   ]
+  },
+  {
+   "name": "ct-paint-clip-hit",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='contain:paint;width:100px;height:50px;'><div id=ov style='width:200px;height:200px'></div></div><div id=b style='height:300px;margin-top:100px'></div>",
+   "measure": [
+    {
+     "js": "[document.elementFromPoint(150, 20) && document.elementFromPoint(150, 20).id, document.elementFromPoint(50, 20).id, a.scrollWidth, a.scrollHeight, a.clientHeight, getComputedStyle(a).overflowX]"
+    }
+   ]
+  },
+  {
+   "name": "ct-paint-scrollable-overflow",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='contain:paint;width:100px;height:50px;'><div id=ov style='width:200px;height:200px'></div></div><div id=b style='contain:layout;width:100px;height:50px;'><div id=ov2 style='width:200px;height:200px'></div></div><div id=e style='height:2px'></div>",
+   "measure": [
+    {
+     "js": "['a','b'].map(i => { const e = document.getElementById(i); return [e.scrollWidth, e.scrollHeight, e.clientWidth, e.clientHeight]; })"
+    },
+    {
+     "js": "[document.documentElement.scrollWidth, document.documentElement.scrollHeight]"
+    }
+   ]
+  },
+  {
+   "name": "cv-inline-hidden",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a>x<span id=s style='content-visibility:hidden'><i id=n>inner text</i> <input id=f></span>y</div>",
+   "measure": [
+    {
+     "js": "[a.innerText, document.body.innerText, s.getClientRects().length, n.getClientRects().length, getComputedStyle(s).contentVisibility]"
+    },
+    {
+     "js": "(() => { f.focus(); return document.activeElement.id; })()"
+    }
+   ]
+  },
+  {
+   "name": "cv-inline-hidden-pixels",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><span id=s style='content-visibility:hidden;color:red;font:40px/40px sans-serif'>\u2588\u2588\u2588</span>",
+   "measure": [
+    {
+     "pixels": "#s",
+     "points": [
+      [
+       10,
+       20
+      ],
+      [
+       60,
+       20
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cv-contents-hidden",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a>x<div id=c style='display:contents;content-visibility:hidden'><b id=n>inner text</b> <input id=f></div>y</div>",
+   "measure": [
+    {
+     "js": "[a.innerText, n.getClientRects().length, getComputedStyle(c).contentVisibility, getComputedStyle(c).display]"
+    },
+    {
+     "js": "(() => { f.focus(); return document.activeElement.id; })()"
+    }
+   ]
+  },
+  {
+   "name": "cv-until-found-inline",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a>x<span id=s hidden=until-found>inner text</span>y</div>",
+   "measure": [
+    {
+     "js": "[a.innerText, s.getClientRects().length, getComputedStyle(s).contentVisibility, getComputedStyle(s).display]"
+    }
+   ]
+  },
+  {
+   "name": "cv-inline-block-hidden",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a>x<span id=s style='content-visibility:hidden;display:inline-block;width:50px'>inner text</span>y</div>",
+   "measure": [
+    {
+     "js": "[a.innerText, s.getClientRects().length, s.getBoundingClientRect().width, s.getBoundingClientRect().height]"
+    }
+   ]
+  },
+  {
+   "name": "cm-shorthand-text-decoration",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:rgb(0,128,0);text-decoration:underline color-mix(in srgb, currentcolor, white)'>x</div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('text-decoration'), a.style.getPropertyValue('text-decoration')]"
+    }
+   ]
+  },
+  {
+   "name": "cm-shorthand-background",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:rgb(0,128,0);background:color-mix(in srgb, currentcolor, white)'>x</div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('background'), a.style.getPropertyValue('background')]"
+    }
+   ]
+  },
+  {
+   "name": "cm-shorthand-border",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:rgb(0,128,0);border:2px solid color-mix(in srgb, currentcolor, white)'>x</div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('border'), a.style.getPropertyValue('border')]"
+    }
+   ]
+  },
+  {
+   "name": "cm-shorthand-border-top",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:rgb(0,128,0);border-top:2px solid color-mix(in srgb, currentcolor, white)'>x</div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('border-top'), a.style.getPropertyValue('border-top')]"
+    }
+   ]
+  },
+  {
+   "name": "cm-shorthand-border-color",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:rgb(0,128,0);border-color:color-mix(in srgb, currentcolor, white)'>x</div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('border-color'), a.style.getPropertyValue('border-color')]"
+    }
+   ]
+  },
+  {
+   "name": "cm-shorthand-outline",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:rgb(0,128,0);outline:2px solid color-mix(in srgb, currentcolor, white)'>x</div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('outline'), a.style.getPropertyValue('outline')]"
+    }
+   ]
+  },
+  {
+   "name": "cm-shorthand-column-rule",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:rgb(0,128,0);column-rule:2px solid color-mix(in srgb, currentcolor, white)'>x</div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('column-rule'), a.style.getPropertyValue('column-rule')]"
+    }
+   ]
+  },
+  {
+   "name": "cm-shorthand-text-emphasis",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:rgb(0,128,0);text-emphasis:circle color-mix(in srgb, currentcolor, white)'>x</div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('text-emphasis'), a.style.getPropertyValue('text-emphasis')]"
+    }
+   ]
+  },
+  {
+   "name": "cm-shorthand-border-block",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:rgb(0,128,0);border-block:2px solid color-mix(in srgb, currentcolor, white)'>x</div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('border-block'), a.style.getPropertyValue('border-block')]"
+    }
+   ]
+  },
+  {
+   "name": "cm-shorthand-border-inline-start",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:rgb(0,128,0);border-inline-start:2px solid color-mix(in srgb, currentcolor, white)'>x</div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('border-inline-start'), a.style.getPropertyValue('border-inline-start')]"
+    }
+   ]
+  },
+  {
+   "name": "ap-font-size-cycle-em",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><style>@property --p{syntax:'<length>';inherits:true;initial-value:0px}#a{font-size:var(--p);--p:2em}#b{--p:3em;font-size:var(--p)}</style><div id=a></div><div id=b></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('--p'),getComputedStyle(b).getPropertyValue('--p'),getComputedStyle(a).fontSize,getComputedStyle(b).fontSize]"
+    }
+   ]
+  },
+  {
+   "name": "ap-font-size-cycle-ex",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><style>@property --p{syntax:'<length>';inherits:true;initial-value:0px}#a{font-size:var(--p);--p:2ex}#b{--p:3ex;font-size:var(--p)}</style><div id=a></div><div id=b></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('--p'),getComputedStyle(b).getPropertyValue('--p'),getComputedStyle(a).fontSize,getComputedStyle(b).fontSize]"
+    }
+   ]
+  },
+  {
+   "name": "ap-font-size-cycle-ch",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><style>@property --p{syntax:'<length>';inherits:true;initial-value:0px}#a{font-size:var(--p);--p:2ch}#b{--p:3ch;font-size:var(--p)}</style><div id=a></div><div id=b></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('--p'),getComputedStyle(b).getPropertyValue('--p'),getComputedStyle(a).fontSize,getComputedStyle(b).fontSize]"
+    }
+   ]
+  },
+  {
+   "name": "ap-font-size-cycle-cap",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><style>@property --p{syntax:'<length>';inherits:true;initial-value:0px}#a{font-size:var(--p);--p:2cap}#b{--p:3cap;font-size:var(--p)}</style><div id=a></div><div id=b></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('--p'),getComputedStyle(b).getPropertyValue('--p'),getComputedStyle(a).fontSize,getComputedStyle(b).fontSize]"
+    }
+   ]
+  },
+  {
+   "name": "ap-font-size-cycle-ic",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><style>@property --p{syntax:'<length>';inherits:true;initial-value:0px}#a{font-size:var(--p);--p:2ic}#b{--p:3ic;font-size:var(--p)}</style><div id=a></div><div id=b></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('--p'),getComputedStyle(b).getPropertyValue('--p'),getComputedStyle(a).fontSize,getComputedStyle(b).fontSize]"
+    }
+   ]
+  },
+  {
+   "name": "ap-font-size-cycle-lh",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><style>@property --p{syntax:'<length>';inherits:true;initial-value:0px}#a{font-size:var(--p);--p:2lh}#b{--p:3lh;font-size:var(--p)}</style><div id=a></div><div id=b></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('--p'),getComputedStyle(b).getPropertyValue('--p'),getComputedStyle(a).fontSize,getComputedStyle(b).fontSize]"
+    }
+   ]
+  },
+  {
+   "name": "ap-font-size-cycle-rem",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><style>@property --p{syntax:'<length>';inherits:true;initial-value:0px}#a{font-size:var(--p);--p:2rem}#b{--p:3rem;font-size:var(--p)}</style><div id=a></div><div id=b></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('--p'),getComputedStyle(b).getPropertyValue('--p'),getComputedStyle(a).fontSize,getComputedStyle(b).fontSize]"
+    }
+   ]
+  },
+  {
+   "name": "ap-font-size-cycle-rlh",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><style>@property --p{syntax:'<length>';inherits:true;initial-value:0px}#a{font-size:var(--p);--p:2rlh}#b{--p:3rlh;font-size:var(--p)}</style><div id=a></div><div id=b></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('--p'),getComputedStyle(b).getPropertyValue('--p'),getComputedStyle(a).fontSize,getComputedStyle(b).fontSize]"
+    }
+   ]
+  },
+  {
+   "name": "ap-font-size-cycle-px",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><style>@property --p{syntax:'<length>';inherits:true;initial-value:0px}#a{font-size:var(--p);--p:2px}#b{--p:3px;font-size:var(--p)}</style><div id=a></div><div id=b></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('--p'),getComputedStyle(b).getPropertyValue('--p'),getComputedStyle(a).fontSize,getComputedStyle(b).fontSize]"
+    }
+   ]
+  },
+  {
+   "name": "ap-font-size-cycle-root-rem",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><style>@property --p{syntax:'<length>';inherits:true;initial-value:0px}:root{font-size:var(--p);--p:2rem}</style><div id=a></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.documentElement).getPropertyValue('--p'), getComputedStyle(document.documentElement).fontSize, getComputedStyle(a).fontSize]"
+    }
+   ]
+  },
+  {
+   "name": "ap-font-size-cycle-root-em",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><style>@property --p{syntax:'<length>';inherits:true;initial-value:0px}:root{font-size:var(--p);--p:2em}</style><div id=a></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.documentElement).getPropertyValue('--p'), getComputedStyle(document.documentElement).fontSize]"
+    }
+   ]
+  },
+  {
+   "name": "ap-font-size-indirect",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><style>@property --q{syntax:'<length>';inherits:true;initial-value:0px}@property --p{syntax:'<length>';inherits:true;initial-value:0px}#a{font-size:var(--p);--p:var(--q);--q:2em}</style><div id=a></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('--p'),getComputedStyle(a).getPropertyValue('--q'),getComputedStyle(a).fontSize]"
+    }
+   ]
+  },
+  {
+   "name": "ap-font-size-unrelated",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><style>@property --p{syntax:'<length>';inherits:true;initial-value:0px}@property --w{syntax:'<length>';inherits:true;initial-value:0px}#a{font-size:var(--p);--p:20px;--w:2em}#b{font-size:20px;--w:2em}</style><div id=a></div><div id=b></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(a).getPropertyValue('--w'),getComputedStyle(a).fontSize,getComputedStyle(b).getPropertyValue('--w')]"
+    }
+   ]
+  },
+  {
+   "name": "cm-form-calc-percent",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:red'></div>",
+   "measure": [
+    {
+     "js": "(() => { a.style.borderColor = 'color-mix(in srgb, red calc(50%), blue)'; return [a.style.borderColor, getComputedStyle(a).borderTopColor]; })()"
+    }
+   ]
+  },
+  {
+   "name": "cm-form-calc-percent-sum",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:red'></div>",
+   "measure": [
+    {
+     "js": "(() => { a.style.borderColor = 'color-mix(in srgb, red calc(20% + 30%), blue)'; return [a.style.borderColor, getComputedStyle(a).borderTopColor]; })()"
+    }
+   ]
+  },
+  {
+   "name": "cm-form-calc-infinity",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:red'></div>",
+   "measure": [
+    {
+     "js": "(() => { a.style.borderColor = 'color-mix(in srgb, red calc(infinity * 1%), blue)'; return [a.style.borderColor, getComputedStyle(a).borderTopColor]; })()"
+    }
+   ]
+  },
+  {
+   "name": "cm-form-calc-nan",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:red'></div>",
+   "measure": [
+    {
+     "js": "(() => { a.style.borderColor = 'color-mix(in srgb, red calc(NaN * 1%), blue)'; return [a.style.borderColor, getComputedStyle(a).borderTopColor]; })()"
+    }
+   ]
+  },
+  {
+   "name": "cm-form-none-hsl",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:red'></div>",
+   "measure": [
+    {
+     "js": "(() => { a.style.borderColor = 'color-mix(in hsl, hsl(none 50% 50%), hsl(120 50% 50%))'; return [a.style.borderColor, getComputedStyle(a).borderTopColor]; })()"
+    }
+   ]
+  },
+  {
+   "name": "cm-form-none-lab",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:red'></div>",
+   "measure": [
+    {
+     "js": "(() => { a.style.borderColor = 'color-mix(in srgb, lab(none 20 30), blue)'; return [a.style.borderColor, getComputedStyle(a).borderTopColor]; })()"
+    }
+   ]
+  },
+  {
+   "name": "cm-form-powerless-hue",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:red'></div>",
+   "measure": [
+    {
+     "js": "(() => { a.style.borderColor = 'color-mix(in oklch, white, black)'; return [a.style.borderColor, getComputedStyle(a).borderTopColor]; })()"
+    }
+   ]
+  },
+  {
+   "name": "cm-form-out-of-gamut",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:red'></div>",
+   "measure": [
+    {
+     "js": "(() => { a.style.borderColor = 'color-mix(in srgb, color(srgb 2 0 -1), blue)'; return [a.style.borderColor, getComputedStyle(a).borderTopColor]; })()"
+    }
+   ]
+  },
+  {
+   "name": "ap-font-size-cycle-root-rlh",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><style>@property --p{syntax:'<length>';inherits:true;initial-value:0px}:root{font-size:var(--p);--p:2rlh}</style><div id=a></div>",
+   "measure": [
+    {
+     "js": "[getComputedStyle(document.documentElement).getPropertyValue('--p'), getComputedStyle(document.documentElement).fontSize]"
+    }
+   ]
+  },
+  {
+   "name": "cm-form-calc-negative",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:red'></div>",
+   "measure": [
+    {
+     "js": "(() => { a.style.borderColor = 'color-mix(in srgb, red calc(-20%), blue)'; return [a.style.borderColor, getComputedStyle(a).borderTopColor]; })()"
+    }
+   ]
+  },
+  {
+   "name": "cm-form-calc-over",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:red'></div>",
+   "measure": [
+    {
+     "js": "(() => { a.style.borderColor = 'color-mix(in srgb, red calc(150%), blue)'; return [a.style.borderColor, getComputedStyle(a).borderTopColor]; })()"
+    }
+   ]
+  },
+  {
+   "name": "cm-form-calc-first",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><div id=a style='color:red'></div>",
+   "measure": [
+    {
+     "js": "(() => { a.style.borderColor = 'color-mix(in srgb, calc(25%) red, blue)'; return [a.style.borderColor, getComputedStyle(a).borderTopColor]; })()"
+    }
+   ]
+  },
+  {
+   "name": "ap-line-height-em",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}</style><style>@property --p{syntax:'<length>';inherits:true;initial-value:0px}#a{line-height:var(--p);--p:2em;font-size:10px}#c{--p:2lh;font-size:10px;line-height:var(--p)}</style><div id=a></div><div id=c></div>",
+   "measure": [
+    {
+     "js": "['a','c'].map(k => { const s = getComputedStyle(document.getElementById(k)); return [s.getPropertyValue('--p'), s.fontSize, s.lineHeight].join('/'); })"
+    }
+   ]
+  }
+ ]
+}

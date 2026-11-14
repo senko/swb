@@ -35,8 +35,8 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
         "values-longhand-colors",
         0,
-        r##"["red => rgb(255, 0, 0)","RED => rgb(255, 0, 0)","#f00 => rgb(255, 0, 0)","#FF0000 => rgb(255, 0, 0)","#f008 => rgba(255, 0, 0, 0.533)","#ff000080 => rgba(255, 0, 0, 0.5)","rgb(255,0,0) => rgb(255, 0, 0)","rgb(255 0 0 / 50%) => rgba(255, 0, 0, 0.5)","rgba(0,0,0,0.5) => rgba(0, 0, 0, 0.5)","rgba(0,0,0,0) => rgba(0, 0, 0, 0)","transparent => rgba(0, 0, 0, 0)","currentColor => rgb(0, 0, 255)","CurrentColor => rgb(0, 0, 255)","hsl(120, 100%, 50%) => rgb(0, 255, 0)","hsla(120,100%,50%,0.3) => rgba(0, 255, 0, 0.3)","rgb(10.5, 20, 30) => rgb(11, 20, 30)","rgba(0,0,0,0.123456) => rgba(0, 0, 0, 0.12)","rgba(0,0,0,0.3) => rgba(0, 0, 0, 0.3)","rgba(1,2,3,0.25) => rgba(1, 2, 3, 0.25)","rgba(1,2,3,.1) => rgba(1, 2, 3, 0.1)","rgb(300,-5,0) => rgb(255, 0, 0)","rgb(50%,0%,10%) => rgb(128, 0, 26)","foo => rgb(0, 0, 255)","#ggg => rgb(0, 0, 255)","Canvas => rgb(255, 255, 255)","canvastext => rgb(0, 0, 0)","-webkit-link => rgb(0, 0, 238)","lab(50% 20 30) => rgb(161, 105, 69)","oklch(0.5 0.1 120) => rgb(92, 107, 33)","color(srgb 1 0 0) => rgb(255, 0, 0)","color-mix(in srgb, red, blue) => rgb(128, 0, 128)","hwb(120 0% 0%) => rgb(0, 255, 0)","rgb(0 0 0 / 0.5) => rgba(0, 0, 0, 0.5)","#ABCDEF => rgb(171, 205, 239)","aliceblue => rgb(240, 248, 255)","rgba(255,0,0,1) => rgb(255, 0, 0)","rgb(1,2,3,0.5) => rgba(1, 2, 3, 0.5)","  red   => rgb(255, 0, 0)","red !important => rgb(0, 0, 255)"]"##,
-        "swb computes `lab()`, `oklch()`, `color()` and `color-mix()` to 8-bit sRGB",
+        r##"["red => rgb(255, 0, 0)","RED => rgb(255, 0, 0)","#f00 => rgb(255, 0, 0)","#FF0000 => rgb(255, 0, 0)","#f008 => rgba(255, 0, 0, 0.533)","#ff000080 => rgba(255, 0, 0, 0.5)","rgb(255,0,0) => rgb(255, 0, 0)","rgb(255 0 0 / 50%) => rgba(255, 0, 0, 0.5)","rgba(0,0,0,0.5) => rgba(0, 0, 0, 0.5)","rgba(0,0,0,0) => rgba(0, 0, 0, 0)","transparent => rgba(0, 0, 0, 0)","currentColor => rgb(0, 0, 255)","CurrentColor => rgb(0, 0, 255)","hsl(120, 100%, 50%) => rgb(0, 255, 0)","hsla(120,100%,50%,0.3) => rgba(0, 255, 0, 0.3)","rgb(10.5, 20, 30) => rgb(11, 20, 30)","rgba(0,0,0,0.123456) => rgba(0, 0, 0, 0.12)","rgba(0,0,0,0.3) => rgba(0, 0, 0, 0.3)","rgba(1,2,3,0.25) => rgba(1, 2, 3, 0.25)","rgba(1,2,3,.1) => rgba(1, 2, 3, 0.1)","rgb(300,-5,0) => rgb(255, 0, 0)","rgb(50%,0%,10%) => rgb(128, 0, 26)","foo => rgb(0, 0, 255)","#ggg => rgb(0, 0, 255)","Canvas => rgb(255, 255, 255)","canvastext => rgb(0, 0, 0)","-webkit-link => rgb(0, 0, 238)","lab(50% 20 30) => rgb(161, 105, 69)","oklch(0.5 0.1 120) => rgb(92, 107, 33)","color(srgb 1 0 0) => rgb(255, 0, 0)","color-mix(in srgb, red, blue) => color(srgb 0.5 0 0.5)","hwb(120 0% 0%) => rgb(0, 255, 0)","rgb(0 0 0 / 0.5) => rgba(0, 0, 0, 0.5)","#ABCDEF => rgb(171, 205, 239)","aliceblue => rgb(240, 248, 255)","rgba(255,0,0,1) => rgb(255, 0, 0)","rgb(1,2,3,0.5) => rgba(1, 2, 3, 0.5)","  red   => rgb(255, 0, 0)","red !important => rgb(0, 0, 255)"]"##,
+        "swb computes `lab()`, `oklch()` and `color()` to 8-bit sRGB",
     ),
     (
         "values-longhand-lengths",
@@ -275,8 +275,8 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
         "pseudo",
         12,
-        r#"["::foo =>   0","before => rgb(255, 0, 0) \"ab\" 238","::before  =>   0"," ::before => rgb(0, 128, 0) normal 238",":after => rgb(0, 0, 255) none 238","::-webkit-scrollbar => rgb(0, 128, 0) normal 238",":hover =>   0","::before::after =>   0","::first-letter => rgb(0, 128, 0) normal 238",":first-line => rgb(0, 128, 0) normal 238","::backdrop => rgb(0, 128, 0) normal 238","::part(x) => rgb(0, 128, 0) normal 238","::slotted(p) => rgb(0, 128, 0) normal 238","::details-content => rgb(0, 128, 0) normal 238"]"#,
-        "a declaration lists swb's properties (238; Chromium 456); `::first-line` is not styled",
+        r#"["::foo =>   0","before => rgb(255, 0, 0) \"ab\" 240","::before  =>   0"," ::before => rgb(0, 128, 0) normal 240",":after => rgb(0, 0, 255) none 240","::-webkit-scrollbar => rgb(0, 128, 0) normal 240",":hover =>   0","::before::after =>   0","::first-letter => rgb(0, 128, 0) normal 240",":first-line => rgb(0, 128, 0) normal 240","::backdrop => rgb(0, 128, 0) normal 240","::part(x) => rgb(0, 128, 0) normal 240","::slotted(p) => rgb(0, 128, 0) normal 240","::details-content => rgb(0, 128, 0) normal 240"]"#,
+        "a declaration lists swb's properties (240; Chromium 456); `::first-line` is not styled",
     ),
     (
         "quirks",
@@ -287,7 +287,7 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
         "extra",
         13,
-        r#"["align-content,align-items,align-self",true,"-webkit-border-horizontal-spacing,-webkit-border-vertical-spacing,-webkit-mask-position-x",true,true,true,236,-1]"#,
+        r#"["align-content,align-items,align-self",true,"-webkit-border-horizontal-spacing,-webkit-border-vertical-spacing,-webkit-mask-position-x",true,true,true,238,-1]"#,
         "a declaration lists swb's properties (Chromium also `accent-color`, `-webkit-border-image`, `mask-position`, ...)",
     ),
     (

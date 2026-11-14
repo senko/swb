@@ -50,10 +50,6 @@ pub(crate) fn independent_content_sizes(
     ctx: &mut LayoutContext<'_>,
     ib: &IndependentBox,
 ) -> ContentSizes {
-    // Size containment: hidden contents have no intrinsic size.
-    if ib.base.style.contents_hidden {
-        return ContentSizes::default();
-    }
     // Size and inline-size containment (`contain`, `container-type`; ADR
     // 0038): the inline sizes of an empty box, or
     // `contain-intrinsic-inline-size` (measured in Chromium 148,

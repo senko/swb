@@ -59,6 +59,9 @@ pub struct StyleMap {
     /// What the styles read of query containers (ADR 0038); empty if they
     /// read none.
     container_log: ContainerLog,
+    /// True if a stored style skips its contents (set when the cascade
+    /// stores it, so that layout does not scan the styles).
+    hidden_contents: bool,
 }
 
 /// The identity of the instance tree of one SVG `use` element (SVG 2 §5.6).
@@ -148,6 +151,7 @@ impl StyleMap {
             instances: Vec::new(),
             root_uses: HashMap::new(),
             container_log: ContainerLog::default(),
+            hidden_contents: false,
         }
     }
 
@@ -181,12 +185,12 @@ impl StyleMap {
         self.pseudos.get_mut(&(id, kind))
     }
 
-    /// True if a `details` element is closed and has a `::details-content`
-    /// box with hidden contents.
+    /// True if a style skips its contents
+    /// ([`ComputedStyle::skips_contents`]): a closed `details` with a
+    /// `::details-content` box, or an element with `content-visibility:
+    /// hidden`.
     pub fn has_hidden_contents(&self) -> bool {
-        self.pseudos
-            .iter()
-            .any(|((_, kind), style)| *kind == PseudoKind::DetailsContent && style.contents_hidden)
+        self.hidden_contents
     }
 
     /// The ordinal value of list item `id` (an element with
@@ -231,6 +235,7 @@ impl StyleMap {
         if index >= self.elements.len() {
             self.elements.resize(index + 1, None);
         }
+        self.hidden_contents |= style.skips_contents();
         self.elements[index] = Some(style);
     }
 
@@ -267,6 +272,7 @@ impl StyleMap {
 
     /// Stores the style of a pseudo-element.
     pub(crate) fn set_pseudo(&mut self, id: NodeId, kind: PseudoKind, style: Arc<ComputedStyle>) {
+        self.hidden_contents |= style.skips_contents();
         self.pseudos.insert((id, kind), style);
     }
 

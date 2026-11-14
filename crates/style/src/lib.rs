@@ -48,6 +48,7 @@ pub mod cssom;
 mod custom;
 mod element;
 mod element_kinds;
+mod font_cycle;
 mod font_face;
 mod font_settings;
 mod hints;
@@ -55,6 +56,7 @@ mod layers;
 mod parse;
 mod properties;
 mod query;
+mod registered;
 mod style_map;
 mod stylist;
 mod svg_attributes;
@@ -66,9 +68,10 @@ pub use cascade::{
     compute_pseudo_element_style_with_containers, compute_styles, compute_styles_with_containers,
 };
 pub use color_scheme::{parse_meta_color_scheme, used_color_scheme};
-pub use computed::{ComputedStyle, CustomProperties};
+pub use computed::ComputedStyle;
 pub use container::{ContainerLog, ContainerSizes};
 pub use content::content_text;
+pub use custom::CustomProperties;
 pub use element::{
     CONTROL_STATES, DisabledElements, ElementStates, is_actually_disabled, query_selector_all,
 };

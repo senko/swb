@@ -40,22 +40,13 @@ const TOLERANCE: i32 = 2;
 /// Lines of the answers of `js` rows that test many values (one value per
 /// line) where swb departs from Chromium on purpose: (case, row, line,
 /// swb's line, why).
-const SWB_LINES: &[(&str, usize, usize, &str, &str)] = &[
-    (
-        "bf-syntax-hue-rotate",
-        0,
-        9,
-        r#""hue-rotate(calc(1deg + 2deg))" => false [] {}"#,
-        "swb's `calc()` has no angles",
-    ),
-    (
-        "bf-syntax-drop-shadow",
-        0,
-        31,
-        r#""drop-shadow(1px 2px 3px color-mix(in srgb, red, blue))" => true [drop-shadow(color-mix(in srgb, red, blue) 1px 2px 3px)] {drop-shadow(rgb(128, 0, 128) 1px 2px 3px)}"#,
-        "Chromium writes a computed color of `color-mix()` as `color(srgb 0.5 0 0.5)`; swb has `rgb()`",
-    ),
-];
+const SWB_LINES: &[(&str, usize, usize, &str, &str)] = &[(
+    "bf-syntax-hue-rotate",
+    0,
+    9,
+    r#""hue-rotate(calc(1deg + 2deg))" => false [] {}"#,
+    "swb's `calc()` has no angles",
+)];
 
 /// The `pixels` rows where swb departs from Chromium on purpose: (case,
 /// row, why). The colors are not compared there.

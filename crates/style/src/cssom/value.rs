@@ -217,7 +217,7 @@ const CAMEL_CASE_FUNCTIONS: &[&str] = &[
 fn write_function(f: &Function, style: Style, out: &mut String) {
     let lower = f.name.to_ascii_lowercase();
     match lower.as_str() {
-        "rgb" | "rgba" | "hsl" | "hsla" | "hwb" => {
+        "rgb" | "rgba" | "hsl" | "hsla" | "hwb" | "color-mix" => {
             write_color_value(&ComponentValue::Function(f.clone()), out);
             return;
         }
@@ -328,8 +328,34 @@ fn write_color_value(value: &ComponentValue, out: &mut String) {
     let mut p = Parser::new(values);
     match parse_color(&mut p) {
         Ok(Color::Rgba(c)) => write_rgba(c, out),
+        Ok(Color::Special(_)) => {
+            let text = match value {
+                ComponentValue::Function(f) => {
+                    crate::values::color_mix::specified_text(&f.arguments, &color_tokens_text)
+                }
+                _ => None,
+            };
+            match text {
+                Some(text) => out.push_str(&text),
+                None => out.push_str(&swb_css::serialize_component_values(values)),
+            }
+        }
         _ => out.push_str(&swb_css::serialize_component_values(values)),
     }
+}
+
+/// A color inside `color-mix()`: names in lower case, functions and hashes
+/// as `write_color_value` writes them.
+fn color_tokens_text(tokens: &[ComponentValue]) -> String {
+    let mut out = String::new();
+    match tokens {
+        [ComponentValue::Ident(name)] => out.push_str(&name.to_ascii_lowercase()),
+        [value @ (ComponentValue::Function(_) | ComponentValue::Hash { .. })] => {
+            write_color_value(value, &mut out);
+        }
+        other => out.push_str(&swb_css::serialize_component_values(other)),
+    }
+    out
 }
 
 /// `rgb(r, g, b)` or `rgba(r, g, b, a)`.

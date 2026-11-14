@@ -271,3 +271,17 @@ interface CSSFontFaceRule : CSSRule {
 interface CSSKeyframesRule : CSSRule {
   attribute CSSOMString name;
 };
+
+// CSS Properties and Values API 1
+// (https://www.w3.org/TR/css-properties-values-api-1/#the-css-property-rule-interface):
+// the members of the registration; `type` is 0 and `initialValue` is null
+// if the descriptor is missing (Chromium 148, `ap-cssom-object` in
+// `tools/probes/css-small-features.json`).
+
+[Exposed=Window]
+interface CSSPropertyRule : CSSRule {
+  readonly attribute CSSOMString name;
+  readonly attribute CSSOMString syntax;
+  readonly attribute boolean inherits;
+  readonly attribute CSSOMString? initialValue;
+};

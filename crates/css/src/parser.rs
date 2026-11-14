@@ -31,7 +31,8 @@ use crate::selector::SelectorList;
 use crate::serialize::{DisplayValues, serialize_component_values};
 use crate::stylesheet::{
     ContainerRule, CssRule, Declaration, FontFaceRule, ImportRule, Keyframe, KeyframesRule,
-    LayerBlockRule, LayerName, LayerStatementRule, MediaRule, StyleRule, Stylesheet, SupportsRule,
+    LayerBlockRule, LayerName, LayerStatementRule, MediaRule, PropertyRule, StyleRule, Stylesheet,
+    SupportsRule,
 };
 use crate::supports::SupportsCondition;
 use crate::tokenizer::{Token, Tokenizer, preprocess};
@@ -387,6 +388,16 @@ impl<'a> RuleParser<'a> {
                 let declarations = self.consume_declaration_block(Context::Descriptors);
                 out.push(CssRule::FontFace(FontFaceRule { declarations }));
             }
+            // https://www.w3.org/TR/css-properties-values-api-1/#at-property-rule
+            ("property", true) if holds_rules => {
+                if let Some(name) = property_name(prelude) {
+                    let declarations = self.consume_declaration_block(Context::Descriptors);
+                    out.push(CssRule::Property(PropertyRule { name, declarations }));
+                } else {
+                    debug!("dropped @property with invalid name");
+                    self.skip_block(BlockKind::Curly);
+                }
+            }
             ("keyframes", true) if holds_rules => {
                 if let Some(name) = keyframes_name(prelude) {
                     let keyframes = self.consume_keyframe_list();
@@ -740,6 +751,18 @@ fn keyframes_name(prelude: &[ComponentValue]) -> Option<String> {
     }
 }
 
+/// The name of an `@property` rule: one custom property name (`--` and
+/// at least one more character).
+/// <https://www.w3.org/TR/css-properties-values-api-1/#at-property-rule>
+fn property_name(prelude: &[ComponentValue]) -> Option<String> {
+    match trim_whitespace(prelude) {
+        [ComponentValue::Ident(name)] if name.starts_with("--") && name.len() > 2 => {
+            Some(name.to_string())
+        }
+        _ => None,
+    }
+}
+
 /// The keyframe selectors of a keyframe rule's prelude: a comma-separated
 /// list of `from`, `to` and percentages from 0% to 100%.
 /// <https://drafts.csswg.org/css-animations-1/#typedef-keyframe-selector>
@@ -785,6 +808,7 @@ const RULE_AT_RULES: &[&str] = &[
     "font-face",
     "keyframes",
     "layer",
+    "property",
 ];
 
 /// Parses exactly one rule (CSS Syntax "parse a rule", for CSSOM
@@ -1109,6 +1133,7 @@ mod tests {
                 CssRule::LayerBlock(_) => "layer",
                 CssRule::LayerStatement(_) => "layer-statement",
                 CssRule::Container(_) => "container",
+                CssRule::Property(_) => "property",
             })
             .collect();
         assert_eq!(
@@ -1558,5 +1583,50 @@ mod tests {
             decl_summary(&k.keyframes[1].declarations),
             vec![s("top", "2px", false)]
         );
+    }
+
+    #[test]
+    fn property_rules() {
+        let sheet = parse_stylesheet(
+            "@property --a { syntax: '<length>'; INHERITS: false; initial-value: 0px; foo: bar } \
+             @property b { syntax: '*'; inherits: true } @property -- { syntax: '*' } \
+             @property --c; @media all { @property --d { syntax: '*'; inherits: true !important } } \
+             @property --e { }",
+        );
+        let CssRule::Property(a) = &sheet.rules[0] else {
+            panic!("expected @property");
+        };
+        assert_eq!(a.name, "--a");
+        // Descriptor names are lower case; unknown ones stay for the model.
+        assert_eq!(
+            decl_summary(&a.declarations),
+            vec![
+                s("syntax", "\"<length>\"", false),
+                s("inherits", "false", false),
+                s("initial-value", "0px", false),
+                s("foo", "bar", false),
+            ]
+        );
+        // `b` and `--` are not names; `--c;` has no block.
+        let names: Vec<&str> = sheet
+            .rules
+            .iter()
+            .filter_map(|r| match r {
+                CssRule::Property(p) => Some(p.name.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(names, vec!["--a", "--e"]);
+        // Inside `@media` the rule is kept (its descriptors are checked by
+        // the style model).
+        let CssRule::Media(m) = &sheet.rules[1] else {
+            panic!("expected @media");
+        };
+        assert!(matches!(&m.rules[..], [CssRule::Property(p)] if p.name == "--d"));
+        assert!(matches!(
+            parse_rule("@property --x { syntax: '*'; inherits: false }"),
+            Ok(CssRule::Property(_))
+        ));
+        assert!(parse_rule("@property x { }").is_err());
     }
 }

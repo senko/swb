@@ -57,6 +57,8 @@ mod container_tests;
 #[cfg(test)]
 mod scoping_tests;
 #[cfg(test)]
+mod small_features_tests;
+#[cfg(test)]
 mod top_layer_tests;
 pub(crate) mod use_instances;
 
@@ -70,8 +72,9 @@ use url::Url;
 use crate::ComputedStyle;
 use crate::bloom::AncestorFilter;
 use crate::container::{ContainerSizes, Containers};
-use crate::custom::{compute_custom_properties, substitute};
+use crate::custom::{CustomProperties, Registered, compute_custom_properties, substitute};
 use crate::element::{DomElement, ElementStates, StateSet};
+use crate::font_cycle::{Property as FontProperty, cycle_names};
 use crate::hints::{HintContext, collect_hints};
 use crate::parse::ParserContext;
 use crate::properties::compute::{ComputeContext, apply, is_monospace};
@@ -80,6 +83,7 @@ use crate::properties::{
     CssWideKeyword, CustomDeclaration, DeclarationBlock, LonghandId, PropertyDeclaration,
     UnparsedValue, parse_property_value,
 };
+use crate::registered::Registry;
 use crate::style_map::{PseudoKind, StyleMap};
 use crate::stylist::{CascadeOrigin, Rule, RuleSet, RuleTarget, ScopeIndex, Stylist};
 use crate::values::{
@@ -341,6 +345,9 @@ struct CascadeContext<'a> {
     /// conditions ([`Stylist::layer_ranks`]); `layer_ranks[0]` is the rank
     /// of the unlayered rules, the highest.
     layer_ranks: Arc<[u32]>,
+    /// The registered custom properties (`@property`) for the environment's
+    /// media conditions; `None` without any.
+    registry: Option<Arc<Registry>>,
 }
 
 impl CascadeContext<'_> {
@@ -477,6 +484,19 @@ impl<'a> Styler<'a> {
         let quirks = stylist.quirks();
         let author = ParserContext::author(Some(Arc::new(base_url.clone())), quirks);
         let media = stylist.evaluate_media(env);
+        let registry = stylist.registry(&media);
+        let mut initial = if stylist.dark_canvas_text() {
+            ComputedStyle::initial_dark()
+        } else {
+            ComputedStyle::initial()
+        };
+        if let Some(registry) = &registry {
+            // The root inherits the initial values of the registered
+            // properties.
+            let mut style = (*initial).clone();
+            style.custom_properties = Some(Arc::new(CustomProperties::new(Some(registry))));
+            initial = Arc::new(style);
+        }
         Styler {
             doc,
             states,
@@ -485,12 +505,9 @@ impl<'a> Styler<'a> {
                 env,
                 quirks,
                 root_font_size: env.root_font_size,
-                initial: if stylist.dark_canvas_text() {
-                    ComputedStyle::initial_dark()
-                } else {
-                    ComputedStyle::initial()
-                },
+                initial,
                 layer_ranks: stylist.layer_ranks(&media),
+                registry,
             },
             media,
             matching: MatchingContext::new(if quirks {
@@ -1291,9 +1308,52 @@ fn context_of(position: Position) -> u32 {
     u32::try_from(position >> 32).unwrap_or(u32::MAX)
 }
 
+/// The registered custom properties that are in a dependency cycle through
+/// font-relative units with the winning `font-size` or `line-height`
+/// ([`crate::font_cycle`]), and the properties that reference them: those
+/// declarations are invalid at computed-value time (`unset`).
+fn font_cycle_names(
+    winners: &Winners<'_>,
+    registry: &Registry,
+    is_root: bool,
+) -> (Vec<Arc<str>>, Vec<LonghandId>) {
+    let mut names = Vec::new();
+    let mut invalid = Vec::new();
+    for (id, property) in [
+        (LonghandId::FontSize, FontProperty::FontSize),
+        (LonghandId::LineHeight, FontProperty::LineHeight),
+    ] {
+        if let Some(PropertyDeclaration::WithVariables(_, unparsed)) =
+            winners.longhands[id as usize]
+        {
+            let cyclic = cycle_names(
+                property,
+                &unparsed.tokens,
+                &winners.custom,
+                registry,
+                is_root,
+            );
+            if !cyclic.is_empty() {
+                invalid.push(id);
+                names.extend(cyclic);
+            }
+        }
+    }
+    (names, invalid)
+}
+
+/// The number of 64-bit words of a [`LonghandSet`].
+const LONGHAND_WORDS: usize = LonghandId::COUNT.div_ceil(64);
+
+/// A set of longhands: bit `id as usize`.
+type LonghandSet = [u64; LONGHAND_WORDS];
+
 /// The winning declaration of each property.
 struct Winners<'d> {
     longhands: [Option<&'d PropertyDeclaration>; LonghandId::COUNT],
+    /// The longhands that have a winner, one bit each (`LonghandId as
+    /// usize`), so that `compute` visits only those, not all of them.
+    set: LonghandSet,
     /// Properties for which an author-level `revert` won: all further
     /// author-level declarations are skipped, so the user-agent value (if
     /// any) wins. <https://www.w3.org/TR/css-cascade-5/#default>
@@ -1315,18 +1375,24 @@ struct Winners<'d> {
     /// The same as `layer_floor` and `other_floors`, for the custom
     /// properties that a `revert-layer` rolled back, by name and context.
     custom_floor: HashMap<(&'d str, u32), Position>,
+    /// The registered custom properties in a dependency cycle through
+    /// font-relative units ([`crate::font_cycle`]); empty without
+    /// `@property`.
+    font_cycle: Vec<Arc<str>>,
 }
 
 impl<'d> Winners<'d> {
     fn new() -> Self {
         Winners {
             longhands: [None; LonghandId::COUNT],
+            set: [0; LONGHAND_WORDS],
             reverted: [false; LonghandId::COUNT],
             layer_floor: [Position::MAX; LonghandId::COUNT],
             other_floors: None,
             custom: Vec::new(),
             custom_seen: HashSet::new(),
             custom_floor: HashMap::new(),
+            font_cycle: Vec::new(),
         }
     }
 
@@ -1395,7 +1461,10 @@ impl<'d> Winners<'d> {
                         {
                             self.set_layer_floor(index, position);
                         }
-                        _ => self.longhands[index] = Some(other),
+                        _ => {
+                            self.longhands[index] = Some(other);
+                            self.set[index / 64] |= 1 << (index % 64);
+                        }
                     }
                 }
             }
@@ -1559,6 +1628,16 @@ fn cascade(
     for &i in ua.iter().rev() {
         winners.add_all(&stylist.rule(i).block.normal, Level::UserAgent, 0);
     }
+    // A declaration that a font cycle makes invalid is `unset`: both
+    // properties inherit, and the style starts as the parent's.
+    if let Some(registry) = cx.registry.as_ref() {
+        let (names, invalid) = font_cycle_names(&winners, registry, is_root);
+        for id in invalid {
+            winners.longhands[id as usize] = None;
+            winners.set[id as usize / 64] &= !(1 << (id as usize % 64));
+        }
+        winners.font_cycle = names;
+    }
     compute(cx, &winners, parent, element, is_root, units)
 }
 
@@ -1572,22 +1651,31 @@ fn compute(
     units: ContainerBasis,
 ) -> ComputedStyle {
     let mut style = ComputedStyle::inherit_from(parent);
-    style.custom_properties =
-        compute_custom_properties(parent.custom_properties.as_ref(), &winners.custom);
     let env = cx.env;
+    let lengths = LengthContext {
+        font_size: parent.font_size,
+        root_font_size: if is_root {
+            env.root_font_size
+        } else {
+            cx.root_font_size
+        },
+        viewport_width: env.viewport_width,
+        viewport_height: env.viewport_height,
+        container: units,
+    };
+    let registry = cx.registry.as_ref();
+    style.custom_properties = compute_custom_properties(
+        parent.custom_properties.as_ref(),
+        &winners.custom,
+        registry.map(|registry| Registered {
+            registry,
+            lengths: &lengths,
+            font_cycle: &winners.font_cycle,
+        }),
+    );
     let mut ccx = ComputeContext {
         parent,
-        lengths: LengthContext {
-            font_size: parent.font_size,
-            root_font_size: if is_root {
-                env.root_font_size
-            } else {
-                cx.root_font_size
-            },
-            viewport_width: env.viewport_width,
-            viewport_height: env.viewport_height,
-            container: units,
-        },
+        lengths,
         element,
         quirks: cx.quirks,
     };
@@ -1606,9 +1694,34 @@ fn compute(
     if is_root {
         ccx.lengths.root_font_size = style.font_size;
     }
-    for &id in LonghandId::ALL {
-        if !matches!(id, LonghandId::FontFamily | LonghandId::FontSize) {
-            apply_winner(id, &ccx, &mut style);
+    // Registered lengths in `em` and `rem` are computed against the font
+    // size of the element, which is known only now.
+    if let Some(registry) = registry
+        && (ccx.lengths.font_size != lengths.font_size
+            || ccx.lengths.root_font_size != lengths.root_font_size)
+        && registry.declares_any(winners.custom.iter().map(|(name, _)| *name))
+    {
+        style.custom_properties = compute_custom_properties(
+            parent.custom_properties.as_ref(),
+            &winners.custom,
+            Some(Registered {
+                registry,
+                lengths: &ccx.lengths,
+                font_cycle: &winners.font_cycle,
+            }),
+        );
+    }
+    // The other longhands that have a winner, in the order of `ALL`.
+    for (word_index, &word) in winners.set.iter().enumerate() {
+        let mut bits = word;
+        while bits != 0 {
+            let index = word_index * 64 + bits.trailing_zeros() as usize;
+            bits &= bits - 1;
+            if let Some(&id) = LonghandId::ALL.get(index)
+                && !matches!(id, LonghandId::FontFamily | LonghandId::FontSize)
+            {
+                apply_winner(id, &ccx, &mut style);
+            }
         }
     }
     // `user-select: auto` takes `none` or `all` from the parent. The
@@ -1639,7 +1752,7 @@ impl ResolvedVariables {
     fn get(
         &mut self,
         unparsed: &Arc<UnparsedValue>,
-        custom: Option<&crate::computed::CustomProperties>,
+        custom: Option<&CustomProperties>,
     ) -> Option<&Resolved> {
         let key = Arc::as_ptr(unparsed);
         let index = if let Some(i) = self.entries.iter().position(|(k, _)| *k == key) {
@@ -2121,8 +2234,8 @@ mod tests {
         assert_eq!(cyc.color, RED);
         assert_eq!(cyc.margin_top, LengthPercentageOrAuto::px(7.0));
         let custom = cyc.custom_properties.as_ref().expect("custom properties");
-        assert!(!custom.contains_key("--a"));
-        assert!(custom.contains_key("--gap"));
+        assert!(custom.get("--a").is_none());
+        assert!(custom.get("--gap").is_some());
         // Children share the parent's map when they declare nothing.
         let parent = map.get(node(&doc, "p")).expect("style");
         let child = map.get(node(&doc, "c")).expect("style");

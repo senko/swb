@@ -69,12 +69,6 @@ const DEPARTURES: &[Departure] = &[
         "Chromium scrolls to the end with an animation and checks the images at each frame on the way (all 400 load); swb jumps to the end, and the images 3000 px above the last viewport are out of range",
     ),
     (
-        "kinds-load",
-        0,
-        r#"["k-bogus-far.png","k-contents.png","k-cv-auto.png","k-cv-hidden.png","k-details-open.png","k-eager-far.png","k-fixed.png","k-none-far.png","k-opacity-0.png","k-picture-source.png","k-plain.png","k-right-2000.png","k-space-far.png","k-top-2000.png","k-upper.png","k-visibility-hidden.png","k-zero-css.png","k-zero.png"]"#,
-        "swb has no `content-visibility`: the content of `content-visibility: hidden` has boxes, so its image loads (backlog)",
-    ),
-    (
         "detached-attr-order",
         0,
         "[]",

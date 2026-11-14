@@ -268,6 +268,7 @@ pub(crate) fn wrap_rule(cx: &mut Cx<'_>, rule: RuleRef) -> b::Result<Gc<Object>>
         RuleKind::FontFace(_) => g::CSS_FONT_FACE_RULE,
         RuleKind::Keyframes(_) => g::CSS_KEYFRAMES_RULE,
         RuleKind::Container { .. } => g::CSS_CONTAINER_RULE,
+        RuleKind::Property(_) => g::CSS_PROPERTY_RULE,
     };
     let realm = cx.realm();
     let data = cx.rt.alloc_host_data(RuleData {
@@ -1000,6 +1001,36 @@ impl g::css_container_rule::CSSContainerRuleImpl for WebState {
 impl g::css_media_rule::CSSMediaRuleImpl for WebState {
     fn media(cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
         rule_media(cx, this)
+    }
+}
+
+/// The members of a `CSSPropertyRule`.
+fn property_info(
+    cx: &mut Cx<'_>,
+    this: Platform,
+) -> b::Result<Option<swb_style::cssom::sheet::PropertyInfo>> {
+    let rule = rule_of(cx.rt, this)?;
+    let info = rule.borrow().property_info();
+    Ok(info)
+}
+
+impl g::css_property_rule::CSSPropertyRuleImpl for WebState {
+    fn name(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
+        Ok(property_info(cx, this)?.map(|i| i.name).unwrap_or_default())
+    }
+
+    fn syntax(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
+        Ok(property_info(cx, this)?
+            .map(|i| i.syntax)
+            .unwrap_or_default())
+    }
+
+    fn inherits(cx: &mut Cx<'_>, this: Platform) -> b::Result<bool> {
+        Ok(property_info(cx, this)?.is_some_and(|i| i.inherits))
+    }
+
+    fn initial_value(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<String>> {
+        Ok(property_info(cx, this)?.and_then(|i| i.initial_value))
     }
 }
 

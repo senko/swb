@@ -5000,7 +5000,31 @@ Steps:
         extra pass.
       - 7b (`implementer`): `@property`, `field-sizing`, `color-mix()`
         with `currentcolor` and transparency, the computed value of
-        `content-visibility`.
+        `content-visibility`. Done (2026-11-14, ADR 0038 section "7b"):
+        `@property` with a registry in the cascade (syntaxes, initial
+        values, inheritance, invalid at computed-value time, dependency
+        cycles through font-relative units with `font-size`),
+        `CSSPropertyRule`; `color-mix()` results as float colors
+        serialized as Chromium does, and mixes with `currentcolor` that
+        follow the element's own `color`, also when inherited;
+        `field-sizing: content` for text fields, text areas and selects;
+        `content-visibility` as a property (`hidden` skips the contents
+        for paint, hit testing, the selection, `innerText`, focus and the
+        top layer; `auto` gets containment, but off-screen boxes are not
+        skipped: GitHub's JS-off page has no `auto` element);
+        `contain: layout` and `paint` make an independent formatting
+        context, a stacking context and a containing block, and `paint`
+        clips. From the review: a full color table gives 8-bit colors
+        instead of invalid ones, registered properties no longer copy
+        their initial values into every element (10,000 `@property` rules
+        and 50,000 declaring elements took 31.7 GB), `content-visibility`
+        has no effect on inline boxes, and the shorthands keep mix
+        colors. The cascade now visits only the longhands that have a
+        winner (callgrind JS off: Wikipedia −1.5 %, Ars Technica
+        −0.4 %). 196 probe cases (16 departures, 45 `Later`, each with a
+        reason). Scores unchanged.
+
+      Feature 7 is complete (2026-11-14).
    8. The first view (`implementer-hard`): run the page with features 1
       to 7 and fix what stops it (React's hydration, the missing APIs,
       `relative-time` with `Intl`), the console, the scores, the budget.
@@ -5025,16 +5049,14 @@ Steps:
   `@position-try`): GitHub's overlays use it after
   `CSS.supports('position-anchor', ...)` and have a fallback (owner
   decision, 2026-11-07). 30 uses; cases in `tools/probes/github-css.json`.
-- Found in the diagnosis: `getComputedStyle` gives an empty
-  `content-visibility`; `font-family` serializes `-apple-system,
+- Found in the diagnosis: `font-family` serializes `-apple-system,
   BlinkMacSystemFont` as `system-ui, system-ui`; Chromium's replay of
   GitHub never reaches network idle (15 s cap: every `reference --js` and
   `replay` of this page takes 17 s or more).
 - CSS nesting is not supported (GitHub does not use it; 3 of 4 probe cases
   of `github-css.json` differ).
 - Cascade layers (feature 1): swb loads no `@import` sheets: the layer of an import is declared, its
-  rules do not exist. `@page`, `@namespace`, `@container` and `@property`
-  have no CSSOM objects. An `@import ... layer(a b)` that `insertRule`
+  rules do not exist. `@page` and `@namespace` have no CSSOM objects. An `@import ... layer(a b)` that `insertRule`
   adds: Chromium accepts it, swb keeps no layer and puts the function in
   the media list (it matches nothing). The hostile case
   `layers-many-names` (100,000 layers) uses 502 MiB, most of it the CSSOM
@@ -5182,16 +5204,57 @@ Steps:
   containers and queries (`container-type: scroll-state` acts as
   `normal`), `@supports at-rule(...)`, `rlh` in conditions; container
   units inside a condition use the viewport; `lh` in a condition takes
-  1.2 × the font size for `line-height: normal`. Containment: `contain:
-  layout`, `strict` and `content` make no formatting context and no
-  containing block (Chromium does), `contain: paint` does not clip, style
-  containment (counters, quotes) is missing. `writing-mode` is missing,
+  1.2 × the font size for `line-height: normal`. Style containment
+  (counters, quotes) is missing. `writing-mode` is missing,
   so container units and logical features are horizontal only. Tests:
   `compare --js` of Ars Technica alternates between pixels 0.9891 and
   0.9901 with the same binary; `module_graph_probe_cases_match_chromium`
   (case `import-call-base-inserted`) once gave its two dynamic imports in
   the other order in a full `just check` (passes alone).
-- Rendering (found in 6b): swb has no `content-visibility`; an `<object>`
+- Small CSS features (found in 7b, ADR 0038 section "7b"):
+  - `color-mix()`: the color table is process-wide and never shrinks
+    (2^20 entries). The review filled it with 1,120,000 distinct mixes in
+    6.1 s of script (420 MB). After that, mixes of two concrete colors
+    are 8-bit and a mix with `currentcolor` is invalid in every page. A
+    table per document needs a table handle at each parse, cascade,
+    CSSOM and paint site, and a plan for values that move between
+    documents.
+  - `color-mix()` departures: Lab, Lch, Oklab and XYZ results differ in
+    the fifth digit (Chromium converts through D50); color functions are
+    8-bit before the mix; a mix inside a `currentcolor` mix is invalid;
+    `none` components; the hue of a gray is written as a number, not
+    `none`; `color()` values outside the gamut are clamped; `calc(NaN)`
+    in a percentage is invalid (Chromium: 0 %); the `element.style` text
+    of a `calc()` percentage.
+  - `@property`: no `CSS.registerProperty` or `unregisterProperty`;
+    `<color>` values in `oklch()`, `lab()` or `color()` are kept as 8-bit
+    sRGB; no `calc()` in `<angle>` and `<time>`; swb has no `lh`, `rlh`,
+    `cap` and `ic` units.
+  - Custom properties (older than 7b): every element that declares a
+    custom property copies its parent's whole map. 1,000 custom
+    properties on `body` and 50,000 declaring elements take 4.3 GiB;
+    10,000 go over 8 GiB. A chained or persistent map would fix it.
+  - `content-visibility: auto` does not skip off-screen boxes (no
+    relevance, no remembered `contain-intrinsic-size: auto`, no
+    `contentvisibilityautostatechange`). Chromium computes relevance
+    after the first frame, so a JS-off page has two states. No
+    `checkVisibility()`, no find in page for `hidden=until-found`; the
+    `scrollHeight` of a box with skipped contents is 0 (Chromium gives the
+    content's overflow).
+  - `field-sizing` and controls: list-box selects (`multiple`, `size`)
+    are not supported; swb's drop-down select is 22 px high at
+    `line-height: normal` for 16 px sans-serif (Chromium 21); the sizes of
+    `input type=date/time/color/range/file`; button heights with
+    `line-height`; `width: stretch` on inputs; `datalist` indicator
+    widths.
+  - No computed values for `text-wrap`, `isolation`, `caret-color`,
+    `box-shadow`, `text-shadow`, `stop-color`, `flood-color`,
+    `lighting-color`, `accent-color`, `text-emphasis-color`, and the
+    shorthands `column-rule` and `text-emphasis`;
+    `getComputedStyle(details, '::details-content')` gives the initial
+    style; a gradient with a `currentcolor` mix is written unresolved.
+    `document.createRange` and `getSelection` are not defined.
+- Rendering (found in 6b): an `<object>`
   with `type` or `data` renders its fallback children, Chromium does not
   (measured: a child `div` has no client rect); a gradient `body`
   background on an `html` of height 0 paints in swb and is white in
@@ -5580,9 +5643,7 @@ Steps:
   `GMT`, Chromium `GMT+1`).
 - `js`: `10n ** 300000n` throws "Maximum BigInt size exceeded";
   Chromium computes it.
-- Lazy images (found in feature 4): `content-visibility` is not
-  implemented (content under `content-visibility: hidden` loads);
-  Chromium decides lazy or eager in a microtask after `src` is set, swb
+- Lazy images (found in feature 4): Chromium decides lazy or eager in a microtask after `src` is set, swb
   when it processes the DOM changes; keyboard scrolling jumps (Chromium
   animates it and loads images on the way); after a failed load, a
   `sizes="auto"` image without a width does not select the 100vw source
@@ -5623,8 +5684,7 @@ Steps:
   (`new CSSStyleSheet()`, `replace`, `replaceSync`) and
   `adoptedStyleSheets` (no target uses them); rule objects for the rules
   that the parser drops (`@page`, `@layer` blocks and statements, which
-  the parser flattens, `@namespace`, `@container`, `@counter-style`,
-  `@property`, nesting): they are a `SyntaxError` in `insertRule` and
+  the parser flattens, `@namespace`, `@counter-style`, nesting): they are a `SyntaxError` in `insertRule` and
   missing from `cssRules` (Chromium: `@namespace` after rules is an
   `InvalidStateError`); `CSSKeyframeRule` and the members of
   `CSSKeyframesRule` but `name`; `CSSFontFaceRule.style`; `@import`
@@ -6656,8 +6716,8 @@ Steps:
   condition is cut short (`matchMedia("(".repeat(10000)).media` has 130
   characters, Chromium 19,999).
 - `web` (found in feature 7b2): the `innerText` of an inline element starts a line (Chromium keeps a
-  leading space when its line has text before it). No
-  `content-visibility`; MathML elements are plain. Animation frame
+  leading space when its line has text before it). MathML elements are
+  plain. Animation frame
   times are coarsened to 0.1 ms like `performance.now()` (Chromium
   gives microseconds); frames are not throttled for hidden documents
   (8a has `visibilityState`).
@@ -7585,15 +7645,12 @@ not repeated here; the open items of each spike session are in M6 step
   are skipped (no decoder); `ex` and `ch` in `sizes` are 0.5em;
   superseded image loads are not cancelled, and each selection walks the
   whole document.
-- Containment: only size containment of replaced elements has an effect
-  (`img` with `sizes="auto"`, `contain-intrinsic-size`; a flex item with
-  size containment has no automatic minimum size). Size containment of
-  non-replaced boxes (intrinsic size from `contain-intrinsic-size`, 0 for
-  `none`; the box ignores its content for `auto` sizes), `inline-size`
-  containment, layout, paint and style containment, and the `auto` form
-  of `contain-intrinsic-*` (the remembered size of `content-visibility:
-  auto`) are not implemented. Ars uses `contain: layout style size` only
-  on a hidden `.pswp`.
+- Containment: size and inline-size containment (M10 7a) and layout and
+  paint containment (M10 7b) are implemented; style containment
+  (counters, quotes) and the `auto` form of `contain-intrinsic-*` (the
+  remembered size of `content-visibility: auto`) are not. A flex item
+  with size containment has no automatic minimum size. Ars uses
+  `contain: layout style size` only on a hidden `.pswp`.
 - Lazy loading: `loading=lazy` images load at once (no deferral until near
   the viewport).
 - Selectors: `::slotted()` is invalid in swb; Chromium accepts it. `:host`,

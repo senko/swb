@@ -139,6 +139,8 @@ fn paint_kind(b: &BoxFragment) -> PaintKind {
         PaintKind::Inline
     } else if style.display.is_inline_level()
         || style.opacity < 1.0
+        || style.has_layout_containment()
+        || style.has_paint_containment()
         || style.has_filter_effect()
         || style.will_change_makes_stacking_context()
         || style.has_mask()
@@ -782,6 +784,8 @@ impl Builder<'_> {
             || filtered
             || b.style.has_backdrop_filter()
             || b.style.will_change_makes_stacking_context()
+            || b.style.has_layout_containment()
+            || b.style.has_paint_containment()
             || outer_depth == 0;
         if context {
             self.contexts.push(Vec::new());
@@ -1088,7 +1092,7 @@ impl Builder<'_> {
     /// did.
     fn push_overflow_clip(&mut self, b: &BoxFragment, origin: Point, context_depth: usize) -> bool {
         let style = &b.style;
-        if !(style.overflow_x.clips() || style.overflow_y.clips()) {
+        if !(style.clips_x() || style.clips_y()) {
             return false;
         }
         let rect = b.padding_rect().translate(origin);
@@ -1442,7 +1446,7 @@ impl Builder<'_> {
 /// is the absolute position of the parent's border-box origin.
 pub(crate) fn with_descendants(b: &BoxFragment, origin: Point) -> Rect {
     let rect = b.border_rect.translate(origin);
-    if b.style.overflow_x.clips() || b.style.overflow_y.clips() {
+    if b.style.clips_x() || b.style.clips_y() {
         return rect;
     }
     let own = rect.origin();
@@ -1509,7 +1513,7 @@ fn is_block_container_for_text(style: &ComputedStyle) -> bool {
 /// §4.2, <https://www.w3.org/TR/css-backgrounds-3/#corner-shaping>).
 fn padding_radii(b: &BoxFragment, origin: Point) -> Option<Radii> {
     let style = &b.style;
-    if !(style.overflow_x.clips() && style.overflow_y.clips()) {
+    if !(style.clips_x() && style.clips_y()) {
         return None;
     }
     let outer = resolve_radii(style, b.border_rect.translate(origin));

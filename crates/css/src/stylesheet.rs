@@ -53,6 +53,8 @@ pub enum CssRule {
     LayerStatement(LayerStatementRule),
     /// `@container`.
     Container(ContainerRule),
+    /// `@property`.
+    Property(PropertyRule),
 }
 
 /// A style rule.
@@ -236,6 +238,19 @@ impl ImportRule {
 pub struct FontFaceRule {
     /// The descriptors, in source order. `unicode-range` values are
     /// [`ComponentValue::UnicodeRange`] values when they parse.
+    pub declarations: Vec<Declaration>,
+}
+
+/// An `@property` rule (CSS Properties and Values API 1, section 3). The
+/// parser checks the name; the descriptors are checked by `swb_style`
+/// (`registered.rs`), which owns the syntax grammar.
+/// <https://www.w3.org/TR/css-properties-values-api-1/#at-property-rule>
+#[derive(Clone, Debug, PartialEq)]
+pub struct PropertyRule {
+    /// The custom property name (`--foo`), with its case.
+    pub name: String,
+    /// The descriptors in source order (names in lower case; `syntax`,
+    /// `inherits` and `initial-value` are the known ones).
     pub declarations: Vec<Declaration>,
 }
 

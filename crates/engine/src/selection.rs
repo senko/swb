@@ -254,17 +254,17 @@ impl Clip {
 /// against.
 fn clip_area(b: &BoxFragment, origin: Point) -> Option<Rect> {
     let style = &b.style;
-    if !style.overflow_x.clips() && !style.overflow_y.clips() {
+    if !style.clips_x() && !style.clips_y() {
         return None;
     }
     let padding = b.padding_rect().translate(origin);
     let far = 4.0 * swb_style::Length::MAX_PX;
-    let (x, width) = if style.overflow_x.clips() {
+    let (x, width) = if style.clips_x() {
         (padding.x, padding.width)
     } else {
         (-far, 2.0 * far)
     };
-    let (y, height) = if style.overflow_y.clips() {
+    let (y, height) = if style.clips_y() {
         (padding.y, padding.height)
     } else {
         (-far, 2.0 * far)
@@ -666,9 +666,10 @@ pub(crate) fn selected_text(
                 let first = stack.len();
                 // The hidden contents of a closed `details` are not text of
                 // the page: only its summary is.
-                let hidden = styles
-                    .pseudo(node, swb_style::PseudoKind::DetailsContent)
-                    .is_some_and(|s| s.contents_hidden);
+                let hidden = style.skips_contents()
+                    || styles
+                        .pseudo(node, swb_style::PseudoKind::DetailsContent)
+                        .is_some_and(|s| s.contents_hidden);
                 let summary = doc.details_summary(node);
                 stack.extend(
                     doc.children(node)
