@@ -97,7 +97,7 @@ pub(crate) fn layout_inline(
     markers: &mut Vec<PendingMarker<'_>>,
     flow: Flow,
 ) -> InlineLayout {
-    let shaped = ctx.shaped(ifc);
+    let shaped = ctx.shaped(ifc, container_style.white_space.wraps());
     let width = cb.width;
     let atomics = layout_atomics(ctx, ifc, cb);
     let floats = layout_floats(ctx, ifc, cb, flow.x);
@@ -207,7 +207,7 @@ pub(crate) fn content_sizes(
     ifc: &InlineFormattingContext,
     container_style: &ComputedStyle,
 ) -> ContentSizes {
-    let shaped = ctx.shaped(ifc);
+    let shaped = ctx.shaped(ifc, container_style.white_space.wraps());
     let (min_atomics, max_atomics) = atomic_content_sizes(ctx, ifc);
     // The table cell width calculation quirk
     // (https://quirks.spec.whatwg.org/#the-table-cell-width-calculation-quirk):
@@ -845,7 +845,81 @@ struct OpenBox {
     /// True once the box's strut counts on this line (for the line height
     /// quirks).
     has_strut: bool,
+    /// Its entry in [`LineState::relative`] if it has `vertical-align: top`
+    /// or `bottom`.
+    relative: Option<usize>,
     children: Vec<Fragment>,
+}
+
+/// The edge of the line box (or of the enclosing aligned subtree) that a
+/// box with `vertical-align: top` or `bottom` aligns with.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum LineEdge {
+    Top,
+    Bottom,
+}
+
+impl LineEdge {
+    fn of(align: &VerticalAlign) -> Option<LineEdge> {
+        match align {
+            VerticalAlign::Keyword(VerticalAlignKeyword::Top) => Some(LineEdge::Top),
+            VerticalAlign::Keyword(VerticalAlignKeyword::Bottom) => Some(LineEdge::Bottom),
+            _ => None,
+        }
+    }
+}
+
+/// The tallest aligned subtree with `vertical-align: top` or `bottom` in a
+/// line box or in an enclosing such subtree. The first of equal heights
+/// counts (measured in Chromium 148: `top` 80 px then `bottom` 80 px puts
+/// the rest of the line at the top, the other order at the bottom).
+#[derive(Clone, Copy, Debug, Default)]
+struct Tallest {
+    height: f32,
+    edge: Option<LineEdge>,
+}
+
+impl Tallest {
+    fn add(&mut self, edge: LineEdge, height: f32) {
+        if height > self.height {
+            *self = Tallest {
+                height,
+                edge: Some(edge),
+            };
+        }
+    }
+
+    /// `extent` grown to hold the tallest subtree: away from the edge that
+    /// the subtree aligns with, so that the subtree fits and the rest stays
+    /// at that edge (measured in Chromium 148: a line box with a 100 px
+    /// `top` box and a 60 px `bottom` box keeps its text at the top; with
+    /// 60 px and 100 px, at the bottom, in either order in the line).
+    fn extend(self, mut extent: Extent) -> Extent {
+        if self.height > extent.bottom - extent.top {
+            match self.edge {
+                Some(LineEdge::Top) => extent.bottom = extent.top + self.height,
+                Some(LineEdge::Bottom) => extent.top = extent.bottom - self.height,
+                None => {}
+            }
+        }
+        extent
+    }
+}
+
+/// A box with `vertical-align: top` or `bottom` on a line: an inline box
+/// with its aligned subtree, or an atomic inline (CSS 2.2 §10.8.1).
+#[derive(Clone, Copy, Debug)]
+struct LineRelative {
+    edge: LineEdge,
+    /// The enclosing box with `top` or `bottom` (an index into
+    /// [`LineState::relative`]), whose aligned subtree it aligns with; none
+    /// for the line box.
+    within: Option<usize>,
+    /// The extent of its aligned subtree relative to its own baseline,
+    /// grown for the line-relative boxes inside it.
+    extent: Extent,
+    /// The tallest line-relative boxes directly inside it.
+    tallest: Tallest,
 }
 
 struct LineBuilder<'a, 'b> {
@@ -878,7 +952,7 @@ struct LineBuilder<'a, 'b> {
 }
 
 /// Vertical extent of the line content relative to the root baseline.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct Extent {
     top: f32,
     bottom: f32,
@@ -941,6 +1015,20 @@ struct LineState {
     /// floats of the line go among them in tree order (see
     /// `LineBuilder::insert_line_floats`).
     top_level_pieces: Vec<usize>,
+    /// The boxes with `vertical-align: top` or `bottom` on the line, in the
+    /// order in which they start. Their aligned subtrees do not count in
+    /// `extent`.
+    relative: Vec<LineRelative>,
+    /// The `extent` of the content around each open line-relative box.
+    saved_extents: Vec<Extent>,
+    /// The open line-relative boxes (indices into `relative`).
+    open_relative: Vec<usize>,
+    /// The tallest line-relative boxes directly in the line box.
+    tallest: Tallest,
+    /// The baseline shift of each line-relative box from its place with
+    /// `vertical-align: baseline`, by index; empty on the first pass (see
+    /// `LineBuilder::build_line`).
+    relative_offsets: Vec<f32>,
 }
 
 /// The result of filling one line (see `LineBuilder::fill_line`).
@@ -1078,7 +1166,112 @@ impl LineState {
             placeholders: Vec::new(),
             piece: 0,
             top_level_pieces: Vec::new(),
+            relative: Vec::new(),
+            saved_extents: Vec::new(),
+            open_relative: Vec::new(),
+            tallest: Tallest::default(),
+            relative_offsets: Vec::new(),
         }
+    }
+
+    /// Starts a line-relative box: its aligned subtree collects its own
+    /// extent from here. Returns its index and its baseline shift.
+    fn start_relative(&mut self, edge: LineEdge) -> (usize, f32) {
+        let index = self.relative.len();
+        self.relative.push(LineRelative {
+            edge,
+            within: self.open_relative.last().copied(),
+            extent: Extent::EMPTY,
+            tallest: Tallest::default(),
+        });
+        self.saved_extents
+            .push(std::mem::replace(&mut self.extent, Extent::EMPTY));
+        self.open_relative.push(index);
+        (index, self.relative_offset(index))
+    }
+
+    /// Ends the line-relative inline box `index` whose baseline is at
+    /// `baseline`.
+    fn end_relative(&mut self, index: usize, baseline: f32) {
+        let outer = self.saved_extents.pop().unwrap_or(Extent::EMPTY);
+        let mut own = std::mem::replace(&mut self.extent, outer);
+        if own.top > own.bottom {
+            // Nothing counted (the line height quirks): zero height at the
+            // box's baseline.
+            own = Extent {
+                top: baseline,
+                bottom: baseline,
+            };
+        }
+        self.open_relative.pop();
+        let Some(entry) = self.relative.get_mut(index) else {
+            return;
+        };
+        let grown = entry.tallest.extend(own);
+        entry.extent = Extent {
+            top: grown.top - baseline,
+            bottom: grown.bottom - baseline,
+        };
+        let (edge, within, height) = (entry.edge, entry.within, grown.bottom - grown.top);
+        self.add_tallest(within, edge, height);
+    }
+
+    /// Adds a line-relative atomic inline whose margin box extends `above`
+    /// its baseline and `below` it. Returns its baseline shift.
+    fn add_relative_atomic(&mut self, edge: LineEdge, above: f32, below: f32) -> f32 {
+        let index = self.relative.len();
+        let within = self.open_relative.last().copied();
+        self.relative.push(LineRelative {
+            edge,
+            within,
+            extent: Extent {
+                top: -above,
+                bottom: below,
+            },
+            tallest: Tallest::default(),
+        });
+        self.add_tallest(within, edge, above + below);
+        self.relative_offset(index)
+    }
+
+    fn add_tallest(&mut self, within: Option<usize>, edge: LineEdge, height: f32) {
+        match within.and_then(|w| self.relative.get_mut(w)) {
+            Some(outer) => outer.tallest.add(edge, height),
+            None => self.tallest.add(edge, height),
+        }
+    }
+
+    fn relative_offset(&self, index: usize) -> f32 {
+        self.relative_offsets.get(index).copied().unwrap_or(0.0)
+    }
+
+    /// The extent of the line box: the content, grown for the tallest
+    /// line-relative box.
+    fn line_extent(&self) -> Extent {
+        self.tallest.extend(self.extent.or_zero())
+    }
+
+    /// The baseline shift of each line-relative box from its place with
+    /// `vertical-align: baseline`. Measured in Chromium 148: a box aligns
+    /// its aligned subtree with the top or bottom of the line box (or of
+    /// the enclosing line-relative box's subtree), moved by the baseline
+    /// shifts of its ancestors in between (a `top` box inside a `super`
+    /// span sits above the line box's top).
+    fn compute_relative_offsets(&self) -> Vec<f32> {
+        let line = self.line_extent();
+        self.relative
+            .iter()
+            .map(|r| {
+                let reference = r
+                    .within
+                    .and_then(|w| self.relative.get(w))
+                    .map_or(line, |w| w.extent);
+                match r.edge {
+                    LineEdge::Top => reference.top - r.extent.top,
+                    LineEdge::Bottom => reference.bottom - r.extent.bottom,
+                }
+            })
+            .collect()
     }
 
     /// The baseline and strut of the innermost open box (or the root).
@@ -1277,7 +1470,8 @@ impl LineBuilder<'_, '_> {
         let line_start = self.fragments.len();
         let mut pieces = Vec::new();
         for line in break_lines(groups, self.width, indent) {
-            let (state, open) = self.build_line(groups, &line, 0.0, &[], self.open.clone());
+            let open = std::mem::take(&mut self.open);
+            let (state, open) = self.build_line(groups, &line, 0.0, &[], &open);
             self.open = open;
             pieces.extend(self.finish_empty_line(state, left));
         }
@@ -1492,8 +1686,8 @@ impl LineBuilder<'_, '_> {
             return Err(self.reject(groups, &line, fill, Reject::TooWide { need }));
         }
         let line_markers: &[PendingMarker<'_>] = if empty { &[] } else { markers };
-        let (state, open) =
-            self.build_line(groups, &line, start.indent, line_markers, self.open.clone());
+        let open = self.open.clone();
+        let (state, open) = self.build_line(groups, &line, start.indent, line_markers, &open);
         // The line's own floats do not count (they are beside it).
         let (cx0, cx1) = (self.flow_x, self.flow_x + self.width);
         let before = fill.checkpoint.as_ref();
@@ -1791,22 +1985,55 @@ impl LineBuilder<'_, '_> {
     /// Builds a line; `open` are the inline boxes that continue from the
     /// previous line. Returns the line and the boxes that continue on the
     /// next line.
+    ///
+    /// A line with boxes that have `vertical-align: top` or `bottom` is
+    /// built twice: the first pass finds the extent of the rest of the line
+    /// and of each aligned subtree, the second places those boxes at their
+    /// baseline shifts (CSS 2.2 §10.8.1).
     fn build_line(
         &mut self,
         groups: &[Group],
         line: &Line,
         indent: f32,
         markers: &[PendingMarker<'_>],
-        open: Vec<(usize, Arc<ComputedStyle>)>,
+        open: &[(usize, Arc<ComputedStyle>)],
+    ) -> (LineState, Vec<(usize, Arc<ComputedStyle>)>) {
+        let (state, continuing) =
+            self.build_line_pass(groups, line, indent, markers, open, Vec::new());
+        if state.relative.is_empty() {
+            return (state, continuing);
+        }
+        let offsets = state.compute_relative_offsets();
+        let (mut state, continuing) = if offsets.iter().any(|o| o.abs() > EPSILON) {
+            self.build_line_pass(groups, line, indent, markers, open, offsets)
+        } else {
+            (state, continuing)
+        };
+        state.extent = state.line_extent();
+        (state, continuing)
+    }
+
+    /// One pass of [`Self::build_line`]; `offsets` are the baseline shifts
+    /// of the line-relative boxes (empty on the first pass).
+    fn build_line_pass(
+        &mut self,
+        groups: &[Group],
+        line: &Line,
+        indent: f32,
+        markers: &[PendingMarker<'_>],
+        open: &[(usize, Arc<ComputedStyle>)],
+        offsets: Vec<f32>,
     ) -> (LineState, Vec<(usize, Arc<ComputedStyle>)>) {
         self.ctx.layout_units += 1;
         let quirky =
             self.ctx.line_height_quirks && self.container_style.display != Display::ListItem;
         let mut state = LineState::new(self.root_metrics, indent, quirky);
+        state.relative_offsets = offsets;
         // Re-open boxes that continue from the previous line.
         for (item, style) in open {
             let (baseline, strut) = state.parent();
-            let open = self.open_box(item, &style, state.x, baseline, &strut, true);
+            let open = self.open_box(*item, style, state.x, baseline, &strut, true);
+            let open = Self::start_relative_box(&mut state, open);
             state.push_open(open, false);
         }
 
@@ -1827,6 +2054,9 @@ impl LineBuilder<'_, '_> {
                     if let Some(mut open) = state.stack.pop() {
                         if state.quirky && !split && has_quirky_end_edge(&open.style) {
                             state.include_strut(&mut open);
+                        }
+                        if let Some(index) = open.relative {
+                            state.end_relative(index, open.baseline);
                         }
                         if open.has_metrics {
                             state.set_parent_has_metrics();
@@ -1853,6 +2083,9 @@ impl LineBuilder<'_, '_> {
         state.piece = end;
         let mut continuing = Vec::new();
         while let Some(open) = state.stack.pop() {
+            if let Some(index) = open.relative {
+                state.end_relative(index, open.baseline);
+            }
             continuing.insert(0, (open.item, Arc::clone(&open.style)));
             let fragment = self.close_box(open, &mut state.x, true);
             state.push_child(Fragment::Box(fragment));
@@ -1906,8 +2139,21 @@ impl LineBuilder<'_, '_> {
         if !continued {
             state.x += open.edges.start();
         }
+        let open = Self::start_relative_box(state, open);
         state.push_open(open, !continued && has_quirky_start_edge(&style));
         state.trailing_space = 0.0;
+    }
+
+    /// Starts the aligned subtree of an inline box with `vertical-align:
+    /// top` or `bottom`, before its strut counts; other boxes are returned
+    /// as they are.
+    fn start_relative_box(state: &mut LineState, mut open: OpenBox) -> OpenBox {
+        if let Some(edge) = LineEdge::of(&open.style.vertical_align) {
+            let (index, offset) = state.start_relative(edge);
+            open.relative = Some(index);
+            open.baseline += offset;
+        }
+        open
     }
 
     /// Places glyphs `part.0` of a text piece (all of them, unless the
@@ -2008,16 +2254,23 @@ impl LineBuilder<'_, '_> {
         } else {
             0.0
         };
-        let baseline = parent_baseline
-            + baseline_shift(
-                &style.vertical_align,
-                &parent_strut,
-                own_line_height,
-                atomic.baseline,
-                atomic.margin_height,
-            );
+        let baseline = if let Some(edge) = LineEdge::of(&style.vertical_align) {
+            let below = atomic.margin_height - atomic.baseline;
+            parent_baseline + state.add_relative_atomic(edge, atomic.baseline, below)
+        } else {
+            let baseline = parent_baseline
+                + baseline_shift(
+                    &style.vertical_align,
+                    &parent_strut,
+                    own_line_height,
+                    atomic.baseline,
+                    atomic.margin_height,
+                );
+            let top = baseline - atomic.baseline;
+            state.extent.include(top, top + atomic.margin_height);
+            baseline
+        };
         let top = baseline - atomic.baseline;
-        state.extent.include(top, top + atomic.margin_height);
         state.set_parent_has_metrics();
         if let Some(mut fragment) = atomic.fragment {
             fragment.border_rect.x += state.x;
@@ -2204,6 +2457,7 @@ impl LineBuilder<'_, '_> {
             continued,
             has_metrics: false,
             has_strut: false,
+            relative: None,
             children: Vec::new(),
         }
     }
@@ -2449,7 +2703,8 @@ fn collapse_to_line_top(fragment: &mut Fragment) {
 /// `vertical-align` (CSS 2.2 §10.8.1). Down is positive. `line_height` is
 /// the box's own used line height (the basis of percentages), `above` the
 /// distance from the box's baseline to its top, `height` its total height.
-/// `top` and `bottom` are not supported and align as `baseline`.
+/// `top` and `bottom` give 0: they are aligned with the line box after it
+/// is built (see `LineBuilder::build_line`).
 fn baseline_shift(
     align: &VerticalAlign,
     parent: &Strut,
@@ -2698,6 +2953,60 @@ mod tests {
         assert_eq!((ib.x - ib0.x, ib.y - ib0.y), (0.0, 10.0));
     }
 
+    /// The tallest line-relative box decides the line height and the side
+    /// where the rest of the line stays; the first of two equal ones counts
+    /// (the boxes of `va-top-*` in `tools/probes/inline-alignment.json`).
+    #[test]
+    fn tallest_top_or_bottom_box_decides_the_line_box() {
+        let line = |a: (&str, u32), b: (&str, u32)| {
+            let l = layout_html(&body(&format!(
+                "<div id=d style='font:16px/20px sans-serif'><span id=x>X</span>\
+                 <span id=a style='display:inline-block;width:5px;vertical-align:{};height:{}px'></span>\
+                 <span id=b style='display:inline-block;width:5px;vertical-align:{};height:{}px'></span></div>",
+                a.0, a.1, b.0, b.1
+            )));
+            let d = l.rect("d");
+            (
+                l.rect("d").height,
+                l.rect("x").y - d.y,
+                l.rect("a").y - d.y,
+                l.rect("b").y - d.y,
+            )
+        };
+        // The text's box (17 px high) starts 1 px below its line's top.
+        assert_eq!(line(("top", 100), ("bottom", 60)), (100.0, 1.0, 0.0, 40.0));
+        assert_eq!(line(("top", 60), ("bottom", 100)), (100.0, 81.0, 0.0, 0.0));
+        assert_eq!(line(("bottom", 100), ("top", 60)), (100.0, 81.0, 0.0, 0.0));
+        assert_eq!(line(("top", 80), ("bottom", 80)), (80.0, 1.0, 0.0, 0.0));
+        assert_eq!(line(("bottom", 80), ("top", 80)), (80.0, 61.0, 0.0, 0.0));
+        // Short boxes do not change the line box.
+        assert_eq!(line(("top", 5), ("bottom", 5)), (20.0, 1.0, 0.0, 15.0));
+    }
+
+    /// A line-relative box inside a shifted inline box moves with that
+    /// box's shift; one inside a line-relative box aligns with that box's
+    /// aligned subtree (`va-top-inside-super`, `va-top-nested-bottom`).
+    #[test]
+    fn line_relative_boxes_in_shifted_and_aligned_boxes() {
+        let l = layout_html(&body(
+            "<div id=d style='font:16px/20px sans-serif'>X<span style='vertical-align:-20px'>s\
+             <span id=t style='display:inline-block;width:5px;vertical-align:top;height:50px'></span>\
+             </span></div>",
+        ));
+        let d = l.rect("d");
+        assert_eq!(d.height, 50.0);
+        assert_eq!(l.rect("t").y - d.y, 20.0);
+        let l = layout_html(&body(
+            "<div id=d style='font:16px/20px sans-serif'>X<span id=t \
+             style='vertical-align:top;line-height:40px'>a<span id=c \
+             style='display:inline-block;width:5px;vertical-align:bottom;height:70px'></span>\
+             </span></div>",
+        ));
+        let d = l.rect("d");
+        assert_eq!(d.height, 70.0);
+        assert_eq!(l.rect("c").y - d.y, 0.0);
+    }
+
     #[test]
     fn sub_and_super_shift_by_the_parent_font_size() {
         let metrics = LineMetrics {
@@ -2840,6 +3149,29 @@ mod tests {
         // Atomic inlines in nowrap text do not break.
         let atomics = "<img style='width:5px;height:5px'><img style='width:5px;height:5px'>";
         assert_eq!(narrow_height(atomics, "white-space:nowrap"), 20.0);
+    }
+
+    #[test]
+    fn the_parent_white_space_decides_around_atomic_inlines() {
+        let img = |own: &str| format!("<img style='width:5px;height:5px;white-space:{own}'>");
+        // The atomic inlines' own `white-space` does not count.
+        let two = |own: &str| format!("{}{}", img(own), img(own));
+        assert_eq!(narrow_height(&two("nowrap"), ""), 40.0);
+        assert_eq!(narrow_height(&two("normal"), "white-space:nowrap"), 20.0);
+        // The inline box around them is their parent.
+        let boxed = |own: &str| format!("<b>{}</b><b>{}</b>", img(own), img(own));
+        assert_eq!(narrow_height(&boxed("nowrap"), ""), 40.0);
+        let in_nowrap = format!("<span style='white-space:nowrap'>{}</span>", two("normal"));
+        assert_eq!(narrow_height(&in_nowrap, ""), 20.0);
+        // An isolated box after an atomic inline starts at an opportunity.
+        let isolated = |before: &str| {
+            format!(
+                "{before}<span style='unicode-bidi:isolate'>{}</span>",
+                img("normal")
+            )
+        };
+        assert_eq!(narrow_height(&isolated(&img("normal")), ""), 40.0);
+        assert_eq!(narrow_height(&isolated("a"), ""), 20.0);
     }
 
     #[test]

@@ -4,6 +4,32 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-14: M10 8a: line-relative alignment, breaks around atomic inlines
+
+- Diagnosis of feature 8: with features 1 to 7, GitHub's page works with
+  JavaScript on. The DOM after the load equals Chromium's replay, the
+  React islands hydrate, the fetches render, the console is empty and the
+  relative times match. All differing boxes came from two inline layout
+  bugs, which 8a fixes. The integration test is 8b.
+- `vertical-align: top` and `bottom` (CSS 2.2 §10.8.1; a known failure
+  since M0): a line with such boxes is built twice. The rules come from
+  Chromium 148: the tallest line-relative box grows the line box away from
+  its edge, the first of equal heights counts, and a box inside a shifted
+  inline box moves with that box, even out of the line box.
+- The `white-space` of an atomic inline's parent decides whether the line
+  breaks at its edges, and the start of an isolated box (`li`, `bdi`,
+  `dir`) after an atomic inline in text that wraps is an opportunity.
+  GitHub's language list wraps as in Chromium. The review found one
+  regression (an atomic inline in a `nowrap` box before an isolated box)
+  and added 45 probe cases; 115 cases match Chromium.
+- GitHub: geometry 1.0 with JavaScript on and off (0.92 and 0.91
+  before), pixels 0.9980 and 0.9975. Other targets unchanged; the JS-off
+  snapshot changes only GitHub and the layout test. GitHub JS on: `load`
+  0.588 s, final DOM 1.184 s; new budget 1.514 s (measured on an idle
+  machine). After `load`, swb spends 404 ms in 16 whole-document style
+  flushes (backlog: incremental restyle).
+- Next: 8b, the integration test `github_swb.rs`.
+
 ## 2026-11-14: M10 7b: small CSS features; feature 7 complete
 
 - `@property` (a registry in the cascade, `CSSPropertyRule`),

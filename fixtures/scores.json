@@ -18,10 +18,10 @@
     "size": 1.0
   },
   "github-swb": {
-    "geometry": 0.922,
-    "pixels": 0.9939,
-    "relative": 0.9636,
-    "size": 0.9636
+    "geometry": 1.0,
+    "pixels": 0.998,
+    "relative": 1.0,
+    "size": 1.0
   },
   "hacker-news": {
     "geometry": 1.0,

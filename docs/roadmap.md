@@ -4486,9 +4486,10 @@ Fixtures: `fixtures/js/github-swb` (captured 2026-10-22; local only) and
 State at the start (swb 433d211, replay): JS off geometry 0.1576, pixels
 0.9344; JS on 0.1425, 0.9167. swb runs none of the page's scripts: 8 of its
 9 module scripts import other modules, which swb refuses, so the page is the
-server-rendered HTML. Budget for `load`: 1.56 s (three times Chromium's
-jitless task time, 0.485 s, plus the JS-off pipeline, 0.103 s; measured
-under load: measure again on an idle machine before feature 8).
+server-rendered HTML. Budget: 1.514 s for the final DOM (the hydrated
+page, as for BBC): three times Chromium's jitless task time, 0.469 s,
+plus the JS-off pipeline, 0.107 s, measured on an idle machine on
+2026-11-14 (the first budget, 1.56 s, was measured under load).
 
 Steps:
 
@@ -5030,6 +5031,39 @@ Steps:
       `relative-time` with `Intl`), the console, the scores, the budget.
       Exit: items 1, 2, 9, 11 and 12 of the list; the integration test
       `crates/automation/tests/github_swb.rs` with Chromium's records.
+      Diagnosis (2026-11-14): with features 1 to 7 the page works with
+      JavaScript on. The DOM after the load equals Chromium's replay
+      (apart from `anchor-name` styles that the page sets only with CSS
+      anchor positioning, and three React `useId` values), the 5 React
+      islands hydrate, the 8 `fetch` calls happen and React renders their
+      JSON, the console is empty (Chromium has only its network line for
+      the 404 of `payloads.json`), and the relative times have Chromium's
+      texts. The page reads 17 APIs that swb lacks, each behind a feature
+      test with a fallback. All differing boxes came from two inline
+      layout bugs. Two sub-features:
+      - 8a inline layout (`implementer-hard`): `vertical-align: top` and
+        `bottom`, and the break opportunities around atomic inlines. Done
+        (2026-11-14): a line with line-relative boxes is built twice; the
+        tallest such box grows the line box away from its edge (the first
+        of equal heights counts); a box aligns with the line box or with
+        the enclosing line-relative subtree, moved by the shifts of the
+        boxes in between (measured in Chromium 148). The parent's
+        `white-space` decides at an atomic inline's edges, and the start
+        of a `unicode-bidi` box after an atomic inline in text that wraps
+        is an opportunity. 115 probe cases
+        (`tools/probes/inline-alignment.json`, 45 from the review) match
+        Chromium; the layout test `vertical-align-top-bottom` (a known
+        failure since M0) passes. GitHub JS off: geometry 0.9221 to
+        1.0000, pixels 0.9939 to 0.9980; JS on: 0.9115 to 1.0000, 0.9934
+        to 0.9975. Other targets unchanged; callgrind +0.19 % at most.
+        GitHub JS on: `load` 0.588 s, final DOM 1.184 s (78 % of the
+        budget).
+      - 8b the integration test (`implementer`): a new
+        `crates/automation/tests/github_swb.rs` with Chromium's records of
+        the first view (rectangles of the items of list item 1, texts,
+        island counts, pixel points), the console and the relative times;
+        `github.rs` stays for the platform checks (modules, custom
+        elements, shadow roots), and each file's header names the other.
    9. Interactions (`implementer`): items 3 to 8 and 10 of the list in the
       integration test, with Chromium's records of the same steps.
 
@@ -5211,6 +5245,33 @@ Steps:
   0.9901 with the same binary; `module_graph_probe_cases_match_chromium`
   (case `import-call-base-inserted`) once gave its two dynamic imports in
   the other order in a full `just check` (passes alone).
+- GitHub (found in the feature 8 diagnosis; no effect on the first view):
+  Resource Timing has no entries for `fetch()` (Chromium 8, swb 0), and
+  `PerformanceObserver` does not support the types `resource` and
+  `event`; the page reads these APIs that swb lacks and falls back
+  without them: `navigation`, `document.prerendering`, `indexedDB`,
+  `IDBKeyRange`, `navigator.connection`, `BroadcastChannel`,
+  `document.wasDiscarded`, `trustedTypes`, `SuppressedError`,
+  `navigator.storage`, `locks`, `serviceWorker`,
+  `getInstalledRelatedApps`, `Intl.ListFormat`, `Intl.Locale`,
+  `PerformanceEventTiming`, `document.startViewTransition`; `window.open`,
+  `stop` and `find` are missing; `screen` is not an `EventTarget`;
+  `getClientRects()` of an inline element with inline children gives one
+  rectangle (Chromium one per child span); Chromium's React makes three
+  more `useId` values (`_r_6_` against swb's `_r_0_`). swb writes no
+  console line for a failed resource load (Chromium: "Failed to load
+  resource ..."; not needed for item 2, orchestrator decision). After
+  GitHub's `load` swb runs 16 whole-document style flushes of about 25 ms
+  (404 ms) and 16 layouts of about 5 ms; Chromium has 32 style
+  recalculations in 96 ms and 11 layouts in 26 ms: an incremental restyle
+  would save most of it. The pixels that remain: the avatars (image
+  resampling), `text-overflow: ellipsis` in the commit message column,
+  glyph edges.
+- Inline layout (found in the 8a review, older than 8a): an inline-block
+  in `<div dir=rtl>` sits at x 10.67 in swb, 79.33 in Chromium;
+  `::first-line { font-size: 30px }` gives another line height;
+  `[atomic]<wbr>[atomic]` in a `nowrap` parent: Chromium breaks at `<wbr>`,
+  swb does not.
 - Small CSS features (found in 7b, ADR 0038 section "7b"):
   - `color-mix()`: the color table is process-wide and never shrinks
     (2^20 entries). The review filled it with 1,120,000 distinct mixes in
@@ -7572,11 +7633,7 @@ not repeated here; the open items of each spike session are in M6 step
   auto`, CSS Sizing 4 §5.1.1); `display: table` ignores the ratio; grid
   items that stretch in the block axis do not pass the stretched height as
   a transferred width contribution to the column sizing (Chromium sizes
-  `1fr 2fr` columns with ratio items differently). `vertical-align: top`
-  and `bottom` on atomic inlines act as `baseline` (known failure
-  `vertical-align-top-bottom`); the M5 review also saw it for a button
-  next to a 60 px button or `inline-flex` box (Chromium y = 0, swb 20 or
-  40).
+  `1fr 2fr` columns with ratio items differently).
 - Scrolling: wheel-gesture latching; `overscroll-behavior`, smooth
   scrolling, snapping, `scroll-padding` and `scroll-margin`; classic
   scrollbars that take space, `scrollbar-gutter`, dragging the

@@ -132,8 +132,9 @@ pub(crate) struct LayoutContext<'a> {
     /// True in quirks mode and limited-quirks mode: the line height quirks
     /// apply (see `inline/mod.rs`).
     pub(crate) line_height_quirks: bool,
-    /// Shaped text per inline formatting context, keyed by its number.
-    shaped: HashMap<usize, Rc<inline::ShapedText>>,
+    /// Shaped text per inline formatting context, keyed by its number and
+    /// whether its container's text wraps.
+    shaped: HashMap<(usize, bool), Rc<inline::ShapedText>>,
     /// Laid-out boxes per box and constraints: flex items (see
     /// [`block::layout_flex_item`]), grid items and table cells.
     pub(crate) layouts: LayoutCache,
@@ -234,12 +235,19 @@ impl<'a> LayoutContext<'a> {
     }
 
     /// The shaped text of an inline formatting context (cached).
-    pub(crate) fn shaped(&mut self, ifc: &InlineFormattingContext) -> Rc<inline::ShapedText> {
-        if let Some(s) = self.shaped.get(&ifc.id) {
+    /// `root_wraps` is true if the text of its container wraps (part of
+    /// the key: the callers pass the style that they lay the context out
+    /// with).
+    pub(crate) fn shaped(
+        &mut self,
+        ifc: &InlineFormattingContext,
+        root_wraps: bool,
+    ) -> Rc<inline::ShapedText> {
+        if let Some(s) = self.shaped.get(&(ifc.id, root_wraps)) {
             return Rc::clone(s);
         }
-        let shaped = Rc::new(inline::shape_ifc(self.fonts, ifc));
-        self.shaped.insert(ifc.id, Rc::clone(&shaped));
+        let shaped = Rc::new(inline::shape_ifc(self.fonts, ifc, root_wraps));
+        self.shaped.insert((ifc.id, root_wraps), Rc::clone(&shaped));
         shaped
     }
 }

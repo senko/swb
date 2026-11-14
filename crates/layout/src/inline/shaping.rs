@@ -81,9 +81,14 @@ pub(crate) struct ShapedText {
     pub(crate) break_before: Vec<bool>,
 }
 
-/// Shapes the text of `ifc` and splits it into pieces.
-pub(crate) fn shape(fonts: &mut FontContext, ifc: &InlineFormattingContext) -> ShapedText {
-    let breaks = super::breaks::breaks(ifc);
+/// Shapes the text of `ifc` and splits it into pieces. `root_wraps` is
+/// true if the text of the context's container wraps.
+pub(crate) fn shape(
+    fonts: &mut FontContext,
+    ifc: &InlineFormattingContext,
+    root_wraps: bool,
+) -> ShapedText {
+    let breaks = super::breaks::breaks(ifc, root_wraps);
     let opportunities = breaks.opportunities;
     let mut runs_by_item = shape_all_text(fonts, ifc, &breaks.context_ends);
     let mut runs = Vec::new();

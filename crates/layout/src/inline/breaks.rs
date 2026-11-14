@@ -6,7 +6,11 @@
 //! [`swb_text::line_breaks`] finds the opportunities in the text. Then:
 //!
 //! - An opportunity inside text that does not wrap (`white-space`), or
-//!   between atomic inlines in such text, does not count. An opportunity
+//!   between atomic inlines in such text, does not count. The `white-space`
+//!   of an atomic inline's parent (inline box or container) decides at its
+//!   edges, not its own (measured in Chromium 148: two `inline-flex` boxes
+//!   with `white-space: nowrap` in text that wraps break between them; two
+//!   with `normal` in text that does not wrap do not). An opportunity
 //!   where such text ends counts only if an inline box ends there and the
 //!   text before does not end with a space (the parent of the box
 //!   decides). So a break after `<span style="white-space: nowrap">a-</span>b`
@@ -14,7 +18,10 @@
 //!   wrap is not.
 //! - There is no opportunity at the start of an inline box with a
 //!   `unicode-bidi` other than `normal` (Wikipedia's reference links,
-//!   `<bdi>`, elements with `dir`), except after a space. For this, the
+//!   `<bdi>`, `<li>`, elements with `dir`), except after a space or an
+//!   atomic inline (measured in Chromium 148: GitHub's language list,
+//!   `<li style="display: inline">` items that hold an `inline-flex` box
+//!   each, wraps between the items). For this, the
 //!   text for line breaking gets a bidi control character (line break
 //!   class CM) at the start and the end of each such box: UAX #14 does not
 //!   break before CM, and an opportunity directly after an opening control
@@ -55,8 +62,10 @@ pub(crate) struct Breaks {
 }
 
 /// The soft wrap opportunities of `ifc` and where its shaping context ends.
-pub(crate) fn breaks(ifc: &InlineFormattingContext) -> Breaks {
-    let layout = BoundaryLayout::new(ifc);
+/// `root_wraps` is true if the text of the context's container wraps
+/// (its `white-space`).
+pub(crate) fn breaks(ifc: &InlineFormattingContext, root_wraps: bool) -> Breaks {
+    let layout = BoundaryLayout::new(ifc, root_wraps);
     Breaks {
         opportunities: wrap_opportunities(ifc, &layout),
         context_ends: layout.context_ends(),
@@ -91,7 +100,7 @@ fn wrap_opportunities(ifc: &InlineFormattingContext, layout: &BoundaryLayout) ->
     for (position, kind) in swb_text::line_breaks(&text, rules_at) {
         let (offset, after_open) = layout.original(position);
         if kind != BreakKind::Allowed
-            || after_open
+            || (after_open && !layout.ends_atomic(offset))
             || offset == 0
             || offset >= ifc.text.len()
             || out.last() == Some(&offset)
@@ -147,15 +156,21 @@ struct BoundaryLayout {
     isolate_edges: Vec<usize>,
     /// The offsets of forced line breaks, in increasing order.
     line_breaks: Vec<usize>,
+    /// The offsets where an atomic inline in text that wraps ends, in
+    /// increasing order.
+    atomic_ends: Vec<usize>,
 }
 
 impl BoundaryLayout {
-    fn new(ifc: &InlineFormattingContext) -> Self {
+    fn new(ifc: &InlineFormattingContext, root_wraps: bool) -> Self {
         let mut no_wrap: Vec<Range<usize>> = Vec::new();
+        // Whether the text of each open inline box wraps.
+        let mut wraps: Vec<bool> = Vec::new();
         let mut box_ends = Vec::new();
         let mut controls = Vec::new();
         let mut line_breaks = Vec::new();
         let mut isolate_edges = Vec::new();
+        let mut atomic_ends = Vec::new();
         // Whether each open inline box gets bidi controls, and whether it
         // isolates.
         let mut open: Vec<(bool, bool)> = Vec::new();
@@ -168,15 +183,19 @@ impl BoundaryLayout {
                     }
                     offset = range.end;
                 }
-                InlineItem::Atomic { offset: at, inner } => {
+                InlineItem::Atomic { offset: at, .. } => {
                     offset = at + OBJECT_REPLACEMENT_LEN;
-                    // Its own `white-space` is the one around it, unless it
-                    // sets one.
-                    if !inner.base.style.white_space.wraps() {
+                    if wraps.last().copied().unwrap_or(root_wraps) {
+                        atomic_ends.push(offset);
+                    } else {
+                        // No exception at its end either: Chromium does not
+                        // break between an atomic inline in a `nowrap` box
+                        // and a `unicode-bidi` box that follows it.
                         add_range(&mut no_wrap, *at..offset);
                     }
                 }
                 InlineItem::StartBox { base, .. } => {
+                    wraps.push(base.style.white_space.wraps());
                     let bidi = base.style.unicode_bidi;
                     let control = bidi != UnicodeBidi::Normal;
                     let isolates = matches!(
@@ -194,6 +213,7 @@ impl BoundaryLayout {
                     open.push((control, isolates));
                 }
                 InlineItem::EndBox { .. } => {
+                    wraps.pop();
                     let (control, isolates) = open.pop().unwrap_or_default();
                     if control {
                         controls.push(Control {
@@ -215,6 +235,7 @@ impl BoundaryLayout {
         BoundaryLayout {
             isolate_edges,
             line_breaks,
+            atomic_ends,
             ..Self::from_parts(no_wrap, box_ends, controls)
         }
     }
@@ -237,7 +258,13 @@ impl BoundaryLayout {
             positions,
             isolate_edges: Vec::new(),
             line_breaks: Vec::new(),
+            atomic_ends: Vec::new(),
         }
+    }
+
+    /// True if an atomic inline in text that wraps ends at `offset`.
+    fn ends_atomic(&self, offset: usize) -> bool {
+        self.atomic_ends.binary_search(&offset).is_ok()
     }
 
     /// See [`Breaks::context_ends`].

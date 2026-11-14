@@ -1,5 +1,4 @@
 # Layout tests that are expected to fail until the feature is implemented.
 # Format: test name, two spaces, then "# reason".
-vertical-align-top-bottom  # vertical-align: top and bottom align as baseline
 pre-tabs  # tabs do not advance to tab stops
 list-marker-inside-breaking  # inside markers are added after line breaking, and are narrower than in Chromium

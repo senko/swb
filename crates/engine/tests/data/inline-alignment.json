@@ -1,0 +1,5839 @@
+{
+  "cases": [
+    {
+      "name": "va-top-ib-tall",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            0.0,
+            10.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            20.67,
+            1.0,
+            10.67,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-bottom-ib-tall",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            41.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            0.0,
+            10.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            20.67,
+            41.0,
+            10.67,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-ib-short",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            45.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            26.69,
+            44.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            26.69,
+            0.0,
+            10.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-bottom-ib-short",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            45.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            26.69,
+            44.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            26.69,
+            35.0,
+            10.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-100-bottom-60",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            100.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            0.0,
+            10.0,
+            100.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            20.67,
+            40.0,
+            10.0,
+            60.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-60-bottom-100",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            100.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            81.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            0.0,
+            10.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            20.67,
+            0.0,
+            10.0,
+            100.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-bottom-100-before-top-60",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #b, #x, #t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            100.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #b, #x, #t)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            100.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #b, #x, #t)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.0,
+            81.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #b, #x, #t)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            20.67,
+            0.0,
+            10.0,
+            60.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-bottom-60-before-top-100",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #b, #x, #t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            100.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #b, #x, #t)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            40.0,
+            10.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #b, #x, #t)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.0,
+            1.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #b, #x, #t)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            20.67,
+            0.0,
+            10.0,
+            100.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-two-tops-and-baseline-tall",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #u)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            120.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #u)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            66.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #u)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            0.0,
+            10.0,
+            80.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #u)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            20.67,
+            0.0,
+            10.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #u)[5]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            30.67,
+            0.0,
+            10.0,
+            120.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-inline-small-font",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #x, #b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            45.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #x, #b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            13.91,
+            11.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #x, #b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            13.91,
+            0.0,
+            26.69,
+            44.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #x, #b)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            40.59,
+            34.0,
+            13.91,
+            11.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-inline-tall-line-height",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            21.0,
+            22.25,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            32.92,
+            1.0,
+            10.67,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-bottom-inline-tall-line-height",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            41.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            21.0,
+            22.25,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            32.92,
+            41.0,
+            10.67,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-inline-with-tall-child",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c, #y)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            55.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c, #y)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c, #y)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            36.0,
+            27.81,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c, #y)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            19.58,
+            0.0,
+            10.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c, #y)[5]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            38.48,
+            1.0,
+            10.67,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-bottom-inline-with-tall-child",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c, #y)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            55.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c, #y)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            36.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c, #y)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            36.0,
+            27.81,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c, #y)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            19.58,
+            0.0,
+            10.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c, #y)[5]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            38.48,
+            36.0,
+            10.67,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-inline-with-shifted-child",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            31.0,
+            16.91,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            19.58,
+            1.0,
+            8.0,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-nested-bottom",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            70.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            33.0,
+            26.69,
+            33.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #c)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            27.36,
+            0.0,
+            10.0,
+            70.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-inside-super",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #u)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            45.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #u)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            26.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #u)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            19.67,
+            18.0,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #u)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            18.67,
+            -6.33,
+            10.0,
+            5.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #u)[5]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            28.67,
+            0.0,
+            10.0,
+            40.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-inside-shifted-parent-tall",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            21.0,
+            18.0,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            18.67,
+            20.0,
+            10.0,
+            50.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-overflow-hidden-ib",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #a)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            21.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #a)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            91.09,
+            21.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #a)[3]",
+          "tag": "a",
+          "index": 6,
+          "rect": [
+            0.0,
+            2.0,
+            91.09,
+            16.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-filename-cell",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#col, #oh, #cell, #t, #a)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            340.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#col, #oh, #cell, #t, #a)[2]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            26.0,
+            9.5,
+            91.09,
+            21.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#col, #oh, #cell, #t, #a)[3]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            26.0,
+            9.5,
+            91.09,
+            21.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#col, #oh, #cell, #t, #a)[4]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            26.0,
+            9.5,
+            91.09,
+            21.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#col, #oh, #cell, #t, #a)[5]",
+          "tag": "a",
+          "index": 9,
+          "rect": [
+            26.0,
+            11.5,
+            91.09,
+            16.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-bottom-overflow-hidden-ib",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            21.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #t)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            42.05,
+            21.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-img",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[3]",
+          "tag": "img",
+          "index": 6,
+          "rect": [
+            10.67,
+            0.0,
+            30.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            40.67,
+            1.0,
+            10.67,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-only-content",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #e, #b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #e, #b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #e, #b)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            50.0,
+            800.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #e, #b)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            0.0,
+            50.0,
+            10.0,
+            50.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-second-line",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #y, #t, #z)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            60.0,
+            90.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #y, #t, #z)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            42.69,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #y, #t, #z)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            21.0,
+            42.69,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #y, #t, #z)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            42.69,
+            20.0,
+            10.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #y, #t, #z)[5]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            0.0,
+            71.0,
+            39.09,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-margins",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            44.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            25.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            7.0,
+            10.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            20.67,
+            5.0,
+            10.0,
+            30.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-bottom-inline-padding-border",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #u)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #u)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #u)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            -5.0,
+            11.56,
+            29.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #u)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            22.23,
+            -5.0,
+            8.78,
+            29.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-relative",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #u)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #u)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #u)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            5.0,
+            10.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #u)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            20.67,
+            28.0,
+            8.91,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-and-middle",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #m, #t, #b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #m, #t, #b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            20.23,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #m, #t, #b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            0.0,
+            10.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #m, #t, #b)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            20.67,
+            0.0,
+            10.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #m, #t, #b)[5]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            30.67,
+            40.0,
+            10.0,
+            20.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-text-top-mix",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #a, #t, #b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            83.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #a, #t, #b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            33.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #a, #t, #b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            33.0,
+            10.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #a, #t, #b)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            20.67,
+            0.0,
+            10.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #a, #t, #b)[5]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            30.67,
+            0.0,
+            10.0,
+            50.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-inline-flex",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #i, #b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #i, #b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            31.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #i, #b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            0.0,
+            3.56,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #i, #b)[4]",
+          "tag": "i",
+          "index": 7,
+          "rect": [
+            10.67,
+            20.0,
+            3.56,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #i, #b)[5]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            14.23,
+            0.0,
+            8.91,
+            50.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-empty-span",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #x)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #x)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            8.0,
+            0.0,
+            44.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #x)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            1.0,
+            10.67,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-quirks",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #e, #b, #i)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #e, #b, #i)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #e, #b, #i)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            10.0,
+            800.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #e, #b, #i)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            26.69,
+            20.0,
+            10.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #t, #e, #b, #i)[5]",
+          "tag": "img",
+          "index": 8,
+          "rect": [
+            36.69,
+            10.0,
+            10.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-big-font-inline",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            58.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            1.0,
+            30.55,
+            56.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            41.22,
+            24.0,
+            20.02,
+            33.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-in-table-cell-line",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#c, #x, #t)[1]",
+          "tag": "td",
+          "index": 7,
+          "rect": [
+            0.0,
+            0.0,
+            20.67,
+            90.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, #x, #t)[2]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            0.0,
+            21.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, #x, #t)[3]",
+          "tag": "span",
+          "index": 9,
+          "rect": [
+            10.67,
+            0.0,
+            10.0,
+            40.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-percent-line-height-ib",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            6.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            0.0,
+            10.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-bottom-text-in-ib",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            45.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            26.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            0.0,
+            48.94,
+            45.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #y)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            59.61,
+            26.0,
+            10.67,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-80-bottom-80",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            80.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            0.0,
+            10.0,
+            80.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            20.67,
+            0.0,
+            10.0,
+            80.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-bottom-80-top-80",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #b, #x, #t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            80.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #b, #x, #t)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            80.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #b, #x, #t)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.0,
+            61.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #b, #x, #t)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            20.67,
+            0.0,
+            10.0,
+            80.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-bottom-span-nested-top-tall",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #u)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #u)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            41.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #u)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            1.0,
+            18.0,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #u)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            18.67,
+            0.0,
+            10.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #u)[5]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            28.67,
+            25.0,
+            10.0,
+            30.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-span-nested-top-and-tall-root",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #v, #u)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            75.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #v, #u)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            56.0,
+            10.67,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #v, #u)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            6.0,
+            28.0,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #v, #u)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            18.67,
+            0.0,
+            10.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #v, #u)[5]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            28.67,
+            10.0,
+            10.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #s, #t, #v, #u)[6]",
+          "tag": "span",
+          "index": 9,
+          "rect": [
+            38.67,
+            0.0,
+            10.0,
+            70.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-span-across-lines",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #u, #s, #x)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            90.0,
+            65.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #u, #s, #x)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #u, #s, #x)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            4.0,
+            80.06,
+            56.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #u, #s, #x)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            65.08,
+            46.0,
+            10.67,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-bottom-span-across-lines",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #u, #s, #x)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            90.0,
+            65.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #u, #s, #x)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #u, #s, #x)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            33.0,
+            80.06,
+            31.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #u, #s, #x)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            65.08,
+            46.0,
+            10.67,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-ib-with-text-baseline-below",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            34.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            20.02,
+            33.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            20.02,
+            0.0,
+            10.02,
+            32.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #x, #t, #b)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            30.03,
+            2.0,
+            13.36,
+            32.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-empty-quirks-shifted",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #t, #b, #i)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            75.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #t, #b, #i)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            10.67,
+            56.0,
+            8.0,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #t, #b, #i)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            18.67,
+            6.0,
+            0.0,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #t, #b, #i)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            18.67,
+            68.0,
+            0.0,
+            33.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #t, #b, #i)[5]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            18.67,
+            0.0,
+            10.0,
+            50.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-inline-flex-nowrap-in-inline",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "i",
+          "index": 8,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-inline-flex-nowrap-siblings",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "i",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-inline-block-nowrap-siblings",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "i",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-text-then-nowrap-atomic",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #i1)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #i1)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            44.5,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #i1)[3]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-nowrap-atomic-then-text",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #s)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #s)[2]",
+          "tag": "i",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #s)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            21.0,
+            44.5,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-text-then-atomic",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #i1)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #i1)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            44.5,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #i1)[3]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-nowrap-parent-normal-atomics",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "i",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            60.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-nowrap-parent-atomics",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "i",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            60.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-nowrap-span-around-atomics",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "i",
+          "index": 7,
+          "rect": [
+            60.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-nowrap-span-then-atomic",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "i",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-atomic-then-nowrap-span",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "i",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "i",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-normal-in-nowrap-span-atomics",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "i",
+          "index": 7,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "i",
+          "index": 8,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-nowrap-text-then-atomic-in-normal",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #i1)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #i1)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            44.5,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #i1)[3]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-nowrap-atomic-inside-nowrap-text",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1)[2]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            17.8,
+            5.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-img-nowrap-siblings",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "img",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "img",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-language-list",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#ul, #l1, #a1, #l2, #a2, #l3, #a3, #l4, #a4, #l5, #a5)[1]",
+          "tag": "ul",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            272.0,
+            64.5
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ul, #l1, #a1, #l2, #a2, #l3, #a3, #l4, #a4, #l5, #a5)[2]",
+          "tag": "li",
+          "index": 6,
+          "rect": [
+            0.0,
+            2.0,
+            92.7,
+            16.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ul, #l1, #a1, #l2, #a2, #l3, #a3, #l4, #a4, #l5, #a5)[3]",
+          "tag": "a",
+          "index": 7,
+          "rect": [
+            0.0,
+            0.5,
+            80.7,
+            21.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ul, #l1, #a1, #l2, #a2, #l3, #a3, #l4, #a4, #l5, #a5)[4]",
+          "tag": "li",
+          "index": 11,
+          "rect": [
+            92.7,
+            2.0,
+            126.73,
+            16.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ul, #l1, #a1, #l2, #a2, #l3, #a3, #l4, #a4, #l5, #a5)[5]",
+          "tag": "a",
+          "index": 12,
+          "rect": [
+            92.7,
+            0.5,
+            114.73,
+            21.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ul, #l1, #a1, #l2, #a2, #l3, #a3, #l4, #a4, #l5, #a5)[6]",
+          "tag": "li",
+          "index": 16,
+          "rect": [
+            0.0,
+            23.5,
+            92.69,
+            16.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ul, #l1, #a1, #l2, #a2, #l3, #a3, #l4, #a4, #l5, #a5)[7]",
+          "tag": "a",
+          "index": 17,
+          "rect": [
+            0.0,
+            22.0,
+            80.69,
+            21.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ul, #l1, #a1, #l2, #a2, #l3, #a3, #l4, #a4, #l5, #a5)[8]",
+          "tag": "li",
+          "index": 21,
+          "rect": [
+            92.69,
+            23.5,
+            100.03,
+            16.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ul, #l1, #a1, #l2, #a2, #l3, #a3, #l4, #a4, #l5, #a5)[9]",
+          "tag": "a",
+          "index": 22,
+          "rect": [
+            92.69,
+            22.0,
+            88.03,
+            21.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ul, #l1, #a1, #l2, #a2, #l3, #a3, #l4, #a4, #l5, #a5)[10]",
+          "tag": "li",
+          "index": 26,
+          "rect": [
+            0.0,
+            45.0,
+            84.05,
+            16.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ul, #l1, #a1, #l2, #a2, #l3, #a3, #l4, #a4, #l5, #a5)[11]",
+          "tag": "a",
+          "index": 27,
+          "rect": [
+            0.0,
+            43.5,
+            72.05,
+            21.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-isolate-atomic-after-atomic",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "i",
+          "index": 8,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-isolate-li-atomics",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "ul",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "i",
+          "index": 8,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-isolate-text-after-atomic",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #b2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #b2)[2]",
+          "tag": "i",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #b2)[3]",
+          "tag": "b",
+          "index": 6,
+          "rect": [
+            0.0,
+            21.0,
+            53.39,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-isolate-atomic-after-text",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #i2)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            53.39,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #i2)[3]",
+          "tag": "i",
+          "index": 7,
+          "rect": [
+            53.39,
+            5.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-isolate-text-after-text",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #b2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #b2)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            1.0,
+            53.39,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #s, #b2)[3]",
+          "tag": "b",
+          "index": 6,
+          "rect": [
+            53.39,
+            1.0,
+            53.39,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-isolate-atomic-after-isolate-end",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "i",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-embed-atomic-after-atomic",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "i",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "i",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-dir-atomic-after-atomic",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "i",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "i",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-isolate-img-after-img",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "img",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "img",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-space-between-nowrap-atomics",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[2]",
+          "tag": "i",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d, #i1, #i2)[3]",
+          "tag": "i",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-float-in-line",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#f,#t,#u)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#f,#t,#u)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            20.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#f,#t,#u)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            30.67,
+            0.0,
+            10.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#f,#t,#u)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            51.34,
+            15.0,
+            10.0,
+            35.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-abspos-in-line",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#p,#t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#p,#t)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            10.67,
+            0.0,
+            5.0,
+            5.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#p,#t)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            0.0,
+            10.0,
+            50.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-margin-neg",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#t,#u)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            32.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#t,#u)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            10.67,
+            -5.0,
+            10.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#t,#u)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            31.34,
+            25.0,
+            10.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-block-line-height-normal",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#t)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            10.67,
+            0.0,
+            10.0,
+            50.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-percent-parent",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#s,#t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#s,#t)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            10.67,
+            1.0,
+            18.0,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#s,#t)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            18.67,
+            -10.0,
+            10.0,
+            40.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-sub-bottom",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#s,#t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#s,#t)[2]",
+          "tag": "sub",
+          "index": 5,
+          "rect": [
+            10.67,
+            22.0,
+            16.67,
+            15.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#s,#t)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            17.34,
+            4.19,
+            10.0,
+            40.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-relpos-span-top",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#s)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#s)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            10.67,
+            16.0,
+            8.0,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-in-ib-lines",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#o,#t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            200.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#o,#t)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            10.67,
+            0.0,
+            80.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#o,#t)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            50.72,
+            0.0,
+            10.0,
+            50.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-only-top-br",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#t,#u)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            70.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#t,#u)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#t,#u)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            0.0,
+            30.0,
+            10.0,
+            40.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-only-top-quirks",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#t,#u)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#t,#u)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#t,#u)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            14.45,
+            20.0,
+            10.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-split-span-padding",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#s)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            60.0,
+            90.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#s)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            -1.0,
+            31.7,
+            91.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-ifx-margin",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#t,#u)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            24.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#t,#u)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            10.67,
+            -8.0,
+            10.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#t,#u)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            20.67,
+            6.0,
+            0.0,
+            12.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-text-bottom-sibling",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#t,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            32.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#t,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            10.67,
+            0.0,
+            10.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#t,#b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            20.67,
+            0.0,
+            10.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#t,#b)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            30.67,
+            13.0,
+            10.0,
+            12.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-inline-in-span-top-deep",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#s1,#s2,#t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            70.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#s1,#s2,#t)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            10.67,
+            46.0,
+            27.81,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#s1,#s2,#t)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            19.58,
+            16.0,
+            18.91,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#s1,#s2,#t)[4]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            28.48,
+            0.0,
+            10.0,
+            70.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-zero-height",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#t)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            10.67,
+            0.0,
+            10.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-in-flex-item",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#f,#t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            44.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#f,#t)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            20.67,
+            44.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#f,#t)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            10.67,
+            0.0,
+            10.0,
+            44.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "va-top-with-float-narrow",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            64.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#t)[2]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            85.13,
+            0.0,
+            10.0,
+            44.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-pre-parent",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            60.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-pre-wrap-parent",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-break-spaces-parent",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-pre-line-parent",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-keep-all",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-anywhere",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-text-between-nowrap-ib",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            8.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-img-cjk",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "img",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "img",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-img-cjk-punct",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "img",
+          "index": 5,
+          "rect": [
+            12.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "img",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-img-close-punct",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "img",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "img",
+          "index": 6,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-atomic-shy",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            60.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-atomic-wbr-then-text",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-embed-text-atomic",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            8.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-bidi-override",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-isolate-override",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-plaintext",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-isolate-nowrap-parent",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            60.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-isolate-nowrap-self",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-isolate-then-text-then-atomic",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-listitem-inline-block",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#i1,#i2,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#i1,#i2,#a,#b)[2]",
+          "tag": "li",
+          "index": 6,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#i1,#i2,#a,#b)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#i1,#i2,#a,#b)[4]",
+          "tag": "li",
+          "index": 8,
+          "rect": [
+            0.0,
+            21.0,
+            60.0,
+            17.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#i1,#i2,#a,#b)[5]",
+          "tag": "span",
+          "index": 9,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-bdi-atomics",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-dir-span-after-atomic-text",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-dir-span-after-space",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            13.34,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-isolate-after-nowrap-atomic-in-span",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            60.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-toolbar",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-isolate-first",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-isolate-atomic-isolate",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-text-isolate-atomic-end-text",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            100.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[2]",
+          "tag": "span",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            60.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#d,#a,#b)[3]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            60.0,
+            10.0
+          ]
+        }
+      ]
+    }
+  ]
+}
