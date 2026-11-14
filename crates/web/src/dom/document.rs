@@ -361,6 +361,11 @@ impl g::document::DocumentImpl for WebState {
         dom_result(cx.rt, result)
     }
 
+    /// <https://dom.spec.whatwg.org/#dom-document-createrange>
+    fn create_range(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        crate::range::create_for_document(cx, this)
+    }
+
     /// <https://dom.spec.whatwg.org/#dom-document-createnodeiterator>
     fn create_node_iterator(
         cx: &mut Cx<'_>,

@@ -14,7 +14,7 @@
 //! document (ADR 0031 section 5), so the root and the reference need no
 //! tracing, and a document keeps its arena for the life of the runtime. The
 //! object's data ends the entry when the collector frees the object: it puts
-//! the id on a list that the arenas share ([`swb_dom::DeadIterators`]; the
+//! the id on a list that the arenas share ([`swb_dom::DeadIds`]; the
 //! collector cannot reach an arena), and the next removal in an arena drops the
 //! entry. The next `createNodeIterator` clears the list and the table's side. The
 //! runtime has no limit on live iterators.
@@ -40,7 +40,7 @@ use std::cell::Cell;
 use std::collections::{BTreeSet, HashMap};
 use std::rc::Rc;
 
-use swb_dom::{DeadIterators, IteratorWork, NodeData, NodeId, Spot, WORK_PER_CHECK};
+use swb_dom::{ArenaWork, DeadIds, NodeData, NodeId, Spot, WORK_PER_CHECK};
 use swb_js::{Gc, GenericData, HostData, Object, Runtime, Tracer, Value, VmResult};
 
 use crate::bindings::convert::{self, IntMode};
@@ -60,7 +60,7 @@ pub(crate) struct IteratorTable {
     /// The document whose arena holds the entry of each live iterator.
     home: HashMap<u32, DocKey>,
     /// The ids of iterators that the collector freed.
-    dead: Rc<DeadIterators>,
+    dead: Rc<DeadIds>,
     /// The work of the pre-removing steps since the host last charged it.
     steps: Rc<Cell<usize>>,
     /// The nodes in other documents that each iterator points at.
@@ -110,7 +110,7 @@ struct IteratorData {
     active: Cell<bool>,
     /// The root's document and node.
     word: u64,
-    dead: Rc<DeadIterators>,
+    dead: Rc<DeadIds>,
 }
 
 impl GenericData for IteratorData {
@@ -216,7 +216,7 @@ pub(crate) fn moved(
     if table.is_empty() {
         return;
     }
-    let work = IteratorWork::new(
+    let work = ArenaWork::new(
         Rc::clone(&table.steps),
         Rc::clone(request),
         Rc::clone(&table.dead),
@@ -268,7 +268,7 @@ pub(crate) fn moved(
 /// Puts the entries that came with their root into the arena of `to`.
 fn put_entries(
     table: &mut IteratorTable,
-    work: IteratorWork,
+    work: ArenaWork,
     to: &mut DocState,
     found: Vec<(u32, swb_dom::IteratorPosition)>,
 ) {
@@ -324,7 +324,7 @@ pub(crate) fn create(
         .ok_or_else(|| Exception::range_error("Too many NodeIterator objects were made."))?;
     table.next_id = id;
     let dead = Rc::clone(&table.dead);
-    let work = IteratorWork::new(Rc::clone(&table.steps), request, Rc::clone(&dead));
+    let work = ArenaWork::new(Rc::clone(&table.steps), request, Rc::clone(&dead));
     let Some(dom) = arena(rt, root.document) else {
         return Err(Exception::type_error("the document is not available"));
     };

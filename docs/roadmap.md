@@ -5099,11 +5099,31 @@ Steps:
         `web-tree-walker-frames.json`). The Code popover, the branch
         selector and the file finder open as in Chromium's replay. Scores
         unchanged; callgrind within 0.02 %.
-      - 9b `Range` and `Selection` (`implementer-hard`, a new ADR first):
-        live `Range`, `StaticRange`, `AbstractRange`, `Selection`,
-        `document.createRange`, `getSelection` on window, document and
-        shadow roots, `selectionchange`, tied to swb's native text
-        selection.
+      - 9b `Range` and `Selection` (`implementer-hard`, ADR 0039), in
+        three sub-features:
+        - 9b-1 live ranges, `AbstractRange`, `StaticRange`, `Range`
+          without the contents operations and the geometry,
+          `document.createRange`. Done (2026-11-14): boundary points in
+          UTF-8 bytes in the arena with an index by node; the DOM change
+          functions run the live range steps (one `Option` test in an
+          arena without ranges); `splitText` moved into `swb_dom`; the
+          removal search is shared with `NodeIterator`. In 46 kinds of
+          DOM change, Chromium 148 follows the standard's steps
+          (`tools/probes/web-range.json`, 61 cases; `web-selection.json`,
+          24 cases for 9b-2). Review fixes: batched changes
+          (`textContent`, `innerHTML`, `replaceChildren`, fragments,
+          `normalize`) run the steps once per batch or per parent, so one
+          native call is linear in the nodes and the boundary points
+          (hostile cases at 100,000: from more than 40 s to about 1 s).
+          Scores and the JS-off snapshot unchanged; callgrind within
+          0.05 %.
+        - 9b-2 `Selection`, `getSelection` on window and document, the
+          tie to the native text selection (both ways), `selectionchange`;
+          exit: no `getSelection` error on GitHub's clicks.
+        - 9b-3 the contents operations (`extractContents`,
+          `cloneContents`, `deleteContents`, `insertNode`,
+          `surroundContents`), `createContextualFragment` and the range
+          geometry.
       - 9c the interaction test (`implementer`): the steps and Chromium's
         records of items 3 to 8 and 10 in `github_swb.rs`; the warning
         "Web workers are not available" as a departure (no `Worker`).
@@ -5319,6 +5339,17 @@ Steps:
   of a scroll container takes no width (the file finder list: Chromium
   625 px, swb 640 px); `Attr` is no node, so it cannot be the root or
   current node of a walker or iterator.
+- Range and Selection (found in 9b-1, ADR 0039): `getComposedRanges`
+  (decision 2 of the ADR); `Selection.modify`, `Range.expand` and
+  `ShadowRoot.getSelection` (Chromium has them, no fixture uses them);
+  `caretRangeFromPoint` and `caretPositionFromPoint` (GitHub's code view
+  tests for them); the probe step format has no triple click
+  (`clickCount` 3); a `StaticRange` with an `Attr` container gives a
+  TypeError (Chromium: InvalidNodeTypeError; `Attr` is no node); the
+  index of a node is a sibling walk (no index cache), so the range steps
+  of one change near the end of a long child list walk it; a loop of
+  single removals or insertions in a parent with many boundary points
+  costs those points per call (the time limit ends the loop).
 - GitHub (found in 8b): the avatars have square corners in swb, rounded
   in Chromium; the 1 px line under the repository tabs is missing
   (`box-shadow: inset`, see the `box-shadow` item of M8). In one of ten
@@ -5392,8 +5423,8 @@ Steps:
   form-associated custom elements and `:state()`; `moveBefore` and
   `connectedMoveCallback`. GitHub uses none of them. Found in 4a:
   `Element.ariaNotify` (without it GitHub loads a polyfill that defines
-  one more custom element than in Chromium). Found in 4b: swb has no
-  `Range` (`document.createRange`), and `Attr` is not a `Node`; a style
+  one more custom element than in Chromium). Found in 4b: `Attr` is not a
+  `Node`; a style
   write that changes nothing (`style.color = 'notacolor'`) calls no
   attribute callback (Chromium calls it, with no mutation record);
   `customElements.upgrade(node)` of a node whose own window has the

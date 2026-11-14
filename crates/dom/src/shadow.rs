@@ -488,7 +488,7 @@ impl Document {
             return;
         };
         state.work += nodes;
-        if state.work >= crate::iterator::WORK_PER_CHECK {
+        if state.work >= crate::work::WORK_PER_CHECK {
             self.request_shadow_attention();
         }
     }

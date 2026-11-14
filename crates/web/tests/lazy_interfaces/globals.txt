@@ -107,6 +107,9 @@ MutationRecord:dwc
 NodeIterator:dwc
 TreeWalker:dwc
 NodeFilter:dwc
+AbstractRange:dwc
+StaticRange:dwc
+Range:dwc
 TextDecoder:dwc
 TextEncoder:dwc
 Headers:dwc

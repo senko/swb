@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use super::*;
 use crate::tree::NodeData;
-use crate::{LocalName, QualName, ns};
+use crate::{ArenaWork, DeadIds, LocalName, QualName, WORK_PER_CHECK, ns};
 
 fn element(doc: &mut Document) -> NodeId {
     let name = QualName::new(None, ns!(html), LocalName::from("p"));
@@ -464,12 +464,8 @@ fn work_is_counted_and_asks_the_host_to_look() {
     let steps = Rc::new(Cell::new(0));
     let request = Rc::new(Cell::new(false));
     let mut doc = Document::new();
-    let dead = Rc::new(DeadIterators::default());
-    doc.set_iterator_work(IteratorWork::new(
-        Rc::clone(&steps),
-        Rc::clone(&request),
-        dead,
-    ));
+    let dead = Rc::new(DeadIds::default());
+    doc.set_iterator_work(ArenaWork::new(Rc::clone(&steps), Rc::clone(&request), dead));
     // A chain of nodes: a removal at the top walks the subtree or the ancestors.
     let root = element(&mut doc);
     let mut parent = root;
@@ -518,10 +514,10 @@ fn removing_the_top_of_a_very_deep_chain_with_iterators_inside_does_not_recurse(
 fn a_removal_far_from_the_pointers_does_not_walk_their_ancestors() {
     let steps = Rc::new(Cell::new(0));
     let mut doc = Document::new();
-    doc.set_iterator_work(IteratorWork::new(
+    doc.set_iterator_work(ArenaWork::new(
         Rc::clone(&steps),
         Rc::new(Cell::new(false)),
-        Rc::new(DeadIterators::default()),
+        Rc::new(DeadIds::default()),
     ));
     let root = element(&mut doc);
     let mut parent = root;
@@ -551,9 +547,9 @@ fn a_removal_far_from_the_pointers_does_not_walk_their_ancestors() {
 
 #[test]
 fn the_entries_of_dead_iterators_go_at_the_next_removal() {
-    let dead = Rc::new(DeadIterators::default());
+    let dead = Rc::new(DeadIds::default());
     let mut doc = Document::new();
-    doc.set_iterator_work(IteratorWork::new(
+    doc.set_iterator_work(ArenaWork::new(
         Rc::new(Cell::new(0)),
         Rc::new(Cell::new(false)),
         Rc::clone(&dead),

@@ -4,6 +4,32 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-14: M10 9b-1: live ranges
+
+- ADR 0039 (Range and Selection): boundary points live in the arena as
+  plain data, in UTF-8 bytes; one selection per document, owned by the
+  DOM; three sub-features (9b-1 live ranges, 9b-2 `Selection` and the
+  native tie, 9b-3 the contents operations and the geometry).
+- Chromium 148, 85 probe cases in two files: in 46 kinds of DOM change,
+  Chromium follows the standard's live range steps. Departures: offsets
+  inside a surrogate pair, and `Attr` is no node.
+- 9b-1 adds `AbstractRange`, `StaticRange`, `Range` without the contents
+  operations and the geometry, and `document.createRange`. The DOM change
+  functions run the steps; an arena without ranges pays one `Option`
+  test. `splitText` moved into `swb_dom`. The removal search is shared
+  with `NodeIterator`.
+- The review measured quadratic work inside one native call: 20,000
+  children and 20,000 ranges, then `textContent = ''`, took 9.1 s. The
+  time limit is checked only between native calls. Batched changes now
+  run the steps once per batch: "replace all", a fragment's insertion and
+  removal. `normalize` collects its steps per parent in old indices and
+  maps every boundary point at a parent in one pass. Five hostile cases at
+  100,000 went from more than 40 s (killed) to 0.85 to 1.26 s.
+- Scores and the JS-off snapshot unchanged; callgrind JS off within
+  0.05 %. GitHub's `getSelection` error on each click stays until 9b-2.
+- Next: 9b-2, `Selection`, `getSelection` and `selectionchange`, tied to
+  the native text selection.
+
 ## 2026-11-14: M10 9a: TreeWalker and ariaNotify
 
 - Diagnosis of feature 9: the header menus, the "..." button, the

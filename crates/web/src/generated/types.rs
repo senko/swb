@@ -548,6 +548,53 @@ impl MutationObserverInit {
     }
 }
 
+/// The dictionary `StaticRangeInit`.
+#[derive(Clone, Debug)]
+pub struct StaticRangeInit {
+    /// `endContainer`.
+    pub end_container: b::NodeRef,
+    /// `endOffset`.
+    pub end_offset: u32,
+    /// `startContainer`.
+    pub start_container: b::NodeRef,
+    /// `startOffset`.
+    pub start_offset: u32,
+}
+
+impl StaticRangeInit {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<StaticRangeInit> {
+        let object = b::convert::dictionary_object_not_null(value, "StaticRangeInit")?;
+        let v = b::convert::member(rt, object, "endContainer")?;
+        if v.is_undefined() { return Err(b::convert::required_member("endContainer", "StaticRangeInit")); }
+        let end_container = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.member("endContainer", "StaticRangeInit"))?;
+        let v = b::convert::member(rt, object, "endOffset")?;
+        if v.is_undefined() { return Err(b::convert::required_member("endOffset", "StaticRangeInit")); }
+        let end_offset = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.member("endOffset", "StaticRangeInit"))?;
+        let v = b::convert::member(rt, object, "startContainer")?;
+        if v.is_undefined() { return Err(b::convert::required_member("startContainer", "StaticRangeInit")); }
+        let start_container = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.member("startContainer", "StaticRangeInit"))?;
+        let v = b::convert::member(rt, object, "startOffset")?;
+        if v.is_undefined() { return Err(b::convert::required_member("startOffset", "StaticRangeInit")); }
+        let start_offset = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.member("startOffset", "StaticRangeInit"))?;
+        Ok(StaticRangeInit { end_container, end_offset, start_container, start_offset })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        let value = swb_js::VmResult::Ok(b::to_js::node_ref(self.end_container))?;
+        b::to_js::dictionary_member(rt, object, "endContainer", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(f64::from(self.end_offset)))?;
+        b::to_js::dictionary_member(rt, object, "endOffset", value)?;
+        let value = swb_js::VmResult::Ok(b::to_js::node_ref(self.start_container))?;
+        b::to_js::dictionary_member(rt, object, "startContainer", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(f64::from(self.start_offset)))?;
+        b::to_js::dictionary_member(rt, object, "startOffset", value)?;
+        Ok(object.into())
+    }
+}
+
 /// The dictionary `TextDecoderOptions`.
 #[derive(Clone, Debug)]
 pub struct TextDecoderOptions {

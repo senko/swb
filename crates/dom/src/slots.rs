@@ -291,7 +291,7 @@ impl Document {
         if self
             .shadow
             .as_ref()
-            .is_some_and(|s| s.work >= crate::iterator::WORK_PER_CHECK)
+            .is_some_and(|s| s.work >= crate::work::WORK_PER_CHECK)
         {
             self.request_shadow_attention();
         }

@@ -165,6 +165,7 @@ pub(crate) fn move_node_state(
         to,
         pairs,
     );
+    crate::range::moved(&mut state_now.ranges, &request, &mut from, to, pairs);
     if let Some(slot) = state_now.docs.get_mut(source as usize) {
         *slot = Some(from);
     }

@@ -21,12 +21,15 @@ mod journal;
 mod microsyntax;
 mod mutation;
 mod parser;
+mod ranges;
 mod serialize;
 mod shadow;
 mod slots;
+mod subtree_search;
 mod top_layer;
 mod transplant;
 mod tree;
+mod work;
 
 pub use activation::{
     ClickRole, ClickTarget, LabelMemo, click_target, swallows_invoker_click, with_invoker,
@@ -39,7 +42,7 @@ pub use custom::{
 pub use dump::dump_tree;
 pub use flat::{FlatChildren, FlatScopes};
 pub use html5ever::{LocalName, Namespace, QualName, local_name, ns};
-pub use iterator::{DeadIterators, IteratorPosition, IteratorWork, Spot, WORK_PER_CHECK};
+pub use iterator::{IteratorPosition, Spot};
 pub use journal::{Change, Journal, MAX_JOURNAL_ENTRIES, MutationSink};
 pub use microsyntax::{
     canvas_size, is_valid_float, is_valid_non_negative_integer, parse_integer,
@@ -51,6 +54,7 @@ pub use parser::{
     parse_document, parse_fragment, parse_html, parse_html_bytes, parse_html_bytes_limited,
     parse_html_bytes_with, parse_html_limited, parse_html_with,
 };
+pub use ranges::{Boundary, LiveRange};
 pub use serialize::{inner_html, outer_html};
 pub use shadow::{
     AttachError, ShadowIncludingDescendants, ShadowRootInit, is_valid_shadow_host_name,
@@ -70,3 +74,4 @@ pub use tree::{
     Node, NodeData, NodeId, QuirksMode, ShadowRootData, ShadowRootMode, SlotAssignment,
     is_html_whitespace,
 };
+pub use work::{ArenaWork, DeadIds, WORK_PER_CHECK};

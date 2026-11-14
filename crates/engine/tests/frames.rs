@@ -45,6 +45,8 @@ mod node_iterator;
 mod nodes;
 #[path = "frames/paint.rs"]
 mod paint;
+#[path = "frames/range.rs"]
+mod range;
 #[path = "frames/scripted.rs"]
 mod scripted;
 #[path = "frames/storage.rs"]

@@ -247,8 +247,15 @@ pub(crate) fn after_request(rt: &mut Runtime) -> VmResult<()> {
     {
         crate::adopted::forget_moved(rt, &moved)?;
     }
-    // The work of the pre-removing steps of the node iterators counts too.
-    if crate::node_iterator::take_overdue(rt) || overdue || reactions_overdue || slots_overdue {
+    // The work of the pre-removing steps of the node iterators and of the
+    // live range steps counts too.
+    let ranges_overdue = crate::range::take_overdue(rt);
+    if crate::node_iterator::take_overdue(rt)
+        || ranges_overdue
+        || overdue
+        || reactions_overdue
+        || slots_overdue
+    {
         rt.check_time()?;
     }
     Ok(())

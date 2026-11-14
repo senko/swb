@@ -160,22 +160,11 @@ impl g::text::TextImpl for WebState {
                 format!("The offset {offset} is larger than the Text node's length."),
             )
         })?;
-        let tail = text[start..].to_owned();
-        let document = dom(cx.rt)?.node_document(this);
-        let result = dom_mut(cx.rt)?.create_node_in(document, NodeData::Text(tail));
-        let new_node = dom_result(cx.rt, result)?;
-        // The standard inserts the new node first and truncates this one
-        // after; Chromium truncates first (its "characterData" record comes
-        // before the "childList" one; measured, feature 9a).
-        let length = dom(cx.rt)?.char_data(this).map_or(0, str::len);
-        let result = dom_mut(cx.rt)?.replace_data(this, start, length - start, "");
-        dom_result(cx.rt, result)?;
-        if let Some(parent) = dom(cx.rt)?.parent(this) {
-            let next = dom(cx.rt)?.node(this).next_sibling();
-            let result = dom_mut(cx.rt)?.insert_before(parent, new_node, next);
-            dom_result(cx.rt, result)?;
-        }
-        Ok(new_node)
+        // `swb_dom` keeps Chromium's order of the records (the truncation's
+        // "characterData" before the insertion's "childList"; measured, feature
+        // 9a) with the live range steps of the standard (ADR 0039 section 1).
+        let result = dom_mut(cx.rt)?.split_text(this, start);
+        dom_result(cx.rt, result)
     }
 }
 

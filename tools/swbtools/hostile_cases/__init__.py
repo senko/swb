@@ -35,6 +35,7 @@ MODULES = (
     "frames",
     "storage_iterator",
     "tree_walker",
+    "range",
     "custom_elements",
     "shadow_dom",
     "top_layer",

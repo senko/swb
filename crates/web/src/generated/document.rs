@@ -192,6 +192,9 @@ pub trait DocumentImpl: b::Host {
     /// `TreeWalker createTreeWalker(Node root, optional unsigned long whatToShow, optional NodeFilter? filter)`.
     fn create_tree_walker(cx: &mut b::Cx<'_>, this: b::NodeId, root: b::NodeRef, what_to_show: u32, filter: Option<super::types::NodeFilter>) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `Range createRange()`.
+    fn create_range(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `Document open(optional DOMString unused1, optional DOMString unused2)`.
     fn open(cx: &mut b::Cx<'_>, this: b::NodeId, unused1: Option<String>, unused2: Option<String>) -> b::Result<b::NodeId>;
 
@@ -2494,6 +2497,14 @@ fn op_create_tree_walker<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_j
     })
 }
 
+fn op_create_range<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "createRange"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let result = <H as DocumentImpl>::create_range(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
 fn op_open<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Document", "open"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
@@ -2793,6 +2804,7 @@ pub fn define<H: DocumentImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::
     rt.define_method(realm, target, "createElementNS", 2, op_create_element_ns::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createEvent", 1, op_create_event::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createNodeIterator", 1, op_create_node_iterator::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "createRange", 0, op_create_range::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createTextNode", 1, op_create_text_node::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createTreeWalker", 1, op_create_tree_walker::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "elementFromPoint", 2, op_element_from_point::<H>, swb_js::Attributes::MEMBER)?;

@@ -84,7 +84,8 @@
 //!   and the budget of the text that waits), `domain` (`document.domain`,
 //!   `originAgentCluster`), `cssom_sheets` (`document.styleSheets` and the
 //!   rules of a sheet), `node_iterator` (`NodeIterator`, `NodeFilter`),
-//!   `tree_walker` (`TreeWalker`),
+//!   `tree_walker` (`TreeWalker`), `range` (`AbstractRange`, `StaticRange`,
+//!   `Range`),
 //!   `message_port` and `messaging` (`MessageChannel`, `MessagePort`,
 //!   `postMessage` across runtimes), `storage_events` (the `storage` event)
 //!   and `page_budget` (the budgets that the runtimes of a page share).
@@ -134,6 +135,7 @@ mod node_iterator;
 mod page_budget;
 mod performance;
 mod performance_observer;
+mod range;
 mod resize_observer;
 mod runtime;
 mod scripts;

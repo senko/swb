@@ -1,0 +1,45 @@
+{
+  "cases": [
+    {
+      "name": "range-frames",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const w = f.contentWindow; const d = f.contentDocument; const o = []; const r = new w.Range(); o.push(R(r), r.startContainer === d, Object.getPrototypeOf(r) === w.Range.prototype); const s = document.createRange(); s.selectNodeContents(d.body); o.push(R(s), s instanceof Range, String(s)); const t = d.createRange(); t.selectNodeContents(document.body.firstChild); o.push(R(t), Object.getPrototypeOf(t) === w.Range.prototype); o.push(E(() => w.Range.prototype.setStart.call(s, d.body, 0)), R(s)); return o; })()",
+          "value": [
+            "#doc2,0-#doc2,0",
+            true,
+            true,
+            "body,0-body,1",
+            true,
+            "frame text",
+            "p,0-p,1",
+            true,
+            "undefined",
+            "body,0-body,1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const d = f.contentDocument; const q = d.getElementById('q'); const o = []; const r = document.createRange(); r.setStart(q.firstChild, 2); r.setEnd(q.firstChild, 5); q.firstChild.insertData(0, 'XY'); o.push(R(r), r.startContainer.ownerDocument === d); q.prepend(d.createElement('b')); q.firstChild.remove(); r.setEnd(document.body, 1); o.push(R(r)); const t = MK('ab<i>cd</i>'); const s = new Range(); s.setStart(t.firstChild, 1); s.setEnd(t.lastChild.firstChild, 1); d.body.append(t); o.push(R(s), s.startContainer.ownerDocument === d, String(s)); t.firstChild.insertData(0, 'Z'); t.lastChild.remove(); o.push(R(s)); document.body.append(t); t.firstChild.insertData(0, 'W'); o.push(R(s)); t.remove(); const u = d.createRange(); u.selectNodeContents(q); q.remove(); o.push(R(u), u.startContainer.ownerDocument === d); return o; })()",
+          "value": [
+            "t:XYframe text,4-t:XYframe text,7",
+            true,
+            "body,1-body,1",
+            "t:ab,1-t:cd,1",
+            true,
+            "bc",
+            "t:Zab,2-div#r,1",
+            "body,1-body,1",
+            "body,0-body,0",
+            true
+          ]
+        }
+      ]
+    }
+  ]
+}

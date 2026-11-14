@@ -5,6 +5,7 @@
 //! All walks are iterative: a script can build a tree of 100,000 levels.
 
 use crate::mutation::DomError;
+use crate::ranges::NormalizeSteps;
 use crate::tree::{Document, NodeData, NodeId};
 
 /// `compareDocumentPosition` bits.
@@ -287,19 +288,44 @@ impl Document {
             .descendants(node)
             .filter(|&n| n != node && matches!(self.node(n).data, NodeData::Text(_)))
             .collect();
-        for text in texts {
+        // The live range steps are collected while the tree changes and run
+        // at the end, also after a failing append (`ranges/normalize.rs`).
+        let mut steps = self.normalize_steps();
+        let result = self.normalize_texts(&texts, &mut steps);
+        if let Some(steps) = steps {
+            self.finish_normalize(steps);
+        }
+        result
+    }
+
+    /// The loop of [`normalize`](Self::normalize) over its text nodes, in tree
+    /// order.
+    fn normalize_texts(
+        &mut self,
+        texts: &[NodeId],
+        steps: &mut Option<NormalizeSteps>,
+    ) -> Result<(), DomError> {
+        for &text in texts {
             if self.node(text).parent.is_none() {
                 // Merged into an earlier node.
                 continue;
             }
             if self.char_data(text).is_some_and(str::is_empty) {
-                self.remove_node(text, false);
+                if let Some(steps) = steps.as_mut() {
+                    self.normalize_remove_empty(steps, text);
+                }
+                self.remove_node_with(text, false, true, steps.is_none());
                 continue;
             }
             // One node at a time: append its data (a "characterData"
             // record), then remove it (a "childList" record). The standard
             // appends the data of the whole run at once; Chromium works
-            // node by node (measured, feature 9a), and so do we.
+            // node by node (measured, feature 9a), and so do we. The live
+            // range steps of the merged nodes are collected after their data
+            // went into `text`: a failing append leaves the later nodes and
+            // their boundary points alone.
+            let mut merged: Vec<(NodeId, usize)> = Vec::new();
+            let mut result = Ok(());
             let mut next = self.node(text).next_sibling;
             while let Some(n) = next {
                 let NodeData::Text(data) = &self.node(n).data else {
@@ -307,11 +333,20 @@ impl Document {
                 };
                 let data = data.clone();
                 next = self.node(n).next_sibling;
-                if !data.is_empty() {
-                    self.append_data(text, &data)?;
+                let length = self.char_data(text).map_or(0, str::len);
+                if !data.is_empty()
+                    && let Err(e) = self.append_data(text, &data)
+                {
+                    result = Err(e);
+                    break;
                 }
-                self.remove_node(n, false);
+                merged.push((n, length));
+                self.remove_node_with(n, false, true, false);
             }
+            if let Some(steps) = steps.as_mut() {
+                self.normalize_merged(steps, text, &merged);
+            }
+            result?;
         }
         Ok(())
     }

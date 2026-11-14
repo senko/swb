@@ -34,27 +34,15 @@
 //! nodes that iterators point at, so the cost of a removal follows the size
 //! of the subtree when many iterators exist, and the smaller of the subtree and
 //! the pointers' depth when few exist. The steps count their work
-//! ([`IteratorWork`]) and the host charges it to the time limit of the task.
+//! ([`ArenaWork`]) and the host charges it to the time limit of the task.
 //! The entries of iterators that the collector freed go on a list that the
-//! arenas share ([`DeadIterators`]); a removal drops them first.
+//! arenas share ([`crate::DeadIds`]); a removal drops them first.
 
-use std::cell::{Cell, RefCell};
 use std::collections::{BTreeSet, HashMap};
-use std::rc::Rc;
 
+use crate::subtree_search::{self, SCAN_BELOW};
 use crate::tree::{Document, Node, NodeId};
-
-/// The work units after which the host checks the time limit.
-pub const WORK_PER_CHECK: usize = 4096;
-
-/// Up to this many iterators, a removal looks for the pointers by walking
-/// from the pointers and through the removed subtree in turns; with more, it
-/// walks the removed subtree and looks each node up in the index.
-const SCAN_BELOW: usize = 8;
-
-/// The steps that a pointer climbs toward the root before its climb takes turns
-/// with the walk through the removed subtree.
-const CLIMB_FIRST: usize = 64;
+use crate::work::ArenaWork;
 
 /// A node of an iterator: in the arena that holds the entry, or in another
 /// arena (the host's tag of it and the node).
@@ -77,63 +65,6 @@ pub struct IteratorPosition {
     pub pointer_before: bool,
     /// The node that a running traversal has reached, and its flag.
     pub candidate: Option<(Spot, bool)>,
-}
-
-/// The ids of iterators whose script objects the collector freed. The host
-/// pushes; an arena drops the entries of the ids it holds at its next removal,
-/// and the host clears the list when it makes an iterator.
-#[derive(Debug, Default)]
-pub struct DeadIterators {
-    ids: RefCell<Vec<u32>>,
-    epoch: Cell<u32>,
-}
-
-impl DeadIterators {
-    /// Adds an id. Does nothing while the list is borrowed.
-    pub fn push(&self, id: u32) {
-        if let Ok(mut ids) = self.ids.try_borrow_mut() {
-            ids.push(id);
-        }
-    }
-
-    /// Takes all ids; the arenas start again at the next list.
-    pub fn take(&self) -> Vec<u32> {
-        self.epoch.set(self.epoch.get().wrapping_add(1));
-        std::mem::take(&mut *self.ids.borrow_mut())
-    }
-}
-
-/// The shared counters through which an arena reports its work to the host:
-/// the work units since the host last looked, and a flag that asks the host
-/// to look. It also holds the list of dead iterators.
-#[derive(Clone, Debug)]
-pub struct IteratorWork {
-    steps: Rc<Cell<usize>>,
-    request: Rc<Cell<bool>>,
-    dead: Rc<DeadIterators>,
-}
-
-impl IteratorWork {
-    /// Counters that set `request` when `steps` reaches [`WORK_PER_CHECK`].
-    pub fn new(
-        steps: Rc<Cell<usize>>,
-        request: Rc<Cell<bool>>,
-        dead: Rc<DeadIterators>,
-    ) -> IteratorWork {
-        IteratorWork {
-            steps,
-            request,
-            dead,
-        }
-    }
-
-    fn charge(&self, units: usize) {
-        let total = self.steps.get().saturating_add(units);
-        self.steps.set(total);
-        if total >= WORK_PER_CHECK {
-            self.request.set(true);
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -182,7 +113,7 @@ pub(crate) struct NodeIterators {
     by_root: BTreeSet<(NodeId, u32)>,
     /// True while the parser moves nodes: it runs no steps.
     quiet: bool,
-    work: Option<IteratorWork>,
+    work: Option<ArenaWork>,
     /// How much of the list of dead iterators this arena has dropped: its
     /// epoch and length.
     dead_seen: (u32, usize),
@@ -242,135 +173,56 @@ impl NodeIterators {
         let Some(work) = &self.work else {
             return;
         };
-        let epoch = work.dead.epoch.get();
-        let fresh: Vec<u32> = match work.dead.ids.try_borrow() {
-            Ok(ids) => {
-                if self.dead_seen == (epoch, ids.len()) {
-                    return;
-                }
-                let from = if self.dead_seen.0 == epoch {
-                    self.dead_seen.1
-                } else {
-                    0
-                };
-                self.dead_seen.0 = epoch;
-                self.dead_seen.1 = from;
-                ids.get(from..).unwrap_or_default().to_vec()
-            }
-            Err(_) => return,
-        };
-        self.dead_seen.1 += fresh.len();
-        for id in fresh {
+        for id in work.dead.fresh(&mut self.dead_seen) {
             self.forget(id);
         }
     }
 
     /// The pointers in the subtree of `node`.
     fn find(&self, doc: &Document, node: NodeId, steps: &mut usize) -> Vec<(u32, Pointer)> {
-        if self.states.len() <= SCAN_BELOW {
-            return self.find_few(doc, node, steps);
-        }
-        let mut hits = Vec::new();
-        for descendant in doc.descendants(node) {
-            *steps += 1;
-            for &(_, id) in self
-                .by_pointer
-                .range((descendant, 0)..=(descendant, u32::MAX))
-            {
-                *steps += 1;
-                let Some(state) = self.states.get(&id) else {
-                    continue;
-                };
-                if state.reference == Spot::Here(descendant) {
-                    hits.push((id, Pointer::Reference));
-                }
-                if state
+        let few = self.states.len() <= SCAN_BELOW;
+        let pointers = self.states.iter().flat_map(|(&id, state)| {
+            let here = |spot: Spot| match spot {
+                Spot::Here(n) => Some(n),
+                Spot::Away(..) => None,
+            };
+            [
+                here(state.reference).map(|n| ((id, Pointer::Reference), n)),
+                state
                     .candidate
-                    .is_some_and(|c| c.0 == Spot::Here(descendant))
+                    .and_then(|c| here(c.0))
+                    .map(|n| ((id, Pointer::Candidate), n)),
+            ]
+            .into_iter()
+            .flatten()
+        });
+        subtree_search::pointers_in_subtree(
+            doc,
+            node,
+            few,
+            pointers,
+            |descendant, hits, steps| {
+                for &(_, id) in self
+                    .by_pointer
+                    .range((descendant, 0)..=(descendant, u32::MAX))
                 {
-                    hits.push((id, Pointer::Candidate));
-                }
-            }
-        }
-        hits
-    }
-
-    /// [`NodeIterators::find`] for few iterators. Each pointer climbs toward the
-    /// root for a few steps first, which settles it in a shallow tree. A pointer
-    /// that has not settled then takes part in a walk where its climb and the walk
-    /// through the subtree take turns, and the first that answers decides: a
-    /// removal far from the pointers costs the size of its subtree, not the depth
-    /// of the pointers.
-    fn find_few(&self, doc: &Document, node: NodeId, steps: &mut usize) -> Vec<(u32, Pointer)> {
-        struct Climb {
-            id: u32,
-            which: Pointer,
-            start: NodeId,
-            at: NodeId,
-        }
-        let mut hits = Vec::new();
-        let mut open: Vec<Climb> = Vec::new();
-        for (&id, state) in &self.states {
-            let spots = [
-                (Pointer::Reference, Some(state.reference)),
-                (Pointer::Candidate, state.candidate.map(|c| c.0)),
-            ];
-            for (which, spot) in spots {
-                let Some(Spot::Here(start)) = spot else {
-                    continue;
-                };
-                let mut at = Some(start);
-                let mut budget = CLIMB_FIRST;
-                while let Some(n) = at {
                     *steps += 1;
-                    if n == node {
-                        hits.push((id, which));
-                        break;
+                    let Some(state) = self.states.get(&id) else {
+                        continue;
+                    };
+                    if state.reference == Spot::Here(descendant) {
+                        hits.push((id, Pointer::Reference));
                     }
-                    if budget == 0 {
-                        open.push(Climb {
-                            id,
-                            which,
-                            start,
-                            at: n,
-                        });
-                        break;
+                    if state
+                        .candidate
+                        .is_some_and(|c| c.0 == Spot::Here(descendant))
+                    {
+                        hits.push((id, Pointer::Candidate));
                     }
-                    budget -= 1;
-                    at = doc.get(n).and_then(Node::parent);
                 }
-            }
-        }
-        let mut subtree = doc.descendants(node);
-        let mut subtree_done = false;
-        while !open.is_empty() && !subtree_done {
-            *steps += 1;
-            match subtree.next() {
-                Some(descendant) => open.retain(|c| {
-                    let found = c.start == descendant;
-                    if found {
-                        hits.push((c.id, c.which));
-                    }
-                    !found
-                }),
-                None => subtree_done = true,
-            }
-            open.retain_mut(|c| {
-                *steps += 1;
-                if c.at == node {
-                    hits.push((c.id, c.which));
-                    return false;
-                }
-                match doc.get(c.at).and_then(Node::parent) {
-                    Some(parent) => {
-                        c.at = parent;
-                        true
-                    }
-                    None => false,
-                }
-            });
-        }
-        hits
+            },
+            steps,
+        )
     }
 
     /// The pre-removing steps for the removal of `node`, which is still in
@@ -507,14 +359,14 @@ fn following_inside(
 impl Document {
     /// Gives the arena the counters through which it reports the work of the
     /// pre-removing steps, and the list of dead iterators.
-    pub fn set_iterator_work(&mut self, work: IteratorWork) {
+    pub fn set_iterator_work(&mut self, work: ArenaWork) {
         let same_list = self
             .iterators
             .work
             .as_ref()
-            .is_some_and(|old| Rc::ptr_eq(&old.dead, &work.dead));
+            .is_some_and(|old| old.same_list(&work));
         if !same_list {
-            self.iterators.dead_seen = (work.dead.epoch.get(), 0);
+            self.iterators.dead_seen = work.dead.start();
         }
         self.iterators.work = Some(work);
     }

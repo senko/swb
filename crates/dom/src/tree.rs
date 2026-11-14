@@ -585,6 +585,8 @@ pub struct Document {
     pub(crate) scratch_body: Option<NodeId>,
     /// The `NodeIterator` positions of the arena (`iterator.rs`).
     pub(crate) iterators: crate::iterator::NodeIterators,
+    /// The live ranges of the arena (`ranges.rs`); `None` until the first.
+    pub(crate) ranges: Option<Box<crate::ranges::LiveRanges>>,
     /// The local names of the elements that the arena created in the custom
     /// element state `undefined` (`custom.rs`).
     /// `None` until the first one: a fragment parse makes a new arena, and
@@ -659,6 +661,7 @@ impl Document {
             scratch_fragment: None,
             scratch_body: None,
             iterators: crate::iterator::NodeIterators::default(),
+            ranges: None,
             custom_names: None,
             defined_changed: false,
             shadow: None,

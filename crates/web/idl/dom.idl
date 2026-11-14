@@ -20,10 +20,13 @@
 // written `_any` as in the standard). NodeIterator, NodeFilter and
 // `Document.createNodeIterator` are complete (section 6 of the standard,
 // copied on 2026-11-07, M9 feature 15a); TreeWalker and
-// `Document.createTreeWalker` since M10 feature 9a; Range is not copied yet.
+// `Document.createTreeWalker` since M10 feature 9a; AbstractRange,
+// StaticRange, Range and `Document.createRange` since M10 sub-feature 9b-1
+// (section 5 of the standard, copied on 2026-11-14; ADR 0039; Range without
+// the contents operations, which come with 9b-3).
 // Document has no constructor yet (`new Document()` makes an XML
-// document); it lacks createCDATASection, createProcessingInstruction,
-// createRange and the other members that the roadmap backlog lists;
+// document); it lacks createCDATASection, createProcessingInstruction
+// and the other members that the roadmap backlog lists;
 // DOMImplementation has no createDocument (swb has no XML documents);
 // Element has `slot`, `attachShadow`, `shadowRoot` and `assignedSlot` since
 // M10 sub-feature 5a (ADR 0036; not `getHTML`, `setHTMLUnsafe` and `part`);
@@ -597,4 +600,70 @@ callback interface NodeFilter {
   const unsigned long SHOW_NOTATION = 0x800; // legacy
 
   unsigned short acceptNode(Node node);
+};
+
+// DOM section 5, Ranges (https://dom.spec.whatwg.org/#ranges; M10
+// sub-feature 9b-1, ADR 0039). swb's types: the containers are `object` (a
+// boundary point can be a node of another document of the runtime, whose
+// wrapper comes from that document), and the node arguments are nodes of any
+// document of the runtime (`[SwbAnyDocument]`). The members of Range are in
+// Chromium's order (alphabetical after the attribute and the constants);
+// `deleteContents`, `extractContents`, `cloneContents`, `insertNode`,
+// `surroundContents` (DOM), `createContextualFragment` (DOM Parsing),
+// `getClientRects` and `getBoundingClientRect` (CSSOM View) come with
+// sub-feature 9b-3; Chromium's non-standard `expand` is left out.
+partial interface Document {
+  [NewObject] Range createRange();
+};
+
+[Exposed=Window]
+interface AbstractRange {
+  readonly attribute object startContainer;
+  readonly attribute unsigned long startOffset;
+  readonly attribute object endContainer;
+  readonly attribute unsigned long endOffset;
+  readonly attribute boolean collapsed;
+};
+
+// `[SwbNullIsInvalid]`: Chromium's `new StaticRange(null)` throws "The provided
+// value is not of type 'StaticRangeInit'." (measured, case `api`).
+[SwbNullIsInvalid]
+dictionary StaticRangeInit {
+  required [SwbAnyDocument] Node startContainer;
+  required unsigned long startOffset;
+  required [SwbAnyDocument] Node endContainer;
+  required unsigned long endOffset;
+};
+
+[Exposed=Window]
+interface StaticRange : AbstractRange {
+  constructor(StaticRangeInit init);
+};
+
+[Exposed=Window]
+interface Range : AbstractRange {
+  constructor();
+  readonly attribute object commonAncestorContainer;
+
+  const unsigned short START_TO_START = 0;
+  const unsigned short START_TO_END = 1;
+  const unsigned short END_TO_END = 2;
+  const unsigned short END_TO_START = 3;
+
+  [NewObject] Range cloneRange();
+  undefined collapse(optional boolean toStart = false);
+  short compareBoundaryPoints(unsigned short how, Range sourceRange);
+  short comparePoint([SwbAnyDocument] Node node, unsigned long offset);
+  undefined detach();
+  boolean intersectsNode([SwbAnyDocument] Node node);
+  boolean isPointInRange([SwbAnyDocument] Node node, unsigned long offset);
+  undefined selectNode([SwbAnyDocument] Node node);
+  undefined selectNodeContents([SwbAnyDocument] Node node);
+  undefined setEnd([SwbAnyDocument] Node node, unsigned long offset);
+  undefined setEndAfter([SwbAnyDocument] Node node);
+  undefined setEndBefore([SwbAnyDocument] Node node);
+  undefined setStart([SwbAnyDocument] Node node, unsigned long offset);
+  undefined setStartAfter([SwbAnyDocument] Node node);
+  undefined setStartBefore([SwbAnyDocument] Node node);
+  stringifier;
 };

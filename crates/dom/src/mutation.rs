@@ -276,6 +276,14 @@ impl Document {
     /// if it became connected. No record.
     #[inline]
     pub(crate) fn link(&mut self, parent: NodeId, node: NodeId, before: Option<NodeId>) {
+        self.range_insert_steps(parent, before, 1);
+        self.link_without_range_steps(parent, node, before);
+    }
+
+    /// [`link`](Self::link) for a caller that has run the live range steps of
+    /// the insertion (a fragment's children: one pass for all of them).
+    #[inline]
+    fn link_without_range_steps(&mut self, parent: NodeId, node: NodeId, before: Option<NodeId>) {
         self.link_raw(parent, node, before);
         if self.may_have_ids(node) && self.in_document_tree(parent) {
             self.index_ids(node);
@@ -316,8 +324,11 @@ impl Document {
     /// Unlinks `node` from its parent and removes its ids from the index if
     /// it was connected. No record. Does nothing for a node without parent.
     /// `steps` says whether the pre-removing steps of the node iterators run
-    /// first, while the node is in its place (DOM "remove", section 6.1).
-    fn unlink_with(&mut self, node: NodeId, steps: bool) {
+    /// first, while the node is in its place (DOM "remove", section 6.1). The
+    /// live range pre-remove steps always run here, with the node's index at
+    /// this moment (ADR 0039 section 1). With `ranges` false, the caller has
+    /// run the live range steps for the removal (batched removals).
+    fn unlink_with(&mut self, node: NodeId, steps: bool, ranges: bool) {
         let (parent, prev, next) = {
             let n = self.node(node);
             (n.parent, n.prev_sibling, n.next_sibling)
@@ -327,6 +338,9 @@ impl Document {
         };
         if steps {
             self.run_removal_steps(node);
+        }
+        if ranges {
+            self.range_remove_steps(node);
         }
         if self.may_have_ids(node) && self.in_document_tree(parent) {
             self.unindex_ids(node);
@@ -423,8 +437,9 @@ impl Document {
         for &n in &nodes {
             self.run_removal_steps(n);
         }
+        self.range_remove_all_steps(node);
         for &n in &nodes {
-            self.unlink_with(n, false);
+            self.unlink_with(n, false, false);
         }
         self.record(&Change::Children {
             parent: node,
@@ -438,9 +453,12 @@ impl Document {
             None => self.node(parent).last_child,
         };
         let document = self.node_document(parent);
+        // The standard shifts the offsets for all the nodes of a fragment at
+        // once ("insert", step 4).
+        self.range_insert_steps(parent, before, nodes.len());
         for &n in &nodes {
             self.adopt_into(n, document);
-            self.link(parent, n, before);
+            self.link_without_range_steps(parent, n, before);
         }
         if !suppress_observers {
             self.record(&Change::Children {
@@ -457,12 +475,18 @@ impl Document {
     /// parent.
     /// <https://dom.spec.whatwg.org/#concept-node-remove>
     pub(crate) fn remove_node(&mut self, node: NodeId, suppress_observers: bool) {
-        self.remove_node_with(node, suppress_observers, true);
+        self.remove_node_with(node, suppress_observers, true, true);
     }
 
-    /// [`remove_node`](Self::remove_node); `steps` as in
+    /// [`remove_node`](Self::remove_node); `steps` and `ranges` as in
     /// [`unlink_with`](Self::unlink_with).
-    fn remove_node_with(&mut self, node: NodeId, suppress_observers: bool, steps: bool) {
+    pub(crate) fn remove_node_with(
+        &mut self,
+        node: NodeId,
+        suppress_observers: bool,
+        steps: bool,
+        ranges: bool,
+    ) {
         let (parent, prev_sibling, next_sibling) = {
             let n = self.node(node);
             (n.parent, n.prev_sibling, n.next_sibling)
@@ -470,7 +494,7 @@ impl Document {
         let Some(parent) = parent else {
             return;
         };
-        self.unlink_with(node, steps);
+        self.unlink_with(node, steps, ranges);
         if !suppress_observers {
             self.record(&Change::Children {
                 parent,
@@ -561,8 +585,12 @@ impl Document {
             Some(n) => vec![n],
             None => Vec::new(),
         };
+        // All children leave: the live range steps run once for all of them.
+        if !removed.is_empty() {
+            self.range_remove_all_steps(parent);
+        }
         for &child in &removed {
-            self.remove_node_with(child, true, !batched);
+            self.remove_node_with(child, true, !batched, false);
             self.reset_form_owners(child);
         }
         if let Some(n) = node {
@@ -1051,6 +1079,7 @@ impl Document {
             return Ok(());
         }
         let old = self.mutation_sink.is_some().then(|| current.to_owned());
+        self.range_replace_steps(node, offset, end - offset, data.len());
         if let Some(text) = self.char_data_mut(node) {
             text.replace_range(offset..end, data);
         }
@@ -1071,6 +1100,42 @@ impl Document {
     pub fn append_data(&mut self, node: NodeId, data: &str) -> Result<(), DomError> {
         let len = self.char_data(node).ok_or(DomError::InvalidNodeType)?.len();
         self.replace_data(node, len, 0, data)
+    }
+
+    /// DOM "split a Text node" at the byte `offset` (a character boundary):
+    /// the data from `offset` goes into a new text node of the same document
+    /// that follows `node`. The standard inserts the new node first and
+    /// truncates `node` after; Chromium truncates first (its "characterData"
+    /// record comes before the "childList" one; measured, feature 9a), and so
+    /// does this function, with the live range steps of the standard: the
+    /// boundary points after `offset` move to the new node before the
+    /// truncation could clamp them, and the parent's offsets at the new node's
+    /// index grow after the insertion (ADR 0039 section 1).
+    /// <https://dom.spec.whatwg.org/#concept-text-split>
+    pub fn split_text(&mut self, node: NodeId, offset: usize) -> Result<NodeId, DomError> {
+        let NodeData::Text(text) = &self.node(node).data else {
+            return Err(DomError::InvalidNodeType);
+        };
+        if offset > text.len() || !text.is_char_boundary(offset) {
+            return Err(DomError::IndexSize);
+        }
+        let tail = text[offset..].to_owned();
+        let length = text.len();
+        let document = self.node_document(node);
+        let new_node = self.create_node_in(document, NodeData::Text(tail))?;
+        // Without a parent the standard moves no boundary point: the truncation
+        // clamps them.
+        if self.parent(node).is_some() {
+            self.range_split_moves(node, new_node, u32::try_from(offset).unwrap_or(u32::MAX));
+        }
+        self.replace_data(node, offset, length - offset, "")?;
+        if let Some(parent) = self.parent(node) {
+            let next = self.node(node).next_sibling;
+            self.insert_before(parent, new_node, next)?;
+            let index = self.index_in_parent(new_node);
+            self.range_split_parent(parent, index);
+        }
+        Ok(new_node)
     }
 
     /// Appends to the data of `node` without the limit check. The old
