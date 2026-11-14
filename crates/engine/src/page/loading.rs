@@ -396,8 +396,17 @@ impl Page {
             log::info!("loaded {}", self.url.as_ref().map_or("", Url::as_str));
         }
         let top = self.frames.top_mut();
+        let site = crate::frames::storage_site_of(&doc.origin(), doc.cookie_url(), false);
+        // As in a frame (`commit_frame`): the activation stays through a
+        // commit of the same site, and the document reads the frame's.
+        let stays =
+            top.origin == Some(doc.origin()) || (site.is_some() && top.storage_site == site);
+        if !stays {
+            top.activation = None;
+        }
+        doc.user_activation = top.activation;
         top.origin = Some(doc.origin());
-        top.storage_site = crate::frames::storage_site_of(&doc.origin(), doc.cookie_url(), false);
+        top.storage_site = site;
         self.doc = Some(Box::new(doc));
         self.start_scripts();
         self.update_frames(super::FrameId::TOP);

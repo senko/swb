@@ -299,14 +299,21 @@ impl Page {
         let Some(frame) = self.frames.get_mut(id) else {
             return;
         };
-        let mut old = frame.doc.replace(doc);
-        let old_key = frame.script.take();
         let origin_stays = frame.origin.as_ref() == Some(&origin);
-        let reuse = frame.reuse_window && origin_stays;
-        frame.reuse_window = false;
-        if !origin_stays {
+        // The activation stays through a commit of the same site, not only of
+        // the same origin (measured: a frame that went to another port of its
+        // host, or to the parent's origin, kept it; cases `xo-act-after-*`).
+        let activation_stays =
+            origin_stays || (storage_site.is_some() && frame.storage_site == storage_site);
+        if !activation_stays {
             frame.activation = None;
         }
+        // One state: the new document reads the frame's activation.
+        doc.user_activation = frame.activation;
+        let mut old = frame.doc.replace(doc);
+        let old_key = frame.script.take();
+        let reuse = frame.reuse_window && origin_stays;
+        frame.reuse_window = false;
         frame.origin = Some(origin);
         frame.storage_site = storage_site;
         // The new document has its own pointer and keyboard state; the

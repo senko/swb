@@ -12,6 +12,9 @@ pub trait NavigatorImpl: b::Host {
     /// `readonly attribute Clipboard clipboard`.
     fn clipboard(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `readonly attribute UserActivation userActivation`.
+    fn user_activation(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `readonly attribute long maxTouchPoints`.
     fn max_touch_points(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<i32>;
 
@@ -84,6 +87,14 @@ fn get_clipboard<H: NavigatorImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nati
     b::glue::run(rt, call, b::Context::Getter("Navigator", "clipboard"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::NAVIGATOR)?;
         let result = <H as NavigatorImpl>::clipboard(&mut b::Cx::new(rt, call, super::NAVIGATOR), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn get_user_activation<H: NavigatorImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Navigator", "userActivation"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::NAVIGATOR)?;
+        let result = <H as NavigatorImpl>::user_activation(&mut b::Cx::new(rt, call, super::NAVIGATOR), this)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
@@ -276,6 +287,7 @@ pub fn define<H: NavigatorImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js:
     let target = interface.prototype;
     let _ = target;
     rt.define_accessor(realm, target, "clipboard", (Some(get_clipboard::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "userActivation", (Some(get_user_activation::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "maxTouchPoints", (Some(get_max_touch_points::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "webdriver", (Some(get_webdriver::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "doNotTrack", (Some(get_do_not_track::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;

@@ -232,6 +232,20 @@ pub(crate) fn focus_with(
     result
 }
 
+/// The focusing steps that the popover algorithms run (the popover focusing
+/// steps, the restoration of the focus; ADR 0037 section 5): `node` gets the
+/// focus with its events if it is a focusable area that is rendered, as for
+/// `focus()` with the engine's modality; the viewport does not scroll.
+/// Returns whether `node` could take the focus.
+pub(crate) fn focus_popover_target(rt: &mut Runtime, node: NodeId) -> VmResult<bool> {
+    if !focusable(rt, node)? {
+        return Ok(false);
+    }
+    let visible = engine(rt)?.keyboard_modality();
+    focus_with(rt, node, visible, true)?;
+    Ok(true)
+}
+
 /// [`focus_with`] for the steps of other algorithms (labels, the first
 /// invalid control): focus-visible, scrolling allowed.
 pub(crate) fn focus_node(rt: &mut Runtime, node: NodeId, visible: bool) -> VmResult<()> {

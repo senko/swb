@@ -28,7 +28,9 @@ mod top_layer;
 mod transplant;
 mod tree;
 
-pub use activation::{ClickRole, ClickTarget, LabelMemo, click_target};
+pub use activation::{
+    ClickRole, ClickTarget, LabelMemo, click_target, swallows_invoker_click, with_invoker,
+};
 pub use algorithms::{Cloned, position};
 pub use custom::{
     CustomElementState, element_local_name_hyphen, is_valid_custom_element_name,
@@ -55,9 +57,11 @@ pub use shadow::{
 };
 pub use top_layer::{
     DialogData, HideOptions, PendingToggle, PopoverError, PopoverErrorKind, PopoverState,
-    TargetAction, ToggleState, TopLayerHost, TopLayerState, hide_all_popovers_until, hide_popover,
-    popover_target_activation, popover_target_by_id, run_popover_attribute_steps, show_popover,
-    toggle_popover, topmost_popover_ancestor,
+    TargetAction, ToggleState, TopLayerHost, TopLayerState, WatcherKind, can_invoke,
+    hide_all_popovers_until, hide_popover, invoker_acts_on_form, light_dismiss_down,
+    light_dismiss_up, popover_target_activation, popover_target_by_id, process_close_watchers,
+    run_popover_attribute_steps, show_popover, toggle_popover, topmost_clicked_popover,
+    topmost_popover_ancestor,
 };
 pub use transplant::{Placed, Subtree, SubtreeSize};
 pub use tree::{

@@ -744,6 +744,14 @@ pub trait EngineHost: Any {
         true
     }
 
+    /// The window's user activation (`navigator.userActivation`): whether
+    /// it has sticky activation (`hasBeenActive`) and transient activation
+    /// (`isActive`). The engine notes the user's presses and keys (HTML
+    /// "activation notification").
+    fn user_activation(&self) -> (bool, bool) {
+        (false, false)
+    }
+
     /// The `iframe` element of the document that holds the focus through
     /// its frame: `document.activeElement` is the element while no element
     /// of the document itself is focused. It is not the focused element

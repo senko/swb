@@ -1,0 +1,559 @@
+{
+  "inert-click": [
+    "object",
+    "pointerdown:dialog#d mousedown:dialog#d focusin:dialog#d click:dialog#d pointerdown:dialog#d mousedown:dialog#d click:dialog#d pointerdown:dialog#d mousedown:dialog#d click:dialog#d pointerdown:dialog#d mousedown:dialog#d click:dialog#d",
+    "dialog#d,false,dialog#d,false,true",
+    "button#ob:auto:false dialog#d:auto:false button#db:auto:false html:auto:false body:auto:false iframe#fr:auto:false",
+    "auto:button#fb"
+  ],
+  "inert-hover": [
+    "object",
+    "false,true,true,true,html,body,dialog#d"
+  ],
+  "inert-tab": [
+    "object",
+    "focusin:input#di focusin:button#db focusin:input#di focusin:input#di"
+  ],
+  "inert-selection": [
+    "object",
+    "\"in\":#t:in",
+    "\"\""
+  ],
+  "inert-backdrop-click": [
+    "object",
+    "pointerdown:dialog#d mousedown:dialog#d focusin:dialog#d click:dialog#d pointerdown:button#db mousedown:button#db focusin:button#db click:button#db open:true"
+  ],
+  "inert-closedby-any": [
+    "object",
+    "pointerdown:button#db mousedown:button#db click:button#db pointerdown:dialog#d mousedown:dialog#d focusin:dialog#d click:dialog#d open:false:\"\""
+  ],
+  "escape-modal": [
+    "object",
+    "cancel:dialog#d! beforetoggle:dialog#d(open>closed) keyup:open= rv:\"\" || close:dialog#d toggle:dialog#d(closed>open) toggle:dialog#d(open>closed)"
+  ],
+  "escape-cancel-prevented": [
+    "object",
+    "ua@load:false/false ua@keydown:true/true cancel:dialog#d! keyup:open=dialog#d* ua@keydown:true/true cancel:dialog#d beforetoggle:dialog#d(open>closed) keyup:open= ua@keydown:true/true keyup:open= || close:dialog#d toggle:dialog#d(closed>open) toggle:dialog#d(open>closed)"
+  ],
+  "escape-no-activation": [
+    "object",
+    "ua@load:false/false ua@keydown:true/true cancel:dialog#d! keyup:open=dialog#d* ua@keydown:true/true cancel:dialog#d beforetoggle:dialog#d(open>closed) keyup:open= || close:dialog#d toggle:dialog#d(closed>open) toggle:dialog#d(open>closed)"
+  ],
+  "escape-nested-dialogs": [
+    "object",
+    "ua@load:false/false ua@keydown:true/true cancel:dialog#d2! beforetoggle:dialog#d2(open>closed) cancel:dialog#d! beforetoggle:dialog#d(open>closed) keyup:open= ua@keydown:true/true keyup:open= ua@keydown:true/true keyup:open= || close:dialog#d close:dialog#d2 toggle:dialog#d(closed>open) toggle:dialog#d(open>closed) toggle:dialog#d2(closed>open) toggle:dialog#d2(open>closed)"
+  ],
+  "escape-popover-in-dialog": [
+    "object",
+    "beforetoggle:div#pc(open>closed) beforetoggle:div#pp(open>closed) cancel:dialog#d! beforetoggle:dialog#d(open>closed) keyup:open=div#mm keyup:open=div#mm keyup:open=div#mm keyup:open=div#mm || close:dialog#d toggle:dialog#d(closed>open) toggle:dialog#d(open>closed) toggle:div#mm(closed>open) toggle:div#pc(closed>open) toggle:div#pc(open>closed) toggle:div#pp(closed>open) toggle:div#pp(open>closed)"
+  ],
+  "escape-popovers": [
+    "object",
+    "ua@load:false/false toggle:div#mm(closed>open) toggle:div#p1(closed>open) toggle:div#p2(closed>open) ua@keydown:true/true beforetoggle:div#p2(open>closed) beforetoggle:div#p1(open>closed) keyup:open=div#mm ua@keydown:true/true keyup:open=div#mm ua@keydown:true/true keyup:open=div#mm toggle:div#p2(open>closed) toggle:div#p1(open>closed)"
+  ],
+  "escape-keydown-prevented": [
+    "object",
+    "keydown:Escape keyup:open=div#p1,dialog#d* keydown:Escape beforetoggle:div#p1(open>closed) cancel:dialog#d! beforetoggle:dialog#d(open>closed) keyup:open= keydown:Escape keyup:open= || close:dialog#d toggle:dialog#d(closed>open) toggle:dialog#d(open>closed) toggle:div#p1(closed>open) toggle:div#p1(open>closed)"
+  ],
+  "escape-nonmodal-and-closedby": [
+    "object",
+    "cancel:dialog#f! beforetoggle:dialog#f(open>closed) keyup:open=dialog#d keyup:open=dialog#d --- open=dialog#d beforetoggle:dialog#e(closed>open)! modal open=dialog#d,dialog#e* keyup:open=dialog#d,dialog#e* | open=dialog#d,dialog#e* || close:dialog#f toggle:dialog#d(closed>open) toggle:dialog#e(closed>open) toggle:dialog#f(closed>open) toggle:dialog#f(open>closed)"
+  ],
+  "escape-focus-return": [
+    "object",
+    "focus:button#inv beforetoggle:div#pp(closed>open)! focus:button#pb1 focus:button#pb2 beforetoggle:div#pp(open>closed) focus:button#inv keyup:open= toggle:div#pp(closed>closed) | button#inv"
+  ],
+  "popover-tab-order": [
+    "object",
+    "inv pb1 pb2 y z y pb2 pb1 inv | open=div#pp"
+  ],
+  "xo-escape-no-activation": [
+    "f:true",
+    "beforetoggle:d(closed>open)! ua@load:false/false ua@keydown:false/false cancel:d beforetoggle:d(open>closed) keyup: ua@keydown:false/false keyup: ua@keydown:false/false keyup: || close:d"
+  ],
+  "xo-escape-cancel-after-click": [
+    "f:true",
+    "beforetoggle:d(closed>open)! ua@load:false/false click:b ua@click:true/true ua@keydown:true/true cancel:d! keyup:d ua@keydown:true/true cancel:d beforetoggle:d(open>closed) keyup: ua@keydown:true/true keyup: || close:d"
+  ],
+  "xo-escape-cancel-click-between": [
+    "f:true",
+    "beforetoggle:d(closed>open)! ua@load:false/false click:b ua@click:true/true ua@keydown:true/true cancel:d! keyup:d click:b ua@click:true/true ua@keydown:true/true cancel:d beforetoggle:d(open>closed) keyup: ua@keydown:true/true keyup: || close:d"
+  ],
+  "xo-groups-no-activation": [
+    "f:true",
+    "beforetoggle:d(closed>open)! beforetoggle:d2(closed>open)! ua@load:false/false ua@keydown:false/false cancel:d2 beforetoggle:d2(open>closed) cancel:d beforetoggle:d(open>closed) keyup: ua@keydown:false/false keyup: || close:d close:d2"
+  ],
+  "xo-groups-after-click": [
+    "f:true",
+    "beforetoggle:d(closed>open)! ua@load:false/false click:b ua@click:true/true beforetoggle:d2(closed>open)! shown:d,d2 ua@keydown:true/true cancel:d2 beforetoggle:d2(open>closed) keyup:d ua@keydown:true/true cancel:d beforetoggle:d(open>closed) keyup: || close:d close:d2"
+  ],
+  "xo-groups-two-before-click": [
+    "f:true",
+    "beforetoggle:d(closed>open)! beforetoggle:d2(closed>open)! ua@load:false/false click:b2 ua@click:true/true beforetoggle:d3(closed>open)! shown:d,d2,d3 ua@keydown:true/true cancel:d3 beforetoggle:d3(open>closed) keyup:d,d2 ua@keydown:true/true cancel:d2 beforetoggle:d2(open>closed) cancel:d beforetoggle:d(open>closed) keyup: || close:d close:d2 close:d3"
+  ],
+  "xo-popovers-no-activation": [
+    "f:true",
+    "beforetoggle:mm(closed>open)! beforetoggle:p1(closed>open)! beforetoggle:p2(closed>open)! ua@load:false/false ua@keydown:false/false beforetoggle:p2(open>closed) beforetoggle:p1(open>closed) keyup:mm ua@keydown:false/false keyup:mm || "
+  ],
+  "light-dismiss-outside": [
+    "object",
+    "toggle:div#p(closed>open) toggle:div#c(closed>open) toggle:div#m(closed>open) pointerdown:div#out beforetoggle:div#c(open>closed) beforetoggle:div#p(open>closed) pointerup:div#out click:div#out toggle:div#c(open>closed) toggle:div#p(open>closed) | open=div#m"
+  ],
+  "light-dismiss-inside-child": [
+    "object",
+    "toggle:div#p(closed>open) toggle:div#c(closed>open) toggle:div#m(closed>open) pointerdown:div#c pointerup:div#c click:div#c | open=div#p,div#c,div#m"
+  ],
+  "light-dismiss-inside-parent": [
+    "object",
+    "toggle:div#p(closed>open) toggle:div#c(closed>open) toggle:div#m(closed>open) pointerdown:div#p beforetoggle:div#c(open>closed) pointerup:div#p click:div#p toggle:div#c(open>closed) | open=div#p,div#m"
+  ],
+  "light-dismiss-down-out-up-in": [
+    "object",
+    "toggle:div#p(closed>open) toggle:div#c(closed>open) toggle:div#m(closed>open) pointerdown:div#out pointerup:div#p click:body | open=div#p,div#c,div#m"
+  ],
+  "light-dismiss-down-in-up-out": [
+    "object",
+    "toggle:div#p(closed>open) toggle:div#c(closed>open) toggle:div#m(closed>open) pointerdown:div#p pointerup:div#out click:body | open=div#p,div#c,div#m"
+  ],
+  "light-dismiss-invoker": [
+    "object",
+    "toggle:div#p(closed>open) toggle:div#c(closed>open) toggle:div#m(closed>open) pointerdown:button#inv beforetoggle:div#c(open>closed) pointerup:button#inv click:button#inv beforetoggle:div#p(open>closed) toggle:div#c(open>closed) toggle:div#p(open>closed) | open=div#m"
+  ],
+  "light-dismiss-right-click": [
+    "object",
+    "toggle:div#p(closed>open) toggle:div#c(closed>open) toggle:div#m(closed>open) pointerdown:div#out beforetoggle:div#c(open>closed) beforetoggle:div#p(open>closed) pointerup:div#out toggle:div#c(open>closed) toggle:div#p(open>closed) | open=div#m"
+  ],
+  "light-dismiss-manual": [
+    "object",
+    "toggle:div#p(closed>open) toggle:div#c(closed>open) toggle:div#m(closed>open) pointerdown:div#m beforetoggle:div#c(open>closed) beforetoggle:div#p(open>closed) pointerup:div#m click:div#m toggle:div#c(open>closed) toggle:div#p(open>closed) pointerdown:div#out pointerup:div#out click:div#out pointerdown:div#out pointerup:div#out click:div#out | open=div#m"
+  ],
+  "light-dismiss-prevented-pointerdown": [
+    "object",
+    "toggle:div#p(closed>open) toggle:div#c(closed>open) toggle:div#m(closed>open) pointerdown:div#out beforetoggle:div#c(open>closed) beforetoggle:div#p(open>closed) pointerup:div#out click:div#out toggle:div#c(open>closed) toggle:div#p(open>closed) | open=div#m"
+  ],
+  "noscript-invoker-toggle": [
+    "undefined",
+    "true,false,b"
+  ],
+  "noscript-invoker-twice": [
+    "undefined",
+    "false,false,b"
+  ],
+  "noscript-invoker-actions": [
+    "undefined",
+    "true,false,bs"
+  ],
+  "noscript-nested": [
+    "undefined",
+    "true,true,b2"
+  ],
+  "noscript-light-dismiss": [
+    "undefined",
+    "false,false,"
+  ],
+  "noscript-escape": [
+    "undefined",
+    "true,false,b2"
+  ],
+  "noscript-keyboard": [
+    "undefined",
+    "true,false,b"
+  ],
+  "noscript-dialog-form": [
+    "undefined",
+    "false,yes,"
+  ],
+  "noscript-dialog-escape": [
+    "undefined",
+    true
+  ],
+  "noscript-form-invoker-button": [
+    "undefined",
+    "true,"
+  ],
+  "noscript-form-invoker-submit": [
+    "undefined",
+    "false,#sent"
+  ],
+  "invokers-in-link-enter": [
+    "beforetoggle:div#t(closed>open)! | true | #z"
+  ],
+  "invokers-in-link-space": [
+    "beforetoggle:div#t(closed>open)! | true | #z"
+  ],
+  "invokers-in-link-enter-plain": [
+    " | false | #z"
+  ],
+  "light-dismiss-hint-click-hint": [
+    "object",
+    "toggle:div#pa(closed>open) toggle:div#ph(closed>open) pointerdown:div#ph pointerup:div#ph click:div#ph | open=div#pa,div#ph"
+  ],
+  "light-dismiss-hint-click-auto": [
+    "object",
+    "toggle:div#pa(closed>open) toggle:div#ph(closed>open) pointerdown:div#pa beforetoggle:div#ph(open>closed) pointerup:div#pa click:div#pa toggle:div#ph(open>closed) | open=div#pa"
+  ],
+  "light-dismiss-hint-click-outside": [
+    "object",
+    "toggle:div#pa(closed>open) toggle:div#ph(closed>open) pointerdown:div#out beforetoggle:div#ph(open>closed) beforetoggle:div#pa(open>closed) pointerup:div#out click:div#out toggle:div#ph(open>closed) toggle:div#pa(open>closed) | open="
+  ],
+  "light-dismiss-hint-in-auto-click-hint": [
+    "object",
+    "toggle:div#pa(closed>open) toggle:div#pc(closed>open) pointerdown:div#pc pointerup:div#pc click:div#pc | open=div#pa,div#pc"
+  ],
+  "light-dismiss-hint-in-auto-click-auto": [
+    "object",
+    "toggle:div#pa(closed>open) toggle:div#pc(closed>open) pointerdown:div#pa beforetoggle:div#pc(open>closed) pointerup:div#pa click:div#pa toggle:div#pc(open>closed) | open=div#pa"
+  ],
+  "light-dismiss-hint-only": [
+    "object",
+    "toggle:div#ph(closed>open) pointerdown:div#ph pointerup:div#ph click:div#ph pointerdown:div#out beforetoggle:div#ph(open>closed) pointerup:div#out click:div#out toggle:div#ph(open>closed) | open="
+  ],
+  "light-dismiss-invoker-manual": [
+    "object",
+    "toggle:div#pa(closed>open) toggle:div#pm(closed>open) pointerdown:button#inv beforetoggle:div#pa(open>closed) pointerup:button#inv click:button#inv beforetoggle:div#pm(open>closed) toggle:div#pa(open>closed) toggle:div#pm(open>closed) | open="
+  ],
+  "light-dismiss-invoker-manual-closed": [
+    "object",
+    "toggle:div#pa(closed>open) pointerdown:button#inv beforetoggle:div#pa(open>closed) pointerup:button#inv click:button#inv beforetoggle:div#pm(closed>open)! toggle:div#pa(open>closed) toggle:div#pm(closed>open) | open=div#pm"
+  ],
+  "light-dismiss-invoker-hint": [
+    "object",
+    "toggle:div#pa(closed>open) toggle:div#ph(closed>open) pointerdown:button#invh pointerup:button#invh click:button#invh beforetoggle:div#ph(open>closed) toggle:div#ph(open>closed) | open=div#pa"
+  ],
+  "light-dismiss-inner-button": [
+    "object",
+    "toggle:div#p(closed>open) toggle:div#c(closed>open) toggle:div#m(closed>open) pointerdown:button#pin focus:button#pin beforetoggle:div#c(open>closed) pointerup:button#pin click:button#pin toggle:div#c(open>closed) | open=div#p,div#m | button#pin"
+  ],
+  "light-dismiss-focus": [
+    "object",
+    "toggle:div#p(closed>open) pointerdown:div#out beforetoggle:div#p(open>closed) pointerup:div#out click:div#out toggle:div#p(open>closed) | open= | body"
+  ],
+  "light-dismiss-shadow": [
+    "object",
+    "toggle:x-h#hh(closed>open) pointerdown:x-h#hh pointerup:x-h#hh click:x-h#hh pointerdown:div#out beforetoggle:x-h#hh(open>closed) pointerup:div#out click:div#out toggle:x-h#hh(open>closed) | open="
+  ],
+  "light-dismiss-iframe": [
+    "object",
+    "toggle:div#p(closed>open) | open=div#p"
+  ],
+  "light-dismiss-detach": [
+    "undefined",
+    "toggle:div#p(closed>open) toggle:div#m(closed>open) pointerdown:div#out pointerup:div#out click:div#out | open=div#m"
+  ],
+  "light-dismiss-open-on-down": [
+    "object",
+    "pointerdown:div#out beforetoggle:div#p(closed>open)! opened beforetoggle:div#p(open>closed) pointerup:div#out click:div#out toggle:div#p(closed>closed) | open="
+  ],
+  "light-dismiss-open-on-click": [
+    "object",
+    "pointerdown:div#out pointerup:div#out click:div#out beforetoggle:div#p(closed>open)! opened toggle:div#p(closed>open) pointerdown:div#out beforetoggle:div#p(open>closed) pointerup:div#out click:div#out beforetoggle:div#p(closed>open)! opened toggle:div#p(open>open) | open=div#p"
+  ],
+  "invoker-inner-checkbox": [
+    "object",
+    "click:input#i | false | - | true"
+  ],
+  "invoker-inner-text": [
+    "object",
+    "click:input#i beforetoggle:div#t(closed>open)! beforetoggle:div#t(open>closed) | false | - | false"
+  ],
+  "invoker-inner-file": [
+    "object",
+    "click:input#i | false | - | false"
+  ],
+  "invoker-inner-color": [
+    "object",
+    "click:input#i | false | - | false"
+  ],
+  "invoker-inner-select": [
+    "object",
+    "click:select#i beforetoggle:div#t(closed>open)! | true | - | "
+  ],
+  "invoker-inner-textarea": [
+    "object",
+    "click:textarea#i beforetoggle:div#t(closed>open)! beforetoggle:div#t(open>closed) | false | - | "
+  ],
+  "invoker-inner-link": [
+    "object",
+    "click:a#i | false | #z | "
+  ],
+  "invoker-inner-radio": [
+    "object",
+    "click:input#i | false | - | true"
+  ],
+  "invoker-inner-span": [
+    "object",
+    "click:span#i beforetoggle:div#t(closed>open)! | true | - | "
+  ],
+  "popover-tab-order-script": [
+    "object",
+    "x inv y pb1 pb2 z pb2 pb1 y inv x | open=div#pp"
+  ],
+  "popover-tab-order-source": [
+    "object",
+    "x inv y z inv2 pb1 inv2 z y inv x | open=div#pp"
+  ],
+  "popover-tab-order-nested": [
+    "object",
+    "inv inv2 x inv a1 inv2 c1 a2 y z z y a2 c1 inv2 a1 inv x | open=div#p1,div#p2"
+  ],
+  "popover-tab-order-two-invokers": [
+    "object",
+    "ib x ia ib pb1 y z z y pb1 ib ia x | open=div#pp"
+  ],
+  "popover-tab-order-from-inside": [
+    "object",
+    "inv pb2 y z y pb2 pb1 | open=div#pp"
+  ],
+  "popover-tab-order-manual": [
+    "object",
+    "inv x inv pb1 y z z y pb1 inv x | open=div#pp"
+  ],
+  "noscript-in-link-button": [
+    "undefined",
+    "true,#z,b"
+  ],
+  "noscript-in-link-span": [
+    "undefined",
+    "true,#z,b"
+  ],
+  "noscript-in-link-disabled": [
+    "undefined",
+    "false,-,"
+  ],
+  "noscript-in-link-plain": [
+    "undefined",
+    "false,#z,b"
+  ],
+  "noscript-in-link-submit": [
+    "undefined",
+    "false,#sent,"
+  ],
+  "noscript-in-link-show": [
+    "undefined",
+    "false,#z,b"
+  ],
+  "noscript-in-link-input": [
+    "undefined",
+    "true,#z,b"
+  ],
+  "noscript-in-link-enter": [
+    "undefined",
+    "true,#z,b"
+  ],
+  "noscript-in-link-space": [
+    "undefined",
+    "true,#z,b"
+  ],
+  "noscript-in-link-enter-plain": [
+    "undefined",
+    "false,#z,b"
+  ],
+  "noscript-in-label": [
+    "undefined",
+    "true,-,b"
+  ],
+  "noscript-in-label-for": [
+    "undefined",
+    "true,-,b"
+  ],
+  "noscript-label-in-button": [
+    "undefined",
+    "true,true,cb"
+  ],
+  "noscript-hint-light-dismiss": [
+    "undefined",
+    "false,false"
+  ],
+  "noscript-hint-nested-click-hint": [
+    "undefined",
+    "true,true"
+  ],
+  "noscript-hint-nested-click-auto": [
+    "undefined",
+    "true,false"
+  ],
+  "noscript-hint-nested-click-outside": [
+    "undefined",
+    "false,false"
+  ],
+  "noscript-light-dismiss-down-out-up-in": [
+    "undefined",
+    true
+  ],
+  "noscript-light-dismiss-down-in-up-out": [
+    "undefined",
+    true
+  ],
+  "noscript-light-dismiss-right-click": [
+    "undefined",
+    false
+  ],
+  "noscript-light-dismiss-inside": [
+    "undefined",
+    true
+  ],
+  "noscript-focus": [
+    "undefined",
+    "true,pb"
+  ],
+  "noscript-focus-escape": [
+    "undefined",
+    "false,b"
+  ],
+  "light-dismiss-invoker-show": [
+    "object",
+    "toggle:div#p(closed>open) toggle:div#c(closed>open) toggle:div#m(closed>open) pointerdown:button#ia focus:button#ia beforetoggle:div#c(open>closed) pointerup:button#ia click:button#ia toggle:div#c(open>closed) | open=div#p,div#m"
+  ],
+  "light-dismiss-invoker-hide": [
+    "object",
+    "toggle:div#p(closed>open) toggle:div#c(closed>open) toggle:div#m(closed>open) pointerdown:button#ia focus:button#ia beforetoggle:div#c(open>closed) pointerup:button#ia click:button#ia beforetoggle:div#p(open>closed) toggle:div#c(open>closed) toggle:div#p(open>closed) | open=div#m"
+  ],
+  "popover-tab-order-source-div": [
+    "object",
+    "x pb1 y z z y pb1 x | open=div#pp"
+  ],
+  "popover-tab-order-source-negative": [
+    "object",
+    "x pb1 y z z y pb1 x | open=div#pp"
+  ],
+  "popover-tab-order-source-disabled": [
+    "object",
+    "x pb1 y z z y pb1 x | open=div#pp"
+  ],
+  "popover-tab-order-source-other-tree": [
+    "object",
+    "x y z pb1 z y x | open=div#pp"
+  ],
+  "escape-popovers-by-clicks": [
+    "function",
+    "beforetoggle:div#p(closed>open)! beforetoggle:div#p2(closed>open)! beforetoggle:div#p2(open>closed) keyup:open=div#p beforetoggle:div#p(open>closed) keyup:open= | open="
+  ],
+  "escape-popovers-three-clicks": [
+    "function",
+    "beforetoggle:div#p(closed>open)! beforetoggle:div#p2(closed>open)! beforetoggle:div#p3(closed>open)! beforetoggle:div#p3(open>closed) keyup:open=div#p,div#p2 beforetoggle:div#p2(open>closed) keyup:open=div#p beforetoggle:div#p(open>closed) keyup:open= | open="
+  ],
+  "escape-popovers-escape-between": [
+    "function",
+    "beforetoggle:div#p(closed>open)! beforetoggle:div#p(open>closed) keyup:open= beforetoggle:div#p(closed>open)! beforetoggle:div#p2(closed>open)! beforetoggle:div#p3(closed>open)! beforetoggle:div#p3(open>closed) keyup:open=div#p,div#p2 beforetoggle:div#p2(open>closed) keyup:open=div#p beforetoggle:div#p(open>closed) keyup:open= | open="
+  ],
+  "escape-popovers-same-click": [
+    "object",
+    "beforetoggle:div#p1(closed>open)! beforetoggle:div#p2(closed>open)! beforetoggle:div#p2(open>closed) keyup:open=div#p1 beforetoggle:div#p1(open>closed) keyup:open= | open="
+  ],
+  "escape-popovers-clicks-before": [
+    "object",
+    "beforetoggle:div#p1(closed>open)! beforetoggle:div#p2(closed>open)! beforetoggle:div#p2(open>closed) keyup:open=div#p1 beforetoggle:div#p1(open>closed) keyup:open= | open="
+  ],
+  "escape-popovers-same-click-3": [
+    "object",
+    "beforetoggle:div#p1(closed>open)! beforetoggle:div#p2(closed>open)! beforetoggle:div#p3(closed>open)! beforetoggle:div#p3(open>closed) beforetoggle:div#p2(open>closed) keyup:open=div#p1 beforetoggle:div#p1(open>closed) keyup:open= keyup:open= | open="
+  ],
+  "escape-popovers-timer-after-clicks": [
+    "object",
+    "beforetoggle:div#p1(closed>open)! beforetoggle:div#p2(closed>open)! beforetoggle:div#p3(closed>open)! beforetoggle:div#p3(open>closed) beforetoggle:div#p2(open>closed) keyup:open=div#p1 beforetoggle:div#p1(open>closed) keyup:open= keyup:open= | open="
+  ],
+  "escape-popovers-clicks-before-3": [
+    "object",
+    "beforetoggle:div#p1(closed>open)! beforetoggle:div#p2(closed>open)! beforetoggle:div#p3(closed>open)! beforetoggle:div#p3(open>closed) beforetoggle:div#p2(open>closed) keyup:open=div#p1 beforetoggle:div#p1(open>closed) keyup:open= keyup:open= | open="
+  ],
+  "escape-popovers-key-activation": [
+    "object",
+    "beforetoggle:div#p1(closed>open)! beforetoggle:div#p2(closed>open)! beforetoggle:div#p3(closed>open)! beforetoggle:div#p3(open>closed) beforetoggle:div#p2(open>closed) keyup:open=div#p1 beforetoggle:div#p1(open>closed) keyup:open= keyup:open= | open="
+  ],
+  "escape-popovers-groups-model": [
+    "object",
+    "beforetoggle:div#p1(closed>open)! beforetoggle:div#p2(closed>open)! beforetoggle:div#p3(closed>open)! beforetoggle:div#p4(closed>open)! beforetoggle:div#p4(open>closed) beforetoggle:div#p3(open>closed) keyup:open=div#p1,div#p2 beforetoggle:div#p2(open>closed) keyup:open=div#p1 beforetoggle:div#p1(open>closed) keyup:open= keyup:open= | open="
+  ],
+  "escape-popover-keydown-prevented": [
+    "object",
+    "keydown:Escape keyup:open=div#p1 keydown:Escape beforetoggle:div#p1(open>closed) keyup:open= | open="
+  ],
+  "escape-hints": [
+    "object",
+    "beforetoggle:div#ph(open>closed) beforetoggle:div#pa(open>closed) keyup:open=div#pm keyup:open=div#pm | open=div#pm"
+  ],
+  "escape-hint-in-auto": [
+    "object",
+    "beforetoggle:div#ph(open>closed) beforetoggle:div#pa(open>closed) keyup:open= keyup:open= | open="
+  ],
+  "escape-focus-inside": [
+    "object",
+    "beforetoggle:div#p1(open>closed) focus:button#ob keyup:open= | button#ob"
+  ],
+  "escape-removed-watcher": [
+    "object",
+    "keyup:open=div#p2 | open=div#p2"
+  ],
+  "xo-act-key-letter": [
+    "poll:false/false keydown:true/true keyup:true/true poll:true/true"
+  ],
+  "xo-act-key-space": [
+    "poll:false/false keydown:true/true keyup:true/true poll:true/true"
+  ],
+  "xo-act-key-enter": [
+    "poll:false/false keydown:true/true keyup:true/true poll:true/true"
+  ],
+  "xo-act-key-tab": [
+    "poll:false/false keydown:true/true keyup:true/true poll:true/true"
+  ],
+  "xo-act-key-arrow": [
+    "poll:false/false keydown:true/true keyup:true/true poll:true/true"
+  ],
+  "xo-act-key-shift": [
+    "poll:false/false"
+  ],
+  "xo-act-key-control": [
+    "poll:false/false"
+  ],
+  "xo-act-key-alt": [
+    "poll:false/false"
+  ],
+  "xo-act-key-escape": [
+    "poll:false/false keydown:false/false keyup:false/false"
+  ],
+  "xo-act-key-shift-letter": [
+    "poll:false/false keydown:true/true keyup:true/true poll:true/true"
+  ],
+  "xo-act-key-control-letter": [
+    "poll:false/false keydown:true/true keyup:true/true poll:true/true"
+  ],
+  "xo-act-mouse-move": [
+    "poll:false/false mousemove:false/false"
+  ],
+  "xo-act-mouse-down-left": [
+    "poll:false/false mousemove:false/false pointerdown:true/true mousedown:true/true poll:true/true"
+  ],
+  "xo-act-mouse-click-left": [
+    "poll:false/false mousemove:false/false pointerdown:true/true mousedown:true/true pointerup:true/true mouseup:true/true click:true/true poll:true/true"
+  ],
+  "xo-act-mouse-down-right": [
+    "poll:false/false mousemove:false/false pointerdown:true/true mousedown:true/true contextmenu:true/true poll:true/true"
+  ],
+  "xo-act-mouse-click-right": [
+    "poll:false/false mousemove:false/false pointerdown:true/true mousedown:true/true contextmenu:true/true pointerup:true/true mouseup:true/true poll:true/true"
+  ],
+  "xo-act-mouse-down-middle": [
+    "poll:false/false mousemove:false/false pointerdown:true/true mousedown:true/true poll:true/true"
+  ],
+  "xo-act-mouse-wheel": [
+    "poll:false/false mousemove:false/false wheel:false/false"
+  ],
+  "xo-act-after-same-origin-navigation": [
+    " load:false/false load:true/true"
+  ],
+  "xo-act-after-reload": [
+    " load:false/false load:true/true"
+  ],
+  "xo-act-after-document-open": [
+    " load:false/false open:true/true"
+  ],
+  "xo-act-after-cross-site-navigation": [
+    " load:false/false load:false/false"
+  ],
+  "xo-act-after-parent-origin-navigation": [
+    " load:false/false load:true/true"
+  ],
+  "xo-act-after-same-site-navigation": [
+    " load:false/false load:true/true"
+  ]
+}

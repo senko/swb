@@ -174,7 +174,12 @@ fn an_activation_reaches_ancestors_and_the_origin() {
     let other_child = add(&mut frames, clicked, 2, "http://c.test/");
     let same_sibling = add(&mut frames, FrameId::TOP, 1, "http://a.test/");
     let other_sibling = add(&mut frames, FrameId::TOP, 1, "http://b.test/");
-    frames.note_activation(clicked);
+    let mut reached = frames.note_activation(clicked);
+    // Each frame once (the documents note the activation once each).
+    reached.sort_by_key(|id| id.index);
+    let mut expected = vec![FrameId::TOP, clicked, same_child, same_sibling];
+    expected.sort_by_key(|id| id.index);
+    assert_eq!(reached, expected);
     for id in [FrameId::TOP, clicked, same_child, same_sibling] {
         assert!(frames.has_sticky_activation(id), "{id}");
         assert!(frames.has_transient_activation(id), "{id}");

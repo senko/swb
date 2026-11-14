@@ -180,41 +180,38 @@ pub(crate) fn find_target(
     let reach = path
         .get(..if bubbles { path.len() } else { 1 })
         .unwrap_or(path);
-    let (node, also, with) = match picked {
-        None => match first_invoker(rt, reach)? {
-            Some(invoker) => (invoker, None, None),
-            None => return Ok(None),
-        },
-        Some(t) => {
-            let at = reach.iter().position(|&n| n == t.node).unwrap_or(0);
-            match t.role {
-                ClickRole::Link => (
-                    t.node,
-                    None,
-                    first_invoker(rt, reach.get(..at).unwrap_or_default())?,
-                ),
-                ClickRole::Label if t.also.is_none() => (
-                    t.node,
-                    first_invoker(rt, reach.get(at + 1..).unwrap_or_default())?,
-                    None,
-                ),
-                _ => (t.node, t.also, None),
-            }
-        }
+    let mut error = None;
+    let target = swb_dom::with_invoker(picked, reach, |nodes| {
+        first_invoker(rt, nodes)
+            .map_err(|e| error = Some(e))
+            .ok()
+            .flatten()
+    });
+    if let Some(error) = error {
+        return Err(error);
+    }
+    let Some(t) = target else {
+        return Ok(None);
     };
-    Ok(kind_of(dom, node).map(|kind| Activation {
-        node,
+    Ok(kind_of(dom, t.node).map(|kind| Activation {
+        node: t.node,
         origin,
         kind,
         saved: Saved::None,
-        also,
-        invoker: with,
+        also: t.also,
+        invoker: t.invoker,
     }))
 }
 
-/// The first element of `nodes` that invokes a popover.
+/// The first element of `nodes` that invokes a popover, before a control
+/// that takes the click for itself (a text field, a file or a color field;
+/// Chromium, measured: `invoker-inner-*`).
 fn first_invoker(rt: &Runtime, nodes: &[NodeId]) -> VmResult<Option<NodeId>> {
+    let doc = dom(rt)?;
     for &node in nodes {
+        if swb_dom::swallows_invoker_click(doc, node) {
+            return Ok(None);
+        }
         if super::popover::invoker_target(rt, node)?.is_some() {
             return Ok(Some(node));
         }

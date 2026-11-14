@@ -295,6 +295,10 @@ pub struct DocumentState {
     /// or the frame that held the focus is gone; the page keeps it
     /// (`document.hasFocus()`).
     pub(crate) window_blurred: bool,
+    /// When the document's window last got a user's activation
+    /// (`navigator.userActivation`; the page sets it, see
+    /// [`Page::note_activation`](crate::Page)).
+    pub(crate) user_activation: Option<Instant>,
     /// The text selection of the page.
     pub(crate) selection: Option<Selection>,
     pub(crate) stylist: Option<Stylist>,
@@ -434,6 +438,7 @@ impl DocumentState {
             keyboard_modality: true,
             frame_focus: None,
             window_blurred: false,
+            user_activation: None,
             selection: None,
             stylist: None,
             styles: None,
@@ -746,6 +751,10 @@ impl swb_web::EngineHost for DocumentState {
 
     fn window_has_focus(&self) -> bool {
         !self.window_blurred && !self.retired
+    }
+
+    fn user_activation(&self) -> (bool, bool) {
+        self.activation_state()
     }
 
     fn can_focus(&mut self, node: NodeId) -> bool {

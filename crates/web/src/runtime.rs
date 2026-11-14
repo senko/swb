@@ -492,6 +492,32 @@ impl ScriptRuntime {
         })
     }
 
+    /// A pointer button went down on `node` (HTML "light dismiss open
+    /// popovers"): notes the topmost clicked popover. No script runs.
+    pub fn light_dismiss_down(&mut self, node: NodeId) -> Result<(), ScriptError> {
+        self.task("light dismiss", |rt| {
+            crate::html::popover::light_dismiss_down(rt, node).map_err(task_error)
+        })
+    }
+
+    /// A pointer button went up on `node`: hides the auto and hint popovers
+    /// that the press and the release left outside, with their `beforetoggle`
+    /// and `toggle` events (before the listeners of `pointerup`). A task.
+    pub fn light_dismiss_up(&mut self, node: NodeId) -> Result<(), ScriptError> {
+        self.task("light dismiss", |rt| {
+            crate::html::popover::light_dismiss_up(rt, node).map_err(task_error)
+        })
+    }
+
+    /// HTML "process close watchers", the default action of Escape: closes
+    /// what the newest close watchers close (a popover hides, with events).
+    /// Returns whether a watcher was processed. A task.
+    pub fn process_close_watchers(&mut self) -> Result<bool, ScriptError> {
+        self.task("a close request", |rt| {
+            crate::html::popover::process_close_watchers(rt).map_err(task_error)
+        })
+    }
+
     /// `blur` (`gained` false) or `focus` at the window: the user's focus
     /// left the page after its last element, or came back (feature 6d2).
     pub fn window_focus(&mut self, gained: bool) -> Result<(), ScriptError> {

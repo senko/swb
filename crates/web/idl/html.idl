@@ -11,7 +11,8 @@
 // `confirm`, `prompt` and `print` on 2026-10-30; `Document.domain`,
 // `Window.originAgentCluster`, `Window.postMessage`, `plugins` and
 // `mimeTypes` on 2026-11-01; `Document.open`, `close`, `write` and
-// `writeln` on 2026-11-01).
+// `writeln` on 2026-11-01; `UserActivation` and `navigator.userActivation`
+// on 2026-11-13).
 //
 // Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
 // licensed under the Creative Commons Attribution 4.0 International
@@ -1239,6 +1240,20 @@ Navigator includes NavigatorOnLine;
 Navigator includes NavigatorCookies;
 Navigator includes NavigatorPlugins;
 Navigator includes NavigatorConcurrentHardware;
+
+// User activation (https://html.spec.whatwg.org/multipage/interaction.html#the-useractivation-interface,
+// copied on 2026-11-13, M10 6c; ADR 0037 "6c implementation notes"): the
+// state of the window's user activation, which the probe cases of the
+// close watchers read.
+partial interface Navigator {
+  [SameObject] readonly attribute UserActivation userActivation;
+};
+
+[Exposed=Window]
+interface UserActivation {
+  readonly attribute boolean hasBeenActive;
+  readonly attribute boolean isActive;
+};
 
 interface mixin NavigatorID {
   readonly attribute DOMString appCodeName; // constant "Mozilla"

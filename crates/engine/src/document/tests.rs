@@ -31,7 +31,7 @@ fn url() -> Url {
 
 /// The state of a document: `dom` parsed to the end, or parsed in steps
 /// by `parser`.
-fn state(dom: Document, parser: Option<HtmlParser>, url: &Url) -> DocumentState {
+pub(super) fn state(dom: Document, parser: Option<HtmlParser>, url: &Url) -> DocumentState {
     let loader = Rc::new(Loader::new(Arc::new(NoNetwork), 1, Arc::new(|| {})));
     state_with(dom, parser, url, loader)
 }

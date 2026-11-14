@@ -138,7 +138,7 @@ impl Page {
     // ----- Selection and focus -----
 
     /// The form controls of the current document.
-    fn forms(&self) -> Option<&Forms> {
+    pub(super) fn forms(&self) -> Option<&Forms> {
         Some(self.doc.as_ref()?.forms.value())
     }
 
@@ -315,13 +315,17 @@ impl Page {
         let path: Vec<NodeId> = std::iter::once(node)
             .chain(doc.event_ancestors(node, true))
             .collect();
-        swb_dom::click_target(&path, true, |n, skip_labels| {
+        let picked = swb_dom::click_target(&path, true, |n, skip_labels| {
             if Some(n) == skip {
                 ClickRole::Plain
             } else {
                 self.click_role(doc, n, point, (&mut labels, skip_labels))
             }
-        })
+        });
+        // An invoker of a popover does not act in the walk (a link around it
+        // is followed); it invokes besides a link, after a label, or alone
+        // (ADR 0037 section 3, "Review fixes" 3).
+        swb_dom::with_invoker(picked, &path, |nodes| self.first_invoker(doc, nodes))
     }
 
     /// The role of `n` for [`swb_dom::click_target`]: a link, a label with
@@ -384,7 +388,26 @@ impl Page {
     /// toggles a summary, activates a control or the control of a label (and
     /// the button around the label, if the rule says so). Returns true if
     /// something happened.
-    pub(super) fn activate(&mut self, target: ClickTarget, point: Option<Point>) -> bool {
+    pub(super) fn activate(
+        &mut self,
+        target: ClickTarget,
+        point: Option<Point>,
+        origin: NodeId,
+    ) -> bool {
+        // The invoker below a link acts first, as the event bubbles.
+        let invoked = target
+            .invoker
+            .is_some_and(|invoker| self.activate_invoker(invoker, origin));
+        invoked | self.activate_target(target, point, origin)
+    }
+
+    /// [`Page::activate`] for the element that the walk picked.
+    fn activate_target(
+        &mut self,
+        target: ClickTarget,
+        point: Option<Point>,
+        origin: NodeId,
+    ) -> bool {
         let node = target.node;
         match target.role {
             ClickRole::Summary => {
@@ -405,7 +428,9 @@ impl Page {
                 let control = self.document().and_then(|doc| labeled_control(doc, node));
                 let mut acted = control.is_some_and(|c| self.activate_label(node, c));
                 if let Some(button) = target.also {
+                    // A button that acts, or an invoker above the label.
                     acted |= self.activate_control(button, None);
+                    acted |= self.activate_invoker(button, origin);
                 }
                 acted
             }
@@ -421,6 +446,7 @@ impl Page {
                 self.activate_control(node, coordinate)
             }
             ClickRole::Link => self.follow_link_around(node),
+            ClickRole::Invoker => self.activate_invoker(node, origin),
             ClickRole::Plain | ClickRole::Interactive | ClickRole::Blocked => false,
         }
     }
@@ -430,7 +456,7 @@ impl Page {
     /// click on `node`, which is a link around a button that does not act.
     pub(super) fn click_element(&mut self, node: NodeId) -> bool {
         let target = self.click_target_at(node, None, None);
-        target.is_some_and(|t| self.activate(t, None))
+        target.is_some_and(|t| self.activate(t, None, node))
     }
 
     /// True if `point` (viewport coordinates) is in the default summary of
@@ -522,7 +548,7 @@ impl Page {
         }
         let focused = self.focus(Some(control), false);
         let target = self.click_target_at(control, None, Some(label));
-        target.is_some_and(|t| self.activate(t, None)) || focused
+        target.is_some_and(|t| self.activate(t, None, control)) || focused
     }
 
     /// The activation behavior of a control: toggles a checkbox, checks a

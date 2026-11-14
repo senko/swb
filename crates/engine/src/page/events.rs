@@ -481,6 +481,9 @@ impl Page {
         self.input.buttons |= button_bit(button);
         let index = button_index(button);
         let disabled = self.is_disabled_control(target);
+        // Light dismiss notes the popover under the pointer before the
+        // listeners of `pointerdown` run, for every button.
+        self.light_dismiss_down(target);
         let mut allowed = self.fire_mouse("pointerdown", target, point, None, index, 0, (0.0, 0.0));
         let compat = allowed;
         self.input.down = Some(Down {
@@ -549,6 +552,11 @@ impl Page {
         let target = self.target_at(point)?;
         let index = button_index(button);
         let disabled = self.is_disabled_control(target);
+        // Light dismiss hides the popovers that the press and the release
+        // left outside before the listeners of `pointerup` run (measured:
+        // `beforetoggle` comes between the `pointerdown` and `pointerup`
+        // listeners), for every button.
+        self.light_dismiss_up(target);
         self.fire_mouse("pointerup", target, point, None, index, 0, (0.0, 0.0));
         let count = down.map_or(1, |d| d.count);
         if down.is_none_or(|d| d.compat) && !disabled {

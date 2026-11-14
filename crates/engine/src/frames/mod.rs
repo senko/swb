@@ -16,7 +16,7 @@ pub(crate) mod registry;
 mod sandbox;
 
 use std::cell::Cell;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::Rc;
 
 use swb_dom::NodeId;
@@ -227,8 +227,11 @@ pub(crate) struct Frame {
     /// of the parent's DOM at the parse, so that a loop of writes parses once.
     pub(crate) location_sandbox: Option<(u64, Sandbox)>,
     /// When the frame last got a user's activation ([`Frames::note_activation`]). It
-    /// stays through a commit of the same origin, and a commit of another origin
-    /// clears it (measured, cases `activation-xo-after-commit*`).
+    /// stays through a commit of the same site (the same scheme and registrable
+    /// domain, so also another port), and a commit of another site clears it
+    /// (measured, cases `activation-xo-after-commit*` and `xo-act-after-*`). The
+    /// frame's document reads it (`DocumentState::user_activation`): `note_activation`
+    /// writes both, a commit copies it to the new document.
     pub(crate) activation: Option<std::time::Instant>,
     /// The document. For the top-level frame the page holds it (`Page::doc`), and
     /// it is here only during a task of another runtime than the top level's,
@@ -394,24 +397,35 @@ impl Frames {
     /// "activation notification"). The frame, its ancestors and the frames of its
     /// origin get the activation. Chromium gives it to all frames of the origin,
     /// not only to descendants (measured, case `activation-xo-sibling-same`).
-    pub(crate) fn note_activation(&mut self, frame: FrameId) {
+    ///
+    /// Returns the frames that got it, for the documents' own activation
+    /// state (`navigator.userActivation`, the close watchers).
+    pub(crate) fn note_activation(&mut self, frame: FrameId) -> Vec<FrameId> {
         let now = std::time::Instant::now();
         let origin = self.get(frame).and_then(|f| f.origin.clone());
+        let mut reached = Vec::new();
+        let mut seen = HashSet::new();
         for id in self.chain(frame) {
             if let Some(record) = self.get_mut(id) {
                 record.activation = Some(now);
+                reached.push(id);
+                seen.insert(id);
             }
         }
         let Some(origin) = origin else {
-            return;
+            return reached;
         };
         for id in self.tree_order() {
             if let Some(record) = self.get_mut(id)
                 && record.origin.as_ref() == Some(&origin)
             {
                 record.activation = Some(now);
+                if seen.insert(id) {
+                    reached.push(id);
+                }
             }
         }
+        reached
     }
 
     /// True if `frame` has had an activation (HTML "sticky activation").

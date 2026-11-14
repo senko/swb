@@ -288,6 +288,8 @@ pub(crate) struct DocState {
     /// The `navigator.clipboard` object, made at the first access
     /// (`clipboard.rs`).
     pub(crate) clipboard: Option<Gc<Object>>,
+    /// The `navigator.userActivation` object, made at the first access.
+    pub(crate) user_activation: Option<Gc<Object>>,
     /// The print-when-loaded flag and the flag of the printing steps
     /// (`dialogs.rs`).
     pub(crate) print_when_loaded: bool,
@@ -454,6 +456,7 @@ impl DocState {
             self.navigator,
             self.crypto,
             self.clipboard,
+            self.user_activation,
             self.plugins,
             self.mime_types,
             self.screen,

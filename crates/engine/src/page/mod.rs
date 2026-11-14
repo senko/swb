@@ -49,6 +49,7 @@ mod idle;
 mod input;
 mod loading;
 mod pipeline;
+mod popovers;
 mod rendering_update;
 mod script;
 mod scroll;

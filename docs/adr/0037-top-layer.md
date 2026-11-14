@@ -694,11 +694,14 @@ Chromium has no limits that the cases found. swb's bounds:
 Hostile cases (`tools/swbtools/hostile_cases/top_layer.py`, JavaScript on
 unless named):
 
-- `popover-nested-auto-10000`: 10,000 nested auto popovers shown in order,
-  then a click outside and Escape (budget: the show loop under 2 s, the
-  dismissal under 2 s, memory under +50 MB; since 6b it renders 10,000
-  boxes and backdrops: about 120 MiB of the 160 MiB limit, see "6b fix
-  round").
+- `popover-nested-auto-10000`: 10,000 nested auto popovers shown in order
+  (budget: the show loop under 2 s, memory under +50 MB; since 6b it
+  renders 10,000 boxes and backdrops: about 120 MiB of the 160 MiB limit,
+  see "6b fix round"). Since 6c it is also the case of live close
+  watchers: a script shows no popover with a user activation, so the 10,000
+  watchers are alive in one group; the case counts the open popovers (10,000),
+  presses Escape (all close, one group), shows them again and clicks outside
+  (light dismiss closes all).
 - `popover-manual-10000-open`: 10,000 open manual popovers; style, layout,
   paint, 100 pointer moves, then all hidden.
 - `popover-beforetoggle-reentry`: `beforetoggle` handlers that show and
@@ -716,10 +719,15 @@ unless named):
   times.
 - `top-layer-backdrop-filter-1000`: 1,000 open popovers with
   `::backdrop { backdrop-filter: blur(20px) }` (ADR 0033's budgets apply).
-- `close-watchers-100000-without-activation`: 100,000 popovers and dialogs
-  shown by a script, one Escape (one group).
+- `close-watchers-100000-without-activation`: 100,000 watchers made and
+  destroyed: a script shows 100,000 auto and hint popovers without a user
+  activation (each show hides the earlier ones, so one popover is open at
+  the end), then one Escape. It does not test a group of 100,000 watchers:
+  watchers that stay alive together exist only with nested popovers (see
+  `popover-nested-auto-10000`). The dialogs come with 6d.
 - `invoker-chain-10000-js-off`: 10,000 nested popovers each with the
-  invoker of the next; clicks along the chain with JavaScript off.
+  invoker of the next; with JavaScript off, 10 clicks on the first 10
+  invokers (not on the whole chain), then a click outside.
 
 ### 13. Performance
 
@@ -1275,3 +1283,153 @@ off: Wikipedia +0.120 %, Ars Technica +0.016 %, BBC -0.019 %. Hostile
 cases: `popover-nested-auto-10000` 1.11 s, 123 MiB;
 `popover-manual-10000-open` 0.55 s, 181 MiB;
 `top-layer-backdrop-filter-1000` 2.81 s, 96 MiB.
+
+## 6c implementation notes
+
+Facts of sub-feature 6c (popover interaction) that differ from the sections
+or that 6d and 6e need. Code: `crates/dom/src/top_layer/watchers.rs` (close
+watchers), `top_layer/dismiss.rs` (light dismiss), `top_layer.rs` (focus
+steps, `TopLayerHost::focused_element` and `focus`), `crates/dom/src/
+activation.rs` (`with_invoker`, `swallows_invoker_click`);
+`crates/engine/src/page/popovers.rs` (the page's hooks), `document/
+top_layer.rs` (`NoScriptHost`, user activation), `page/events.rs`,
+`input.rs`, `forms.rs` (hooks, invokers without scripts), `focus.rs` (Tab
+order), `frames/mod.rs` (`note_activation` returns the frames reached);
+`crates/web/src/html/popover.rs`, `runtime.rs`, `navigator.rs`
+(`navigator.userActivation`, new IDL `UserActivation`).
+
+**Measured answers** (Chromium 148, three equal runs of 76 new cases of
+`web-top-layer.json` (68 old ones, 144 in all); the `escape-*` cases do not log `toggle`, whose task
+runs between the tool's steps at times that vary):
+
+1. *Light dismiss with a hint endpoint.* A click in an unrelated hint closes
+   nothing; in an auto popover it closes the open hints; outside it closes
+   the hints, then the autos. `hide_all_popovers_until` with an endpoint in
+   the hint list now hides the hints above it only (6a hid the auto list
+   too). The target of an invoker counts as clicked, with any
+   `popovertargetaction`, for auto and hint targets (not manual). A popover
+   that a `pointerdown` listener opens is closed by that press's release.
+   A click in an iframe does not dismiss the parent's popovers. Dismissal
+   moves no focus.
+2. *A control inside an invoker button* (`invoker-inner-*`). File and color
+   fields, checkbox, radio, link, `summary`: the invoker does nothing.
+   `select`, `span`, `img`, `range`, date types, submit inputs: it toggles.
+   Text-like fields (text, search, url, tel, email, password, number,
+   `textarea`): Chromium opens and closes the popover in one click (two
+   `beforetoggle` events, no net change). swb does nothing there
+   (`swallows_invoker_click`; the two events are a departure in
+   `popover_input.rs`). The 6a code, which scanned past `Blocked` controls,
+   toggled for file and color fields: fixed (`first_invoker` stops at them).
+3. *Invoker in a link without scripts* (`noscript-in-link-*`): as with
+   scripts. `swb_dom::with_invoker` is the one rule for both paths (invoker
+   below a link first, invoker above a label as `also`, alone otherwise;
+   `ClickRole::Invoker`).
+
+**Close watchers.** `CloseWatchers` in the document's `TopLayerState`:
+groups, "allowed number of groups" (starts 1), "next user interaction allows
+a new group" (starts true), and the history-action flag. An activation with
+the flag set adds 1 to the allowed number and clears it; creating a watcher
+sets it (HTML "create a close watcher"). This fits every measured sequence
+(`escape-popovers-*`, `xo-*`): no activation, one group; one watcher per
+click, one group each; several clicks without a watcher in between add one
+group; [p1] [p2] [p3, p4] for show, click, show. `WatcherKind::Dialog` is for
+6d, which also reads `has_history_action_activation` and
+`consume_history_action_activation`. Activations come from the frame tree
+(`Frames::note_activation`: the frame, its ancestors and its origin) and go
+to each reached document (`DocumentState::note_user_activation`); an
+activation before the first popover is kept (`Document::early_activation`).
+The probe tool's evaluations count as an activation: `Page::
+note_user_activation` (the tests call it before the steps). A cross-origin
+frame gets none. Escape is no activation; its default (`key_in_document`)
+calls `process_close_watchers`, after `keydown` with scripts.
+`navigator.userActivation` (`hasBeenActive`, `isActive`) exists for the
+probe cases.
+
+**Focus.** The previously focused element is recorded only for an auto or
+hint popover shown while no popover shows (measured, `popover-focus-restore`).
+At hide it gets the focus if the focus is inside the popover and it can take
+it. The autofocus search runs only in arenas that ever had `autofocus`
+(`ever_had_autofocus`, in `handler_attrs.rs`) and visits 100,000 nodes at
+most. `Page::focused_frame` no longer resets the focus of a frame that a
+script focused with `iframe.focus()` (the `iframe` is the page's focused
+element then); Escape did not reach such a frame.
+
+**Tab order.** A showing popover with an invoker (the click's button or the
+`source`) is a scope owner after the invoker's subtree, whether or not the
+invoker is focusable; manual popovers too; nested ones inside their
+popover's scope. Each popover is visited once: a review of the first run
+found an endless walk for invokers inside popovers that follow each other
+(10^11 bytes of memory); `flattened_order` skips a popover that it reached
+and puts unreached ones at the end in layer order; the unit tests cover a
+source that is an ancestor, a descendant, a cycle of two and of three, and a
+popover that is its own invoker. Departure: a popover whose source is `body`
+is entered backward from the page's end at its last element, Chromium at the
+body's last element.
+
+**The nested show loop.** Quadratic cost at 10,000, 20,000, 40,000 nested
+shows: 272, 1,096, 4,592 ms (manual popovers: 761 ms at 20,000). The cost is
+not the algorithms (the ancestor walk stops at the top of the list) but the
+O(depth) walks per show: `is_connected` in the validity checks and the
+event path of `beforetoggle` (each event walks all ancestors). No small
+fix; recorded as backlog.
+
+**Numbers** (release builds of e243724 and 6c): `just snapshot` (370 files)
+identical; `compare --all` and `--all --js` the same scores (GitHub JS on:
+geometry 0.9115, pixels 0.9934; Ars Technica JS on: pixels 0.9891 to
+0.9901, one extra element fewer); callgrind JavaScript off: Wikipedia
++0.02 %, Ars Technica -0.01 %, BBC -0.01 %; GitHub with JavaScript on
+loads in 0.517 s (base 0.517 s). The cost of input events on a page without
+popovers was not measured (no tool runs a fixed input sequence under
+callgrind); each hook is one test of the top layer. Hostile cases:
+`popover-nested-auto-10000` (with the click outside and Escape) 0.60 s,
+111 MiB; `invoker-chain-10000-js-off` 0.70 s, 101 MiB;
+`close-watchers-100000-without-activation` 0.50 s, 284 MiB.
+
+**Review fixes** (6c, one round).
+
+1. *Which inputs give a user activation* (Chromium 148, three equal runs, 24
+   new cases `xo-act-*` in a cross-origin frame that has no activation; the
+   frame's own scripts log `navigator.userActivation`, because a query that
+   the tool evaluates in the frame is a gesture itself). A letter, Space,
+   Enter, Tab and an arrow key: `hasBeenActive` and `isActive` are true at
+   `keydown`. Shift, Control or Alt alone, and Escape: false. Shift+A and
+   Control+A: the A gives it. A press of the left, the middle or the right
+   button: true at `pointerdown`. A move and a wheel: false. swb already
+   matched; the cases are rows of `popover_input.rs`, also with JavaScript
+   off (the history-action activation of the document). swb has no key for a
+   modifier alone, so the test leaves out the steps that press one (no event,
+   no activation: the same for the page). The state after a click in the
+   frame and a new document: the frame keeps it through a navigation to
+   the same site, also to another origin of the site (another port, the
+   parent's origin), through a reload and `document.open()`; a navigation to
+   another site clears it (`xo-act-after-*`). swb cleared it when the origin
+   changed and the document of the frame did not read the frame's state
+   (`navigator.userActivation` was false after any navigation): the commit
+   keeps it for the same site and copies it to the new document (frames and
+   the top level).
+2. *The Tab press with nested popovers.* `Popovers::of` ran twice per press
+   and walked the DOM and the flat tree up from each invoker. It runs once
+   per press now and shares the climbs: the nearest popover above each node
+   and the connected state are memoized, and the intervals of the tree of
+   popovers answer "is the invoker inside its popover". A unit test compares
+   it with the plain definition. Per Tab press, release builds, a chain of N
+   nested manual popovers: 6b (e243724) 0.08, 0.84, 3.87 s for N = 5,000,
+   10,000, 20,000 (with the `source`; 0.08, 0.84, 4.02 s without); 6c before
+   the fix 0.17, 1.19, 5.42 s with the `source` (0.08, 0.85, 4.00 s without);
+   after the fix 0.08, 0.85, 3.95 s with it and 0.08, 0.85, 3.92 s without.
+   The 6c part (+0.09, +0.35, +1.5 s) is gone. The rest is older than 6c: each
+   Tab press moves the focus, which restyles and lays out the 10,000 nested
+   boxes again, and `in_closed_details_content` walks the ancestors of each
+   node (O(depth)): backlog.
+3. *Hostile cases.* `close-watchers-100000-without-activation` tests 100,000
+   watchers made and destroyed, then one Escape (one popover is open at the
+   end); section 12 says so. `popover-nested-auto-10000` now has the live
+   watchers: it counts the open popovers (10,000) before its Escape. The case
+   `invoker-chain-10000-js-off` clicks the first 10 invokers.
+4. *`Frames::note_activation`* collected the frames in a list and searched
+   it for each frame of the origin: a set now.
+5. *One activation state.* The frame's record is the source: a commit copies
+   it to the document (`DocumentState::user_activation`), and `note_activation`
+   writes both. The cases `xo-act-after-*` fail if the copy is missing or the
+   rule is by origin.
+6. *Docs.* The number of new cases is 76 (it said 66).

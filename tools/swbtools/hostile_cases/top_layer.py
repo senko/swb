@@ -2,6 +2,8 @@
 popover model, the algorithms and the bindings; 6b: the top layer in
 rendering)."""
 
+import json
+
 from swbtools.hostile_cases.core import Page, case, doc, steps_args
 
 JS = ("--js", "--settle-ms", "500")
@@ -88,10 +90,34 @@ def popover_remove_while_open_100000() -> Page:
     "10,000 nested auto popovers shown in order (each is the child of the one before): each "
     "show finds its ancestor at the top of the list in one step, the show loop takes less than "
     "2 s, and a timer logs `nested ok` with the number of open popovers (ADR 0037 sections 2 "
-    "and 12; the dismissal comes with sub-feature 6c)",
+    "and 12). Sub-feature 6c: the script shows no popover with a user activation, so the 10,000 "
+    "close watchers are alive in one group: Escape closes them all (`escape ok` logs the open "
+    "popovers before and after), then the script shows them again and a click outside closes "
+    "all of them by light dismiss (`dismiss ok`)",
     time_limit_s=20,
-    expect_log="nested ok 10000",
-    swb_args=JS,
+    expect_log=("nested ok 10000", "escape ok 10000 0", "dismiss ok 10000 0"),
+    swb_args=steps_args(
+        [
+            {
+                "eval": "window.__before = document.querySelectorAll(':popover-open').length, 1",
+            },
+            {"key": "Escape"},
+            {
+                "eval": "console.warn('escape ok ' + window.__before + ' ' + "
+                "document.querySelectorAll(':popover-open').length), 1"
+            },
+            {"eval": "all.forEach(d => d.showPopover()), 1"},
+            {
+                "eval": "window.__open = document.querySelectorAll(':popover-open').length, 1",
+            },
+            {"click": [5, 5]},
+            {
+                "eval": "console.warn('dismiss ok ' + window.__open + ' ' + "
+                "document.querySelectorAll(':popover-open').length), 1"
+            },
+            {"wait": 50},
+        ]
+    ),
     # ADR 0037 section 12: memory under +50 MB (a page with scripts and a
     # small DOM peaks near 105 MiB; this case near 111 MiB in 6a, near
     # 150 MiB when 6b rendered the 10,000 open popovers and their backdrops
@@ -162,3 +188,52 @@ def top_layer_backdrop_filter_1000() -> Page:
     )
     css = "[popover]::backdrop{backdrop-filter:blur(20px);background:rgba(0,0,255,.01)}"
     return Page(doc(script, css))
+
+
+@case(
+    "10,000 nested popovers, each with a button whose `popovertarget` names the next, and "
+    "JavaScript off: 10 clicks along the chain, then a click outside (ADR 0037 sections 3, "
+    "10 and 12, sub-feature 6c)",
+    time_limit_s=20,
+    rss_limit_mib=400,
+    swb_args=(
+        "--steps="
+        + json.dumps([{"click": f"#b{i}"} for i in range(10)] + [{"click": [1, 1]}, {"wait": 50}]),
+    ),
+)
+def invoker_chain_10000_js_off() -> Page:
+    parts = ["<button id=b0 popovertarget=p0>b0</button>"]
+    for i in range(10000):
+        nxt = f"<button id=b{i + 1} popovertarget=p{i + 1}>b</button>" if i < 9999 else ""
+        parts.append(f"<div id=p{i} popover=auto style='position:static'>{nxt}")
+    parts.append("</div>" * 10000)
+    return Page(doc("".join(parts)))
+
+
+@case(
+    "100,000 watchers made and destroyed: a script shows 100,000 popovers (auto and hint ones, "
+    "each show hides the one before, so one is open at the end) without any user activation, "
+    "then Escape; a timer logs `watchers ok` (ADR 0037 section 12, sub-feature 6c; watchers that "
+    "stay alive together exist only with nested popovers, see `popover-nested-auto-10000`; the "
+    "dialogs come with 6d)",
+    time_limit_s=20,
+    expect_log="watchers ok 0",
+    rss_limit_mib=600,
+    swb_args=steps_args(
+        [
+            {"key": "Escape"},
+            {
+                "eval": "console.warn('watchers ok ' + "
+                "document.querySelectorAll(':popover-open').length), 1"
+            },
+            {"wait": 50},
+        ]
+    ),
+)
+def close_watchers_100000_without_activation() -> Page:
+    script = (
+        "<script>for (let i = 0; i < 100000; i++) { const d = document.createElement('div'); "
+        "d.popover = i % 2 ? 'auto' : 'hint'; document.body.appendChild(d); d.showPopover(); }"
+        "</script>"
+    )
+    return Page(doc(script))

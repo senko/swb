@@ -4,6 +4,32 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-13: M10 6c: popover interaction
+
+- Light dismiss at `pointerdown` and `pointerup`, close watchers in groups
+  with HTML's allowed number of groups, and Escape in the key default,
+  with JavaScript on and off. The groups count the user activations of
+  the frame tree; Escape, a move and a wheel are no activation (measured).
+- Invokers work without scripts: `swb_dom::with_invoker` is the one rule
+  for the script path and the engine's click path (invoker in a link,
+  above a label, a control inside the invoker). A showing popover follows
+  its invoker in the Tab order; focus returns to the previously focused
+  element at hide.
+- A first test run of the Tab order looped without end for invokers inside
+  each other's popovers and took 117 GB of memory; the OOM killer stopped
+  the owner's terminal. Each popover is now visited once, and test
+  binaries run under a memory limit (85c2c4e).
+- From the review: a frame keeps its activation through a navigation to
+  the same site, and the new document reads it (swb cleared it by origin
+  and the document read nothing); one Tab press computes the popover
+  scopes once with shared ancestor climbs (+0.35 s per Tab at 10,000
+  nested popovers, gone; the remaining 0.85 s is restyle and relayout,
+  older than 6c).
+- 100 new probe cases; 3 departures. GitHub: the click on "..." hides the
+  hover tooltip by light dismiss. Targets unchanged; JS-off snapshot
+  identical; callgrind +0.04 % at most.
+- Next: 6d (dialogs).
+
 ## 2026-11-13: M10 6b: the top layer renders
 
 - A top-layer element leaves its place in the box tree. If the walk

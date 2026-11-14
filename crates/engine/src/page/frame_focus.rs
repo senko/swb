@@ -67,7 +67,17 @@ impl Page {
     /// page's own document got the focus since (a script's `focus()`).
     pub(super) fn focused_frame(&mut self) -> Option<FrameId> {
         let frame = self.input.focus_frame?;
-        let page_focus = self.doc.as_ref().is_some_and(|d| d.states.focus.is_some());
+        // The `iframe` that holds the focus through its frame is the page's
+        // focused element too (a script's `iframe.focus()`): it is not an
+        // element that took the focus from the frame.
+        let holder = self
+            .frame_chain(frame)
+            .get(1)
+            .and_then(|&top_child| self.frames.get(top_child)?.container);
+        let page_focus = self
+            .doc
+            .as_ref()
+            .is_some_and(|d| d.states.focus.is_some_and(|n| Some(n) != holder));
         if self.doc_of(frame).is_some() && !page_focus {
             return Some(frame);
         }

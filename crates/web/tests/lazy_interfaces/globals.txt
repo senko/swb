@@ -382,6 +382,7 @@ ErrorEvent:dwc
 PromiseRejectionEvent:dwc
 PageTransitionEvent:dwc
 Navigator:dwc
+UserActivation:dwc
 PluginArray:dwc
 MimeTypeArray:dwc
 Plugin:dwc

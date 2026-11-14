@@ -163,9 +163,9 @@ fn tab_order_has_no_shadow_content(page: &mut swb_engine::Page) {
 /// `TooltipV2` popover (`showPopover` from a React handler) in the top layer
 /// at Chromium's box: 125 x 28 at (166, 358) in the viewport (ADR 0037
 /// "What GitHub needs", the replay's "hover dots" step). The box is the
-/// last item of the paint order, so a hit test at its center finds it. The
-/// test hides it again (the click that does so in Chromium is light
-/// dismiss, sub-feature 6c).
+/// last item of the paint order, so a hit test at its center finds it. A
+/// click on the button hides it by light dismiss (sub-feature 6c); Escape
+/// closes whatever a click opened.
 fn hover_shows_the_tooltip_in_the_top_layer(page: &mut swb_engine::Page) {
     let at = value(
         page,
@@ -197,10 +197,35 @@ fn hover_shows_the_tooltip_in_the_top_layer(page: &mut swb_engine::Page) {
         "the tooltip's box: {rect:?}, Chromium {want:?}"
     );
     assert_eq!(tip[5], true, "the tooltip is on top at its center: {tip}");
-    value(
-        page,
-        "document.querySelectorAll(':popover-open').forEach(e => e.hidePopover()), 1",
+    // The click on the button hides the tooltip by light dismiss (ADR 0037
+    // section 4; in the replay: `beforetoggle` `open>closed` without a call
+    // of `hidePopover`). The page also expands the commit message.
+    let (x, y) = (
+        at[0].as_f64().unwrap() as f32,
+        at[1].as_f64().unwrap() as f32,
     );
+    let toggles = "(window.__tt = []), document.addEventListener('beforetoggle', \
+        e => window.__tt.push(e.newState), true), 1";
+    value(page, toggles);
+    page.click(x, y);
+    page.run_event_loop(Duration::from_millis(500), Duration::from_secs(10));
+    let after = value(
+        page,
+        "[document.querySelectorAll(':popover-open').length, window.__tt.join('>')]",
+    );
+    assert_eq!(after[0], 0, "the click hid the tooltip: {after}");
+    assert!(
+        after[1].as_str().unwrap().starts_with("closed"),
+        "a `beforetoggle` to the closed state without a call: {after}"
+    );
+    // A second click collapses the message again (the Tab order below is the
+    // page's usual); a tooltip that it shows goes away with Escape.
+    page.click(x, y);
+    page.run_event_loop(Duration::from_millis(500), Duration::from_secs(10));
+    page.key_down(&swb_engine::Key::Escape, swb_engine::Modifiers::NONE);
+    page.run_event_loop(Duration::from_millis(200), Duration::from_secs(10));
+    let open = value(page, "document.querySelectorAll(':popover-open').length");
+    assert_eq!(open, 0, "no popover is open after Escape");
     page.mouse_move(1.0, 1.0);
     page.run_event_loop(Duration::from_millis(200), Duration::from_secs(10));
 }

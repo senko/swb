@@ -52,6 +52,10 @@ pub enum ClickRole {
     /// A disabled control: the click goes no further (a real click on it
     /// fires no events, so nothing around it activates).
     Blocked,
+    /// The invoker of a popover (a button that opens or closes one) that no
+    /// other element takes the click from. [`click_target`] never picks it;
+    /// [`with_invoker`] adds it.
+    Invoker,
 }
 
 /// The element that a click activates.
@@ -61,8 +65,12 @@ pub struct ClickTarget {
     pub node: NodeId,
     /// Its role.
     pub role: ClickRole,
-    /// For a label: the button that acts after the label, if one is above it.
+    /// For a label: the button that acts after the label, if one is above it
+    /// (with [`with_invoker`], also the invoker of a popover above it).
     pub also: Option<NodeId>,
+    /// For a link: the invoker of a popover below it on the path, which acts
+    /// before the link ([`with_invoker`]).
+    pub invoker: Option<NodeId>,
 }
 
 /// The roles of the labels on one walk, found without a search of the
@@ -92,6 +100,80 @@ impl LabelMemo {
         } else {
             ClickRole::Interactive
         }
+    }
+}
+
+/// Adds the invoker of a popover to what [`click_target`] picked. A button
+/// that invokes a popover does not act in the walk (it is interactive content
+/// like a button of type `button`: a link around it is followed). It invokes
+/// its popover besides a link (the nearest one below the link, which acts
+/// first, as the event bubbles) and after a label (the nearest one above the
+/// label, as `also`), or alone if the walk picked nothing
+/// ([`ClickRole::Invoker`]). `reach` is the part of the event's path that the
+/// click can reach; `first_invoker` gives the first invoker of a part of it
+/// (the nearest to the target first), and nothing for a part that a control
+/// cuts off. Measured with Chromium 148 (`invokers-in-link`,
+/// `invokers-and-labels`).
+pub fn with_invoker(
+    picked: Option<ClickTarget>,
+    reach: &[NodeId],
+    mut first_invoker: impl FnMut(&[NodeId]) -> Option<NodeId>,
+) -> Option<ClickTarget> {
+    let Some(mut target) = picked else {
+        return first_invoker(reach).map(|node| ClickTarget {
+            node,
+            role: ClickRole::Invoker,
+            also: None,
+            invoker: None,
+        });
+    };
+    let at = reach.iter().position(|&n| n == target.node).unwrap_or(0);
+    match target.role {
+        ClickRole::Link => target.invoker = first_invoker(reach.get(..at).unwrap_or_default()),
+        ClickRole::Label if target.also.is_none() => {
+            target.also = first_invoker(reach.get(at + 1..).unwrap_or_default());
+        }
+        _ => {}
+    }
+    Some(target)
+}
+
+/// True if `node` is a control that takes a click for itself, so that an
+/// invoker around it does not invoke: a text field (`textarea`, an `input`
+/// whose type is text, search, url, tel, email, password or number, or has
+/// none or an invalid one), a file or a color field (their chooser opens).
+/// Chromium 148, measured (`invoker-inner-*`): a click on such a field in an
+/// invoking `button` changes nothing. (For a text field Chromium toggles the
+/// popover twice: the same result, with two `beforetoggle` events; swb does
+/// not fire them.)
+pub fn swallows_invoker_click(doc: &crate::Document, node: NodeId) -> bool {
+    let Some(e) = doc.element(node).filter(|e| e.is_html()) else {
+        return false;
+    };
+    match &**e.local_name() {
+        "textarea" => true,
+        "input" => {
+            let ty = e.attr("type").map(str::to_ascii_lowercase);
+            !matches!(
+                ty.as_deref(),
+                Some(
+                    "hidden"
+                        | "checkbox"
+                        | "radio"
+                        | "range"
+                        | "date"
+                        | "time"
+                        | "datetime-local"
+                        | "month"
+                        | "week"
+                        | "submit"
+                        | "reset"
+                        | "button"
+                        | "image"
+                )
+            )
+        }
+        _ => false,
     }
 }
 
@@ -125,6 +207,7 @@ pub fn click_target(
                 node,
                 role,
                 also: None,
+                invoker: None,
             })
         };
         match role {
@@ -140,7 +223,12 @@ pub fn click_target(
                 };
                 if !inert && (node == target || button.is_none()) {
                     let also = button.filter(|_| role == ClickRole::Label);
-                    return Some(ClickTarget { node, role, also });
+                    return Some(ClickTarget {
+                        node,
+                        role,
+                        also,
+                        invoker: None,
+                    });
                 }
             }
             _ => {}

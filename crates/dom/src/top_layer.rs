@@ -37,6 +37,12 @@ use html5ever::local_name;
 use crate::journal::Change;
 use crate::tree::{Document, NodeId, flags};
 
+mod dismiss;
+mod watchers;
+
+pub use dismiss::{light_dismiss_down, light_dismiss_up, topmost_clicked_popover};
+pub use watchers::{WatcherKind, process_close_watchers};
+
 /// The state of the `popover` attribute (an enumerated attribute: the empty
 /// value is `auto`, an invalid value `manual`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -224,13 +230,29 @@ pub trait TopLayerHost {
     /// `serial`; a task whose serial is no longer the element's does nothing
     /// (a later change moved the task to the end of the queue).
     fn queue_toggle_task(&mut self, element: NodeId, serial: u64);
+
+    /// The focused element of the document, if any (HTML "document's focused
+    /// area"). A host without focus has none.
+    fn focused_element(&mut self) -> Option<NodeId> {
+        None
+    }
+
+    /// Runs the focusing steps for `element` (the popover focusing steps and
+    /// the restoration of the focus). Returns false if `element` is not a
+    /// focusable area that is rendered: nothing changed. A host without
+    /// focus changes nothing.
+    fn focus(&mut self, element: NodeId) -> bool {
+        let _ = element;
+        false
+    }
 }
 
 /// The options of [`hide_popover`] (the arguments of HTML "hide popover
 /// algorithm").
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct HideOptions {
-    /// Focus the previously focused element (sub-feature 6c).
+    /// Focus the previously focused element when the focus is inside the
+    /// popover (HTML "hide popover algorithm", `focusPreviousElement`).
     pub focus_previous: bool,
     /// Fire `beforetoggle` and queue the `toggle` task.
     pub fire_events: bool,
@@ -261,6 +283,12 @@ struct PopoverData {
     busy: bool,
     /// HTML "popover toggle task tracker".
     toggle: Option<PendingToggle>,
+    /// HTML "previously focused element": the element that had the focus
+    /// when the popover opened a stack, which the hide gives it back to.
+    previously_focused: Option<NodeId>,
+    /// The popover has a close watcher (an auto or hint popover while it
+    /// shows).
+    watcher: bool,
 }
 
 /// The state of a dialog in the top layer or with a close watcher (ADR 0037
@@ -288,8 +316,10 @@ pub struct TopLayerState {
     hint: Vec<NodeId>,
     popovers: HashMap<NodeId, PopoverData>,
     dialogs: HashMap<NodeId, DialogData>,
-    /// HTML "popover pointerdown target" (sub-feature 6c).
+    /// HTML "popover pointerdown target" (light dismiss).
     pointerdown_target: Option<NodeId>,
+    /// The close watchers (`watchers.rs`).
+    watchers: watchers::CloseWatchers,
     /// The showing popovers whose `popover` attribute changed state since the
     /// last [`Document::take_popover_attribute_hides`].
     attribute_hides: Vec<NodeId>,
@@ -398,11 +428,14 @@ impl TopLayerState {
 
     /// Drops the data of `element` if nothing needs it any more.
     fn tidy(&mut self, element: NodeId) {
-        if self
-            .popovers
-            .get(&element)
-            .is_some_and(|d| d.list.is_none() && !d.busy && d.toggle.is_none())
-        {
+        if self.popovers.get(&element).is_some_and(|d| {
+            d.list.is_none()
+                && !d.busy
+                && d.toggle.is_none()
+                && d.invoker.is_none()
+                && d.previously_focused.is_none()
+                && !d.watcher
+        }) {
             self.popovers.remove(&element);
         }
     }
@@ -426,7 +459,14 @@ impl TopLayerState {
 impl Document {
     /// The top layer state, made at its first use.
     fn top_layer_state(&mut self) -> &mut TopLayerState {
-        self.top_layer.get_or_insert_default()
+        let early = self.early_activation;
+        self.top_layer.get_or_insert_with(|| {
+            let mut state = TopLayerState::default();
+            if early {
+                state.watchers.note_activation();
+            }
+            Box::new(state)
+        })
     }
 
     /// The top layer state, if the arena ever showed a popover.
@@ -615,7 +655,9 @@ impl Document {
             return;
         };
         for node in taken {
-            state.popovers.remove(node);
+            if state.popovers.remove(node).is_some_and(|d| d.watcher) {
+                state.watchers.destroy(*node, WatcherKind::Popover);
+            }
             state.dialogs.remove(node);
             state.attribute_hides.retain(|n| n != node);
             if state.pointerdown_target == Some(*node) {
@@ -820,16 +862,87 @@ fn show_steps<H: TopLayerHost + ?Sized>(
     }
     let doc = host.doc();
     let state = doc.top_layer_state();
+    // HTML "show popover": the focus goes back to the element that had it
+    // when the popover opened a stack (an auto or hint popover while no
+    // popover shows; measured, `popover-focus-restore`).
+    let restore_focus = list.is_some() && state.auto.is_empty() && state.hint.is_empty();
     if let Some(list) = list {
         state.push(list, element);
+        state.watchers.create(element, WatcherKind::Popover);
     }
     state.add_to_layer(element);
-    state.popovers.entry(element).or_default().invoker = source;
+    let data = state.popovers.entry(element).or_default();
+    data.invoker = source;
+    data.watcher = list.is_some();
     let serial = state.queue_toggle(element, ToggleState::Closed, ToggleState::Open, source);
     doc.set_flags(element, flags::POPOVER_SHOWING | flags::TOP_LAYER, true);
     doc.record_top_layer(element);
+    let previous = if restore_focus {
+        host.focused_element()
+    } else {
+        None
+    };
+    focusing_steps(host, element);
+    if let Some(previous) = previous {
+        // A listener of a focus event may have hidden the popover already.
+        let doc = host.doc();
+        if doc.is_popover_showing(element)
+            && let Some(data) = doc.top_layer_state().popovers.get_mut(&element)
+        {
+            data.previously_focused = Some(previous);
+        }
+    }
     host.queue_toggle_task(element, serial);
     Ok(())
+}
+
+/// The most nodes that the search for an `autofocus` descendant visits.
+const AUTOFOCUS_SCAN_LIMIT: usize = 100_000;
+
+/// HTML "popover focusing steps": the popover itself if it has `autofocus`,
+/// else its first descendant with `autofocus` (in flat tree order) that the
+/// host can focus; nothing moves otherwise (measured, `popover-focus`). The
+/// search runs only for arenas that ever had an `autofocus` attribute, and
+/// visits at most [`AUTOFOCUS_SCAN_LIMIT`] nodes (a departure: a popover with
+/// a huge subtree whose `autofocus` element is past the limit does not give
+/// it the focus).
+/// <https://html.spec.whatwg.org/multipage/popover.html#popover-focusing-steps>
+fn focusing_steps<H: TopLayerHost + ?Sized>(host: &mut H, popover: NodeId) {
+    let doc = host.doc();
+    if !doc.ever_had_autofocus() {
+        return;
+    }
+    if doc
+        .element(popover)
+        .is_some_and(|e| e.has_attr("autofocus"))
+    {
+        host.focus(popover);
+        return;
+    }
+    let mut stack: Vec<NodeId> = doc.flat_children(popover).collect();
+    stack.reverse();
+    let mut visited = 0;
+    let mut candidates = Vec::new();
+    while let Some(node) = stack.pop() {
+        visited += 1;
+        if visited > AUTOFOCUS_SCAN_LIMIT {
+            break;
+        }
+        let Some(element) = doc.element(node) else {
+            continue;
+        };
+        if element.has_attr("autofocus") {
+            candidates.push(node);
+        }
+        let mark = stack.len();
+        stack.extend(doc.flat_children(node));
+        stack[mark..].reverse();
+    }
+    for candidate in candidates {
+        if host.focus(candidate) {
+            return;
+        }
+    }
 }
 
 /// HTML "hide popover algorithm": `hidePopover()`, invokers, the attribute
@@ -894,7 +1007,13 @@ fn hide_steps<H: TopLayerHost + ?Sized>(
             return Ok(());
         }
     }
+    let previous = take_previously_focused(host.doc(), element);
     remove_popover(host.doc(), element);
+    if let Some(previous) = previous
+        && options.focus_previous
+    {
+        restore_focus(host, element, previous);
+    }
     if options.fire_events {
         let doc = host.doc();
         let serial = doc.top_layer_state().queue_toggle(
@@ -906,6 +1025,33 @@ fn hide_steps<H: TopLayerHost + ?Sized>(
         host.queue_toggle_task(element, serial);
     }
     Ok(())
+}
+
+/// Takes the previously focused element out of the data of `element`.
+fn take_previously_focused(doc: &mut Document, element: NodeId) -> Option<NodeId> {
+    doc.top_layer
+        .as_deref_mut()?
+        .popovers
+        .get_mut(&element)?
+        .previously_focused
+        .take()
+}
+
+/// HTML "hide popover algorithm", last steps: if the focus is inside the
+/// popover (a shadow-including inclusive descendant), the focusing steps run
+/// for the element that had the focus before. The host leaves the focus where
+/// it is if that element is gone or cannot be focused (measured,
+/// `popover-focus-restore`).
+fn restore_focus<H: TopLayerHost + ?Sized>(host: &mut H, popover: NodeId, previous: NodeId) {
+    let Some(focused) = host.focused_element() else {
+        return;
+    };
+    if host
+        .doc()
+        .is_shadow_including_inclusive_ancestor(popover, focused)
+    {
+        host.focus(previous);
+    }
 }
 
 /// Hides the popovers above `element` in `list`; for the auto list also all
@@ -929,6 +1075,9 @@ fn remove_popover(doc: &mut Document, element: NodeId) {
     state.remove_from_layer(element);
     if let Some(data) = state.popovers.get_mut(&element) {
         data.invoker = None;
+        if std::mem::take(&mut data.watcher) {
+            state.watchers.destroy(element, WatcherKind::Popover);
+        }
     }
     state.tidy(element);
     doc.set_flags(element, flags::POPOVER_SHOWING | flags::TOP_LAYER, false);
@@ -979,8 +1128,13 @@ fn hide_stack_until<H: TopLayerHost + ?Sized>(
     Ok(())
 }
 
-/// HTML "hide all popovers until" (light dismiss, sub-feature 6c): hides the
-/// popovers above `endpoint`, or all of them.
+/// HTML "hide all popovers until" (light dismiss): hides the popovers above
+/// `endpoint`, or all of them if it is none or not showing. With an endpoint
+/// in the hint list only the hints above it hide and the auto list stays; else
+/// the hint list hides first and then the auto list down to the endpoint
+/// (measured, `light-dismiss-hint-*`). The hides give the focus back to no
+/// one (light dismiss moves no focus).
+/// <https://html.spec.whatwg.org/multipage/popover.html#hide-all-popovers-until>
 ///
 /// # Errors
 ///
@@ -992,8 +1146,7 @@ pub fn hide_all_popovers_until<H: TopLayerHost + ?Sized>(
 ) -> Result<(), PopoverError> {
     let list = endpoint.and_then(|e| host.doc().top_layer()?.list_of(e));
     if list == Some(List::Hint) {
-        hide_stack_until(host, endpoint, List::Hint, fire_events)?;
-        hide_stack_until(host, None, List::Auto, fire_events)
+        hide_stack_until(host, endpoint, List::Hint, fire_events)
     } else {
         hide_stack_until(host, None, List::Hint, fire_events)?;
         hide_stack_until(host, endpoint, List::Auto, fire_events)
@@ -1121,6 +1274,36 @@ pub fn popover_target_activation<H: TopLayerHost + ?Sized>(
             show_popover(host, popover, false, Some(invoker))
         }
     }
+}
+
+/// True if `node` is an element that can be a popover invoker: a `button`, or
+/// an `input` of type `button`, `submit`, `reset` or `image` (Chromium,
+/// measured: `invokers-types`). Whether it acts depends on more (disabled,
+/// form owner: the caller's).
+pub fn can_invoke(doc: &Document, node: NodeId) -> bool {
+    let Some(e) = doc.element(node).filter(|e| e.is_html()) else {
+        return false;
+    };
+    match &**e.local_name() {
+        "button" => true,
+        "input" => e.attr("type").is_some_and(|t| {
+            ["button", "submit", "reset", "image"]
+                .iter()
+                .any(|k| t.eq_ignore_ascii_case(k))
+        }),
+        _ => false,
+    }
+}
+
+/// True if the invoker `node` (see [`can_invoke`]) submits or resets its form
+/// when it has a form owner: a `button` of any type but `button`, and an
+/// `input` of type `submit`, `image` or `reset`. Such a button with a form
+/// owner submits or resets instead of invoking (Chromium, measured).
+pub fn invoker_acts_on_form(doc: &Document, node: NodeId) -> bool {
+    doc.element(node).is_some_and(|e| {
+        !e.attr("type")
+            .is_some_and(|t| t.eq_ignore_ascii_case("button"))
+    })
 }
 
 /// The element that the `popovertarget` attribute of `invoker` names: the

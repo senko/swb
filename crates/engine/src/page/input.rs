@@ -337,7 +337,7 @@ impl Page {
         self.input.modifiers = modifiers;
         let point = Point::new(x, y);
         let route = self.route_through_frames(point);
-        self.frames.note_activation(route.last().frame);
+        self.note_activation(route.last().frame);
         if route.in_frame() {
             // The frame gets the press; its other buttons give only the events
             // of its scripts (no context menu in frames).
@@ -381,6 +381,14 @@ impl Page {
         self.input.pointer = Some(point);
         let hit = self.hit_doc(point.x, point.y);
         let element = hit.as_ref().and_then(|h| self.element_of(h.node));
+        if !scripted {
+            // Without scripts nothing else sees the press: light dismiss notes
+            // the popover under the pointer (a point outside every box is on
+            // the root element).
+            if let Some(target) = element.or_else(|| self.root_element()) {
+                self.light_dismiss_down(target);
+            }
+        }
         let focus = hit
             .as_ref()
             .filter(|_| allowed)
@@ -544,20 +552,29 @@ impl Page {
         if self.script_input() {
             return self.scripted_release(point, button);
         }
+        // Without scripts nothing else sees the release: light dismiss hides
+        // the popovers that the press and the release left outside, for every
+        // button.
+        let target = self
+            .hit_doc(point.x, point.y)
+            .and_then(|h| self.element_of(h.node))
+            .or_else(|| self.root_element());
+        let dismissed = target.is_some_and(|t| self.light_dismiss_up(t));
         if button != MouseButton::Primary {
-            return (false, false);
+            return (dismissed, false);
         }
         let press = self.input.press.take();
-        let changed = self.update_states(|s| s.active = None);
+        let changed = self.update_states(|s| s.active = None) | dismissed;
         let Some(press) = press.filter(|p| !p.dragging) else {
             return (changed, false);
         };
         let hit = self.hit_doc(point.x, point.y);
         let (x, y) = (point.x, point.y);
+        let origin = hit.as_ref().map(|h| h.node);
         let target = hit.and_then(|h| self.activation_target(h.node, Point::new(x, y)));
-        let activated = match target {
-            Some(target) if press.target == Some(target.node) => {
-                self.activate(target, Some(Point::new(x, y)))
+        let activated = match (target, origin) {
+            (Some(target), Some(origin)) if press.target == Some(target.node) => {
+                self.activate(target, Some(Point::new(x, y)), origin)
             }
             _ => false,
         };
@@ -642,7 +659,7 @@ impl Page {
         // input event").
         if *key != Key::Escape {
             let frame = self.focused_frame().unwrap_or(FrameId::TOP);
-            self.frames.note_activation(frame);
+            self.note_activation(frame);
         }
         // A frame that holds the focus gets the key.
         if let Some(frame) = self.focused_frame() {
@@ -754,6 +771,11 @@ impl Page {
             return KeyOutcome::Handled(self.toggle_details(details));
         }
         match key {
+            // A close request (HTML "close requests and close watchers"):
+            // the keydown was not canceled, or no script saw it.
+            Key::Escape if !ctrl && !modifiers.alt => {
+                KeyOutcome::Handled(self.process_close_watchers())
+            }
             Key::Tab if !ctrl && !modifiers.alt => KeyOutcome::Tab,
             Key::Enter if !ctrl && !modifiers.alt => KeyOutcome::Handled(self.activate_focused()),
             key if ctrl && !modifiers.alt && key.is_char('a') => {

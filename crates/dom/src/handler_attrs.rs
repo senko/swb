@@ -1,4 +1,4 @@
-//! The `on*` attributes that an arena ever had.
+//! The `on*` attributes and `autofocus` that an arena ever had.
 //!
 //! Event handler content attributes
 //! (<https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-content-attributes>)
@@ -9,7 +9,9 @@
 //! the markup setters, a node moved in from another arena; or set later).
 //! A name stays when the attribute goes. The set is an over-approximation by
 //! design: an event whose handler name is not in it has no content
-//! attribute handler on any node of the arena.
+//! attribute handler on any node of the arena. The set also holds the name
+//! `autofocus`, so that the popover focusing steps search a popover for an
+//! `autofocus` descendant only in arenas that ever had one.
 
 use crate::tree::{Document, NodeData};
 
@@ -20,6 +22,11 @@ impl Document {
         self.on_attrs
             .as_ref()
             .is_some_and(|names| names.contains(name))
+    }
+
+    /// True if an element of this arena ever had an `autofocus` attribute.
+    pub fn ever_had_autofocus(&self) -> bool {
+        self.ever_had_on_attribute("autofocus")
     }
 
     /// Notes the `on*` attributes of a new node.
@@ -33,10 +40,11 @@ impl Document {
         }
     }
 
-    /// Notes the attribute `local` if its name begins with `on`.
+    /// Notes the attribute `local` if its name begins with `on` or is
+    /// `autofocus`.
     #[inline]
     pub(crate) fn note_on_attribute(&mut self, local: &str) {
-        if !local.starts_with("on") {
+        if !local.starts_with("on") && local != "autofocus" {
             return;
         }
         let names = self.on_attrs.get_or_insert_default();

@@ -4904,7 +4904,28 @@ Steps:
         callgrind +0.12 % at most.
       - 6c popover interaction (`implementer`): light dismiss, Escape and
         close watchers, invokers with JavaScript off, the popover focus
-        steps and the Tab order after the invoker.
+        steps and the Tab order after the invoker. Done (2026-11-13):
+        light dismiss at `pointerdown` and `pointerup` (also with a hint
+        endpoint: only the hints above it close); close watchers in groups
+        with HTML's allowed number of groups, fed by the user activations
+        of the frame tree; Escape in the key default, with JavaScript on
+        and off; invokers without scripts through one rule for both paths
+        (`swb_dom::with_invoker`: invoker in a link, above a label, a
+        control inside the invoker); the previously focused element (only
+        for an auto or hint popover shown while none shows); a showing
+        popover follows its invoker in the Tab order;
+        `navigator.userActivation`. From the review: the inputs that give
+        an activation measured (swb matched); a frame keeps its activation
+        through a navigation to the same site and the new document reads
+        it (swb cleared it by origin); one Tab press computes the popover
+        scopes once (the 6c cost at 10,000 nested popovers, +0.35 s, is
+        gone). 100 new probe cases (168 in all); the 6c rows match
+        Chromium except 3 departures (a text field inside an invoker, a
+        `source` that is the `body`; ADR 0037 "6c implementation notes").
+        GitHub: the click
+        on the "..." button hides the hover tooltip by light dismiss, as
+        in Chromium. Targets unchanged; JS-off snapshot identical;
+        callgrind +0.04 % at most.
       - 6d dialogs (`implementer-hard`): `show`, `showModal`, `close`,
         `requestClose`, `returnValue`, `closedBy`, `cancel` and `close`,
         `method=dialog` with JavaScript on and off, the dialog focus steps,
@@ -5046,6 +5067,24 @@ Steps:
   measured); a `body` in the top layer (not measured). The show loop of
   nested auto popovers (6a) is quadratic beyond 10,000 (10,000: 271 ms,
   20,000: 1,115 ms): 6c finds the step.
+- Top layer (found in 6c): the nested show loop stays quadratic (10,000,
+  20,000, 40,000 shows: 272, 1,096, 4,592 ms): each show runs
+  `is_connected` in the validity checks and builds the O(depth) event path
+  of `beforetoggle`. A Tab press with 10,000 nested open popovers takes
+  0.85 s (also before 6c): the focus change restyles and lays out all
+  boxes again (as in the 5d item), and `in_closed_details_content` in the
+  rendered test walks the ancestors of each node. `watchers.rs`:
+  `destroy` and `contains` scan a group and `Vec::remove` shifts the rest,
+  so removing N watchers oldest-first is O(N²) (3 ms for 20,000). A press
+  in the top document with the release in an iframe leaves the top
+  document's `popover_pointerdown_target` set until the next press (no
+  effect found). Not measured in Chromium: the activation of the top-level
+  page across a navigation (the probe tool gives the top page an
+  activation; swb uses the frame rule: kept for the same site). swb sends
+  no separate `keydown` for Shift in Shift+A (Chromium does), and the
+  automation API has no key for a modifier alone. The cost of input events
+  on a page without popovers is not measured (no tool runs a fixed input
+  sequence under callgrind).
 - Rendering (found in 6b): swb has no `content-visibility`; an `<object>`
   with `type` or `data` renders its fallback children, Chromium does not
   (measured: a child `div` has no client rect); a gradient `body`

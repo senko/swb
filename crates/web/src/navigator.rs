@@ -129,6 +129,11 @@ impl g::navigator::NavigatorImpl for WebState {
         Ok(0)
     }
 
+    /// `navigator.userActivation` ([`SameObject`]).
+    fn user_activation(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
+        window_object(cx, |d| &mut d.user_activation, g::USER_ACTIVATION, no_data)
+    }
+
     fn webdriver(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<bool> {
         Ok(false)
     }
@@ -210,6 +215,21 @@ impl g::navigator::NavigatorImpl for WebState {
 
     fn java_enabled(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<bool> {
         Ok(false)
+    }
+}
+
+// `UserActivation` (HTML "user activation", the `userActivation` attribute of
+// `Navigator`): the state of the window's user activation, as the engine
+// tracks it (the presses and keys of the user, the frame, its ancestors and the
+// frames of its origin).
+
+impl g::user_activation::UserActivationImpl for WebState {
+    fn has_been_active(cx: &mut Cx<'_>, _this: Platform) -> b::Result<bool> {
+        Ok(engine(cx.rt)?.user_activation().0)
+    }
+
+    fn is_active(cx: &mut Cx<'_>, _this: Platform) -> b::Result<bool> {
+        Ok(engine(cx.rt)?.user_activation().1)
     }
 }
 

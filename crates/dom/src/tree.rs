@@ -592,6 +592,11 @@ pub struct Document {
     /// the arena (`top_layer.rs`; ADR 0037 section 1). `None` until the first
     /// element is shown as a popover or a dialog.
     pub(crate) top_layer: Option<Box<crate::top_layer::TopLayerState>>,
+    /// True if the user activated the document's window before the first
+    /// element showed as a popover or a dialog: the close watcher manager
+    /// that [`Document::top_layer`] then makes starts after that activation
+    /// (`top_layer/watchers.rs`).
+    pub(crate) early_activation: bool,
     /// The names of the attributes that begin with `on` that an element of
     /// the arena ever had (`handler_attrs.rs`); `None` until the first.
     pub(crate) on_attrs: Option<std::collections::HashSet<Box<str>>>,
@@ -648,6 +653,7 @@ impl Document {
             defined_changed: false,
             shadow: None,
             top_layer: None,
+            early_activation: false,
             on_attrs: None,
             arena_id: NEXT_ARENA_ID.fetch_add(1, Ordering::Relaxed),
         }

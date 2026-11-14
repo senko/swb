@@ -140,6 +140,96 @@ impl TopLayerHost for WebHost<'_> {
         let key = state.event_loop.tasks.push(now, task);
         state.doc.toggle_tasks.insert(element, key);
     }
+
+    fn focused_element(&mut self) -> Option<NodeId> {
+        if self.error.is_some() {
+            return None;
+        }
+        super::focus::focused(self.rt).ok().flatten()
+    }
+
+    /// The focusing steps with their events, if `element` is a focusable
+    /// area that is rendered.
+    fn focus(&mut self, element: NodeId) -> bool {
+        if self.error.is_some() {
+            return false;
+        }
+        match super::focus::focus_popover_target(self.rt, element) {
+            Ok(focused) => focused,
+            Err(error) => {
+                self.error = Some(error);
+                false
+            }
+        }
+    }
+}
+
+// ----- Light dismiss and close requests -----
+
+/// The popovers that the invokers on the flat tree path of `node` name, for
+/// the "nearest inclusive target popover" of light dismiss.
+fn targets_on_path(rt: &Runtime, node: NodeId) -> VmResult<Vec<(NodeId, NodeId)>> {
+    let doc = dom(rt)?;
+    let mut targets = Vec::new();
+    let mut current = Some(node);
+    while let Some(n) = current {
+        if swb_dom::can_invoke(doc, n)
+            && let Some(popover) = invoker_target(rt, n)?
+        {
+            targets.push((n, popover));
+        }
+        current = doc.flat_parent(n);
+    }
+    Ok(targets)
+}
+
+/// Looks up the popover that the invoker `node` names in `targets`.
+fn lookup(targets: &[(NodeId, NodeId)], node: NodeId) -> Option<NodeId> {
+    targets
+        .iter()
+        .find(|&&(invoker, _)| invoker == node)
+        .map(|&(_, popover)| popover)
+}
+
+/// A pointer button went down on `node`: the "popover pointerdown target"
+/// (HTML "light dismiss open popovers"; no script runs).
+pub(crate) fn light_dismiss_down(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
+    let targets = if dom(rt)?.light_dismiss_active() {
+        targets_on_path(rt, node)?
+    } else {
+        Vec::new()
+    };
+    swb_dom::light_dismiss_down(dom_mut(rt)?, node, |n| lookup(&targets, n));
+    Ok(())
+}
+
+/// A pointer button went up on `node`: the popovers that the press and the
+/// release left outside hide, with their events.
+pub(crate) fn light_dismiss_up(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
+    let targets = if dom(rt)?.light_dismiss_active() {
+        targets_on_path(rt, node)?
+    } else {
+        Vec::new()
+    };
+    let mut host = WebHost::new(rt);
+    let result = swb_dom::light_dismiss_up(&mut host, node, |n| lookup(&targets, n));
+    // Other errors end the dismissal silently.
+    match host.finish(result) {
+        Err(b::Exception::Js(error)) => Err(error),
+        _ => Ok(()),
+    }
+}
+
+/// HTML "process close watchers" (the Escape key): returns whether a
+/// watcher was processed.
+pub(crate) fn process_close_watchers(rt: &mut Runtime) -> VmResult<bool> {
+    let mut host = WebHost::new(rt);
+    let result = swb_dom::process_close_watchers(&mut host);
+    match host.finish(result) {
+        Ok(processed) => Ok(processed),
+        Err(b::Exception::Js(error)) => Err(error),
+        Err(_) => Ok(true),
+    }
 }
 
 /// `showPopover(options)`.
@@ -214,24 +304,6 @@ pub(crate) fn toggle_task(rt: &mut Runtime, node: NodeId, serial: u64) -> VmResu
 
 // ----- Invokers -----
 
-/// True if `node` is an element that can be an invoker: a `button`, or an
-/// `input` of type `button`, `submit`, `reset` or `image` (Chromium,
-/// measured: `invokers-types`).
-fn can_invoke(doc: &Document, node: NodeId) -> bool {
-    let Some(e) = doc.element(node).filter(|e| e.is_html()) else {
-        return false;
-    };
-    match &**e.local_name() {
-        "button" => true,
-        "input" => e.attr("type").is_some_and(|t| {
-            ["button", "submit", "reset", "image"]
-                .iter()
-                .any(|k| t.eq_ignore_ascii_case(k))
-        }),
-        _ => false,
-    }
-}
-
 /// HTML "get the `popovertarget`-associated element" of `invoker`: the
 /// element that a script set (`popoverTargetElement`) if it is a descendant
 /// of one of the invoker's shadow-including ancestors, else the element of
@@ -264,16 +336,12 @@ pub(crate) fn associated_target(rt: &Runtime, invoker: NodeId) -> VmResult<Optio
 /// submits or resets instead, measured).
 pub(crate) fn invoker_target(rt: &Runtime, invoker: NodeId) -> VmResult<Option<NodeId>> {
     let doc = dom(rt)?;
-    if !can_invoke(doc, invoker) || swb_style::is_actually_disabled(doc, invoker) {
+    if !swb_dom::can_invoke(doc, invoker) || swb_style::is_actually_disabled(doc, invoker) {
         return Ok(None);
     }
     // A `button` of any type but `button`, and an `input` of type
     // `submit`, `image` or `reset`.
-    let submits = doc.element(invoker).is_some_and(|e| {
-        !e.attr("type")
-            .is_some_and(|t| t.eq_ignore_ascii_case("button"))
-    });
-    if submits && super::form_owner(doc, invoker).is_some() {
+    if swb_dom::invoker_acts_on_form(doc, invoker) && super::form_owner(doc, invoker).is_some() {
         return Ok(None);
     }
     let target = associated_target(rt, invoker)?;

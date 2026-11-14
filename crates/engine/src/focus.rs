@@ -9,6 +9,8 @@
 //! owners (ADR 0031), and `contenteditable` elements are not focusable
 //! (swb edits only form controls).
 
+use std::collections::{HashMap, HashSet};
+
 use swb_dom::{Document, ElementData, NodeId, local_name, parse_integer};
 use swb_style::{DisabledElements, is_actually_disabled};
 
@@ -125,8 +127,9 @@ pub(crate) fn next_in_order(
     backward: bool,
     rendered: impl Fn(NodeId) -> bool,
 ) -> Option<NodeId> {
-    if doc.has_shadow_trees() {
-        return next_in_scopes(doc, from, backward, &rendered);
+    let popovers = Popovers::of(doc);
+    if doc.has_shadow_trees() || !popovers.moved.is_empty() {
+        return next_in_scopes(doc, from, backward, &rendered, &popovers);
     }
     let disabled = DisabledElements::new(doc);
     // (tabindex group, tree position, node); group 0 is tabindex 0.
@@ -173,6 +176,9 @@ struct Entry {
     /// True if the node is in the order itself (a focusable owner comes
     /// right before its scope; one that is not has its scope in its place).
     emit: bool,
+    /// For an owner that is the invoker of showing popovers: the popovers
+    /// that follow its scope.
+    popovers: Vec<NodeId>,
 }
 
 /// True if `node` owns a focus navigation scope: a shadow host, or a slot in
@@ -183,43 +189,270 @@ fn is_scope_owner(doc: &Document, node: NodeId) -> bool {
         || (doc.is_html_element(node, &local_name!("slot")) && doc.in_shadow_tree(node))
 }
 
+/// The showing popovers that follow their invokers in the Tab order (ADR 0037
+/// section 5; Chromium 148, measured, `popover-tab-order-*`): a showing
+/// popover that has an invoker (the button of a click, or the `source` of
+/// `showPopover`) is not visited at its place in the tree; its content is
+/// visited as a scope right after the invoker's subtree, whether or not the
+/// invoker can be focused. The nested popovers follow in the same way within
+/// the scope of their popover. A popover whose invoker is gone or is inside
+/// it stays where it is; two popovers that follow each other's invokers
+/// would be lost, so they go to the end.
+#[derive(Default)]
+struct Popovers {
+    /// The popovers that follow an invoker, by invoker, in top layer order.
+    after: HashMap<NodeId, Vec<NodeId>>,
+    /// The popovers that are not visited at their place.
+    moved: HashSet<NodeId>,
+    /// The same in top layer order (a fixed order for the walk).
+    layer_order: Vec<NodeId>,
+}
+
+impl Popovers {
+    /// The popovers of the document that follow their invokers. One pass over
+    /// the showing popovers; the questions about their invokers (is it in the
+    /// document, is it inside its popover) share the climbs ([`Climbs`]), so
+    /// a chain of nested popovers costs its length, not its square.
+    fn of(doc: &Document) -> Popovers {
+        let mut popovers = Popovers::default();
+        let Some(state) = doc.top_layer().filter(|s| !s.layer().is_empty()) else {
+            return popovers;
+        };
+        let candidates: Vec<(NodeId, NodeId)> = state
+            .layer()
+            .iter()
+            .filter(|&&popover| doc.is_popover_showing(popover))
+            .filter_map(|&popover| Some((popover, doc.popover_invoker(popover)?)))
+            .filter(|&(popover, invoker)| invoker != popover && doc.element(invoker).is_some())
+            .collect();
+        if candidates.is_empty() {
+            return popovers;
+        }
+        let mut climbs = Climbs::new(doc, candidates.iter().map(|&(popover, _)| popover));
+        for (popover, invoker) in candidates {
+            if !climbs.connected(invoker) || climbs.inside(invoker, popover) {
+                continue;
+            }
+            popovers.after.entry(invoker).or_default().push(popover);
+            popovers.moved.insert(popover);
+            popovers.layer_order.push(popover);
+        }
+        popovers
+    }
+}
+
+/// The answers about the invokers of many popovers, each node climbed once:
+/// "is it connected" (the DOM chain) and "is it a flat descendant of this
+/// popover" (the flat tree chain). The second one uses the nearest popover
+/// above each node: a popover is above a node if it is that nearest one or
+/// above it, which the intervals of the tree of popovers tell.
+struct Climbs<'a> {
+    doc: &'a Document,
+    /// The popovers that are asked about.
+    popovers: HashSet<NodeId>,
+    /// The nearest popover that is a flat ancestor of a node, for the nodes
+    /// that were climbed.
+    near: HashMap<NodeId, Option<NodeId>>,
+    /// Whether a node is connected, for the nodes that were climbed.
+    connected: HashMap<NodeId, bool>,
+    /// The interval of each popover in the tree of popovers (a popover
+    /// contains the popovers whose interval is inside its own); built when
+    /// the first question about a popover comes.
+    intervals: Option<HashMap<NodeId, (usize, usize)>>,
+}
+
+impl<'a> Climbs<'a> {
+    fn new(doc: &'a Document, popovers: impl Iterator<Item = NodeId>) -> Climbs<'a> {
+        Climbs {
+            doc,
+            popovers: popovers.collect(),
+            near: HashMap::new(),
+            connected: HashMap::new(),
+            intervals: None,
+        }
+    }
+
+    /// The nearest popover among the flat ancestors of `node`.
+    fn nearest(&mut self, node: NodeId) -> Option<NodeId> {
+        let mut path = Vec::new();
+        let mut current = node;
+        let found = loop {
+            if let Some(&found) = self.near.get(&current) {
+                break found;
+            }
+            path.push(current);
+            match self.doc.flat_parent(current) {
+                None => break None,
+                Some(parent) if self.popovers.contains(&parent) => break Some(parent),
+                Some(parent) => current = parent,
+            }
+        };
+        // Every node of the path has the same nearest popover: the ones above
+        // the first are not popovers themselves.
+        for passed in path {
+            self.near.insert(passed, found);
+        }
+        found
+    }
+
+    /// DOM "connected" for `node`.
+    fn connected(&mut self, node: NodeId) -> bool {
+        let mut path = Vec::new();
+        let mut current = node;
+        let found = loop {
+            if let Some(&found) = self.connected.get(&current) {
+                break found;
+            }
+            path.push(current);
+            match self.doc.parent(current) {
+                Some(parent) => current = parent,
+                // The root of a tree: a document node, or a shadow root
+                // whose host decides.
+                None => break self.doc.is_connected(current),
+            }
+        };
+        for passed in path {
+            self.connected.insert(passed, found);
+        }
+        found
+    }
+
+    /// True if `popover` is a flat ancestor of `node` (not `node` itself).
+    fn inside(&mut self, node: NodeId, popover: NodeId) -> bool {
+        let Some(nearest) = self.nearest(node) else {
+            return false;
+        };
+        let intervals = self.intervals();
+        match (intervals.get(&popover), intervals.get(&nearest)) {
+            (Some(outer), Some(inner)) => outer.0 <= inner.0 && inner.1 <= outer.1,
+            _ => false,
+        }
+    }
+
+    /// The intervals of the popovers in the tree that the nearest-popover
+    /// links make (a depth-first numbering).
+    fn intervals(&mut self) -> &HashMap<NodeId, (usize, usize)> {
+        if self.intervals.is_none() {
+            let popovers: Vec<NodeId> = self.popovers.iter().copied().collect();
+            let mut children: HashMap<NodeId, Vec<NodeId>> = HashMap::new();
+            let mut roots = Vec::new();
+            for popover in popovers {
+                match self.nearest(popover) {
+                    Some(parent) => children.entry(parent).or_default().push(popover),
+                    None => roots.push(popover),
+                }
+            }
+            self.intervals = Some(number(&roots, &children));
+        }
+        self.intervals.get_or_insert_with(HashMap::new)
+    }
+}
+
+/// A depth-first numbering of a forest: `(first, last)` of each node, where a
+/// node's interval contains those of its descendants. Iterative.
+fn number(
+    roots: &[NodeId],
+    children: &HashMap<NodeId, Vec<NodeId>>,
+) -> HashMap<NodeId, (usize, usize)> {
+    let mut intervals = HashMap::new();
+    let mut first = HashMap::new();
+    let mut counter = 0;
+    // (node, true) enters it; (node, false) leaves it.
+    let mut stack: Vec<(NodeId, bool)> = roots.iter().rev().map(|&r| (r, true)).collect();
+    while let Some((node, enter)) = stack.pop() {
+        if enter {
+            first.insert(node, counter);
+            counter += 1;
+            stack.push((node, false));
+            let below = children.get(&node).map_or(&[][..], Vec::as_slice);
+            stack.extend(below.iter().rev().map(|&c| (c, true)));
+        } else if let Some(&start) = first.get(&node) {
+            intervals.insert(node, (start, counter));
+            counter += 1;
+        }
+    }
+    intervals
+}
+
+/// The entry of the owner `node` of a scope; `index` is its `tabindex` (none
+/// if it is not in the order). `None` for an element with a negative
+/// `tabindex`, which drops its scope.
+fn owner_entry(
+    doc: &Document,
+    node: NodeId,
+    index: Option<i32>,
+    popovers: &Popovers,
+) -> Option<Entry> {
+    let group = |i: i32| if i > 0 { i } else { i32::MAX };
+    let after = popovers.after.get(&node).cloned().unwrap_or_default();
+    match index {
+        Some(i) if i < 0 => None,
+        // A host that delegates focus is not a focusable area, with a
+        // `tabindex` or without (measured in Chromium 148, case
+        // `tab-delegating-tabindex-back`): only its scope is in the
+        // order, in the group of the `tabindex`.
+        Some(i) => Some(Entry {
+            group: group(i),
+            node,
+            owner: true,
+            emit: !doc.delegates_focus(node),
+            popovers: after,
+        }),
+        None => Some(Entry {
+            group: i32::MAX,
+            node,
+            owner: true,
+            emit: false,
+            popovers: after,
+        }),
+    }
+}
+
+/// A step of the walk of a scope.
+enum Visit {
+    /// The node, before its children.
+    Enter(NodeId),
+    /// The node after its children: the popovers that follow it come now.
+    After(NodeId),
+}
+
 /// The entries of the scope of `owner` (the document for
 /// [`NodeId::DOCUMENT`]) in the order of the sequence: the elements of the
 /// flat tree below it that no inner owner takes, with their owners, the
 /// positive `tabindex` groups first in increasing order, then the zero
 /// group, each in flat tree order. A negative `tabindex` removes an
-/// element from the order, and an owner with one drops its scope. Iterative:
-/// a script can nest 100,000 scopes.
-fn scope_entries(doc: &Document, disabled: &DisabledElements, owner: NodeId) -> Vec<Entry> {
+/// element from the order, and an owner with one drops its scope. A showing
+/// popover that follows its invoker is an owner after the invoker's
+/// subtree. Iterative: a script can nest 100,000 scopes.
+fn scope_entries(
+    doc: &Document,
+    disabled: &DisabledElements,
+    popovers: &Popovers,
+    owner: NodeId,
+) -> Vec<Entry> {
     let mut entries = Vec::new();
-    let mut stack: Vec<NodeId> = doc.flat_children(owner).collect();
+    let mut stack: Vec<Visit> = doc.flat_children(owner).map(Visit::Enter).collect();
     stack.reverse();
-    while let Some(node) = stack.pop() {
-        if doc.element(node).is_none() {
+    while let Some(visit) = stack.pop() {
+        let node = match visit {
+            Visit::After(node) => {
+                for &popover in popovers.after.get(&node).map_or(&[][..], Vec::as_slice) {
+                    let index = tab_index(doc, popover, || disabled.contains(popover));
+                    entries.extend(owner_entry(doc, popover, index, popovers));
+                }
+                continue;
+            }
+            Visit::Enter(node) => node,
+        };
+        if doc.element(node).is_none() || popovers.moved.contains(&node) {
             continue;
         }
         let index = tab_index(doc, node, || disabled.contains(node));
         let group = |i: i32| if i > 0 { i } else { i32::MAX };
         if is_scope_owner(doc, node) {
-            match index {
-                Some(i) if i < 0 => {}
-                // A host that delegates focus is not a focusable area, with a
-                // `tabindex` or without (measured in Chromium 148, case
-                // `tab-delegating-tabindex-back`): only its scope is in the
-                // order, in the group of the `tabindex`.
-                Some(i) => entries.push(Entry {
-                    group: group(i),
-                    node,
-                    owner: true,
-                    emit: !doc.delegates_focus(node),
-                }),
-                None => entries.push(Entry {
-                    group: i32::MAX,
-                    node,
-                    owner: true,
-                    emit: false,
-                }),
-            }
+            // The popovers that follow this owner come after its scope
+            // ([`flattened_order`]).
+            entries.extend(owner_entry(doc, node, index, popovers));
             continue;
         }
         if let Some(i) = index.filter(|&i| i >= 0) {
@@ -228,10 +461,14 @@ fn scope_entries(doc: &Document, disabled: &DisabledElements, owner: NodeId) -> 
                 node,
                 owner: false,
                 emit: true,
+                popovers: Vec::new(),
             });
         }
+        if popovers.after.contains_key(&node) {
+            stack.push(Visit::After(node));
+        }
         let mark = stack.len();
-        stack.extend(doc.flat_children(node));
+        stack.extend(doc.flat_children(node).map(Visit::Enter));
         stack[mark..].reverse();
     }
     entries.sort_by_key(|e| e.group);
@@ -243,20 +480,61 @@ fn scope_entries(doc: &Document, disabled: &DisabledElements, owner: NodeId) -> 
 /// each owner in place of the owner (after it, if it is focusable).
 /// <https://html.spec.whatwg.org/multipage/interaction.html#flattened-tabindex-ordered-focus-navigation-scope>
 /// The scopes are expanded with a stack of iterators, not by recursion.
-fn flattened_order(doc: &Document, rendered: &impl Fn(NodeId) -> bool) -> Vec<NodeId> {
+fn flattened_order(
+    doc: &Document,
+    rendered: &impl Fn(NodeId) -> bool,
+    popovers: &Popovers,
+) -> Vec<NodeId> {
     let disabled = DisabledElements::new(doc);
     let mut order = Vec::new();
-    let mut stack = vec![scope_entries(doc, &disabled, NodeId::DOCUMENT).into_iter()];
-    while let Some(frame) = stack.last_mut() {
-        let Some(entry) = frame.next() else {
-            stack.pop();
-            continue;
-        };
-        if entry.emit && rendered(entry.node) {
-            order.push(entry.node);
+    let mut reached = HashSet::new();
+    // Popovers that the last pass pushed (one that its entry drops, a negative
+    // `tabindex`, must not be pushed again).
+    let mut tried = HashSet::new();
+    let mut stack = vec![scope_entries(doc, &disabled, popovers, NodeId::DOCUMENT).into_iter()];
+    loop {
+        while let Some(frame) = stack.last_mut() {
+            let Some(entry) = frame.next() else {
+                stack.pop();
+                continue;
+            };
+            // Each popover is visited once: invokers inside popovers that
+            // follow each other would make a cycle (a hostile page).
+            if popovers.moved.contains(&entry.node) && !reached.insert(entry.node) {
+                continue;
+            }
+            if entry.emit && rendered(entry.node) {
+                order.push(entry.node);
+            }
+            if entry.owner {
+                // The popovers that follow the owner come after its scope:
+                // their frames go below the scope's.
+                for &popover in entry.popovers.iter().rev() {
+                    if reached.contains(&popover) {
+                        continue;
+                    }
+                    let index = tab_index(doc, popover, || disabled.contains(popover));
+                    let owner = owner_entry(doc, popover, index, popovers);
+                    stack.push(owner.into_iter().collect::<Vec<_>>().into_iter());
+                }
+                stack.push(scope_entries(doc, &disabled, popovers, entry.node).into_iter());
+            }
         }
-        if entry.owner {
-            stack.push(scope_entries(doc, &disabled, entry.node).into_iter());
+        // Popovers that nothing reached (their invokers follow each other)
+        // come last, so that they stay in the order.
+        let lost: Vec<NodeId> = popovers
+            .layer_order
+            .iter()
+            .copied()
+            .filter(|p| !reached.contains(p) && tried.insert(*p))
+            .collect();
+        if lost.is_empty() {
+            break;
+        }
+        for popover in lost {
+            let index = tab_index(doc, popover, || disabled.contains(popover));
+            let owner = owner_entry(doc, popover, index, popovers);
+            stack.push(owner.into_iter().collect::<Vec<_>>().into_iter());
         }
     }
     order
@@ -272,8 +550,9 @@ fn next_in_scopes(
     from: Option<NodeId>,
     backward: bool,
     rendered: &impl Fn(NodeId) -> bool,
+    popovers: &Popovers,
 ) -> Option<NodeId> {
-    let order = flattened_order(doc, rendered);
+    let order = flattened_order(doc, rendered, popovers);
     let edge = || {
         if backward {
             order.last()
@@ -292,7 +571,7 @@ fn next_in_scopes(
             order.get(at + 1).copied()
         };
     }
-    let mut position = std::collections::HashMap::new();
+    let mut position = HashMap::new();
     let mut stack = vec![NodeId::DOCUMENT];
     while let Some(node) = stack.pop() {
         position.insert(node, position.len());
@@ -319,6 +598,8 @@ fn next_in_scopes(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fmt::Write as _;
+
     use swb_dom::parse_html;
 
     fn id(doc: &Document, id: &str) -> NodeId {
@@ -592,5 +873,297 @@ mod tests {
         assert_eq!(parse_tab_index("-99999999999999"), Some(i32::MIN));
         assert_eq!(parse_tab_index("0000000000001"), Some(1));
         assert_eq!(parse_tab_index("000"), Some(0));
+    }
+
+    /// A host that shows popovers without events (the tests of the order).
+    struct Show(Document);
+
+    impl swb_dom::TopLayerHost for Show {
+        fn doc(&mut self) -> &mut Document {
+            &mut self.0
+        }
+
+        fn fire_beforetoggle(
+            &mut self,
+            _: NodeId,
+            _: swb_dom::ToggleState,
+            _: swb_dom::ToggleState,
+            _: bool,
+            _: Option<NodeId>,
+        ) -> Option<bool> {
+            Some(true)
+        }
+
+        fn queue_toggle_task(&mut self, element: NodeId, serial: u64) {
+            let _ = self.0.take_toggle(element, serial);
+        }
+    }
+
+    /// Shows `popover` with `source` (an element id) as its invoker.
+    fn show(doc: &mut Document, popover: &str, source: Option<&str>) {
+        let (p, s) = (id(doc, popover), source.map(|s| id(doc, s)));
+        let mut host = Show(std::mem::take(doc));
+        swb_dom::show_popover(&mut host, p, true, s).unwrap();
+        *doc = host.0;
+    }
+
+    /// The content of a showing popover follows its invoker in the Tab
+    /// order, forward and backward (Chromium 148, `popover-tab-order`), and
+    /// is not visited at its place in the tree.
+    #[test]
+    fn a_popover_follows_its_invoker() {
+        let mut doc = parse_html(
+            "<button id=x>x</button><button id=inv popovertarget=pp>inv</button>\
+             <button id=y>y</button><div id=pp popover><button id=b1>1</button>\
+             <button id=b2>2</button></div><button id=z>z</button>",
+        );
+        show(&mut doc, "pp", Some("inv"));
+        assert_eq!(sequence(&doc, false), ["x", "inv", "b1", "b2", "y", "z"]);
+        assert_eq!(sequence(&doc, true), ["z", "y", "b2", "b1", "inv", "x"]);
+        // From inside the popover the order goes on after the invoker.
+        let b2 = id(&doc, "b2");
+        let next = next_in_order(&doc, Some(b2), false, |_| true);
+        assert_eq!(next, Some(id(&doc, "y")));
+        let back = next_in_order(&doc, Some(id(&doc, "b1")), true, |_| true);
+        assert_eq!(back, Some(id(&doc, "inv")));
+    }
+
+    /// Without an invoker (a script showed it) or with a manual popover the
+    /// rules differ only in the invoker: no invoker, the tree place.
+    #[test]
+    fn a_popover_without_an_invoker_stays_in_the_tree() {
+        let mut doc = parse_html(
+            "<button id=x>x</button><button id=inv popovertarget=pp>inv</button>\
+             <div id=pp popover><button id=b1>1</button></div><button id=z>z</button>",
+        );
+        show(&mut doc, "pp", None);
+        assert_eq!(sequence(&doc, false), ["x", "inv", "b1", "z"]);
+        let mut doc = parse_html(
+            "<button id=inv>inv</button><button id=y>y</button>\
+             <div id=pp popover=manual><button id=b1>1</button></div>",
+        );
+        show(&mut doc, "pp", Some("inv"));
+        assert_eq!(sequence(&doc, false), ["inv", "b1", "y"]);
+    }
+
+    /// The popover stands at the place of its invoker, after the invoker's
+    /// subtree, also when the invoker cannot be focused.
+    #[test]
+    fn a_popover_stands_after_a_source_that_is_not_focusable() {
+        let mut doc = parse_html(
+            "<button id=x>x</button><div id=s><i>t</i></div><button id=y>y</button>\
+             <div id=pp popover><button id=b1>1</button></div>",
+        );
+        show(&mut doc, "pp", Some("s"));
+        assert_eq!(sequence(&doc, false), ["x", "b1", "y"]);
+        let mut doc = parse_html(
+            "<div id=s><button id=x>x</button><button id=y>y</button></div>\
+             <button id=z>z</button><div id=pp popover><button id=b1>1</button></div>",
+        );
+        show(&mut doc, "pp", Some("s"));
+        assert_eq!(sequence(&doc, false), ["x", "y", "b1", "z"]);
+    }
+
+    /// Nested popovers follow their invokers inside the scope of the outer
+    /// one; two invokers of the same popover: only the source counts.
+    #[test]
+    fn nested_popovers_follow_their_invokers_in_their_scopes() {
+        let mut doc = parse_html(
+            "<button id=x>x</button><button id=inv>inv</button><button id=y>y</button>\
+             <div id=p1 popover><button id=a1>a1</button><button id=inv2>inv2</button>\
+             <button id=a2>a2</button><div id=p2 popover><button id=c1>c1</button></div></div>\
+             <button id=z>z</button>",
+        );
+        show(&mut doc, "p1", Some("inv"));
+        show(&mut doc, "p2", Some("inv2"));
+        assert_eq!(
+            sequence(&doc, false),
+            ["x", "inv", "a1", "inv2", "c1", "a2", "y", "z"]
+        );
+        assert_eq!(
+            sequence(&doc, true),
+            ["z", "y", "a2", "c1", "inv2", "a1", "inv", "x"]
+        );
+    }
+
+    /// An invoker inside its own popover does not move it; two popovers that
+    /// follow invokers inside each other stay in the order.
+    #[test]
+    fn no_popover_is_lost() {
+        let mut doc =
+            parse_html("<button id=x>x</button><div id=p1 popover><button id=i1>i1</button></div>");
+        show(&mut doc, "p1", Some("i1"));
+        assert_eq!(sequence(&doc, false), ["x", "i1"]);
+        let mut doc = parse_html(
+            "<div id=p1 popover=manual><button id=i1>i1</button></div>\
+             <div id=p2 popover=manual><button id=i2>i2</button></div>",
+        );
+        show(&mut doc, "p1", Some("i2"));
+        show(&mut doc, "p2", Some("i1"));
+        let mut order = sequence(&doc, false);
+        order.sort();
+        assert_eq!(order, ["i1", "i2"]);
+    }
+
+    /// A popover that is its own invoker stays at its place in the tree.
+    #[test]
+    fn a_popover_that_is_its_own_invoker_stays_in_the_tree() {
+        let mut doc = parse_html(
+            "<div id=pp popover=manual><button id=b1>1</button></div><button id=z>z</button>",
+        );
+        show(&mut doc, "pp", Some("pp"));
+        assert_eq!(sequence(&doc, false), ["b1", "z"]);
+    }
+
+    /// The walk ends for every tree that a page can build (each popover is
+    /// visited once): a source that is an ancestor or a descendant, invokers
+    /// in each other's popovers, a popover with a negative `tabindex`, a
+    /// cycle of three.
+    #[test]
+    fn the_walk_ends_for_hostile_invokers() {
+        let html = "<body id=bd><button id=i1>1</button><div id=p1 popover=manual tabindex=-1>\
+            <button id=i2>2</button></div><div id=p2 popover=manual><button id=i3>3</button>\
+            <div id=p3 popover=manual><button id=i4>4</button></div></div></body>";
+        let cases: &[&[(&str, &str)]] = &[
+            &[("p1", "bd"), ("p2", "bd")],
+            &[("p2", "p3"), ("p3", "i3")],
+            &[("p1", "i3"), ("p2", "i4"), ("p3", "i2")],
+            &[("p1", "p2"), ("p2", "p1"), ("p3", "p3")],
+            &[("p1", "i2"), ("p2", "i1"), ("p3", "bd")],
+        ];
+        for case in cases {
+            let mut doc = parse_html(html);
+            for &(popover, source) in *case {
+                show(&mut doc, popover, Some(source));
+            }
+            let order = flattened_order(&doc, &|_| true, &Popovers::of(&doc));
+            let mut sorted = order.clone();
+            sorted.sort();
+            sorted.dedup();
+            assert_eq!(sorted.len(), order.len(), "{case:?}: an element twice");
+        }
+    }
+
+    /// The popovers that follow their invokers by the plain definition: one
+    /// walk up the DOM and one up the flat tree for each popover (the
+    /// implementation that [`Popovers::of`] replaces).
+    fn moved_by_definition(doc: &Document) -> Vec<NodeId> {
+        let Some(state) = doc.top_layer() else {
+            return Vec::new();
+        };
+        state
+            .layer()
+            .iter()
+            .copied()
+            .filter(|&popover| doc.is_popover_showing(popover))
+            .filter(|&popover| {
+                let Some(invoker) = doc.popover_invoker(popover) else {
+                    return false;
+                };
+                invoker != popover
+                    && doc.element(invoker).is_some()
+                    && doc.is_connected(invoker)
+                    && !doc.flat_ancestors(invoker).any(|a| a == popover)
+            })
+            .collect()
+    }
+
+    /// `Popovers::of` answers as the plain definition does: nested popovers
+    /// with sources above, below and beside them, invokers in a shadow tree
+    /// and in content that no slot takes, a removed invoker, a chain.
+    #[test]
+    fn the_popovers_that_follow_agree_with_the_plain_definition() {
+        let html = "<button id=i0>0</button><div id=p1 popover=manual><button id=i1>1</button>\
+            <div id=p2 popover=manual><button id=i2>2</button><div id=p3 popover=manual>\
+            <button id=i3>3</button></div></div></div><div id=p4 popover=manual>\
+            <button id=i4>4</button></div><div id=host><template shadowrootmode=open>\
+            <button id=si>s</button><slot name=s></slot></template><button id=li>l</button>\
+            <div id=p5 popover=manual><button id=i5>5</button></div></div>";
+        let cases: &[&[(&str, &str)]] = &[
+            &[("p1", "i0"), ("p2", "i1"), ("p3", "i2")],
+            &[("p1", "i3"), ("p2", "i3"), ("p3", "i0")],
+            &[("p1", "i4"), ("p4", "i1"), ("p2", "i2"), ("p3", "i3")],
+            &[("p1", "p2"), ("p2", "p1"), ("p3", "p3")],
+            &[("p4", "i1"), ("p1", "i4")],
+            &[("p5", "li"), ("p1", "li")],
+            &[("p5", "i5"), ("p4", "i5"), ("p1", "i5")],
+            &[("p1", "host"), ("p4", "host"), ("p5", "host")],
+            &[("p1", "i5"), ("p5", "i1")],
+        ];
+        for case in cases {
+            let mut doc = parse_html(html);
+            for &(popover, source) in *case {
+                show(&mut doc, popover, Some(source));
+            }
+            let want = moved_by_definition(&doc);
+            assert_eq!(Popovers::of(&doc).layer_order, want, "{case:?}");
+        }
+        // A removed invoker, and a chain of nested popovers with sources.
+        let mut doc = parse_html(html);
+        show(&mut doc, "p4", Some("i0"));
+        let i0 = id(&doc, "i0");
+        doc.remove(i0);
+        assert_eq!(Popovers::of(&doc).layer_order, moved_by_definition(&doc));
+        let mut chain = String::new();
+        for i in 0..300 {
+            write!(
+                chain,
+                "<div id=q{i} popover=manual><button id=c{i}>c</button>"
+            )
+            .unwrap();
+        }
+        chain.push_str(&"</div>".repeat(300));
+        let mut doc = parse_html(&chain);
+        for i in 1..300 {
+            show(&mut doc, &format!("q{i}"), Some(&format!("c{}", i - 1)));
+        }
+        let popovers = Popovers::of(&doc);
+        assert_eq!(popovers.layer_order.len(), 299);
+        assert_eq!(popovers.layer_order, moved_by_definition(&doc));
+    }
+
+    /// A popover whose invoker left the document stays at its place.
+    #[test]
+    fn a_popover_whose_invoker_is_gone_stays_in_the_tree() {
+        let mut doc = parse_html(
+            "<button id=x>x</button><button id=inv>inv</button>\
+             <div id=pp popover><button id=b1>1</button></div><button id=z>z</button>",
+        );
+        show(&mut doc, "pp", Some("inv"));
+        let inv = id(&doc, "inv");
+        doc.remove(inv);
+        assert_eq!(sequence(&doc, false), ["x", "b1", "z"]);
+    }
+
+    /// 10,000 popovers that follow one invoker each give an order in linear
+    /// time.
+    #[test]
+    fn many_popovers_give_an_order_in_linear_time() {
+        let mut html = String::new();
+        for i in 0..2000 {
+            write!(html, "<button id=i{i}>i</button>").unwrap();
+        }
+        for i in 0..2000 {
+            write!(
+                html,
+                "<div id=p{i} popover=manual><button id=b{i}>b</button></div>"
+            )
+            .unwrap();
+        }
+        let mut doc = parse_html(&html);
+        for i in 0..2000 {
+            show(&mut doc, &format!("p{i}"), Some(&format!("i{i}")));
+        }
+        let started = std::time::Instant::now();
+        let order = sequence_limit(&doc, 5000);
+        assert_eq!(order.len(), 4000);
+        assert!(started.elapsed() < std::time::Duration::from_secs(20));
+    }
+
+    /// The sequence of Tab, at most `limit` elements (for a long order).
+    fn sequence_limit(doc: &Document, limit: usize) -> Vec<NodeId> {
+        let order = flattened_order(doc, &|_| true, &Popovers::of(doc));
+        assert!(order.len() <= limit);
+        order
     }
 }

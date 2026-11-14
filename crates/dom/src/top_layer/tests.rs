@@ -20,6 +20,9 @@ struct Rec {
     rng: u64,
     /// The elements that the hook picks from.
     nodes: Vec<NodeId>,
+    /// The focused element, and the elements that cannot take the focus.
+    focus: Option<NodeId>,
+    unfocusable: Vec<NodeId>,
 }
 
 impl Rec {
@@ -33,6 +36,8 @@ impl Rec {
             stop_after: None,
             rng: 0,
             nodes: Vec::new(),
+            focus: None,
+            unfocusable: Vec::new(),
         }
     }
 
@@ -133,6 +138,20 @@ impl TopLayerHost for Rec {
     fn queue_toggle_task(&mut self, element: NodeId, serial: u64) {
         self.tasks.push((element, serial));
     }
+
+    fn focused_element(&mut self) -> Option<NodeId> {
+        self.focus
+    }
+
+    fn focus(&mut self, element: NodeId) -> bool {
+        if self.unfocusable.contains(&element) {
+            return false;
+        }
+        self.focus = Some(element);
+        let name = self.name(element);
+        self.log.push(format!("focus:{name}"));
+        true
+    }
 }
 
 /// Checks that the lists, the top layer and the flags agree.
@@ -150,6 +169,13 @@ fn invariants(doc: &Document) {
     for &n in &state.layer {
         assert!(doc.element(n).unwrap().in_top_layer(), "{n:?} has its bit");
         assert_eq!(state.layer.iter().filter(|&&m| m == n).count(), 1);
+    }
+    // Each popover of a list has a close watcher, no other has one, and a
+    // manual popover that shows has none.
+    let listed = state.auto.len() + state.hint.len();
+    assert_eq!(doc.close_watcher_counts().1, listed, "one watcher each");
+    for &n in state.auto.iter().chain(&state.hint) {
+        assert!(doc.has_close_watcher(n, WatcherKind::Popover), "{n:?}");
     }
     for n in doc.shadow_including_descendants(NodeId::DOCUMENT) {
         if doc.is_popover_showing(n) {
@@ -857,3 +883,5 @@ fn the_journal_notes_top_layer_changes() {
     let changes: Vec<Change<'_>> = h.doc.journal().iter().collect();
     assert_eq!(changes, [Change::TopLayer { element: pa }]);
 }
+
+mod interaction;
