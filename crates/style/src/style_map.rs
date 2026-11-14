@@ -7,6 +7,7 @@ use std::sync::Arc;
 use swb_dom::NodeId;
 
 use crate::ComputedStyle;
+use crate::container::ContainerLog;
 use crate::content::content_text;
 use crate::counter_style::marker_text;
 use crate::values::{Content, Image, ListStyleType, MaskImage};
@@ -55,6 +56,9 @@ pub struct StyleMap {
     instances: Vec<UseInstance>,
     /// The instances of the `use` elements of the document tree.
     root_uses: HashMap<NodeId, InstanceId>,
+    /// What the styles read of query containers (ADR 0038); empty if they
+    /// read none.
+    container_log: ContainerLog,
 }
 
 /// The identity of the instance tree of one SVG `use` element (SVG 2 §5.6).
@@ -143,7 +147,19 @@ impl StyleMap {
             ordinals: HashMap::new(),
             instances: Vec::new(),
             root_uses: HashMap::new(),
+            container_log: ContainerLog::default(),
         }
+    }
+
+    /// What the styles read of query containers: the engine checks it
+    /// against the sizes of the next layout (ADR 0038).
+    pub fn container_log(&self) -> &ContainerLog {
+        &self.container_log
+    }
+
+    /// Sets the container log of the style pass.
+    pub(crate) fn set_container_log(&mut self, log: ContainerLog) {
+        self.container_log = log;
     }
 
     /// The style of an element, if it has one.

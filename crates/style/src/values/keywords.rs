@@ -637,6 +637,19 @@ keyword_enum! {
 }
 
 keyword_enum! {
+    /// The `container-type` property (CSS Containment 3, ADR 0038).
+    /// `scroll-state` parses, as in Chromium's `CSS.supports`, and acts as
+    /// `normal`: swb has no scroll-state queries.
+    ContainerType {
+        Normal = "normal",
+        Size = "size",
+        InlineSize = "inline-size",
+        ScrollState = "scroll-state",
+    }
+    default Normal
+}
+
+keyword_enum! {
     /// The `user-select` property.
     UserSelect {
         Auto = "auto",

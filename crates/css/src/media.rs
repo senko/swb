@@ -248,7 +248,7 @@ struct Feature {
 
 /// A comparison `feature <op> value`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Comparison {
+pub(crate) enum Comparison {
     Eq,
     Lt,
     Le,
@@ -258,7 +258,7 @@ enum Comparison {
 
 impl Comparison {
     /// The comparison with the operands swapped: `a < b` is `b > a`.
-    fn flip(self) -> Self {
+    pub(crate) fn flip(self) -> Self {
         match self {
             Comparison::Eq => Comparison::Eq,
             Comparison::Lt => Comparison::Gt,
@@ -268,7 +268,7 @@ impl Comparison {
         }
     }
 
-    fn test(self, ordering: Option<std::cmp::Ordering>) -> bool {
+    pub(crate) fn test(self, ordering: Option<std::cmp::Ordering>) -> bool {
         use std::cmp::Ordering::{Equal, Greater, Less};
         matches!(
             (self, ordering),
@@ -280,7 +280,7 @@ impl Comparison {
         )
     }
 
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             Comparison::Eq => "=",
             Comparison::Lt => "<",
@@ -305,7 +305,7 @@ enum Value {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum LengthUnit {
+pub(crate) enum LengthUnit {
     Px,
     Em,
     Rem,
@@ -351,14 +351,14 @@ const LENGTH_UNITS: &[(&str, LengthUnit)] = &[
 ];
 
 impl LengthUnit {
-    fn from_name(unit: &str) -> Option<Self> {
+    pub(crate) fn from_name(unit: &str) -> Option<Self> {
         LENGTH_UNITS
             .iter()
             .find(|(name, _)| name.eq_ignore_ascii_case(unit))
             .map(|&(_, u)| u)
     }
 
-    fn name(self) -> &'static str {
+    pub(crate) fn name(self) -> &'static str {
         LENGTH_UNITS
             .iter()
             .find(|&&(_, u)| u == self)
@@ -711,7 +711,9 @@ fn parse_range(contents: &[ComponentValue]) -> Option<Feature> {
 }
 
 /// Splits at `<`, `<=`, `>`, `>=` and `=`. The parts are trimmed.
-fn split_at_comparisons(contents: &[ComponentValue]) -> (Vec<&[ComponentValue]>, Vec<Comparison>) {
+pub(crate) fn split_at_comparisons(
+    contents: &[ComponentValue],
+) -> (Vec<&[ComponentValue]>, Vec<Comparison>) {
     let mut parts = Vec::new();
     let mut operators = Vec::new();
     let mut start = 0;
@@ -795,7 +797,7 @@ fn parse_value(ty: ValueType, input: &[ComponentValue]) -> Option<Value> {
 
 /// The value of a math function in a media feature.
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum MathValue {
+pub(crate) enum MathValue {
     Number(f32),
     Px(f32),
 }
@@ -811,8 +813,10 @@ pub(crate) fn length_px(value: &ComponentValue, env: &MediaEnvironment) -> Optio
         }
         ComponentValue::Number(n) if n.value == 0.0 => Some(0.0),
         ComponentValue::Function(f) => match math_function(&f.name, &f.arguments, Some(env))? {
-            MathValue::Px(px) => Some(px),
-            MathValue::Number(_) => None,
+            // The callers want a finite length (a division by zero is
+            // still invalid here).
+            MathValue::Px(px) if px.is_finite() => Some(px),
+            _ => None,
         },
         _ => None,
     }
@@ -824,7 +828,7 @@ pub(crate) fn length_px(value: &ComponentValue, env: &MediaEnvironment) -> Optio
 /// supported; relative units (`em`, `vw`, ...) make the feature evaluate to
 /// "unknown". With `env`, relative units resolve against it.
 /// <https://www.w3.org/TR/css-values-4/#math>
-fn math_function(
+pub(crate) fn math_function(
     name: &str,
     args: &[ComponentValue],
     env: Option<&MediaEnvironment>,
@@ -833,7 +837,7 @@ fn math_function(
     if name == "calc" {
         let mut p = Parser::new(args);
         let value = math_sum(&mut p, env)?;
-        return p.is_exhausted().then_some(value);
+        return p.is_exhausted().then_some(top_level(value));
     }
     let items: Vec<MathValue> = split_on_commas(args)
         .map(|item| {
@@ -853,7 +857,17 @@ fn math_function(
         ("clamp", [lo, v, hi]) => v.min(*hi).max(*lo),
         _ => return None,
     };
-    Some(MathValue::Px(result))
+    Some(top_level(MathValue::Px(result)))
+}
+
+/// The value of a math function: a NaN length is 0 (CSS Values 4
+/// <https://drafts.csswg.org/css-values-4/#calc-error>; measured in
+/// Chromium 148, `edge-values`: `(width > calc(0px * infinity))` is true).
+fn top_level(value: MathValue) -> MathValue {
+    match value {
+        MathValue::Px(px) if px.is_nan() => MathValue::Px(0.0),
+        other => other,
+    }
 }
 
 /// `<calc-sum>`; the operators need whitespace on both sides.
@@ -902,10 +916,10 @@ fn math_product(p: &mut Parser<'_>, env: Option<&MediaEnvironment>) -> Option<Ma
             ('*', MathValue::Number(a), MathValue::Number(b)) => MathValue::Number(a * b),
             ('*', MathValue::Px(a), MathValue::Number(b))
             | ('*', MathValue::Number(b), MathValue::Px(a)) => MathValue::Px(a * b),
-            ('/', MathValue::Number(a), MathValue::Number(b)) if b != 0.0 => {
-                MathValue::Number(a / b)
-            }
-            ('/', MathValue::Px(a), MathValue::Number(b)) if b != 0.0 => MathValue::Px(a / b),
+            // A division by zero is infinite or NaN, not an error (CSS
+            // Values 4 <https://drafts.csswg.org/css-values-4/#calc-error>).
+            ('/', MathValue::Number(a), MathValue::Number(b)) => MathValue::Number(a / b),
+            ('/', MathValue::Px(a), MathValue::Number(b)) => MathValue::Px(a / b),
             _ => return None,
         };
     }
@@ -917,6 +931,12 @@ fn math_product(p: &mut Parser<'_>, env: Option<&MediaEnvironment>) -> Option<Ma
 fn math_operand(p: &mut Parser<'_>, env: Option<&MediaEnvironment>) -> Option<MathValue> {
     match p.next()? {
         ComponentValue::Number(n) => Some(MathValue::Number(n.value)),
+        ComponentValue::Ident(name) => match name.to_ascii_lowercase().as_str() {
+            "infinity" => Some(MathValue::Number(f32::INFINITY)),
+            "-infinity" => Some(MathValue::Number(f32::NEG_INFINITY)),
+            "nan" => Some(MathValue::Number(f32::NAN)),
+            _ => None,
+        },
         ComponentValue::Dimension { number, unit } => {
             let unit = LengthUnit::from_name(unit)?;
             match env {
@@ -938,18 +958,18 @@ fn math_operand(p: &mut Parser<'_>, env: Option<&MediaEnvironment>) -> Option<Ma
 
 /// A three-valued truth value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Kleene {
+pub(crate) enum Kleene {
     True,
     False,
     Unknown,
 }
 
 impl Kleene {
-    fn from_bool(b: bool) -> Self {
+    pub(crate) fn from_bool(b: bool) -> Self {
         if b { Kleene::True } else { Kleene::False }
     }
 
-    fn not(self) -> Self {
+    pub(crate) fn not(self) -> Self {
         match self {
             Kleene::True => Kleene::False,
             Kleene::False => Kleene::True,
@@ -957,7 +977,7 @@ impl Kleene {
         }
     }
 
-    fn and(self, other: Self) -> Self {
+    pub(crate) fn and(self, other: Self) -> Self {
         match (self, other) {
             (Kleene::False, _) | (_, Kleene::False) => Kleene::False,
             (Kleene::True, Kleene::True) => Kleene::True,
@@ -965,7 +985,7 @@ impl Kleene {
         }
     }
 
-    fn or(self, other: Self) -> Self {
+    pub(crate) fn or(self, other: Self) -> Self {
         match (self, other) {
             (Kleene::True, _) | (_, Kleene::True) => Kleene::True,
             (Kleene::False, Kleene::False) => Kleene::False,

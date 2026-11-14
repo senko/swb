@@ -132,6 +132,9 @@ pub(super) fn value(name: &str, r: &Resolver<'_>) -> String {
             (w, c) => format!("{w} {c}"),
         },
         "overflow" => pair(&get("overflow-x"), &get("overflow-y")),
+        "container" => {
+            crate::cssom::shorthand::container_value(&get("container-name"), &get("container-type"))
+        }
         "contain-intrinsic-size" => pair(
             &get("contain-intrinsic-width"),
             &get("contain-intrinsic-height"),

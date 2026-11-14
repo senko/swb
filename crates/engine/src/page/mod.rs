@@ -151,6 +151,13 @@ pub struct FlushCounters {
     pub sheet_changes: u32,
     /// Builds of the display list.
     pub display_list_runs: u32,
+    /// The extra style and layout runs of container queries: a layout gave
+    /// query containers sizes that change a query result or a container
+    /// unit (ADR 0038). Zero on a page without container rules and units.
+    pub container_passes: u32,
+    /// The layout flushes that stopped at the bound of the container
+    /// passes (`MAX_CONTAINER_PASSES`).
+    pub container_pass_limits: u32,
 }
 
 impl FlushCounters {

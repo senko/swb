@@ -13,10 +13,11 @@ use super::inert::{scroll_margin, scroll_padding};
 use super::longhand::{
     AlignKind, keyword, lp_or_auto, non_negative_length, padding, parse_alignment,
     parse_background_repeat, parse_background_size, parse_bg_position, parse_border_style,
-    parse_box, parse_column_count, parse_column_width, parse_contain_intrinsic, parse_flex_basis,
-    parse_font_family, parse_font_size, parse_font_stretch, parse_font_style, parse_font_weight,
-    parse_gap, parse_image_or_none, parse_line_height, parse_line_width, parse_list_style_type,
-    parse_outline_color, parse_outline_style, parse_text_decoration_line,
+    parse_box, parse_column_count, parse_column_width, parse_contain_intrinsic,
+    parse_container_name, parse_flex_basis, parse_font_family, parse_font_size, parse_font_stretch,
+    parse_font_style, parse_font_weight, parse_gap, parse_image_or_none, parse_line_height,
+    parse_line_width, parse_list_style_type, parse_outline_color, parse_outline_style,
+    parse_text_decoration_line,
 };
 use super::specified::{
     SpecifiedBackgroundSize, SpecifiedFlexBasis, SpecifiedFontSize, SpecifiedFontWeight,
@@ -29,8 +30,8 @@ use crate::parse::length::{LengthOptions, parse_length_percentage};
 use crate::parse::{ParseResult, ParserContext, parse_non_negative_number};
 use crate::values::{
     BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword, BorderStyle, Color,
-    FlexDirection, FlexWrap, FontFamily, FontStyle, FontVariantCaps, GenericFamily, Length,
-    ListStylePosition, ListStyleType, OutlineStyle, Overflow, Rgba,
+    ContainerType, FlexDirection, FlexWrap, FontFamily, FontStyle, FontVariantCaps, GenericFamily,
+    Length, ListStylePosition, ListStyleType, OutlineStyle, Overflow, Rgba,
     SpecifiedLengthPercentage as Lp, TextDecorationLine, TextDecorationStyle,
 };
 
@@ -143,6 +144,7 @@ shorthands! {
     Columns "columns" [ColumnWidth, ColumnCount];
     Overflow "overflow" [OverflowX, OverflowY];
     ContainIntrinsicSize "contain-intrinsic-size" [ContainIntrinsicWidth, ContainIntrinsicHeight];
+    Container "container" [ContainerName, ContainerType];
     PlaceContent "place-content" [AlignContent, JustifyContent];
     PlaceItems "place-items" [AlignItems, JustifyItems];
     PlaceSelf "place-self" [AlignSelf, JustifySelf];
@@ -228,6 +230,7 @@ impl ShorthandId {
                 | S::Columns
                 | S::Overflow
                 | S::ContainIntrinsicSize
+                | S::Container
                 | S::PlaceContent
                 | S::PlaceItems
                 | S::PlaceSelf => parse_layout_shorthand(self, p, out),
@@ -538,6 +541,19 @@ fn parse_layout_shorthand(
             Ok(())
         }
         S::Columns => parse_columns(p, out),
+        // `<'container-name'> [ / <'container-type'> ]?`
+        // <https://www.w3.org/TR/css-contain-3/#container-shorthand>
+        S::Container => {
+            let name = parse_container_name(p)?;
+            let ty = if p.expect_delim('/').is_ok() {
+                keyword(p, ContainerType::from_ident)?
+            } else {
+                ContainerType::Normal
+            };
+            out.push(LonghandValue::ContainerName(name));
+            out.push(LonghandValue::ContainerType(ty));
+            Ok(())
+        }
         S::ContainIntrinsicSize => {
             let quirky = false;
             let width = parse_contain_intrinsic(p, quirky)?;

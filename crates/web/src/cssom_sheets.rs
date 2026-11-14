@@ -267,6 +267,7 @@ pub(crate) fn wrap_rule(cx: &mut Cx<'_>, rule: RuleRef) -> b::Result<Gc<Object>>
         RuleKind::Import(_) => g::CSS_IMPORT_RULE,
         RuleKind::FontFace(_) => g::CSS_FONT_FACE_RULE,
         RuleKind::Keyframes(_) => g::CSS_KEYFRAMES_RULE,
+        RuleKind::Container { .. } => g::CSS_CONTAINER_RULE,
     };
     let realm = cx.realm();
     let data = cx.rt.alloc_host_data(RuleData {
@@ -964,6 +965,33 @@ impl g::css_condition_rule::CSSConditionRuleImpl for WebState {
         Ok(match &rule.kind {
             RuleKind::Media { media, .. } => media.to_string(),
             RuleKind::Supports { text, .. } => text.clone(),
+            RuleKind::Container { condition, .. } => condition.to_string(),
+            _ => String::new(),
+        })
+    }
+}
+
+impl g::css_container_rule::CSSContainerRuleImpl for WebState {
+    fn container_name(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
+        let rule = rule_of(cx.rt, this)?;
+        let rule = rule.borrow();
+        Ok(match &rule.kind {
+            RuleKind::Container { condition, .. } => {
+                let mut out = String::new();
+                if let Some(name) = condition.name() {
+                    swb_css::serialize_identifier(name, &mut out);
+                }
+                out
+            }
+            _ => String::new(),
+        })
+    }
+
+    fn container_query(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
+        let rule = rule_of(cx.rt, this)?;
+        let rule = rule.borrow();
+        Ok(match &rule.kind {
+            RuleKind::Container { condition, .. } => condition.query_text(),
             _ => String::new(),
         })
     }

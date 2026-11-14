@@ -25,8 +25,9 @@ pub use grid::{
 pub(crate) use grid::{SpecifiedTrackList, SpecifiedTrackSize};
 pub use keywords::*;
 pub use length::{
-    CalcNode, ComputedCalc, Length, LengthContext, LengthPercentage, LengthPercentageOrAuto,
-    LengthUnit, MaxSize, Size, SpecifiedLengthPercentage,
+    CalcNode, ComputedCalc, ContainerBasis, Length, LengthContext, LengthPercentage,
+    LengthPercentageOrAuto, LengthUnit, MaxSize, Size, SpecifiedLengthPercentage,
+    take_container_units_read,
 };
 pub use mask::{CompositeOperator, MAX_MASK_LAYERS, MaskClip, MaskImage, MaskMode};
 pub use shape::{
@@ -284,6 +285,11 @@ impl Contain {
         ..Contain::CONTENT
     };
 }
+
+/// The computed `container-name`: the names in the order written
+/// (duplicates kept, case-sensitive); `None` for `none`. Behind a thin
+/// pointer (8 bytes in every computed style).
+pub type ContainerName = Option<Arc<Vec<Arc<str>>>>;
 
 /// The computed `contain-intrinsic-width` or `-height`:
 /// `auto? [none | <length>]`

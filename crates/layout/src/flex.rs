@@ -330,8 +330,9 @@ fn new_item<'a>(
 /// size suggestion `min_content`, capped by `max_main` and by the
 /// specified size suggestion `definite_main`. Scroll containers (but not
 /// `overflow: clip` boxes) have no automatic minimum; neither have items
-/// with size containment (measured in Chromium 148, also for
-/// `contain-intrinsic-size`). `min_content` runs only if needed.
+/// with size containment in the main axis (measured in Chromium 148, also
+/// for `contain-intrinsic-size`; inline-size containment for a row, ADR
+/// 0038). `min_content` runs only if needed.
 pub(crate) fn automatic_min_main(
     style: &ComputedStyle,
     row: bool,
@@ -344,7 +345,12 @@ pub(crate) fn automatic_min_main(
     } else {
         style.overflow_y
     };
-    if overflow.is_scroll_container() || style.contain.size {
+    let contained = if row {
+        style.has_inline_size_containment()
+    } else {
+        style.has_size_containment()
+    };
+    if overflow.is_scroll_container() || contained {
         return 0.0;
     }
     let content = min_content().min(max_main);

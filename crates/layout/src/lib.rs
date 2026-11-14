@@ -36,6 +36,8 @@ mod block;
 mod box_tree;
 mod canvas;
 mod collapsed_margin;
+#[cfg(test)]
+mod containment_tests;
 mod control;
 mod flex;
 mod floats;

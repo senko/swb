@@ -40,15 +40,16 @@ use std::sync::{Arc, LazyLock};
 
 use log::trace;
 use swb_css::{
-    BucketKey, CssRule, ElementState, FontFaceRule, HostRelation, ImportLayer, LayerName,
-    MatchingContext, MediaEnvironment, MediaQueryList, PseudoElement, Selector, SelectorList,
-    ShadowPseudoKind, Stylesheet, matches, parse_stylesheet,
+    BucketKey, ContainerCondition, CssRule, ElementState, FontFaceRule, HostRelation, ImportLayer,
+    LayerName, MatchingContext, MediaEnvironment, MediaQueryList, PseudoElement, Selector,
+    SelectorList, ShadowPseudoKind, Stylesheet, matches, parse_stylesheet,
 };
 use url::Url;
 
 use smallvec::SmallVec;
 
 use crate::bloom::{AncestorFilter, MAX_ANCESTOR_HASHES, ancestor_hashes};
+use crate::container::Containers;
 use crate::cssom::sheet::{Hold, RuleKind, RuleRef, StyleSheet};
 use crate::element::DomElement;
 use crate::font_face::FontFace;
@@ -80,13 +81,16 @@ pub(crate) enum CascadeOrigin {
     Author = 2,
 }
 
-/// Where rules are added: inside which `@media` chain and which layer.
+/// Where rules are added: inside which `@media` chain, which layer and
+/// which `@container` chain.
 #[derive(Clone, Copy, Debug)]
 struct Scope {
     /// The index of the `@media` condition chain.
     media: Option<u32>,
     /// The node of the layer in the layer tree.
     layer: u32,
+    /// The index of the `@container` condition chain.
+    container: Option<u32>,
 }
 
 impl Default for Scope {
@@ -94,6 +98,7 @@ impl Default for Scope {
         Scope {
             media: None,
             layer: UNLAYERED,
+            container: None,
         }
     }
 }
@@ -113,6 +118,9 @@ pub(crate) struct Rule {
     /// The index of the `@media` condition chain, if the rule is inside
     /// `@media`.
     media: Option<u32>,
+    /// The index of the `@container` condition chain, if the rule is inside
+    /// `@container` (ADR 0038).
+    pub(crate) container: Option<u32>,
     /// Hashes for the ancestor Bloom filter.
     ancestor_hashes: SmallVec<[u32; MAX_ANCESTOR_HASHES]>,
     /// True if the computed values can depend on the element itself, not
@@ -321,6 +329,11 @@ pub struct Stylist {
     /// Chains of media query lists (nested `@media`); each rule refers to
     /// one chain.
     media_chains: Vec<Vec<u32>>,
+    /// Chains of `@container` conditions (nested `@container`); each rule
+    /// inside `@container` refers to one chain (ADR 0038).
+    container_chains: Vec<Arc<[Arc<ContainerCondition>]>>,
+    /// True if some rule's declarations use container query units.
+    container_units: bool,
     /// The cascade layers of the author origin.
     layers: LayerTree,
     next_order: u32,
@@ -425,6 +438,8 @@ impl Stylist {
             no_rules: RuleMap::default(),
             media_lists: Vec::new(),
             media_chains: Vec::new(),
+            container_chains: Vec::new(),
+            container_units: false,
             layers: LayerTree::default(),
             next_order: 0,
             state_dependencies: ElementState::empty(),
@@ -570,9 +585,16 @@ impl Stylist {
                     }
                 }
                 CssRule::LayerStatement(s) => self.declare_layers(&s.names, scope),
-                CssRule::FontFace(rule) => self.add_font_face(rule, cx, scope.media),
+                CssRule::FontFace(rule) => self.add_font_face(rule, cx, scope),
                 CssRule::Import(import) => self.declare_import_layer(import, scope),
                 CssRule::Keyframes(_) => {}
+                CssRule::Container(c) => {
+                    let inner = Scope {
+                        container: Some(self.push_container(&c.condition, scope.container)),
+                        ..scope
+                    };
+                    self.add_rules(&c.rules, cx, origin, inner);
+                }
             }
         }
     }
@@ -584,6 +606,8 @@ impl Stylist {
             Some(name) => self.layers.node(scope.layer, name),
             None => self.layers.anonymous(scope.layer),
         }?;
+        // Layers inside `@container` are declared whatever the condition:
+        // a condition of each element cannot order the layers.
         self.layers.declare(node, scope.media);
         Some(node)
     }
@@ -665,9 +689,16 @@ impl Stylist {
                     }
                 }
                 RuleKind::LayerStatement { names } => self.declare_layers(names, scope),
-                RuleKind::FontFace(face) => self.add_font_face(face, cx, scope.media),
+                RuleKind::FontFace(face) => self.add_font_face(face, cx, scope),
                 RuleKind::Import(import) => self.declare_import_layer(import, scope),
                 RuleKind::Keyframes(_) => {}
+                RuleKind::Container { condition, rules } => {
+                    let inner = Scope {
+                        container: Some(self.push_container(condition, scope.container)),
+                        ..scope
+                    };
+                    self.add_cssom_rules(rules, cx, inner);
+                }
             }
         }
     }
@@ -686,10 +717,52 @@ impl Stylist {
         chain_index
     }
 
-    /// Adds a valid `@font-face` rule, up to [`MAX_FONT_FACES`].
-    fn add_font_face(&mut self, rule: &FontFaceRule, cx: &ParserContext, media: Option<u32>) {
+    /// Adds the condition of an `@container` rule inside the chain
+    /// `parent`; returns the index of the new chain.
+    fn push_container(&mut self, condition: &ContainerCondition, parent: Option<u32>) -> u32 {
+        let mut chain: Vec<Arc<ContainerCondition>> = parent
+            .and_then(|c| self.container_chains.get(c as usize))
+            .map(|c| c.to_vec())
+            .unwrap_or_default();
+        chain.push(Arc::new(condition.clone()));
+        let index = self.container_chains.len() as u32;
+        self.container_chains.push(chain.into());
+        index
+    }
+
+    /// The conditions of the `@container` chain `index`.
+    pub(crate) fn container_chain(&self, index: u32) -> &[Arc<ContainerCondition>] {
+        self.container_chains
+            .get(index as usize)
+            .map_or(&[], |c| &**c)
+    }
+
+    /// True if styles depend on query containers: some rule is inside
+    /// `@container` or uses container query units (also in a shadow tree's
+    /// stylist).
+    pub fn has_container_dependence(&self) -> bool {
+        !self.container_chains.is_empty()
+            || self.container_units
+            || self.scopes.iter().any(Stylist::has_container_dependence)
+    }
+
+    /// True if some rule's declarations use container query units (also in
+    /// a shadow tree's stylist).
+    pub(crate) fn has_container_units(&self) -> bool {
+        self.container_units || self.scopes.iter().any(Stylist::has_container_units)
+    }
+
+    /// Adds a valid `@font-face` rule, up to [`MAX_FONT_FACES`]. Rules
+    /// inside `@container` are ignored (a face cannot depend on an
+    /// element).
+    fn add_font_face(&mut self, rule: &FontFaceRule, cx: &ParserContext, scope: Scope) {
+        let media = scope.media;
         if self.scoped {
             trace!("ignored @font-face in a shadow tree's sheet");
+            return;
+        }
+        if scope.container.is_some() {
+            trace!("ignored @font-face inside @container");
             return;
         }
         let Some(face) = FontFace::parse(rule, cx) else {
@@ -744,6 +817,7 @@ impl Stylist {
                     .insert(selector.bucket_key(), index, quirks);
             }
             self.state_dependencies |= selector.state_dependencies();
+            self.container_units |= block.uses_container_units;
             self.rules.push(Rule {
                 selector: selector.clone(),
                 block: Arc::clone(block),
@@ -751,6 +825,7 @@ impl Stylist {
                 sort_key: (u64::from(specificity) << 32) | u64::from(self.next_order),
                 layer: scope.layer,
                 media: scope.media,
+                container: scope.container,
                 ancestor_hashes: ancestor_hashes(selector, self.quirks).into_iter().collect(),
                 uses_element_data,
             });
@@ -824,8 +899,8 @@ impl Stylist {
     /// the keys of `el` (the element whose key the rule's subject has: the
     /// element, also for `::slotted()`; the host for `:host`), whose `@media`
     /// chain matches (`media`), whose ancestor keys `filter` (the flat
-    /// ancestors of the styled element) may hold, and for which `test`
-    /// answers true. Unsorted.
+    /// ancestors of the styled element) may hold, for which `test` answers
+    /// true, and whose `@container` chain matches (`containers`). Unsorted.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn collect(
         &self,
@@ -836,6 +911,7 @@ impl Stylist {
         filter: Option<&AncestorFilter>,
         scratch: &mut Vec<u32>,
         mut test: impl FnMut(&Selector) -> bool,
+        containers: &mut Containers<'_>,
         out: &mut Vec<u32>,
     ) {
         let Some(map) = self.set_map(set, target) else {
@@ -859,7 +935,11 @@ impl Stylist {
             {
                 continue;
             }
-            if test(&rule.selector) {
+            if test(&rule.selector)
+                && rule
+                    .container
+                    .is_none_or(|c| containers.chain_matches(self.container_chain(c)))
+            {
                 out.push(index);
             }
         }
@@ -932,7 +1012,8 @@ impl Stylist {
     /// the cascade order of normal declarations (origin, layer rank,
     /// specificity, source order). `layer_ranks` is from
     /// [`Stylist::layer_ranks`]. `filter`, if given, must hold exactly the
-    /// ancestors of `el`. `scratch` is a reusable buffer.
+    /// ancestors of `el`. `containers` evaluates the `@container` chains of
+    /// rules whose selector matches. `scratch` is a reusable buffer.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn matching_rules(
         &self,
@@ -943,6 +1024,7 @@ impl Stylist {
         filter: Option<&AncestorFilter>,
         author: bool,
         context: &mut MatchingContext,
+        containers: &mut Containers<'_>,
         scratch: &mut Vec<u32>,
         out: &mut Vec<u32>,
     ) {
@@ -968,7 +1050,11 @@ impl Stylist {
             {
                 continue;
             }
-            if matches(&rule.selector, el, context) {
+            if matches(&rule.selector, el, context)
+                && rule
+                    .container
+                    .is_none_or(|c| containers.chain_matches(self.container_chain(c)))
+            {
                 out.push(index);
             }
         }

@@ -4970,10 +4970,37 @@ Steps:
 
       Feature 6 is complete (2026-11-14). The probe rows that stay `Later`
       or departures are listed in ADR 0037 "6e implementation notes".
-   7. Smaller CSS features (`implementer`; JS on and off): `@container`
-      (size queries, container units, names), `@property`,
-      `field-sizing`, `color-mix()` with `currentcolor` and transparency,
-      the computed value of `content-visibility`.
+   7. Smaller CSS features (JS on and off), in two sub-features:
+      - 7a container queries (`implementer-hard`, ADR 0038): `@container`
+        (size queries, container units, names), `container-type`,
+        `container-name`, `CSSContainerRule`. Done (2026-11-14): the query
+        container lookup follows Chromium 148 (the nearest flat tree
+        ancestor with the name whose type supports every queried axis; a
+        container without a usable box shadows the outer ones for queries
+        and is skipped for units; names are not scoped by tree); the
+        units `cqw cqh cqi cqb cqmin cqmax` resolve at computed-value
+        time. Style and layout stay two whole-document stages: style with
+        the container sizes of the last layout, lay out, and run both
+        again while a query result or a unit changes, at most 4 extra
+        times per layout flush. `container-type` and `contain: size`,
+        `inline-size` and `strict` act in layout (the intrinsic sizes and
+        auto height of an empty box, or `contain-intrinsic-size`); only
+        `container-type` makes an independent formatting context.
+        `getComputedStyle` of an element inside a container forces a
+        layout. From the review: `contain` alone makes no formatting
+        context (a regression of the first version), container units
+        reach descendants through `var()` from an ancestor's `style`
+        attribute, and the query edges of a container of height 0 follow
+        Chromium. 42 probe cases (4 departures: no `writing-mode`, no
+        `CSSStyleRule.cssRules`, `at-rule()`; 4 `Later`: CSS nesting,
+        style queries). GitHub's page has two containers whose query is
+        false at 1280 px, so its scores are unchanged; at 700 px the
+        repository tabs lose their icons, as in Chromium. Targets
+        unchanged; callgrind +0.20 % at most; no target page needs an
+        extra pass.
+      - 7b (`implementer`): `@property`, `field-sizing`, `color-mix()`
+        with `currentcolor` and transparency, the computed value of
+        `content-visibility`.
    8. The first view (`implementer-hard`): run the page with features 1
       to 7 and fix what stops it (React's hydration, the missing APIs,
       `relative-time` with `Intl`), the console, the scores, the budget.
@@ -5145,6 +5172,25 @@ Steps:
   element that becomes inert while it has the focus (the dialog focusing
   steps move the focus first, so no case shows it). The `inert`
   attribute, `interactivity` and `getSelection` stay in the item above.
+- Container queries (found in 7a, ADR 0038): an extra container pass
+  restyles the whole document; a partial restyle (only the subtrees of
+  containers whose results changed) would save part of one extra pass
+  (GitHub JS on: 23.8 ms style and 4.8 ms layout; Wikipedia with a true
+  container rule: +20.3 ms in all). One layout flush can do up to 5 style
+  runs and 20 layouts (the font loop runs inside each container pass).
+  Not supported: style queries (`@container style(--x: y)`), scroll-state
+  containers and queries (`container-type: scroll-state` acts as
+  `normal`), `@supports at-rule(...)`, `rlh` in conditions; container
+  units inside a condition use the viewport; `lh` in a condition takes
+  1.2 × the font size for `line-height: normal`. Containment: `contain:
+  layout`, `strict` and `content` make no formatting context and no
+  containing block (Chromium does), `contain: paint` does not clip, style
+  containment (counters, quotes) is missing. `writing-mode` is missing,
+  so container units and logical features are horizontal only. Tests:
+  `compare --js` of Ars Technica alternates between pixels 0.9891 and
+  0.9901 with the same binary; `module_graph_probe_cases_match_chromium`
+  (case `import-call-base-inserted`) once gave its two dynamic imports in
+  the other order in a full `just check` (passes alone).
 - Rendering (found in 6b): swb has no `content-visibility`; an `<object>`
   with `type` or `data` renders its fallback children, Chromium does not
   (measured: a child `div` has no client rect); a gradient `body`

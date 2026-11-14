@@ -1193,6 +1193,11 @@ fn end_block_box(
     let content_height = match end.specified_height {
         Some(h) if end.grows => h.max(children.content_height),
         Some(h) => h,
+        // Size containment on a block that is not a formatting context root
+        // (`contain: size` alone): the auto height is that of an empty box
+        // (`contain-size-bfc`, ADR 0038). The children's margins still
+        // collapse as usual.
+        None if style.has_size_containment() => style.contain_intrinsic_height.size(),
         None => children.content_height,
     };
     let height = clamp_height(style, content_height, cb.height, vertical_edges);
@@ -1362,6 +1367,16 @@ pub(crate) fn relative_offset(style: &ComputedStyle, cb: ContainingBlock) -> (f3
     (dx, dy)
 }
 
+/// The content height of a grid with size containment and an auto height:
+/// `contain-intrinsic-block-size` within `min-height` and `max-height`
+/// (ADR 0038). `None` for other grids.
+fn contained_grid_height(style: &ComputedStyle, cb: ContainingBlock, edges: f32) -> Option<f32> {
+    let auto = resolve_size(&style.height, cb.height, style.box_sizing, edges).is_none();
+    (style.has_size_containment() && auto).then(|| {
+        SizeLimits::of_height(style, cb.height, edges).clamp(style.contain_intrinsic_height.size())
+    })
+}
+
 /// Lays out a box that establishes an independent formatting context,
 /// with a known content-box width. The height is `content_height` if given
 /// (final, not clamped); else the specified height, else the content
@@ -1395,7 +1410,8 @@ pub(crate) fn layout_sized(
         _ => None,
     };
     if let IndependentContents::Grid(children) = &ib.contents {
-        let content_height = content_height.or(ratio_height);
+        let contained = contained_grid_height(style, cb, edge_sum.vertical());
+        let content_height = content_height.or(ratio_height).or(contained);
         return crate::grid::layout(ctx, &ib.base, children, content_width, content_height, cb);
     }
     let specified_height = content_height
@@ -1427,9 +1443,13 @@ pub(crate) fn layout_sized(
     let mut children = layout_contents(ctx, ib, child_cb, limits, &mut markers);
     place_unplaced_markers(ctx, ib.marker.as_ref(), style, &mut markers, &mut children);
     let inflow = children.inflow;
-    // Size containment: hidden contents have no height of their own.
+    // Size containment: hidden contents have no height of their own; with
+    // `contain: size` or `container-type: size`, the content height is
+    // `contain-intrinsic-block-size` (ADR 0038).
     let natural_height = if style.contents_hidden {
         0.0
+    } else if style.has_size_containment() {
+        style.contain_intrinsic_height.size()
     } else {
         children.content_height
     };

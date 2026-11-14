@@ -12,16 +12,16 @@ use crate::properties::inert::InertStyle;
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
     BackgroundSize, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, ClipPath, Color,
-    CompositeOperator, Contain, ContainIntrinsic, Content, CornerRadius, CounterList, Cursor,
-    Direction, Display, EmptyCells, FillRule, Filter, FlexBasis, FlexDirection, FlexWrap, Float,
-    FontFamily, FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily, GridAutoFlow,
-    GridLine, GridTemplateAreas, Hyphens, Image, LengthPercentage, LengthPercentageOrAuto,
-    LineHeight, ListStylePosition, ListStyleType, MaskClip, MaskImage, MaskMode, MaxSize,
-    ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents, Position,
-    PositionComponent, Rgba, ScrollbarWidth, ShapeRendering, Size, StrokeLinecap, StrokeLinejoin,
-    SvgPaint, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow,
-    TextTransform, TrackBreadth, TrackList, TrackSize, UnicodeBidi, UserSelect, VerticalAlign,
-    Visibility, WhiteSpace, WordBreak, ZIndex,
+    CompositeOperator, Contain, ContainIntrinsic, ContainerName, ContainerType, Content,
+    CornerRadius, CounterList, Cursor, Direction, Display, EmptyCells, FillRule, Filter, FlexBasis,
+    FlexDirection, FlexWrap, Float, FontFamily, FontSizeOrigin, FontStyle, FontVariantCaps, Gap,
+    GenericFamily, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens, Image, LengthPercentage,
+    LengthPercentageOrAuto, LineHeight, ListStylePosition, ListStyleType, MaskClip, MaskImage,
+    MaskMode, MaxSize, ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents,
+    Position, PositionComponent, Rgba, ScrollbarWidth, ShapeRendering, Size, StrokeLinecap,
+    StrokeLinejoin, SvgPaint, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle,
+    TextOverflow, TextTransform, TrackBreadth, TrackList, TrackSize, UnicodeBidi, UserSelect,
+    VerticalAlign, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 use crate::values::{ClipRect, TransformFunction, TransformOrigin};
 
@@ -245,6 +245,10 @@ pub struct ComputedStyle {
     pub counter_increment: CounterList,
     pub counter_set: CounterList,
     pub contain: Contain,
+    /// `container-type` (not inherited; ADR 0038).
+    pub container_type: ContainerType,
+    /// `container-name` (not inherited).
+    pub container_name: ContainerName,
     /// `contain-intrinsic-width`.
     pub contain_intrinsic_width: ContainIntrinsic,
     /// `contain-intrinsic-height`.
@@ -460,6 +464,8 @@ impl ComputedStyle {
             counter_increment: CounterList::default(),
             counter_set: CounterList::default(),
             contain: Contain::NONE,
+            container_type: ContainerType::Normal,
+            container_name: None,
             contain_intrinsic_width: ContainIntrinsic::NONE,
             contain_intrinsic_height: ContainIntrinsic::NONE,
             object_fit: ObjectFit::Fill,
@@ -566,6 +572,73 @@ impl ComputedStyle {
     /// Chromium 148).
     pub fn has_filter(&self) -> bool {
         !self.filter.is_none()
+    }
+
+    /// True if the element is a candidate in the query container lookup
+    /// (ADR 0038): its `container-type` establishes a size container, or it
+    /// has a `container-name` (a name alone matches `@container NAME`).
+    pub fn is_query_container(&self) -> bool {
+        self.size_container_axes().0 || self.container_name.is_some()
+    }
+
+    /// The axes (inline, block) that the element's `container-type` lets
+    /// size queries and container units read: `inline-size` the inline
+    /// axis, `size` both; `normal` and `scroll-state` none.
+    pub fn size_container_axes(&self) -> (bool, bool) {
+        match self.container_type {
+            ContainerType::Size => (true, true),
+            ContainerType::InlineSize => (true, false),
+            ContainerType::Normal | ContainerType::ScrollState => (false, false),
+        }
+    }
+
+    /// True if `container-name` lists `name` (case-sensitive).
+    pub fn has_container_name(&self, name: &str) -> bool {
+        self.container_name
+            .as_ref()
+            .is_some_and(|names| names.iter().any(|n| &**n == name))
+    }
+
+    /// True if size containment can apply to the element's box (CSS
+    /// Containment 2 §3.1): it has a principal box that is not a
+    /// non-atomic inline, a table (inner display `table`) or an internal
+    /// table or ruby box. The container units skip containers without such
+    /// a box, and their queries are unknown (measured in Chromium 148,
+    /// `odd-container-boxes`, `units-odd-containers`).
+    pub fn size_containment_applies(&self) -> bool {
+        !matches!(
+            self.display,
+            Display::None
+                | Display::Contents
+                | Display::Inline
+                | Display::Table
+                | Display::InlineTable
+                | Display::TableRowGroup
+                | Display::TableHeaderGroup
+                | Display::TableFooterGroup
+                | Display::TableRow
+                | Display::TableCell
+                | Display::TableColumnGroup
+                | Display::TableColumn
+                | Display::TableCaption
+        )
+    }
+
+    /// The effective size containment of the box: `contain: size` (also
+    /// `strict`) or `container-type: size`, if it applies to the box
+    /// ([`Self::size_containment_applies`]).
+    pub fn has_size_containment(&self) -> bool {
+        (self.contain.size || self.container_type == ContainerType::Size)
+            && self.size_containment_applies()
+    }
+
+    /// The effective inline-size containment (without size containment):
+    /// `contain: inline-size` or `container-type: inline-size`, if it
+    /// applies to the box. A box with size containment has both.
+    pub fn has_inline_size_containment(&self) -> bool {
+        self.has_size_containment()
+            || ((self.contain.inline_size || self.container_type == ContainerType::InlineSize)
+                && self.size_containment_applies())
     }
 
     /// True if `filter` or `backdrop-filter` is not `none`: the element is

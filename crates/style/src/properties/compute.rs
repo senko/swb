@@ -251,6 +251,8 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::CounterIncrement(v) => s.counter_increment = v.clone(),
         V::CounterSet(v) => s.counter_set = v.clone(),
         V::Contain(v) => s.contain = *v,
+        V::ContainerType(v) => s.container_type = *v,
+        V::ContainerName(v) => s.container_name.clone_from(v),
         V::ContainIntrinsicWidth(v) => s.contain_intrinsic_width = v.compute(cx),
         V::ContainIntrinsicHeight(v) => s.contain_intrinsic_height = v.compute(cx),
         V::ObjectFit(v) => s.object_fit = *v,

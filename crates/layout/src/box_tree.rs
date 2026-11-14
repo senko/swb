@@ -37,8 +37,8 @@ use std::sync::Arc;
 
 use swb_dom::{Document, NodeData, NodeId, local_name, ns};
 use swb_style::{
-    ComputedStyle, Display, LengthPercentageOrAuto, Overflow, PseudoKind, StyleMap, TextTransform,
-    WhiteSpace,
+    ComputedStyle, ContainerType, Display, LengthPercentageOrAuto, Overflow, PseudoKind, StyleMap,
+    TextTransform, WhiteSpace,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -622,7 +622,7 @@ fn replaced(
 ) -> Option<Replaced> {
     let element = ctx.doc.element(node)?;
     if element.name.ns == ns!(svg) && *element.local_name() == local_name!("svg") {
-        let natural_size = if style.contain.size {
+        let natural_size = if style.contain.size || style.container_type == ContainerType::Size {
             contained_natural_size(style)
         } else {
             crate::svg::natural_size(element, style)
@@ -643,11 +643,13 @@ fn replaced(
         // section 4).
         return Some(Replaced {
             node,
-            natural_size: Some(if style.contain.size {
-                contained_natural_size(style)
-            } else {
-                NaturalSize::default()
-            }),
+            natural_size: Some(
+                if style.contain.size || style.container_type == ContainerType::Size {
+                    contained_natural_size(style)
+                } else {
+                    NaturalSize::default()
+                },
+            ),
             media: None,
             svg: None,
             canvas: false,
@@ -661,7 +663,7 @@ fn replaced(
         // The natural size is the size of the bitmap; the canvas has no
         // other content, so it paints nothing (HTML "the canvas element").
         let (width, height) = crate::canvas::size(element);
-        let natural_size = if style.contain.size {
+        let natural_size = if style.contain.size || style.container_type == ContainerType::Size {
             contained_natural_size(style)
         } else {
             NaturalSize::fixed(width, height)
@@ -681,7 +683,7 @@ fn replaced(
         Some(Media::of(ctx.doc, node)?)
     };
     let natural_size = ctx.replaced.natural_size(node);
-    let natural_size = if style.contain.size {
+    let natural_size = if style.contain.size || style.container_type == ContainerType::Size {
         Some(contained_natural_size(style))
     } else {
         natural_size
@@ -1323,6 +1325,15 @@ fn build_block_level(
         || multicol
         // Layout containment: hidden contents are a block formatting context.
         || style.contents_hidden
+        // `container-type: size` and `inline-size` make an independent
+        // formatting context (measured in Chromium 148,
+        // `containment-layout-effects`; ADR 0038). `contain: size` and
+        // `inline-size` alone do not (`contain-size-bfc`): their margins
+        // collapse through them and they do not contain floats.
+        || matches!(
+            style.container_type,
+            ContainerType::Size | ContainerType::InlineSize
+        )
         || base.element().is_some_and(|n| is_atomic(ctx, n));
     if establishes_bfc {
         return BlockLevelBox::Independent(build_independent(ctx, base, state));

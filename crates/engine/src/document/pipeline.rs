@@ -26,6 +26,42 @@ use crate::selection::Highlight;
 /// fonts that are already loaded make layout run again.
 const MAX_LAYOUT_PASSES: usize = 4;
 
+/// The most extra style and layout runs of one
+/// [`DocumentState::update_layout`] for container queries (ADR 0038
+/// section 4): N nested containers whose queries size the next container
+/// need N + 1 layouts; at the bound the last styles and their layout stay,
+/// and the next update goes on from the sizes of that layout. The font loop
+/// ([`MAX_LAYOUT_PASSES`]) runs inside each of these runs, so one update
+/// does at most (1 + `MAX_CONTAINER_PASSES`) * `MAX_LAYOUT_PASSES` = 20
+/// layouts and 1 + `MAX_CONTAINER_PASSES` = 5 style runs. The bounds stay
+/// apart: the font loop repeats only when a loaded font file was reused
+/// by another face, a container pass only when a query result changes; a
+/// shared bound would let one of them starve the other, and the worst case
+/// needs a page that makes both loop.
+pub(crate) const MAX_CONTAINER_PASSES: u32 = 4;
+
+/// The content boxes of the query containers of `fragments` whose box size
+/// containment applies to (ADR 0038): one walk of the fragment tree.
+fn container_sizes(
+    fragments: &swb_layout::FragmentTree,
+    styles: &swb_style::StyleMap,
+) -> swb_style::ContainerSizes {
+    let mut sizes = swb_style::ContainerSizes::new();
+    fragments.walk(|fragment, _| {
+        if let FragmentRef::Box(b) = fragment
+            && let Some(node) = b.node
+            && b.pseudo.is_none()
+            && let Some(style) = styles.get(node)
+            && style.is_query_container()
+            && style.size_containment_applies()
+        {
+            let content = b.content_rect();
+            sizes.insert(node, content.width, content.height);
+        }
+    });
+    sizes
+}
+
 /// What [`DocumentState::render_in_strips`] draws.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Rendering {
@@ -167,14 +203,65 @@ impl DocumentState {
             self.refresh_forms();
         }
         let stylist = self.stylist.as_ref()?;
+        let containers = stylist.has_container_dependence();
         let started = Instant::now();
-        let chain = swb_style::compute_element_styles(
+        let chain = swb_style::compute_element_styles_with_containers(
             &self.dom,
             stylist,
             &env,
             &self.states,
             self.base_url.value(),
             node,
+            &self.container_sizes,
+        );
+        self.flushes.element_style(started.elapsed());
+        // An element inside a query container: its style can depend on the
+        // container's size in the current layout (measured: a script's
+        // change of a container's width shows in `getComputedStyle` at
+        // once). A forced layout flush, then the full styles (ADR 0038
+        // section 6). Elements outside containers and pages without
+        // container rules and units keep the cheap path.
+        let inside_container = containers
+            && chain
+                .iter()
+                .rev()
+                .skip(1)
+                .any(|(_, s)| s.is_query_container());
+        if inside_container && let Some(style) = self.style_after_layout(node) {
+            return Some(style);
+        }
+        let style = chain.last().map(|(_, s)| std::sync::Arc::clone(s));
+        self.element_styles.extend(chain);
+        style
+    }
+
+    /// The style of `node` after a forced layout flush: from the full
+    /// styles, or for an element without one (below `display: none`) from
+    /// its chain with the container sizes of the new layout. `None` if the
+    /// flush cannot run (no fonts lent: not in a script task).
+    fn style_after_layout(
+        &mut self,
+        node: swb_dom::NodeId,
+    ) -> Option<std::sync::Arc<swb_style::ComputedStyle>> {
+        if !self.script_layout_flush() {
+            return None;
+        }
+        if !self.styles_stale
+            && let Some(style) = self.styles.as_ref().and_then(|s| s.get(node))
+        {
+            return Some(std::sync::Arc::clone(style));
+        }
+        let env = self.media_environment();
+        let stylist = self.stylist.as_ref()?;
+        let started = Instant::now();
+        let chain = swb_style::compute_element_styles_with_containers(
+            &self.dom,
+            stylist,
+            &env,
+            &self.states,
+            self.base_url.value(),
+            node,
+            &self.container_sizes,
         );
         self.flushes.element_style(started.elapsed());
         let style = chain.last().map(|(_, s)| std::sync::Arc::clone(s));
@@ -196,18 +283,41 @@ impl DocumentState {
             return;
         }
         self.update_web_font_faces(fonts);
-        let mut laid_out = false;
-        // After the last pass, `fragments` can be `None` again: a font that
-        // loaded at once invalidated the layout. This is correct: every
-        // caller (paint, scroll, hit testing) calls `update_layout` before
-        // it uses the fragments, so the next call lays out again. The pass
-        // limit only bounds the work of one call.
-        for _ in 0..MAX_LAYOUT_PASSES {
-            if self.fragments.is_some() || !self.run_layout(fonts) {
+        let laid_out = self.lay_out_with_fonts(fonts);
+        // Container queries (ADR 0038 section 4): a layout that gives the
+        // query containers sizes that change a query result or a unit
+        // makes the styles and the layout run again, at most
+        // `MAX_CONTAINER_PASSES` times. Each pass is a whole restyle and
+        // layout; a page whose styles read no container never loops.
+        let mut passes = 0;
+        while laid_out && self.fragments.is_some() && self.containers_changed() {
+            if passes == MAX_CONTAINER_PASSES {
+                log::warn!(
+                    "container queries: {MAX_CONTAINER_PASSES} extra passes did not settle; \
+                     the last styles stay"
+                );
+                self.flushes.container_pass_limits =
+                    self.flushes.container_pass_limits.saturating_add(1);
                 break;
             }
-            laid_out = true;
-            self.start_font_loads(fonts);
+            passes += 1;
+            self.flushes.container_passes = self.flushes.container_passes.saturating_add(1);
+            let Some(old) = self.styles.take() else {
+                break;
+            };
+            self.compute_styles();
+            if self
+                .styles
+                .as_ref()
+                .is_some_and(|new| new.same_styles(&old))
+            {
+                break;
+            }
+            self.invalidate_layout();
+            self.update_web_font_faces(fonts);
+            if !self.lay_out_with_fonts(fonts) {
+                break;
+            }
         }
         if laid_out && self.fragments.is_some() {
             // The scroll target is applied after every layout until the
@@ -225,6 +335,44 @@ impl DocumentState {
                 self.pending_scroll = None;
             }
         }
+    }
+
+    /// Lays out the document, up to [`MAX_LAYOUT_PASSES`] times while web
+    /// fonts that are already loaded invalidate the layout. Returns true if
+    /// it laid out.
+    ///
+    /// After the last pass, `fragments` can be `None` again: a font that
+    /// loaded at once invalidated the layout. This is correct: every caller
+    /// (paint, scroll, hit testing) calls `update_layout` before it uses the
+    /// fragments, so the next call lays out again. The pass limit only
+    /// bounds the work of one call.
+    fn lay_out_with_fonts(&mut self, fonts: &mut FontContext) -> bool {
+        let mut laid_out = false;
+        for _ in 0..MAX_LAYOUT_PASSES {
+            if self.fragments.is_some() || !self.run_layout(fonts) {
+                break;
+            }
+            laid_out = true;
+            self.start_font_loads(fonts);
+        }
+        laid_out
+    }
+
+    /// Reads the content boxes of the query containers from the layout
+    /// into [`DocumentState::container_sizes`] and returns true if they
+    /// change what the styles read (a query result or a container unit).
+    /// Free when the styles read no container.
+    fn containers_changed(&mut self) -> bool {
+        let (Some(styles), Some(fragments)) = (&self.styles, &self.fragments) else {
+            return false;
+        };
+        if styles.container_log().is_empty() {
+            return false;
+        }
+        let sizes = container_sizes(fragments, styles);
+        let changed = !styles.container_log().holds(&sizes);
+        self.container_sizes = sizes;
+        changed
     }
 
     /// Lays out the document, if it has styles. Returns false if not.
@@ -408,12 +556,13 @@ impl DocumentState {
             return;
         };
         let started = Instant::now();
-        let styles = swb_style::compute_styles(
+        let styles = swb_style::compute_styles_with_containers(
             &self.dom,
             stylist,
             &env,
             &self.states,
             self.base_url.value(),
+            &self.container_sizes,
         );
         self.timings.style = started.elapsed();
         self.flushes.style(self.timings.style, self.in_query);

@@ -124,6 +124,10 @@ pub(crate) fn serialize_longhand(ser: Ser, tokens: &[ComponentValue]) -> String 
         Ser::TouchAction => {
             declared("touch-action", tokens).unwrap_or_else(|| serialize(tokens, Style::PLAIN))
         }
+        Ser::Names => match tokens {
+            [ComponentValue::Ident(n)] if n.eq_ignore_ascii_case("none") => "none".to_owned(),
+            _ => serialize(tokens, Style::NAMES),
+        },
         Ser::ColorScheme => crate::color_scheme::declared_color_scheme(tokens)
             .unwrap_or_else(|| serialize(tokens, Style::PLAIN)),
         Ser::GridLine => grid_line(tokens),

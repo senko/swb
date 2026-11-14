@@ -17,6 +17,9 @@
 //! - The `sizes` attribute of HTML images, which uses media conditions:
 //!   <https://html.spec.whatwg.org/multipage/images.html#sizes-attributes>
 //!   ([`source_size`]).
+//! - CSS Containment 3, container queries:
+//!   <https://www.w3.org/TR/css-contain-3/#container-queries>
+//!   ([`ContainerCondition`]).
 //! - CSS Conditional Rules Level 3 and 4:
 //!   <https://www.w3.org/TR/css-conditional-3/> ([`SupportsCondition`]).
 //!
@@ -24,6 +27,7 @@
 //! with the error recovery that the specifications define, and nesting
 //! depth is limited so that hostile input cannot overflow the stack.
 
+mod container;
 mod cursor;
 mod media;
 mod parser;
@@ -35,6 +39,9 @@ mod supports;
 mod tokenizer;
 mod values;
 
+pub use container::{
+    ContainerCondition, ContainerSize, QueryAxes, is_valid_name as is_valid_container_name,
+};
 pub use cursor::{ParseError, Parser};
 pub use media::{ColorScheme, MediaEnvironment, MediaQueryList, MediaType};
 pub use parser::{parse_component_values, parse_rule, parse_style_attribute, parse_stylesheet};
@@ -47,8 +54,9 @@ pub use selector::{
 pub use serialize::{serialize_component_values, serialize_identifier, serialize_string};
 pub use sizes::{allows_auto, source_size};
 pub use stylesheet::{
-    CssRule, Declaration, FontFaceRule, ImportLayer, ImportRule, Keyframe, KeyframesRule,
-    LayerBlockRule, LayerName, LayerStatementRule, MediaRule, StyleRule, Stylesheet, SupportsRule,
+    ContainerRule, CssRule, Declaration, FontFaceRule, ImportLayer, ImportRule, Keyframe,
+    KeyframesRule, LayerBlockRule, LayerName, LayerStatementRule, MediaRule, StyleRule, Stylesheet,
+    SupportsRule,
 };
 pub use supports::SupportsCondition;
 pub use tokenizer::{Number, Token, tokenize};

@@ -95,7 +95,7 @@ impl DocumentState {
             .collect();
         let stylist = self.stylist.as_ref()?;
         let env = self.media_environment();
-        let style = Arc::new(swb_style::compute_pseudo_element_style(
+        let style = Arc::new(swb_style::compute_pseudo_element_style_with_containers(
             &self.dom,
             stylist,
             &env,
@@ -103,6 +103,7 @@ impl DocumentState {
             self.base_url.value(),
             &chain,
             kind,
+            &self.container_sizes,
         )?);
         self.pseudo_styles.insert((node, kind), Arc::clone(&style));
         Some(style)

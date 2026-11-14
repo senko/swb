@@ -34,6 +34,17 @@ impl ContentSizes {
     }
 }
 
+/// The content sizes of a box with inline-size containment (`contain`,
+/// `container-type`): those of an empty box, or
+/// `contain-intrinsic-inline-size`. A block that is not a formatting
+/// context root (`contain` alone) has them too.
+fn contained_sizes(style: &ComputedStyle) -> Option<ContentSizes> {
+    style.has_inline_size_containment().then(|| {
+        let w = style.contain_intrinsic_width.size();
+        ContentSizes { min: w, max: w }
+    })
+}
+
 /// Content-box sizes of an independent box's contents.
 pub(crate) fn independent_content_sizes(
     ctx: &mut LayoutContext<'_>,
@@ -42,6 +53,16 @@ pub(crate) fn independent_content_sizes(
     // Size containment: hidden contents have no intrinsic size.
     if ib.base.style.contents_hidden {
         return ContentSizes::default();
+    }
+    // Size and inline-size containment (`contain`, `container-type`; ADR
+    // 0038): the inline sizes of an empty box, or
+    // `contain-intrinsic-inline-size` (measured in Chromium 148,
+    // `containment-shrink-to-fit`). Replaced elements have their natural
+    // size from the box tree.
+    if !matches!(ib.contents, IndependentContents::Replaced(_))
+        && let Some(sizes) = contained_sizes(&ib.base.style)
+    {
+        return sizes;
     }
     // A block, flex or grid container with an aspect ratio and a definite
     // height is as wide as the ratio makes it (CSS Sizing 4 §5.1; Chromium).
@@ -297,6 +318,9 @@ fn block_level_outer_sizes(ctx: &mut LayoutContext<'_>, b: &BlockLevelBox) -> Co
             contents,
             marker,
         } => outer_sizes(&base.style, || {
+            if let Some(sizes) = contained_sizes(&base.style) {
+                return sizes;
+            }
             if let Some(w) = crate::aspect::width_of_definite_height(&base.style) {
                 return ContentSizes { min: w, max: w };
             }

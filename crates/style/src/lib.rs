@@ -15,7 +15,8 @@
 //! - `stylist`: rule storage and lookup; `layers`: the cascade layer tree
 //!   and the order of the layers.
 //! - `bloom`: the ancestor Bloom filter that rejects rules early.
-//! - `cascade`: the cascade, inheritance and computed-value fixups.
+//! - `cascade`: the cascade, inheritance and computed-value fixups;
+//!   `container`: container queries and units in the cascade (ADR 0038).
 //! - `hints`: presentational hints from HTML attributes;
 //!   `svg_attributes`: SVG presentation attributes.
 //! - `element`: the DOM element adapter for selector matching, element
@@ -39,6 +40,7 @@ mod bloom;
 mod cascade;
 mod color_scheme;
 mod computed;
+mod container;
 mod content;
 mod counter_style;
 mod counters;
@@ -59,9 +61,13 @@ mod svg_attributes;
 mod transform_list;
 mod values;
 
-pub use cascade::{compute_element_styles, compute_pseudo_element_style, compute_styles};
+pub use cascade::{
+    compute_element_styles, compute_element_styles_with_containers, compute_pseudo_element_style,
+    compute_pseudo_element_style_with_containers, compute_styles, compute_styles_with_containers,
+};
 pub use color_scheme::{parse_meta_color_scheme, used_color_scheme};
 pub use computed::{ComputedStyle, CustomProperties};
+pub use container::{ContainerLog, ContainerSizes};
 pub use content::content_text;
 pub use element::{
     CONTROL_STATES, DisabledElements, ElementStates, is_actually_disabled, query_selector_all,

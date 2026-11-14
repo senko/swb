@@ -162,12 +162,20 @@ pub(crate) struct DeclarationBlock {
     pub(crate) normal: Vec<PropertyDeclaration>,
     /// `!important` declarations.
     pub(crate) important: Vec<PropertyDeclaration>,
+    /// True if a declaration's value has a container query unit (`cqw`
+    /// ...), also inside a custom property or `var()` fallback (ADR 0038).
+    pub(crate) uses_container_units: bool,
 }
 
 impl DeclarationBlock {
     /// Parses declarations. Invalid declarations are dropped.
     pub(crate) fn parse(declarations: &[Declaration], cx: &ParserContext) -> Self {
-        let mut block = DeclarationBlock::default();
+        let mut block = DeclarationBlock {
+            uses_container_units: declarations
+                .iter()
+                .any(|d| crate::container::has_container_units(&d.value)),
+            ..DeclarationBlock::default()
+        };
         for d in declarations {
             let target = if d.important {
                 &mut block.important

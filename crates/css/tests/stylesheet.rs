@@ -137,6 +137,7 @@ fn rule_counts() {
             CssRule::Keyframes(_) => "keyframes",
             CssRule::LayerBlock(_) => "layer",
             CssRule::LayerStatement(_) => "layer-statement",
+            CssRule::Container(_) => "container",
         })
         .collect();
     assert_eq!(

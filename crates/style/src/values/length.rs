@@ -3,7 +3,28 @@
 //!
 //! <https://www.w3.org/TR/css-values-4/#lengths>
 
+use std::cell::Cell;
 use std::sync::Arc;
+
+thread_local! {
+    /// Set when a container query unit is converted to px: the cascade
+    /// computes an element with the viewport's sizes first and again with
+    /// its containers' sizes only if a value used a container unit (ADR
+    /// 0038). A flag of the thread, because the units can come from any
+    /// value, also after `var()` substitution, and the conversion is deep
+    /// in the value code.
+    static CONTAINER_UNITS_READ: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Returns and clears the flag that a container query unit was converted.
+pub fn take_container_units_read() -> bool {
+    CONTAINER_UNITS_READ.with(|flag| flag.replace(false))
+}
+
+/// Sets the flag of [`take_container_units_read`].
+fn mark_container_units_read() {
+    CONTAINER_UNITS_READ.with(|flag| flag.set(true));
+}
 
 /// A length unit.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -38,6 +59,19 @@ pub enum LengthUnit {
     Pt,
     /// Picas (12 points).
     Pc,
+    /// 1% of the query container's width (ADR 0038).
+    Cqw,
+    /// 1% of the query container's height.
+    Cqh,
+    /// 1% of the query container's inline size (`cqw` in swb, which has
+    /// only horizontal writing).
+    Cqi,
+    /// 1% of the query container's block size (`cqh` in swb).
+    Cqb,
+    /// The smaller of `cqi` and `cqb`.
+    Cqmin,
+    /// The larger of `cqi` and `cqb`.
+    Cqmax,
 }
 
 impl LengthUnit {
@@ -45,9 +79,8 @@ impl LengthUnit {
     ///
     /// The small, large and dynamic viewport units map to the plain ones
     /// (swb has no dynamic browser UI). `vi`/`vb` map to `vw`/`vh`
-    /// (horizontal writing mode only). Container query units map to the
-    /// viewport units: swb has no query containers, and without a container
-    /// the units use the small viewport size.
+    /// (horizontal writing mode only). The container query units resolve
+    /// against [`LengthContext::container`].
     /// <https://www.w3.org/TR/css-contain-3/#container-lengths>
     ///
     /// Media queries and `sizes` have their own unit list (`LENGTH_UNITS`
@@ -59,10 +92,16 @@ impl LengthUnit {
             "rem" => Self::Rem,
             "ex" => Self::Ex,
             "ch" => Self::Ch,
-            "vw" | "svw" | "lvw" | "dvw" | "vi" | "svi" | "lvi" | "dvi" | "cqw" | "cqi" => Self::Vw,
-            "vh" | "svh" | "lvh" | "dvh" | "vb" | "svb" | "lvb" | "dvb" | "cqh" | "cqb" => Self::Vh,
-            "vmin" | "svmin" | "lvmin" | "dvmin" | "cqmin" => Self::Vmin,
-            "vmax" | "svmax" | "lvmax" | "dvmax" | "cqmax" => Self::Vmax,
+            "vw" | "svw" | "lvw" | "dvw" | "vi" | "svi" | "lvi" | "dvi" => Self::Vw,
+            "vh" | "svh" | "lvh" | "dvh" | "vb" | "svb" | "lvb" | "dvb" => Self::Vh,
+            "vmin" | "svmin" | "lvmin" | "dvmin" => Self::Vmin,
+            "vmax" | "svmax" | "lvmax" | "dvmax" => Self::Vmax,
+            "cqw" => Self::Cqw,
+            "cqh" => Self::Cqh,
+            "cqi" => Self::Cqi,
+            "cqb" => Self::Cqb,
+            "cqmin" => Self::Cqmin,
+            "cqmax" => Self::Cqmax,
             "cm" => Self::Cm,
             "mm" => Self::Mm,
             "q" => Self::Q,
@@ -73,6 +112,26 @@ impl LengthUnit {
         };
         Some(u)
     }
+
+    /// True for the container query units.
+    pub fn is_container_relative(self) -> bool {
+        matches!(
+            self,
+            Self::Cqw | Self::Cqh | Self::Cqi | Self::Cqb | Self::Cqmin | Self::Cqmax
+        )
+    }
+}
+
+/// The sizes that the container query units of an element use (CSS
+/// Containment 3 §6, ADR 0038): for each axis, the content box size of the
+/// nearest ancestor query container that supports the axis, or the small
+/// viewport size (the viewport in swb) without one.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ContainerBasis {
+    /// The width that 100cqw is, in px.
+    pub width: f32,
+    /// The height that 100cqh is, in px.
+    pub height: f32,
 }
 
 /// Values that relative lengths depend on.
@@ -87,6 +146,8 @@ pub struct LengthContext {
     pub viewport_width: f32,
     /// Viewport height in CSS px.
     pub viewport_height: f32,
+    /// The sizes of the container query units.
+    pub container: ContainerBasis,
 }
 
 impl LengthContext {
@@ -96,6 +157,10 @@ impl LengthContext {
         root_font_size: 16.0,
         viewport_width: 800.0,
         viewport_height: 600.0,
+        container: ContainerBasis {
+            width: 800.0,
+            height: 600.0,
+        },
     };
 }
 
@@ -154,6 +219,22 @@ impl Length {
             LengthUnit::In => v * 96.0,
             LengthUnit::Pt => v * 96.0 / 72.0,
             LengthUnit::Pc => v * 16.0,
+            LengthUnit::Cqw | LengthUnit::Cqi => {
+                mark_container_units_read();
+                v * ctx.container.width / 100.0
+            }
+            LengthUnit::Cqh | LengthUnit::Cqb => {
+                mark_container_units_read();
+                v * ctx.container.height / 100.0
+            }
+            LengthUnit::Cqmin => {
+                mark_container_units_read();
+                v * ctx.container.width.min(ctx.container.height) / 100.0
+            }
+            LengthUnit::Cqmax => {
+                mark_container_units_read();
+                v * ctx.container.width.max(ctx.container.height) / 100.0
+            }
         }
     }
 }
@@ -501,7 +582,21 @@ mod tests {
             root_font_size: 10.0,
             viewport_width: 1000.0,
             viewport_height: 500.0,
+            container: ContainerBasis {
+                width: 400.0,
+                height: 300.0,
+            },
         };
+        let cq = |value: f32, unit: LengthUnit| Length { value, unit }.to_px(&ctx);
+        assert_eq!(cq(10.0, LengthUnit::Cqw), 40.0);
+        assert_eq!(cq(10.0, LengthUnit::Cqi), 40.0);
+        assert_eq!(cq(10.0, LengthUnit::Cqh), 30.0);
+        assert_eq!(cq(10.0, LengthUnit::Cqb), 30.0);
+        assert_eq!(cq(10.0, LengthUnit::Cqmin), 30.0);
+        assert_eq!(cq(10.0, LengthUnit::Cqmax), 40.0);
+        assert_eq!(LengthUnit::from_name("CQW"), Some(LengthUnit::Cqw));
+        assert!(LengthUnit::Cqmax.is_container_relative());
+        assert!(!LengthUnit::Vw.is_container_relative());
         assert_eq!(
             Length {
                 value: 2.0,

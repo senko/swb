@@ -47,6 +47,7 @@ pub(crate) fn expand(
         Kind::Position => Parts::position(tokens),
         Kind::GridLines => cx.grid_lines(tokens),
         Kind::Single => Some(vec![cx.text(0, tokens)]),
+        Kind::Container => cx.container(tokens),
         Kind::Transition => {
             expand_transition(tokens).map(|texts| texts.into_iter().map(Value::Text).collect())
         }
@@ -252,6 +253,23 @@ impl Parts<'_> {
                 })
                 .collect(),
         )
+    }
+
+    /// `container`: the names before `/`, the type after it (`normal`
+    /// if left out).
+    fn container(&self, tokens: &[ComponentValue]) -> Option<Vec<Value>> {
+        let all = parts(tokens);
+        let slash = all.iter().position(|p| is_slash(p));
+        let (names, ty) = match slash {
+            Some(i) => (all.get(..i)?, all.get(i + 1..)?),
+            None => (all.as_slice(), &[][..]),
+        };
+        let ty = match ty {
+            [] => Value::Text("normal".to_owned()),
+            [one] => self.text(1, one),
+            _ => return None,
+        };
+        Some(vec![self.text(0, &join(names)), ty])
     }
 
     /// The implicit value of longhand `i` of an any-order shorthand.
@@ -674,6 +692,7 @@ pub(crate) fn value_of(index: usize, def: &Shorthand, values: &[&Value]) -> Stri
         }
         Kind::GridLines => grid_lines(&t),
         Kind::Single => get(0).to_owned(),
+        Kind::Container => container_value(get(0), get(1)),
         Kind::Transition => transition_value(&t),
         Kind::BorderImage => {
             if t.iter().all(|s| *s == "initial") {
@@ -683,6 +702,16 @@ pub(crate) fn value_of(index: usize, def: &Shorthand, values: &[&Value]) -> Stri
             }
         }
         Kind::Opaque => String::new(),
+    }
+}
+
+/// `container` from its names and type: the names alone for type `normal`
+/// (measured in Chromium 148, `computed-properties`).
+pub(crate) fn container_value(names: &str, ty: &str) -> String {
+    if ty == "normal" {
+        names.to_owned()
+    } else {
+        format!("{names} / {ty}")
     }
 }
 

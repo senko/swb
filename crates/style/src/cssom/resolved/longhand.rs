@@ -799,6 +799,20 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
         "counter-increment" => counters(&s.counter_increment),
         "counter-set" => counters(&s.counter_set),
         "contain" => contain(s),
+        "container-type" => s.container_type.as_str().to_owned(),
+        "container-name" => match &s.container_name {
+            None => "none".to_owned(),
+            Some(names) => {
+                let mut out = String::new();
+                for (i, name) in names.iter().enumerate() {
+                    if i > 0 {
+                        out.push(' ');
+                    }
+                    swb_css::serialize_identifier(name, &mut out);
+                }
+                out
+            }
+        },
         "contain-intrinsic-width" => contain_intrinsic(s.contain_intrinsic_width),
         "contain-intrinsic-height" => contain_intrinsic(s.contain_intrinsic_height),
         "object-fit" => s.object_fit.as_str().to_owned(),

@@ -1,0 +1,4649 @@
+{
+  "cases": [
+    {
+      "name": "features-size",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            330.0,
+            230.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            15.0,
+            15.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            15.0,
+            17.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            15.0,
+            19.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[5]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            15.0,
+            21.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[6]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            15.0,
+            23.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[7]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            15.0,
+            25.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[8]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            15.0,
+            27.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[9]",
+          "tag": "div",
+          "index": 12,
+          "rect": [
+            15.0,
+            29.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[10]",
+          "tag": "div",
+          "index": 13,
+          "rect": [
+            15.0,
+            31.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[11]",
+          "tag": "div",
+          "index": 14,
+          "rect": [
+            15.0,
+            33.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[12]",
+          "tag": "div",
+          "index": 15,
+          "rect": [
+            15.0,
+            35.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[13]",
+          "tag": "div",
+          "index": 16,
+          "rect": [
+            15.0,
+            37.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[14]",
+          "tag": "div",
+          "index": 17,
+          "rect": [
+            15.0,
+            39.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[15]",
+          "tag": "div",
+          "index": 18,
+          "rect": [
+            15.0,
+            41.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[16]",
+          "tag": "div",
+          "index": 19,
+          "rect": [
+            15.0,
+            43.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[17]",
+          "tag": "div",
+          "index": 20,
+          "rect": [
+            15.0,
+            45.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[18]",
+          "tag": "div",
+          "index": 21,
+          "rect": [
+            15.0,
+            47.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[19]",
+          "tag": "div",
+          "index": 22,
+          "rect": [
+            15.0,
+            49.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[20]",
+          "tag": "div",
+          "index": 23,
+          "rect": [
+            15.0,
+            51.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[21]",
+          "tag": "div",
+          "index": 24,
+          "rect": [
+            15.0,
+            53.0,
+            10.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "features-inline-size",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            300.0,
+            200.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            2.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            4.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[5]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            6.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[6]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            8.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[7]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            0.0,
+            10.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[8]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            0.0,
+            12.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[9]",
+          "tag": "div",
+          "index": 12,
+          "rect": [
+            0.0,
+            14.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[10]",
+          "tag": "div",
+          "index": 13,
+          "rect": [
+            0.0,
+            16.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[11]",
+          "tag": "div",
+          "index": 14,
+          "rect": [
+            0.0,
+            18.0,
+            20.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "logic",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            300.0,
+            100.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            2.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            4.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[5]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            6.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[6]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            8.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[7]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            0.0,
+            10.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[8]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            0.0,
+            12.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[9]",
+          "tag": "div",
+          "index": 12,
+          "rect": [
+            0.0,
+            14.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[10]",
+          "tag": "div",
+          "index": 13,
+          "rect": [
+            0.0,
+            16.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[11]",
+          "tag": "div",
+          "index": 14,
+          "rect": [
+            0.0,
+            18.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[12]",
+          "tag": "div",
+          "index": 15,
+          "rect": [
+            0.0,
+            20.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[13]",
+          "tag": "div",
+          "index": 16,
+          "rect": [
+            0.0,
+            22.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[14]",
+          "tag": "div",
+          "index": 17,
+          "rect": [
+            0.0,
+            24.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[15]",
+          "tag": "div",
+          "index": 18,
+          "rect": [
+            0.0,
+            26.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[16]",
+          "tag": "div",
+          "index": 19,
+          "rect": [
+            0.0,
+            28.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[17]",
+          "tag": "div",
+          "index": 20,
+          "rect": [
+            0.0,
+            30.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[18]",
+          "tag": "div",
+          "index": 21,
+          "rect": [
+            0.0,
+            32.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[19]",
+          "tag": "div",
+          "index": 22,
+          "rect": [
+            0.0,
+            34.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[20]",
+          "tag": "div",
+          "index": 23,
+          "rect": [
+            0.0,
+            36.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[21]",
+          "tag": "div",
+          "index": 24,
+          "rect": [
+            0.0,
+            38.0,
+            10.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "no-container",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            300.0,
+            8.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            2.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            4.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[5]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            6.0,
+            20.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "type-normal",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[1]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            300.0,
+            4.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[2]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[3]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            2.0,
+            10.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "names",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[1]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            0.0,
+            200.0,
+            46.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[2]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[3]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            2.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[4]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            0.0,
+            4.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[5]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            0.0,
+            6.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[6]",
+          "tag": "div",
+          "index": 12,
+          "rect": [
+            0.0,
+            8.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[7]",
+          "tag": "div",
+          "index": 13,
+          "rect": [
+            0.0,
+            10.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[8]",
+          "tag": "div",
+          "index": 14,
+          "rect": [
+            0.0,
+            12.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[9]",
+          "tag": "div",
+          "index": 15,
+          "rect": [
+            0.0,
+            14.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[10]",
+          "tag": "div",
+          "index": 16,
+          "rect": [
+            0.0,
+            16.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[11]",
+          "tag": "div",
+          "index": 17,
+          "rect": [
+            0.0,
+            18.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[12]",
+          "tag": "div",
+          "index": 18,
+          "rect": [
+            0.0,
+            20.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[13]",
+          "tag": "div",
+          "index": 19,
+          "rect": [
+            0.0,
+            22.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[14]",
+          "tag": "div",
+          "index": 20,
+          "rect": [
+            0.0,
+            24.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[15]",
+          "tag": "div",
+          "index": 21,
+          "rect": [
+            0.0,
+            26.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[16]",
+          "tag": "div",
+          "index": 22,
+          "rect": [
+            0.0,
+            28.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[17]",
+          "tag": "div",
+          "index": 23,
+          "rect": [
+            0.0,
+            30.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[18]",
+          "tag": "div",
+          "index": 24,
+          "rect": [
+            0.0,
+            32.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[19]",
+          "tag": "div",
+          "index": 25,
+          "rect": [
+            0.0,
+            34.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[20]",
+          "tag": "div",
+          "index": 26,
+          "rect": [
+            0.0,
+            36.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[21]",
+          "tag": "div",
+          "index": 27,
+          "rect": [
+            0.0,
+            38.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[22]",
+          "tag": "div",
+          "index": 28,
+          "rect": [
+            0.0,
+            40.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[23]",
+          "tag": "div",
+          "index": 29,
+          "rect": [
+            0.0,
+            42.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[24]",
+          "tag": "div",
+          "index": 30,
+          "rect": [
+            0.0,
+            44.0,
+            20.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "units-size",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#c, .u)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            414.0,
+            314.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .u)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            7.0,
+            7.0,
+            40.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .u)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            7.0,
+            8.0,
+            30.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .u)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            7.0,
+            9.0,
+            40.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .u)[5]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            7.0,
+            10.0,
+            30.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .u)[6]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            7.0,
+            11.0,
+            30.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .u)[7]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            7.0,
+            12.0,
+            40.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .u)[8]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            7.0,
+            13.0,
+            190.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .u)[9]",
+          "tag": "div",
+          "index": 12,
+          "rect": [
+            7.0,
+            14.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .u)[10]",
+          "tag": "div",
+          "index": 13,
+          "rect": [
+            19.0,
+            15.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .u)[11]",
+          "tag": "div",
+          "index": 14,
+          "rect": [
+            7.0,
+            16.0,
+            36.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .u)[12]",
+          "tag": "div",
+          "index": 15,
+          "rect": [
+            47.0,
+            17.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "style",
+          "label": "#u8[1]",
+          "style": {
+            "font-size": "20px"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "#u9[1]",
+          "style": {
+            "letter-spacing": "6px",
+            "margin-left": "12px"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "#u10[1]",
+          "style": {
+            "padding-left": "30px",
+            "border-left-width": "3px",
+            "border-right-width": "2px"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "#u11[1]",
+          "style": {
+            "--x": "10cqw",
+            "margin-left": "40px"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "#u1[1]",
+          "style": {
+            "width": "40px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "units-inline-size-and-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": ".u[1]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            0.0,
+            40.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".u[2]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            1.0,
+            10.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".u[3]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            2.0,
+            40.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".u[4]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            3.0,
+            10.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".u[5]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            0.0,
+            4.0,
+            10.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".u[6]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            0.0,
+            5.0,
+            40.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".u[7]",
+          "tag": "div",
+          "index": 13,
+          "rect": [
+            0.0,
+            100.0,
+            80.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".u[8]",
+          "tag": "div",
+          "index": 14,
+          "rect": [
+            0.0,
+            101.0,
+            60.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".u[9]",
+          "tag": "div",
+          "index": 15,
+          "rect": [
+            0.0,
+            102.0,
+            60.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".u[10]",
+          "tag": "div",
+          "index": 16,
+          "rect": [
+            0.0,
+            103.0,
+            80.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".u[11]",
+          "tag": "div",
+          "index": 17,
+          "rect": [
+            0.0,
+            104.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "style",
+          "label": "#n5[1]",
+          "style": {
+            "font-size": "16px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "units-vertical-writing-mode",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#c, #u1, #u2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            300.0,
+            200.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, #u1, #u2)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            20.0,
+            80.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, #u1, #u2)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            20.0,
+            0.0,
+            20.0,
+            80.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "containment-shrink-to-fit",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[3]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            0.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[4]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            0.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[5]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            0.0,
+            25.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[6]",
+          "tag": "div",
+          "index": 13,
+          "rect": [
+            0.0,
+            25.0,
+            8.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[7]",
+          "tag": "div",
+          "index": 15,
+          "rect": [
+            0.0,
+            50.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[8]",
+          "tag": "div",
+          "index": 17,
+          "rect": [
+            0.0,
+            75.0,
+            800.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[9]",
+          "tag": "div",
+          "index": 19,
+          "rect": [
+            0.0,
+            75.0,
+            100.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[10]",
+          "tag": "div",
+          "index": 21,
+          "rect": [
+            0.0,
+            75.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[11]",
+          "tag": "div",
+          "index": 24,
+          "rect": [
+            0.0,
+            100.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[12]",
+          "tag": "div",
+          "index": 27,
+          "rect": [
+            0.0,
+            125.0,
+            50.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[13]",
+          "tag": "div",
+          "index": 30,
+          "rect": [
+            0.0,
+            150.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[14]",
+          "tag": "td",
+          "index": 35,
+          "rect": [
+            2.0,
+            182.0,
+            2.0,
+            27.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[15]",
+          "tag": "div",
+          "index": 36,
+          "rect": [
+            3.0,
+            183.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[16]",
+          "tag": "div",
+          "index": 38,
+          "rect": [
+            0.0,
+            211.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[17]",
+          "tag": "div",
+          "index": 40,
+          "rect": [
+            0.0,
+            211.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#ib, #fl, #sib, #td, [id^=c])[18]",
+          "tag": "div",
+          "index": 42,
+          "rect": [
+            0.0,
+            211.0,
+            40.0,
+            30.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "containment-layout-effects",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #rel, #a3, #abs, #a4, #fix, #a5, #ov, #a6, #li1, #li2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #rel, #a3, #abs, #a4, #fix, #a5, #ov, #a6, #li1, #li2)[2]",
+          "tag": "p",
+          "index": 5,
+          "rect": [
+            0.0,
+            20.0,
+            800.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #rel, #a3, #abs, #a4, #fix, #a5, #ov, #a6, #li1, #li2)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            50.0,
+            800.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #rel, #a3, #abs, #a4, #fix, #a5, #ov, #a6, #li1, #li2)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            50.0,
+            50.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #rel, #a3, #abs, #a4, #fix, #a5, #ov, #a6, #li1, #li2)[5]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            110.0,
+            800.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #rel, #a3, #abs, #a4, #fix, #a5, #ov, #a6, #li1, #li2)[6]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            160.0,
+            800.0,
+            100.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #rel, #a3, #abs, #a4, #fix, #a5, #ov, #a6, #li1, #li2)[7]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            40.0,
+            160.0,
+            760.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #rel, #a3, #abs, #a4, #fix, #a5, #ov, #a6, #li1, #li2)[8]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            0.0,
+            160.0,
+            10.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #rel, #a3, #abs, #a4, #fix, #a5, #ov, #a6, #li1, #li2)[9]",
+          "tag": "div",
+          "index": 12,
+          "rect": [
+            0.0,
+            270.0,
+            800.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #rel, #a3, #abs, #a4, #fix, #a5, #ov, #a6, #li1, #li2)[10]",
+          "tag": "div",
+          "index": 13,
+          "rect": [
+            790.0,
+            0.0,
+            10.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #rel, #a3, #abs, #a4, #fix, #a5, #ov, #a6, #li1, #li2)[11]",
+          "tag": "div",
+          "index": 14,
+          "rect": [
+            0.0,
+            270.0,
+            800.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #rel, #a3, #abs, #a4, #fix, #a5, #ov, #a6, #li1, #li2)[12]",
+          "tag": "div",
+          "index": 15,
+          "rect": [
+            0.0,
+            270.0,
+            50.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #rel, #a3, #abs, #a4, #fix, #a5, #ov, #a6, #li1, #li2)[13]",
+          "tag": "div",
+          "index": 16,
+          "rect": [
+            0.0,
+            290.0,
+            800.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #rel, #a3, #abs, #a4, #fix, #a5, #ov, #a6, #li1, #li2)[14]",
+          "tag": "li",
+          "index": 18,
+          "rect": [
+            40.0,
+            326.0,
+            760.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #rel, #a3, #abs, #a4, #fix, #a5, #ov, #a6, #li1, #li2)[15]",
+          "tag": "li",
+          "index": 19,
+          "rect": [
+            40.0,
+            346.0,
+            760.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "style",
+          "label": "#a1[1]",
+          "style": {
+            "contain": "none",
+            "container-type": "inline-size",
+            "z-index": "auto",
+            "position": "static"
+          }
+        }
+      ]
+    },
+    {
+      "name": "query-changes-display",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#c, .b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            500.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .b)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": null
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .b)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            5.0,
+            30.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .b)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            20.0,
+            30.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .b)[5]",
+          "tag": "div",
+          "index": 9,
+          "rect": null
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .b)[6]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            0.0,
+            30.0,
+            30.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[getComputedStyle(document.querySelector('#deep')).width, getComputedStyle(document.querySelector('#hide')).display]",
+          "value": [
+            "30px",
+            "none"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "odd-container-boxes",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": ".w[1]",
+          "tag": "span",
+          "index": 5,
+          "rect": null
+        },
+        {
+          "kind": "boxes",
+          "label": ".w[2]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            0.0,
+            0.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".w[3]",
+          "tag": "span",
+          "index": 9,
+          "rect": [
+            0.0,
+            2.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".w[4]",
+          "tag": "span",
+          "index": 14,
+          "rect": [
+            3.0,
+            7.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".w[5]",
+          "tag": "span",
+          "index": 17,
+          "rect": [
+            3.0,
+            13.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".w[6]",
+          "tag": "span",
+          "index": 22,
+          "rect": [
+            3.0,
+            21.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".w[7]",
+          "tag": "span",
+          "index": 25,
+          "rect": [
+            0.0,
+            26.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".w[8]",
+          "tag": "span",
+          "index": 27,
+          "rect": [
+            0.0,
+            28.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".w[9]",
+          "tag": "span",
+          "index": 29,
+          "rect": [
+            0.0,
+            30.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".w[10]",
+          "tag": "span",
+          "index": 31,
+          "rect": [
+            0.0,
+            50.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".w[11]",
+          "tag": "span",
+          "index": 34,
+          "rect": [
+            40.0,
+            68.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".w[12]",
+          "tag": "span",
+          "index": 36,
+          "rect": [
+            0.0,
+            86.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[getComputedStyle(document.querySelector('#t1')).color,getComputedStyle(document.querySelector('#t2')).color,getComputedStyle(document.querySelector('#t3')).color,getComputedStyle(document.querySelector('#t4')).color,getComputedStyle(document.querySelector('#t5')).color,getComputedStyle(document.querySelector('#t6')).color,getComputedStyle(document.querySelector('#t7')).color,getComputedStyle(document.querySelector('#t8')).color,getComputedStyle(document.querySelector('#t9')).color,getComputedStyle(document.querySelector('#t10')).color,getComputedStyle(document.querySelector('#t11')).color,getComputedStyle(document.querySelector('#t12')).color]",
+          "value": [
+            "rgb(255, 0, 0)",
+            "rgb(255, 0, 0)",
+            "rgb(255, 0, 0)",
+            "rgb(255, 0, 0)",
+            "rgb(255, 0, 0)",
+            "rgb(255, 0, 0)",
+            "rgb(255, 0, 0)",
+            "rgb(255, 0, 0)",
+            "rgb(0, 128, 0)",
+            "rgb(0, 128, 0)",
+            "rgb(0, 128, 0)",
+            "rgb(0, 128, 0)"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "pseudo-elements",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "['#c::before','#c::after','#k::before'].map(function(s){var p=s.split('::');return getComputedStyle(document.querySelector(p[0]),'::'+p[1]).color}).concat([getComputedStyle(document.querySelector('#li'),'::marker').color, getComputedStyle(document.querySelector('#li2'),'::marker').color, getComputedStyle(document.querySelector('#in'),'::placeholder').color])",
+          "value": [
+            "rgb(0, 128, 0)",
+            "rgb(0, 128, 0)",
+            "rgb(0, 0, 255)",
+            "rgb(0, 128, 0)",
+            "rgb(0, 0, 255)",
+            "rgb(0, 128, 0)"
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, #k)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            300.0,
+            133.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, #k)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            20.0,
+            100.0,
+            20.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "backdrop-under-container",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "[getComputedStyle(document.querySelector('#d'),'::backdrop').backgroundColor, getComputedStyle(document.querySelector('#d')).color, getComputedStyle(document.querySelector('#in')).color]",
+          "value": [
+            "rgb(0, 0, 255)",
+            "rgb(0, 128, 0)",
+            "rgb(0, 0, 255)"
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, #d, #in)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            300.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, #d, #in)[2]",
+          "tag": "dialog",
+          "index": 5,
+          "rect": [
+            356.0,
+            271.0,
+            88.0,
+            58.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, #d, #in)[3]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            375.0,
+            291.0,
+            8.0,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "shadow-flat-tree",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#outer, #host, .t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            500.0,
+            14.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#outer, #host, .t)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            500.0,
+            14.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#outer, #host, .t)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#outer, #host, .t)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            12.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#outer, #host, .t)[5]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            2.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#outer, #host, .t)[6]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            4.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(function(){var r=document.getElementById('host').shadowRoot;return ['i1','i2','i3'].map(function(i){return getComputedStyle(r.getElementById(i)).width})})()",
+          "value": [
+            "10px",
+            "10px",
+            "10px"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "own-size",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#a, #t1, #o, #b, #t2)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            300.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #t1, #o, #b, #t2)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #t1, #o, #b, #t2)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            2.0,
+            500.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #t1, #o, #b, #t2)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            2.0,
+            100.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #t1, #o, #b, #t2)[5]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            2.0,
+            30.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "nested-chain",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#l1, #l2, #l3, #leaf)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            600.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#l1, #l2, #l3, #leaf)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            400.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#l1, #l2, #l3, #leaf)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            0.0,
+            200.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#l1, #l2, #l3, #leaf)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            0.0,
+            50.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "nested-names-and-units",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#a, #b, #c, .t, #u)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            600.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #b, #c, .t, #u)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            300.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #b, #c, .t, #u)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            0.0,
+            150.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #b, #c, .t, #u)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #b, #c, .t, #u)[5]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            2.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #b, #c, .t, #u)[6]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            4.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #b, #c, .t, #u)[7]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            0.0,
+            6.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #b, #c, .t, #u)[8]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            0.0,
+            8.0,
+            15.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "viewport-resize",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#c, #t, #u)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            250.0,
+            4.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, #t, #u)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, #t, #u)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            2.0,
+            25.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[getComputedStyle(document.querySelector('#t')).color, document.querySelector('#t').getBoundingClientRect().width, document.querySelector('#u').getBoundingClientRect().width]",
+          "value": [
+            "rgb(255, 0, 0)",
+            20,
+            25
+          ]
+        }
+      ]
+    },
+    {
+      "name": "script-changes-container",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(function(){var c=document.querySelector('#c'),t=document.querySelector('#t'),u=document.querySelector('#u');var r=[getComputedStyle(t).color,getComputedStyle(u).fontSize];c.style.width='200px';r.push(getComputedStyle(t).color,getComputedStyle(u).fontSize,t.getBoundingClientRect().width,u.getBoundingClientRect().width);c.style.width='350px';r.push(t.getBoundingClientRect().width,getComputedStyle(t).color);c.style.containerType='normal';r.push(getComputedStyle(t).color,getComputedStyle(u).fontSize);return r})()",
+          "value": [
+            "rgb(0, 128, 0)",
+            "20px",
+            "rgb(255, 0, 0)",
+            "10px",
+            20,
+            20,
+            10,
+            "rgb(0, 128, 0)",
+            "rgb(255, 0, 0)",
+            "40px"
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, #t, #u)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            350.0,
+            4.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, #t, #u)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, #t, #u)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            2.0,
+            80.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "script-changes-outer-layout",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(function(){var p=document.querySelector('#p'),t=document.querySelector('#t');var r=[getComputedStyle(t).color];p.style.width='200px';r.push(getComputedStyle(t).color);p.style.width='600px';r.push(getComputedStyle(t).color);document.querySelector('#c').style.padding='0 200px';r.push(getComputedStyle(t).color);return r})()",
+          "value": [
+            "rgb(255, 0, 0)",
+            "rgb(0, 128, 0)",
+            "rgb(255, 0, 0)",
+            "rgb(0, 128, 0)"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "condition-units",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            300.0,
+            12.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            2.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            4.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[5]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            6.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[6]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            8.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[7]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            0.0,
+            10.0,
+            10.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "supports-container-type",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#a, #b)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #b)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            2.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[CSS.supports('container-type','inline-size'),CSS.supports('container-type','size'),CSS.supports('container-type','normal'),CSS.supports('container-type','block-size'),CSS.supports('container-type','inline-size size'),CSS.supports('container-type','scroll-state'),CSS.supports('container-name','a b'),CSS.supports('container-name','none'),CSS.supports('container-name','a none'),CSS.supports('container-name','and'),CSS.supports('container-name','not'),CSS.supports('container-name','or'),CSS.supports('container-name','default'),CSS.supports('container-name','initial'),CSS.supports('container','a / size'),CSS.supports('container','a'),CSS.supports('container','none'),CSS.supports('container','/ size'),CSS.supports('width','10cqw'),CSS.supports('width','calc(1cqmin + 1cqmax)'),CSS.supports('at-rule(@container)'),CSS.supports('selector(:has(a))')]",
+          "value": [
+            true,
+            true,
+            true,
+            false,
+            false,
+            true,
+            true,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
+            true,
+            true,
+            true,
+            false,
+            true,
+            true,
+            true,
+            true
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cssom-container-rule",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(function(){var s=document.styleSheets[0];var out=[];for(var i=0;i<s.cssRules.length;i++){var r=s.cssRules[i];out.push([r.constructor.name,r.type,r.cssText,r.conditionText,r.containerName,r.containerQuery,r.cssRules?r.cssRules.length:null]);}return out})()",
+          "value": [
+            [
+              "CSSStyleRule",
+              1,
+              "body { margin: 0px; font: 16px / 20px sans-serif; }",
+              null,
+              null,
+              null,
+              0
+            ],
+            [
+              "CSSContainerRule",
+              0,
+              "@container card (min-width: 300px) {\n  .a { color: red; }\n  .b { color: blue; }\n}",
+              "card (min-width: 300px)",
+              "card",
+              "(min-width: 300px)",
+              2
+            ],
+            [
+              "CSSContainerRule",
+              0,
+              "@container (width >= 300px) and (height < 10em) {\n  .a { color: red; }\n}",
+              "(width >= 300px) and (height < 10em)",
+              "",
+              "(width >= 300px) and (height < 10em)",
+              1
+            ],
+            [
+              "CSSContainerRule",
+              0,
+              "@container x not (width > 1px) {\n}",
+              "x not (width > 1px)",
+              "x",
+              "not (width > 1px)",
+              0
+            ],
+            [
+              "CSSContainerRule",
+              0,
+              "@container (orientation: landscape) or (aspect-ratio: 16 / 9) {\n  .a { color: red; }\n}",
+              "(orientation: landscape) or (aspect-ratio: 16 / 9)",
+              "",
+              "(orientation: landscape) or (aspect-ratio: 16 / 9)",
+              1
+            ],
+            [
+              "CSSContainerRule",
+              0,
+              "@container (foo:bar) {\n  .a { color: red; }\n}",
+              "(foo:bar)",
+              "",
+              "(foo:bar)",
+              1
+            ],
+            [
+              "CSSContainerRule",
+              0,
+              "@container (width > 1px) {\n  .a { color: red; }\n}",
+              "(width > 1px)",
+              "",
+              "(width > 1px)",
+              1
+            ],
+            [
+              "CSSContainerRule",
+              0,
+              "@container card {\n  .a { color: red; }\n}",
+              "card",
+              "card",
+              "",
+              1
+            ],
+            [
+              "CSSContainerRule",
+              0,
+              "@container (100px < width <= 200px) {\n  .a { color: red; }\n}",
+              "(100px < width <= 200px)",
+              "",
+              "(100px < width <= 200px)",
+              1
+            ],
+            [
+              "CSSContainerRule",
+              0,
+              "@container (calc(3px) < width) {\n  .a { color: red; }\n}",
+              "(calc(3px) < width)",
+              "",
+              "(calc(3px) < width)",
+              1
+            ],
+            [
+              "CSSMediaRule",
+              4,
+              "@media screen {\n  @container (width > 0px) {\n  .a { color: red; }\n}\n}",
+              "screen",
+              null,
+              null,
+              1
+            ],
+            [
+              "CSSContainerRule",
+              0,
+              "@container (width > 0px) {\n  @media screen {\n  .a { color: red; }\n}\n  @container (height > 0px) {\n  .a { color: red; }\n}\n}",
+              "(width > 0px)",
+              "",
+              "(width > 0px)",
+              2
+            ]
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(function(){var s=document.styleSheets[0];var r=s.cssRules[1];var out=[];out.push(r.insertRule('.c{color:green}',1));out.push(r.cssRules.length,r.cssText);r.deleteRule(0);out.push(r.cssText);try{r.insertRule('@container (width>1px){.d{color:red}}',0);out.push(r.cssRules[0].cssText)}catch(e){out.push(e.name)}try{s.insertRule('@container (width>1px) {.e{color:red}}',0);out.push(s.cssRules[0].cssText, s.cssRules[0].parentStyleSheet===s, s.cssRules[0].cssRules[0].parentRule===s.cssRules[0])}catch(e){out.push(e.name)}try{s.insertRule('@container {.e{color:red}}',0);out.push(s.cssRules[0].cssText)}catch(e){out.push(e.name)}out.push(typeof CSSContainerRule, Object.getPrototypeOf(CSSContainerRule.prototype).constructor.name, Object.getOwnPropertyNames(CSSContainerRule.prototype).sort().join(','));return out})()",
+          "value": [
+            1,
+            3,
+            "@container card (min-width: 300px) {\n  .a { color: red; }\n  .c { color: green; }\n  .b { color: blue; }\n}",
+            "@container card (min-width: 300px) {\n  .c { color: green; }\n  .b { color: blue; }\n}",
+            "@container (width > 1px) {\n  .d { color: red; }\n}",
+            "@container (width > 1px) {\n  .e { color: red; }\n}",
+            true,
+            true,
+            "SyntaxError",
+            "function",
+            "CSSConditionRule",
+            "constructor,containerName,containerQuery"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "computed-properties",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "(#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l)[1]",
+          "style": {
+            "container-type": "inline-size",
+            "container-name": "none",
+            "container": "none / inline-size"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "(#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l)[2]",
+          "style": {
+            "container-type": "size",
+            "container-name": "card",
+            "container": "card / size"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "(#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l)[3]",
+          "style": {
+            "container-type": "normal",
+            "container-name": "x y x",
+            "container": "x y x"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "(#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l)[4]",
+          "style": {
+            "container-type": "normal",
+            "container-name": "none",
+            "container": "none"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "(#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l)[5]",
+          "style": {
+            "container-type": "normal",
+            "container-name": "a b",
+            "container": "a b"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "(#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l)[6]",
+          "style": {
+            "container-type": "size",
+            "container-name": "none",
+            "container": "none / size"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "(#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l)[7]",
+          "style": {
+            "container-type": "normal",
+            "container-name": "X",
+            "container": "X"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "(#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l)[8]",
+          "style": {
+            "container-type": "normal",
+            "container-name": "card",
+            "container": "card"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "(#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l)[9]",
+          "style": {
+            "container-type": "normal",
+            "container-name": "none",
+            "container": "none"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "(#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l)[10]",
+          "style": {
+            "container-type": "size",
+            "container-name": "a",
+            "container": "a / size"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "(#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l)[11]",
+          "style": {
+            "container-type": "normal",
+            "container-name": "none",
+            "container": "none"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "(#a, #b, #c, #d, #e, #f, #g, #h, #i, #j, #k, #l)[12]",
+          "style": {
+            "container-type": "size",
+            "container-name": "none",
+            "container": "none / size"
+          }
+        },
+        {
+          "kind": "js",
+          "label": "(function(){var d=document.createElement('div');var out=[];['container:a/size','container:a b / inline-size','container-type:inline-size','container-name:p q','container:none','container-type:size;container-name:k','container:x / normal'].forEach(function(t){d.setAttribute('style',t);out.push(d.style.cssText, d.style.container)});return out})()",
+          "value": [
+            "container: a / size;",
+            "a / size",
+            "container: a b / inline-size;",
+            "a b / inline-size",
+            "container-type: inline-size;",
+            "",
+            "container-name: p q;",
+            "",
+            "container: none;",
+            "none",
+            "container: k / size;",
+            "k / size",
+            "container: x;",
+            "x"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "rule-nesting",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": ".t[1]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[2]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            2.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[3]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            4.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[4]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            6.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[5]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            8.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[6]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            0.0,
+            10.0,
+            30.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[7]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            0.0,
+            12.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[8]",
+          "tag": "div",
+          "index": 12,
+          "rect": [
+            0.0,
+            14.0,
+            10.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "fractional-and-scrollbar",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            300.5,
+            100.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            10.0,
+            0.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            10.0,
+            2.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            10.0,
+            4.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[5]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            10.0,
+            6.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[6]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            10.0,
+            8.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[7]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            10.0,
+            10.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[document.querySelector('#c').clientWidth, getComputedStyle(document.querySelector('#c')).scrollbarWidth]",
+          "value": [
+            301,
+            "auto"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "style-query-recorded",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": ".t[1]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[2]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            2.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[3]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            4.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[document.styleSheets[0].cssRules[3].conditionText, document.styleSheets[0].cssRules.length]",
+          "value": [
+            null,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "name": "outer-query-changes-container",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[1]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            13.0,
+            200.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[2]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            13.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[3]",
+          "tag": "div",
+          "index": 8,
+          "rect": null
+        },
+        {
+          "kind": "boxes",
+          "label": "(#c, .t)[4]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            0.0,
+            20.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[getComputedStyle(document.querySelector('#t2')).width, getComputedStyle(document.querySelector('#t3')).width]",
+          "value": [
+            "20px",
+            "20px"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "units-odd-containers",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": ".u[1]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            0.0,
+            0.0,
+            50.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".u[2]",
+          "tag": "span",
+          "index": 8,
+          "rect": [
+            0.0,
+            1.0,
+            50.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".u[3]",
+          "tag": "span",
+          "index": 10,
+          "rect": null
+        },
+        {
+          "kind": "boxes",
+          "label": ".u[4]",
+          "tag": "span",
+          "index": 15,
+          "rect": [
+            3.0,
+            5.0,
+            50.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".u[5]",
+          "tag": "span",
+          "index": 17,
+          "rect": [
+            0.0,
+            23.0,
+            30.0,
+            1.0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "['u1','u2','u3','u4','u5'].map(function(i){var s=getComputedStyle(document.getElementById(i));return s.width+' '+s.fontSize}).concat([getComputedStyle(document.getElementById('p'),'::before').fontSize, getComputedStyle(document.getElementById('p'),'::before').width])",
+          "value": [
+            "50px 20px",
+            "50px 20px",
+            "50px 20px",
+            "50px 20px",
+            "30px 12px",
+            "10px",
+            "20px"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "github-underline-nav",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#w1, #w2, #i1, #i2)[1]",
+          "tag": "nav",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            800.0,
+            53.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#w1, #w2, #i1, #i2)[2]",
+          "tag": "span",
+          "index": 7,
+          "rect": [
+            40.0,
+            16.0,
+            16.0,
+            16.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#w1, #w2, #i1, #i2)[3]",
+          "tag": "nav",
+          "index": 9,
+          "rect": [
+            0.0,
+            53.0,
+            700.0,
+            52.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#w1, #w2, #i1, #i2)[4]",
+          "tag": "span",
+          "index": 12,
+          "rect": null
+        }
+      ]
+    },
+    {
+      "name": "github-banner-and-blankslate",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#b1, #b2, #b3, #s1, #s2)[1]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            400.0,
+            40.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#b1, #b2, #b3, #s1, #s2)[2]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            40.0,
+            500.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#b1, #b2, #b3, #s1, #s2)[3]",
+          "tag": "div",
+          "index": 13,
+          "rect": [
+            0.0,
+            60.0,
+            600.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#b1, #b2, #b3, #s1, #s2)[4]",
+          "tag": "div",
+          "index": 17,
+          "rect": [
+            0.0,
+            80.0,
+            544.0,
+            52.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#b1, #b2, #b3, #s1, #s2)[5]",
+          "tag": "div",
+          "index": 19,
+          "rect": [
+            0.0,
+            132.0,
+            545.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "style",
+          "label": "(#b1, #b2, #b3)[1]",
+          "style": {
+            "display": "grid"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "(#b1, #b2, #b3)[2]",
+          "style": {
+            "display": "grid"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "(#b1, #b2, #b3)[3]",
+          "style": {
+            "display": "grid"
+          }
+        }
+      ]
+    },
+    {
+      "name": "contain-size-bfc",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #a3, #p3, #a4, #p4, #n1)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            20.0,
+            800.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #a3, #p3, #a4, #p4, #n1)[2]",
+          "tag": "p",
+          "index": 5,
+          "rect": [
+            0.0,
+            20.0,
+            800.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #a3, #p3, #a4, #p4, #n1)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            70.0,
+            800.0,
+            50.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #a3, #p3, #a4, #p4, #n1)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            70.0,
+            50.0,
+            60.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #a3, #p3, #a4, #p4, #n1)[5]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            120.0,
+            800.0,
+            20.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #a3, #p3, #a4, #p4, #n1)[6]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            160.0,
+            800.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #a3, #p3, #a4, #p4, #n1)[7]",
+          "tag": "p",
+          "index": 10,
+          "rect": [
+            0.0,
+            160.0,
+            800.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #a3, #p3, #a4, #p4, #n1)[8]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            0.0,
+            220.0,
+            800.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #a3, #p3, #a4, #p4, #n1)[9]",
+          "tag": "p",
+          "index": 12,
+          "rect": [
+            0.0,
+            220.0,
+            800.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a1, #p1, #a2, #f1, #after2, #a3, #p3, #a4, #p4, #n1)[10]",
+          "tag": "div",
+          "index": 13,
+          "rect": [
+            0.0,
+            220.0,
+            800.0,
+            20.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "share-two-containers",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#t1,#t2,#t3,#u1,#u2,#u3)[1]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            5.0,
+            111.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#t1,#t2,#t3,#u1,#u2,#u3)[2]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            7.0,
+            150.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#t1,#t2,#t3,#u1,#u2,#u3)[3]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            30.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#t1,#t2,#t3,#u1,#u2,#u3)[4]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            32.0,
+            200.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#t1,#t2,#t3,#u1,#u2,#u3)[5]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            0.0,
+            55.0,
+            111.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#t1,#t2,#t3,#u1,#u2,#u3)[6]",
+          "tag": "div",
+          "index": 12,
+          "rect": [
+            0.0,
+            57.0,
+            150.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cq-font-inherit",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#p, #c)[1]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            400.0,
+            5.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#p, #c)[2]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            0.0,
+            80.0,
+            5.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "edge-values",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": ".t[1]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[2]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            2.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[3]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            4.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[4]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            6.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[5]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            8.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[6]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            0.0,
+            10.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[7]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            0.0,
+            12.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[8]",
+          "tag": "div",
+          "index": 12,
+          "rect": [
+            0.0,
+            14.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[9]",
+          "tag": "div",
+          "index": 13,
+          "rect": [
+            0.0,
+            16.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[10]",
+          "tag": "div",
+          "index": 14,
+          "rect": [
+            0.0,
+            18.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[11]",
+          "tag": "div",
+          "index": 15,
+          "rect": [
+            0.0,
+            20.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[12]",
+          "tag": "div",
+          "index": 16,
+          "rect": [
+            0.0,
+            22.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[13]",
+          "tag": "div",
+          "index": 17,
+          "rect": [
+            0.0,
+            24.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[14]",
+          "tag": "div",
+          "index": 18,
+          "rect": [
+            0.0,
+            26.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[15]",
+          "tag": "div",
+          "index": 19,
+          "rect": [
+            0.0,
+            28.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[16]",
+          "tag": "div",
+          "index": 20,
+          "rect": [
+            0.0,
+            30.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[17]",
+          "tag": "div",
+          "index": 21,
+          "rect": [
+            0.0,
+            32.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[18]",
+          "tag": "div",
+          "index": 22,
+          "rect": [
+            0.0,
+            34.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": ".t[19]",
+          "tag": "div",
+          "index": 23,
+          "rect": [
+            0.0,
+            36.0,
+            10.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "nested-contain-and-shadow-flow",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(.o, .i, .t)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            400.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(.o, .i, .t)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            300.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(.o, .i, .t)[3]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            0.0,
+            77.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(.o, .i, .t)[4]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            15.0,
+            0.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(.o, .i, .t)[5]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            15.0,
+            300.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(.o, .i, .t)[6]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            15.0,
+            77.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(.o, .i, .t)[7]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            0.0,
+            22.0,
+            800.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(.o, .i, .t)[8]",
+          "tag": "div",
+          "index": 12,
+          "rect": [
+            0.0,
+            22.0,
+            77.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "units-attr-var",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#a,#b,#c,#d,#e)[1]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            0.0,
+            150.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a,#b,#c,#d,#e)[2]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            2.0,
+            30.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a,#b,#c,#d,#e)[3]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            30.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a,#b,#c,#d,#e)[4]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            0.0,
+            32.0,
+            22.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a,#b,#c,#d,#e)[5]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            2.0,
+            34.0,
+            100.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "units-pseudo-and-sibling",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#u1,#t1,#u2,#t2)[1]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            2.0,
+            30.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#u1,#t1,#u2,#t2)[2]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            4.0,
+            10.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#u1,#t1,#u2,#t2)[3]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            102.0,
+            20.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#u1,#t1,#u2,#t2)[4]",
+          "tag": "div",
+          "index": 9,
+          "rect": [
+            0.0,
+            104.0,
+            5.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "units-attr-var-script",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(function(){var p=document.querySelector('#p'),a=document.querySelector('#a'),b=document.querySelector('#b');var r=[a.getBoundingClientRect().width];p.style.setProperty('--w','10cqw');r.push(a.getBoundingClientRect().width,b.getBoundingClientRect().width,getComputedStyle(a).width);p.style.setProperty('--w','20cqw');r.push(a.getBoundingClientRect().width,b.getBoundingClientRect().width);return r})()",
+          "value": [
+            300,
+            30,
+            20,
+            "30px",
+            60,
+            40
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #b)[1]",
+          "tag": "div",
+          "index": 6,
+          "rect": [
+            0.0,
+            0.0,
+            60.0,
+            2.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #b)[2]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            30.0,
+            40.0,
+            2.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "contain-nonbfc-intrinsic",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[1]",
+          "tag": "div",
+          "index": 4,
+          "rect": [
+            0.0,
+            0.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[2]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            0.0,
+            0.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[3]",
+          "tag": "div",
+          "index": 7,
+          "rect": [
+            0.0,
+            25.0,
+            50.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[4]",
+          "tag": "div",
+          "index": 8,
+          "rect": [
+            0.0,
+            25.0,
+            50.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[5]",
+          "tag": "div",
+          "index": 10,
+          "rect": [
+            0.0,
+            50.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[6]",
+          "tag": "div",
+          "index": 11,
+          "rect": [
+            0.0,
+            50.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[7]",
+          "tag": "div",
+          "index": 13,
+          "rect": [
+            0.0,
+            50.0,
+            60.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[8]",
+          "tag": "div",
+          "index": 14,
+          "rect": [
+            0.0,
+            50.0,
+            60.0,
+            30.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[9]",
+          "tag": "div",
+          "index": 16,
+          "rect": [
+            0.0,
+            80.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[10]",
+          "tag": "div",
+          "index": 17,
+          "rect": [
+            0.0,
+            80.0,
+            0.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[11]",
+          "tag": "div",
+          "index": 20,
+          "rect": [
+            0.0,
+            125.0,
+            800.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[12]",
+          "tag": "p",
+          "index": 21,
+          "rect": [
+            0.0,
+            125.0,
+            800.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[13]",
+          "tag": "div",
+          "index": 22,
+          "rect": [
+            0.0,
+            145.0,
+            800.0,
+            25.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[14]",
+          "tag": "p",
+          "index": 23,
+          "rect": [
+            0.0,
+            145.0,
+            800.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[15]",
+          "tag": "div",
+          "index": 24,
+          "rect": [
+            0.0,
+            190.0,
+            800.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[16]",
+          "tag": "p",
+          "index": 25,
+          "rect": [
+            0.0,
+            190.0,
+            800.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[17]",
+          "tag": "div",
+          "index": 26,
+          "rect": [
+            0.0,
+            220.0,
+            800.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[18]",
+          "tag": "p",
+          "index": 27,
+          "rect": [
+            5.0,
+            245.0,
+            790.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#f1,#i1,#f2,#i2,#f3,#i3,#f4,#i4,#f5,#i5,#s1,#sp1,#s2,#sp2,#s3,#sp3,#s4,#sp4,#n1)[19]",
+          "tag": "div",
+          "index": 28,
+          "rect": [
+            0.0,
+            230.0,
+            800.0,
+            20.0
+          ]
+        }
+      ]
+    }
+  ]
+}

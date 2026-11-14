@@ -1,0 +1,74 @@
+{
+  "cases": [
+    {
+      "name": "container-size-query",
+      "viewport": [
+        1280,
+        800
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#t, #u)[1]",
+          "tag": "p",
+          "index": 5,
+          "rect": [
+            8.0,
+            24.0,
+            10.0,
+            4.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#t, #u)[2]",
+          "tag": "p",
+          "index": 6,
+          "rect": [
+            8.0,
+            44.0,
+            300.0,
+            4.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "container-query-hides-an-item",
+      "viewport": [
+        1280,
+        800
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#b[1]",
+          "tag": "div",
+          "index": 5,
+          "rect": null
+        }
+      ]
+    },
+    {
+      "name": "container-named-and-units",
+      "viewport": [
+        1280,
+        800
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#t[1]",
+          "tag": "div",
+          "index": 5,
+          "rect": [
+            8.0,
+            8.0,
+            200.0,
+            10.0
+          ]
+        }
+      ]
+    }
+  ]
+}

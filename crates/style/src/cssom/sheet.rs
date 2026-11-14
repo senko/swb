@@ -33,9 +33,10 @@ use std::rc::{Rc, Weak};
 use std::sync::Arc;
 
 use swb_css::{
-    ComponentValue, CssRule, Declaration, FontFaceRule, ImportLayer, ImportRule, KeyframesRule,
-    LayerName, MediaQueryList, SelectorList, SupportsCondition, parse_rule, parse_stylesheet,
-    serialize_component_values, serialize_identifier, serialize_string,
+    ComponentValue, ContainerCondition, CssRule, Declaration, FontFaceRule, ImportLayer,
+    ImportRule, KeyframesRule, LayerName, MediaQueryList, SelectorList, SupportsCondition,
+    parse_rule, parse_stylesheet, serialize_component_values, serialize_identifier,
+    serialize_string,
 };
 use swb_dom::NodeId;
 use url::Url;
@@ -163,6 +164,13 @@ pub enum RuleKind {
     LayerStatement {
         /// The names, in source order.
         names: Vec<LayerName>,
+    },
+    /// `@container` (`CSSContainerRule`, ADR 0038).
+    Container {
+        /// The container name and query.
+        condition: ContainerCondition,
+        /// The rules inside.
+        rules: Vec<RuleRef>,
     },
 }
 
@@ -400,6 +408,7 @@ impl StyleSheet {
                     RuleKind::Style(style) => style.block = None,
                     RuleKind::Media { rules, .. }
                     | RuleKind::Supports { rules, .. }
+                    | RuleKind::Container { rules, .. }
                     | RuleKind::LayerBlock { rules, .. } => {
                         clear(rules);
                     }
@@ -478,7 +487,9 @@ impl Rule {
             RuleKind::Import(_) => rule_type::IMPORT,
             RuleKind::FontFace(_) => rule_type::FONT_FACE,
             RuleKind::Keyframes(_) => rule_type::KEYFRAMES,
-            RuleKind::LayerBlock { .. } | RuleKind::LayerStatement { .. } => rule_type::NONE,
+            RuleKind::LayerBlock { .. }
+            | RuleKind::LayerStatement { .. }
+            | RuleKind::Container { .. } => rule_type::NONE,
         }
     }
 
@@ -492,6 +503,7 @@ impl Rule {
         match &self.kind {
             RuleKind::Media { rules, .. }
             | RuleKind::Supports { rules, .. }
+            | RuleKind::Container { rules, .. }
             | RuleKind::LayerBlock { rules, .. } => Some(rules),
             _ => None,
         }
@@ -542,6 +554,9 @@ impl Rule {
             }
             RuleKind::Supports { text, rules, .. } => {
                 grouping_text("@supports", text, rules, quirks)
+            }
+            RuleKind::Container { condition, rules } => {
+                grouping_text("@container", &condition.to_string(), rules, quirks)
             }
             RuleKind::Import(import) => {
                 let mut out = String::from("@import url(");
@@ -639,6 +654,7 @@ pub fn insert_into_group(group: &RuleRef, text: &str, index: u32) -> Result<u32,
     let mut this = group.borrow_mut();
     if let RuleKind::Media { rules, .. }
     | RuleKind::Supports { rules, .. }
+    | RuleKind::Container { rules, .. }
     | RuleKind::LayerBlock { rules, .. } = &mut this.kind
     {
         rules.insert(at, rule);
@@ -654,6 +670,7 @@ pub fn delete_from_group(group: &RuleRef, index: u32) -> Result<RuleRef, RuleErr
     let Some(rules) = (match &mut this.kind {
         RuleKind::Media { rules, .. }
         | RuleKind::Supports { rules, .. }
+        | RuleKind::Container { rules, .. }
         | RuleKind::LayerBlock { rules, .. } => Some(rules),
         _ => None,
     }) else {
@@ -923,6 +940,13 @@ fn convert_one(
             Some(layer.rules),
         ),
         CssRule::LayerStatement(layer) => (RuleKind::LayerStatement { names: layer.names }, None),
+        CssRule::Container(container) => (
+            RuleKind::Container {
+                condition: container.condition,
+                rules: Vec::new(),
+            },
+            Some(container.rules),
+        ),
     };
     let rule = Rc::new(RefCell::new(Rule {
         kind,
@@ -941,6 +965,7 @@ fn convert_one(
         );
         if let RuleKind::Media { rules, .. }
         | RuleKind::Supports { rules, .. }
+        | RuleKind::Container { rules, .. }
         | RuleKind::LayerBlock { rules, .. } = &mut rule.borrow_mut().kind
         {
             *rules = converted;

@@ -8,7 +8,9 @@
 //!
 //! For each element:
 //!
-//! 1. Find the matching rules ([`Stylist::matching_rules`]), the
+//! 1. Find the matching rules ([`Stylist::matching_rules`]; a rule inside
+//!    `@container` matches only if its conditions are true for the
+//!    element's query containers, see [`crate::container`]), the
 //!    presentational hints ([`crate::hints`]) and the `style` attribute. In
 //!    a document with shadow trees also the rules of the element's own
 //!    shadow tree, the `:host` rules of its shadow root, the `::slotted()`
@@ -51,6 +53,8 @@
 //! ordinal values of list items.
 
 #[cfg(test)]
+mod container_tests;
+#[cfg(test)]
 mod scoping_tests;
 #[cfg(test)]
 mod top_layer_tests;
@@ -65,6 +69,7 @@ use url::Url;
 
 use crate::ComputedStyle;
 use crate::bloom::AncestorFilter;
+use crate::container::{ContainerSizes, Containers};
 use crate::custom::{compute_custom_properties, substitute};
 use crate::element::{DomElement, ElementStates, StateSet};
 use crate::hints::{HintContext, collect_hints};
@@ -78,8 +83,8 @@ use crate::properties::{
 use crate::style_map::{PseudoKind, StyleMap};
 use crate::stylist::{CascadeOrigin, Rule, RuleSet, RuleTarget, ScopeIndex, Stylist};
 use crate::values::{
-    Content, ContentItem, Display, Float, FontSizeOrigin, LengthContext, ListStylePosition,
-    ListStyleType, Overflow, TextAlign, UserSelect,
+    ContainerBasis, Content, ContentItem, Display, Float, FontSizeOrigin, LengthContext,
+    ListStylePosition, ListStyleType, Overflow, TextAlign, UserSelect, take_container_units_read,
 };
 
 /// The ratio of the default fixed (monospace) font size to the default
@@ -96,7 +101,22 @@ pub fn compute_styles(
     states: &ElementStates,
     base_url: &Url,
 ) -> StyleMap {
-    compute_styles_with_options(doc, stylist, env, states, base_url, true)
+    let sizes = ContainerSizes::new();
+    compute_styles_with_options(doc, stylist, env, states, base_url, true, &sizes)
+}
+
+/// [`compute_styles`] with the content boxes of the query containers from
+/// the last layout (ADR 0038). The result's
+/// [`StyleMap::container_log`] says what the styles read of them.
+pub fn compute_styles_with_containers(
+    doc: &Document,
+    stylist: &Stylist,
+    env: &MediaEnvironment,
+    states: &ElementStates,
+    base_url: &Url,
+    sizes: &ContainerSizes,
+) -> StyleMap {
+    compute_styles_with_options(doc, stylist, env, states, base_url, true, sizes)
 }
 
 /// [`compute_styles`] with the ancestor Bloom filter optional (tests check
@@ -108,9 +128,10 @@ fn compute_styles_with_options(
     states: &ElementStates,
     base_url: &Url,
     use_filter: bool,
+    sizes: &ContainerSizes,
 ) -> StyleMap {
     let state_set = StateSet::new(doc, states);
-    let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, use_filter);
+    let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, use_filter, sizes);
     styler.run()
 }
 
@@ -134,6 +155,21 @@ pub fn compute_element_styles(
     states: &ElementStates,
     base_url: &Url,
     node: NodeId,
+) -> Vec<(NodeId, Arc<ComputedStyle>)> {
+    let sizes = ContainerSizes::new();
+    compute_element_styles_with_containers(doc, stylist, env, states, base_url, node, &sizes)
+}
+
+/// [`compute_element_styles`] with the content boxes of the query
+/// containers from the last layout (ADR 0038).
+pub fn compute_element_styles_with_containers(
+    doc: &Document,
+    stylist: &Stylist,
+    env: &MediaEnvironment,
+    states: &ElementStates,
+    base_url: &Url,
+    node: NodeId,
+    sizes: &ContainerSizes,
 ) -> Vec<(NodeId, Arc<ComputedStyle>)> {
     let Some(root) = doc.document_element() else {
         return Vec::new();
@@ -162,7 +198,7 @@ pub fn compute_element_styles(
     // Without the per-document tables: a pass over the document would
     // cost more than the cascade of a few elements.
     let state_set = StateSet::lazy(doc, states);
-    let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, false);
+    let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, false, sizes);
     let mut parent = Arc::clone(&styler.cx.initial);
     let mut layout_parent = None;
     let mut out = Vec::with_capacity(chain.len());
@@ -177,10 +213,12 @@ pub fn compute_element_styles(
         let style = styler.style_element(&el, &parent, layout_parent, is_root);
         if is_root {
             styler.cx.root_font_size = style.font_size;
+            styler.containers.set_root_font_size(style.font_size);
         }
         if style.display != Display::Contents {
             layout_parent = Some(style.display);
         }
+        styler.containers.push(id, &style);
         parent = Arc::clone(&style);
         out.push((id, style));
     }
@@ -203,11 +241,42 @@ pub fn compute_pseudo_element_style(
     chain: &[(NodeId, Arc<ComputedStyle>)],
     kind: PseudoKind,
 ) -> Option<ComputedStyle> {
+    let sizes = ContainerSizes::new();
+    compute_pseudo_element_style_with_containers(
+        doc, stylist, env, states, base_url, chain, kind, &sizes,
+    )
+}
+
+/// [`compute_pseudo_element_style`] with the content boxes of the query
+/// containers from the last layout (ADR 0038). The originating element is
+/// a query container of its pseudo-element.
+#[allow(clippy::too_many_arguments)]
+pub fn compute_pseudo_element_style_with_containers(
+    doc: &Document,
+    stylist: &Stylist,
+    env: &MediaEnvironment,
+    states: &ElementStates,
+    base_url: &Url,
+    chain: &[(NodeId, Arc<ComputedStyle>)],
+    kind: PseudoKind,
+    sizes: &ContainerSizes,
+) -> Option<ComputedStyle> {
     let (node, style) = chain.last()?;
     let state_set = StateSet::lazy(doc, states);
-    let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, false);
+    let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, false, sizes);
     if let Some((_, root)) = chain.first() {
         styler.cx.root_font_size = root.font_size;
+        styler.containers.set_root_font_size(root.font_size);
+    }
+    for (id, s) in chain {
+        styler.containers.push(*id, s);
+        // The ancestors' `style` attributes can bring container units
+        // through `var()`.
+        if let Some(css) = doc.element(*id).and_then(|d| d.attr("style")) {
+            styler.attribute_units |=
+                DeclarationBlock::parse(&parse_style_attribute(css), &styler.author)
+                    .uses_container_units;
+        }
     }
     // The parent box of the pseudo-element: the element's, or for
     // `display: contents` that of the nearest ancestor with a box.
@@ -251,6 +320,12 @@ struct SharingKey {
     rules: Box<[u32]>,
     /// The matched rules of shadow trees (empty without them).
     scoped: Box<[ScopedMatch]>,
+    /// The nearest query container (its arena index plus one; 0 for none
+    /// or when no value can use container units, ADR 0038): elements with
+    /// the same nearest container have the same unit sizes. The query
+    /// results are in `rules` already. A plain number: one hash write and
+    /// one comparison per element on pages without container CSS.
+    container: u32,
 }
 
 /// Settings shared by all cascades of one document.
@@ -338,6 +413,18 @@ struct Styler<'a> {
     scope_cascades: Vec<Option<ScopeCascade>>,
     /// The nesting depth of each shadow root met (the document is 0).
     depths: HashMap<NodeId, u32>,
+    /// The query containers of the element being styled (ADR 0038).
+    containers: Containers<'a>,
+    /// True if some rule uses container units: then the style sharing key
+    /// holds the nearest query container. (Query results need no key: they
+    /// decide the matched rules, which the key holds.)
+    container_units: bool,
+    /// True once the walk met a `style` attribute with container units
+    /// (set by the script's `style.setProperty` too: it changes the
+    /// attribute). A custom property in it reaches the descendants through
+    /// `var()`, and the walk styles ancestors first, so from then on the
+    /// elements may use container units like those of the rules.
+    attribute_units: bool,
 }
 
 /// The evaluated `@media` conditions and the layer ranks of a scoped
@@ -385,6 +472,7 @@ impl<'a> Styler<'a> {
         env: &'a MediaEnvironment,
         base_url: &Url,
         use_filter: bool,
+        sizes: &'a ContainerSizes,
     ) -> Self {
         let quirks = stylist.quirks();
         let author = ParserContext::author(Some(Arc::new(base_url.clone())), quirks);
@@ -424,6 +512,9 @@ impl<'a> Styler<'a> {
             shadow_rules: doc.has_shadow_state() && stylist.has_shadow_rules(),
             scope_cascades: Vec::new(),
             depths: HashMap::new(),
+            containers: Containers::new(sizes, env),
+            container_units: stylist.has_container_units(),
+            attribute_units: false,
         }
     }
 
@@ -515,6 +606,7 @@ impl<'a> Styler<'a> {
             self.filter.as_ref(),
             &mut self.scratch,
             |selector| test(selector, matching),
+            &mut self.containers,
             &mut self.found,
         );
         out.extend(self.found.iter().map(|&rule| {
@@ -667,10 +759,12 @@ impl<'a> Styler<'a> {
         let quirks = self.cx.quirks;
         while let Some((node, parent, layout_parent, depth, scope)) = stack.pop() {
             while path.len() > depth {
-                if let Some(ancestor) = path.pop()
-                    && let (Some(filter), Some(e)) = (&mut self.filter, self.doc.element(ancestor))
-                {
-                    filter.pop_element(e, quirks);
+                if let Some(ancestor) = path.pop() {
+                    self.containers.pop_if(ancestor);
+                    if let (Some(filter), Some(e)) = (&mut self.filter, self.doc.element(ancestor))
+                    {
+                        filter.pop_element(e, quirks);
+                    }
                 }
             }
             let Some(el) = DomElement::new(self.doc, node, self.states) else {
@@ -681,8 +775,12 @@ impl<'a> Styler<'a> {
             let style = self.style_element(&el, &parent, layout_parent, is_root);
             if is_root {
                 self.cx.root_font_size = style.font_size;
+                self.containers.set_root_font_size(style.font_size);
             }
             if style.display != Display::None {
+                // The element is a query container of its pseudo-elements
+                // and of its descendants (ADR 0038).
+                let pushed = self.containers.push(node, &style);
                 // Children (and pseudo-elements) of the element see the
                 // element's box as their parent, or the element's own
                 // parent box for `display: contents`.
@@ -699,6 +797,8 @@ impl<'a> Styler<'a> {
                         filter.push_element(el.data(), quirks);
                     }
                     path.push(node);
+                } else if pushed {
+                    self.containers.pop_if(node);
                 }
                 let child_scope = if shadow {
                     scopes.of_children(self.doc, node, scope)
@@ -719,6 +819,7 @@ impl<'a> Styler<'a> {
         }
         self.expand_uses(&mut map);
         crate::counters::resolve(self.doc, &mut map);
+        map.set_container_log(self.containers.take_log());
         map
     }
 
@@ -740,6 +841,7 @@ impl<'a> Styler<'a> {
             self.filter.as_ref(),
             self.scope == NodeId::DOCUMENT,
             &mut self.matching,
+            &mut self.containers,
             &mut self.scratch,
             &mut matched,
         );
@@ -766,9 +868,7 @@ impl<'a> Styler<'a> {
             &self.hints,
             &mut hints,
         );
-        let style_attribute = data
-            .attr("style")
-            .map(|css| DeclarationBlock::parse(&parse_style_attribute(css), &self.author));
+        let style_attribute = self.parse_style_attribute_of(data);
         // Elements with the same parent style, the same rules and nothing
         // element-specific share one style.
         let stylist = self.cx.stylist;
@@ -792,6 +892,7 @@ impl<'a> Styler<'a> {
             contents_is_none,
             rules: matched.clone().into_boxed_slice(),
             scoped: scoped.clone().into_boxed_slice(),
+            container: self.sharing_container(),
         });
         if let Some(shared) = key.as_ref().and_then(|k| self.shared.get(k)) {
             let shared = Arc::clone(shared);
@@ -808,7 +909,7 @@ impl<'a> Styler<'a> {
             scoped: &scoped,
             own,
         };
-        let mut style = cascade(&self.cx, &rules, extra, parent, Some(data), is_root);
+        let mut style = self.cascade_with_units(&rules, extra, parent, Some(data), is_root);
         if top_layer {
             top_layer_fixup(&mut style, true);
         }
@@ -851,6 +952,70 @@ impl<'a> Styler<'a> {
             } else if is_root {
                 style.modal_inert = true;
             }
+        }
+    }
+
+    /// The declarations of the element's `style` attribute. Notes that the
+    /// walk met container units in one ([`Self::units_possible`]).
+    fn parse_style_attribute_of(&mut self, data: &ElementData) -> Option<DeclarationBlock> {
+        let block = data
+            .attr("style")
+            .map(|css| DeclarationBlock::parse(&parse_style_attribute(css), &self.author))?;
+        self.attribute_units |= block.uses_container_units;
+        Some(block)
+    }
+
+    /// True if some value of the elements styled from now on can use
+    /// container units: a rule or an ancestor's `style` attribute has them.
+    fn units_possible(&self) -> bool {
+        self.container_units || self.attribute_units
+    }
+
+    /// The nearest query container for the style sharing key, if values
+    /// can use container units ([`Self::units_possible`]).
+    fn sharing_container(&self) -> u32 {
+        if !self.units_possible() {
+            return 0;
+        }
+        self.containers
+            .nearest()
+            .map_or(0, |n| u32::try_from(n.index() + 1).unwrap_or(0))
+    }
+
+    /// Runs [`cascade`] with the container units of the viewport and, if
+    /// a value used a container unit (the computed values or `var()` can
+    /// bring them from anywhere), again with the sizes of the element's
+    /// query containers (ADR 0038). Only the second run reads the
+    /// containers, so the log records the units of the elements that use
+    /// them.
+    fn cascade_with_units(
+        &mut self,
+        rules: &MatchedRules<'_>,
+        extra: ExtraDeclarations<'_>,
+        parent: &ComputedStyle,
+        element: Option<&ElementData>,
+        is_root: bool,
+    ) -> ComputedStyle {
+        let viewport = ContainerBasis {
+            width: self.cx.env.viewport_width,
+            height: self.cx.env.viewport_height,
+        };
+        // Without container units in the rules or in the `style` attribute
+        // of the element or an ancestor no value can use one: no flag to
+        // read.
+        if !self.units_possible() || self.containers.nearest().is_none() {
+            return cascade(&self.cx, rules, extra, parent, element, is_root, viewport);
+        }
+        take_container_units_read();
+        let style = cascade(&self.cx, rules, extra, parent, element, is_root, viewport);
+        if !take_container_units_read() {
+            return style;
+        }
+        let units = self.containers.unit_basis();
+        if units == viewport {
+            style
+        } else {
+            cascade(&self.cx, rules, extra, parent, element, is_root, units)
         }
     }
 
@@ -959,6 +1124,7 @@ impl<'a> Styler<'a> {
                 self.filter.as_ref(),
                 self.scope == NodeId::DOCUMENT,
                 &mut self.matching,
+                &mut self.containers,
                 &mut self.scratch,
                 &mut matched,
             );
@@ -972,14 +1138,13 @@ impl<'a> Styler<'a> {
             self.depth(self.scope)
         };
         let boxed = matches!(kind, PseudoKind::Marker | PseudoKind::Placeholder);
-        let pseudo = (!matched.is_empty() || !scoped.is_empty() || boxed || always).then(|| {
+        let pseudo = if !matched.is_empty() || !scoped.is_empty() || boxed || always {
             let rules = MatchedRules {
                 document: &matched,
                 scoped: &scoped,
                 own,
             };
-            let mut pseudo = cascade(
-                &self.cx,
+            let mut pseudo = self.cascade_with_units(
                 &rules,
                 ExtraDeclarations::default(),
                 style,
@@ -995,8 +1160,10 @@ impl<'a> Styler<'a> {
             if !boxed {
                 apply_fixups(&mut pseudo, false, pseudo_layout_parent);
             }
-            pseudo
-        });
+            Some(pseudo)
+        } else {
+            None
+        };
         self.matched = matched;
         self.scoped_matched = scoped;
         pseudo
@@ -1291,6 +1458,7 @@ fn cascade(
     parent: &ComputedStyle,
     element: Option<&ElementData>,
     is_root: bool,
+    units: ContainerBasis,
 ) -> ComputedStyle {
     let stylist = cx.stylist;
     let document = matched.document;
@@ -1391,7 +1559,7 @@ fn cascade(
     for &i in ua.iter().rev() {
         winners.add_all(&stylist.rule(i).block.normal, Level::UserAgent, 0);
     }
-    compute(cx, &winners, parent, element, is_root)
+    compute(cx, &winners, parent, element, is_root, units)
 }
 
 /// Computes a style from the winning declarations.
@@ -1401,6 +1569,7 @@ fn compute(
     parent: &ComputedStyle,
     element: Option<&ElementData>,
     is_root: bool,
+    units: ContainerBasis,
 ) -> ComputedStyle {
     let mut style = ComputedStyle::inherit_from(parent);
     style.custom_properties =
@@ -1417,6 +1586,7 @@ fn compute(
             },
             viewport_width: env.viewport_width,
             viewport_height: env.viewport_height,
+            container: units,
         },
         element,
         quirks: cx.quirks,
@@ -2639,9 +2809,24 @@ mod tests {
             let (doc, stylist) = fixture(name, html, sheets);
             let env = MediaEnvironment::default();
             let states = ElementStates::default();
-            let with = compute_styles_with_options(&doc, &stylist, &env, &states, &base(), true);
-            let without =
-                compute_styles_with_options(&doc, &stylist, &env, &states, &base(), false);
+            let with = compute_styles_with_options(
+                &doc,
+                &stylist,
+                &env,
+                &states,
+                &base(),
+                true,
+                &ContainerSizes::new(),
+            );
+            let without = compute_styles_with_options(
+                &doc,
+                &stylist,
+                &env,
+                &states,
+                &base(),
+                false,
+                &ContainerSizes::new(),
+            );
             let mut compared = 0;
             for node in doc.descendants(NodeId::DOCUMENT) {
                 assert_eq!(with.get(node), without.get(node), "{name}: {node:?}");

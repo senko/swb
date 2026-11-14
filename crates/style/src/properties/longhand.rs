@@ -28,14 +28,14 @@ use crate::parse::{
 };
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
-    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Contain, CounterList, Cursor,
-    Direction, Display, EmptyCells, FillRule, FlexDirection, FlexWrap, Float, FontFamily,
-    FontSizeKeyword, FontStyle, FontVariantCaps, GenericFamily, Hyphens, Length, ListStylePosition,
-    ListStyleType, ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents,
-    Position, ScrollbarWidth, ShapeRendering, SpecifiedLengthPercentage as Lp, StrokeLinecap,
-    StrokeLinejoin, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow,
-    TextTransform, UnicodeBidi, UserSelect, VerticalAlignKeyword, Visibility, WhiteSpace,
-    WordBreak, ZIndex,
+    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Contain, ContainerName,
+    ContainerType, CounterList, Cursor, Direction, Display, EmptyCells, FillRule, FlexDirection,
+    FlexWrap, Float, FontFamily, FontSizeKeyword, FontStyle, FontVariantCaps, GenericFamily,
+    Hyphens, Length, ListStylePosition, ListStyleType, ObjectFit, OutlineStyle, Overflow,
+    OverflowWrap, Overlay, PointerEvents, Position, ScrollbarWidth, ShapeRendering,
+    SpecifiedLengthPercentage as Lp, StrokeLinecap, StrokeLinejoin, TableLayout, TextAlign,
+    TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi, UserSelect,
+    VerticalAlignKeyword, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 
 /// True for the properties where the quirks mode unitless length quirk
@@ -267,6 +267,8 @@ pub(crate) fn parse_longhand(
             L::ObjectFit => V::ObjectFit(keyword(p, ObjectFit::from_ident)?),
             L::ScrollbarWidth => V::ScrollbarWidth(keyword(p, ScrollbarWidth::from_ident)?),
             L::Overlay => V::Overlay(keyword(p, Overlay::from_ident)?),
+            L::ContainerType => V::ContainerType(keyword(p, ContainerType::from_ident)?),
+            L::ContainerName => V::ContainerName(parse_container_name(p)?),
             L::ObjectPosition => {
                 let (x, y) = parse_position(p)?;
                 V::ObjectPosition([x, y])
@@ -1006,6 +1008,27 @@ fn parse_contain(p: &mut Parser<'_>) -> ParseResult<Contain> {
         return Err(ParseError::Invalid);
     }
     Ok(contain)
+}
+
+/// `container-name`: `none | <custom-ident>+`, without `none`, `and`,
+/// `or`, `not` and `default` among the names (measured in Chromium 148,
+/// `supports-container-type`). The names keep their case.
+/// <https://www.w3.org/TR/css-contain-3/#container-name>
+pub(crate) fn parse_container_name(p: &mut Parser<'_>) -> ParseResult<ContainerName> {
+    if p.expect_ident_matching("none").is_ok() {
+        return Ok(None);
+    }
+    let mut names: Vec<Arc<str>> = Vec::new();
+    while let Ok(name) = p.try_parse(Parser::expect_ident) {
+        if !swb_css::is_valid_container_name(name) {
+            return Err(ParseError::Invalid);
+        }
+        names.push(name.into());
+    }
+    if names.is_empty() {
+        return Err(ParseError::Unexpected);
+    }
+    Ok(Some(Arc::new(names)))
 }
 
 /// `contain-intrinsic-width` and `-height`: `auto? [none | <length>]`.

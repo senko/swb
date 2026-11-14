@@ -232,6 +232,17 @@ interface CSSMediaRule : CSSConditionRule {
 interface CSSSupportsRule : CSSConditionRule {
 };
 
+// CSS Containment 3 (https://www.w3.org/TR/css-contain-3/#the-csscontainerrule-interface):
+// `type` is 0 (Chromium 148). Without the newer `conditions` list
+// (Chromium 148 has none: `cssom-container-rule` in
+// `tools/probes/container-queries.json`).
+
+[Exposed=Window]
+interface CSSContainerRule : CSSConditionRule {
+  readonly attribute CSSOMString containerName;
+  readonly attribute CSSOMString containerQuery;
+};
+
 // CSS Cascade 5 (https://www.w3.org/TR/css-cascade-5/#csslayerblockrule and
 // #csslayerstatementrule): the rules of `@layer`. `type` is 0 for both
 // (Chromium 148).

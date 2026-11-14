@@ -74,6 +74,7 @@ CSSGroupingRule:dwc
 CSSConditionRule:dwc
 CSSMediaRule:dwc
 CSSSupportsRule:dwc
+CSSContainerRule:dwc
 CSSLayerBlockRule:dwc
 CSSLayerStatementRule:dwc
 CSSFontFaceRule:dwc

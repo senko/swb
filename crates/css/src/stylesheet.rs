@@ -10,12 +10,14 @@
 //! ([`LayerStatementRule`]); `@import` keeps its `layer` and `layer(name)`.
 //! The model keeps the layer structure; the style crate's stylist decides
 //! the order (CSS Cascade 5, <https://www.w3.org/TR/css-cascade-5/#layering>).
+//! `@container` ([`ContainerRule`], ADR 0038) keeps its condition and rules.
 //! `@charset` is ignored. All other at-rules (`@page`, `@namespace`,
-//! `@counter-style`, `@property`, `@container`, `@-webkit-keyframes` and
-//! unknown ones) are dropped.
+//! `@counter-style`, `@property`, `@-webkit-keyframes` and unknown ones)
+//! are dropped.
 
 use std::fmt;
 
+use crate::container::ContainerCondition;
 use crate::cursor::Parser;
 use crate::media::MediaQueryList;
 use crate::selector::SelectorList;
@@ -49,6 +51,8 @@ pub enum CssRule {
     LayerBlock(LayerBlockRule),
     /// `@layer a, b.c;`.
     LayerStatement(LayerStatementRule),
+    /// `@container`.
+    Container(ContainerRule),
 }
 
 /// A style rule.
@@ -79,6 +83,15 @@ pub struct Declaration {
 pub struct MediaRule {
     /// The media query list.
     pub media: MediaQueryList,
+    /// The rules inside the block.
+    pub rules: Vec<CssRule>,
+}
+
+/// An `@container` rule (ADR 0038).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ContainerRule {
+    /// The container name and query.
+    pub condition: ContainerCondition,
     /// The rules inside the block.
     pub rules: Vec<CssRule>,
 }

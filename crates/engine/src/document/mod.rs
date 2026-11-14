@@ -303,6 +303,9 @@ pub struct DocumentState {
     pub(crate) selection: Option<Selection>,
     pub(crate) stylist: Option<Stylist>,
     pub(crate) styles: Option<StyleMap>,
+    /// The content boxes of the query containers in the last layout, for
+    /// the next style pass (ADR 0038).
+    pub(crate) container_sizes: swb_style::ContainerSizes,
     /// True if a script changed the focus and the styles that depend on
     /// `:focus` are outdated: the next style flush computes them again.
     pub(crate) styles_stale: bool,
@@ -442,6 +445,7 @@ impl DocumentState {
             selection: None,
             stylist: None,
             styles: None,
+            container_sizes: swb_style::ContainerSizes::new(),
             styles_stale: false,
             script_requests: ScriptRequests::default(),
             history: HistoryInfo::default(),

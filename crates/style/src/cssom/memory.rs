@@ -154,6 +154,10 @@ pub(crate) fn rule_bytes(rule: &CssRule) -> usize {
                 layer_name_bytes(layer.name.as_slice()) + rules_bytes(&layer.rules)
             }
             CssRule::LayerStatement(layers) => layer_name_bytes(&layers.names),
+            CssRule::Container(container) => {
+                container.condition.to_string().len().saturating_mul(16)
+                    + rules_bytes(&container.rules)
+            }
             CssRule::FontFace(face) => declarations_bytes(&face.declarations),
             CssRule::Keyframes(keyframes) => {
                 keyframes.name.len()

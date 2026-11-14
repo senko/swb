@@ -418,6 +418,8 @@ fn flushes_json(c: FlushCounters) -> Value {
         "stylist": c.stylist_runs,
         "stylistMs": ms(c.stylist_time),
         "sheetChanges": c.sheet_changes,
+        "containerPasses": c.container_passes,
+        "containerPassLimits": c.container_pass_limits,
     })
 }
 

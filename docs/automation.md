@@ -144,7 +144,8 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
     "forcedStyle": 0, "forcedStyleMs": 0.0,
     "forcedLayout": 0, "forcedLayoutMs": 0.0,
     "elementStyle": 0, "elementStyleMs": 0.0,
-    "stylist": 1, "stylistMs": 0.05, "sheetChanges": 0
+    "stylist": 1, "stylistMs": 0.05, "sheetChanges": 0,
+    "containerPasses": 0, "containerPassLimits": 0
   }
 }
 ```
@@ -168,7 +169,9 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
   after a DOM change); `stylist` counts the builds of the rule index of
   the style sheets; `sheetChanges` counts the changes of style sheets by
   scripts (CSSOM `insertRule`, `deleteRule` and the other changes of
-  rules, M9 feature 6).
+  rules, M9 feature 6); `containerPasses` counts the extra style and layout
+  runs of container queries and `containerPassLimits` the layout flushes that
+  stopped at their bound (ADR 0038 section 4).
 
 ### Frames
 

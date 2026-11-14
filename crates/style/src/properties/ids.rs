@@ -23,13 +23,14 @@ use crate::parse::image::SpecifiedImage;
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
     BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color, CompositeOperator, Contain,
-    CounterList, Cursor, Direction, Display, EmptyCells, FillRule, FlexDirection, FlexWrap, Float,
-    FontFamily, FontStyle, FontVariantCaps, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens,
-    ListStylePosition, ListStyleType, MaskClip, MaskMode, ObjectFit, OutlineStyle, Overflow,
-    OverflowWrap, Overlay, PointerEvents, Position, ScrollbarWidth, ShapeRendering,
-    SpecifiedLengthPercentage as Lp, SpecifiedTrackList, SpecifiedTrackSize, StrokeLinecap,
-    StrokeLinejoin, SvgPaint, TableLayout, TextDecorationLine, TextDecorationStyle, TextOverflow,
-    TextTransform, UnicodeBidi, UserSelect, Visibility, WhiteSpace, WordBreak, ZIndex,
+    ContainerName, ContainerType, CounterList, Cursor, Direction, Display, EmptyCells, FillRule,
+    FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontVariantCaps, GridAutoFlow, GridLine,
+    GridTemplateAreas, Hyphens, ListStylePosition, ListStyleType, MaskClip, MaskMode, ObjectFit,
+    OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents, Position, ScrollbarWidth,
+    ShapeRendering, SpecifiedLengthPercentage as Lp, SpecifiedTrackList, SpecifiedTrackSize,
+    StrokeLinecap, StrokeLinejoin, SvgPaint, TableLayout, TextDecorationLine, TextDecorationStyle,
+    TextOverflow, TextTransform, UnicodeBidi, UserSelect, Visibility, WhiteSpace, WordBreak,
+    ZIndex,
 };
 
 macro_rules! longhands {
@@ -266,6 +267,8 @@ longhands! {
     CounterIncrement "counter-increment" reset counter_increment: CounterList;
     CounterSet "counter-set" reset counter_set: CounterList;
     Contain "contain" reset contain: Contain;
+    ContainerType "container-type" reset container_type: ContainerType;
+    ContainerName "container-name" reset container_name: ContainerName;
     ContainIntrinsicWidth "contain-intrinsic-width" reset contain_intrinsic_width: SpecifiedContainIntrinsic;
     ContainIntrinsicHeight "contain-intrinsic-height" reset contain_intrinsic_height: SpecifiedContainIntrinsic;
     ObjectFit "object-fit" reset object_fit: ObjectFit;

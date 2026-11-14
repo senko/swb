@@ -77,6 +77,8 @@ pub(crate) enum Ser {
     ColorScheme,
     /// `touch-action`: the keywords in a fixed order.
     TouchAction,
+    /// `container-name`: names that keep their case, `none` in lower case.
+    Names,
 }
 
 /// A longhand of a declaration block.
@@ -131,6 +133,8 @@ pub(crate) enum Kind {
     /// `transition`: comma-separated layers; each longhand is the list
     /// of its values per layer.
     Transition,
+    /// `container`: `name [/ type]`.
+    Container,
 }
 
 /// A shorthand.
@@ -679,6 +683,11 @@ const SHORTHANDS: &[Shorthand] = &[
         Kind::Pair,
     ),
     sh(
+        "container",
+        &["container-name", "container-type"],
+        Kind::Container,
+    ),
+    sh(
         "place-content",
         &["align-content", "justify-content"],
         Kind::Pair,
@@ -773,6 +782,7 @@ fn ser_of(name: &str) -> Ser {
         "display" => Ser::Display,
         "text-decoration-line" => Ser::DecorationLine,
         "contain" => Ser::Contain,
+        "container-name" => Ser::Names,
         "justify-items" => Ser::JustifyItems,
         "align-items" | "align-self" | "justify-self" | "align-content" => Ser::Alignment,
         "grid-row-start" | "grid-row-end" | "grid-column-start" | "grid-column-end" => {

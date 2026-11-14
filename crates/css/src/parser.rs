@@ -15,21 +15,23 @@
 //!
 //! - Nested style rules (CSS Nesting) and at-rules nested inside style rules
 //!   are parsed for error recovery and then dropped.
-//! - Inside `@media`, `@supports` and `@layer` blocks, the parser does not
-//!   try declarations first (declarations are not valid there). The result
-//!   is the same, because nested rules there stop at `;`.
+//! - Inside `@media`, `@supports`, `@layer` and `@container` blocks, the
+//!   parser does not try declarations first (declarations are not valid
+//!   there). The result is the same, because nested rules there stop at
+//!   `;`.
 //! - Blocks nested deeper than [`MAX_NESTING_DEPTH`] are skipped, so that
 //!   hostile input cannot overflow the stack.
 
 use log::{debug, warn};
 
+use crate::container::ContainerCondition;
 use crate::cursor::ParseError;
 use crate::media::MediaQueryList;
 use crate::selector::SelectorList;
 use crate::serialize::{DisplayValues, serialize_component_values};
 use crate::stylesheet::{
-    CssRule, Declaration, FontFaceRule, ImportRule, Keyframe, KeyframesRule, LayerBlockRule,
-    LayerName, LayerStatementRule, MediaRule, StyleRule, Stylesheet, SupportsRule,
+    ContainerRule, CssRule, Declaration, FontFaceRule, ImportRule, Keyframe, KeyframesRule,
+    LayerBlockRule, LayerName, LayerStatementRule, MediaRule, StyleRule, Stylesheet, SupportsRule,
 };
 use crate::supports::SupportsCondition;
 use crate::tokenizer::{Token, Tokenizer, preprocess};
@@ -152,7 +154,7 @@ pub(crate) fn parse_declaration_from_values(values: &[ComponentValue]) -> Option
 enum Context {
     /// The top level of a stylesheet.
     TopLevel,
-    /// Inside `@media`, `@supports` or `@layer`.
+    /// Inside `@media`, `@supports`, `@layer` or `@container`.
     Grouping,
     /// Inside a style rule (or a `style` attribute).
     Style,
@@ -335,6 +337,19 @@ impl<'a> RuleParser<'a> {
                 let media = MediaQueryList::parse(prelude);
                 let rules = self.consume_rule_block();
                 out.push(CssRule::Media(MediaRule { media, rules }));
+            }
+            // https://www.w3.org/TR/css-contain-3/#container-rule
+            ("container", true) if holds_rules => {
+                if let Some(condition) = ContainerCondition::parse(prelude) {
+                    let rules = self.consume_rule_block();
+                    out.push(CssRule::Container(ContainerRule { condition, rules }));
+                } else {
+                    debug!(
+                        "dropped @container with invalid condition `{}`",
+                        DisplayValues(prelude)
+                    );
+                    self.skip_block(BlockKind::Curly);
+                }
             }
             ("supports", true) if holds_rules => {
                 if let Ok(condition) = SupportsCondition::parse(prelude) {
@@ -763,6 +778,7 @@ fn layer_statement_names(prelude: &[ComponentValue]) -> Option<Vec<LayerName>> {
 /// At-rules that [`parse_rule`] accepts: those that the stylesheet model
 /// keeps as rules.
 const RULE_AT_RULES: &[&str] = &[
+    "container",
     "media",
     "supports",
     "import",
@@ -1092,6 +1108,7 @@ mod tests {
                 CssRule::Keyframes(_) => "keyframes",
                 CssRule::LayerBlock(_) => "layer",
                 CssRule::LayerStatement(_) => "layer-statement",
+                CssRule::Container(_) => "container",
             })
             .collect();
         assert_eq!(
@@ -1176,6 +1193,35 @@ mod tests {
             panic!("expected nested @media");
         };
         assert_eq!(inner.rules.len(), 1);
+    }
+
+    #[test]
+    fn container_rules_nest_and_invalid_ones_drop() {
+        let sheet = parse_stylesheet(
+            "@container card (width > 1px) { a { x: y } @media screen { b { x: y } } \
+             @container (height > 0px) { c { x: y } } } \
+             @media screen { @container (width > 0px) { d { x: y } } } \
+             @container none (width > 1px) { e { x: y } } @container { f { x: y } } \
+             @container (width > 1px) and (width < 2px) or (width > 3px) { g { x: y } } h { x: y }",
+        );
+        assert_eq!(sheet.rules.len(), 3, "{:?}", sheet.rules);
+        let CssRule::Container(outer) = &sheet.rules[0] else {
+            panic!("expected @container");
+        };
+        assert_eq!(outer.condition.name(), Some("card"));
+        assert!(matches!(
+            &outer.rules[..],
+            [CssRule::Style(_), CssRule::Media(_), CssRule::Container(_)]
+        ));
+        let CssRule::Media(media) = &sheet.rules[1] else {
+            panic!("expected @media");
+        };
+        assert!(matches!(&media.rules[..], [CssRule::Container(_)]));
+        assert!(matches!(
+            parse_rule("@container (width > 1px) { a { x: y } }"),
+            Ok(CssRule::Container(_))
+        ));
+        assert!(parse_rule("@container { a { x: y } }").is_err());
     }
 
     #[test]

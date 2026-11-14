@@ -4,6 +4,39 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-14: M10 7a: container queries
+
+- Feature 7 is split: 7a `@container` (ADR 0038), 7b the other small CSS
+  features. `@container` with names and the size features in the range
+  syntax, `container-type`, `container-name`, `container`, the `cq*`
+  units and `CSSContainerRule`. The query container lookup follows
+  Chromium 148 (42 probe cases): the nearest flat tree ancestor with the
+  name whose type supports every queried axis; a container without a
+  usable box shadows the outer ones; an unknown feature makes the query
+  false; names are not scoped by tree.
+- Style and layout stay two whole-document stages. Style uses the
+  container sizes of the last layout; after layout, if a query result or
+  a unit changed, both run again, at most 4 extra times per flush. The
+  first rendering of a page whose queries are true at the real size costs
+  one extra pass; no target page needs one. `getComputedStyle` of an
+  element inside a container forces a layout.
+- `container-type` and `contain: size`, `inline-size` and `strict` now act
+  in layout (an empty box's intrinsic sizes and auto height, or
+  `contain-intrinsic-size`); only `container-type` makes an independent
+  formatting context.
+- The review found three bugs, all measured: the first version gave
+  `contain: size` alone a formatting context (a regression: margins no
+  longer collapsed through it); a `cq` value in a custom property of an
+  ancestor's `style` attribute resolved against the viewport; some query
+  edges of a container of height 0 (`(aspect-ratio)`, `calc(1px / 0)`,
+  `lh`) differed.
+- Scores unchanged JS on and off; the JS-off snapshot changes only GitHub
+  at 700x900 (the repository tabs lose their icons under 48rem, as in
+  Chromium); callgrind +0.20 % (Wikipedia), +0.07 % (Ars Technica),
+  +0.01 % (BBC); one extra pass costs 28.6 ms on GitHub (JS on).
+- Next: 7b (`@property`, `field-sizing`, `color-mix()` with
+  `currentcolor`, the computed value of `content-visibility`).
+
 ## 2026-11-14: M10 6e: modal inertness; feature 6 complete
 
 - While a modal dialog is in the top layer, everything outside it is
