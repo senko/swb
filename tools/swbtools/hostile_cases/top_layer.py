@@ -1,6 +1,6 @@
-"""Popovers and the top layer (ADR 0037 section 12; sub-feature 6a: the
-popover model, the algorithms and the bindings; 6b: the top layer in
-rendering)."""
+"""Popovers, dialogs and the top layer (ADR 0037 section 12; sub-feature 6a:
+the popover model, the algorithms and the bindings; 6b: the top layer in
+rendering; 6c: popover interaction; 6d: dialogs)."""
 
 import json
 
@@ -213,18 +213,21 @@ def invoker_chain_10000_js_off() -> Page:
 @case(
     "100,000 watchers made and destroyed: a script shows 100,000 popovers (auto and hint ones, "
     "each show hides the one before, so one is open at the end) without any user activation, "
-    "then Escape; a timer logs `watchers ok` (ADR 0037 section 12, sub-feature 6c; watchers that "
-    "stay alive together exist only with nested popovers, see `popover-nested-auto-10000`; the "
-    "dialogs come with 6d)",
+    "and opens and closes a dialog 100,000 times (`show()` and `showModal()` in turn, each with "
+    "a close watcher, a `close` task each), the last one left open as a modal dialog; then "
+    "Escape closes both; a timer logs `watchers ok` (ADR 0037 section 12, sub-features 6c and "
+    "6d; watchers that stay alive together exist with nested popovers, see "
+    "`popover-nested-auto-10000`, and with stacked dialogs, see `dialog-showmodal-1000-stacked`)",
     time_limit_s=20,
-    expect_log="watchers ok 0",
+    expect_log="watchers ok 0 false",
     rss_limit_mib=600,
     swb_args=steps_args(
         [
             {"key": "Escape"},
             {
                 "eval": "console.warn('watchers ok ' + "
-                "document.querySelectorAll(':popover-open').length), 1"
+                "document.querySelectorAll(':popover-open').length + ' ' + "
+                "document.getElementById('d').open), 1"
             },
             {"wait": 50},
         ]
@@ -234,6 +237,43 @@ def close_watchers_100000_without_activation() -> Page:
     script = (
         "<script>for (let i = 0; i < 100000; i++) { const d = document.createElement('div'); "
         "d.popover = i % 2 ? 'auto' : 'hint'; document.body.appendChild(d); d.showPopover(); }"
-        "</script>"
+        "const g = document.getElementById('d'); "
+        "for (let i = 0; i < 100000; i++) { if (i % 2) g.show(); else g.showModal(); "
+        "g.close(); } g.showModal();</script>"
+    )
+    return Page(doc("<dialog id=d><button>in</button></dialog>" + script))
+
+
+@case(
+    "1,000 modal dialogs opened by a script (one close watcher group: no user activation), "
+    "then Escape 1,000 times: the first Escape closes all of them, the newest first, each with "
+    "a `cancel` that cannot be canceled and a focus restoration; the others find no watcher; "
+    "a timer logs `stacked ok` with the open count before and after (ADR 0037 sections 6 and "
+    "12, sub-feature 6d)",
+    time_limit_s=20,
+    expect_log="stacked ok 1000 0",
+    rss_limit_mib=400,
+    swb_args=steps_args(
+        [
+            {
+                "eval": "window.__before = document.querySelectorAll('dialog:modal').length, 1",
+            }
+        ]
+        + [{"key": "Escape"}] * 1000
+        + [
+            {
+                "eval": "console.warn('stacked ok ' + window.__before + ' ' + "
+                "document.querySelectorAll('dialog[open]').length), 1"
+            },
+            {"wait": 50},
+        ]
+    ),
+)
+def dialog_showmodal_1000_stacked() -> Page:
+    script = (
+        "<script>let cancels = 0; for (let i = 0; i < 1000; i++) { "
+        "const d = document.createElement('dialog'); d.innerHTML = '<button>b' + i + '</button>'; "
+        "d.addEventListener('cancel', e => { cancels++; e.preventDefault(); }); "
+        "document.body.appendChild(d); d.showModal(); }</script>"
     )
     return Page(doc(script))

@@ -4377,6 +4377,332 @@
      "wait": 500
     }
    ]
+  },
+  {
+   "name": "r-nested-requestclose",
+   "html": "<!DOCTYPE html><html><body><dialog id=d>x<button id=b>b</button></dialog><script>var L=[];</script></body></html>",
+   "measure": [
+    {
+     "js": "(function(){d.showModal();d.addEventListener('cancel',function(){L.push('c1');d.requestClose('B');L.push('nested-open='+d.open)},{once:true});d.requestClose('A');L.push('end open='+d.open+' rv='+d.returnValue);return L.join(' ')})()"
+    }
+   ]
+  },
+  {
+   "name": "r-remove-in-cancel",
+   "html": "<!DOCTYPE html><html><body><dialog id=d>x</dialog><script>var L=[];d.addEventListener('close',function(){L.push('close')});</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){var D=d;D.showModal();D.addEventListener('cancel',function(){L.push('cancel');D.remove()},{once:true});D.requestClose('A');L.push('open='+D.open+' rv='+D.returnValue+' conn='+D.isConnected+' modal='+D.matches(':modal'));setTimeout(function(){r(L.join(' '))},30)})"
+    }
+   ]
+  },
+  {
+   "name": "r-hidden-focus",
+   "html": "<!DOCTYPE html><html><head><style>#d{display:none !important} #e{visibility:hidden}</style></head><body><dialog id=d tabindex=0>x</dialog><dialog id=e>e</dialog><button id=b>b</button></body></html>",
+   "measure": [
+    {
+     "js": "(function(){b.focus();d.show();var a=document.activeElement.localName+'#'+document.activeElement.id;d.close();return a})()"
+    },
+    {
+     "js": "(function(){b.focus();e.show();var a=document.activeElement.localName+'#'+document.activeElement.id;e.close();return a})()"
+    },
+    {
+     "js": "(function(){b.focus();d.showModal();var a=document.activeElement.localName+'#'+document.activeElement.id;d.close();return a})()"
+    }
+   ]
+  },
+  {
+   "name": "r-adopt",
+   "html": "<!DOCTYPE html><html><body><dialog id=d>x</dialog><iframe id=f></iframe></body></html>",
+   "measure": [
+    {
+     "js": "(function(){var D=f.contentDocument,x=d;x.showModal();x.returnValue='x';D.adoptNode(x);var a=[x.open,x.returnValue,x.matches(':modal'),x.ownerDocument===D].join();D.body.appendChild(x);a+=' | '+[x.open,x.returnValue,x.matches(':modal')].join();try{x.close('y');a+=' | '+x.returnValue+' '+x.open}catch(e){a+=' | '+e.name}return a})()"
+    }
+   ]
+  },
+  {
+   "name": "q-close-other",
+   "html": "<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}function OP(){var a=[];document.querySelectorAll('dialog,[popover]').forEach(function(e){if(e.matches(':popover-open')||e.open)a.push(e.id+(e.matches(':modal')?'*':''))});return 'open='+a.join(',')}</script><dialog id=d1>1</dialog><dialog id=d2>2</dialog><dialog id=d3>3</dialog><div id=pp popover>p</div><script>d2.addEventListener('cancel',function(){p('c2');d1.close('z')});d1.addEventListener('cancel',function(){p('c1')});d1.addEventListener('close',function(){p('close1')});addEventListener('load',function(){d1.showModal();d2.showModal();L.length=0})</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})"
+    }
+   ],
+   "steps": [
+    {
+     "key": "Escape"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "p('E1 '+OP())"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "p('E2 '+OP())"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "p('E3 '+OP())"
+    }
+   ]
+  },
+  {
+   "name": "q-show-in-cancel",
+   "html": "<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}function OP(){var a=[];document.querySelectorAll('dialog,[popover]').forEach(function(e){if(e.matches(':popover-open')||e.open)a.push(e.id+(e.matches(':modal')?'*':''))});return 'open='+a.join(',')}</script><dialog id=d1>1</dialog><dialog id=d2>2</dialog><dialog id=d3>3</dialog><div id=pp popover>p</div><script>d2.addEventListener('cancel',function(){p('c2');d3.showModal()});d3.addEventListener('cancel',function(){p('c3')});d1.addEventListener('cancel',function(){p('c1')});addEventListener('load',function(){d1.showModal();d2.showModal();L.length=0})</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})"
+    }
+   ],
+   "steps": [
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('E1 '+OP())"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('E2 '+OP())"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('E3 '+OP())"
+    }
+   ]
+  },
+  {
+   "name": "q-reshow-in-cancel",
+   "html": "<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}function OP(){var a=[];document.querySelectorAll('dialog,[popover]').forEach(function(e){if(e.matches(':popover-open')||e.open)a.push(e.id+(e.matches(':modal')?'*':''))});return 'open='+a.join(',')}</script><dialog id=d1>1</dialog><dialog id=d2>2</dialog><dialog id=d3>3</dialog><div id=pp popover>p</div><script>d2.addEventListener('cancel',function(){p('c2');d2.close();d2.showModal()});d1.addEventListener('cancel',function(){p('c1')});addEventListener('load',function(){d1.showModal();d2.showModal();L.length=0})</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})"
+    }
+   ],
+   "steps": [
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('E1 '+OP())"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('E2 '+OP())"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('E3 '+OP())"
+    }
+   ]
+  },
+  {
+   "name": "q-popover-in-cancel",
+   "html": "<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}function OP(){var a=[];document.querySelectorAll('dialog,[popover]').forEach(function(e){if(e.matches(':popover-open')||e.open)a.push(e.id+(e.matches(':modal')?'*':''))});return 'open='+a.join(',')}</script><dialog id=d1>1</dialog><dialog id=d2>2</dialog><dialog id=d3>3</dialog><div id=pp popover>p</div><script>d2.addEventListener('cancel',function(){p('c2');pp.showPopover()});d1.addEventListener('cancel',function(){p('c1')});addEventListener('load',function(){d1.showModal();d2.showModal();L.length=0})</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})"
+    }
+   ],
+   "steps": [
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('E1 '+OP())"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('E2 '+OP())"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('E3 '+OP())"
+    }
+   ]
+  },
+  {
+   "name": "q-removeopen-in-cancel",
+   "html": "<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}function OP(){var a=[];document.querySelectorAll('dialog,[popover]').forEach(function(e){if(e.matches(':popover-open')||e.open)a.push(e.id+(e.matches(':modal')?'*':''))});return 'open='+a.join(',')}</script><dialog id=d1>1</dialog><dialog id=d2>2</dialog><dialog id=d3>3</dialog><div id=pp popover>p</div><script>d1.addEventListener('cancel',function(){p('c1');d1.removeAttribute('open')});d1.addEventListener('close',function(){p('close1')});addEventListener('load',function(){d1.showModal();L.length=0})</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})"
+    }
+   ],
+   "steps": [
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('E1 '+OP())"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('E2 '+OP())"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('E3 '+OP())"
+    }
+   ]
+  },
+  {
+   "name": "q-remove-reinsert",
+   "html": "<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}function OP(){var a=[];document.querySelectorAll('dialog,[popover]').forEach(function(e){if(e.matches(':popover-open')||e.open)a.push(e.id+(e.matches(':modal')?'*':''))});return 'open='+a.join(',')}</script><dialog id=d1>1</dialog><dialog id=d2>2</dialog><dialog id=d3>3</dialog><div id=pp popover>p</div><script>d1.addEventListener('cancel',function(){p('c1')});p(0);addEventListener('load',function(){d1.showModal();var x=d1;x.remove();document.body.appendChild(x);L.length=0})</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})"
+    }
+   ],
+   "steps": [
+    {
+     "eval": "p('S '+OP()+' modal='+d1.matches(':modal'))"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('E1 '+OP())"
+    },
+    {
+     "eval": "try{d1.showModal()}catch(e){p(e.name)};p('after '+OP())"
+    }
+   ]
+  },
+  {
+   "name": "n-noWatchers-first",
+   "html": "<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}</script><dialog id=d>d</dialog><div id=pp popover>p</div><script>d.addEventListener('cancel',function(e){p('cancel cancelable='+e.cancelable);e.preventDefault()})</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})"
+    }
+   ],
+   "steps": [
+    {
+     "key": "a"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "d.showModal()"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('open='+d.open)"
+    }
+   ]
+  },
+  {
+   "name": "n-noWatchers-two",
+   "html": "<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}</script><dialog id=d>d</dialog><div id=pp popover>p</div><script>d.addEventListener('cancel',function(e){p('cancel cancelable='+e.cancelable);e.preventDefault()})</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})"
+    }
+   ],
+   "steps": [
+    {
+     "key": "a"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "d.showModal()"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('open='+d.open)"
+    }
+   ]
+  },
+  {
+   "name": "n-after-popover",
+   "html": "<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}</script><dialog id=d>d</dialog><div id=pp popover>p</div><script>d.addEventListener('cancel',function(e){p('cancel cancelable='+e.cancelable);e.preventDefault()})</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})"
+    }
+   ],
+   "steps": [
+    {
+     "eval": "pp.showPopover();pp.hidePopover()"
+    },
+    {
+     "key": "a"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "d.showModal()"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('open='+d.open)"
+    }
+   ]
+  },
+  {
+   "name": "n-baseline",
+   "html": "<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}</script><dialog id=d>d</dialog><div id=pp popover>p</div><script>d.addEventListener('cancel',function(e){p('cancel cancelable='+e.cancelable);e.preventDefault()})</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})"
+    }
+   ],
+   "steps": [
+    {
+     "key": "a"
+    },
+    {
+     "eval": "d.showModal()"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "p('open='+d.open)"
+    }
+   ]
   }
  ]
 }

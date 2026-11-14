@@ -716,15 +716,22 @@ unless named):
   30 Tab presses and 30 clicks outside (the Tab walk skips inert
   subtrees at their root).
 - `dialog-showmodal-1000-stacked`: 1,000 modal dialogs, then Escape 1,000
-  times.
+  times. A script opens them without a user activation, so their watchers
+  share one group: the first Escape closes all of them (each `cancel` cannot
+  be canceled, although each has a listener that tries), the others find
+  no watcher (6d).
 - `top-layer-backdrop-filter-1000`: 1,000 open popovers with
   `::backdrop { backdrop-filter: blur(20px) }` (ADR 0033's budgets apply).
 - `close-watchers-100000-without-activation`: 100,000 watchers made and
   destroyed: a script shows 100,000 auto and hint popovers without a user
   activation (each show hides the earlier ones, so one popover is open at
   the end), then one Escape. It does not test a group of 100,000 watchers:
-  watchers that stay alive together exist only with nested popovers (see
-  `popover-nested-auto-10000`). The dialogs come with 6d.
+  watchers that stay alive together exist with nested popovers (see
+  `popover-nested-auto-10000`) and stacked dialogs (see
+  `dialog-showmodal-1000-stacked`). Since 6d the script also opens and
+  closes one dialog 100,000 times (`show()` and `showModal()` in turn, a
+  watcher and a `close` task each) and leaves it open as a modal dialog,
+  which the Escape closes too.
 - `invoker-chain-10000-js-off`: 10,000 nested popovers each with the
   invoker of the next; with JavaScript off, 10 clicks on the first 10
   invokers (not on the whole chain), then a click outside.
@@ -1433,3 +1440,116 @@ callgrind); each hook is one test of the top layer. Hostile cases:
    writes both. The cases `xo-act-after-*` fail if the copy is missing or the
    rule is by origin.
 6. *Docs.* The number of new cases is 76 (it said 66).
+
+## 6d implementation notes
+
+Facts of sub-feature 6d (dialogs) that differ from the sections or that 6e
+needs. Code: `crates/dom/src/top_layer/dialog.rs` (`show_dialog`,
+`show_modal`, `close_dialog`, `request_close_dialog`, `ClosedBy`, the setup
+and cleanup steps, the dialog focusing steps, `dialog_form_target`),
+`top_layer/watchers.rs` (`request_close`, the dialog watchers),
+`top_layer/dismiss.rs` (`light_dismiss_dialogs_down` and `_up`),
+`top_layer.rs` (`DialogData`, the open dialogs list, the new host methods),
+`tree.rs` (the bit `DIALOG_OPEN`), `mutation.rs` (the removal of `open`);
+`crates/web/src/html/dialog.rs` (`HTMLDialogElement`, `Task::DialogToggle`,
+`Task::DialogClose`, the form method `dialog`), `html/popover.rs` (the host
+methods), `html/focus.rs` (`focus_dialog`), `html/activation.rs`;
+`crates/engine/src/page/forms.rs`, `page/popovers.rs`, `forms/submit.rs`,
+`document/top_layer.rs`; `crates/web/idl/html.idl`.
+
+**The `cancel` model check** (section 6 asked for it). The HTML Standard of
+2026-11-14 has a step that section 6 left out: "process close watchers" ends
+with "if the allowed number of groups is greater than 1, decrement it by 1".
+With it the standard gives every measured sequence, the three `xo-escape-*`
+cases included. `xo-escape-cancel-click-between`: the dialog's watcher is
+made at `load` (one group; "next user interaction allows a new group" is
+true); click 1: allowed 2, the flag false, a history-action activation;
+Escape 1: 1 < 2 and the activation: `cancel` is cancelable, the listener
+cancels it, the activation is consumed, and the decrement gives allowed 1;
+click 2: a new history-action activation, but the flag is still false (no
+watcher was made since click 1), so allowed stays 1; Escape 2: 1 < 1 is
+false: not cancelable, the dialog closes (measured). Without the decrement
+the standard would make the second `cancel` cancelable. swb has the step
+now (also for popovers: the 6c cases keep their values), with one departure
+(review fix 1): the standard's step 3 is outside "if the groups are not
+empty", so it lowers the number also at an Escape with nothing open;
+Chromium does not (`n-noWatchers-first`: key, Escape, `showModal()`, Escape:
+the `cancel` is cancelable), and swb follows Chromium. `requestClose()`
+and light dismiss request close without the history-action condition
+(`cancel` always cancelable; measured: `dialog-basics` #12 after a consumed
+activation).
+
+**Who has a watcher.** As the standard (not as section 6 said): every dialog
+that `show()` or `showModal()` opened while connected in the document has a
+close watcher from the open to the close (HTML "dialog setup steps" and
+"cleanup steps"), and its enabled state is read at each request: enabled if
+the computed closed-by state is not "none" or a `requestClose()` runs. A plain
+non-modal dialog has a disabled watcher: Escape skips it but it takes its
+place in the groups. A parsed or script-set `open` attribute does not run the
+setup steps (no case; Escape and light dismiss see only dialogs that the
+methods opened). The rows that section 6 measured are the same with both
+models (`escape-nonmodal-and-closedby`, `noscript-dialog-escape`).
+
+**Measured answers that the design did not have** (all from the existing
+cases, no new probe case):
+
+1. `requestSubmit()` and `submit()` of a `method=dialog` form close the
+   dialog with `returnValue` `""` (`dialog-form` #7); the standard's result
+   is null, which keeps the value. swb gives `""` without a submitter.
+2. The dialog takes the focus itself when it has no focusable descendant
+   (`dialog-focus` #3), although it is no focusable area: the hosts have
+   `focus_dialog`, which skips the focusable check. The click focus on the
+   backdrop (`inert-closedby-any`) is 6e's.
+3. A `<dialog popover>` has two toggle task trackers (`dialog-basics` #13:
+   two `toggle` events); `DialogData` keeps the dialog's.
+4. The dialog focusing steps: the first `autofocus` descendant, else the
+   first element of the flat tree that the host can focus, else the dialog;
+   at most 100,000 nodes are visited. The focus goes back at the close if it
+   is inside the dialog or the dialog was modal (the standard's rule; section
+   5 said "always").
+5. Removing `open` from a modal dialog (section 11) runs the cleanup steps:
+   the watcher goes, the dialog stays modal and in the top layer.
+
+**Departures** (the rows that stay): `api-surface` #4 (no `CommandEvent`,
+no `CloseWatcher`: backlog); `inert-closedby-any` #1 in `popover_input.rs`
+(the backdrop click does not focus the dialog: 6e); `top-layer-hit-order`
+rows 5 to 7 stay in `TOP_LAYER_LATER` for 6e (rows 8 to 10 run). The `toggle`
+events of the `escape-*` logs are compared merged per element (6c's
+`canon`); the order of a dialog's `toggle` and `close` is not checked there,
+and `dialog-basics` sorts it (`NZ`): swb queues `toggle` first (section 11).
+
+**Review fixes.** (1) "Process close watchers" lowers the allowed number of
+groups only if the manager has a group (departure from the standard, above;
+cases `n-noWatchers-first`, `-two`, `n-after-popover`, `n-baseline`).
+(2) "Request to close" of a dialog watcher: a request inside the cancel
+action of the same watcher returns true at once, with no close (`r-nested-
+requestclose`: the nested `requestClose('B')` leaves `open` true; the outer
+request closes with `B`); after the cancel action the close action runs only
+if the watcher is still the one that the request started with: each watcher
+has a serial (`CloseWatchers::serials`), so a listener that removes the
+dialog (`r-remove-in-cancel`: `open` stays, no `close` event) or closes and
+shows it again (`q-reshow-in-cancel`: `cancel` at each Escape) ends the
+request. The cases `q-close-other`, `q-show-in-cancel`, `q-popover-in-cancel`,
+`q-removeopen-in-cancel` and `q-remove-reinsert` already matched and stay as
+tests. (3) `focus_dialog` focuses only a dialog that is rendered (not in a
+closed `details`, no `display: none` on it or an ancestor, not
+`visibility: hidden`): Chromium keeps no focus then, and the element that had
+it gets `blur` and `focusout` with no related target; `activeElement` is
+`body` (`r-hidden-focus`, `show()` and `showModal()`). (4) `returnValue`
+goes with an adopted dialog: `take_subtree` returns the values of the
+dialogs of the subtree and `put_subtree` sets them on the copies (`r-adopt`;
+`cloneNode` and `importNode` do not copy it). `q-close-other` has a 100 ms
+wait after each Escape: the `close` task of the other dialog runs before or
+after the next evaluation otherwise.
+
+**Numbers** (release builds of 48e3a7a and 6d on the same machine): `just
+snapshot` (JavaScript off, 370 files) byte-identical; `compare --all` and
+`compare --all --js` identical to the base (GitHub with JavaScript on:
+geometry 0.9115, pixels 0.9934); callgrind of `swb --headless --replay` with
+JavaScript off: Wikipedia -0.001 %, Ars Technica -0.022 %, BBC -0.017 %;
+GitHub with JavaScript on: a headless load in 0.472 s (median of 5; base
+0.474 s). Hostile cases: `dialog-showmodal-1000-stacked` 0.20 s, 72 MiB;
+`close-watchers-100000-without-activation` 2.56 s, 288 MiB (6c: 0.45 s; the
+100,000 dialog opens and closes, each with its events, a `close` task and the
+dialog focusing steps, take the difference); the whole set passes (466 ok,
+the known failure `nest-div-100000`).

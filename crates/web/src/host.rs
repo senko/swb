@@ -770,6 +770,15 @@ pub trait EngineHost: Any {
         false
     }
 
+    /// True if `node` is connected and rendered as `can_focus` says (no
+    /// `display: none` on it or an ancestor, not `visibility: hidden`), also
+    /// if it is no focusable area: a dialog takes the focus itself only
+    /// if it is rendered.
+    fn is_rendered_for_focus(&mut self, node: NodeId) -> bool {
+        let _ = node;
+        false
+    }
+
     /// The focus delegate of a shadow host whose root delegates focus (HTML
     /// "focus delegate"); `None` for other elements and for a tree without
     /// an element that can be focused.

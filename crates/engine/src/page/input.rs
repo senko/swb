@@ -386,7 +386,7 @@ impl Page {
             // the popover under the pointer (a point outside every box is on
             // the root element).
             if let Some(target) = element.or_else(|| self.root_element()) {
-                self.light_dismiss_down(target);
+                self.light_dismiss_down(target, point);
             }
         }
         let focus = hit
@@ -559,7 +559,7 @@ impl Page {
             .hit_doc(point.x, point.y)
             .and_then(|h| self.element_of(h.node))
             .or_else(|| self.root_element());
-        let dismissed = target.is_some_and(|t| self.light_dismiss_up(t));
+        let dismissed = target.is_some_and(|t| self.light_dismiss_up(t, point));
         if button != MouseButton::Primary {
             return (dismissed, false);
         }

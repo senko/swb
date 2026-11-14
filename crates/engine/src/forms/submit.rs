@@ -4,8 +4,9 @@
 //! <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#form-submission-algorithm>.
 //! Deliberate simplifications: the `target` attribute is ignored (the
 //! result replaces the page), `mailto:` and `javascript:` actions do
-//! nothing, `dialog` forms do nothing, and constraint validation checks
-//! only `required`.
+//! nothing, and constraint validation checks only `required`. A form with
+//! the method `dialog` makes no request: its callers close the dialog
+//! (`page/forms.rs`, and `crates/web/src/html/dialog.rs` with scripts).
 
 use encoding_rs::Encoding;
 use swb_dom::{Document, NodeId, is_html_whitespace};
@@ -114,10 +115,9 @@ pub(crate) fn form_submission_with(
     let method = attr("formmethod", "method").map(str::to_ascii_lowercase);
     let post = match method.as_deref() {
         Some("post") => true,
-        Some("dialog") => {
-            log::warn!("form not submitted: dialog forms are not supported");
-            return None;
-        }
+        // The callers close the form's dialog before they ask for a request
+        // (`swb_dom::dialog_form_target`).
+        Some("dialog") => return None,
         _ => false,
     };
     match url.scheme() {

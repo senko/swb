@@ -105,6 +105,11 @@ fn is_popover(name: &QualName) -> bool {
     name.ns == ns!() && &*name.local == "popover"
 }
 
+/// True if `name` is the `open` attribute (without a namespace).
+fn is_open(name: &QualName) -> bool {
+    name.ns == ns!() && &*name.local == "open"
+}
+
 /// How [`Document::check_insertion`] treats the parent's children.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Validity {
@@ -952,8 +957,12 @@ impl Document {
         if self.shadow.is_some() {
             self.shadow_attribute_changed(element, &attr.name, Some(&attr.value));
         }
-        if self.top_layer.is_some() && is_popover(&attr.name) {
-            self.popover_attribute_changed(element, Some(&attr.value), None);
+        if self.top_layer.is_some() {
+            if is_popover(&attr.name) {
+                self.popover_attribute_changed(element, Some(&attr.value), None);
+            } else if is_open(&attr.name) {
+                self.dialog_open_removed(element);
+            }
         }
         Some(attr.value)
     }

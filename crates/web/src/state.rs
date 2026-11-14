@@ -369,6 +369,9 @@ pub(crate) struct DocState {
     /// The queued `toggle` task of each popover that has one
     /// (`html/popover.rs`): a new task replaces it.
     pub(crate) toggle_tasks: HashMap<NodeId, crate::event_loop::TaskKey>,
+    /// The queued dialog `toggle` task of each dialog that has one
+    /// (`html/dialog.rs`): a new task replaces it.
+    pub(crate) dialog_toggle_tasks: HashMap<NodeId, crate::event_loop::TaskKey>,
 }
 
 impl WebState {

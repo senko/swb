@@ -1157,3 +1157,52 @@ fn initiators_of_fragments_opaque_origins_and_resubmission() {
     wait(&mut page);
     assert_eq!(site.last_request().initiator, Some(initiator));
 }
+
+/// A form with the method `dialog` closes its dialog with the submitter's
+/// value and sends no request (M10 6d, ADR 0037 section 10), with and
+/// without scripts; outside a dialog nothing happens.
+#[test]
+fn dialog_forms_close_their_dialog() {
+    let html = format!(
+        "{BODY}<dialog id=d open><form method=dialog><button id=ok value=yes>OK</button>\
+         </form></dialog><dialog id=e open style='top:200px'><form action=x>\
+         <button id=fd formmethod=dialog value=fd>fd</button></form></dialog>\
+         <form method=dialog style='margin-top:400px'><button id=out value=o>o</button></form>\
+         <script>var closes = 0; \
+         document.addEventListener('close', function () {{ closes++; }}, true);</script>"
+    );
+    for javascript in [false, true] {
+        let mut site = TestSite::default();
+        site.pages.insert(ORIGIN.to_owned(), html.clone());
+        let site = Arc::new(site);
+        let fetcher: Arc<dyn Fetcher> = Arc::clone(&site) as Arc<dyn Fetcher>;
+        let mut page = common::new_page(fetcher, 2, Size::new(800.0, 600.0));
+        page.set_javascript(javascript);
+        page.navigate(Url::parse(ORIGIN).unwrap());
+        wait(&mut page);
+        let open = |page: &Page, id: &str| {
+            let doc = page.document().unwrap();
+            doc.element(node(page, id)).unwrap().has_attr("open")
+        };
+        let return_value = |page: &Page, id: &str| {
+            let doc = page.document().unwrap();
+            doc.dialog_return_value(node(page, id)).to_owned()
+        };
+        click(&mut page, "ok");
+        wait(&mut page);
+        assert!(!open(&page, "d"), "js {javascript}");
+        assert_eq!(return_value(&page, "d"), "yes");
+        click(&mut page, "fd");
+        wait(&mut page);
+        assert!(!open(&page, "e"), "js {javascript}");
+        assert_eq!(return_value(&page, "e"), "fd");
+        click(&mut page, "out");
+        wait(&mut page);
+        // No request: only the page itself was fetched.
+        assert_eq!(site.requests().len(), 1, "js {javascript}");
+        if javascript {
+            common::settle(&mut page);
+            assert_eq!(common::answer(&mut page, "closes"), 2);
+        }
+    }
+}

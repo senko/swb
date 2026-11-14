@@ -56,12 +56,13 @@ pub use shadow::{
     AttachError, ShadowIncludingDescendants, ShadowRootInit, is_valid_shadow_host_name,
 };
 pub use top_layer::{
-    DialogData, HideOptions, PendingToggle, PopoverError, PopoverErrorKind, PopoverState,
-    TargetAction, ToggleState, TopLayerHost, TopLayerState, WatcherKind, can_invoke,
-    hide_all_popovers_until, hide_popover, invoker_acts_on_form, light_dismiss_down,
-    light_dismiss_up, popover_target_activation, popover_target_by_id, process_close_watchers,
-    run_popover_attribute_steps, show_popover, toggle_popover, topmost_clicked_popover,
-    topmost_popover_ancestor,
+    ClosedBy, DialogData, HideOptions, PendingToggle, PopoverError, PopoverErrorKind, PopoverState,
+    TargetAction, ToggleState, TopLayerHost, TopLayerState, WatcherKind, can_invoke, close_dialog,
+    dialog_form_target, hide_all_popovers_until, hide_popover, invoker_acts_on_form,
+    light_dismiss_dialogs_down, light_dismiss_dialogs_up, light_dismiss_down, light_dismiss_up,
+    popover_target_activation, popover_target_by_id, process_close_watchers, request_close_dialog,
+    run_popover_attribute_steps, show_dialog, show_modal, show_popover, toggle_popover,
+    topmost_clicked_popover, topmost_popover_ancestor,
 };
 pub use transplant::{Placed, Subtree, SubtreeSize};
 pub use tree::{

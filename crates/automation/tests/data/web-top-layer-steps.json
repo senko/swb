@@ -555,5 +555,35 @@
   ],
   "xo-act-after-same-site-navigation": [
     " load:false/false load:true/true"
+  ],
+  "q-close-other": [
+    "c2 | close1 | E1 open= | E2 open= | E3 open="
+  ],
+  "q-show-in-cancel": [
+    "c2 | c1 | E1 open=d3* | c3 | E2 open= | E3 open="
+  ],
+  "q-reshow-in-cancel": [
+    "c2 | c1 | E1 open=d2* | c2 | E2 open=d2* | c2 | E3 open=d2*"
+  ],
+  "q-popover-in-cancel": [
+    "c2 | c1 | E1 open=pp | E2 open= | E3 open="
+  ],
+  "q-removeopen-in-cancel": [
+    "c1 | E1 open= | E2 open= | E3 open="
+  ],
+  "q-remove-reinsert": [
+    "S open=d1 modal=false | E1 open=d1 | InvalidStateError | after open=d1"
+  ],
+  "n-noWatchers-first": [
+    "cancel cancelable=true | open=true"
+  ],
+  "n-noWatchers-two": [
+    "cancel cancelable=true | open=true"
+  ],
+  "n-after-popover": [
+    "cancel cancelable=true | open=true"
+  ],
+  "n-baseline": [
+    "cancel cancelable=true | open=true"
   ]
 }

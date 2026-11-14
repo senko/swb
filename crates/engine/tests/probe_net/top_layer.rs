@@ -2738,4 +2738,140 @@ pub(crate) const CASES: &[Case] = &[
         }],
         queries: &[(r"window.name", r#"" load:false/false load:true/true""#)],
     },
+    Case {
+        name: r"r-nested-requestclose",
+        html: r"<!DOCTYPE html><html><body><dialog id=d>x<button id=b>b</button></dialog><script>var L=[];</script></body></html>",
+        resources: &[],
+        queries: &[(
+            r"(function(){d.showModal();d.addEventListener('cancel',function(){L.push('c1');d.requestClose('B');L.push('nested-open='+d.open)},{once:true});d.requestClose('A');L.push('end open='+d.open+' rv='+d.returnValue);return L.join(' ')})()",
+            r#""c1 nested-open=true end open=false rv=B""#,
+        )],
+    },
+    Case {
+        name: r"r-remove-in-cancel",
+        html: r"<!DOCTYPE html><html><body><dialog id=d>x</dialog><script>var L=[];d.addEventListener('close',function(){L.push('close')});</script></body></html>",
+        resources: &[],
+        queries: &[(
+            r"new Promise(function(r){var D=d;D.showModal();D.addEventListener('cancel',function(){L.push('cancel');D.remove()},{once:true});D.requestClose('A');L.push('open='+D.open+' rv='+D.returnValue+' conn='+D.isConnected+' modal='+D.matches(':modal'));setTimeout(function(){r(L.join(' '))},30)})",
+            r#""cancel open=true rv= conn=false modal=false""#,
+        )],
+    },
+    Case {
+        name: r"r-hidden-focus",
+        html: r"<!DOCTYPE html><html><head><style>#d{display:none !important} #e{visibility:hidden}</style></head><body><dialog id=d tabindex=0>x</dialog><dialog id=e>e</dialog><button id=b>b</button></body></html>",
+        resources: &[],
+        queries: &[
+            (
+                r"(function(){b.focus();d.show();var a=document.activeElement.localName+'#'+document.activeElement.id;d.close();return a})()",
+                r#""body#""#,
+            ),
+            (
+                r"(function(){b.focus();e.show();var a=document.activeElement.localName+'#'+document.activeElement.id;e.close();return a})()",
+                r#""body#""#,
+            ),
+            (
+                r"(function(){b.focus();d.showModal();var a=document.activeElement.localName+'#'+document.activeElement.id;d.close();return a})()",
+                r#""body#""#,
+            ),
+        ],
+    },
+    Case {
+        name: r"r-adopt",
+        html: r"<!DOCTYPE html><html><body><dialog id=d>x</dialog><iframe id=f></iframe></body></html>",
+        resources: &[],
+        queries: &[(
+            r"(function(){var D=f.contentDocument,x=d;x.showModal();x.returnValue='x';D.adoptNode(x);var a=[x.open,x.returnValue,x.matches(':modal'),x.ownerDocument===D].join();D.body.appendChild(x);a+=' | '+[x.open,x.returnValue,x.matches(':modal')].join();try{x.close('y');a+=' | '+x.returnValue+' '+x.open}catch(e){a+=' | '+e.name}return a})()",
+            r#""true,x,false,true | true,x,false | y false""#,
+        )],
+    },
+    Case {
+        name: r"q-close-other",
+        html: r"<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}function OP(){var a=[];document.querySelectorAll('dialog,[popover]').forEach(function(e){if(e.matches(':popover-open')||e.open)a.push(e.id+(e.matches(':modal')?'*':''))});return 'open='+a.join(',')}</script><dialog id=d1>1</dialog><dialog id=d2>2</dialog><dialog id=d3>3</dialog><div id=pp popover>p</div><script>d2.addEventListener('cancel',function(){p('c2');d1.close('z')});d1.addEventListener('cancel',function(){p('c1')});d1.addEventListener('close',function(){p('close1')});addEventListener('load',function(){d1.showModal();d2.showModal();L.length=0})</script></body></html>",
+        resources: &[],
+        queries: &[(
+            r"new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})",
+            r#""c2 | close1 | E1 open= | E2 open= | E3 open=""#,
+        )],
+    },
+    Case {
+        name: r"q-show-in-cancel",
+        html: r"<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}function OP(){var a=[];document.querySelectorAll('dialog,[popover]').forEach(function(e){if(e.matches(':popover-open')||e.open)a.push(e.id+(e.matches(':modal')?'*':''))});return 'open='+a.join(',')}</script><dialog id=d1>1</dialog><dialog id=d2>2</dialog><dialog id=d3>3</dialog><div id=pp popover>p</div><script>d2.addEventListener('cancel',function(){p('c2');d3.showModal()});d3.addEventListener('cancel',function(){p('c3')});d1.addEventListener('cancel',function(){p('c1')});addEventListener('load',function(){d1.showModal();d2.showModal();L.length=0})</script></body></html>",
+        resources: &[],
+        queries: &[(
+            r"new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})",
+            r#""c2 | c1 | E1 open=d3* | c3 | E2 open= | E3 open=""#,
+        )],
+    },
+    Case {
+        name: r"q-reshow-in-cancel",
+        html: r"<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}function OP(){var a=[];document.querySelectorAll('dialog,[popover]').forEach(function(e){if(e.matches(':popover-open')||e.open)a.push(e.id+(e.matches(':modal')?'*':''))});return 'open='+a.join(',')}</script><dialog id=d1>1</dialog><dialog id=d2>2</dialog><dialog id=d3>3</dialog><div id=pp popover>p</div><script>d2.addEventListener('cancel',function(){p('c2');d2.close();d2.showModal()});d1.addEventListener('cancel',function(){p('c1')});addEventListener('load',function(){d1.showModal();d2.showModal();L.length=0})</script></body></html>",
+        resources: &[],
+        queries: &[(
+            r"new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})",
+            r#""c2 | c1 | E1 open=d2* | c2 | E2 open=d2* | c2 | E3 open=d2*""#,
+        )],
+    },
+    Case {
+        name: r"q-popover-in-cancel",
+        html: r"<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}function OP(){var a=[];document.querySelectorAll('dialog,[popover]').forEach(function(e){if(e.matches(':popover-open')||e.open)a.push(e.id+(e.matches(':modal')?'*':''))});return 'open='+a.join(',')}</script><dialog id=d1>1</dialog><dialog id=d2>2</dialog><dialog id=d3>3</dialog><div id=pp popover>p</div><script>d2.addEventListener('cancel',function(){p('c2');pp.showPopover()});d1.addEventListener('cancel',function(){p('c1')});addEventListener('load',function(){d1.showModal();d2.showModal();L.length=0})</script></body></html>",
+        resources: &[],
+        queries: &[(
+            r"new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})",
+            r#""c2 | c1 | E1 open=pp | E2 open= | E3 open=""#,
+        )],
+    },
+    Case {
+        name: r"q-removeopen-in-cancel",
+        html: r"<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}function OP(){var a=[];document.querySelectorAll('dialog,[popover]').forEach(function(e){if(e.matches(':popover-open')||e.open)a.push(e.id+(e.matches(':modal')?'*':''))});return 'open='+a.join(',')}</script><dialog id=d1>1</dialog><dialog id=d2>2</dialog><dialog id=d3>3</dialog><div id=pp popover>p</div><script>d1.addEventListener('cancel',function(){p('c1');d1.removeAttribute('open')});d1.addEventListener('close',function(){p('close1')});addEventListener('load',function(){d1.showModal();L.length=0})</script></body></html>",
+        resources: &[],
+        queries: &[(
+            r"new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})",
+            r#""c1 | E1 open= | E2 open= | E3 open=""#,
+        )],
+    },
+    Case {
+        name: r"q-remove-reinsert",
+        html: r"<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}function OP(){var a=[];document.querySelectorAll('dialog,[popover]').forEach(function(e){if(e.matches(':popover-open')||e.open)a.push(e.id+(e.matches(':modal')?'*':''))});return 'open='+a.join(',')}</script><dialog id=d1>1</dialog><dialog id=d2>2</dialog><dialog id=d3>3</dialog><div id=pp popover>p</div><script>d1.addEventListener('cancel',function(){p('c1')});p(0);addEventListener('load',function(){d1.showModal();var x=d1;x.remove();document.body.appendChild(x);L.length=0})</script></body></html>",
+        resources: &[],
+        queries: &[(
+            r"new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})",
+            r#""S open=d1 modal=false | E1 open=d1 | InvalidStateError | after open=d1""#,
+        )],
+    },
+    Case {
+        name: r"n-noWatchers-first",
+        html: r"<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}</script><dialog id=d>d</dialog><div id=pp popover>p</div><script>d.addEventListener('cancel',function(e){p('cancel cancelable='+e.cancelable);e.preventDefault()})</script></body></html>",
+        resources: &[],
+        queries: &[(
+            r"new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})",
+            r#""cancel cancelable=true | open=true""#,
+        )],
+    },
+    Case {
+        name: r"n-noWatchers-two",
+        html: r"<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}</script><dialog id=d>d</dialog><div id=pp popover>p</div><script>d.addEventListener('cancel',function(e){p('cancel cancelable='+e.cancelable);e.preventDefault()})</script></body></html>",
+        resources: &[],
+        queries: &[(
+            r"new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})",
+            r#""cancel cancelable=true | open=true""#,
+        )],
+    },
+    Case {
+        name: r"n-after-popover",
+        html: r"<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}</script><dialog id=d>d</dialog><div id=pp popover>p</div><script>d.addEventListener('cancel',function(e){p('cancel cancelable='+e.cancelable);e.preventDefault()})</script></body></html>",
+        resources: &[],
+        queries: &[(
+            r"new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})",
+            r#""cancel cancelable=true | open=true""#,
+        )],
+    },
+    Case {
+        name: r"n-baseline",
+        html: r"<!DOCTYPE html><html><body><script>var L=[];function p(x){L.push(x)}</script><dialog id=d>d</dialog><div id=pp popover>p</div><script>d.addEventListener('cancel',function(e){p('cancel cancelable='+e.cancelable);e.preventDefault()})</script></body></html>",
+        resources: &[],
+        queries: &[(
+            r"new Promise(function(r){setTimeout(function(){r(L.join(' | '))},120)})",
+            r#""cancel cancelable=true | open=true""#,
+        )],
+    },
 ];

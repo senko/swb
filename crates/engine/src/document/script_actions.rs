@@ -87,9 +87,18 @@ impl DocumentState {
     /// True if `node` is connected, focusable and rendered.
     pub(crate) fn script_can_focus(&mut self, node: NodeId) -> bool {
         self.process_changes();
+        self.dom.element(node).is_some()
+            && focus::is_focusable(&self.dom, node)
+            && self.script_is_rendered(node)
+    }
+
+    /// True if the element `node` is connected and rendered for the focus:
+    /// not in a closed `details`, no `display: none` on it or an ancestor,
+    /// not `visibility: hidden` (a dialog takes the focus itself only then).
+    pub(crate) fn script_is_rendered(&mut self, node: NodeId) -> bool {
+        self.process_changes();
         if self.dom.element(node).is_none()
             || !self.dom.is_connected(node)
-            || !focus::is_focusable(&self.dom, node)
             || self.dom.in_closed_details_content(node)
         {
             return false;

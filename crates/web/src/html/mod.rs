@@ -28,7 +28,10 @@
 //! - `selection_events.rs`: their `select` and `selectionchange` events
 //!   (feature 9b2);
 //! - `popover.rs`: the popover members, `popoverTargetElement`, the
-//!   invokers and the `toggle` task (M10 6a, ADR 0037).
+//!   invokers, the `toggle` task and the host of the top-layer algorithms
+//!   (M10 6a, ADR 0037);
+//! - `dialog.rs`: `HTMLDialogElement`, its `toggle` and `close` tasks and
+//!   the form method `dialog` (M10 6d).
 //!
 //! Reflected attributes (`[Reflect]` and its variants) are generated from
 //! the IDL (`crates/web/idl/html.idl`); this module has what the standard
@@ -36,6 +39,7 @@
 
 pub(crate) mod activation;
 mod classes;
+pub(crate) mod dialog;
 pub(crate) mod element;
 mod factories;
 pub(crate) mod focus;

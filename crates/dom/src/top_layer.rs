@@ -37,10 +37,17 @@ use html5ever::local_name;
 use crate::journal::Change;
 use crate::tree::{Document, NodeId, flags};
 
+mod dialog;
 mod dismiss;
 mod watchers;
 
-pub use dismiss::{light_dismiss_down, light_dismiss_up, topmost_clicked_popover};
+pub use dialog::{
+    ClosedBy, close_dialog, dialog_form_target, request_close_dialog, show_dialog, show_modal,
+};
+pub use dismiss::{
+    light_dismiss_dialogs_down, light_dismiss_dialogs_up, light_dismiss_down, light_dismiss_up,
+    topmost_clicked_popover,
+};
 pub use watchers::{WatcherKind, process_close_watchers};
 
 /// The state of the `popover` attribute (an enumerated attribute: the empty
@@ -143,6 +150,16 @@ pub enum PopoverErrorKind {
     TypeChanged,
     /// The host stopped (a script was terminated): the algorithm ended.
     Stopped,
+    /// `showModal()` of a dialog that is open as a non-modal dialog.
+    DialogOpenNonModal,
+    /// `show()` of a dialog that is open as a modal dialog.
+    DialogOpenModal,
+    /// `showModal()` of a dialog that is a showing popover.
+    DialogOpenAsPopover,
+    /// `showModal()` of a dialog that is not connected.
+    DialogNotInDocument,
+    /// `showModal()` of a dialog whose document is not fully active.
+    DialogNotFullyActive,
 }
 
 /// The error of a popover algorithm: its kind, and whether the message gets
@@ -179,6 +196,22 @@ impl PopoverError {
                 "The popover type changed while other popovers were hidden."
             }
             PopoverErrorKind::Stopped => "The script was stopped.",
+            PopoverErrorKind::DialogOpenNonModal => {
+                "The dialog is already open as a non-modal dialog, and therefore cannot be opened \
+                 as a modal dialog."
+            }
+            PopoverErrorKind::DialogOpenModal => {
+                "The dialog is already open as a modal dialog, and therefore cannot be opened as a \
+                 non-modal dialog."
+            }
+            PopoverErrorKind::DialogOpenAsPopover => {
+                "The dialog is already open as a Popover, and therefore cannot be opened as a \
+                 modal dialog."
+            }
+            PopoverErrorKind::DialogNotInDocument => "The element is not in a Document.",
+            PopoverErrorKind::DialogNotFullyActive => {
+                "Invalid for dialogs within documents that are not fully active."
+            }
         };
         if self.after_event {
             format!(
@@ -245,6 +278,48 @@ pub trait TopLayerHost {
         let _ = element;
         false
     }
+
+    /// Gives the focus to the dialog `dialog` itself, the last step of the
+    /// dialog focusing steps (measured: the dialog takes it although it is no
+    /// focusable area). Returns false if nothing changed.
+    fn focus_dialog(&mut self, dialog: NodeId) -> bool {
+        self.focus(dialog)
+    }
+
+    /// Sets (`open` true) or removes the `open` attribute of `dialog`, as a
+    /// script's attribute change would (the web layer runs the custom
+    /// element reactions and the live `Attr` objects). Returns false if the
+    /// host stopped.
+    fn set_dialog_open(&mut self, dialog: NodeId, open: bool) -> bool {
+        let doc = self.doc();
+        if open {
+            let _ = doc.set_attr(dialog, "open", "");
+        } else {
+            doc.remove_attr(dialog, "open");
+        }
+        true
+    }
+
+    /// Fires `cancel` (an `Event`, not bubbling) at `dialog`. Returns
+    /// `Some(false)` if a listener canceled it, `None` if the host stopped.
+    fn fire_cancel(&mut self, dialog: NodeId, cancelable: bool) -> Option<bool> {
+        let _ = (dialog, cancelable);
+        Some(true)
+    }
+
+    /// Queues the dialog `toggle` task of `dialog` (HTML "queue a dialog
+    /// toggle event task"); the task takes its states with
+    /// [`Document::take_dialog_toggle`]. A host without scripts runs it at
+    /// once (nothing listens).
+    fn queue_dialog_toggle_task(&mut self, dialog: NodeId, serial: u64) {
+        let _ = self.doc().take_dialog_toggle(dialog, serial);
+    }
+
+    /// Queues the task that fires `close` at `dialog` (the user interaction
+    /// task source). A host without scripts does nothing.
+    fn queue_close_task(&mut self, dialog: NodeId) {
+        let _ = dialog;
+    }
 }
 
 /// The options of [`hide_popover`] (the arguments of HTML "hide popover
@@ -291,8 +366,8 @@ struct PopoverData {
     watcher: bool,
 }
 
-/// The state of a dialog in the top layer or with a close watcher (ADR 0037
-/// section 1; sub-feature 6d fills it).
+/// The state of a dialog that is open, has a `toggle` task or a
+/// `returnValue` (ADR 0037 section 1; `top_layer/dialog.rs`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DialogData {
     /// HTML "previously focused element".
@@ -301,6 +376,24 @@ pub struct DialogData {
     pub request_close_return_value: Option<String>,
     /// HTML "enable close watcher for request close".
     pub close_watcher_for_request_close: bool,
+    /// `returnValue` (initially the empty string).
+    pub return_value: String,
+    /// HTML "dialog toggle task tracker".
+    toggle: Option<PendingToggle>,
+    /// HTML close watcher "is running cancel action".
+    running_cancel: bool,
+}
+
+impl DialogData {
+    /// True if the data holds nothing but the defaults.
+    fn is_empty(&self) -> bool {
+        self.previously_focused.is_none()
+            && self.request_close_return_value.is_none()
+            && !self.close_watcher_for_request_close
+            && self.return_value.is_empty()
+            && self.toggle.is_none()
+            && !self.running_cancel
+    }
 }
 
 /// The top layer and the popover state of an arena (ADR 0037 section 1).
@@ -316,8 +409,13 @@ pub struct TopLayerState {
     hint: Vec<NodeId>,
     popovers: HashMap<NodeId, PopoverData>,
     dialogs: HashMap<NodeId, DialogData>,
+    /// HTML "open dialogs list": the dialogs that `show()` and `showModal()`
+    /// opened, in that order (the flag `DIALOG_OPEN`).
+    open_dialogs: Vec<NodeId>,
     /// HTML "popover pointerdown target" (light dismiss).
     pointerdown_target: Option<NodeId>,
+    /// HTML "dialog pointerdown target" (light dismiss of dialogs).
+    dialog_pointerdown_target: Option<NodeId>,
     /// The close watchers (`watchers.rs`).
     watchers: watchers::CloseWatchers,
     /// The showing popovers whose `popover` attribute changed state since the
@@ -479,7 +577,9 @@ impl Document {
     #[inline]
     pub(crate) fn has_top_layer_entries(&self) -> bool {
         // Every showing popover is in the top layer.
-        self.top_layer.as_ref().is_some_and(|s| !s.layer.is_empty())
+        self.top_layer
+            .as_ref()
+            .is_some_and(|s| !s.layer.is_empty() || !s.open_dialogs.is_empty())
     }
 
     /// True if `element` is a showing popover.
@@ -537,7 +637,7 @@ impl Document {
             .is_some_and(|s| !s.attribute_hides.is_empty())
     }
 
-    /// The data of the dialog `dialog` (sub-feature 6d).
+    /// The data of the dialog `dialog`.
     pub fn dialog_data(&self, dialog: NodeId) -> Option<&DialogData> {
         self.top_layer.as_deref()?.dialogs.get(&dialog)
     }
@@ -545,6 +645,15 @@ impl Document {
     /// The data of the dialog `dialog`, made at the first use.
     pub fn dialog_data_mut(&mut self, dialog: NodeId) -> &mut DialogData {
         self.top_layer_state().dialogs.entry(dialog).or_default()
+    }
+
+    /// Drops the data of `dialog` if it holds only defaults.
+    fn tidy_dialog(&mut self, dialog: NodeId) {
+        if let Some(state) = self.top_layer.as_deref_mut()
+            && state.dialogs.get(&dialog).is_some_and(DialogData::is_empty)
+        {
+            state.dialogs.remove(&dialog);
+        }
     }
 
     /// HTML "popover pointerdown target" (sub-feature 6c).
@@ -623,11 +732,20 @@ impl Document {
         let found: Vec<NodeId> = self
             .shadow_including_descendants(root)
             .filter(|&n| {
-                self.element(n)
-                    .is_some_and(|e| e.flags & (flags::POPOVER_SHOWING | flags::TOP_LAYER) != 0)
+                self.element(n).is_some_and(|e| {
+                    e.flags & (flags::POPOVER_SHOWING | flags::TOP_LAYER | flags::DIALOG_OPEN) != 0
+                })
             })
             .collect();
         for element in found {
+            // HTML "removing steps" of `dialog`: an open dialog runs the
+            // dialog cleanup steps; a modal one leaves the top layer below.
+            if self
+                .element(element)
+                .is_some_and(crate::ElementData::is_dialog_open)
+            {
+                self.dialog_cleanup(element);
+            }
             if self.is_popover_showing(element) {
                 let options = HideOptions {
                     ignore_dom: true,
@@ -649,21 +767,35 @@ impl Document {
         }
     }
 
-    /// Forgets the nodes that left the arena (`take_subtree`).
-    pub(crate) fn forget_top_layer_nodes(&mut self, taken: &[NodeId]) {
+    /// Forgets the nodes that left the arena (`take_subtree`). Returns the
+    /// `returnValue` of the dialogs that have one: it goes with the node.
+    pub(crate) fn forget_top_layer_nodes(&mut self, taken: &[NodeId]) -> Vec<(NodeId, String)> {
+        let mut values = Vec::new();
         let Some(state) = self.top_layer.as_deref_mut() else {
-            return;
+            return values;
         };
         for node in taken {
             if state.popovers.remove(node).is_some_and(|d| d.watcher) {
                 state.watchers.destroy(*node, WatcherKind::Popover);
             }
-            state.dialogs.remove(node);
+            if let Some(data) = state.dialogs.remove(node)
+                && !data.return_value.is_empty()
+            {
+                values.push((*node, data.return_value));
+            }
+            if let Some(index) = state.open_dialogs.iter().position(|n| n == node) {
+                state.open_dialogs.remove(index);
+                state.watchers.destroy(*node, WatcherKind::Dialog);
+            }
             state.attribute_hides.retain(|n| n != node);
             if state.pointerdown_target == Some(*node) {
                 state.pointerdown_target = None;
             }
+            if state.dialog_pointerdown_target == Some(*node) {
+                state.dialog_pointerdown_target = None;
+            }
         }
+        values
     }
 }
 

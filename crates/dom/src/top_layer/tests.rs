@@ -23,6 +23,13 @@ struct Rec {
     /// The focused element, and the elements that cannot take the focus.
     focus: Option<NodeId>,
     unfocusable: Vec<NodeId>,
+    /// A `cancel` listener cancels the event (when it is cancelable).
+    prevent_cancel: bool,
+    /// What a `cancel` listener does besides (it runs before the verdict).
+    cancel_hook: Option<fn(&mut Rec, NodeId)>,
+    /// The queued dialog `toggle` tasks and `close` tasks.
+    dialog_tasks: Vec<(NodeId, u64)>,
+    close_tasks: Vec<NodeId>,
 }
 
 impl Rec {
@@ -38,6 +45,10 @@ impl Rec {
             nodes: Vec::new(),
             focus: None,
             unfocusable: Vec::new(),
+            prevent_cancel: false,
+            cancel_hook: None,
+            dialog_tasks: Vec::new(),
+            close_tasks: Vec::new(),
         }
     }
 
@@ -53,7 +64,8 @@ impl Rec {
             .to_owned()
     }
 
-    /// Runs the queued toggle tasks, in order.
+    /// Runs the queued toggle tasks, in order, then the dialog toggle tasks
+    /// and the `close` tasks.
     fn flush(&mut self) {
         for (element, serial) in std::mem::take(&mut self.tasks) {
             if let Some(t) = self.doc.take_toggle(element, serial) {
@@ -64,6 +76,20 @@ impl Rec {
                     t.new.as_str()
                 ));
             }
+        }
+        for (element, serial) in std::mem::take(&mut self.dialog_tasks) {
+            if let Some(t) = self.doc.take_dialog_toggle(element, serial) {
+                let name = self.name(element);
+                self.log.push(format!(
+                    "dtoggle:{name}({}>{})",
+                    t.old.as_str(),
+                    t.new.as_str()
+                ));
+            }
+        }
+        for element in std::mem::take(&mut self.close_tasks) {
+            let name = self.name(element);
+            self.log.push(format!("close:{name}"));
         }
     }
 
@@ -152,6 +178,31 @@ impl TopLayerHost for Rec {
         self.log.push(format!("focus:{name}"));
         true
     }
+
+    fn focus_dialog(&mut self, dialog: NodeId) -> bool {
+        self.focus = Some(dialog);
+        let name = self.name(dialog);
+        self.log.push(format!("focus:{name}"));
+        true
+    }
+
+    fn fire_cancel(&mut self, dialog: NodeId, cancelable: bool) -> Option<bool> {
+        let name = self.name(dialog);
+        let mark = if cancelable { "!" } else { "" };
+        self.log.push(format!("cancel:{name}{mark}"));
+        if let Some(hook) = self.cancel_hook {
+            hook(self, dialog);
+        }
+        Some(!(cancelable && self.prevent_cancel))
+    }
+
+    fn queue_dialog_toggle_task(&mut self, dialog: NodeId, serial: u64) {
+        self.dialog_tasks.push((dialog, serial));
+    }
+
+    fn queue_close_task(&mut self, dialog: NodeId) {
+        self.close_tasks.push(dialog);
+    }
 }
 
 /// Checks that the lists, the top layer and the flags agree.
@@ -173,7 +224,18 @@ fn invariants(doc: &Document) {
     // Each popover of a list has a close watcher, no other has one, and a
     // manual popover that shows has none.
     let listed = state.auto.len() + state.hint.len();
-    assert_eq!(doc.close_watcher_counts().1, listed, "one watcher each");
+    assert_eq!(
+        doc.close_watcher_counts().1,
+        listed + state.open_dialogs.len(),
+        "one watcher each"
+    );
+    for &n in &state.open_dialogs {
+        assert!(
+            doc.element(n).unwrap().is_dialog_open(),
+            "{n:?} has its bit"
+        );
+        assert!(doc.has_close_watcher(n, WatcherKind::Dialog), "{n:?}");
+    }
     for &n in state.auto.iter().chain(&state.hint) {
         assert!(doc.has_close_watcher(n, WatcherKind::Popover), "{n:?}");
     }
@@ -863,6 +925,7 @@ fn flag_bits_are_distinct_and_the_element_keeps_its_size() {
         flags::POPOVER_SHOWING,
         flags::MODAL,
         flags::TOP_LAYER,
+        flags::DIALOG_OPEN,
     ];
     for (i, a) in bits.iter().enumerate() {
         assert_eq!(a.count_ones(), 1);
@@ -884,4 +947,5 @@ fn the_journal_notes_top_layer_changes() {
     assert_eq!(changes, [Change::TopLayer { element: pa }]);
 }
 
+mod dialog;
 mod interaction;

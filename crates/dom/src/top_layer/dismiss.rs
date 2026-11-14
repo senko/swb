@@ -2,7 +2,9 @@
 //! <https://html.spec.whatwg.org/multipage/popover.html#light-dismiss-open-popovers>;
 //! ADR 0037 section 4): a press and a release on the same "topmost clicked
 //! popover" (or outside every popover) close the auto and hint popovers
-//! above it.
+//! above it. "Light dismiss open dialogs" (sub-feature 6d) runs at the same
+//! hooks: a click outside the topmost open dialog with `closedby=any` (on
+//! its backdrop, for a modal one) requests its close.
 //!
 //! The engine calls [`light_dismiss_down`] when a pointer button goes down
 //! (before the listeners of `pointerdown` run, with or without scripts)
@@ -15,7 +17,13 @@
 //! that an invoker names; the caller knows how (the script layer's
 //! `popoverTargetElement` table, or the id), so it passes the lookup.
 
-use super::{Document, NodeId, PopoverError, PopoverState, TopLayerHost, hide_all_popovers_until};
+use html5ever::local_name;
+
+use super::watchers::request_close;
+use super::{
+    ClosedBy, Document, NodeId, PopoverError, PopoverState, TopLayerHost, WatcherKind,
+    hide_all_popovers_until,
+};
 
 impl Document {
     /// True if an auto or hint popover shows: a press and a release may
@@ -144,4 +152,74 @@ pub fn light_dismiss_up<H: TopLayerHost + ?Sized>(
         return Ok(());
     }
     hide_all_popovers_until(host, up, true)
+}
+
+// ----- Dialogs -----
+
+/// HTML "nearest clicked dialog": `None` for a press on an open modal
+/// dialog outside its border box (on its backdrop: `outside_modal`, which the
+/// caller computes from the box), else the first open dialog among `node`
+/// and its flat tree ancestors.
+/// <https://html.spec.whatwg.org/multipage/interactive-elements.html#nearest-clicked-dialog>
+fn nearest_clicked_dialog(doc: &Document, node: NodeId, outside_modal: bool) -> Option<NodeId> {
+    let is_open_dialog = |n: NodeId| {
+        doc.element(n)
+            .is_some_and(|e| e.is_html_named(&local_name!("dialog")) && e.has_attr("open"))
+    };
+    if outside_modal
+        && is_open_dialog(node)
+        && doc.element(node).is_some_and(crate::ElementData::is_modal)
+    {
+        return None;
+    }
+    let mut current = Some(node);
+    while let Some(n) = current {
+        if is_open_dialog(n) {
+            return Some(n);
+        }
+        current = doc.flat_parent(n);
+    }
+    None
+}
+
+/// HTML "light dismiss open dialogs" at `pointerdown`: notes the nearest
+/// clicked dialog of the press on `node` as the "dialog pointerdown target".
+/// Nothing happens while the open dialogs list is empty.
+/// <https://html.spec.whatwg.org/multipage/interactive-elements.html#light-dismiss-open-dialogs>
+pub fn light_dismiss_dialogs_down(doc: &mut Document, node: NodeId, outside_modal: bool) {
+    if doc.open_dialogs().is_empty() {
+        return;
+    }
+    let target = nearest_clicked_dialog(doc, node, outside_modal);
+    if let Some(state) = doc.top_layer.as_deref_mut() {
+        state.dialog_pointerdown_target = target;
+    }
+}
+
+/// HTML "light dismiss open dialogs" at `pointerup`: if the press and the
+/// release have the same nearest clicked dialog and it is not the topmost
+/// open dialog, a topmost dialog with `closedby=any` gets a close request
+/// (`cancel` can prevent it, measured: `inert-closedby-any`).
+///
+/// # Errors
+///
+/// A stop of the host.
+pub fn light_dismiss_dialogs_up<H: TopLayerHost + ?Sized>(
+    host: &mut H,
+    node: NodeId,
+    outside_modal: bool,
+) -> Result<(), PopoverError> {
+    let doc = host.doc();
+    let Some(&topmost) = doc.open_dialogs().last() else {
+        return Ok(());
+    };
+    let clicked = nearest_clicked_dialog(doc, node, outside_modal);
+    let down = doc
+        .top_layer
+        .as_deref_mut()
+        .and_then(|s| s.dialog_pointerdown_target.take());
+    if clicked != down || clicked == Some(topmost) || ClosedBy::of(doc, topmost) != ClosedBy::Any {
+        return Ok(());
+    }
+    request_close(host, topmost, WatcherKind::Dialog, false).map(|_| ())
 }

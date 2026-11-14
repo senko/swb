@@ -761,6 +761,10 @@ impl swb_web::EngineHost for DocumentState {
         self.script_can_focus(node)
     }
 
+    fn is_rendered_for_focus(&mut self, node: NodeId) -> bool {
+        self.script_is_rendered(node)
+    }
+
     fn focus_delegate(&mut self, host: NodeId) -> Option<NodeId> {
         self.script_focus_delegate(host)
     }

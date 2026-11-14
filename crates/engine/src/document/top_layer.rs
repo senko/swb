@@ -3,8 +3,9 @@
 //! scripts no listener can see an event, so the events are not fired (none
 //! is canceled) and a `toggle` task only clears its state. The invokers,
 //! light dismiss and close requests with JavaScript off (sub-feature 6c)
-//! use it; the drain runs the attribute change steps of `popover` that the
-//! bindings did not run with it.
+//! and the form method `dialog` (6d) use it; the drain runs the attribute
+//! change steps of `popover` that the bindings did not run with it. A dialog
+//! with no focusable descendant takes the focus itself (`focus_dialog`).
 
 use std::time::{Duration, Instant};
 
@@ -62,6 +63,19 @@ impl TopLayerHost for NoScriptHost<'_> {
             return false;
         }
         self.state.script_set_focus(Some(element), false);
+        true
+    }
+
+    fn focus_dialog(&mut self, dialog: NodeId) -> bool {
+        if !self.focus || !self.state.dom.is_connected(dialog) {
+            return false;
+        }
+        if !self.state.script_is_rendered(dialog) {
+            // As the scripted path: the focus goes away (`r-hidden-focus`).
+            self.state.script_set_focus(None, false);
+            return false;
+        }
+        self.state.script_set_focus(Some(dialog), false);
         true
     }
 }

@@ -4,6 +4,30 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-14: M10 6d: dialogs
+
+- `HTMLDialogElement` (`show`, `showModal`, `close`, `requestClose`,
+  `returnValue`, `closedBy`) on the same algorithms and host trait as
+  popovers. Modal dialogs enter the top layer with their `::backdrop`;
+  `method=dialog` closes the dialog with JavaScript on and off.
+- Close watchers: each dialog that a script opens gets one; `closedby`
+  decides at the request. `cancel` is cancelable by the standard's rule.
+  The measured `xo-escape-cancel-click-between` needs the standard's step
+  that lowers the allowed number of groups after each request (6c lacked
+  it). Chromium skips that step at an Escape with nothing open, so swb
+  does too (a departure from the standard).
+- The review found three bugs, all measured: the step above at an empty
+  Escape; a `cancel` listener that removes or reopens its dialog, or calls
+  `requestClose()` again, still got the dialog closed (fixed with a serial
+  per watcher); a dialog that is not rendered took the focus. Also fixed:
+  `returnValue` goes with an adopted dialog.
+- Found in Chromium: `requestSubmit()` of a dialog form without a
+  submitter sets `returnValue` to `""`; a dialog with nothing focusable
+  focuses itself; a dialog that is not rendered blurs the focused element.
+- All dialog probe rows and the 9 modal layout cases run; 2 departures.
+  Targets unchanged; JS-off snapshot identical; callgrind -0.07 % to 0 %.
+- Next: 6e (modal inertness).
+
 ## 2026-11-13: M10 6c: popover interaction
 
 - Light dismiss at `pointerdown` and `pointerup`, close watchers in groups

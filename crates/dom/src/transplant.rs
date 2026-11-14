@@ -50,6 +50,9 @@ pub struct Subtree {
     nodes: Vec<Entry>,
     bytes: usize,
     templates: usize,
+    /// The `returnValue` of the dialogs of a taken subtree, by their old id:
+    /// a dialog keeps it when a document adopts it.
+    return_values: Vec<(NodeId, String)>,
 }
 
 impl Subtree {
@@ -195,7 +198,7 @@ impl Document {
             if self.shadow.is_some() {
                 self.forget_shadow_nodes(&taken);
             }
-            self.forget_top_layer_nodes(&taken);
+            subtree.return_values = self.forget_top_layer_nodes(&taken);
         }
         self.generation += 1;
         self.structure_generation += 1;
@@ -230,6 +233,7 @@ impl Document {
             subtree.bytes,
         )?;
         let owner = self.node_document(document);
+        let return_values = subtree.return_values;
         let mut map: HashMap<NodeId, NodeId> = HashMap::with_capacity(subtree.nodes.len());
         let mut pairs = Vec::with_capacity(subtree.nodes.len());
         let mut root = None;
@@ -275,6 +279,11 @@ impl Document {
         }
         for shadow in shadow_roots {
             self.assign_new_root(shadow);
+        }
+        for (old, value) in return_values {
+            if let Some(&new) = map.get(&old) {
+                self.dialog_data_mut(new).return_value = value;
+            }
         }
         self.generation += 1;
         self.structure_generation += 1;
@@ -349,6 +358,28 @@ mod tests {
         );
         assert_eq!(b.child_count(placed.root), 3);
         assert_eq!(b.element_child_count(placed.root), 1);
+    }
+
+    #[test]
+    fn a_dialog_keeps_its_return_value_in_the_other_arena() {
+        // `r-adopt`: Chromium keeps `returnValue` across `adoptNode`.
+        let mut from = crate::parse_html("<body><dialog id=d><p id=p>x</p></dialog><dialog id=e>");
+        let mut to = crate::parse_html("<body>");
+        let dialog = from.element_by_id("d").expect("d");
+        let other = from.element_by_id("e").expect("e");
+        from.set_dialog_return_value(dialog, "x");
+        from.set_dialog_return_value(other, "");
+        from.remove(dialog);
+        let placed = to
+            .put_subtree(NodeId::DOCUMENT, from.take_subtree(dialog))
+            .expect("put");
+        assert_eq!(to.dialog_return_value(placed.root), "x");
+        assert_eq!(from.dialog_return_value(dialog), "");
+        // A copy does not carry it (`importNode`, `cloneNode`).
+        let copy = to.copy_subtree(placed.root, true);
+        let mut third = crate::parse_html("<body>");
+        let placed = third.put_subtree(NodeId::DOCUMENT, copy).expect("put");
+        assert_eq!(third.dialog_return_value(placed.root), "");
     }
 
     #[test]

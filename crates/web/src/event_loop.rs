@@ -120,6 +120,17 @@ pub(crate) enum Task {
         /// The serial; a later change of the element replaces the task.
         serial: u64,
     },
+    /// Fire `toggle` at a dialog (HTML "queue a dialog toggle event task",
+    /// the DOM manipulation task source; `html/dialog.rs`).
+    DialogToggle {
+        /// The dialog.
+        node: swb_dom::NodeId,
+        /// The serial; a later change of the dialog replaces the task.
+        serial: u64,
+    },
+    /// Fire `close` at a dialog (HTML "close the dialog", the user
+    /// interaction task source; `html/dialog.rs`).
+    DialogClose(swb_dom::NodeId),
 }
 
 /// A due time in page time (milliseconds), ordered as a number.

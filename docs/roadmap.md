@@ -4929,7 +4929,26 @@ Steps:
       - 6d dialogs (`implementer-hard`): `show`, `showModal`, `close`,
         `requestClose`, `returnValue`, `closedBy`, `cancel` and `close`,
         `method=dialog` with JavaScript on and off, the dialog focus steps,
-        modal dialogs in the top layer.
+        modal dialogs in the top layer. Done (2026-11-14):
+        `swb_dom::top_layer::dialog` runs HTML's dialog algorithms behind
+        the same host trait as popovers; `HTMLDialogElement` with
+        Chromium's exceptions; each dialog that `show()` or `showModal()`
+        opens gets a close watcher, and `closedby` decides at the request;
+        `cancel` is cancelable by the standard's rule with the
+        history-action activation; `closedby=any` light dismiss; the
+        dialog focusing steps and focus restore; modal dialogs with their
+        `::backdrop`; `method=dialog` closes the dialog with JavaScript on
+        and off. "Process close watchers" lowers the allowed number of
+        groups after a request (a step that 6c lacked), but not at an
+        Escape with nothing open (Chromium; the standard lowers it then
+        too). From the review: a request inside a `cancel` listener, or a
+        listener that removes or reopens the dialog, no longer closes it;
+        a dialog that is not rendered does not take the focus;
+        `returnValue` goes with an adopted dialog. All dialog probe rows
+        and the 9 modal layout cases run (2 departures: `CommandEvent` and
+        `CloseWatcher` are missing; the backdrop click focus waits for
+        6e). Targets unchanged (no target uses dialogs); JS-off snapshot
+        identical; callgrind -0.07 % to 0 %.
       - 6e modal inertness (`implementer`): hit testing, focus, the Tab
         order, `:hover` and the engine's selection under a modal dialog.
    7. Smaller CSS features (`implementer`; JS on and off): `@container`
@@ -5085,6 +5104,16 @@ Steps:
   automation API has no key for a modifier alone. The cost of input events
   on a page without popovers is not measured (no tool runs a fixed input
   sequence under callgrind).
+- Top layer (found in 6d): a parsed or script-set `open` attribute runs
+  no dialog setup steps, so such a dialog has no close watcher: `<dialog
+  open closedby=any>` is not closed by Escape or light dismiss (not
+  measured in Chromium; `requestClose()` works). The `returnValue` of a
+  prevented `requestClose(value)` stays until the next close (as the
+  standard says; not measured). The dialog focus of the engine's host
+  without scripts has no test (no path reaches it with focus).
+  `close-watchers-100000-without-activation` takes 2.5 s (0.45 s in 6c):
+  its 100,000 `showModal` and `close` pairs each fire two events and run
+  the focusing steps.
 - Rendering (found in 6b): swb has no `content-visibility`; an `<object>`
   with `type` or `data` renders its fallback children, Chromium does not
   (measured: a child `div` has no client rect); a gradient `body`

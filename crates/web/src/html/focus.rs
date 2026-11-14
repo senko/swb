@@ -87,6 +87,17 @@ fn focusable(rt: &mut Runtime, node: NodeId) -> VmResult<bool> {
 /// The focusing steps for `new`, or the unfocusing steps for `None`
 /// (the sequence above).
 fn move_focus(rt: &mut Runtime, new: Option<NodeId>, visible: bool) -> VmResult<()> {
+    move_focus_to(rt, new, visible, true)
+}
+
+/// [`move_focus`]; `recheck`: after `focusout`, `new` must still be
+/// focusable (false for a dialog that takes the focus itself).
+fn move_focus_to(
+    rt: &mut Runtime,
+    new: Option<NodeId>,
+    visible: bool,
+    recheck: bool,
+) -> VmResult<()> {
     let old = focused(rt)?;
     if old == new {
         return Ok(());
@@ -105,6 +116,7 @@ fn move_focus(rt: &mut Runtime, new: Option<NodeId>, visible: bool) -> VmResult<
         }
         fire(rt, "focusout", old, new, true)?;
         if let Some(new) = new
+            && recheck
             && !focusable(rt, new)?
         {
             return Ok(());
@@ -244,6 +256,35 @@ pub(crate) fn focus_popover_target(rt: &mut Runtime, node: NodeId) -> VmResult<b
     let visible = engine(rt)?.keyboard_modality();
     focus_with(rt, node, visible, true)?;
     Ok(true)
+}
+
+/// The last step of the dialog focusing steps (ADR 0037 section 5): the
+/// dialog itself gets the focus with its events, although it is no focusable
+/// area (measured, `dialog-focus` #3); the viewport does not scroll. Returns
+/// whether it has the focus afterwards.
+pub(crate) fn focus_dialog(rt: &mut Runtime, dialog: NodeId) -> VmResult<bool> {
+    let document = dom(rt)?;
+    if !document.is_connected(dialog) || document.node_document(dialog) != NodeId::DOCUMENT {
+        return Ok(false);
+    }
+    if !lock_focus(rt, dialog)? {
+        return Ok(false);
+    }
+    let result = (|| {
+        crate::frames::focus_enters_current(rt)?;
+        if !engine_mut(rt)?.is_rendered_for_focus(dialog) {
+            // Chromium (measured, `r-hidden-focus`): a dialog that is not
+            // rendered cannot take the focus, and the element that had it
+            // loses it (`blur` and `focusout` with no related target).
+            move_focus(rt, None, false)?;
+            return Ok(false);
+        }
+        let visible = engine(rt)?.keyboard_modality();
+        move_focus_to(rt, Some(dialog), visible, false)?;
+        Ok(focused(rt)? == Some(dialog))
+    })();
+    unlock_focus(rt, dialog)?;
+    result
 }
 
 /// [`focus_with`] for the steps of other algorithms (labels, the first

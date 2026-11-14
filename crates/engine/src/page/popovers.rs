@@ -11,6 +11,7 @@
 use std::time::Instant;
 
 use swb_dom::{Document, NodeId, TargetAction};
+use swb_layout::Point;
 
 use super::Page;
 use crate::document::top_layer::{NoScriptHost, log_error};
@@ -153,51 +154,84 @@ impl Page {
             .collect()
     }
 
-    /// A pointer button went down on `node` (the target of the events):
-    /// notes the topmost clicked popover (HTML "light dismiss open
-    /// popovers", at `pointerdown`). One test when no popover shows and
-    /// none is noted.
-    pub(super) fn light_dismiss_down(&mut self, node: NodeId) {
-        let Some(doc) = self.document() else {
-            return;
+    /// True if a press or a release may light dismiss a popover or a dialog:
+    /// one test of the top layer when nothing shows and nothing is noted.
+    fn light_dismiss_matters(&self) -> bool {
+        self.document().is_some_and(|doc| {
+            doc.light_dismiss_active()
+                || doc.popover_pointerdown_target().is_some()
+                || doc.dialog_light_dismiss_active()
+        })
+    }
+
+    /// True if `node` is an open modal dialog and `point` (viewport
+    /// coordinates) is outside its border box: the press is on its backdrop
+    /// (HTML "nearest clicked dialog").
+    fn outside_modal_dialog(&mut self, node: NodeId, point: Point) -> bool {
+        let modal = self
+            .document()
+            .and_then(|doc| doc.element(node))
+            .is_some_and(swb_dom::ElementData::is_modal);
+        if !modal {
+            return false;
+        }
+        let Some(doc) = self.doc.as_deref_mut() else {
+            return false;
         };
-        if !doc.light_dismiss_active() && doc.popover_pointerdown_target().is_none() {
+        let (x, y) = (f64::from(point.x), f64::from(point.y));
+        !doc.script_client_rects(node)
+            .iter()
+            .any(|r| x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height)
+    }
+
+    /// A pointer button went down on `node` at `point` (the target of the
+    /// events): notes the topmost clicked popover and the nearest clicked
+    /// dialog (HTML "light dismiss open popovers" and "light dismiss open
+    /// dialogs", at `pointerdown`). One test when nothing shows and nothing
+    /// is noted.
+    pub(super) fn light_dismiss_down(&mut self, node: NodeId, point: Point) {
+        if !self.light_dismiss_matters() {
             return;
         }
+        let outside = self.outside_modal_dialog(node, point);
         if self.script_input() {
-            self.run_task(|script| script.light_dismiss_down(node));
+            self.run_task(|script| script.light_dismiss_down(node, outside));
             return;
         }
         let targets = self.targets_on_path(node);
         if let Some(doc) = self.doc.as_deref_mut() {
             swb_dom::light_dismiss_down(&mut doc.dom, node, |n| lookup(&targets, n));
+            swb_dom::light_dismiss_dialogs_down(&mut doc.dom, node, outside);
         }
     }
 
-    /// A pointer button went up on `node`: hides the popovers that the
-    /// press and the release both left outside (HTML "light dismiss open
-    /// popovers", at `pointerup`, before the listeners of the event).
-    /// Returns true if the document changed.
-    pub(super) fn light_dismiss_up(&mut self, node: NodeId) -> bool {
-        let Some(doc) = self.document() else {
-            return false;
-        };
-        if !doc.light_dismiss_active() && doc.popover_pointerdown_target().is_none() {
+    /// A pointer button went up on `node` at `point`: hides the popovers
+    /// that the press and the release both left outside, and requests the
+    /// close of a topmost dialog with `closedby=any` that they left outside
+    /// (HTML "light dismiss open popovers" and "light dismiss open dialogs",
+    /// at `pointerup`, before the listeners of the event). Returns true if
+    /// the document changed.
+    pub(super) fn light_dismiss_up(&mut self, node: NodeId, point: Point) -> bool {
+        if !self.light_dismiss_matters() {
             return false;
         }
+        let outside = self.outside_modal_dialog(node, point);
         if self.script_input() {
             let generation = self.dom_generation();
-            self.run_task(|script| script.light_dismiss_up(node));
+            self.run_task(|script| script.light_dismiss_up(node, outside));
             return generation != self.dom_generation();
         }
         let targets = self.targets_on_path(node);
-        self.run_no_script(|host| swb_dom::light_dismiss_up(host, node, |n| lookup(&targets, n)))
-            .is_some_and(|(result, changed)| {
-                if let Err(error) = result {
-                    log_error(error);
-                }
-                changed
-            })
+        self.run_no_script(|host| {
+            swb_dom::light_dismiss_up(host, node, |n| lookup(&targets, n))?;
+            swb_dom::light_dismiss_dialogs_up(host, node, outside)
+        })
+        .is_some_and(|(result, changed)| {
+            if let Err(error) = result {
+                log_error(error);
+            }
+            changed
+        })
     }
 
     // ----- Close requests -----
@@ -206,7 +240,7 @@ impl Page {
     /// watchers (HTML "process close watchers"). Returns true if a watcher
     /// closed something.
     pub(super) fn process_close_watchers(&mut self) -> bool {
-        if !self.document().is_some_and(Document::has_close_watchers) {
+        if !self.document().is_some_and(Document::close_requests_matter) {
             return false;
         }
         if self.script_input() {

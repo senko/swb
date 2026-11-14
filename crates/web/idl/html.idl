@@ -41,10 +41,10 @@
 // scripts set to stop a sheet; M9 feature 6, with `HTMLStyleElement.disabled`;
 // `sheet` is `LinkStyle` of `cssom.idl`), `files`, `valueAsNumber`,
 // `valueAsDate`, `stepUp()`, `stepDown()`, `showPicker()`,
-// `canvas.getContext`, the media playback members,
-// `dialog.show*`, `meter` and `progress` values, and the
-// factory function `Audio`. The form methods `submit()`, `reset()` and
-// `requestSubmit()` came with feature 6d; the selection members of
+// `canvas.getContext`, the media playback members, `meter` and
+// `progress` values, and the factory function `Audio`. The dialog
+// methods came with M10 6d (ADR 0037). The form methods `submit()`,
+// `reset()` and `requestSubmit()` came with feature 6d of M8; the selection members of
 // `input` and `textarea` (`select()`, `selectionStart`, `selectionEnd`,
 // `selectionDirection`, `setRangeText()`, `setSelectionRange()` and the
 // enumeration SelectionMode) with feature 9b1; the constraint validation
@@ -1049,10 +1049,19 @@ interface mixin PopoverTargetAttributes {
 HTMLButtonElement includes PopoverTargetAttributes;
 HTMLInputElement includes PopoverTargetAttributes;
 
+// The dialog element (https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element,
+// copied on 2026-11-14, M10 6d; ADR 0037 section 9). `closedBy` returns the
+// computed closed-by state (`html/dialog.rs`).
 [Exposed=Window]
 interface HTMLDialogElement : HTMLElement {
   [HTMLConstructor] constructor();
   [CEReactions, Reflect] attribute boolean open;
+  attribute DOMString returnValue;
+  [CEReactions] attribute DOMString closedBy;
+  [CEReactions] undefined show();
+  [CEReactions] undefined showModal();
+  [CEReactions] undefined close(optional DOMString returnValue);
+  [CEReactions] undefined requestClose(optional DOMString returnValue);
 };
 
 [Exposed=Window, SwbEnumerableNamedProperties]

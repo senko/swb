@@ -493,24 +493,38 @@ impl ScriptRuntime {
     }
 
     /// A pointer button went down on `node` (HTML "light dismiss open
-    /// popovers"): notes the topmost clicked popover. No script runs.
-    pub fn light_dismiss_down(&mut self, node: NodeId) -> Result<(), ScriptError> {
+    /// popovers" and "light dismiss open dialogs"): notes the topmost
+    /// clicked popover and the nearest clicked dialog. `outside_modal`: the
+    /// press is on an open modal dialog outside its border box (its
+    /// backdrop). No script runs.
+    pub fn light_dismiss_down(
+        &mut self,
+        node: NodeId,
+        outside_modal: bool,
+    ) -> Result<(), ScriptError> {
         self.task("light dismiss", |rt| {
-            crate::html::popover::light_dismiss_down(rt, node).map_err(task_error)
+            crate::html::popover::light_dismiss_down(rt, node, outside_modal).map_err(task_error)
         })
     }
 
     /// A pointer button went up on `node`: hides the auto and hint popovers
     /// that the press and the release left outside, with their `beforetoggle`
-    /// and `toggle` events (before the listeners of `pointerup`). A task.
-    pub fn light_dismiss_up(&mut self, node: NodeId) -> Result<(), ScriptError> {
+    /// and `toggle` events (before the listeners of `pointerup`), and
+    /// requests the close of a topmost dialog with `closedby=any` that they
+    /// left outside. A task.
+    pub fn light_dismiss_up(
+        &mut self,
+        node: NodeId,
+        outside_modal: bool,
+    ) -> Result<(), ScriptError> {
         self.task("light dismiss", |rt| {
-            crate::html::popover::light_dismiss_up(rt, node).map_err(task_error)
+            crate::html::popover::light_dismiss_up(rt, node, outside_modal).map_err(task_error)
         })
     }
 
     /// HTML "process close watchers", the default action of Escape: closes
-    /// what the newest close watchers close (a popover hides, with events).
+    /// what the newest close watchers close (a popover hides, a dialog fires
+    /// `cancel` and closes, with events).
     /// Returns whether a watcher was processed. A task.
     pub fn process_close_watchers(&mut self) -> Result<bool, ScriptError> {
         self.task("a close request", |rt| {
@@ -739,6 +753,18 @@ impl ScriptRuntime {
                 set_listener_checkpoints(rt, true);
                 let result =
                     crate::html::popover::toggle_task(rt, node, serial).map_err(task_error);
+                set_listener_checkpoints(rt, false);
+                result
+            }),
+            Task::DialogToggle { node, serial } => self.task("the event 'toggle'", |rt| {
+                set_listener_checkpoints(rt, true);
+                let result = crate::html::dialog::toggle_task(rt, node, serial).map_err(task_error);
+                set_listener_checkpoints(rt, false);
+                result
+            }),
+            Task::DialogClose(node) => self.task("the event 'close'", |rt| {
+                set_listener_checkpoints(rt, true);
+                let result = crate::html::dialog::close_task(rt, node).map_err(task_error);
                 set_listener_checkpoints(rt, false);
                 result
             }),

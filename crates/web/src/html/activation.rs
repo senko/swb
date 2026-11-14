@@ -839,6 +839,10 @@ fn submit_steps(
             return Ok(());
         }
     }
+    // The method `dialog` closes the form's dialog instead (M10 6d).
+    if super::dialog::submit_to_dialog(rt, form, submitter, Some(click.coordinate))? {
+        return Ok(());
+    }
     if let Some(source) = javascript_form_action(rt, form, submitter)? {
         // A submission for a new context or with Ctrl, Shift or Alt held
         // runs the script there, not in this document (measured). A `target`

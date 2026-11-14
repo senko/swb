@@ -9,9 +9,31 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `HTMLDialogElement`.
 pub trait HTMLDialogElementImpl: b::Host {
-}
+    /// `attribute DOMString returnValue`.
+    fn return_value(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
 
-impl<T: b::Host> HTMLDialogElementImpl for T {}
+    /// The setter of `attribute DOMString returnValue`.
+    fn set_return_value(cx: &mut b::Cx<'_>, this: b::NodeId, value: String) -> b::Result<()>;
+
+    /// `attribute DOMString closedBy`.
+    fn closed_by(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
+
+    /// The setter of `attribute DOMString closedBy`.
+    fn set_closed_by(cx: &mut b::Cx<'_>, this: b::NodeId, value: String) -> b::Result<()>;
+
+    /// `undefined show()`.
+    fn show(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<()>;
+
+    /// `undefined showModal()`.
+    fn show_modal(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<()>;
+
+    /// `undefined close(optional DOMString returnValue)`.
+    fn close(cx: &mut b::Cx<'_>, this: b::NodeId, return_value: Option<String>) -> b::Result<()>;
+
+    /// `undefined requestClose(optional DOMString returnValue)`.
+    fn request_close(cx: &mut b::Cx<'_>, this: b::NodeId, return_value: Option<String>) -> b::Result<()>;
+
+}
 
 fn get_open<H: HTMLDialogElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("HTMLDialogElement", "open"), super::DOM_EXCEPTION, |rt| {
@@ -31,12 +53,84 @@ fn set_open<H: HTMLDialogElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
     })
 }
 
+fn get_return_value<H: HTMLDialogElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLDialogElement", "returnValue"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_DIALOG_ELEMENT)?;
+        let result = <H as HTMLDialogElementImpl>::return_value(&mut b::Cx::new(rt, call, super::HTML_DIALOG_ELEMENT), this)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_return_value<H: HTMLDialogElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLDialogElement", "returnValue"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_DIALOG_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        <H as HTMLDialogElementImpl>::set_return_value(&mut b::Cx::new(rt, call, super::HTML_DIALOG_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_closed_by<H: HTMLDialogElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLDialogElement", "closedBy"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_DIALOG_ELEMENT)?;
+        let result = <H as HTMLDialogElementImpl>::closed_by(&mut b::Cx::new(rt, call, super::HTML_DIALOG_ELEMENT), this)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_closed_by<H: HTMLDialogElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLDialogElement", "closedBy"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_DIALOG_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::ce::scope(rt, |rt| <H as HTMLDialogElementImpl>::set_closed_by(&mut b::Cx::new(rt, call, super::HTML_DIALOG_ELEMENT), this, value))?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 pub(super) fn construct<H: HTMLDialogElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Constructor("HTMLDialogElement"), super::DOM_EXCEPTION, |rt| {
         if call.new_target().is_undefined() {
             return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
         }
         <H as b::Host>::html_constructor(rt, call, super::HTML_DIALOG_ELEMENT)
+    })
+}
+
+fn op_show<H: HTMLDialogElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLDialogElement", "show"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_DIALOG_ELEMENT)?;
+        b::ce::scope(rt, |rt| <H as HTMLDialogElementImpl>::show(&mut b::Cx::new(rt, call, super::HTML_DIALOG_ELEMENT), this))?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_show_modal<H: HTMLDialogElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLDialogElement", "showModal"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_DIALOG_ELEMENT)?;
+        b::ce::scope(rt, |rt| <H as HTMLDialogElementImpl>::show_modal(&mut b::Cx::new(rt, call, super::HTML_DIALOG_ELEMENT), this))?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_close<H: HTMLDialogElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLDialogElement", "close"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_DIALOG_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let a0 = if v.is_undefined() { None } else { Some(b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?) };
+        b::ce::scope(rt, |rt| <H as HTMLDialogElementImpl>::close(&mut b::Cx::new(rt, call, super::HTML_DIALOG_ELEMENT), this, a0))?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_request_close<H: HTMLDialogElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLDialogElement", "requestClose"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_DIALOG_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let a0 = if v.is_undefined() { None } else { Some(b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?) };
+        b::ce::scope(rt, |rt| <H as HTMLDialogElementImpl>::request_close(&mut b::Cx::new(rt, call, super::HTML_DIALOG_ELEMENT), this, a0))?;
+        Ok(swb_js::Value::Undefined)
     })
 }
 
@@ -47,6 +141,12 @@ pub fn define<H: HTMLDialogElementImpl>(rt: &mut swb_js::Runtime, realm: u32) ->
     let target = interface.prototype;
     let _ = target;
     rt.define_accessor(realm, target, "open", (Some(get_open::<H> as swb_js::NativeFn), Some(set_open::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "returnValue", (Some(get_return_value::<H> as swb_js::NativeFn), Some(set_return_value::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "closedBy", (Some(get_closed_by::<H> as swb_js::NativeFn), Some(set_closed_by::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "close", 0, op_close::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "requestClose", 0, op_request_close::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "show", 0, op_show::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "showModal", 0, op_show_modal::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

@@ -106,10 +106,13 @@ pub(crate) mod flags {
     pub(crate) const SLOT: u8 = 2;
     /// HTML "popover visibility state" is "showing" (`top_layer.rs`).
     pub(crate) const POPOVER_SHOWING: u8 = 4;
-    /// HTML "is modal" of a `dialog` (ADR 0037 sub-feature 6d sets it).
+    /// HTML "is modal" of a `dialog` (`top_layer/dialog.rs`).
     pub(crate) const MODAL: u8 = 8;
     /// The element is in the top layer of its document.
     pub(crate) const TOP_LAYER: u8 = 16;
+    /// The `dialog` is in its document's "open dialogs list" and has a close
+    /// watcher: `show()` or `showModal()` opened it (`top_layer/dialog.rs`).
+    pub(crate) const DIALOG_OPEN: u8 = 32;
 }
 
 impl ElementData {
@@ -190,6 +193,13 @@ impl ElementData {
     #[inline]
     pub fn in_top_layer(&self) -> bool {
         self.flags & flags::TOP_LAYER != 0
+    }
+
+    /// True if the element is a `dialog` that `show()` or `showModal()`
+    /// opened and that is not closed yet (HTML "open dialogs list").
+    #[inline]
+    pub fn is_dialog_open(&self) -> bool {
+        self.flags & flags::DIALOG_OPEN != 0
     }
 
     /// HTML "defined" (`:defined`): the custom element state is

@@ -4,9 +4,11 @@
 //! invokers, the attribute change steps of `popover`, and the `toggle` task.
 //!
 //! The algorithms are `swb_dom`'s (`top_layer.rs`); [`WebHost`] is their
-//! host here: it fires `beforetoggle` through the bindings (a trusted
-//! `ToggleEvent`, at once) and queues the `toggle` tasks in the document's
-//! event loop. A termination of a listener stops the algorithm and goes up.
+//! host here, also for the dialog algorithms (`dialog.rs`): it fires
+//! `beforetoggle` (a trusted `ToggleEvent`) and `cancel` through the bindings
+//! at once, queues the `toggle` and `close` tasks in the document's event
+//! loop, sets a dialog's `open` attribute and moves the focus. A termination
+//! of a listener stops the algorithm and goes up.
 
 use swb_dom::{
     Document, NodeId, PopoverError, PopoverErrorKind, TargetAction, ToggleState, TopLayerHost,
@@ -61,7 +63,7 @@ impl<'a> WebHost<'a> {
 
     /// The result of an algorithm: the stored error of a stop, else the
     /// algorithm's error as Chromium's `DOMException`.
-    fn finish<T>(self, result: Result<T, PopoverError>) -> b::Result<T> {
+    pub(crate) fn finish<T>(self, result: Result<T, PopoverError>) -> b::Result<T> {
         if let Some(error) = self.error {
             return Err(error.into());
         }
@@ -162,6 +164,59 @@ impl TopLayerHost for WebHost<'_> {
             }
         }
     }
+
+    fn focus_dialog(&mut self, dialog: NodeId) -> bool {
+        if self.error.is_some() {
+            return false;
+        }
+        match super::focus::focus_dialog(self.rt, dialog) {
+            Ok(focused) => focused,
+            Err(error) => {
+                self.error = Some(error);
+                false
+            }
+        }
+    }
+
+    fn set_dialog_open(&mut self, dialog: NodeId, open: bool) -> bool {
+        if self.error.is_some() {
+            return false;
+        }
+        match super::dialog::set_open(self.rt, dialog, open) {
+            Ok(()) => true,
+            Err(error) => {
+                self.error = Some(error);
+                false
+            }
+        }
+    }
+
+    fn fire_cancel(&mut self, dialog: NodeId, cancelable: bool) -> Option<bool> {
+        if self.error.is_some() {
+            return None;
+        }
+        let mut event = TrustedEvent::new("cancel");
+        event.cancelable = cancelable;
+        match fire_trusted(self.rt, DispatchTarget::Node(dialog), &event) {
+            Ok(proceed) => Some(proceed),
+            Err(error) => {
+                self.error = Some(error);
+                None
+            }
+        }
+    }
+
+    fn queue_dialog_toggle_task(&mut self, dialog: NodeId, serial: u64) {
+        if let Err(error) = super::dialog::queue_toggle_task(self.rt, dialog, serial) {
+            self.error.get_or_insert(error);
+        }
+    }
+
+    fn queue_close_task(&mut self, dialog: NodeId) {
+        if let Err(error) = super::dialog::queue_close_task(self.rt, dialog) {
+            self.error.get_or_insert(error);
+        }
+    }
 }
 
 // ----- Light dismiss and close requests -----
@@ -192,27 +247,41 @@ fn lookup(targets: &[(NodeId, NodeId)], node: NodeId) -> Option<NodeId> {
 }
 
 /// A pointer button went down on `node`: the "popover pointerdown target"
-/// (HTML "light dismiss open popovers"; no script runs).
-pub(crate) fn light_dismiss_down(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
+/// and the "dialog pointerdown target" (HTML "light dismiss open popovers"
+/// and "light dismiss open dialogs"; no script runs). `outside_modal`: the
+/// press is on an open modal dialog outside its border box.
+pub(crate) fn light_dismiss_down(
+    rt: &mut Runtime,
+    node: NodeId,
+    outside_modal: bool,
+) -> VmResult<()> {
     let targets = if dom(rt)?.light_dismiss_active() {
         targets_on_path(rt, node)?
     } else {
         Vec::new()
     };
-    swb_dom::light_dismiss_down(dom_mut(rt)?, node, |n| lookup(&targets, n));
+    let doc = dom_mut(rt)?;
+    swb_dom::light_dismiss_down(doc, node, |n| lookup(&targets, n));
+    swb_dom::light_dismiss_dialogs_down(doc, node, outside_modal);
     Ok(())
 }
 
 /// A pointer button went up on `node`: the popovers that the press and the
-/// release left outside hide, with their events.
-pub(crate) fn light_dismiss_up(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
+/// release left outside hide, with their events; then a topmost dialog with
+/// `closedby=any` that they left outside gets a close request.
+pub(crate) fn light_dismiss_up(
+    rt: &mut Runtime,
+    node: NodeId,
+    outside_modal: bool,
+) -> VmResult<()> {
     let targets = if dom(rt)?.light_dismiss_active() {
         targets_on_path(rt, node)?
     } else {
         Vec::new()
     };
     let mut host = WebHost::new(rt);
-    let result = swb_dom::light_dismiss_up(&mut host, node, |n| lookup(&targets, n));
+    let result = swb_dom::light_dismiss_up(&mut host, node, |n| lookup(&targets, n))
+        .and_then(|()| swb_dom::light_dismiss_dialogs_up(&mut host, node, outside_modal));
     // Other errors end the dismissal silently.
     match host.finish(result) {
         Err(b::Exception::Js(error)) => Err(error),

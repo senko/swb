@@ -873,12 +873,12 @@ const SHADOW_LATER: &[Later] = &[
     ("declarative-js-on", None, DECLARATIVE),
 ];
 
-const SUB_6D: &str = "ADR 0037 sub-feature 6d: dialogs (`show`, `showModal`, `close`, \
-     `requestClose`, `returnValue`, `closedBy`)";
-const SUB_6D_6E: &str = "ADR 0037 sub-features 6d (`showModal`) and 6e (modal inertness); rows \
-     1 to 4 (the paint and hit order of the top layer) run since 6b";
+const SUB_6E: &str = "ADR 0037 sub-feature 6e (modal inertness: hits outside a modal dialog go \
+     to the dialog); rows 1 to 4 run since 6b, rows 8 to 10 since 6d";
 const STEPS_6C: &str = "the case has input steps: it runs in \
      `crates/automation/tests/popover_input.rs` (ADR 0037 sub-feature 6c)";
+const STEPS_6D: &str = "the case has input steps: it runs in \
+     `crates/automation/tests/popover_input.rs` (ADR 0037 sub-feature 6d, review fixes)";
 const SUB_6D_STEPS: &str = "ADR 0037 sub-feature 6d (dialogs, close requests); the case has \
      input steps: it runs in `crates/automation/tests/real_input.rs` or, without scripts, in an \
      engine test";
@@ -914,6 +914,13 @@ const TOP_LAYER_DEPARTURES: &[Departure] = &[
     ),
     (
         "api-surface",
+        4,
+        r#""function,undefined,undefined,constructor/newState/oldState/source,0,0,0,0,0,0,1""#,
+        "`CommandEvent` and the `CloseWatcher` interface are backlog (ADR 0037 section 11: no \
+         target uses them)",
+    ),
+    (
+        "api-surface",
         5,
         r#"":popover-open=true :modal=true :open=true :closed=false ::backdrop=true :popover-open::backdrop=true dialog:modal::backdrop=true ::backdrop:hover=false :fullscreen=true | overlay=true transition-behavior=true interactivity=false position-anchor=false position-try=false display=true""#,
         "`interactivity` and CSS anchor positioning (`position-anchor`, `position-try`) are \
@@ -929,21 +936,9 @@ const TOP_LAYER_LATER: &[Later] = &[
     ("invokers-in-link-enter", None, STEPS),
     ("invokers-in-link-space", None, STEPS),
     ("invokers-in-link-enter-plain", None, STEPS),
-    ("api-surface", Some(1), SUB_6D),
-    ("api-surface", Some(4), SUB_6D),
-    ("popover-reflection", Some(5), SUB_6D),
-    ("exceptions", Some(3), SUB_6D),
-    ("exceptions", Some(4), SUB_6D),
-    ("exceptions", Some(6), SUB_6D),
-    ("dialog-basics", None, SUB_6D),
-    ("dialog-form", None, SUB_6D),
-    ("dialog-focus", None, SUB_6D),
-    ("top-layer-hit-order", Some(5), SUB_6D_6E),
-    ("top-layer-hit-order", Some(6), SUB_6D_6E),
-    ("top-layer-hit-order", Some(7), SUB_6D_6E),
-    ("top-layer-hit-order", Some(8), SUB_6D_6E),
-    ("top-layer-hit-order", Some(9), SUB_6D_6E),
-    ("top-layer-hit-order", Some(10), SUB_6D_6E),
+    ("top-layer-hit-order", Some(5), SUB_6E),
+    ("top-layer-hit-order", Some(6), SUB_6E),
+    ("top-layer-hit-order", Some(7), SUB_6E),
     ("inert-click", None, SUB_6E_STEPS),
     ("inert-hover", None, SUB_6E_STEPS),
     ("inert-tab", None, SUB_6E_STEPS),
@@ -1086,6 +1081,16 @@ const TOP_LAYER_LATER: &[Later] = &[
     ("xo-act-after-cross-site-navigation", None, STEPS_6C),
     ("xo-act-after-parent-origin-navigation", None, STEPS_6C),
     ("xo-act-after-same-site-navigation", None, STEPS_6C),
+    ("q-close-other", None, STEPS_6D),
+    ("q-show-in-cancel", None, STEPS_6D),
+    ("q-reshow-in-cancel", None, STEPS_6D),
+    ("q-popover-in-cancel", None, STEPS_6D),
+    ("q-removeopen-in-cancel", None, STEPS_6D),
+    ("q-remove-reinsert", None, STEPS_6D),
+    ("n-noWatchers-first", None, STEPS_6D),
+    ("n-noWatchers-two", None, STEPS_6D),
+    ("n-after-popover", None, STEPS_6D),
+    ("n-baseline", None, STEPS_6D),
 ];
 
 #[test]

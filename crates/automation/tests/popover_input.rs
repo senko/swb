@@ -1,5 +1,5 @@
-//! Popovers and the user's input (M10 sub-feature 6c, ADR 0037 sections 3 to
-//! 6): the cases of the Chromium probe `tools/probes/web-top-layer.json`
+//! Popovers, dialogs and the user's input (M10 sub-features 6c and 6d, ADR
+//! 0037 sections 3 to 6 and 10): the cases of the Chromium probe `tools/probes/web-top-layer.json`
 //! that have input `steps` and belong to popovers run here with the same
 //! steps (`swb_automation::run_steps`), and the value of each query is the one
 //! that Chromium 148 gave (`tests/data/web-top-layer-steps.json`: the values
@@ -24,7 +24,9 @@
 //!   task that waits takes the old state of the first change: two changes
 //!   between two tasks make one event), see [`canon`].
 //!
-//! The cases of sub-features 6d and 6e (dialogs, inertness) and the key cases
+//! The dialog cases of sub-feature 6d (close requests, `cancel`, the close
+//! watcher groups, `closedby=any`, the form method `dialog` without scripts)
+//! run here too. The cases of sub-feature 6e (inertness) and the key cases
 //! of `real_input.rs` are not run here.
 
 // Test helpers outside `#[test]` functions unwrap too.
@@ -46,24 +48,12 @@ use swb_net::{Fetcher, Headers, NetError, Request, Response};
 const MAIN: &str = "http://127.0.0.1:8000";
 const OTHER: &str = "http://127.0.0.1:8001";
 
-/// Cases that other tests or later sub-features run: dialogs (6d), inertness
-/// (6e), and the key cases of `real_input.rs`.
+/// Cases that other tests or later sub-features run: inertness (6e; its
+/// case `inert-closedby-any` runs here for the close by light dismiss), and
+/// the key cases of `real_input.rs`.
 fn is_later(name: &str) -> bool {
-    name.contains("dialog")
-        || name.contains("modal")
-        || name.starts_with("inert-")
-        || name.starts_with("xo-escape")
-        || name.starts_with("xo-groups")
+    (name.starts_with("inert-") && name != "inert-closedby-any")
         || name.starts_with("invokers-in-link-")
-        || matches!(
-            name,
-            "escape-no-activation"
-                | "escape-cancel-prevented"
-                | "escape-nested-dialogs"
-                | "escape-popover-in-dialog"
-                | "escape-keydown-prevented"
-                | "escape-nonmodal-and-closedby"
-        )
 }
 
 /// Queries where swb's value differs on purpose: (case, query index, swb's
@@ -76,6 +66,15 @@ const TEXT_IN_INVOKER: &str = "a click on a text field inside an invoking button
      \"6c implementation notes\")";
 
 const DEPARTURES: &[Departure] = &[
+    (
+        "inert-closedby-any",
+        1,
+        "pointerdown:button#db mousedown:button#db click:button#db pointerdown:dialog#d \
+         mousedown:dialog#d click:dialog#d open:false:\"\"",
+        "a click on the backdrop of a modal dialog focuses the dialog in Chromium (`focusin`); \
+         swb does not yet: that is the modal inertness of sub-feature 6e (ADR 0037 section 7). \
+         The light dismiss of `closedby=any` matches",
+    ),
     (
         "invoker-inner-text",
         1,
@@ -375,6 +374,19 @@ fn off_item(page: &Page, item: &str) -> String {
             .unwrap()
             .is_popover_showing(node)
             .to_string();
+    }
+    if let Some(id) = id_of("document.querySelector('#", "').open") {
+        let node = node_of(page, &id);
+        let doc = page.document().unwrap();
+        return doc.element(node).unwrap().has_attr("open").to_string();
+    }
+    if let Some(id) = id_of("document.querySelector('#", "').returnValue") {
+        let node = node_of(page, &id);
+        return page
+            .document()
+            .unwrap()
+            .dialog_return_value(node)
+            .to_owned();
     }
     if let Some(id) = id_of("document.querySelector('#", "').checked") {
         let node = node_of(page, &id);

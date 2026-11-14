@@ -1,4 +1,4 @@
-//! The top layer in rendering (M10 sub-feature 6b, ADR 0037 section 8):
+//! The top layer in rendering (M10 sub-features 6b and 6d, ADR 0037 section 8):
 //! the cases of the Chromium probe `tools/probes/top-layer.json`, with the
 //! answers that Chromium 148 gave (`tests/data/top-layer.json`: `just probe
 //! --json tools/probes/top-layer.json`, three equal runs).
@@ -15,7 +15,8 @@
 //!   that no ancestor clips or fades a top-layer box (within 2 per
 //!   channel).
 //!
-//! The cases with modal dialogs come with sub-feature 6d ([`LATER`]).
+//! The cases with modal dialogs run since sub-feature 6d. [`LATER`] lists
+//! the departures that are not about the top layer.
 
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
@@ -39,43 +40,6 @@ const BOX_TOLERANCE: f64 = 0.5;
 
 /// The cases that a later sub-feature of ADR 0037 runs: (case, why).
 const LATER: &[(&str, &str)] = &[
-    (
-        "dialog-modal-ua",
-        "`showModal()` and modal dialogs: sub-feature 6d",
-    ),
-    (
-        "dialog-modal-big",
-        "`showModal()` and modal dialogs: sub-feature 6d",
-    ),
-    (
-        "dialog-modal-scrolled",
-        "the script calls `showModal()` before it shows the popover: sub-feature 6d \
-         (`popover-scrolled` has the popover part)",
-    ),
-    (
-        "escape-ancestors-modal",
-        "`showModal()` and modal dialogs: sub-feature 6d",
-    ),
-    (
-        "backdrop-paint",
-        "the backdrop of a modal dialog: sub-feature 6d",
-    ),
-    (
-        "backdrop-author",
-        "the backdrop of a modal dialog: sub-feature 6d",
-    ),
-    (
-        "dialog-modal-in-iframe",
-        "`showModal()` in a frame: sub-feature 6d",
-    ),
-    (
-        "overlay-and-states",
-        "`showModal()` and `show()`: sub-feature 6d",
-    ),
-    (
-        "backdrop-inheritance",
-        "the backdrop of a modal dialog: sub-feature 6d (`backdrop-popover` has the popover part)",
-    ),
     (
         "top-layer-not-rendered-object",
         "swb renders the fallback children of an `object` with a `type` or `data`, Chromium \
@@ -103,10 +67,34 @@ fn number(v: &Value) -> f64 {
     v.as_f64().unwrap()
 }
 
-/// The `js` row: swb's answer to the expression against Chromium's.
-fn check_js(case: &str, row: usize, page: &mut Page, result: &Value) -> Vec<String> {
+/// The `frame` of the `js` query `query` of the probe case `case` (a selector
+/// of an `iframe` of the top-level document), if it has one.
+fn frame_of_query<'a>(case: &'a Value, query: &str) -> Option<&'a str> {
+    case["measure"]
+        .as_array()?
+        .iter()
+        .find(|m| m["js"] == query)?
+        .get("frame")?
+        .as_str()
+}
+
+/// The `js` row: swb's answer to the expression against Chromium's; a query
+/// with a `frame` runs in the document of that `iframe`.
+fn check_js(
+    (case, probe): (&str, &Value),
+    row: usize,
+    page: &mut Page,
+    result: &Value,
+) -> Vec<String> {
     let query = result["label"].as_str().unwrap();
-    let got = answer(page, query);
+    let got = match frame_of_query(probe, query) {
+        Some(selector) => {
+            let iframe = page.query_selector_all(selector).unwrap()[0];
+            let frame = page.frame_of(swb_engine::FrameId::TOP, iframe).unwrap();
+            page.with_frame(frame, |p| answer(p, query)).unwrap()
+        }
+        None => answer(page, query),
+    };
     if got == result["value"] {
         return Vec::new();
     }
@@ -238,7 +226,7 @@ fn run_case(case: &'static Value, results: &'static Value) -> Vec<String> {
     let mut failures = Vec::new();
     for (row, result) in rows.iter().enumerate() {
         failures.extend(match result["kind"].as_str().unwrap() {
-            "js" => check_js(name, row, &mut page, result),
+            "js" => check_js((name, case), row, &mut page, result),
             "boxes" => check_box(name, row, &mut page, result),
             "style" => check_style(name, row, &mut page, result),
             "pixels" => check_pixels(name, row, shot.as_ref().unwrap(), result),

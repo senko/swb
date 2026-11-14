@@ -886,6 +886,13 @@ impl Page {
             self.focus(Some(first), true);
             return false;
         }
+        let coordinate = match submitter {
+            Submitter::Button { coordinate, .. } => coordinate,
+            Submitter::Form => None,
+        };
+        if let Some(target) = swb_dom::dialog_form_target(doc, form, submitter.node(), coordinate) {
+            return self.close_form_dialog(target);
+        }
         let cx = FormContext {
             doc,
             forms,
@@ -907,6 +914,24 @@ impl Page {
         };
         log::info!("submitting a form: {method} {}", submission.url);
         self.navigate_from_input(submission.url, submission.post, submission.target)
+    }
+
+    /// The form method `dialog` without scripts (HTML "form submission
+    /// algorithm"): the form's nearest ancestor dialog closes with the
+    /// submitter's value; outside a dialog nothing happens. Returns true if
+    /// the document changed.
+    fn close_form_dialog(&mut self, target: Option<(NodeId, Option<String>)>) -> bool {
+        let Some((dialog, result)) = target else {
+            log::debug!("form not submitted: the method is dialog and no dialog contains the form");
+            return false;
+        };
+        self.run_no_script(|host| swb_dom::close_dialog(host, dialog, result))
+            .is_some_and(|(result, changed)| {
+                if let Err(error) = result {
+                    crate::document::top_layer::log_error(error);
+                }
+                changed
+            })
     }
 
     /// Updates the style states and the layout after a control's value,
