@@ -1,0 +1,309 @@
+{
+  "cases": [
+    {
+      "name": "frames-realms",
+      "viewport": [
+        400,
+        200
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const w = fd.createTreeWalker(fd.body); const w2 = document.createTreeWalker(fd.body); const w3 = document.createTreeWalker(document.body); const w4 = Document.prototype.createTreeWalker.call(fd, document.body); return [w instanceof fw.TreeWalker, w instanceof TreeWalker, w2 instanceof TreeWalker, w2 instanceof fw.TreeWalker, w3 instanceof TreeWalker, w4 instanceof fw.TreeWalker, w4 instanceof TreeWalker, w.root === fd.body, w2.root === fd.body, w4.root === document.body, N(w.nextNode()), N(w2.nextNode()), w2.currentNode.ownerDocument === fd, Object.getPrototypeOf(w2.nextNode()) === fw.HTMLElement.prototype || Object.getPrototypeOf(w2.currentNode) === fw.HTMLParagraphElement.prototype, w2.currentNode instanceof fw.Node, w2.currentNode instanceof Node, N(w4.nextNode()), w4.currentNode instanceof Node, w4.currentNode instanceof fw.Node]; })()",
+          "value": [
+            true,
+            false,
+            true,
+            false,
+            true,
+            true,
+            false,
+            true,
+            true,
+            true,
+            "p#fp",
+            "p#fp",
+            true,
+            false,
+            true,
+            false,
+            "iframe#f",
+            true,
+            false
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const w = document.createTreeWalker(fd.body, 1); return [N(w.firstChild()), N(w.nextSibling()), N(w.parentNode()), N(w.parentNode()), N(w.parentNode()), N(w.currentNode), w.root === fd.body, w.currentNode === fd.body]; })()",
+          "value": [
+            "p#fp",
+            "i#fi",
+            "body",
+            "null",
+            "null",
+            "body",
+            true,
+            true
+          ]
+        }
+      ]
+    },
+    {
+      "name": "frames-filters",
+      "viewport": [
+        400,
+        200
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const o = []; const filt = fw.eval('(n => 1)'); const w = document.createTreeWalker(fd.body, 1, filt); o.push(N(w.nextNode()), w.filter === filt); const seen = []; const w2 = fd.createTreeWalker(fd.body, 1, n => { seen.push([n.ownerDocument === fd, n instanceof Element, n instanceof fw.Element]); return 1; }); w2.nextNode(); w2.nextNode(); o.push(J(seen)); const fobj = fw.eval('({acceptNode(n) { return n.localName === \"p\" ? 1 : 3; }})'); o.push(SEQ(fd.createTreeWalker(fd.body, 1, fobj), 'nextNode'), SEQ(document.createTreeWalker(fd.body, 1, fobj), 'nextNode')); return o; })()",
+          "value": [
+            "p#fp",
+            true,
+            "[[true,false,true],[true,false,true]]",
+            "p#fp",
+            "p#fp"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const o = []; const thrower = fw.eval('(n => { throw new RangeError(\"x\"); })'); const w3 = document.createTreeWalker(fd.body, 1, thrower); try { w3.nextNode(); } catch (e) { o.push(e.constructor === RangeError, e.constructor === fw.RangeError); } const w4 = fd.createTreeWalker(fd.body, 1, n => { throw new RangeError('y'); }); try { w4.nextNode(); } catch (e) { o.push(e.constructor === RangeError, e.constructor === fw.RangeError); } return o; })()",
+          "value": [
+            false,
+            true,
+            true,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "name": "frames-filter-errors",
+      "viewport": [
+        400,
+        200
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const o = []; const bad = fw.eval('({acceptNode: 5})'); const w2 = document.createTreeWalker(fd.body, 1, bad); try { w2.nextNode(); } catch (e) { o.push([e.constructor === TypeError, e.constructor === fw.TypeError, e.message]); } const w5 = fd.createTreeWalker(fd.body, 1, {acceptNode: 5}); try { w5.nextNode(); } catch (e) { o.push([e.constructor === TypeError, e.constructor === fw.TypeError, e.message]); } return o; })()",
+          "value": [
+            [
+              false,
+              true,
+              "Failed to execute 'nextNode' on 'TreeWalker': Failed to execute 'acceptNode' on 'NodeFilter': The provided callback is not callable."
+            ],
+            [
+              true,
+              false,
+              "Failed to execute 'nextNode' on 'TreeWalker': Failed to execute 'acceptNode' on 'NodeFilter': The provided callback is not callable."
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "frames-top",
+      "viewport": [
+        400,
+        200
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const w = document.createTreeWalker(document.body, 1); w.currentNode = fd.getElementById('fp'); const o = [N(w.currentNode)]; o.push(E(() => N(w.nextNode())), N(w.currentNode), E(() => N(w.nextNode())), E(() => N(w.nextNode())), E(() => N(w.previousNode())), E(() => N(w.previousNode())), N(w.currentNode), N(w.root)); return o; })()",
+          "value": [
+            "p#fp",
+            "b#fb",
+            "b#fb",
+            "i#fi",
+            "null",
+            "b#fb",
+            "p#fp",
+            "p#fp",
+            "body"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const w = document.createTreeWalker(document.body, 1); w.currentNode = fd.getElementById('fp'); return [E(() => N(w.parentNode())), E(() => N(w.parentNode())), E(() => N(w.parentNode())), E(() => N(w.parentNode())), N(w.currentNode), E(() => N(w.firstChild())), E(() => N(w.lastChild())), E(() => N(w.nextSibling())), E(() => N(w.previousSibling()))]; })()",
+          "value": [
+            "body",
+            "html",
+            "null",
+            "null",
+            "html",
+            "head",
+            "null",
+            "body",
+            "head"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "frames-move-root-a",
+      "viewport": [
+        400,
+        200
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const p = fd.getElementById('fp'); const w = fd.createTreeWalker(p, 1); w.currentNode = fd.getElementById('fb'); const o = [N(w.root)]; const moved = document.adoptNode(p); document.body.append(moved); o.push(w.root === moved, w.root.ownerDocument === document, w.currentNode.ownerDocument === document, E(() => N(w.parentNode())), E(() => N(w.parentNode())), N(w.currentNode), E(() => N(w.firstChild())), E(() => N(w.nextNode())), E(() => N(w.previousNode()))); return o; })()",
+          "value": [
+            "p#fp",
+            true,
+            true,
+            true,
+            "p#fp",
+            "null",
+            "p#fp",
+            "b#fb",
+            "null",
+            "p#fp"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "frames-move-root-b",
+      "viewport": [
+        400,
+        200
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const p = fd.getElementById('fp'); const w = document.createTreeWalker(p, 1); const o = [SEQ(w, 'nextNode')]; const moved = document.adoptNode(p); document.body.append(moved); w.currentNode = moved; o.push(SEQ(w, 'nextNode'), N(w.root), w.root === moved); return o; })()",
+          "value": [
+            "b#fb",
+            "b#fb",
+            "p#fp",
+            true
+          ]
+        }
+      ]
+    },
+    {
+      "name": "frames-move-node-a",
+      "viewport": [
+        400,
+        200
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const w = fd.createTreeWalker(fd.body, 1); const b = fd.getElementById('fb'); w.currentNode = b; const o = [N(w.currentNode)]; const moved = document.adoptNode(b); document.body.append(moved); o.push(w.currentNode === moved, E(() => N(w.parentNode())), N(w.currentNode), E(() => N(w.nextNode())), E(() => N(w.previousNode())), E(() => N(w.nextSibling())), N(fd.getElementById('fp').lastChild)); return o; })()",
+          "value": [
+            "b#fb",
+            true,
+            "body",
+            "body",
+            "iframe#f",
+            "body",
+            "null",
+            "t:hi"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "frames-move-node-b",
+      "viewport": [
+        400,
+        200
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const w = document.createTreeWalker(document.body, 1); const tp = document.getElementById('tp'); w.currentNode = tp; const o = [N(w.currentNode)]; const moved = fd.adoptNode(tp); fd.body.append(moved); o.push(w.currentNode === moved, w.currentNode.ownerDocument === fd, E(() => N(w.parentNode())), N(w.currentNode), E(() => N(w.parentNode())), E(() => N(w.nextNode())), E(() => N(w.previousNode()))); return o; })()",
+          "value": [
+            "p#tp",
+            true,
+            true,
+            "body",
+            "body",
+            "html",
+            "head",
+            "html"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "frames-leave-a",
+      "viewport": [
+        400,
+        200
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const w = fd.createTreeWalker(fd.body, 1); const o = [N(w.nextNode())]; f.remove(); o.push(E(() => N(w.nextNode())), E(() => N(w.nextNode())), E(() => N(w.previousNode())), E(() => N(w.parentNode())), N(w.root), N(w.currentNode), w.root.isConnected); return o; })()",
+          "value": [
+            "p#fp",
+            "b#fb",
+            "i#fi",
+            "b#fb",
+            "p#fp",
+            "body",
+            "p#fp",
+            true
+          ]
+        }
+      ]
+    },
+    {
+      "name": "frames-leave-b",
+      "viewport": [
+        400,
+        200
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const w = document.createTreeWalker(fd.body, 1); w.currentNode = fd.getElementById('fb'); f.remove(); return [N(w.currentNode), E(() => N(w.parentNode())), E(() => N(w.firstChild())), E(() => N(w.nextNode())), E(() => N(w.previousNode())), N(w.root), N(w.currentNode)]; })()",
+          "value": [
+            "b#fb",
+            "p#fp",
+            "b#fb",
+            "i#fi",
+            "b#fb",
+            "body",
+            "b#fb"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "frames-navigate",
+      "viewport": [
+        400,
+        200
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const w = fd.createTreeWalker(fd.body, 1); const o = [N(w.nextNode())]; f.srcdoc = '<!DOCTYPE html><body><u id=nu></u></body>'; return [o, 'set']; })()",
+          "value": [
+            [
+              "p#fp"
+            ],
+            "set"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(() => new Promise(r => setTimeout(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; r([N(fd.body.firstChild), f.contentDocument === fd, N(f.contentDocument.body.firstChild)]); }, 300)))()",
+          "value": [
+            "u#nu",
+            true,
+            "u#nu"
+          ]
+        }
+      ]
+    }
+  ]
+}

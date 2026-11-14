@@ -49,6 +49,8 @@ mod paint;
 mod scripted;
 #[path = "frames/storage.rs"]
 mod storage;
+#[path = "frames/tree_walker.rs"]
+mod tree_walker;
 #[path = "frames/window_proxy.rs"]
 mod window_proxy;
 use common::{finish_loading, new_page, on_page_thread, value};

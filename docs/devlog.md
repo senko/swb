@@ -4,6 +4,27 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-14: M10 9a: TreeWalker and ariaNotify
+
+- Diagnosis of feature 9: the header menus, the "..." button, the
+  navigations and the Tab order already equal Chromium's replay. Two
+  missing APIs broke the rest: `createTreeWalker` in the focus code of
+  the React app (React Router then replaced the whole app, so no overlay
+  opened) and `getSelection` in a click listener (an error on every
+  click).
+- 9a adds `document.createTreeWalker` and `TreeWalker` without an arena
+  entry (the root as a host word, the current node as a document key and
+  node id, the filter traced). Chromium 148's `nextNode` returns `null`
+  when the current node is outside the root's tree; the standard filters
+  the same node for ever. swb follows Chromium.
+- Chromium 148 has native no-op `ariaNotify`; without it GitHub's
+  polyfill added a `live-region-<uuid>` element. swb now has the no-op.
+- The Code popover, the branch selector and the file finder open as in
+  Chromium. Scores and the JS-off snapshot unchanged; callgrind within
+  0.02 %. The review found a test gap (a walker after its filter threw),
+  now covered.
+- Next: 9b, live `Range` and `Selection` (ADR first).
+
 ## 2026-11-14: M10 8b: GitHub first-view test; feature 8 complete
 
 - `crates/automation/tests/github_swb.rs` compares GitHub's first view

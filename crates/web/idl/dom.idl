@@ -19,8 +19,8 @@
 // AbortSignal are complete (feature 10a, copied on 2026-10-30; `any` is
 // written `_any` as in the standard). NodeIterator, NodeFilter and
 // `Document.createNodeIterator` are complete (section 6 of the standard,
-// copied on 2026-11-07, M9 feature 15a); TreeWalker and Range are not copied
-// yet.
+// copied on 2026-11-07, M9 feature 15a); TreeWalker and
+// `Document.createTreeWalker` since M10 feature 9a; Range is not copied yet.
 // Document has no constructor yet (`new Document()` makes an XML
 // document); it lacks createCDATASection, createProcessingInstruction,
 // createRange and the other members that the roadmap backlog lists;
@@ -199,6 +199,16 @@ dictionary GetRootNodeOptions {
   boolean composed = false;
 };
 
+// ARIA Notify (https://w3c.github.io/aria/#ref-for-dom-element-arianotify-1):
+// Chromium 148 has `ariaNotify` on Element and Document (measured:
+// `tools/probes/web-tree-walker.json`). It has no effect in swb (no screen
+// reader): the arguments are converted and checked, and the call returns.
+enum AriaNotifyPriority { "normal", "high" };
+
+dictionary AriaNotificationOptions {
+  AriaNotifyPriority priority = "normal";
+};
+
 [Exposed=Window]
 interface Document : Node {
   readonly attribute USVString URL;
@@ -232,6 +242,8 @@ interface Document : Node {
   [NewObject] Attr createAttributeNS(DOMString? namespace, DOMString qualifiedName);
 
   [NewObject] Event createEvent(DOMString interface); // legacy
+
+  undefined ariaNotify(DOMString message, optional AriaNotificationOptions options = {});
 
   HTMLCollection getElementsByTagName(DOMString qualifiedName);
   HTMLCollection getElementsByTagNameNS(DOMString? namespace, DOMString localName);
@@ -379,6 +391,8 @@ interface Element : Node {
   ShadowRoot attachShadow(ShadowRootInit init);
   readonly attribute ShadowRoot? shadowRoot;
 
+  undefined ariaNotify(DOMString message, optional AriaNotificationOptions options = {});
+
   boolean matches(DOMString selectors);
   Element? closest(DOMString selectors);
   boolean webkitMatchesSelector(DOMString selectors); // legacy alias of .matches
@@ -517,6 +531,7 @@ interface MutationRecord {
 // runtime, as the arguments of importNode and adoptNode.
 partial interface Document {
   [NewObject] NodeIterator createNodeIterator([SwbAnyDocument] Node root, optional unsigned long whatToShow = 0xFFFFFFFF, optional NodeFilter? filter = null);
+  [NewObject] TreeWalker createTreeWalker([SwbAnyDocument] Node root, optional unsigned long whatToShow = 0xFFFFFFFF, optional NodeFilter? filter = null);
 };
 
 [Exposed=Window]
@@ -535,6 +550,28 @@ interface NodeIterator {
   object? previousNode();
 
   undefined detach();
+};
+
+// swb's types for the members that name a node: `object` for `root`,
+// `currentNode`, and the results of the traversal methods (`Node` and `Node?`
+// in the standard; a node that script moved to another document stays the root
+// or the current node of a walker, so the wrapper comes from that document),
+// and `any` for the setter of `currentNode`, which converts a value to `Node`
+// by hand (the same message as the standard's `Node`).
+[Exposed=Window]
+interface TreeWalker {
+  [SameObject] readonly attribute object root;
+  readonly attribute unsigned long whatToShow;
+  readonly attribute NodeFilter? filter;
+  attribute any currentNode;
+
+  object? parentNode();
+  object? firstChild();
+  object? lastChild();
+  object? previousSibling();
+  object? nextSibling();
+  object? previousNode();
+  object? nextNode();
 };
 
 [Exposed=Window]

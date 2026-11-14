@@ -5079,6 +5079,34 @@ Steps:
       Feature 8 is complete (2026-11-14).
    9. Interactions (`implementer`): items 3 to 8 and 10 of the list in the
       integration test, with Chromium's records of the same steps.
+      Diagnosis (2026-11-14): the header menus (item 3), the "..." button
+      (7), the navigations (8: 13 cases, equal request sets) and the Tab
+      order with `:focus-visible` (10: 76 stops) already equal Chromium's
+      replay. The Code popover (4), the branch selector (5) and typing in
+      "Go to file" (6) failed: the page's focus code calls
+      `document.createTreeWalker`, and React Router replaced the whole app
+      after the error. Every click logged an error from
+      `window.getSelection`, which swb lacks. Three sub-features:
+      - 9a `TreeWalker` and `ariaNotify` (`implementer`). Done
+        (2026-11-14): `document.createTreeWalker` and `TreeWalker` (DOM
+        §6.2; the walker has no arena entry: the root is a host word, the
+        current node a document key and node id; `nextNode` returns
+        `null` when the current node is outside the root's tree, as
+        Chromium 148 does, where the standard filters the same node for
+        ever); native no-op `ariaNotify` on elements and documents with
+        Chromium's argument checks (GitHub's live-region polyfill no
+        longer runs). 36 probe cases (`tools/probes/web-tree-walker.json`,
+        `web-tree-walker-frames.json`). The Code popover, the branch
+        selector and the file finder open as in Chromium's replay. Scores
+        unchanged; callgrind within 0.02 %.
+      - 9b `Range` and `Selection` (`implementer-hard`, a new ADR first):
+        live `Range`, `StaticRange`, `AbstractRange`, `Selection`,
+        `document.createRange`, `getSelection` on window, document and
+        shadow roots, `selectionchange`, tied to swb's native text
+        selection.
+      - 9c the interaction test (`implementer`): the steps and Chromium's
+        records of items 3 to 8 and 10 in `github_swb.rs`; the warning
+        "Web workers are not available" as a departure (no `Worker`).
 
    Then the end-of-milestone maintenance.
 
@@ -5280,6 +5308,17 @@ Steps:
   would save most of it. The pixels that remain: the avatars (image
   resampling), `text-overflow: ellipsis` in the commit message column,
   glyph edges.
+- GitHub (found in the feature 9 diagnosis and 9a): no `Worker` (the page
+  warns "Web workers are not available" when "Go to file" starts its
+  worker); no `document.execCommand` or `queryCommandSupported` (GitHub's
+  clipboard fallback); the tooltip "success" that Chromium opens after
+  Escape closes the check-status dialog does not open in swb; a hidden
+  `More items` button took the focus once in three swb Tab runs (9c
+  checks it); camelCase members of `getComputedStyle` for properties
+  without a computed value (`boxShadow`) are `undefined`; the scrollbar
+  of a scroll container takes no width (the file finder list: Chromium
+  625 px, swb 640 px); `Attr` is no node, so it cannot be the root or
+  current node of a walker or iterator.
 - GitHub (found in 8b): the avatars have square corners in swb, rounded
   in Chromium; the 1 px line under the repository tabs is missing
   (`box-shadow: inset`, see the `box-shadow` item of M8). In one of ten

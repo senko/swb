@@ -372,6 +372,27 @@ impl g::document::DocumentImpl for WebState {
         crate::node_iterator::create(cx, root, what_to_show, filter)
     }
 
+    /// <https://dom.spec.whatwg.org/#dom-document-createtreewalker>
+    fn create_tree_walker(
+        cx: &mut Cx<'_>,
+        _this: NodeId,
+        root: b::NodeRef,
+        what_to_show: u32,
+        filter: Option<crate::generated::types::NodeFilter>,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        crate::tree_walker::create(cx, root, what_to_show, filter)
+    }
+
+    /// `ariaNotify`: no effect without a screen reader (see `dom.idl`).
+    fn aria_notify(
+        _cx: &mut Cx<'_>,
+        _this: NodeId,
+        _message: String,
+        _options: crate::generated::types::AriaNotificationOptions,
+    ) -> b::Result<()> {
+        Ok(())
+    }
+
     /// <https://dom.spec.whatwg.org/#dom-document-importnode>
     fn import_node(
         cx: &mut Cx<'_>,

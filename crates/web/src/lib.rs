@@ -84,6 +84,7 @@
 //!   and the budget of the text that waits), `domain` (`document.domain`,
 //!   `originAgentCluster`), `cssom_sheets` (`document.styleSheets` and the
 //!   rules of a sheet), `node_iterator` (`NodeIterator`, `NodeFilter`),
+//!   `tree_walker` (`TreeWalker`),
 //!   `message_port` and `messaging` (`MessageChannel`, `MessagePort`,
 //!   `postMessage` across runtimes), `storage_events` (the `storage` event)
 //!   and `page_budget` (the budgets that the runtimes of a page share).
@@ -143,6 +144,7 @@ mod structured;
 mod svg;
 mod text_codec;
 mod timers;
+mod tree_walker;
 mod url_api;
 mod window;
 mod window_proxy;

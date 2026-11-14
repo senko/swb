@@ -144,6 +144,9 @@ pub trait ElementImpl: b::Host {
     /// `ShadowRoot attachShadow(ShadowRootInit init)`.
     fn attach_shadow(cx: &mut b::Cx<'_>, this: b::NodeId, init: super::types::ShadowRootInit) -> b::Result<b::NodeId>;
 
+    /// `undefined ariaNotify(DOMString message, optional AriaNotificationOptions options)`.
+    fn aria_notify(cx: &mut b::Cx<'_>, this: b::NodeId, message: String, options: super::types::AriaNotificationOptions) -> b::Result<()>;
+
     /// `boolean matches(DOMString selectors)`.
     fn matches(cx: &mut b::Cx<'_>, this: b::NodeId, selectors: String) -> b::Result<bool>;
 
@@ -719,6 +722,19 @@ fn op_attach_shadow<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nat
     })
 }
 
+fn op_aria_notify<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Element", "ariaNotify"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::ELEMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = if v.is_undefined() { super::types::AriaNotificationOptions::from_js(rt, call.realm(), swb_js::Value::Undefined)? } else { super::types::AriaNotificationOptions::from_js(rt, call.realm(), v).map_err(|e| e.argument(1))? };
+        <H as ElementImpl>::aria_notify(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 fn op_matches<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Element", "matches"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::ELEMENT)?;
@@ -1079,6 +1095,7 @@ pub fn define<H: ElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::V
     rt.define_accessor(realm, target, "assignedSlot", (Some(get_assigned_slot::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "after", 0, op_after::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "append", 0, op_append::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "ariaNotify", 1, op_aria_notify::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "attachShadow", 1, op_attach_shadow::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "before", 0, op_before::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "closest", 1, op_closest::<H>, swb_js::Attributes::MEMBER)?;

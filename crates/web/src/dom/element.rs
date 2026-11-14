@@ -25,6 +25,16 @@ impl g::element::ElementImpl for WebState {
         super::shadow::attach_shadow(cx, this, &init)
     }
 
+    /// `ariaNotify`: no effect without a screen reader (see `dom.idl`).
+    fn aria_notify(
+        _cx: &mut Cx<'_>,
+        _this: NodeId,
+        _message: String,
+        _options: g::types::AriaNotificationOptions,
+    ) -> b::Result<()> {
+        Ok(())
+    }
+
     fn shadow_root(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
         super::shadow::shadow_root(cx, this)
     }

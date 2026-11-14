@@ -375,6 +375,31 @@ impl GetRootNodeOptions {
     }
 }
 
+/// The dictionary `AriaNotificationOptions`.
+#[derive(Clone, Debug)]
+pub struct AriaNotificationOptions {
+    /// `priority`.
+    pub priority: AriaNotifyPriority,
+}
+
+impl AriaNotificationOptions {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<AriaNotificationOptions> {
+        let object = b::convert::dictionary_object(value, "AriaNotificationOptions")?;
+        let v = b::convert::member(rt, object, "priority")?;
+        let priority = if v.is_undefined() { AriaNotifyPriority::Normal } else { AriaNotifyPriority::from_js(rt, v).map_err(|e| e.member("priority", "AriaNotificationOptions"))? };
+        Ok(AriaNotificationOptions { priority })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        let value = b::to_js::string(rt, (self.priority).as_str())?;
+        b::to_js::dictionary_member(rt, object, "priority", value)?;
+        Ok(object.into())
+    }
+}
+
 /// The dictionary `ElementCreationOptions`.
 #[derive(Clone, Debug)]
 pub struct ElementCreationOptions {
@@ -4086,6 +4111,37 @@ impl SupportedType {
             2 => SupportedType::ApplicationXml,
             3 => SupportedType::ApplicationXhtmlXml,
             _ => SupportedType::ImageSvgXml,
+        })
+    }
+}
+
+/// The enumeration `AriaNotifyPriority`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AriaNotifyPriority {
+    /// `"normal"`.
+    Normal,
+    /// `"high"`.
+    High,
+}
+
+impl AriaNotifyPriority {
+    /// The values in order.
+    pub const VALUES: [&'static str; 2] = ["normal", "high"];
+
+    /// The value as a string.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AriaNotifyPriority::Normal => "normal",
+            AriaNotifyPriority::High => "high",
+        }
+    }
+
+    /// Converts a JavaScript value (Web IDL §3.2.18).
+    pub fn from_js(rt: &mut swb_js::Runtime, value: swb_js::Value) -> b::Result<AriaNotifyPriority> {
+        let index = b::convert::enumeration(rt, value, &AriaNotifyPriority::VALUES, "AriaNotifyPriority")?;
+        Ok(match index {
+            0 => AriaNotifyPriority::Normal,
+            _ => AriaNotifyPriority::High,
         })
     }
 }

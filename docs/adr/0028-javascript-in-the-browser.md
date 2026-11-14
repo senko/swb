@@ -5577,6 +5577,27 @@ image map (swb has no image map hit test), and the `toggle` event (not
 implemented). `crates/automation/tests/bbc.rs` has the two BBC tests (the item
 "Sport" and the sub-link "Artificial Intelligence").
 
+**M10 feature 9a: `TreeWalker`, `Document.createTreeWalker`, `ariaNotify`.** GitHub's
+overlays (the Code popover, the branch selector, the check-status dialog and the
+file finder) call `document.createTreeWalker` when they open, and without it the
+React app of the page fell into its error boundary. The IDL is DOM section 6.2
+(`dom.idl`); the code is `crates/web/src/tree_walker.rs`. Unlike a `NodeIterator`, a
+walker has no position that the pre-removing steps update, so it has no entry in an arena
+and no table: the object holds the mask, the filter (traced), the active flag, the
+current node (a document key and a node id, followed with `state::settled` when read)
+and, as its host word, the root (a move of the root updates the word). The steps of
+the standard read the tree when they run, node by node, in the arena of the node they
+are at, so a filter that removes, moves or clones nodes works with the tree as it is.
+Measured departures from the text of the standard (Chromium 148, probe cases
+`outside-root` and `mutation`): `nextNode` returns `null` where the standard filters the
+same node again for ever, when the climb to the root ends above the top of a tree that
+is not the root's. `currentNode` and `root` have the IDL types `any` and `object`
+so that a node of another document keeps its wrapper (a conversion to `Node` is in
+the setter). Chromium 148 has `Element.prototype.ariaNotify` and
+`Document.prototype.ariaNotify` (message and options, `priority` `normal` or `high`);
+GitHub's live-region polyfill runs only when they are missing, so swb has them as
+no-ops that convert and check their arguments as Chromium does.
+
 ## Consequences
 
 - The engine gets the structure that scripts need: a resumable parser,

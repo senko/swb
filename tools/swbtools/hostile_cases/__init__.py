@@ -34,6 +34,7 @@ MODULES = (
     "write_cssom_modules",
     "frames",
     "storage_iterator",
+    "tree_walker",
     "custom_elements",
     "shadow_dom",
     "top_layer",

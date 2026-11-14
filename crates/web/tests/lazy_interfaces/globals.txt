@@ -105,6 +105,7 @@ Comment:dwc
 MutationObserver:dwc
 MutationRecord:dwc
 NodeIterator:dwc
+TreeWalker:dwc
 NodeFilter:dwc
 TextDecoder:dwc
 TextEncoder:dwc

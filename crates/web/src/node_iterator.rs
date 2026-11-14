@@ -373,7 +373,7 @@ fn place_of(rt: &mut Runtime, id: u32, spot: Spot) -> VmResult<(DocKey, NodeId)>
 }
 
 /// The wrapper of `node` of the document `key`, made in that document's realm.
-fn wrapper_in(rt: &mut Runtime, key: DocKey, node: NodeId) -> VmResult<Gc<Object>> {
+pub(crate) fn wrapper_in(rt: &mut Runtime, key: DocKey, node: NodeId) -> VmResult<Gc<Object>> {
     state::ensure_lent(rt, key)?;
     let entered = state::switch_if_other(rt, key)?;
     let wrapper = state::wrap_node_with_proto(rt, node, None);
@@ -564,7 +564,7 @@ fn accepts(
     b::keep(rt, Value::Object(argument));
     let data = iterator_data(rt, this)?;
     data.active.set(true);
-    let called = call_filter(rt, filter, argument, method);
+    let called = call_filter(rt, filter, argument, "NodeIterator", method);
     if let Ok(data) = iterator_data(rt, this) {
         data.active.set(false);
     }
@@ -572,7 +572,7 @@ fn accepts(
 }
 
 /// The `nodeType` of `node` in the arena of the document `key`.
-fn node_type(rt: &mut Runtime, key: DocKey, node: NodeId) -> Option<u32> {
+pub(crate) fn node_type(rt: &mut Runtime, key: DocKey, node: NodeId) -> Option<u32> {
     state::ensure_lent(rt, key).ok()?;
     let dom = state::dom_of(rt, key).ok()?;
     Some(match dom.get(node)?.data {
@@ -589,10 +589,11 @@ fn node_type(rt: &mut Runtime, key: DocKey, node: NodeId) -> Option<u32> {
 /// Web IDL "call a user object's operation" `acceptNode` of `filter`, and the
 /// conversion of the result to `unsigned short`. A callable filter is called
 /// with `this` undefined; `acceptNode` is read at each call.
-fn call_filter(
+pub(crate) fn call_filter(
     rt: &mut Runtime,
     filter: Gc<Object>,
     argument: Gc<Object>,
+    interface: &str,
     method: &str,
 ) -> b::Result<u16> {
     let value = Value::Object(filter);
@@ -612,8 +613,13 @@ fn call_filter(
     convert::unsigned_short(rt, result, IntMode::Plain).map_err(|e| match e {
         // Chromium names the callback first and the method of the iterator
         // after it, the other way round than the glue does.
-        Exception::Type(message) => Exception::Js(swb_js::VmError::type_error(format!(
-            "Failed to execute 'acceptNode' on 'NodeFilter': Failed to execute '{method}' on 'NodeIterator': {message}"
+        // The conversion of a Symbol raises the TypeError in the engine.
+        Exception::Type(message)
+        | Exception::Js(swb_js::VmError::Raise {
+            kind: swb_js::ThrowKind::TypeError,
+            message,
+        }) => Exception::Js(swb_js::VmError::type_error(format!(
+            "Failed to execute 'acceptNode' on 'NodeFilter': Failed to execute '{method}' on '{interface}': {message}"
         ))),
         other => other,
     })

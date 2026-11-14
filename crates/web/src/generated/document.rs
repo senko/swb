@@ -168,6 +168,9 @@ pub trait DocumentImpl: b::Host {
     /// `Event createEvent(DOMString interface)`.
     fn create_event(cx: &mut b::Cx<'_>, this: b::NodeId, interface: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `undefined ariaNotify(DOMString message, optional AriaNotificationOptions options)`.
+    fn aria_notify(cx: &mut b::Cx<'_>, this: b::NodeId, message: String, options: super::types::AriaNotificationOptions) -> b::Result<()>;
+
     /// `HTMLCollection getElementsByTagName(DOMString qualifiedName)`.
     fn get_elements_by_tag_name(cx: &mut b::Cx<'_>, this: b::NodeId, qualified_name: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
@@ -185,6 +188,9 @@ pub trait DocumentImpl: b::Host {
 
     /// `NodeIterator createNodeIterator(Node root, optional unsigned long whatToShow, optional NodeFilter? filter)`.
     fn create_node_iterator(cx: &mut b::Cx<'_>, this: b::NodeId, root: b::NodeRef, what_to_show: u32, filter: Option<super::types::NodeFilter>) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `TreeWalker createTreeWalker(Node root, optional unsigned long whatToShow, optional NodeFilter? filter)`.
+    fn create_tree_walker(cx: &mut b::Cx<'_>, this: b::NodeId, root: b::NodeRef, what_to_show: u32, filter: Option<super::types::NodeFilter>) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
     /// `Document open(optional DOMString unused1, optional DOMString unused2)`.
     fn open(cx: &mut b::Cx<'_>, this: b::NodeId, unused1: Option<String>, unused2: Option<String>) -> b::Result<b::NodeId>;
@@ -2384,6 +2390,19 @@ fn op_create_event<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nat
     })
 }
 
+fn op_aria_notify<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "ariaNotify"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = if v.is_undefined() { super::types::AriaNotificationOptions::from_js(rt, call.realm(), swb_js::Value::Undefined)? } else { super::types::AriaNotificationOptions::from_js(rt, call.realm(), v).map_err(|e| e.argument(1))? };
+        <H as DocumentImpl>::aria_notify(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0, a1)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 fn op_get_elements_by_tag_name<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Document", "getElementsByTagName"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
@@ -2456,6 +2475,21 @@ fn op_create_node_iterator<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb
         let v = rt.arg(call, 2);
         let a2 = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { super::types::NodeFilter::from_js(v).map(Some) }).map_err(|e| e.argument(2))? };
         let result = <H as DocumentImpl>::create_node_iterator(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0, a1, a2)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn op_create_tree_walker<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "createTreeWalker"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = if v.is_undefined() { 4294967295 } else { b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(1))? };
+        let v = rt.arg(call, 2);
+        let a2 = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { super::types::NodeFilter::from_js(v).map(Some) }).map_err(|e| e.argument(2))? };
+        let result = <H as DocumentImpl>::create_tree_walker(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0, a1, a2)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
@@ -2749,6 +2783,7 @@ pub fn define<H: DocumentImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::
     rt.define_accessor(realm, target, "onpaste", (Some(get_onpaste::<H> as swb_js::NativeFn), Some(set_onpaste::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "adoptNode", 1, op_adopt_node::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "append", 0, op_append::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "ariaNotify", 1, op_aria_notify::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "close", 0, op_close::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createAttribute", 1, op_create_attribute::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createAttributeNS", 2, op_create_attribute_ns::<H>, swb_js::Attributes::MEMBER)?;
@@ -2759,6 +2794,7 @@ pub fn define<H: DocumentImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::
     rt.define_method(realm, target, "createEvent", 1, op_create_event::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createNodeIterator", 1, op_create_node_iterator::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createTextNode", 1, op_create_text_node::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "createTreeWalker", 1, op_create_tree_walker::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "elementFromPoint", 2, op_element_from_point::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "elementsFromPoint", 2, op_elements_from_point::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "getElementById", 1, op_get_element_by_id::<H>, swb_js::Attributes::MEMBER)?;

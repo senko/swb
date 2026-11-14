@@ -232,11 +232,11 @@ fn switch_for_call(rt: &mut Runtime, call: &NativeCall) -> VmResult<Entered> {
         Some(key) => key,
         None => document_of_realm(state(rt)?, call.realm()),
     };
-    // A `NodeIterator` of one realm walks the nodes of another document (its
+    // A `NodeIterator` or `TreeWalker` of one realm walks the nodes of another document (its
     // root's); the wrappers it makes belong to that document's realm
     // (measured).
     let realm = match rt.host_object(call.this()) {
-        Some((class, _)) if class == g::NODE_ITERATOR => None,
+        Some((class, _)) if class == g::NODE_ITERATOR || class == g::TREE_WALKER => None,
         _ => rt.host_object_realm(call.this()),
     };
     enter_document(rt, key, realm)
