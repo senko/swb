@@ -345,7 +345,8 @@ the document.
 - The selection's range entry has the selection bit; a range object that
   the collector frees while the selection holds the entry clears only the
   object bit, and `getRangeAt` makes a new object for the entry (not
-  observable: nothing referenced the old one).
+  observable: nothing referenced the old one). (9b-2 keeps the bits in the
+  selection's state instead; see "9b-2 implementation notes".)
 - `Selection` objects trace their current range wrapper.
 
 ### 5. Out of scope
@@ -400,14 +401,16 @@ Hostile cases (`tools/swbtools/hostile_cases/range.py`): 100,000 live
 ranges and a DOM change; 100,000 ranges in one parent and a loop of
 insertions; `extractContents` over a 100,000-node subtree; a range at the
 bottom of a 100,000-level chain with `extractContents`, `cloneContents`,
-`commonAncestorContainer` and a removal of the top; a loop of `addRange`
-and `removeAllRanges`; a loop of `collapse` with a `selectionchange`
-listener that changes the selection again; since the fixes, 100,000 ranges
+`commonAncestorContainer` and a removal of the top; since the fixes, 100,000 ranges
 with `textContent = ''` of a parent of 100,000 children, `normalize` of
 100,000 elements followed by 100,000 text nodes, `normalize` of 100,000
 empty text nodes with 100,000 ranges at their parent, `normalize` of 50,000
 runs with 50,000 ranges at their parent and a run in an element before each,
-and a fragment of 100,000 children inserted at the front.
+and a fragment of 100,000 children inserted at the front. Hostile cases of
+the selection (`selection.py`, 9b-2): a loop of `addRange` and
+`removeAllRanges` and a loop of `collapse`; a `selectionchange` listener
+that changes the selection again; a selection over 100,000 text nodes,
+painted and copied.
 
 ### 7. Performance
 
@@ -480,6 +483,72 @@ The orchestrator's answers of 2026-11-14:
    it again (three equal runs, and cases with `addRange` and
    `selectAllChildren`). If the runs are equal, follow Chromium; else leave
    the control's selection alone and list it as a departure.
+
+## 9b-2 implementation notes
+
+What 9b-2 did differently from section 3, or added after new measurements
+(three equal runs each of the 7 cases that 9b-2 added to
+`tools/probes/web-selection.json`):
+
+- **Entries.** No owner bits per entry: a script's `Range` object owns the
+  entry of its id (the host's ids stay below 2^31), and the selection's state
+  (`swb_dom::SelectionState`, `ranges/selection.rs`) says whether an object
+  owns its entry too. The arena makes the selection's own entries (a gesture, a
+  `Selection` method) with ids from 2^31 up; `getRangeAt` renames such an
+  entry to the id of a new `Range` object, which the `Selection` keeps. An
+  entry goes when neither owns it. The arena keeps the selection generation
+  and the "changed" flag; setting the flag sets the host's request flag, so
+  `after_request` queues `selectionchange` after a `Range` method or a data
+  change that moved the selection.
+- **Text controls.** The control that owns the document's selection is part
+  of that state (it replaced `SelectionEvents::owner`): its range is collapsed
+  at the control's place in its parent, and the bindings report the control's
+  type, direction and text. A script's change of the document's selection
+  while the control owns it collapses the control's selection at 0 and ends
+  the ownership (the focus stays); `addRange` is ignored then; `extend`
+  collapses at the new point; a later change of the focused control's
+  selection takes the document's selection back (decision 5: the runs were
+  equal, swb follows Chromium).
+- **`selectionchange`** at the document waits in the queue of the controls'
+  events (`html/selection_events.rs`) under the document node, so a change
+  adds nothing while one waits. The bound of that queue (4,096 events) does
+  not apply to it: a queue full of `select` events keeps it (review fix).
+- **`containsNode`** (decision 4): Chromium answers from the caret positions
+  that show the selection. The start moves forward to the first position of
+  the next text, the end and a caret back to the last position of the
+  previous text, neither across the edge of a block or a form control; a
+  point between blocks is the start of the next block. A text node is
+  contained when the moved range reaches or touches it; other nodes follow
+  the standard's "contained" and "partially contained" over the moved range
+  (`ranges/visual.rs`; the engine says which elements are blocks, inline or
+  atomic, and which text is rendered: `EngineHost::visual_range`).
+- **Frames** (decision 3, measured again): a document whose focus goes into
+  one of its frames keeps its selection, unless the selection contains the
+  frame's `iframe`; then it collapses before the `iframe` (select all, a
+  range over the `iframe`). ADR 0009 "Frames" says so.
+- **Gestures.** A click below the content puts the caret at `(body,
+  childCount)` and fires `selectstart` at `html`, as in Chromium (the planned
+  departure is gone); select all fires `selectstart` at the body; a drag
+  after a script replaced the selection starts again at the pointer
+  (measured, `user-drag-script-change`). The drag compares a count of the
+  selection's replacements, not the entry id: a `getRangeAt` renames the
+  entry but does not stop the drag (review fix; Chromium keeps the
+  selection, measured).
+- **Highlight and copy.** `TreeOrder` follows the shadow-including tree
+  order, so a script's selection inside one shadow tree is painted and
+  copied. The copied text keeps the spaces on both sides of a form control
+  or replaced element ("pre  post") and the line break before a last line of
+  controls (select all), as Chromium's `toString`. The display list is
+  rebuilt when the selection generation changed and the visible selection
+  differs.
+- **Departures** (rows in the tests): `getComposedRanges`, `modify`,
+  `ShadowRoot.getSelection` are absent; `deleteFromDocument` comes with
+  `deleteContents` (9b-3); a selection from the document into a shadow tree
+  collapses at the focus; a user's selection in a shadow tree reports the
+  shadow tree's nodes; a double click 0.01 px inside a space selects the space
+  (Chromium the word after it); the event logs of input steps differ in how
+  many `selectionchange` events coalesce (Chromium handles input before the
+  event's task, `run_steps` runs the tasks after each step).
 
 ## Consequences
 

@@ -38,8 +38,12 @@ use crate::tree::{Document, NodeData, NodeId};
 use crate::work::ArenaWork;
 
 mod normalize;
+mod selection;
+mod visual;
 
 pub(crate) use normalize::NormalizeSteps;
+pub use selection::{HOST_ID_LIMIT, SelectionState};
+pub use visual::Flow;
 
 /// A boundary point: a node and an offset (bytes of the data of a character
 /// data node, else a child index).
@@ -99,6 +103,8 @@ pub(crate) struct LiveRanges {
     work: Option<ArenaWork>,
     /// How much of the list of dead ranges this arena has dropped.
     dead_seen: (u32, usize),
+    /// The selection of the document (`ranges/selection.rs`).
+    selection: selection::SelectionSlot,
 }
 
 impl LiveRanges {
@@ -140,13 +146,14 @@ impl LiveRanges {
         Some(range)
     }
 
-    /// Drops the entries of the ranges on the list of dead ones.
+    /// Drops the entries of the ranges on the list of dead ones (the
+    /// selection keeps its entry).
     fn drop_dead(&mut self) {
         let Some(work) = &self.work else {
             return;
         };
         for id in work.dead.fresh(&mut self.dead_seen) {
-            self.forget(id);
+            self.release(id);
         }
     }
 
@@ -307,6 +314,7 @@ impl LiveRanges {
             return;
         }
         let end = offset.saturating_add(count);
+        let before = self.selection_range();
         self.update_at(node, |o| {
             if *o > offset && *o <= end {
                 *o = offset;
@@ -314,6 +322,11 @@ impl LiveRanges {
                 *o = (*o - count).saturating_add(len);
             }
         });
+        // A data change that moves a boundary point of the selection is a
+        // change of the selection (measured: `selectionchange`).
+        if before.is_some() && self.selection_range() != before {
+            self.note_selection_change(true);
+        }
     }
 }
 
@@ -341,15 +354,29 @@ impl Document {
         ranges.work = Some(work);
     }
 
-    /// Adds (or replaces) live range `id`.
+    /// Adds (or replaces) live range `id`. If it is the selection's range, a
+    /// change is a change of the selection, and a range in another root
+    /// leaves the selection (measured).
     pub fn set_live_range(&mut self, id: u32, range: LiveRange) {
-        self.ranges
-            .get_or_insert_with(Box::default)
-            .place(id, range);
+        let ranges = self.ranges.get_or_insert_with(Box::default);
+        let before = ranges.entries.get(&id).copied();
+        ranges.place(id, range);
+        if ranges.selection_id() != Some(id) || before == Some(range) {
+            return;
+        }
+        if self.is_in_document_tree(range) {
+            if let Some(ranges) = self.ranges.as_deref_mut() {
+                ranges.note_selection_change(true);
+            }
+        } else {
+            self.selection_left_tree(id);
+        }
     }
 
-    /// Removes live range `id`.
+    /// Removes live range `id` (it moves to another arena): the selection
+    /// loses it.
     pub fn remove_live_range(&mut self, id: u32) {
+        self.selection_left_tree(id);
         if let Some(ranges) = &mut self.ranges {
             ranges.forget(id);
         }
@@ -408,6 +435,7 @@ impl Document {
             else {
                 continue;
             };
+            ranges.unselect(id);
             ranges.forget(id);
             moved.push((
                 id,
@@ -490,6 +518,7 @@ impl Document {
             return;
         };
         ranges.drop_dead();
+        let before = ranges.selection_range();
         for id in ranges.ids_at(node) {
             let Some(mut range) = ranges.entries.get(&id).copied() else {
                 continue;
@@ -500,6 +529,9 @@ impl Document {
                 }
             }
             ranges.place(id, range);
+        }
+        if before.is_some() && ranges.selection_range() != before {
+            ranges.note_selection_change(true);
         }
     }
 

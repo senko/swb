@@ -504,7 +504,7 @@ impl Page {
             self.update_states(|s| s.focus = None);
         }
         // A selection that starts or ends in the hidden content goes away.
-        let selection = self.doc.as_ref().and_then(|d| d.selection);
+        let selection = self.doc.as_ref().and_then(|d| d.gesture_selection());
         if let (Some(doc), Some(selection)) = (self.document(), selection)
             && (doc.in_closed_details_content(selection.anchor.node)
                 || doc.in_closed_details_content(selection.focus.node))

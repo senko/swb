@@ -549,6 +549,15 @@ impl ScriptRuntime {
         })
     }
 
+    /// The user's gesture changed the selection of the document (M10
+    /// sub-feature 9b-2): `selectionchange` at the document in a task,
+    /// unless one waits. A task.
+    pub fn document_selection_changed(&mut self) -> Result<(), ScriptError> {
+        self.task("a selection change", |rt| {
+            crate::html::selection_events::document_changed(rt).map_err(task_error)
+        })
+    }
+
     /// Fires `change` at the text control `node` if its user's edit is not
     /// committed (Enter in a field, before the implicit submission). A task.
     pub fn commit_change(&mut self, node: NodeId) -> Result<(), ScriptError> {

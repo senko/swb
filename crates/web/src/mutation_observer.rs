@@ -247,6 +247,11 @@ pub(crate) fn after_request(rt: &mut Runtime) -> VmResult<()> {
     {
         crate::adopted::forget_moved(rt, &moved)?;
     }
+    // A change of the selection's range (a `Range` method, a data change that
+    // moved a boundary point) queues `selectionchange` (ADR 0039 section 3).
+    if dom_mut(rt).is_ok() {
+        crate::html::selection_events::note_document_change(rt)?;
+    }
     // The work of the pre-removing steps of the node iterators and of the
     // live range steps counts too.
     let ranges_overdue = crate::range::take_overdue(rt);

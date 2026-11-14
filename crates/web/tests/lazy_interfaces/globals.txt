@@ -288,6 +288,7 @@ confirm:dwec
 fetch:dwec
 focus:dwec
 getComputedStyle:dwec
+getSelection:dwec
 matchMedia:dwec
 postMessage:dwec
 print:dwec
@@ -417,6 +418,7 @@ ResizeObserver:dwc
 ResizeObserverEntry:dwc
 ResizeObserverSize:dwc
 PerformanceResourceTiming:dwc
+Selection:dwc
 SVGElement:dwc
 SVGAnimatedString:dwc
 SVGGraphicsElement:dwc

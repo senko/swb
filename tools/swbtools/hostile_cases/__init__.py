@@ -36,6 +36,7 @@ MODULES = (
     "storage_iterator",
     "tree_walker",
     "range",
+    "selection",
     "custom_elements",
     "shadow_dom",
     "top_layer",

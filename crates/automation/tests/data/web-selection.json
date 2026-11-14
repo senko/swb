@@ -1,0 +1,589 @@
+{
+ "api": [
+  [
+   "function",
+   0,
+   "function Selection() { [native code] }",
+   true,
+   true,
+   "[object Selection]",
+   "length,name,prototype",
+   "anchorNode,anchorOffset,focusNode,focusOffset,isCollapsed,rangeCount,type,direction,baseNode,baseOffset,extentNode,extentOffset,addRange,collapse,collapseToEnd,collapseToStart,containsNode,deleteFromDocument,empty,extend,getComposedRanges,getRangeAt,modify,removeAllRanges,removeRange,selectAllChildren,setBaseAndExtent,setPosition,toString,constructor",
+   "TypeError: Failed to construct 'Selection': Illegal constructor",
+   "TypeError: Illegal constructor"
+  ],
+  [
+   "anchorNode acc:function:undefined:undefined:true:true:",
+   "anchorOffset acc:function:undefined:undefined:true:true:",
+   "focusNode acc:function:undefined:undefined:true:true:",
+   "focusOffset acc:function:undefined:undefined:true:true:",
+   "isCollapsed acc:function:undefined:undefined:true:true:",
+   "rangeCount acc:function:undefined:undefined:true:true:",
+   "type acc:function:undefined:undefined:true:true:",
+   "direction acc:function:undefined:undefined:true:true:",
+   "baseNode acc:function:undefined:undefined:true:true:",
+   "extentNode acc:function:undefined:undefined:true:true:",
+   "toString val:undefined:undefined:function:true:true:true",
+   "getComposedRanges val:undefined:undefined:function:true:true:true",
+   "setPosition val:undefined:undefined:function:true:true:true",
+   "collapse val:undefined:undefined:function:true:true:true",
+   "modify val:undefined:undefined:function:true:true:true",
+   "val:undefined:undefined:function:true:true:true",
+   "none",
+   "val:undefined:undefined:function:true:true:true",
+   "val:undefined:undefined:function:false:true:true",
+   "acc:function:function:undefined:true:true:",
+   "none",
+   "acc:function:function:undefined:true:true:",
+   "acc:function:function:undefined:true:true:",
+   "acc:function:function:undefined:true:true:",
+   "acc:function:function:undefined:true:true:",
+   "val:undefined:undefined:function:true:true:true"
+  ],
+  [
+   "addRange:1:addRange",
+   "collapse:1:collapse",
+   "collapseToEnd:0:collapseToEnd",
+   "collapseToStart:0:collapseToStart",
+   "containsNode:1:containsNode",
+   "deleteFromDocument:0:deleteFromDocument",
+   "empty:0:empty",
+   "extend:1:extend",
+   "getComposedRanges:0:getComposedRanges",
+   "getRangeAt:1:getRangeAt",
+   "modify:0:modify",
+   "removeAllRanges:0:removeAllRanges",
+   "removeRange:1:removeRange",
+   "selectAllChildren:1:selectAllChildren",
+   "setBaseAndExtent:4:setBaseAndExtent",
+   "setPosition:1:setPosition",
+   "toString:0:toString",
+   "constructor:0:Selection",
+   0,
+   0,
+   false,
+   false
+  ],
+  [
+   true,
+   true,
+   true,
+   true,
+   "",
+   "\"\"",
+   "None 0 null,0 null,0 true none -",
+   "IndexSizeError: Failed to execute 'getRangeAt' on 'Selection': 0 is not a valid index.",
+   "IndexSizeError: Failed to execute 'getRangeAt' on 'Selection': 4294967295 is not a valid index.",
+   "TypeError: Failed to execute 'getRangeAt' on 'Selection': 1 argument required, but only 0 present.",
+   "InvalidStateError: Failed to execute 'collapseToStart' on 'Selection': there is no selection.",
+   "InvalidStateError: Failed to execute 'collapseToEnd' on 'Selection': there is no selection.",
+   "InvalidStateError: Failed to execute 'extend' on 'Selection': This Selection object doesn't have any Ranges.",
+   "NotFoundError: Failed to execute 'removeRange' on 'Selection': Range not found.",
+   "TypeError: Illegal invocation",
+   "TypeError: Illegal invocation"
+  ],
+  [
+   "null",
+   "null",
+   true,
+   true,
+   true,
+   "null",
+   "true",
+   "object",
+   "object",
+   "object",
+   true,
+   true,
+   true
+  ]
+ ],
+ "add-remove": [
+  [
+   "Range 1 t:alpha beta gamma,1 t:alpha beta gamma,4 false forward t:alpha beta gamma,1-t:alpha beta gamma,4",
+   true,
+   true,
+   "lph",
+   "Range 1 t:alpha beta gamma,1 t:alpha beta gamma,4 false forward t:alpha beta gamma,1-t:alpha beta gamma,4",
+   true,
+   "Range 1 t:alpha beta gamma,1 t:alpha beta gamma,4 false forward t:alpha beta gamma,1-t:alpha beta gamma,4",
+   "NotFoundError: Failed to execute 'removeRange' on 'Selection': Range not found.",
+   "Range 1 t:alpha beta gamma,1 t:alpha beta gamma,4 false forward t:alpha beta gamma,1-t:alpha beta gamma,4",
+   "undefined",
+   "None 0 null,0 null,0 true none -",
+   "Range 1 p#b,0 p#b,3 false forward p#b,0-p#b,3",
+   true,
+   "None 0 null,0 null,0 true none -",
+   "None 0 null,0 null,0 true none -",
+   "TypeError: Failed to execute 'addRange' on 'Selection': parameter 1 is not of type 'Range'.",
+   "TypeError: Failed to execute 'addRange' on 'Selection': 1 argument required, but only 0 present.",
+   "TypeError: Failed to execute 'addRange' on 'Selection': parameter 1 is not of type 'Range'."
+  ],
+  [
+   "None 0 null,0 null,0 true none -",
+   "None 0 null,0 null,0 true none -",
+   "None 0 null,0 null,0 true none -",
+   "Range 1 body,0 body,1 false forward body,0-body,1",
+   true,
+   "Caret 1 #document,0 #document,0 true none #document,0-#document,0",
+   "Range 1 head,0 head,1 false forward head,0-head,1",
+   "\"\""
+  ],
+  [
+   "Range 1 t:alpha beta gamma,1 t:one ,2 false forward t:alpha beta gamma,1-t:one ,2",
+   true,
+   "Caret 1 t:alpha beta gamma,1 t:alpha beta gamma,1 true none t:alpha beta gamma,1-t:alpha beta gamma,1",
+   "None 0 null,0 null,0 true none -",
+   "div,0-div,1",
+   "None 0 null,0 null,0 true none -",
+   "IndexSizeError: Failed to execute 'getRangeAt' on 'Selection': 0 is not a valid index.",
+   "t:alpha beta gamma,2-t:alpha beta gamma,2"
+  ],
+  [
+   false,
+   "NotFoundError: Failed to execute 'removeRange' on 'Selection': Range not found.",
+   "None 0 null,0 null,0 true none -"
+  ]
+ ],
+ "collapse-extend": [
+  [
+   "Caret 1 t:alpha beta gamma,1 t:alpha beta gamma,1 true none t:alpha beta gamma,1-t:alpha beta gamma,1",
+   "Caret 1 t:alpha beta gamma,2 t:alpha beta gamma,2 true none t:alpha beta gamma,2-t:alpha beta gamma,2",
+   false,
+   "t:alpha beta gamma,1-t:alpha beta gamma,1",
+   "Caret 1 t:one ,1 t:one ,1 true none t:one ,1-t:one ,1",
+   "Caret 1 p#a,0 p#a,0 true none p#a,0-p#a,0",
+   "None 0 null,0 null,0 true none -",
+   "None 0 null,0 null,0 true none -",
+   "IndexSizeError: Failed to execute 'collapse' on 'Selection': The offset 99 is larger than the node's length (16).",
+   "IndexSizeError: Failed to execute 'collapse' on 'Selection': There is no child at offset 2.",
+   "InvalidNodeTypeError: Failed to execute 'collapse' on 'Selection': The node provided is of type 'html'.",
+   "TypeError: Failed to execute 'collapse' on 'Selection': 1 argument required, but only 0 present.",
+   "TypeError: Failed to execute 'collapse' on 'Selection': parameter 1 is not of type 'Node'.",
+   "None 0 null,0 null,0 true none -",
+   "None 0 null,0 null,0 true none -",
+   "IndexSizeError: Failed to execute 'collapse' on 'Selection': The offset 4294967295 is larger than the node's length (16)."
+  ],
+  [
+   "Range 1 t:alpha beta gamma,2 t:alpha beta gamma,5 false forward t:alpha beta gamma,2-t:alpha beta gamma,5",
+   false,
+   "t:alpha beta gamma,2-t:alpha beta gamma,2",
+   "Range 1 t:alpha beta gamma,2 t:alpha beta gamma,0 false backward t:alpha beta gamma,0-t:alpha beta gamma,2",
+   false,
+   "Range 1 t:alpha beta gamma,2 t:one ,2 false forward t:alpha beta gamma,2-t:one ,2",
+   "Range 1 t:alpha beta gamma,2 p#a,0 false backward p#a,0-t:alpha beta gamma,2",
+   "Caret 1 t:alpha beta gamma,2 t:alpha beta gamma,2 true none t:alpha beta gamma,2-t:alpha beta gamma,2",
+   "IndexSizeError: Failed to execute 'extend' on 'Selection': The offset 99 is larger than the node's length (16).",
+   "InvalidNodeTypeError: Failed to execute 'extend' on 'Selection': The node provided is of type 'html'.",
+   "Caret 1 t:alpha beta gamma,2 t:alpha beta gamma,2 true none t:alpha beta gamma,2-t:alpha beta gamma,2",
+   "Range 1 t:alpha beta gamma,2 t:alpha beta gamma,0 false backward t:alpha beta gamma,0-t:alpha beta gamma,2",
+   "TypeError: Failed to execute 'extend' on 'Selection': parameter 1 is not of type 'Node'.",
+   "TypeError: Failed to execute 'extend' on 'Selection': 1 argument required, but only 0 present."
+  ],
+  [
+   "Range 1 t:alpha beta gamma,1 t:one ,2 false forward t:alpha beta gamma,1-t:one ,2",
+   "Range 1 t:one ,2 t:alpha beta gamma,1 false backward t:alpha beta gamma,1-t:one ,2",
+   false,
+   "Caret 1 t:alpha beta gamma,3 t:alpha beta gamma,3 true none t:alpha beta gamma,3-t:alpha beta gamma,3",
+   "IndexSizeError: Failed to execute 'setBaseAndExtent' on 'Selection': The offset 99 is larger than the node's length (16).",
+   "IndexSizeError: Failed to execute 'setBaseAndExtent' on 'Selection': The offset 99 is larger than the node's length (16).",
+   "InvalidNodeTypeError: Failed to execute 'setBaseAndExtent' on 'Selection': The node provided is of type 'html'.",
+   "Caret 1 t:alpha beta gamma,3 t:alpha beta gamma,3 true none t:alpha beta gamma,3-t:alpha beta gamma,3",
+   "Caret 1 t:alpha beta gamma,3 t:alpha beta gamma,3 true none t:alpha beta gamma,3-t:alpha beta gamma,3",
+   "None 0 null,0 null,0 true none -",
+   "Caret 1 t:alpha beta gamma,1 t:alpha beta gamma,1 true none t:alpha beta gamma,1-t:alpha beta gamma,1",
+   "None 0 null,0 null,0 true none -",
+   "TypeError: Failed to execute 'setBaseAndExtent' on 'Selection': 4 arguments required, but only 2 present."
+  ],
+  [
+   "Caret 1 t:alpha beta gamma,1 t:alpha beta gamma,1 true none t:alpha beta gamma,1-t:alpha beta gamma,1",
+   false,
+   "t:alpha beta gamma,1-t:one ,2",
+   "Caret 1 t:one ,2 t:one ,2 true none t:one ,2-t:one ,2",
+   "Range 1 p#b,0 p#b,3 false forward p#b,0-p#b,3",
+   "Caret 1 t:alpha beta gamma,0 t:alpha beta gamma,0 true none t:alpha beta gamma,0-t:alpha beta gamma,0",
+   "Range 1 div#c,0 div#c,4 false forward div#c,0-div#c,4",
+   "InvalidNodeTypeError: Failed to execute 'selectAllChildren' on 'Selection': The node provided is of type 'html'.",
+   "Range 1 div#c,0 div#c,4 false forward div#c,0-div#c,4",
+   "TypeError: Failed to execute 'selectAllChildren' on 'Selection': parameter 1 is not of type 'Node'.",
+   "Range 1 #document,0 #document,2 false forward #document,0-#document,2"
+  ],
+  [
+   "p#a false true",
+   "t:alpha beta gamma true true",
+   "p#b false true",
+   "t:one  true true",
+   "b#bb false true",
+   "t:two true true",
+   "t: three false false",
+   "div#c false false",
+   "body false true",
+   "#document false false",
+   "!html false false",
+   "i false false",
+   "TypeError: Failed to execute 'containsNode' on 'Selection': parameter 1 is not of type 'Node'.",
+   "TypeError: Failed to execute 'containsNode' on 'Selection': 1 argument required, but only 0 present.",
+   "false",
+   "true",
+   "true"
+  ],
+  [
+   "Range 1 t:c3,1 t:c1,1 false backward t:c1,1-t:c3,1",
+   "Range 1 div#c,1 div#c,1 true forward div#c,1-div#c,1",
+   "<div#c>\"c\"|\"3\"</>",
+   "undefined",
+   "Caret 1 t:c,1 t:c,1 true none t:c,1-t:c,1",
+   "<div#c>\"c\"|\"3\"</>"
+  ],
+  [
+   "function",
+   "undefined",
+   "Range 1 t:alpha beta gamma,1 t:alpha beta gamma,2 false forward t:alpha beta gamma,1-t:alpha beta gamma,2",
+   "undefined",
+   "Caret 1 t:alpha beta gamma,5 t:alpha beta gamma,5 true none t:alpha beta gamma,5-t:alpha beta gamma,5",
+   "undefined",
+   "Caret 1 t:alpha beta gamma,5 t:alpha beta gamma,5 true none t:alpha beta gamma,5-t:alpha beta gamma,5",
+   "undefined",
+   "Caret 1 t:alpha beta gamma,5 t:alpha beta gamma,5 true none t:alpha beta gamma,5-t:alpha beta gamma,5"
+  ],
+  [
+   "Range 1 t:one ,3 t:alpha beta gamma,2 false backward t:alpha beta gamma,2-t:one ,3",
+   "Range 1 t:one ,3 t:alpha beta gamma,2 false backward t:alpha beta gamma,2-t:one ,3",
+   "Range 1 t:one ,3 t:QQalpha beta gamma,4 false backward t:QQalpha beta gamma,4-t:one ,3",
+   "Range 1 t:one ,3 t:alpha beta gamma,2 false backward t:alpha beta gamma,2-t:one ,3",
+   "Range 1 t:one ,3 body,0 false backward body,0-t:one ,3"
+  ]
+ ],
+ "to-string": [
+  [
+   "\"Para one text\\n\\nc1\\tce2x\\ntail\\nafter\"",
+   "\"Para  one\\n texthiddennoselc1ce2xtailafter\""
+  ],
+  [
+   "\"x\\ntail\\naf\"",
+   "\"xtailaf\""
+  ],
+  [
+   "\"pre  post\"",
+   "\"pre  post\""
+  ]
+ ],
+ "events-timing": [
+  [
+   "sync:0",
+   "micro:0",
+   "timeout-before sc:#document timeout-after"
+  ],
+  [
+   "three:sc:#document",
+   "same:",
+   "remove:sc:#document",
+   "remove-none:",
+   "back-and-forth:sc:#document",
+   "remove-add-same-place:sc:#document",
+   "add-again:"
+  ],
+  [
+   "range-set-end:sc:#document",
+   "range-same:",
+   "data-before:sc:#document Range 1 t:Zalpha beta gamma,2 t:Zalpha beta gamma,5 false forward t:Zalpha beta gamma,2-t:Zalpha beta gamma,5",
+   "data-after:",
+   "elsewhere:",
+   "sibling-insert: Range 1 t:Zalpha beta gammaZ,2 t:Zalpha beta gammaZ,5 false forward t:Zalpha beta gammaZ,2-t:Zalpha beta gammaZ,5",
+   "remove-node: Caret 1 p#a,0 p#a,0 true none p#a,0-p#a,0",
+   "text-content: Caret 1 p#b,0 p#b,0 true none p#b,0-p#b,0"
+  ],
+  [
+   "doc-handler",
+   "sc:#document:untrusted"
+  ],
+  [
+   "focus:sc:input#in:b Caret 1 body,3 body,3 true none body,3-body,3",
+   "select:sc:input#in:b Range 1 body,3 body,3 true forward body,3-body,3 \"input text\"",
+   "set-range:sc:input#in:b Range 1 body,3 body,3 true forward body,3-body,3 \"np\"",
+   "collapse-page:sc:#document Caret 1 t:alpha beta gamma,1 t:alpha beta gamma,1 true none t:alpha beta gamma,1-t:alpha beta gamma,1 in 0,0",
+   "textarea:sc:textarea#ta:b Range 1 body,4 body,4 true forward body,4-body,4 \"area\"",
+   "remove-all:sc:#document None 0 null,0 null,0 true none - ta 0,0",
+   "blur: None 0 null,0 null,0 true none -"
+  ],
+  [
+   "unfocused-control:sc:input#in:b None 0 null,0 null,0 true none -",
+   "select-new:sc:#document",
+   "remove-container: Caret 1 body,5 body,5 true none body,5-body,5"
+  ]
+ ],
+ "user-click": [
+  "Caret 1 t:alpha beta gamma,5 t:alpha beta gamma,5 true none t:alpha beta gamma,5-t:alpha beta gamma,5",
+  "ss:t:alpha beta gamma:b:c sc:#document"
+ ],
+ "user-drag": [
+  "Range 1 t:alpha beta gamma,1 t:two,2 false forward t:alpha beta gamma,1-t:two,2",
+  "sc:#document ss:t:alpha beta gamma:b:c sc:#document sc:#document",
+  false
+ ],
+ "user-drag-backward": [
+  "Range 1 t:two,2 t:alpha beta gamma,1 false backward t:alpha beta gamma,1-t:two,2",
+  "ss:t:two:b:c sc:#document"
+ ],
+ "user-dblclick": [
+  "Range 1 t:alpha beta gamma,6 t:alpha beta gamma,10 false forward t:alpha beta gamma,6-t:alpha beta gamma,10",
+  "ss:t:alpha beta gamma:b:c ss:t:alpha beta gamma:b:c sc:#document"
+ ],
+ "user-click-then-dblclick": [
+  "Range 1 t:two,0 t:two,3 false forward t:two,0-t:two,3",
+  "sc:#document ss:t:two:b:c"
+ ],
+ "user-shift-arrows": [
+  "Caret 1 t:alpha beta gamma,5 t:alpha beta gamma,5 true none t:alpha beta gamma,5-t:alpha beta gamma,5",
+  "ss:t:alpha beta gamma:b:c sc:#document"
+ ],
+ "user-shift-click": [
+  "Range 1 t:alpha beta gamma,5 t:one ,3 false forward t:alpha beta gamma,5-t:one ,3",
+  "sc:#document ss:t:alpha beta gamma:b:c ss:t:one :b:c"
+ ],
+ "user-select-all": [
+  "Range 1 t:alpha beta gamma,0 body,5 false forward t:alpha beta gamma,0-body,5",
+  "ss:t:alpha beta gamma:b:c ss:body:b:c sc:#document",
+  "\"alpha beta gamma\\n\\none two three\\n\\nc1c2c3\\n\""
+ ],
+ "user-click-empty": [
+  "Caret 1 body,5 body,5 true none body,5-body,5",
+  "sc:#document ss:html:b:c sc:#document"
+ ],
+ "user-click-input": [
+  "Range 1 body,3 body,3 true backward body,3-body,3",
+  "sc:#document sc:input#in:b",
+  "\"t\""
+ ],
+ "user-drag-script-change": [
+  "Caret 1 t:two,2 t:two,2 true none t:two,2-t:two,2",
+  "ss:t:alpha beta gamma:b:c sc:#document sc:#document sc:#document"
+ ],
+ "user-selectstart-cancel": [
+  "None 0 null,0 null,0 true none -",
+  "ss:t:alpha beta gamma:b:c"
+ ],
+ "shadow": [
+  [
+   "Range 1 t:shadow text,1 t:shadow text,3 false forward t:shadow text,1-t:shadow text,3",
+   "\"ha\"",
+   "function",
+   false,
+   "Range 1 t:shadow text,1 t:shadow text,3 false forward t:shadow text,1-t:shadow text,3",
+   "body,5-body,6",
+   "t:shadow text,1-t:shadow text,3",
+   "body,5-body,6",
+   "[object StaticRange]",
+   "Range 1 t:shadow text,2 t:shadow text,2 true forward t:shadow text,2-t:shadow text,2",
+   "t:alpha beta gamma,1-body,6",
+   "t:alpha beta gamma,1-t:shadow text,2",
+   "Range 1 t:shadow text,1 t:shadow text,2 false forward t:shadow text,1-t:shadow text,2",
+   true,
+   "true",
+   "false"
+  ],
+  [
+   "Range 1 t:closed text,0 t:closed text,2 false forward t:closed text,0-t:closed text,2",
+   "body,6-body,7",
+   "t:closed text,0-t:closed text,2"
+  ]
+ ],
+ "shadow-user-drag": [
+  "Range 1 body,0 body,0 true forward body,0-body,0",
+  "sc:#document",
+  [
+   "body,0-body,1",
+   "t:shadow text here,1-t:shadow text here,7",
+   "Range 1 t:shadow text here,1 t:shadow text here,7 false forward t:shadow text here,1-t:shadow text here,7"
+  ]
+ ],
+ "frames": [
+  [
+   "Range 1 body,0 body,1 false forward body,0-body,1",
+   "None 0 null,0 null,0 true none -",
+   "\"frame text\"",
+   "Range 1 body,0 body,1 false forward body,0-body,1",
+   "Range 1 t:alpha beta gamma,1 t:alpha beta gamma,3 false forward t:alpha beta gamma,1-t:alpha beta gamma,3"
+  ],
+  [
+   "frame-sc",
+   ""
+  ]
+ ],
+ "frames-user-click": [
+  "Range 1 t:alpha beta gamma,1 t:alpha beta gamma,4 false forward t:alpha beta gamma,1-t:alpha beta gamma,4",
+  "sc:#document",
+  "Caret 1 t:frame text,3 t:frame text,3 true none t:frame text,3-t:frame text,3"
+ ],
+ "contains-node": [
+  [
+   "t:alpha beta gamma true true",
+   "p#a false true",
+   "t:alpha beta gamma true true",
+   "p#a false true",
+   "t:alpha beta gamma true true",
+   "p#a false true",
+   "t:alpha beta gamma true true",
+   "p#a false true",
+   "p#b false true"
+  ],
+  [
+   "t:alpha beta gamma true true",
+   "p#a false true",
+   "t:one  true true",
+   "b#bb false true",
+   "t:two true true",
+   "t:alpha beta gamma true true",
+   "t:one  true true",
+   "p#b false true",
+   "t:two true true",
+   "b#bb false true",
+   "t:alpha beta gamma true true",
+   "t:two true true",
+   "b#bb false true",
+   "t:one  true true"
+  ],
+  [
+   "t:c1 true true",
+   "span#cs false true",
+   "c:cc false false",
+   "t:c3 false false",
+   "t:c1 false false",
+   "span#cs false true",
+   "c:cc false false",
+   "t:c3 false false",
+   "div#c false true",
+   "t:c1 true true",
+   "span#cs false false",
+   "div#c false true",
+   "t:alpha beta gamma true true",
+   "p#a false true",
+   "t:alpha beta gamma true true",
+   "t:one  false false",
+   "t: false false",
+   "t:alpha beta gamma true true"
+  ],
+  [
+   "p#b true true",
+   "b#bb true true",
+   "t:one  true true",
+   "t: three true true",
+   "p#a false true",
+   "div#c false true",
+   "span#cs false false",
+   "p#a false true",
+   "p#b true true",
+   "div#c true true",
+   "t:alpha beta gamma true true",
+   "span#cs true true",
+   "p#a false false",
+   "t:alpha beta gamma false false",
+   "p#b false true",
+   "t:one  true true",
+   "div#c false true",
+   "t:c1 true true",
+   "span#cs true true",
+   "c:cc true true",
+   "t:c1 true true",
+   "t:c3 true true",
+   "div#c false true",
+   "c:cc true true",
+   "span#cs true true",
+   "t:c1 true true"
+  ],
+  [
+   "t:alpha beta gamma false false",
+   "p#a false false",
+   "t:one  true true",
+   "p#b false true",
+   "t:alpha beta gamma false false",
+   "t:one  true true",
+   "p#b false true",
+   "t:one  true true",
+   "b#bb false false",
+   "t:two false false",
+   "t:one  true true",
+   "t:two false false",
+   "t:alpha beta gamma true true",
+   "t:one  false false",
+   "t:one  false false",
+   "b#bb false true",
+   "t:two true true",
+   "t: three false false"
+  ]
+ ],
+ "control-script-selection": [
+  [
+   "Range 1 body,3 body,3 true forward body,3-body,3",
+   "body,3-body,3",
+   true,
+   "Caret 1 t:alpha beta gamma,1 t:alpha beta gamma,1 true none t:alpha beta gamma,1-t:alpha beta gamma,1",
+   "in",
+   "0,0",
+   "body,3-body,3",
+   "sc:#document"
+  ],
+  [
+   "Range 1 body,3 body,3 true forward body,3-body,3",
+   false,
+   "in",
+   "2,5",
+   "\"put\"",
+   "",
+   "Range 1 t:alpha beta gamma,1 t:alpha beta gamma,3 false forward t:alpha beta gamma,1-t:alpha beta gamma,3",
+   true,
+   "in",
+   "0,0",
+   "\"lp\"",
+   "sc:#document"
+  ],
+  [
+   "Range 1 p#b,0 p#b,3 false forward p#b,0-p#b,3",
+   "ta",
+   "0,0",
+   "\"one two three\"",
+   "sc:#document",
+   "Range 1 body,4 body,4 true forward body,4-body,4",
+   "\"e\"",
+   "sc:textarea#ta:b"
+  ],
+  [
+   "Caret 1 t:alpha beta gamma,2 t:alpha beta gamma,2 true none t:alpha beta gamma,2-t:alpha beta gamma,2",
+   "in",
+   "0,0",
+   "sc:#document",
+   "Caret 1 t:alpha beta gamma,1 t:alpha beta gamma,1 true none t:alpha beta gamma,1-t:alpha beta gamma,1",
+   "in",
+   "0,0",
+   "sc:#document"
+  ]
+ ],
+ "frames-user-click-string": [
+  "Range 1 t:alpha beta gamma,1 t:alpha beta gamma,4 false forward t:alpha beta gamma,1-t:alpha beta gamma,4",
+  "\"lph\"",
+  "sc:#document",
+  "Caret 1 t:frame text,3 t:frame text,3 true none t:frame text,3-t:frame text,3"
+ ],
+ "frames-user-select-all-click": [
+  "Caret 1 body,5 body,5 true none body,5-body,5",
+  "\"\"",
+  "ss:t:alpha beta gamma:b:c ss:body:b:c sc:#document",
+  "Caret 1 t:frame text,3 t:frame text,3 true none t:frame text,3-t:frame text,3"
+ ],
+ "frames-user-click-contains": [
+  "Caret 1 body,5 body,5 true none body,5-body,5",
+  "\"\"",
+  "sc:#document sc:#document"
+ ],
+ "frames-user-click-partial": [
+  "Caret 1 body,5 body,5 true none body,5-body,5",
+  "\"\"",
+  "sc:#document sc:#document"
+ ],
+ "frames-user-drag-click": [
+  "Range 1 t:alpha beta gamma,1 t:two,2 false forward t:alpha beta gamma,1-t:two,2",
+  "\"lpha beta gamma\\n\\none tw\"",
+  "ss:t:alpha beta gamma:b:c sc:#document",
+  "Caret 1 t:frame text,3 t:frame text,3 true none t:frame text,3-t:frame text,3"
+ ]
+}

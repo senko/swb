@@ -511,23 +511,42 @@ impl Page {
     /// selectable. Returns false if a listener canceled it (no selection
     /// starts).
     pub(super) fn fire_selectstart(&mut self, point: Point) -> bool {
-        let Some(hit) = self.hit_doc(point.x, point.y) else {
+        // A press outside every box is on the root element (measured,
+        // `user-click-empty`: `selectstart` at `html`).
+        let Some(node) = self
+            .hit_doc(point.x, point.y)
+            .map(|hit| hit.node)
+            .or_else(|| self.root_element())
+        else {
             return true;
         };
         let Some(doc) = self.doc.as_ref() else {
             return true;
         };
         let selectable = doc
-            .element_of(hit.node)
+            .element_of(node)
             .and_then(|e| doc.styles()?.get(e))
             .is_none_or(|style| style.is_user_selectable());
-        if doc.press_focuses_element(hit.node) || !selectable {
+        if doc.press_focuses_element(node) || !selectable {
             return true;
         }
         let mut event = TrustedEvent::new("selectstart");
         event.bubbles = true;
         event.cancelable = true;
-        self.dispatch_event(DispatchTarget::Node(hit.node), &event)
+        self.dispatch_event(DispatchTarget::Node(node), &event)
+            .unwrap_or(true)
+    }
+
+    /// `selectstart` at the body, for select all. Returns false if a
+    /// listener canceled it.
+    pub(super) fn fire_selectstart_at_body(&mut self) -> bool {
+        let Some(body) = self.document().and_then(swb_dom::Document::body) else {
+            return true;
+        };
+        let mut event = TrustedEvent::new("selectstart");
+        event.bubbles = true;
+        event.cancelable = true;
+        self.dispatch_event(DispatchTarget::Node(body), &event)
             .unwrap_or(true)
     }
 

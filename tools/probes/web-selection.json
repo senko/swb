@@ -741,6 +741,212 @@
      "js": "SEL(EL('f').contentWindow.getSelection())"
     }
    ]
+  },
+  {
+   "name": "contains-node",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return v === undefined ? 'undefined' : typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst J = JSON.stringify;\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 9 ? (n === document ? '#document' : '#doc2') : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? (n.host ? '#shadow' : '#fragment') : '#' + n.nodeType;\nconst P = (n, o) => N(n) + ',' + o;\nconst R = r => r ? P(r.startContainer, r.startOffset) + '-' + P(r.endContainer, r.endOffset) : 'null';\nconst X = n => n.nodeType === 1 ? '<' + n.localName + (n.id ? '#' + n.id : '') + '>' + [...n.childNodes].map(X).join('|') + '</>' : n.nodeType === 3 ? '\"' + n.data + '\"' : n.nodeType === 8 ? '<!' + n.data + '>' : n.nodeType === 11 ? '[' + [...n.childNodes].map(X).join('|') + ']' : N(n);\nconst D = (o, k) => { const d = Object.getOwnPropertyDescriptor(o, k); return d ? ['get' in d ? 'acc' : 'val', typeof d.get, typeof d.set, typeof d.value, d.enumerable, d.configurable, d.writable].join(':') : 'none'; };\nconst SEL = s => [s.type, s.rangeCount, P(s.anchorNode, s.anchorOffset), P(s.focusNode, s.focusOffset), s.isCollapsed, s.direction, s.rangeCount ? R(s.getRangeAt(0)) : '-'].join(' ');\nconst S = () => SEL(getSelection());\nconst TX = id => document.getElementById(id).firstChild;\nconst EL = id => document.getElementById(id);\nwindow.LOG = [];\ndocument.addEventListener('selectionchange', e => LOG.push('sc:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '') + (e.isTrusted ? '' : ':untrusted') + (e.constructor === Event ? '' : ':' + e.constructor.name)), true);\ndocument.addEventListener('selectstart', e => LOG.push('ss:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '')), true);\nconst TICK = () => new Promise(r => setTimeout(r, 0));\nconst TAKE = () => { const l = LOG.join(' '); LOG.length = 0; return l; };\nconst FLUSH = async () => { await TICK(); await TICK(); return TAKE(); };\nconst RESET = () => { getSelection().removeAllRanges(); LOG.length = 0; };\n</script></head><body style='margin:8px'><p id=a style='font:20px/30px monospace;margin:0'>alpha beta gamma</p><p id=b style='font:20px/30px monospace;margin:0'>one <b id=bb>two</b> three</p><div id=c style='font:20px/30px monospace'>c1<span id=cs>c2</span><!--cc-->c3</div><input id=in value='input text' style='font:16px monospace'><textarea id=ta style='font:16px monospace'>area text</textarea></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "(() => { RESET(); const C = n => N(n) + ' ' + E(() => getSelection().containsNode(n)) + ' ' + E(() => getSelection().containsNode(n, true)); const s = getSelection(); const o = []; s.setBaseAndExtent(TX('a'), 1, TX('a'), 3); o.push(C(TX('a')), C(EL('a'))); s.setBaseAndExtent(TX('a'), 0, TX('a'), 16); o.push(C(TX('a')), C(EL('a'))); s.setBaseAndExtent(EL('a'), 0, EL('a'), 1); o.push(C(TX('a')), C(EL('a'))); s.setBaseAndExtent(document.body, 0, document.body, 1); o.push(C(TX('a')), C(EL('a')), C(EL('b'))); return o; })()"
+    },
+    {
+     "js": "(() => { RESET(); const C = n => N(n) + ' ' + E(() => getSelection().containsNode(n)) + ' ' + E(() => getSelection().containsNode(n, true)); const s = getSelection(); const o = []; s.setBaseAndExtent(TX('a'), 16, TX('bb'), 1); o.push(C(TX('a')), C(EL('a')), C(TX('b')), C(EL('bb')), C(TX('bb'))); s.setBaseAndExtent(TX('a'), 2, TX('b'), 0); o.push(C(TX('a')), C(TX('b')), C(EL('b'))); s.setBaseAndExtent(TX('bb'), 0, TX('bb'), 3); o.push(C(TX('bb')), C(EL('bb'))); s.setBaseAndExtent(TX('bb'), 3, TX('a'), 2); o.push(C(TX('a')), C(TX('bb')), C(EL('bb')), C(TX('b'))); return o; })()"
+    },
+    {
+     "js": "(() => { RESET(); const C = n => N(n) + ' ' + E(() => getSelection().containsNode(n)) + ' ' + E(() => getSelection().containsNode(n, true)); const s = getSelection(); const o = []; const c = EL('c'); s.setBaseAndExtent(c.firstChild, 1, c.childNodes[2], 1); o.push(C(c.firstChild), C(EL('cs')), C(c.childNodes[2]), C(c.lastChild)); s.setBaseAndExtent(c, 1, c, 3); o.push(C(c.firstChild), C(EL('cs')), C(c.childNodes[2]), C(c.lastChild), C(c)); s.collapse(c, 1); o.push(C(c.firstChild), C(EL('cs')), C(c)); s.collapse(TX('a'), 0); o.push(C(TX('a')), C(EL('a'))); s.collapse(TX('a'), 16); o.push(C(TX('a')), C(TX('b'))); const t = new Text(''); EL('a').append(t); s.collapse(t, 0); o.push(C(t), C(TX('a'))); t.remove(); return o; })()"
+    },
+    {
+     "js": "(() => { RESET(); const C = n => N(n) + ' ' + E(() => getSelection().containsNode(n)) + ' ' + E(() => getSelection().containsNode(n, true)); const s = getSelection(); const o = []; const c = EL('c'); const b = document.body; s.setBaseAndExtent(TX('a'), 1, c.firstChild, 1); o.push(C(EL('b')), C(EL('bb')), C(TX('b')), C(EL('b').lastChild), C(EL('a')), C(c), C(EL('cs'))); s.setBaseAndExtent(b, 0, b, 3); o.push(C(EL('a')), C(EL('b')), C(c), C(TX('a')), C(EL('cs'))); s.setBaseAndExtent(b, 1, b, 2); o.push(C(EL('a')), C(TX('a')), C(EL('b')), C(TX('b')), C(c), C(c.firstChild)); s.setBaseAndExtent(c, 0, c, 4); o.push(C(EL('cs')), C(c.childNodes[2]), C(c.firstChild), C(c.lastChild), C(c)); s.setBaseAndExtent(TX('a'), 1, c.lastChild, 1); o.push(C(c.childNodes[2]), C(EL('cs')), C(c.firstChild)); return o; })()"
+    },
+    {
+     "js": "(() => { RESET(); const C = n => N(n) + ' ' + E(() => getSelection().containsNode(n)) + ' ' + E(() => getSelection().containsNode(n, true)); const s = getSelection(); const o = []; const b = document.body; s.collapse(b, 1); o.push(C(TX('a')), C(EL('a')), C(TX('b')), C(EL('b'))); s.collapse(EL('b'), 0); o.push(C(TX('a')), C(TX('b')), C(EL('b'))); s.collapse(EL('b'), 1); o.push(C(TX('b')), C(EL('bb')), C(TX('bb'))); s.collapse(EL('bb'), 0); o.push(C(TX('b')), C(TX('bb'))); s.collapse(EL('a'), 1); o.push(C(TX('a')), C(TX('b'))); s.setBaseAndExtent(EL('b'), 1, EL('b'), 2); o.push(C(TX('b')), C(EL('bb')), C(TX('bb')), C(EL('b').lastChild)); return o; })()"
+    }
+   ]
+  },
+  {
+   "name": "control-script-selection",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return v === undefined ? 'undefined' : typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst J = JSON.stringify;\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 9 ? (n === document ? '#document' : '#doc2') : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? (n.host ? '#shadow' : '#fragment') : '#' + n.nodeType;\nconst P = (n, o) => N(n) + ',' + o;\nconst R = r => r ? P(r.startContainer, r.startOffset) + '-' + P(r.endContainer, r.endOffset) : 'null';\nconst X = n => n.nodeType === 1 ? '<' + n.localName + (n.id ? '#' + n.id : '') + '>' + [...n.childNodes].map(X).join('|') + '</>' : n.nodeType === 3 ? '\"' + n.data + '\"' : n.nodeType === 8 ? '<!' + n.data + '>' : n.nodeType === 11 ? '[' + [...n.childNodes].map(X).join('|') + ']' : N(n);\nconst D = (o, k) => { const d = Object.getOwnPropertyDescriptor(o, k); return d ? ['get' in d ? 'acc' : 'val', typeof d.get, typeof d.set, typeof d.value, d.enumerable, d.configurable, d.writable].join(':') : 'none'; };\nconst SEL = s => [s.type, s.rangeCount, P(s.anchorNode, s.anchorOffset), P(s.focusNode, s.focusOffset), s.isCollapsed, s.direction, s.rangeCount ? R(s.getRangeAt(0)) : '-'].join(' ');\nconst S = () => SEL(getSelection());\nconst TX = id => document.getElementById(id).firstChild;\nconst EL = id => document.getElementById(id);\nwindow.LOG = [];\ndocument.addEventListener('selectionchange', e => LOG.push('sc:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '') + (e.isTrusted ? '' : ':untrusted') + (e.constructor === Event ? '' : ':' + e.constructor.name)), true);\ndocument.addEventListener('selectstart', e => LOG.push('ss:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '')), true);\nconst TICK = () => new Promise(r => setTimeout(r, 0));\nconst TAKE = () => { const l = LOG.join(' '); LOG.length = 0; return l; };\nconst FLUSH = async () => { await TICK(); await TICK(); return TAKE(); };\nconst RESET = () => { getSelection().removeAllRanges(); LOG.length = 0; };\n</script></head><body style='margin:8px'><p id=a style='font:20px/30px monospace;margin:0'>alpha beta gamma</p><p id=b style='font:20px/30px monospace;margin:0'>one <b id=bb>two</b> three</p><div id=c style='font:20px/30px monospace'>c1<span id=cs>c2</span><!--cc-->c3</div><input id=in value='input text' style='font:16px monospace'><textarea id=ta style='font:16px monospace'>area text</textarea></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "(async () => { RESET(); await FLUSH(); const s = getSelection(); const i = EL('in'); const o = []; i.focus(); i.setSelectionRange(2, 5); await FLUSH(); const r0 = s.getRangeAt(0); o.push(S(), R(r0), r0 === s.getRangeAt(0)); s.collapse(TX('a'), 1); o.push(S(), document.activeElement.id, i.selectionStart + ',' + i.selectionEnd, R(r0), await FLUSH()); i.blur(); return o; })()"
+    },
+    {
+     "js": "(async () => { RESET(); await FLUSH(); const s = getSelection(); const i = EL('in'); const o = []; i.focus(); i.setSelectionRange(2, 5); await FLUSH(); const r = new Range(); r.setStart(TX('a'), 1); r.setEnd(TX('a'), 3); s.addRange(r); o.push(S(), s.rangeCount && s.getRangeAt(0) === r, document.activeElement.id, i.selectionStart + ',' + i.selectionEnd, J(String(s)), await FLUSH()); s.removeAllRanges(); s.addRange(r); o.push(S(), s.getRangeAt(0) === r, document.activeElement.id, i.selectionStart + ',' + i.selectionEnd, J(String(s)), await FLUSH()); i.blur(); return o; })()"
+    },
+    {
+     "js": "(async () => { RESET(); await FLUSH(); const s = getSelection(); const i = EL('ta'); const o = []; i.focus(); i.setSelectionRange(1, 4); await FLUSH(); s.selectAllChildren(EL('b')); o.push(S(), document.activeElement.id, i.selectionStart + ',' + i.selectionEnd, J(String(s)), await FLUSH()); i.setSelectionRange(2, 3); o.push(S(), J(String(s)), await FLUSH()); i.blur(); return o; })()"
+    },
+    {
+     "js": "(async () => { RESET(); await FLUSH(); const s = getSelection(); const i = EL('in'); const o = []; i.focus(); i.setSelectionRange(2, 5); await FLUSH(); s.extend(TX('a'), 2); o.push(S(), document.activeElement.id, i.selectionStart + ',' + i.selectionEnd, await FLUSH()); i.blur(); s.removeAllRanges(); i.focus(); i.setSelectionRange(1, 2); await FLUSH(); s.setBaseAndExtent(TX('a'), 1, TX('a'), 1); o.push(S(), document.activeElement.id, i.selectionStart + ',' + i.selectionEnd, await FLUSH()); i.blur(); return o; })()"
+    }
+   ]
+  },
+  {
+   "name": "frames-user-click-string",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return v === undefined ? 'undefined' : typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst J = JSON.stringify;\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 9 ? (n === document ? '#document' : '#doc2') : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? (n.host ? '#shadow' : '#fragment') : '#' + n.nodeType;\nconst P = (n, o) => N(n) + ',' + o;\nconst R = r => r ? P(r.startContainer, r.startOffset) + '-' + P(r.endContainer, r.endOffset) : 'null';\nconst X = n => n.nodeType === 1 ? '<' + n.localName + (n.id ? '#' + n.id : '') + '>' + [...n.childNodes].map(X).join('|') + '</>' : n.nodeType === 3 ? '\"' + n.data + '\"' : n.nodeType === 8 ? '<!' + n.data + '>' : n.nodeType === 11 ? '[' + [...n.childNodes].map(X).join('|') + ']' : N(n);\nconst D = (o, k) => { const d = Object.getOwnPropertyDescriptor(o, k); return d ? ['get' in d ? 'acc' : 'val', typeof d.get, typeof d.set, typeof d.value, d.enumerable, d.configurable, d.writable].join(':') : 'none'; };\nconst SEL = s => [s.type, s.rangeCount, P(s.anchorNode, s.anchorOffset), P(s.focusNode, s.focusOffset), s.isCollapsed, s.direction, s.rangeCount ? R(s.getRangeAt(0)) : '-'].join(' ');\nconst S = () => SEL(getSelection());\nconst TX = id => document.getElementById(id).firstChild;\nconst EL = id => document.getElementById(id);\nwindow.LOG = [];\ndocument.addEventListener('selectionchange', e => LOG.push('sc:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '') + (e.isTrusted ? '' : ':untrusted') + (e.constructor === Event ? '' : ':' + e.constructor.name)), true);\ndocument.addEventListener('selectstart', e => LOG.push('ss:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '')), true);\nconst TICK = () => new Promise(r => setTimeout(r, 0));\nconst TAKE = () => { const l = LOG.join(' '); LOG.length = 0; return l; };\nconst FLUSH = async () => { await TICK(); await TICK(); return TAKE(); };\nconst RESET = () => { getSelection().removeAllRanges(); LOG.length = 0; };\n</script></head><body style='margin:8px'><p id=a style='font:20px/30px monospace;margin:0'>alpha beta gamma</p><p id=b style='font:20px/30px monospace;margin:0'>one <b id=bb>two</b> three</p><div id=c style='font:20px/30px monospace'>c1<span id=cs>c2</span><!--cc-->c3</div><input id=in value='input text' style='font:16px monospace'><textarea id=ta style='font:16px monospace'>area text</textarea><iframe id=f srcdoc='<p id=q style=\"font:20px monospace;margin:0\">frame text</p>' style='position:absolute;left:0;top:200px;width:300px;height:80px;border:0'></iframe></body></html>",
+   "javascript": true,
+   "steps": [
+    {
+     "eval": "getSelection().setBaseAndExtent(TX('a'), 1, TX('a'), 4); 0"
+    },
+    {
+     "click": [
+      40,
+      210
+     ]
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    },
+    {
+     "js": "J(String(getSelection()))"
+    },
+    {
+     "js": "FLUSH()"
+    },
+    {
+     "js": "SEL(EL('f').contentWindow.getSelection())"
+    }
+   ]
+  },
+  {
+   "name": "frames-user-select-all-click",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return v === undefined ? 'undefined' : typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst J = JSON.stringify;\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 9 ? (n === document ? '#document' : '#doc2') : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? (n.host ? '#shadow' : '#fragment') : '#' + n.nodeType;\nconst P = (n, o) => N(n) + ',' + o;\nconst R = r => r ? P(r.startContainer, r.startOffset) + '-' + P(r.endContainer, r.endOffset) : 'null';\nconst X = n => n.nodeType === 1 ? '<' + n.localName + (n.id ? '#' + n.id : '') + '>' + [...n.childNodes].map(X).join('|') + '</>' : n.nodeType === 3 ? '\"' + n.data + '\"' : n.nodeType === 8 ? '<!' + n.data + '>' : n.nodeType === 11 ? '[' + [...n.childNodes].map(X).join('|') + ']' : N(n);\nconst D = (o, k) => { const d = Object.getOwnPropertyDescriptor(o, k); return d ? ['get' in d ? 'acc' : 'val', typeof d.get, typeof d.set, typeof d.value, d.enumerable, d.configurable, d.writable].join(':') : 'none'; };\nconst SEL = s => [s.type, s.rangeCount, P(s.anchorNode, s.anchorOffset), P(s.focusNode, s.focusOffset), s.isCollapsed, s.direction, s.rangeCount ? R(s.getRangeAt(0)) : '-'].join(' ');\nconst S = () => SEL(getSelection());\nconst TX = id => document.getElementById(id).firstChild;\nconst EL = id => document.getElementById(id);\nwindow.LOG = [];\ndocument.addEventListener('selectionchange', e => LOG.push('sc:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '') + (e.isTrusted ? '' : ':untrusted') + (e.constructor === Event ? '' : ':' + e.constructor.name)), true);\ndocument.addEventListener('selectstart', e => LOG.push('ss:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '')), true);\nconst TICK = () => new Promise(r => setTimeout(r, 0));\nconst TAKE = () => { const l = LOG.join(' '); LOG.length = 0; return l; };\nconst FLUSH = async () => { await TICK(); await TICK(); return TAKE(); };\nconst RESET = () => { getSelection().removeAllRanges(); LOG.length = 0; };\n</script></head><body style='margin:8px'><p id=a style='font:20px/30px monospace;margin:0'>alpha beta gamma</p><p id=b style='font:20px/30px monospace;margin:0'>one <b id=bb>two</b> three</p><div id=c style='font:20px/30px monospace'>c1<span id=cs>c2</span><!--cc-->c3</div><input id=in value='input text' style='font:16px monospace'><textarea id=ta style='font:16px monospace'>area text</textarea><iframe id=f srcdoc='<p id=q style=\"font:20px monospace;margin:0\">frame text</p>' style='position:absolute;left:0;top:200px;width:300px;height:80px;border:0'></iframe></body></html>",
+   "javascript": true,
+   "steps": [
+    {
+     "click": [
+      70,
+      23
+     ]
+    },
+    {
+     "key": "Control+a"
+    },
+    {
+     "click": [
+      40,
+      210
+     ]
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    },
+    {
+     "js": "J(String(getSelection()))"
+    },
+    {
+     "js": "FLUSH()"
+    },
+    {
+     "js": "SEL(EL('f').contentWindow.getSelection())"
+    }
+   ]
+  },
+  {
+   "name": "frames-user-click-contains",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return v === undefined ? 'undefined' : typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst J = JSON.stringify;\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 9 ? (n === document ? '#document' : '#doc2') : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? (n.host ? '#shadow' : '#fragment') : '#' + n.nodeType;\nconst P = (n, o) => N(n) + ',' + o;\nconst R = r => r ? P(r.startContainer, r.startOffset) + '-' + P(r.endContainer, r.endOffset) : 'null';\nconst X = n => n.nodeType === 1 ? '<' + n.localName + (n.id ? '#' + n.id : '') + '>' + [...n.childNodes].map(X).join('|') + '</>' : n.nodeType === 3 ? '\"' + n.data + '\"' : n.nodeType === 8 ? '<!' + n.data + '>' : n.nodeType === 11 ? '[' + [...n.childNodes].map(X).join('|') + ']' : N(n);\nconst D = (o, k) => { const d = Object.getOwnPropertyDescriptor(o, k); return d ? ['get' in d ? 'acc' : 'val', typeof d.get, typeof d.set, typeof d.value, d.enumerable, d.configurable, d.writable].join(':') : 'none'; };\nconst SEL = s => [s.type, s.rangeCount, P(s.anchorNode, s.anchorOffset), P(s.focusNode, s.focusOffset), s.isCollapsed, s.direction, s.rangeCount ? R(s.getRangeAt(0)) : '-'].join(' ');\nconst S = () => SEL(getSelection());\nconst TX = id => document.getElementById(id).firstChild;\nconst EL = id => document.getElementById(id);\nwindow.LOG = [];\ndocument.addEventListener('selectionchange', e => LOG.push('sc:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '') + (e.isTrusted ? '' : ':untrusted') + (e.constructor === Event ? '' : ':' + e.constructor.name)), true);\ndocument.addEventListener('selectstart', e => LOG.push('ss:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '')), true);\nconst TICK = () => new Promise(r => setTimeout(r, 0));\nconst TAKE = () => { const l = LOG.join(' '); LOG.length = 0; return l; };\nconst FLUSH = async () => { await TICK(); await TICK(); return TAKE(); };\nconst RESET = () => { getSelection().removeAllRanges(); LOG.length = 0; };\n</script></head><body style='margin:8px'><p id=a style='font:20px/30px monospace;margin:0'>alpha beta gamma</p><p id=b style='font:20px/30px monospace;margin:0'>one <b id=bb>two</b> three</p><div id=c style='font:20px/30px monospace'>c1<span id=cs>c2</span><!--cc-->c3</div><input id=in value='input text' style='font:16px monospace'><textarea id=ta style='font:16px monospace'>area text</textarea><iframe id=f srcdoc='<p id=q style=\"font:20px monospace;margin:0\">frame text</p>' style='position:absolute;left:0;top:200px;width:300px;height:80px;border:0'></iframe></body></html>",
+   "javascript": true,
+   "steps": [
+    {
+     "eval": "getSelection().setBaseAndExtent(TX('a'), 1, document.body, 6); 0"
+    },
+    {
+     "click": [
+      40,
+      210
+     ]
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    },
+    {
+     "js": "J(String(getSelection()))"
+    },
+    {
+     "js": "FLUSH()"
+    }
+   ]
+  },
+  {
+   "name": "frames-user-click-partial",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return v === undefined ? 'undefined' : typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst J = JSON.stringify;\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 9 ? (n === document ? '#document' : '#doc2') : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? (n.host ? '#shadow' : '#fragment') : '#' + n.nodeType;\nconst P = (n, o) => N(n) + ',' + o;\nconst R = r => r ? P(r.startContainer, r.startOffset) + '-' + P(r.endContainer, r.endOffset) : 'null';\nconst X = n => n.nodeType === 1 ? '<' + n.localName + (n.id ? '#' + n.id : '') + '>' + [...n.childNodes].map(X).join('|') + '</>' : n.nodeType === 3 ? '\"' + n.data + '\"' : n.nodeType === 8 ? '<!' + n.data + '>' : n.nodeType === 11 ? '[' + [...n.childNodes].map(X).join('|') + ']' : N(n);\nconst D = (o, k) => { const d = Object.getOwnPropertyDescriptor(o, k); return d ? ['get' in d ? 'acc' : 'val', typeof d.get, typeof d.set, typeof d.value, d.enumerable, d.configurable, d.writable].join(':') : 'none'; };\nconst SEL = s => [s.type, s.rangeCount, P(s.anchorNode, s.anchorOffset), P(s.focusNode, s.focusOffset), s.isCollapsed, s.direction, s.rangeCount ? R(s.getRangeAt(0)) : '-'].join(' ');\nconst S = () => SEL(getSelection());\nconst TX = id => document.getElementById(id).firstChild;\nconst EL = id => document.getElementById(id);\nwindow.LOG = [];\ndocument.addEventListener('selectionchange', e => LOG.push('sc:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '') + (e.isTrusted ? '' : ':untrusted') + (e.constructor === Event ? '' : ':' + e.constructor.name)), true);\ndocument.addEventListener('selectstart', e => LOG.push('ss:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '')), true);\nconst TICK = () => new Promise(r => setTimeout(r, 0));\nconst TAKE = () => { const l = LOG.join(' '); LOG.length = 0; return l; };\nconst FLUSH = async () => { await TICK(); await TICK(); return TAKE(); };\nconst RESET = () => { getSelection().removeAllRanges(); LOG.length = 0; };\n</script></head><body style='margin:8px'><p id=a style='font:20px/30px monospace;margin:0'>alpha beta gamma</p><p id=b style='font:20px/30px monospace;margin:0'>one <b id=bb>two</b> three</p><div id=c style='font:20px/30px monospace'>c1<span id=cs>c2</span><!--cc-->c3</div><input id=in value='input text' style='font:16px monospace'><textarea id=ta style='font:16px monospace'>area text</textarea><iframe id=f srcdoc='<p id=q style=\"font:20px monospace;margin:0\">frame text</p>' style='position:absolute;left:0;top:200px;width:300px;height:80px;border:0'></iframe></body></html>",
+   "javascript": true,
+   "steps": [
+    {
+     "eval": "getSelection().setBaseAndExtent(document.body, 5, document.body, 6); 0"
+    },
+    {
+     "click": [
+      40,
+      210
+     ]
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    },
+    {
+     "js": "J(String(getSelection()))"
+    },
+    {
+     "js": "FLUSH()"
+    }
+   ]
+  },
+  {
+   "name": "frames-user-drag-click",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return v === undefined ? 'undefined' : typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst J = JSON.stringify;\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 9 ? (n === document ? '#document' : '#doc2') : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? (n.host ? '#shadow' : '#fragment') : '#' + n.nodeType;\nconst P = (n, o) => N(n) + ',' + o;\nconst R = r => r ? P(r.startContainer, r.startOffset) + '-' + P(r.endContainer, r.endOffset) : 'null';\nconst X = n => n.nodeType === 1 ? '<' + n.localName + (n.id ? '#' + n.id : '') + '>' + [...n.childNodes].map(X).join('|') + '</>' : n.nodeType === 3 ? '\"' + n.data + '\"' : n.nodeType === 8 ? '<!' + n.data + '>' : n.nodeType === 11 ? '[' + [...n.childNodes].map(X).join('|') + ']' : N(n);\nconst D = (o, k) => { const d = Object.getOwnPropertyDescriptor(o, k); return d ? ['get' in d ? 'acc' : 'val', typeof d.get, typeof d.set, typeof d.value, d.enumerable, d.configurable, d.writable].join(':') : 'none'; };\nconst SEL = s => [s.type, s.rangeCount, P(s.anchorNode, s.anchorOffset), P(s.focusNode, s.focusOffset), s.isCollapsed, s.direction, s.rangeCount ? R(s.getRangeAt(0)) : '-'].join(' ');\nconst S = () => SEL(getSelection());\nconst TX = id => document.getElementById(id).firstChild;\nconst EL = id => document.getElementById(id);\nwindow.LOG = [];\ndocument.addEventListener('selectionchange', e => LOG.push('sc:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '') + (e.isTrusted ? '' : ':untrusted') + (e.constructor === Event ? '' : ':' + e.constructor.name)), true);\ndocument.addEventListener('selectstart', e => LOG.push('ss:' + N(e.target) + (e.bubbles ? ':b' : '') + (e.cancelable ? ':c' : '')), true);\nconst TICK = () => new Promise(r => setTimeout(r, 0));\nconst TAKE = () => { const l = LOG.join(' '); LOG.length = 0; return l; };\nconst FLUSH = async () => { await TICK(); await TICK(); return TAKE(); };\nconst RESET = () => { getSelection().removeAllRanges(); LOG.length = 0; };\n</script></head><body style='margin:8px'><p id=a style='font:20px/30px monospace;margin:0'>alpha beta gamma</p><p id=b style='font:20px/30px monospace;margin:0'>one <b id=bb>two</b> three</p><div id=c style='font:20px/30px monospace'>c1<span id=cs>c2</span><!--cc-->c3</div><input id=in value='input text' style='font:16px monospace'><textarea id=ta style='font:16px monospace'>area text</textarea><iframe id=f srcdoc='<p id=q style=\"font:20px monospace;margin:0\">frame text</p>' style='position:absolute;left:0;top:200px;width:300px;height:80px;border:0'></iframe></body></html>",
+   "javascript": true,
+   "steps": [
+    {
+     "hover": [
+      22,
+      23
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "hover": [
+      80,
+      52
+     ]
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "click": [
+      40,
+      210
+     ]
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    },
+    {
+     "js": "J(String(getSelection()))"
+    },
+    {
+     "js": "FLUSH()"
+    },
+    {
+     "js": "SEL(EL('f').contentWindow.getSelection())"
+    }
+   ]
   }
  ]
 }

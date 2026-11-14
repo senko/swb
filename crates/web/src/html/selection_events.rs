@@ -34,6 +34,14 @@
 //! control varies in Chromium (it was `select`, `selectionchange` once
 //! when another control had the focus and the selection had been set
 //! before); swb always fires `selectionchange` first for a script.
+//!
+//! The document's `selectionchange` (M10 sub-feature 9b-2, ADR 0039 section
+//! 3) waits in the same queue, under the document node: a plain `Event`
+//! that does not bubble, queued at the first change of the document's
+//! selection after the last event, so that later changes add nothing (the
+//! document's "has scheduled selectionchange event" flag). The text control
+//! that owns the document's selection is part of the selection's state in
+//! the arena (`swb_dom::SelectionState::control`).
 
 use std::collections::HashSet;
 
@@ -43,47 +51,71 @@ use swb_js::{Runtime, ScriptError, VmResult};
 use crate::event_loop::{Task, queue_task};
 use crate::events::{DispatchTarget, TrustedEvent, fire_trusted};
 use crate::host::SelectionKey;
-use crate::state::{dom, engine_mut, state, state_mut};
+use crate::state::{dom, dom_mut, engine_mut, state, state_mut};
 
 /// The most events that wait for the task: a loop of calls cannot grow
 /// the queue without end.
 const MAX_PENDING: usize = 4096;
 
-/// The events that wait, and who owns the selection of the document.
+/// The events that wait.
 #[derive(Debug, Default)]
 pub(crate) struct SelectionEvents {
-    /// The events in the order of queuing: the control and whether it is
-    /// `select` (else `selectionchange`).
+    /// The events in the order of queuing: the control (or the document
+    /// node) and whether it is `select` (else `selectionchange`).
     pending: Vec<(NodeId, bool)>,
-    /// The controls with a `selectionchange` in `pending`.
+    /// The nodes with a `selectionchange` in `pending`.
     changes: HashSet<NodeId>,
     /// True while the task is queued.
     queued: bool,
-    /// The text control whose selection is the selection of the document.
-    owner: Option<NodeId>,
 }
 
 impl SelectionEvents {
     /// The controls among `pairs` (old id, new id) went to another document:
     /// their events go.
     pub(crate) fn forget(&mut self, pairs: &[(NodeId, NodeId)]) {
-        if self.pending.is_empty() && self.owner.is_none() {
+        if self.pending.is_empty() {
             return;
         }
         let gone: HashSet<NodeId> = pairs.iter().map(|&(old, _)| old).collect();
         self.pending.retain(|(node, _)| !gone.contains(node));
         self.changes.retain(|node| !gone.contains(node));
-        if self.owner.is_some_and(|owner| gone.contains(&owner)) {
-            self.owner = None;
-        }
     }
+}
+
+/// The text control that owns the document's selection, if it is still in
+/// the document.
+pub(crate) fn owner(rt: &Runtime) -> VmResult<Option<NodeId>> {
+    let dom = dom(rt)?;
+    Ok(dom
+        .selection()
+        .and_then(|s| s.control)
+        .filter(|&c| dom.is_connected(c)))
+}
+
+/// The document's selection changed (a `Selection` method, a script's
+/// change of its range, a user's gesture): queues `selectionchange` at the
+/// document unless one waits.
+pub(crate) fn document_changed(rt: &mut Runtime) -> VmResult<()> {
+    crate::range::watch_selection(rt)?;
+    push(rt, NodeId::DOCUMENT, false)
+}
+
+/// Queues `selectionchange` at the document if the arena reports a change of
+/// the selection since the last look.
+pub(crate) fn note_document_change(rt: &mut Runtime) -> VmResult<()> {
+    if dom_mut(rt)?.take_selection_changed() {
+        document_changed(rt)?;
+    }
+    Ok(())
 }
 
 /// Queues one event for the control.
 fn push(rt: &mut Runtime, node: NodeId, select: bool) -> VmResult<()> {
     let connected = dom(rt)?.is_connected(node);
     let events = &mut state_mut(rt)?.doc.selection_events;
-    if !connected || events.pending.len() >= MAX_PENDING {
+    // The document's event is one at most (coalesced below), so it does not
+    // count against the bound: a queue full of `select` events keeps it.
+    if !connected || (events.pending.len() >= MAX_PENDING && node != NodeId::DOCUMENT) {
         return Ok(());
     }
     if !select && !events.changes.insert(node) {
@@ -127,6 +159,11 @@ pub(crate) fn script_changed(
         return Ok(());
     }
     let changed = before != after;
+    // A change of the focused control's selection takes the document's
+    // selection back from a script's (measured, `control-script-selection`).
+    if changed && crate::html::focus::focused(rt)? == Some(node) && owner(rt)? != Some(node) {
+        dom_mut(rt)?.set_selection_control(node);
+    }
     if changed || always {
         push(rt, node, false)?;
     }
@@ -142,11 +179,10 @@ pub(crate) fn focused(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
     if key(rt, node, true)?.is_none() {
         return Ok(());
     }
-    let events = &mut state_mut(rt)?.doc.selection_events;
-    if events.owner == Some(node) {
+    if owner(rt)? == Some(node) {
         return Ok(());
     }
-    events.owner = Some(node);
+    dom_mut(rt)?.set_selection_control(node);
     push(rt, node, false)
 }
 
@@ -157,7 +193,7 @@ pub(crate) fn user_changed(rt: &mut Runtime, node: NodeId, select: bool) -> VmRe
     if key(rt, node, false)?.is_none() {
         return Ok(());
     }
-    state_mut(rt)?.doc.selection_events.owner = Some(node);
+    dom_mut(rt)?.set_selection_control(node);
     if select {
         let mut event = TrustedEvent::new("select");
         event.bubbles = true;
@@ -187,7 +223,8 @@ pub(crate) fn deliver(rt: &mut Runtime) -> Result<(), ScriptError> {
             continue;
         }
         let mut event = TrustedEvent::new(if select { "select" } else { "selectionchange" });
-        event.bubbles = true;
+        // The document's event does not bubble (measured).
+        event.bubbles = node != NodeId::DOCUMENT;
         fire_trusted(rt, DispatchTarget::Node(node), &event).map_err(crate::runtime::task_error)?;
     }
     Ok(())

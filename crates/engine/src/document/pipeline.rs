@@ -425,10 +425,21 @@ impl DocumentState {
     /// Brings the display list up to date.
     pub(crate) fn update_display_list(&mut self, fonts: &mut FontContext) {
         self.update_layout(fonts);
+        // A change of the selection (also a script's) shows when the page
+        // selection that the list shows changed.
+        let generation = self.dom.selection_generation();
+        if self.display_list.is_some() && generation != self.display_selection.0 {
+            if self.visible_selection() == self.display_selection.1 {
+                self.display_selection.0 = generation;
+            } else {
+                self.display_list = None;
+            }
+        }
         if self.display_list.is_some() || self.fragments.is_none() {
             return;
         }
         let page = self.visible_selection();
+        self.display_selection = (generation, page);
         let control = self.control_selection();
         if page.is_some() {
             // Built before the borrows below.
@@ -439,7 +450,7 @@ impl DocumentState {
         };
         let started = Instant::now();
         let order = self.tree_order.value();
-        let page = page.map(|s| s.ordered(order));
+        let page = page.map(|r| order.keys(&self.dom, r.start, r.end));
         let scrolling = Scrolling {
             offsets: self.scrollers.offsets(),
             indicators: self.view.indicators,

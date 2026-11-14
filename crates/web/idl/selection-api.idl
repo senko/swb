@@ -1,0 +1,58 @@
+// Source: Selection API, W3C Working Draft / Editor's Draft,
+// https://w3c.github.io/selection-api/, copied on 2026-11-14.
+//
+// This file includes material copied from Selection API,
+// https://w3c.github.io/selection-api/. Copyright © 2026 World Wide Web
+// Consortium. https://www.w3.org/copyright/software-license-2023/ (W3C
+// Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb's cut (M10 sub-feature 9b-2, ADR 0039): the members are in Chromium's
+// order (measured, case `api` of `tools/probes/web-selection.json`), with
+// Chromium's aliases `baseNode`, `baseOffset`, `extentNode` and `extentOffset`.
+// Left out: `getComposedRanges` and `ShadowRoot.getSelection` (backlog),
+// Chromium's `modify` (non-standard; backlog), and `deleteFromDocument`
+// (needs `Range.deleteContents`, sub-feature 9b-3). The node arguments are
+// nodes of any document of the runtime (`[SwbAnyDocument]`): a node of another
+// document is ignored, as in Chromium. `setBaseAndExtent` takes `null` nodes
+// as Chromium does (a `null` anchor empties the selection, a `null` focus
+// collapses it at the anchor). `onselectstart` and `onselectionchange` are in
+// html.idl with the other event handlers.
+
+[Exposed=Window]
+interface Selection {
+  readonly attribute Node? anchorNode;
+  readonly attribute unsigned long anchorOffset;
+  readonly attribute Node? focusNode;
+  readonly attribute unsigned long focusOffset;
+  readonly attribute boolean isCollapsed;
+  readonly attribute unsigned long rangeCount;
+  readonly attribute DOMString type;
+  readonly attribute DOMString direction;
+  readonly attribute Node? baseNode;
+  readonly attribute unsigned long baseOffset;
+  readonly attribute Node? extentNode;
+  readonly attribute unsigned long extentOffset;
+  undefined addRange(Range range);
+  undefined collapse([SwbAnyDocument] Node? node, optional unsigned long offset = 0);
+  undefined collapseToEnd();
+  undefined collapseToStart();
+  boolean containsNode([SwbAnyDocument] Node node, optional boolean allowPartialContainment = false);
+  undefined empty();
+  undefined extend([SwbAnyDocument] Node node, optional unsigned long offset = 0);
+  Range getRangeAt(unsigned long index);
+  undefined removeAllRanges();
+  undefined removeRange(Range range);
+  undefined selectAllChildren([SwbAnyDocument] Node node);
+  undefined setBaseAndExtent([SwbAnyDocument] Node? anchorNode, unsigned long anchorOffset, [SwbAnyDocument] Node? focusNode, unsigned long focusOffset);
+  undefined setPosition([SwbAnyDocument] Node? node, optional unsigned long offset = 0);
+  stringifier;
+};
+
+partial interface Document {
+  Selection? getSelection();
+};
+
+partial interface Window {
+  Selection? getSelection();
+};

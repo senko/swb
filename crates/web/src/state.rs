@@ -253,9 +253,15 @@ pub(crate) struct DocState {
     /// wrote `value`), with their default value override
     /// (<https://html.spec.whatwg.org/multipage/form-elements.html#the-output-element>).
     pub(crate) output_defaults: HashMap<NodeId, String>,
-    /// The `select` and `selectionchange` events that wait for their task,
-    /// and the owner of the document's selection (feature 9b2).
+    /// The `select` and `selectionchange` events that wait for their task
+    /// (feature 9b2 of M8; the document's since M10 sub-feature 9b-2).
     pub(crate) selection_events: crate::html::selection_events::SelectionEvents,
+    /// The document's `Selection` object, made at the first access
+    /// (`selection.rs`).
+    pub(crate) selection: Option<Gc<Object>>,
+    /// The `Range` object of the selection's range entry, by entry id
+    /// (`getRangeAt(0)` returns the same object until the range changes).
+    pub(crate) selection_range: Option<(u32, Gc<Object>)>,
     /// The event listener lists of nodes (a node with listeners has a
     /// wrapper; both live as long as the document).
     pub(crate) listeners: HashMap<NodeId, Listeners>,
@@ -456,7 +462,11 @@ impl DocState {
         self.timers.trace(tracer);
         self.perf.trace(tracer);
         self.idle.trace(tracer);
+        if let Some((_, range)) = self.selection_range {
+            tracer.object(range);
+        }
         for object in [
+            self.selection,
             self.performance,
             self.navigator,
             self.crypto,

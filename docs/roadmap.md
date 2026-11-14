@@ -5118,8 +5118,23 @@ Steps:
           Scores and the JS-off snapshot unchanged; callgrind within
           0.05 %.
         - 9b-2 `Selection`, `getSelection` on window and document, the
-          tie to the native text selection (both ways), `selectionchange`;
-          exit: no `getSelection` error on GitHub's clicks.
+          tie to the native text selection (both ways), `selectionchange`.
+          Done (2026-11-14): the selection is a live range entry of the
+          arena with its direction, its generation and the text control
+          that owns it (ADR 0039 "9b-2 implementation notes"); the engine's
+          gestures write it (select all with Chromium's boundary points, a
+          click below the content at the end of the body) and its highlight
+          and copy read it, so a script's selection is painted and copied
+          and the user's is a live range for scripts; `selectionchange` at
+          the document coalesces as in Chromium; `containsNode` answers from
+          the caret positions that show the selection (a measured departure
+          from the standard); a click into a frame keeps the parent's
+          selection unless it contains the `iframe` (ADR 0009 "Frames").
+          31 probe cases (`tools/probes/web-selection.json`). Review fixes:
+          a `getRangeAt` during a drag no longer restarts the drag; a full
+          queue of `select` events keeps the document's `selectionchange`.
+          GitHub's clicks log no `getSelection` error. Scores and the JS-off
+          snapshot unchanged; callgrind within 0.06 %.
         - 9b-3 the contents operations (`extractContents`,
           `cloneContents`, `deleteContents`, `insertNode`,
           `surroundContents`), `createContextualFragment` and the range
@@ -5350,6 +5365,20 @@ Steps:
   of one change near the end of a long child list walk it; a loop of
   single removals or insertions in a parent with many boundary points
   costs those points per call (the time limit ends the loop).
+  Found in 9b-2: the user's selection in a shadow tree is not retargeted
+  to the host, and a drag from the document into a shadow tree collapses
+  at the focus (Chromium keeps a composed selection); a click in an empty
+  block puts the caret in the nearest text (Chromium: in the block, at
+  0); a double click 0.01 px inside a space selects the space (Chromium:
+  the word after it; needs probe cases at several x positions); text
+  controls without the selection API (`email`, `number`) do not own the
+  document's selection, so a click into one clears it; the automation
+  steps run the event loop after every step, while Chromium handles
+  consecutive input before posted tasks (`selectionchange` coalesces
+  differently; a step option without the event loop would let tests
+  compare event logs exactly); `String(getSelection())` after a DOM
+  change flushes the layout and rebuilds the tree order (16 ms per call
+  on a page of 20,000 elements).
 - GitHub (found in 8b): the avatars have square corners in swb, rounded
   in Chromium; the 1 px line under the repository tabs is missing
   (`box-shadow: inset`, see the `box-shadow` item of M8). In one of ten

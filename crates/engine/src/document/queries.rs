@@ -8,7 +8,7 @@
 
 use std::collections::HashMap;
 
-use swb_dom::{Document, NodeId, QuirksMode, local_name};
+use swb_dom::{Boundary, Document, NodeId, QuirksMode, local_name};
 use swb_layout::{FragmentRef, FragmentTree, Point, Rect, ScrollOffsets, Size, scroll_range};
 use swb_style::{ComputedStyle, InertStyle, Overflow, StyleMap, Visibility};
 use swb_text::FontContext;
@@ -501,8 +501,9 @@ impl DocumentState {
             return String::new();
         };
         let order = self.tree_order.value();
-        let (start, end) = range.ordered(order);
-        selection::selected_text(&self.dom, styles, start, end, order)
+        let keys = order.keys(&self.dom, range.anchor, range.focus);
+        let scope = self.dom.root(node);
+        selection::selected_text(&self.dom, styles, scope, keys, order)
     }
 
     /// The selected text, with white space collapsed and line breaks
@@ -513,17 +514,58 @@ impl DocumentState {
         if let Some(text) = self.control_selected_text() {
             return text;
         }
-        self.update_layout(fonts);
-        let Some(selection) = self.visible_selection() else {
+        let Some(range) = self.visible_selection() else {
             return String::new();
         };
+        self.update_layout(fonts);
+        self.text_of_range(range)
+    }
+
+    /// The text of the document's selection for `Selection.toString` (ADR
+    /// 0039 section 3), after a style flush: the selected text of the text
+    /// control that owns it, else the rendered text of its range, as copy
+    /// gives it.
+    pub(crate) fn script_selection_text(&mut self) -> String {
+        let Some(s) = self.dom.selection() else {
+            return String::new();
+        };
+        if let Some(control) = s.control.filter(|&c| self.dom.is_connected(c)) {
+            return self
+                .script_control_selected_text(control)
+                .unwrap_or_default();
+        }
+        self.process_changes();
+        let outer = std::mem::replace(&mut self.in_query, true);
+        self.update_style();
+        self.in_query = outer;
+        self.text_of_range(s.range)
+    }
+
+    /// `range` moved to the caret positions that show it, for
+    /// `Selection.containsNode` (`swb_dom::Document::visual_range`), after a
+    /// layout flush: block, inline and atomic elements from the computed
+    /// styles, rendered text from the fragments.
+    pub(crate) fn script_visual_range(&mut self, range: swb_dom::LiveRange) -> swb_dom::LiveRange {
+        let laid_out = self.script_layout_flush();
+        let dom = &self.dom;
+        let (true, Some(styles), Some(tree)) = (laid_out, &self.styles, &self.fragments) else {
+            return dom.visual_range(range, &|n| swb_dom::Flow::of_dom(dom, n));
+        };
+        let extents = selection::text_extents(tree);
+        let flow = |node: NodeId| selection::flow_of(dom, styles, &extents, node);
+        dom.visual_range(range, &flow)
+    }
+
+    /// The rendered text of `range` with the current styles.
+    fn text_of_range(&mut self, range: swb_dom::LiveRange) -> String {
         self.tree_order();
         let Some(styles) = &self.styles else {
             return String::new();
         };
         let order = self.tree_order.value();
-        let (start, end) = selection.ordered(order);
-        selection::selected_text(&self.dom, styles, start, end, order)
+        let keys = order.keys(&self.dom, range.start, range.end);
+        let scope = self.dom.root(range.start.node);
+        selection::selected_text(&self.dom, styles, scope, keys, order)
     }
 
     /// The selected text of the focused text control: `Some("")` if a
@@ -540,15 +582,15 @@ impl DocumentState {
         Some(state.edit.selected_text().to_owned())
     }
 
-    /// Selects all text of the document. Returns true if the selection
+    /// Selects all text of the document, with Chromium's boundary points
+    /// ([`selection::select_all_range`]). Returns true if the selection
     /// changed.
     pub(crate) fn select_all(&mut self, fonts: &mut FontContext) -> bool {
         self.update_layout(fonts);
         let Some(tree) = &self.fragments else {
             return false;
         };
-        let range =
-            selection::subtree_range(&self.dom, NodeId::DOCUMENT, &selection::text_extents(tree));
+        let range = selection::select_all_range(&self.dom, &selection::text_extents(tree));
         self.set_selection(range)
     }
 
@@ -563,6 +605,27 @@ impl DocumentState {
         let tree = self.fragments.as_ref()?;
         let document_point = Point::new(point.x + self.scroll.x, point.y + self.scroll.y);
         selection::position_at(tree, self.scroll_offsets(), document_point, snap)
+    }
+
+    /// The boundary point of a single press at a point in viewport
+    /// coordinates: the nearest caret stop in the text, or the end of the
+    /// body for a press outside every block with text (Chromium, measured:
+    /// `user-click-empty`).
+    pub(crate) fn press_position(
+        &mut self,
+        point: Point,
+        fonts: &mut FontContext,
+    ) -> Option<Boundary> {
+        let position = self.position_at(point, Snap::Nearest, fonts)?;
+        let tree = self.fragments.as_ref()?;
+        let document_point = Point::new(point.x + self.scroll.x, point.y + self.scroll.y);
+        if !selection::text_block_at(tree, self.scroll_offsets(), document_point)
+            && let Some(body) = self.dom.body()
+        {
+            let count = u32::try_from(self.dom.child_count(body)).unwrap_or(u32::MAX);
+            return Some(Boundary::new(body, count));
+        }
+        Some(position.boundary())
     }
 
     /// The selection of a triple click: the paragraph at a point.

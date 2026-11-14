@@ -136,10 +136,12 @@ impl Page {
         for &frame in old_chain[common.min(old_chain.len())..].iter().rev() {
             self.in_frame(frame, Page::drop_document_focus);
         }
-        // A document that the focus enters a frame of loses its selection;
-        // one that the focus leaves keeps it (measured, cases
+        // A document that the focus enters a frame of keeps its selection,
+        // unless the selection contains the frame's element: it collapses
+        // before it. One that the focus leaves keeps it (measured, cases
         // `input-select-parent-click-frame`, `input-select-frame-cleared`,
-        // `input-select-frame-to-frame`).
+        // `input-select-frame-to-frame` of `web-frames.json`,
+        // `frames-user-click-*` of `web-selection.json`).
         for (i, &frame) in new_chain.iter().enumerate() {
             let container = new_chain
                 .get(i + 1)
@@ -149,9 +151,9 @@ impl Page {
                 self.set_top_frame_focus(container);
             } else {
                 self.in_frame(frame, |p| {
-                    if container.is_some() {
+                    if let Some(container) = container {
                         p.drop_document_focus();
-                        p.set_selection(None);
+                        p.selection_around_frame(container);
                     }
                     if let Some(doc) = p.doc.as_deref_mut() {
                         doc.frame_focus = container;
@@ -251,8 +253,8 @@ impl Page {
     /// The page's own document is focused through `container` (an
     /// `iframe` that holds the focus), or not any more (`None`).
     fn set_top_frame_focus(&mut self, container: Option<NodeId>) {
-        if container.is_some() {
-            self.set_selection(None);
+        if let Some(container) = container {
+            self.selection_around_frame(container);
             if self.focused_element().is_some() {
                 if self.script_input() {
                     self.scripted_focus(None, false);

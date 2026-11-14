@@ -73,6 +73,7 @@ use crate::resources::{Images, Requests, ScriptFetches, Sheets};
 use crate::scrollers::Scrollers;
 use crate::selection::{Selection, TreeOrder};
 use crate::web_fonts::WebFonts;
+use swb_dom::LiveRange;
 
 pub(crate) use derived::Derived;
 pub(crate) use history_api::{HistoryInfo, StateChange};
@@ -299,8 +300,10 @@ pub struct DocumentState {
     /// (`navigator.userActivation`; the page sets it, see
     /// [`Page::note_activation`](crate::Page)).
     pub(crate) user_activation: Option<Instant>,
-    /// The text selection of the page.
-    pub(crate) selection: Option<Selection>,
+    /// The DOM's selection generation and the visible page selection that
+    /// `display_list` shows (ADR 0039 section 3: a script's change of the
+    /// selection rebuilds the list).
+    pub(crate) display_selection: (u64, Option<LiveRange>),
     pub(crate) stylist: Option<Stylist>,
     pub(crate) styles: Option<StyleMap>,
     /// The content boxes of the query containers in the last layout, for
@@ -442,7 +445,7 @@ impl DocumentState {
             frame_focus: None,
             window_blurred: false,
             user_activation: None,
-            selection: None,
+            display_selection: (0, None),
             stylist: None,
             styles: None,
             container_sizes: swb_style::ContainerSizes::new(),
@@ -976,6 +979,14 @@ impl swb_web::EngineHost for DocumentState {
         self.script_inner_text(element)
     }
 
+    fn selection_text(&mut self) -> String {
+        self.script_selection_text()
+    }
+
+    fn visual_range(&mut self, range: LiveRange) -> LiveRange {
+        self.script_visual_range(range)
+    }
+
     fn svg_geometry(&mut self, element: NodeId) -> Option<(swb_web::DomRect, f64)> {
         self.script_svg_geometry(element)
     }
@@ -1431,22 +1442,54 @@ impl DocumentState {
         (affected, old_focus)
     }
 
-    /// Replaces the selection. Returns true if it changed.
+    /// Replaces the selection with the one of a user's gesture, in a new
+    /// range entry of the DOM (ADR 0039 section 3). Anchor and focus in
+    /// different trees (the document and a shadow tree) collapse at the
+    /// focus (departure: Chromium keeps a composed selection). Returns true
+    /// if the selection changed.
     pub(crate) fn set_selection(&mut self, selection: Option<Selection>) -> bool {
-        if selection == self.selection {
-            return false;
-        }
-        let visible_before = self.visible_selection().is_some();
-        self.selection = selection;
-        if visible_before || self.visible_selection().is_some() {
-            // The highlight is part of the display list.
-            self.display_list = None;
-        }
-        true
+        let dom = &mut self.dom;
+        let Some(s) = selection else {
+            return dom.set_selection(None, false, true);
+        };
+        let (anchor, focus) = if dom.root(s.anchor.node) == dom.root(s.focus.node) {
+            (s.anchor, s.focus)
+        } else {
+            (s.focus, s.focus)
+        };
+        let backward = dom.compare_boundaries(focus, anchor) == std::cmp::Ordering::Less;
+        let range = if backward {
+            LiveRange {
+                start: focus,
+                end: anchor,
+            }
+        } else {
+            LiveRange {
+                start: anchor,
+                end: focus,
+            }
+        };
+        dom.set_selection(Some(range), backward, true)
     }
 
-    /// The selection, if there is one and it is not empty.
-    pub(crate) fn visible_selection(&self) -> Option<Selection> {
-        self.selection.filter(|s| !s.is_collapsed())
+    /// The selection of the user or a script.
+    pub(crate) fn selection(&self) -> Option<swb_dom::SelectionState> {
+        self.dom.selection()
+    }
+
+    /// The range of the page selection, if there is one and it is not empty
+    /// (while a text control owns the selection, there is none on the
+    /// page).
+    pub(crate) fn visible_selection(&self) -> Option<LiveRange> {
+        self.dom
+            .selection()
+            .filter(|s| s.control.is_none() && !s.range.is_collapsed())
+            .map(|s| s.range)
+    }
+
+    /// The anchor and focus of the selection, as a gesture's selection.
+    pub(crate) fn gesture_selection(&self) -> Option<Selection> {
+        self.selection()
+            .map(|s| Selection::new(s.anchor(), s.focus()))
     }
 }

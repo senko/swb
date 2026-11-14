@@ -769,9 +769,9 @@ impl DocumentState {
         }
     }
 
-    /// Clears the element states and the selection that refer to nodes
-    /// that left the document. (The HTML focus fixup rule; the selection
-    /// goes away instead of moving its boundary points.)
+    /// Clears the element states that refer to nodes that left the document
+    /// (the HTML focus fixup rule). The selection is a live range of the DOM,
+    /// whose steps move its boundary points (ADR 0039 section 3).
     fn clean_up_states(&mut self) {
         let dom = &self.dom;
         let states = &mut self.states;
@@ -784,12 +784,6 @@ impl DocumentState {
             if state.is_some_and(|n| !in_document(dom, n)) {
                 *state = None;
             }
-        }
-        if self
-            .selection
-            .is_some_and(|s| !in_document(dom, s.anchor.node) || !in_document(dom, s.focus.node))
-        {
-            self.selection = None;
         }
     }
 }

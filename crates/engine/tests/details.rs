@@ -197,14 +197,27 @@ fn clicking_the_summary_moves_the_focus_out_of_the_contents() {
 #[test]
 fn closing_details_removes_a_selection_in_its_contents() {
     let (mut page, _) =
-        open("<details id=d open><summary id=s>Sum</summary><p>inside</p></details>");
-    key(&mut page, &Key::Tab);
-    assert_eq!(page.focused_element(), Some(node(&page, "s")));
-    page.select_all();
-    assert!(page.selection().is_some());
+        open("<details id=d open><summary id=s>Sum</summary><p id=p>inside</p></details>");
+    // A double click selects a word of the contents.
+    let r = rect(&mut page, "p");
+    let (x, y) = (r.x + 10.0, r.y + r.height / 2.0);
+    let primary = swb_engine::MouseButton::Primary;
+    page.mouse_down(x, y, primary, swb_engine::Modifiers::NONE, 2);
+    page.mouse_up(x, y, primary);
+    assert_eq!(page.selected_text(), "inside");
+    page.focus(Some(node(&page, "s")), true);
     assert!(key(&mut page, &Key::Enter));
     assert!(!is_open(&page, "d"));
     assert!(page.selection().is_none());
+    // Select all goes to the end of the body (ADR 0039 section 3): it stays,
+    // and the hidden contents are not copied.
+    assert!(key(&mut page, &Key::Enter));
+    assert!(is_open(&page, "d"));
+    page.select_all();
+    assert_eq!(page.selected_text(), "Sum\n\ninside");
+    assert!(key(&mut page, &Key::Enter));
+    assert!(!is_open(&page, "d"));
+    assert_eq!(page.selected_text(), "Sum");
 }
 
 #[test]

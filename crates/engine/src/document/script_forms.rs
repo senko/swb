@@ -157,6 +157,19 @@ impl DocumentState {
         Some(range(&self.script_edit(node)?))
     }
 
+    /// The selected text of the text control `node`, for `Selection.toString`
+    /// while the control owns the document's selection; empty for a password
+    /// field. `None` where the selection API does not apply.
+    pub(crate) fn script_control_selected_text(&mut self, node: NodeId) -> Option<String> {
+        let ty = self
+            .script_type(node)
+            .filter(|t| Self::has_selection_api(*t))?;
+        if ty == ControlType::Input(InputType::Password) {
+            return Some(String::new());
+        }
+        Some(self.script_edit(node)?.selected_text().to_owned())
+    }
+
     /// The selection of a text control as a key (byte offsets and the
     /// direction), for the selection events. `None` without a state or
     /// where the selection API does not apply.

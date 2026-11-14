@@ -54,7 +54,7 @@ pub use parser::{
     parse_document, parse_fragment, parse_html, parse_html_bytes, parse_html_bytes_limited,
     parse_html_bytes_with, parse_html_limited, parse_html_with,
 };
-pub use ranges::{Boundary, LiveRange};
+pub use ranges::{Boundary, Flow, HOST_ID_LIMIT, LiveRange, SelectionState};
 pub use serialize::{inner_html, outer_html};
 pub use shadow::{
     AttachError, ShadowIncludingDescendants, ShadowRootInit, is_valid_shadow_host_name,

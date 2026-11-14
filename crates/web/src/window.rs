@@ -309,6 +309,12 @@ impl g::window::WindowImpl for WebState {
         crate::idle_callbacks::cancel(cx.rt, handle)
     }
 
+    /// The `Selection` of the window's document.
+    /// <https://w3c.github.io/selection-api/#dom-window-getselection>
+    fn get_selection(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Option<Gc<Object>>> {
+        crate::selection::selection_object(cx)
+    }
+
     /// `getComputedStyle`: the element can belong to another document of the
     /// agent (the document's layout answers; measured, case `geometry`).
     fn get_computed_style(

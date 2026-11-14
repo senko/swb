@@ -1,14 +1,18 @@
 //! Text selection: positions in text nodes, the position at a point,
 //! words and blocks, the highlight, and the selected text.
 //!
-//! A selection is a range between two positions in text nodes. It refers
-//! to the DOM, not to the layout, so it survives a new layout (a restyle
-//! on hover, a resize).
+//! The selection belongs to the DOM (ADR 0039 section 3: a live range
+//! entry of the arena, `swb_dom::Document::selection`), so it follows DOM
+//! changes, scripts see the user's selection, and a script's selection is
+//! painted and copied. The user's gestures compute positions in text nodes
+//! from the layout and write a new selection; the highlight and the copied
+//! text read its boundary points, which can also be in elements (`(body,
+//! 3)`). They compare boundary points through keys over the tree order
+//! ([`TreeOrder::key`]).
 
-use std::cmp::Ordering;
 use std::collections::HashMap;
 
-use swb_dom::{Document, NodeData, NodeId, is_html_whitespace, local_name};
+use swb_dom::{Boundary, Document, NodeData, NodeId, is_html_whitespace, local_name};
 use swb_layout::{
     BoxContent, BoxFragment, Fragment, FragmentTree, NoScroll, Point, Rect, ScrollOffsets,
     ScrollState, TextFragment, clip_property_area, forms_stacking_context,
@@ -26,74 +30,161 @@ pub struct TextPosition {
     pub offset: usize,
 }
 
-/// A text selection from `anchor` (where it started) to `focus` (where it
-/// ends). The focus can be before the anchor.
+impl TextPosition {
+    /// The position as a DOM boundary point.
+    pub(crate) fn boundary(self) -> Boundary {
+        Boundary::new(self.node, u32::try_from(self.offset).unwrap_or(u32::MAX))
+    }
+}
+
+/// A selection that a gesture makes, from `anchor` (where it started) to
+/// `focus` (where it ends). The focus can be before the anchor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Selection {
     /// Where the selection started.
-    pub anchor: TextPosition,
+    pub anchor: Boundary,
     /// Where the selection ends.
-    pub focus: TextPosition,
+    pub focus: Boundary,
 }
 
 impl Selection {
     /// A selection from `anchor` to `focus`.
-    pub fn new(anchor: TextPosition, focus: TextPosition) -> Self {
+    pub fn new(anchor: Boundary, focus: Boundary) -> Self {
         Selection { anchor, focus }
+    }
+
+    /// A selection between two text positions.
+    pub(crate) fn between(anchor: TextPosition, focus: TextPosition) -> Self {
+        Selection::new(anchor.boundary(), focus.boundary())
     }
 
     /// True if the selection is empty.
     pub fn is_collapsed(&self) -> bool {
         self.anchor == self.focus
     }
-
-    /// The start and the end of the selection in tree order.
-    pub(crate) fn ordered(&self, order: &TreeOrder) -> (TextPosition, TextPosition) {
-        if order.compare(self.anchor, self.focus) == Ordering::Greater {
-            (self.focus, self.anchor)
-        } else {
-            (self.anchor, self.focus)
-        }
-    }
 }
 
-/// The position of each node in tree order. The document does not change
-/// after parsing, so this is computed once per document.
+/// The place of a boundary point in tree order: the rank of a node and a
+/// byte offset in it. A point in a text node is its rank and offset; a point
+/// `(P, i)` in an element is the rank of `P`'s child `i` (or of the node
+/// after `P`'s subtree) at offset 0, so that the text nodes before it are
+/// selected to their end and the ones from it on are not.
+pub(crate) type Key = (u32, u32);
+
+/// The position of each node in shadow-including tree order (a shadow tree
+/// right after its host, before the host's children), and the end of its
+/// subtree. A range has its boundary points in one tree, whose nodes are
+/// contiguous in this order. Rebuilt after each DOM change.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct TreeOrder {
     rank: Vec<u32>,
+    /// The rank of the node after the subtree of each node (with its shadow
+    /// tree).
+    end: Vec<u32>,
 }
 
 impl TreeOrder {
     /// The tree order of the nodes of `doc`.
     pub(crate) fn new(doc: &Document) -> Self {
         let mut rank = vec![u32::MAX; doc.len()];
-        for (i, node) in doc.descendants(NodeId::DOCUMENT).enumerate() {
+        let mut order = Vec::new();
+        for (i, node) in doc
+            .shadow_including_descendants(NodeId::DOCUMENT)
+            .enumerate()
+        {
             if let Some(r) = rank.get_mut(node.index()) {
                 *r = u32::try_from(i).unwrap_or(u32::MAX);
             }
+            order.push(node);
         }
-        TreeOrder { rank }
+        // The size of each subtree, from the leaves up (reverse tree order
+        // visits every child before its parent, and a shadow root before its
+        // host).
+        let mut size = vec![1u32; doc.len()];
+        for &node in order.iter().rev() {
+            let own = size.get(node.index()).copied().unwrap_or(1);
+            let up = doc
+                .parent(node)
+                .or_else(|| doc.node(node).data.as_shadow_root().map(|s| s.host));
+            if let Some(up) = up
+                && let Some(s) = size.get_mut(up.index())
+            {
+                *s = s.saturating_add(own);
+            }
+        }
+        let end = rank
+            .iter()
+            .zip(&size)
+            .map(|(&r, &s)| {
+                if r == u32::MAX {
+                    u32::MAX
+                } else {
+                    r.saturating_add(s)
+                }
+            })
+            .collect();
+        TreeOrder { rank, end }
     }
 
     /// The node's position in tree order; detached nodes come last.
-    fn rank(&self, node: NodeId) -> u32 {
+    pub(crate) fn rank(&self, node: NodeId) -> u32 {
         self.rank.get(node.index()).copied().unwrap_or(u32::MAX)
     }
 
-    /// Compares two positions: by node in tree order, then by offset.
-    fn compare(&self, a: TextPosition, b: TextPosition) -> Ordering {
-        self.rank(a.node)
-            .cmp(&self.rank(b.node))
-            .then(a.offset.cmp(&b.offset))
+    /// The rank of the node after the subtree of `node`.
+    fn end_of(&self, node: NodeId) -> u32 {
+        self.end.get(node.index()).copied().unwrap_or(u32::MAX)
     }
+
+    /// The key of boundary point `b` (see [`Key`]).
+    pub(crate) fn key(&self, doc: &Document, b: Boundary) -> Key {
+        let Some(node) = doc.get(b.node) else {
+            return (u32::MAX, 0);
+        };
+        if matches!(
+            node.data,
+            NodeData::Text(_) | NodeData::Comment(_) | NodeData::ProcessingInstruction { .. }
+        ) {
+            return (self.rank(b.node), b.offset);
+        }
+        // The child at the offset, from the nearer end of the child list.
+        let count = doc.child_count(b.node);
+        let offset = b.offset as usize;
+        if offset >= count {
+            return (self.end_of(b.node), 0);
+        }
+        let child = if offset <= count / 2 {
+            doc.children(b.node).nth(offset)
+        } else {
+            std::iter::successors(node.last_child(), |&c| doc.node(c).prev_sibling())
+                .nth(count - 1 - offset)
+        };
+        child.map_or((self.end_of(b.node), 0), |c| (self.rank(c), 0))
+    }
+
+    /// The start and the end of a range as keys.
+    pub(crate) fn keys(&self, doc: &Document, start: Boundary, end: Boundary) -> (Key, Key) {
+        (self.key(doc, start), self.key(doc, end))
+    }
+}
+
+/// The selected bytes `from..to` of a text node at `rank` between the keys
+/// `start` and `end` (`to` is the node's length when the range goes past it);
+/// `None` if the range does not reach into it.
+fn selected_part(rank: u32, len: u32, start: Key, end: Key) -> Option<(u32, u32)> {
+    if rank < start.0 || rank > end.0 {
+        return None;
+    }
+    let from = if rank == start.0 { start.1 } else { 0 };
+    let to = if rank == end.0 { end.1 } else { len };
+    Some((from, to))
 }
 
 /// The selected part of each text node, and of the text of the focused
 /// form control, for painting.
 pub(crate) struct Highlight<'a> {
-    /// The page selection: its start and end in tree order.
-    pub(crate) page: Option<(TextPosition, TextPosition)>,
+    /// The page selection: its start and end as keys.
+    pub(crate) page: Option<(Key, Key)>,
     /// The selection in the focused text control: the control and the
     /// range of offsets in its shown text.
     pub(crate) control: Option<(NodeId, u32, u32)>,
@@ -112,21 +203,7 @@ impl swb_paint::Highlights for Highlight<'_> {
         // controls belongs to the control elements.
         let (start, end) = self.page?;
         self.doc.get(node)?.as_text()?;
-        let rank = self.order.rank(node);
-        if rank < self.order.rank(start.node) || rank > self.order.rank(end.node) {
-            return None;
-        }
-        let to_u32 = |v: usize| u32::try_from(v).unwrap_or(u32::MAX);
-        let from = if node == start.node {
-            to_u32(start.offset)
-        } else {
-            0
-        };
-        let to = if node == end.node {
-            to_u32(end.offset)
-        } else {
-            u32::MAX
-        };
+        let (from, to) = selected_part(self.order.rank(node), u32::MAX, start, end)?;
         (from < to).then_some((from, to))
     }
 }
@@ -173,6 +250,23 @@ pub(crate) fn position_at(
         node: fragment.node,
         offset: offset as usize,
     })
+}
+
+/// True if a block with selectable text contains `point` (document
+/// coordinates, scroll offsets applied); a press outside every such block
+/// (below the content) puts the caret at the end of the body, as in
+/// Chromium (measured, `user-click-empty`).
+pub(crate) fn text_block_at(
+    tree: &FragmentTree,
+    offsets: &dyn ScrollOffsets,
+    point: Point,
+) -> bool {
+    let Some(root) = tree.root.as_ref() else {
+        return false;
+    };
+    let mut scope = None;
+    find_text_block(root, Place::ROOT, offsets, point, &mut scope);
+    scope.is_some()
 }
 
 /// The vertical and the horizontal distance from `point` to `rect` (0
@@ -509,16 +603,26 @@ pub(crate) fn subtree_range(
 /// The selection from offset `start` in text node `first` to offset `end`
 /// in text node `last`.
 fn text_range(first: NodeId, start: u32, last: NodeId, end: u32) -> Selection {
-    Selection::new(
-        TextPosition {
-            node: first,
-            offset: start as usize,
-        },
-        TextPosition {
-            node: last,
-            offset: end as usize,
-        },
-    )
+    Selection::new(Boundary::new(first, start), Boundary::new(last, end))
+}
+
+/// The selection of select all (Ctrl+A) as Chromium makes it (measured,
+/// `user-select-all` of `tools/probes/web-selection.json`): from the start of
+/// the first text node with fragments to the end of the body (`(body,
+/// childCount)`); from the start of the body without text. `None` without a
+/// body or a document element.
+pub(crate) fn select_all_range(
+    doc: &Document,
+    extents: &HashMap<NodeId, (u32, u32)>,
+) -> Option<Selection> {
+    let container = doc.body().or_else(|| doc.document_element())?;
+    let count = u32::try_from(doc.child_count(container)).unwrap_or(u32::MAX);
+    let end = Boundary::new(container, count);
+    let start = doc
+        .descendants(NodeId::DOCUMENT)
+        .find_map(|n| extents.get(&n).map(|e| Boundary::new(n, e.0)))
+        .unwrap_or(Boundary::new(container, 0));
+    Some(Selection::new(start, end))
 }
 
 /// The word (or run of spaces or punctuation) at `position`, by the word
@@ -530,7 +634,7 @@ pub(crate) fn word_at(doc: &Document, position: TextPosition) -> Option<Selectio
         node: position.node,
         offset,
     };
-    Some(Selection::new(at(word.start), at(word.end)))
+    Some(Selection::between(at(word.start), at(word.end)))
 }
 
 /// True if the element is rendered and is not inline-level: a block
@@ -596,13 +700,15 @@ pub(crate) fn paragraph_at(
 /// the selected part of the document
 /// (<https://html.spec.whatwg.org/multipage/dom.html#the-innertext-idl-attribute>):
 /// collapsed white space, line breaks between blocks, two between
-/// paragraphs, tabs between table cells. Deliberate simplification:
+/// paragraphs, tabs between table cells. `start` and `end` are the keys of
+/// the range ([`TreeOrder::key`]) in the tree of `scope` (the document, or a
+/// shadow root for a range in a shadow tree). Deliberate simplification:
 /// `text-transform` is not applied.
 pub(crate) fn selected_text(
     doc: &Document,
     styles: &StyleMap,
-    start: TextPosition,
-    end: TextPosition,
+    scope: NodeId,
+    (start, end): (Key, Key),
     order: &TreeOrder,
 ) -> String {
     enum Step {
@@ -611,13 +717,9 @@ pub(crate) fn selected_text(
         /// for a table cell that a tab separates from the next cell.
         Leave(usize, bool),
     }
-    let (start_rank, end_rank) = (order.rank(start.node), order.rank(end.node));
     let mut out = TextBuilder::default();
-    let mut stack: Vec<Step> = doc
-        .document_element()
-        .map(Step::Enter)
-        .into_iter()
-        .collect();
+    let mut stack: Vec<Step> = doc.children(scope).map(Step::Enter).collect();
+    stack.reverse();
     while let Some(step) = stack.pop() {
         let node = match step {
             Step::Leave(breaks, tab) => {
@@ -630,24 +732,27 @@ pub(crate) fn selected_text(
             Step::Enter(node) => node,
         };
         let rank = order.rank(node);
-        if rank > end_rank {
+        // A node at the end key's rank starts after the range (an element),
+        // or holds its end (a text node).
+        if rank > end.0 || (rank == end.0 && !matches!(doc.node(node).data, NodeData::Text(_))) {
             break;
         }
         match &doc.node(node).data {
-            NodeData::Text(text) if rank >= start_rank => {
+            NodeData::Text(text) => {
+                let len = u32::try_from(text.len()).unwrap_or(u32::MAX);
+                let Some((from, to)) = selected_part(rank, len, start, end) else {
+                    continue;
+                };
                 let Some(style) = doc.parent(node).and_then(|p| styles.get(p)) else {
                     continue;
                 };
                 if style.visibility != Visibility::Visible || !style.is_user_selectable() {
                     continue;
                 }
-                let from = if node == start.node { start.offset } else { 0 };
-                let to = if node == end.node {
-                    end.offset
-                } else {
-                    text.len()
-                };
-                let (from, to) = (text.floor_char_boundary(from), text.floor_char_boundary(to));
+                let (from, to) = (
+                    text.floor_char_boundary(from as usize),
+                    text.floor_char_boundary(to as usize),
+                );
                 if let Some(slice) = text.get(from..to) {
                     out.text(slice, style.white_space);
                 }
@@ -660,6 +765,13 @@ pub(crate) fn selected_text(
                 out.breaks(breaks);
                 if element.is_html_named(&local_name!("br")) {
                     out.newline();
+                }
+                // A form control or a replaced element inside the range keeps
+                // the spaces on both sides (they are in different runs of
+                // text; measured: "pre  post").
+                if rank >= start.0 && is_atomic_inline(element, style) {
+                    out.atomic();
+                    continue;
                 }
                 let tab = style.display == Display::TableCell && has_next_cell(doc, styles, node);
                 stack.push(Step::Leave(breaks, tab));
@@ -682,6 +794,51 @@ pub(crate) fn selected_text(
         }
     }
     out.finish()
+}
+
+/// How `node` takes part in the lines of text (for the caret positions of
+/// `Selection.containsNode`): from its computed style, and for a text node
+/// from its fragments (`extents`, [`text_extents`]).
+pub(crate) fn flow_of(
+    doc: &Document,
+    styles: &StyleMap,
+    extents: &HashMap<NodeId, (u32, u32)>,
+    node: NodeId,
+) -> swb_dom::Flow {
+    use swb_dom::Flow;
+    match &doc.node(node).data {
+        NodeData::Text(_) if extents.contains_key(&node) => Flow::Text,
+        NodeData::Element(e) => match styles.get(node) {
+            Some(s) if s.display == Display::None => Flow::Skipped,
+            Some(s) if is_atomic_inline(e, s) => Flow::Atomic,
+            Some(s) if s.display.is_inline_level() || s.display == Display::Contents => {
+                Flow::Inline
+            }
+            Some(_) => Flow::Block,
+            None => Flow::Skipped,
+        },
+        _ => Flow::Skipped,
+    }
+}
+
+/// True for an inline-level form control or replaced element: its content
+/// is not text of the page (a text area's text belongs to the control).
+fn is_atomic_inline(element: &swb_dom::ElementData, style: &ComputedStyle) -> bool {
+    element.is_html()
+        && style.display.is_inline_level()
+        && matches!(
+            &**element.local_name(),
+            "input"
+                | "textarea"
+                | "select"
+                | "img"
+                | "iframe"
+                | "video"
+                | "audio"
+                | "canvas"
+                | "embed"
+                | "object"
+        )
 }
 
 /// The required line break count of an element for `innerText`: 2 for
@@ -718,6 +875,9 @@ struct TextBuilder {
     /// A tab between table cells before the next text.
     pending_tab: bool,
     started: bool,
+    /// True after a form control or replaced element: the next space is
+    /// kept although the text ends with one.
+    after_atomic: bool,
 }
 
 impl TextBuilder {
@@ -763,6 +923,17 @@ impl TextBuilder {
         self.out.is_empty() || self.out.ends_with(['\n', '\t'])
     }
 
+    /// A form control or replaced element: no text, but content of its
+    /// line: the line breaks before it are written (measured: select all
+    /// ends with the break before a line of controls), and the spaces around
+    /// it do not collapse into one.
+    fn atomic(&mut self) {
+        if self.started {
+            self.flush_breaks();
+            self.after_atomic = true;
+        }
+    }
+
     /// A forced line break (`<br>`).
     fn newline(&mut self) {
         if self.started {
@@ -778,6 +949,7 @@ impl TextBuilder {
                 return;
             }
             self.started = true;
+            self.after_atomic = false;
             self.flush_breaks();
             self.out.extend(text.chars().filter(|&c| c != '\r'));
             return;
@@ -787,6 +959,7 @@ impl TextBuilder {
         while let Some(c) = chars.next() {
             if !is_html_whitespace(c) {
                 self.started = true;
+                self.after_atomic = false;
                 self.flush_breaks();
                 self.out.push(c);
                 continue;
@@ -808,16 +981,23 @@ impl TextBuilder {
                 for _ in 0..newlines {
                     self.out.push('\n');
                 }
-            } else if !self.has_pending() && !self.at_line_start() && !self.out.ends_with(' ') {
+            } else if !self.has_pending()
+                && !self.at_line_start()
+                && (!self.out.ends_with(' ') || self.after_atomic)
+            {
                 self.out.push(' ');
+                self.after_atomic = false;
             }
         }
     }
 
     fn finish(mut self) -> String {
         self.trim_trailing_spaces();
-        let trimmed = self.out.trim_end_matches('\n').len();
-        self.out.truncate(trimmed);
+        // The breaks before a last form control or replaced element stay.
+        if !self.after_atomic {
+            let trimmed = self.out.trim_end_matches('\n').len();
+            self.out.truncate(trimmed);
+        }
         self.out
     }
 }
@@ -860,22 +1040,43 @@ mod tests {
     }
 
     #[test]
-    fn tree_order() {
-        let doc = swb_dom::parse_html("<p id=a>x</p><p id=b>y</p>");
+    fn keys_of_boundary_points() {
+        let doc = swb_dom::parse_html("<p id=a>x</p><p id=b>y<i>z</i></p>");
         let order = TreeOrder::new(&doc);
-        let text = |id: &str| {
-            doc.element_by_id(id)
-                .and_then(|e| doc.children(e).next())
-                .expect("a text child")
-        };
-        let at = |id: &str, offset| TextPosition {
-            node: text(id),
-            offset,
-        };
-        assert_eq!(order.compare(at("a", 1), at("b", 0)), Ordering::Less);
-        assert_eq!(order.compare(at("a", 1), at("a", 0)), Ordering::Greater);
-        let s = Selection::new(at("b", 1), at("a", 0));
-        assert_eq!(s.ordered(&order), (at("a", 0), at("b", 1)));
+        let el = |id: &str| doc.element_by_id(id).expect("the element");
+        let text = |id: &str| doc.children(el(id)).next().expect("a text child");
+        let (a, b) = (el("a"), el("b"));
+        let i = doc.children(b).nth(1).expect("i");
+        let z = doc.children(i).next().expect("z");
+        let key = |node, offset| order.key(&doc, Boundary::new(node, offset));
+        assert!(key(text("a"), 1) < key(text("b"), 0));
+        assert_eq!(key(text("b"), 1), (order.rank(text("b")), 1));
+        // `(p, i)` is the rank of child `i`, or of the node after `p`.
+        assert_eq!(key(b, 0), (order.rank(text("b")), 0));
+        assert_eq!(key(b, 1), (order.rank(i), 0));
+        assert_eq!(key(b, 2), (order.rank(z) + 1, 0));
+        assert_eq!(key(a, 1), (order.rank(b), 0));
+        // The text of `b` is selected to its end from `(a, 0)` to `(b, 1)`,
+        // and `z` is not.
+        let (start, end) = order.keys(&doc, Boundary::new(a, 0), Boundary::new(b, 1));
+        let rank = order.rank(text("b"));
+        assert_eq!(selected_part(rank, 1, start, end), Some((0, 1)));
+        assert_eq!(selected_part(order.rank(z), 1, start, end), None);
+    }
+
+    #[test]
+    fn spaces_around_a_control_stay() {
+        let mut b = TextBuilder::default();
+        b.text("pre ", WhiteSpace::Normal);
+        b.atomic();
+        b.text(" post", WhiteSpace::Normal);
+        assert_eq!(b.finish(), "pre  post");
+        // The break before a last line of controls stays.
+        let mut b = TextBuilder::default();
+        b.text("c3", WhiteSpace::Normal);
+        b.breaks(1);
+        b.atomic();
+        assert_eq!(b.finish(), "c3\n");
     }
 
     #[test]

@@ -366,6 +366,19 @@ impl g::document::DocumentImpl for WebState {
         crate::range::create_for_document(cx, this)
     }
 
+    /// The document's `Selection`; null for a document without a browsing
+    /// context (measured: `createHTMLDocument`, `DOMParser`).
+    /// <https://w3c.github.io/selection-api/#dom-document-getselection>
+    fn get_selection(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+    ) -> b::Result<Option<swb_js::Gc<swb_js::Object>>> {
+        if !is_main(this) {
+            return Ok(None);
+        }
+        crate::selection::selection_object(cx)
+    }
+
     /// <https://dom.spec.whatwg.org/#dom-document-createnodeiterator>
     fn create_node_iterator(
         cx: &mut Cx<'_>,

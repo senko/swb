@@ -135,10 +135,71 @@ fn reap(rt: &mut Runtime) -> VmResult<()> {
             continue;
         };
         if let Some(dom) = arena(rt, key) {
-            dom.remove_live_range(id);
+            // The selection keeps its entry (ADR 0039 section 4).
+            dom.release_live_range(id);
         }
     }
     Ok(())
+}
+
+/// Gives the arena of the current document the counters of the ranges, so
+/// that a change of the selection's range by the live range steps asks the
+/// host to look (`selectionchange` after a data change).
+pub(crate) fn watch_selection(rt: &mut Runtime) -> VmResult<()> {
+    let work = work(rt)?;
+    if let Ok(dom) = state::dom_mut(rt) {
+        dom.set_range_work(work);
+    }
+    Ok(())
+}
+
+/// The next id of a `Range` object.
+fn next_id(rt: &mut Runtime) -> b::Result<u32> {
+    let table = &mut state_mut(rt)?.ranges;
+    let id = table
+        .next_id
+        .checked_add(1)
+        .filter(|&id| id < swb_dom::HOST_ID_LIMIT)
+        .ok_or_else(|| Exception::range_error("Too many Range objects were made."))?;
+    table.next_id = id;
+    Ok(id)
+}
+
+/// The `Range` object of the selection's range entry of the current document,
+/// made in `realm`: the entry gets the id of the new object (ADR 0039 section
+/// 4). `None` without a selection.
+pub(crate) fn wrap_selection(rt: &mut Runtime, realm: u32) -> b::Result<Option<Gc<Object>>> {
+    reap(rt)?;
+    let key = state::state(rt)?.doc.key;
+    let id = next_id(rt)?;
+    let work = work(rt)?;
+    let dom = arena_or_error(rt, key)?;
+    dom.set_range_work(work);
+    let Some(held) = dom.wrap_selection_entry(id) else {
+        return Ok(None);
+    };
+    if held != id {
+        // An object that the caller does not know holds the entry (not
+        // reached: the `Selection` keeps the object it hands out): a copy.
+        let Some(range) = dom.live_range(held) else {
+            return Ok(None);
+        };
+        return create(rt, realm, key, range).map(Some);
+    }
+    state_mut(rt)?.ranges.home.insert(id, key);
+    let dead = Rc::clone(&state::state(rt)?.ranges.dead);
+    let data = RangeData { id, dead };
+    let object = rt
+        .alloc_host_data(data)
+        .and_then(|data| rt.new_host_object(realm, g::RANGE, data))?;
+    Ok(Some(object))
+}
+
+/// The id of the `Range` object `this` and the document of its arena.
+pub(crate) fn range_entry(rt: &Runtime, this: Platform) -> b::Result<(u32, DocKey)> {
+    let id = range_data(rt, this).ok_or_else(illegal)?.id;
+    let key = *state::state(rt)?.ranges.home.get(&id).ok_or_else(illegal)?;
+    Ok((id, key))
 }
 
 /// True once the work of the live range steps passed the unit that the host
@@ -185,13 +246,8 @@ fn store(rt: &mut Runtime, id: u32, key: DocKey, range: LiveRange) -> b::Result<
 /// arena of document `key`.
 fn create(rt: &mut Runtime, realm: u32, key: DocKey, range: LiveRange) -> b::Result<Gc<Object>> {
     reap(rt)?;
-    let table = &mut state_mut(rt)?.ranges;
-    let id = table
-        .next_id
-        .checked_add(1)
-        .ok_or_else(|| Exception::range_error("Too many Range objects were made."))?;
-    table.next_id = id;
-    let dead = Rc::clone(&table.dead);
+    let id = next_id(rt)?;
+    let dead = Rc::clone(&state::state(rt)?.ranges.dead);
     store(rt, id, key, range)?;
     // The data frees the entry if anything below fails.
     let data = RangeData { id, dead };
@@ -222,7 +278,7 @@ fn current(rt: &mut Runtime, this: Platform) -> b::Result<(u32, DocKey, LiveRang
 }
 
 /// The arena of document `key`, or the error of a document that is gone.
-fn arena_or_error(rt: &mut Runtime, key: DocKey) -> b::Result<&mut swb_dom::Document> {
+pub(crate) fn arena_or_error(rt: &mut Runtime, key: DocKey) -> b::Result<&mut swb_dom::Document> {
     arena(rt, key).ok_or_else(|| Exception::type_error("the document is not available"))
 }
 
@@ -232,7 +288,7 @@ fn utf16_len(text: &str) -> u32 {
 }
 
 /// The API offset of the byte offset `offset` in `node`.
-fn api_offset(dom: &swb_dom::Document, node: NodeId, offset: u32) -> u32 {
+pub(crate) fn api_offset(dom: &swb_dom::Document, node: NodeId, offset: u32) -> u32 {
     match dom.char_data(node) {
         Some(text) => {
             let end = (offset as usize).min(text.len());
@@ -283,7 +339,7 @@ fn no_parent_error() -> Exception {
 
 /// The exception for a doctype where a range refuses one: Chromium names the
 /// doctype's name as its type.
-fn doctype_error(dom: &swb_dom::Document, node: NodeId) -> Exception {
+pub(crate) fn doctype_error(dom: &swb_dom::Document, node: NodeId) -> Exception {
     let name = match &dom.node(node).data {
         NodeData::Doctype { name, .. } => name.clone(),
         _ => String::new(),
@@ -295,7 +351,7 @@ fn doctype_error(dom: &swb_dom::Document, node: NodeId) -> Exception {
 }
 
 /// The checked boundary point of the API point `(node, offset)`, in bytes.
-fn checked_point(rt: &mut Runtime, node: NodeRef, offset: u32) -> b::Result<Boundary> {
+pub(crate) fn checked_point(rt: &mut Runtime, node: NodeRef, offset: u32) -> b::Result<Boundary> {
     let dom = arena_or_error(rt, node.document)?;
     if matches!(dom.node(node.node).data, NodeData::Doctype { .. }) {
         return Err(doctype_error(dom, node.node));

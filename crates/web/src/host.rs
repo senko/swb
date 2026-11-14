@@ -1113,6 +1113,28 @@ pub trait EngineHost: Any {
         None
     }
 
+    /// `Selection.toString` (ADR 0039 section 3): the text that copy gives
+    /// for the document's selection (the rendered text of its range, as
+    /// `innerText`; the selected text of the text control that owns it),
+    /// after a style flush. A host without rendering gives the data of the
+    /// text nodes of the range.
+    fn selection_text(&mut self) -> String {
+        let dom = self.dom();
+        dom.selection()
+            .map(|s| dom.range_text(s.range))
+            .unwrap_or_default()
+    }
+
+    /// `range` with its boundary points moved to the caret positions that
+    /// show them (`swb_dom::Document::visual_range`), for
+    /// `Selection.containsNode` (ADR 0039 section 3), after a layout flush.
+    /// A host without rendering takes every element as inline and every
+    /// text node with data as rendered.
+    fn visual_range(&mut self, range: swb_dom::LiveRange) -> swb_dom::LiveRange {
+        let dom = self.dom();
+        dom.visual_range(range, &|node| swb_dom::Flow::of_dom(dom, node))
+    }
+
     /// `getBBox` and `getTotalLength` of an SVG element: its fill bounding
     /// box in its user space and the length of its path (0 for other
     /// elements), after a layout flush; `None` if layout drew nothing for

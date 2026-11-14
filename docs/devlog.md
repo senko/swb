@@ -4,6 +4,40 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-14: M10 9b-2: Selection
+
+- The document's selection is one live range entry in the arena, with
+  its direction, a generation, a "changed" flag and the text control that
+  owns it. The engine's `DocumentState::selection` is gone: gestures
+  write the DOM state, and the highlight and copy read boundary points
+  through keys over a shadow-including tree order. The display list is
+  rebuilt when the selection generation changes the visible selection, so
+  a script's selection repaints without a DOM change.
+- `Selection` and `getSelection` (an own property of the window, and on
+  `Document.prototype`); `selectionchange` at the document shares the
+  queue of the text controls' events, so it coalesces as in Chromium.
+- 7 new probe cases (31 in total), three equal runs each:
+  - `containsNode`: Chromium answers from the caret positions that show
+    the selection, not from the DOM range. swb models this in
+    `ranges/visual.rs`; the model fits all 50 measured rows.
+  - Decision 5: a script's change while a text control has the focus
+    sets the control's selection to 0,0 and ends its ownership; the
+    focus stays. The runs were equal, so swb follows Chromium.
+  - Frames: a click into a frame keeps the parent's selection unless the
+    selection contains the `iframe`; then it collapses before it.
+- Gestures now match Chromium: select all ends at `(body, childCount)`; a
+  click below the content puts the caret there; copied text keeps the
+  spaces around form controls.
+- The review found that a `getRangeAt` during a drag (which renames the
+  selection's entry) restarted the drag; the drag now compares a count of
+  replacements. A queue full of `select` events no longer drops the
+  document's `selectionchange`.
+- Scores and the JS-off snapshot unchanged; callgrind JS off within
+  0.06 %; GitHub JS on final DOM 1.24 to 1.27 s (budget 1.514 s). GitHub's
+  clicks log no `getSelection` error.
+- Next: 9b-3, the contents operations, `createContextualFragment` and the
+  range geometry.
+
 ## 2026-11-14: M10 9b-1: live ranges
 
 - ADR 0039 (Range and Selection): boundary points live in the arena as

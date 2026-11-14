@@ -520,3 +520,135 @@ fn removal_in_a_deep_chain_far_from_the_ranges_is_cheap() {
     doc.remove(top);
     assert_eq!(doc.live_range(1).unwrap().start, at(body, 0));
 }
+
+// ----- The selection (`ranges/selection.rs`) -----
+
+#[test]
+fn a_selection_is_an_entry_of_its_own_that_the_steps_keep() {
+    let (mut doc, body) = page("<p id=p>abcd</p><p id=q>ef</p>");
+    let (p, q) = (by_id(&doc, "p"), by_id(&doc, "q"));
+    let (abcd, ef) = (first(&doc, p), first(&doc, q));
+    assert!(doc.selection().is_none());
+    assert_eq!(doc.selection_generation(), 0);
+    let r = range(at(abcd, 1), at(ef, 1));
+    assert!(doc.set_selection(Some(r), true, true));
+    let s = doc.selection().unwrap();
+    assert!(s.id >= HOST_ID_LIMIT);
+    assert_eq!((s.anchor(), s.focus()), (at(ef, 1), at(abcd, 1)));
+    assert!(doc.take_selection_changed());
+    assert!(!doc.take_selection_changed());
+    let generation = doc.selection_generation();
+    // The same range and direction: no change.
+    assert!(!doc.set_selection(Some(r), true, true));
+    assert_eq!(doc.selection_generation(), generation);
+    // A removal moves the boundary point and reports nothing.
+    doc.remove(q);
+    assert_eq!(doc.selection().unwrap().range.end, at(body, 1));
+    assert!(!doc.take_selection_changed());
+    // A data change that moves a boundary point reports a change; one after
+    // it does not.
+    doc.replace_data(abcd, 0, 0, "zz").unwrap();
+    assert_eq!(doc.selection().unwrap().range.start, at(abcd, 3));
+    assert!(doc.take_selection_changed());
+    doc.replace_data(abcd, 6, 0, "y").unwrap();
+    assert!(!doc.take_selection_changed());
+    // A collapsed selection has no direction; a new selection drops the old
+    // entry.
+    let old = doc.selection().unwrap().id;
+    let caret = LiveRange::collapsed_at(at(abcd, 2));
+    assert!(doc.set_selection(Some(caret), true, false));
+    assert!(!doc.selection().unwrap().backward);
+    assert!(!doc.take_selection_changed());
+    assert!(doc.live_range(old).is_none());
+    assert!(doc.set_selection(None, false, true));
+    assert!(doc.selection().is_none());
+    assert_eq!(doc.live_range_count(), 0);
+}
+
+#[test]
+fn the_selection_keeps_an_entry_that_its_object_left() {
+    let (mut doc, _) = page("<p id=p>abcd</p>");
+    let abcd = first(&doc, by_id(&doc, "p"));
+    let dead = Rc::new(DeadIds::default());
+    doc.set_range_work(ArenaWork::new(
+        Rc::new(Cell::new(0)),
+        Rc::new(Cell::new(false)),
+        Rc::clone(&dead),
+    ));
+    // `addRange` of a script's range.
+    doc.set_live_range(5, range(at(abcd, 1), at(abcd, 2)));
+    assert!(doc.set_selection_entry(5));
+    assert!(doc.take_selection_changed());
+    assert!(doc.selection_entry_has_object());
+    // The object goes; the selection keeps the entry, and a new object takes
+    // it under a new id.
+    dead.push(5);
+    assert_eq!(doc.live_range_count(), 1);
+    assert!(!doc.selection_entry_has_object());
+    assert_eq!(doc.wrap_selection_entry(9), Some(9));
+    assert_eq!(doc.selection().unwrap().id, 9);
+    assert_eq!(doc.wrap_selection_entry(10), Some(9));
+    // A gesture replaces the selection: the object keeps its entry.
+    let caret = LiveRange::collapsed_at(at(abcd, 0));
+    assert!(doc.set_selection(Some(caret), false, true));
+    assert!(doc.live_range(9).is_some());
+    // A gesture's entry without an object goes with the next selection.
+    let own = doc.selection().unwrap().id;
+    doc.release_live_range(own);
+    assert!(doc.live_range(own).is_some());
+    doc.set_selection(None, false, true);
+    assert!(doc.live_range(own).is_none());
+}
+
+#[test]
+fn a_script_change_of_the_selections_range_is_a_change_of_the_selection() {
+    let (mut doc, body) = page("<p id=p>abcd</p>");
+    let abcd = first(&doc, by_id(&doc, "p"));
+    let request = Rc::new(Cell::new(false));
+    doc.set_range_work(ArenaWork::new(
+        Rc::new(Cell::new(0)),
+        Rc::clone(&request),
+        Rc::new(DeadIds::default()),
+    ));
+    doc.set_live_range(1, range(at(abcd, 1), at(abcd, 2)));
+    doc.set_selection_entry(1);
+    doc.take_selection_changed();
+    request.set(false);
+    let generation = doc.selection_generation();
+    doc.set_live_range(1, range(at(abcd, 1), at(abcd, 3)));
+    assert!(doc.take_selection_changed());
+    assert!(request.get(), "the host is asked to look");
+    assert_ne!(doc.selection_generation(), generation);
+    // The same range again: nothing.
+    doc.set_live_range(1, range(at(abcd, 1), at(abcd, 3)));
+    assert!(!doc.take_selection_changed());
+    // A range in a detached tree leaves the selection for good.
+    let div = doc.create_element(html("div"), vec![]).unwrap();
+    doc.set_live_range(1, LiveRange::collapsed_at(at(div, 0)));
+    assert!(doc.selection().is_none());
+    assert!(doc.take_selection_changed());
+    doc.set_live_range(1, LiveRange::collapsed_at(at(body, 0)));
+    assert!(doc.selection().is_none());
+    assert!(doc.live_range(1).is_some());
+}
+
+#[test]
+fn a_text_control_owns_the_selection_at_its_place() {
+    let (mut doc, body) = page("<p id=p>ab</p><input id=i>");
+    let i = by_id(&doc, "i");
+    let caret = LiveRange::collapsed_at(at(body, 0));
+    doc.set_selection(Some(caret), false, true);
+    doc.take_selection_changed();
+    assert!(doc.set_selection_control(i));
+    let s = doc.selection().unwrap();
+    assert_eq!(s.range, LiveRange::collapsed_at(at(body, 1)));
+    assert_eq!(s.control, Some(i));
+    assert!(
+        !doc.take_selection_changed(),
+        "the control's events report it"
+    );
+    assert!(!doc.set_selection_control(i));
+    // A script's selection at the same place ends the ownership.
+    assert!(doc.set_selection(Some(s.range), false, true));
+    assert_eq!(doc.selection().unwrap().control, None);
+}

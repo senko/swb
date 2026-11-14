@@ -18,6 +18,7 @@ use crate::frames::{FrameId, MAX_DEPTH};
 use crate::hit_test::{self, HitResult};
 use crate::input::{Key, Modifiers, MouseButton};
 use crate::selection::{self, Selection, Snap, TextPosition};
+use swb_dom::Boundary;
 
 /// How far (in CSS px) the pointer must move with the button held before a
 /// press becomes a drag that selects text. Chromium uses 4 px.
@@ -36,7 +37,13 @@ pub(super) struct Press {
     target: Option<NodeId>,
     /// Where a drag selection starts. `None` after a double or triple
     /// click, whose selection a drag does not change.
-    anchor: Option<TextPosition>,
+    anchor: Option<Boundary>,
+    /// The count of selection replacements after the press or its drag
+    /// last changed the selection (`None`: it made no selection): a script
+    /// that replaced the selection during the drag makes the drag start
+    /// again from the pointer (measured, case `user-drag-script-change`);
+    /// a `getRangeAt` does not (measured in the 9b-2 review).
+    made: Option<u32>,
     /// The text control in which a drag selects text.
     control: Option<NodeId>,
     /// True once the pointer moved beyond the drag threshold.
@@ -157,9 +164,12 @@ impl Page {
 
     // ----- Selection -----
 
-    /// The text selection, if there is one and it is not empty.
+    /// The selection of the page (the user's or a script's), if there is
+    /// one and it is not empty.
     pub fn selection(&self) -> Option<Selection> {
-        self.doc.as_ref()?.visible_selection()
+        let doc = self.doc.as_ref()?;
+        doc.visible_selection()?;
+        doc.gesture_selection()
     }
 
     /// The selected text, with white space collapsed and line breaks
@@ -193,8 +203,11 @@ impl Page {
 
     /// [`Page::select_all`] for the active document.
     pub(super) fn select_all_in_document(&mut self) -> bool {
-        self.parts()
-            .is_some_and(|(doc, fonts)| doc.select_all(fonts))
+        let changed = self
+            .parts()
+            .is_some_and(|(doc, fonts)| doc.select_all(fonts));
+        self.report_selection_change();
+        changed
     }
 
     /// Removes the selection. Returns true if there was one.
@@ -202,11 +215,54 @@ impl Page {
         self.in_focused_document(|p| p.set_selection(None))
     }
 
-    /// Replaces the selection. Returns true if it changed.
+    /// Replaces the selection of the active document with a gesture's.
+    /// Returns true if it changed.
     pub(super) fn set_selection(&mut self, selection: Option<Selection>) -> bool {
-        self.doc
+        let changed = self
+            .doc
             .as_deref_mut()
-            .is_some_and(|doc| doc.set_selection(selection))
+            .is_some_and(|doc| doc.set_selection(selection));
+        self.report_selection_change();
+        changed
+    }
+
+    /// The focus goes into the frame of `container` (an element of the
+    /// active document): a selection that contains the container collapses
+    /// before it; another one stays (Chromium, measured:
+    /// `frames-user-click-*` of `tools/probes/web-selection.json`; ADR 0039
+    /// section 3, ADR 0009 "Frames").
+    pub(super) fn selection_around_frame(&mut self, container: NodeId) {
+        let Some(doc) = self.doc.as_deref() else {
+            return;
+        };
+        let (Some(s), Some(parent)) = (doc.selection(), doc.dom.parent(container)) else {
+            return;
+        };
+        let dom = &doc.dom;
+        if dom.root(s.range.start.node) != dom.root(container) {
+            return;
+        }
+        let index = dom.index_in_parent(container);
+        let before = Boundary::new(parent, index);
+        let after = Boundary::new(parent, index + 1);
+        let contains = dom.compare_boundaries(before, s.range.start) != std::cmp::Ordering::Less
+            && dom.compare_boundaries(after, s.range.end) != std::cmp::Ordering::Greater;
+        if contains {
+            self.set_selection(Some(Selection::new(before, before)));
+        }
+    }
+
+    /// Queues `selectionchange` at the active document if its selection
+    /// changed since the last report (Selection API; the task coalesces
+    /// the changes until it runs). Without scripts nothing listens.
+    pub(super) fn report_selection_change(&mut self) {
+        let changed = self
+            .doc
+            .as_deref_mut()
+            .is_some_and(|doc| doc.dom.take_selection_changed());
+        if changed && self.script_input() {
+            self.run_task(swb_web::ScriptRuntime::document_selection_changed);
+        }
     }
 
     // ----- Pointer -----
@@ -242,6 +298,13 @@ impl Page {
         changed | self.drag_press(point)
     }
 
+    /// The count of selection replacements if the document has a selection
+    /// (for [`Press::made`]).
+    fn selection_made(&self) -> Option<u32> {
+        let doc = self.doc.as_ref()?;
+        doc.selection().map(|_| doc.dom.selection_replacements())
+    }
+
     /// The pointer moved to `point` (viewport coordinates of the active
     /// document) with a press of this document in progress: a drag selects
     /// text or moves the caret of the control that was pressed. A point
@@ -259,10 +322,23 @@ impl Page {
             return self.drag_in_control(control, point);
         }
         if dragging
-            && let Some(anchor) = anchor
+            && let Some(mut anchor) = anchor
             && let Some(focus) = self.position_at(point, Snap::Nearest)
         {
-            return self.set_selection(Some(Selection::new(anchor, focus)));
+            let focus = focus.boundary();
+            let current = self.doc.as_ref().map(|d| d.dom.selection_replacements());
+            let made = self.input.press.as_ref().and_then(|p| p.made);
+            if made.is_some() && current != made {
+                // A script replaced the selection: the drag starts again here.
+                anchor = focus;
+            }
+            let changed = self.set_selection(Some(Selection::new(anchor, focus)));
+            let made = self.selection_made();
+            if let Some(press) = &mut self.input.press {
+                press.anchor = Some(anchor);
+                press.made = made;
+            }
+            return changed;
         }
         false
     }
@@ -423,6 +499,7 @@ impl Page {
                 .and_then(|h| self.activation_target(h.node, point))
                 .map(|t| t.node),
             anchor,
+            made: None,
             control,
             dragging: false,
         });
@@ -438,9 +515,19 @@ impl Page {
                 self.scripted_focus(focus, false);
                 // A press that focuses no element starts a selection, if no
                 // listener cancels `selectstart` (a dialog that only the
-                // dialog rule focuses does not count as an element).
+                // dialog rule focuses does not count as an element). A text
+                // control that gets the focus takes the selection of the
+                // document (`selection_events::focused`).
+                let owned = control.is_some()
+                    && self
+                        .doc
+                        .as_ref()
+                        .and_then(|d| d.selection())
+                        .is_some_and(|s| s.control == control);
                 if self.fire_selectstart(point) {
-                    self.set_selection(selection);
+                    if !owned {
+                        self.set_selection(selection);
+                    }
                 } else if let Some(press) = &mut self.input.press {
                     press.anchor = None;
                 }
@@ -455,6 +542,10 @@ impl Page {
         if let (Some(control), Some(offset)) = (control, offset) {
             self.press_in_control(control, offset, modifiers.shift, click_count);
         }
+        let made = self.selection_made();
+        if let Some(press) = &mut self.input.press {
+            press.made = made;
+        }
         self.update_hover(true);
         true
     }
@@ -466,7 +557,7 @@ impl Page {
         point: Point,
         modifiers: Modifiers,
         click_count: u32,
-    ) -> (Option<Selection>, Option<TextPosition>) {
+    ) -> (Option<Selection>, Option<Boundary>) {
         match click_count {
             2 => {
                 let position = self.position_at(point, Snap::Character);
@@ -480,8 +571,10 @@ impl Page {
                 (selection, None)
             }
             _ => {
-                let position = self.position_at(point, Snap::Nearest);
-                let current = self.doc.as_ref().and_then(|d| d.selection);
+                let position = self
+                    .parts()
+                    .and_then(|(doc, fonts)| doc.press_position(point, fonts));
+                let current = self.doc.as_ref().and_then(|d| d.gesture_selection());
                 match (current, position) {
                     (Some(current), Some(position)) if modifiers.shift => (
                         Some(Selection::new(current.anchor, position)),
@@ -778,7 +871,11 @@ impl Page {
             Key::Tab if !ctrl && !modifiers.alt => KeyOutcome::Tab,
             Key::Enter if !ctrl && !modifiers.alt => KeyOutcome::Handled(self.activate_focused()),
             key if ctrl && !modifiers.alt && key.is_char('a') => {
-                self.select_all_in_document();
+                // Select all starts a selection at the body (measured,
+                // `user-select-all`); a canceled `selectstart` stops it.
+                if !self.script_input() || self.fire_selectstart_at_body() {
+                    self.select_all_in_document();
+                }
                 KeyOutcome::Handled(true)
             }
             _ if ctrl || modifiers.alt => KeyOutcome::Handled(false),

@@ -13,7 +13,6 @@ use swb_net::{Fetcher, Loader, NetError, Request, Response, Url};
 
 use super::{DocumentInit, DocumentState, View};
 use crate::resources::{Images, SheetSource};
-use crate::selection::{Selection, TextPosition};
 
 /// A fetcher that fails every request: the tests look at the loads that
 /// start, not at their results.
@@ -481,13 +480,12 @@ fn tree_order_is_rebuilt_after_a_change() {
     let mut doc = walked("<p id=a>a</p><p id=b>b</p>", &url());
     let text = |doc: &DocumentState, id: &str| doc.dom().children(element(doc, id)).next().unwrap();
     let (a, b) = (text(&doc, "a"), text(&doc, "b"));
-    let at = |node| TextPosition { node, offset: 0 };
-    let selection = Selection::new(at(b), at(a));
-    assert_eq!(selection.ordered(doc.tree_order()).0.node, a);
+    let rank = |doc: &mut DocumentState, node| doc.tree_order().rank(node);
+    assert!(rank(&mut doc, a) < rank(&mut doc, b));
     // Move the first paragraph after the second.
     let (pa, body) = (element(&doc, "a"), doc.dom().body().unwrap());
     doc.change_dom(|dom| dom.append_child(body, pa)).unwrap();
-    assert_eq!(selection.ordered(doc.tree_order()).0.node, b);
+    assert!(rank(&mut doc, b) < rank(&mut doc, a));
 }
 
 #[test]

@@ -84,6 +84,12 @@ impl ArenaWork {
         }
     }
 
+    /// Asks the host to look (for news other than work: a change of the
+    /// selection).
+    pub(crate) fn ask(&self) {
+        self.request.set(true);
+    }
+
     /// True if `other` shares this one's list of dead ids.
     pub(crate) fn same_list(&self, other: &ArenaWork) -> bool {
         Rc::ptr_eq(&self.dead, &other.dead)

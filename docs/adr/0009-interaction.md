@@ -108,6 +108,13 @@ the viewport. Text selection and hit testing use the scrolled positions.
 - A selection is a range between two **positions in text nodes** (node and
   byte offset), not between positions in the layout. The layout is rebuilt
   on every change (a hover restyle, a resize); DOM positions stay valid.
+  Since M10 sub-feature 9b-2 the selection belongs to the DOM (ADR 0039
+  section 3): a live range entry of the arena, which the live range steps
+  keep where the DOM changes, which scripts read and write (`Selection`),
+  and whose boundary points can also be in elements (select all ends at
+  `(body, childCount)`, as in Chromium). The gestures below write a new
+  entry; the highlight and the copy read the boundary points through keys
+  over the tree order.
 - White-space processing and `text-transform` change the text, so the box
   tree keeps a **source map** for each inline text item: the offset in the
   text node of each character of the processed text
@@ -130,7 +137,8 @@ the viewport. Text selection and hit testing use the scrolled positions.
   `rgb(51, 103, 209)`, text white). The rectangle fills the line box, so
   selected lines have no gaps. Text with `user-select: none` is not
   selected, highlighted or copied. A selection change rebuilds only the
-  display list.
+  display list (also a script's: the list records the DOM's selection
+  generation).
 - The copied text follows the HTML `innerText` algorithm for the selected
   range: collapsed white space, one line break between blocks, two around
   paragraphs, tabs between table cells, and only rendered text.
@@ -154,9 +162,15 @@ page's focus, the documents above it have no focused element and report the
 `iframe` as `document.activeElement` (it does not match `:focus`); keys,
 typed text, copy and select all go to the innermost document of the chain.
 A click into a frame, Tab and a script's `focus()` of the page's own element
-move the chain; a document that loses the focus to another document
-loses its selection. Tab treats a frame as its content (the order of the
-parent contains the `iframe`; the frame is entered at its first or last
+move the chain. A document whose focus goes into one of its frames keeps
+its selection, painted as before (no inactive color), unless the selection
+contains the frame's `iframe`: then it collapses before the `iframe`; a
+document that the focus leaves keeps its selection (Chromium, measured:
+`input-select-*` of `tools/probes/web-frames.json`, `frames-user-click-*`
+of `tools/probes/web-selection.json`; M10 sub-feature 9b-2, ADR 0039
+decision 3; before, such a document lost its selection). Tab treats a
+frame as its content (the order of the parent contains the `iframe`; the
+frame is entered at its first or last
 focusable element and left after its last one), and a frame without a
 focusable element is a stop of its own. A frame that is navigated or hidden
 keeps the focus; a removed one gives it to its parent and the window has no
