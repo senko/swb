@@ -5324,6 +5324,26 @@ Features, in this order. Each ends with a review and a commit.
    - `set_title` and `set_cursor` only when the value changes.
    - Exit: Ars Technica without input at most 5 % CPU; the GitHub trace
      no longer waits for whole batches of moves.
+
+   Done (2026-11-15): `InputBatch` (`crates/swb/src/gui/input_batch.rs`)
+   keeps the last move of a batch and applies it before a press, release,
+   key, wheel, leave, automation request, resize and redraw, and at the end
+   of the batch. `Page::frame_outdated()` compares what `Page::render`
+   recorded (display list serials, scroll offsets of the viewport and of
+   scroll containers, the view, the hovered link, for the page and each
+   frame document) and the pending pipeline work; the shell decides once
+   per batch from it and its own `FrameKey` (ADR 0040, accepted; the
+   sources of pixel changes are listed in its implementation notes).
+   `pre_present_notify` before `present`; title and cursor only on change.
+   Tests: `frame_outdated.rs` (one per source) and `frame_oracle.rs`
+   (scripted input on three fixtures; whenever the frame is current, a
+   render gives the same pixels). GitHub with the owner's input and
+   JavaScript on: move to the end of its batch p90 4.1 s to 0.22 s, to
+   the frame that shows it p90 4.0 s to 0.71 s, wheel p90 1.6 s to 0.23
+   s, CPU 56 % to 25 %; Ars Technica without input: 95 % to 3 % CPU, 49
+   to 0.1 frames per second. The rest of the GitHub latency is the hover
+   change itself (about 90 ms), features 4 and 5. JS-off snapshot and
+   `compare --js` unchanged.
 3. Frame composition (`implementer`): the page is drawn straight into the
    window's frame (the rows below the toolbar are one contiguous part of
    the frame), the frame pixmap is kept between frames, the toolbar is
@@ -5391,6 +5411,20 @@ Not in M11 (backlog): incremental layout, a raster cache for scrolling
   hover grid changes the hover state (65 with JavaScript off). Not
   examined; the consent dialog covers the page in the JS fixture, which may
   be the reason.
+- GUI frames (feature 2): any DOM change draws one frame, also one that
+  changes no pixel (`Page::frame_outdated` looks at the undrained DOM
+  generation, not at the new display list); a timer that only changes a
+  hidden element draws each time. A comparison of the new display list
+  with the last one before the raster would avoid it.
+- GUI frames (feature 2): frame pacing (`pre_present_notify`) and the
+  frames of a hidden or minimized window were not tested on a real Wayland
+  compositor (no GUI runs on the owner's desktop).
+- `frame_oracle` (feature 2): its JavaScript run needs `fixtures/js`,
+  which is not committed; without it only the JS-off pages are tested.
+- `swbtools gui-latency` (feature 2): "to frame" of a move that changes no
+  pixel is the time to the next frame that other input causes; a column
+  of the moves that changed the hover state would measure the moves
+  themselves.
 
 ## Backlog from M10
 

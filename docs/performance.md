@@ -580,6 +580,60 @@ Agreement with the diagnosis (owner's sessions on Wayland):
   Wayland deliver input differently; the replay starts the trace in a
   fixed state, and the page's 10 ms timer competes for the main thread).
 
+## Frame scheduling in the GUI (M11 feature 2)
+
+ADR 0040 sections 1 to 4: coalesced pointer moves, a frame only when
+`Page::frame_outdated()` or the toolbar says so, `pre_present_notify`, the
+window title and cursor only on change. Release build, Xvfb, 1280 x 900,
+`swbtools gui-latency`; before = commit 0d74692, after = this change. Times
+in ms (median / p90 / max); "to frame" counts only moves that change pixels
+in the sense that the next frame after the batch is what it measures (a move
+that changes nothing waits for the next frame that other input causes, so its
+number is high by definition; the "no frame" column counts those).
+
+| Run | Input | Before: to batch end | Before: to frame | After: to batch end | After: to frame |
+|---|---|---|---|---|---|
+| GitHub, JS on, `github-owner` | move (1065) | 3130 / 6554 / 7426 | 3133 / 6557 / 7421 | 165 / 256 / 640 | 147 / 587 / 1091 |
+| | press (6) | 1901 / 6186 / 6186 | 1900 / 6181 / 6181 | 409 / 512 / 512 | 438 / 951 / 951 |
+| | wheel (89) | 13 / 1089 / 3033 | 58 / 1740 / 3032 | 2 / 106 / 286 | 26 / 256 / 569 |
+| GitHub, JS off, `github-owner` | move | 1528 / 3830 / 4593 | 1616 / 3832 / 4593 | 134 / 221 / 287 | 144 / 447 / 2000 |
+| | press (6) | 486 / 2776 / 2776 | 486 / 2776 / 2776 | 242 / 261 / 261 | 248 / 937 / 937 |
+| | wheel | 5 / 405 / 1504 | 36 / 944 / 1648 | 0 / 114 / 273 | 27 / 256 / 542 |
+
+| Run | Frames/s before | CPU before | Frames/s after | CPU after |
+|---|---|---|---|---|
+| GitHub, JS on, `github-owner` | 1.65 | 61.4 % | 2.08 | 26.3 % |
+| GitHub, JS off, `github-owner` | 1.24 | 49.3 % | 2.0 | 23.3 % |
+| Ars Technica, JS on, `ars-owner` | 24.4 | 97.4 % | 2.99 | 33.2 % |
+| Ars Technica, JS on, `idle-10s` | 43.3 | 93.4 % | 0.1 | 3.3 % |
+
+Ars Technica without input: 0.1 frames per second (one frame at the first
+paint) and 2.3 to 3.3 % of one core, which is the page's 10 ms timer running
+its script (the CPU after the trace is 92 % before). On GitHub the hover
+change itself still costs about 90 ms (features 4 and 5); the move is now
+applied once per batch instead of once per event, so the batch end is 130 to
+170 ms after the input instead of seconds.
+
+After the review: the frame that winit delivers inside a batch (after the
+batch's window events, before `about_to_wait`) now applies the pending move
+and wheel first. Before, that frame showed the state before the batch's
+last move, and a second frame followed in the next turn; `gui-latency`
+counts the first frame at or after the start of a move's batch, so it
+counted the stale frame and gave numbers lower than what the screen
+showed. Two A/B runs each of the GitHub trace with JavaScript on (same
+commit, the redraw change alone): move to frame median / p90 121 to 129 /
+490 to 497 ms without it (the stale frame) against 237 to 247 / 709 ms with
+it (the frame that shows the move); to batch end, CPU (25 %) and style runs
+(117 to 119) the same; 2.2 against 1.85 frames per second (no second
+frame). The "with" numbers are the true latency; they are the baseline for
+features 3 to 5:
+
+| Run (after the review) | Input | to batch end | to frame | no frame |
+|---|---|---|---|---|
+| GitHub, JS on, `github-owner` | move (1065) | 138 / 218 / 313 | 247 / 709 / 1999 | 70 |
+| | press (6) | 317 / 449 / 449 | 389 / 1019 / 1019 | 0 |
+| | wheel (89) | 2 / 100 / 254 | 21 / 229 / 651 | 7 |
+
 ## Script runtime of a document
 
 The engine creates a `swb_web::ScriptRuntime` for each document that

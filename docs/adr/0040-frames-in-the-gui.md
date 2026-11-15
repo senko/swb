@@ -1,6 +1,6 @@
 # ADR 0040: Frames in the GUI
 
-- Status: proposed
+- Status: accepted (2026-11-15)
 - Date: 2026-11-15
 
 ## Context
@@ -163,4 +163,88 @@ and `set_cursor_visible` only when the icon or visibility differs.
 
 ## Implementation notes
 
-(Added by M11 features 2 and 3.)
+### Feature 2 (sections 1 to 4)
+
+**Shell** (`crates/swb/src/gui/`). `input_batch.rs` holds `InputBatch`: the
+pending move and the pending wheel delta, and the order rule in one
+function (`push(Input)` returns the move that must be applied before the
+event: a move only replaces the pending one, a press or release, a wheel
+event, a key and a leave take it). It has unit tests without a window. The
+shell's `App::cursor` follows every move at once. A pending move is also
+applied before an automation request (`process_automation`), before a
+resize or scale change, at the start of `RedrawRequested` (winit delivers
+it after the turn's window events and before `about_to_wait`, so the frame
+shows the batch's last move and its wheel instead of a second frame
+after them; review of feature 2), and in `about_to_wait` before
+`apply_wheel`. (A navigation from the toolbar starts from a press or a
+key, which took the move already.) `about_to_wait` does: apply the move,
+apply the wheel, pump,
+run automation if tasks ran, `sync_address`, then one frame decision
+(`frame_wanted`): `Page::frame_outdated()`, or a `FrameKey` that differs
+from the one of the last frame (the address field text and selection, its
+focus, back, forward, loading, the JavaScript switch, the status link, the
+window size and the scale). `request_redraw` is called there, after the
+first window creation, and nowhere else; `Pump::changed` and the `bool`
+results of the input methods no longer decide a frame. `redraw` stores the
+`FrameKey` after the present and calls `pre_present_notify` before it. A
+failed frame (`frame_failed`) requests no frame until the window changes
+or the user's next input, and a window without pixels none until it has
+pixels, so that neither can loop. `set_title` runs when
+the page title differs from the one shown, `set_cursor` and
+`set_cursor_visible` when the icon or its visibility differs.
+
+**Engine** (`Page::frame_outdated`, `page/pipeline.rs`; `document/
+paint_stamp.rs`). `Page::render` records a `FrameRecord`: for the page's
+document and for each frame document that has a box, a `PaintStamp` (the
+serial of the display list, the scroll offset of the viewport, the scroll
+offsets of the scroll containers, the `View`: viewport, scale, indicators,
+color scheme), the frame's viewport, and the hovered link. The serial is
+taken from one process-wide counter each time `update_display_list` builds a
+list (so a frame's new document never reuses the serial of the old one).
+`frame_outdated` is true before the first render, when the record differs,
+or when `DocumentState::paint_pending` says that a render would run the
+pipeline: the DOM has changes that were not drained (generation and
+journal), `styles_stale`, no styles while the style sheets are settled, no
+layout or display list, or a selection generation that the list does not
+show. A document that waits for its style sheets has no styles and nothing
+to build: it is not pending. `Page::screenshot` does not record a frame (it
+is not what the window shows). While a script runtime holds the document
+the answer is true.
+
+Sources of a pixel change, and how each one shows:
+
+| Source | How it shows |
+|---|---|
+| DOM changes by scripts or the parser, attributes, text, `details` `open`, popovers, dialogs and the top layer | the DOM generation and journal (not drained), then styles dropped, so no list |
+| Style sheets (a `style` or `link` element, CSSOM rules, adopted sheets, `media`), arrival of a sheet | stylist and styles dropped; a sheet that arrives makes the styles buildable (`paint_pending`) |
+| Element states: hover, active, focus, focus-visible, the focus ring | `restyle` drops the layout when a style differs; a script's focus sets `styles_stale`; a focus that moves between form controls drops the layout (the caret) |
+| Selection of the page (user, script) | the selection generation against the one the list shows; the list is dropped when the visible range differs |
+| Selection and caret of a form control, values, control scroll | form changes drop the layout (and so the list); a script's value write goes through the DOM or the form state and drops the layout |
+| Scroll of the viewport | `PaintStamp::scroll` |
+| Scroll of a scroll container | the list is built with the offsets, so a scroll drops it; `PaintStamp::offsets` holds them as well |
+| Overlay scroll indicators | they follow the scroll offset (stamp) and the content size (layout, so the list) |
+| Images (also lazy ones) and fonts that arrived | an arrival drops the layout or the list |
+| Frame documents: their lists, scrolls, viewports, a new or removed frame | one `PaintStamp` per frame with a box, in the record; the frame's viewport is in the record; a change of the parent's layout drops its list |
+| Viewport, scale, color scheme, the indicator setting | `View` in the stamp (and the restyle that a change causes) |
+| Hovered link | the record |
+
+The oracle (`crates/engine/tests/frame_oracle.rs`) plays moves, wheel
+events, double clicks, drags, Ctrl+A, Tab, arrows, Page Down, Home and End,
+a resize and a scale change with pumps in between on hacker-news, the
+Wikipedia article and the GitHub page (JavaScript off; JavaScript on when
+`fixtures/js/` exists) and compares the pixels of a render against the last
+one whenever `frame_outdated()` is false: 72 steps per run, 22 to 49 of them
+checked as current. The mutation check (the stamp without the viewport
+scroll) fails it at the first wheel event. `crates/engine/tests/
+frame_outdated.rs` has one test per source of the table.
+
+Departures: none from the sections. `controls_stale` and
+`images.sources_outdated` do not count as pending work: a render does not
+consume them (only a style computation does), and they would keep the frame
+outdated for ever. Two sources make a frame that the table could avoid: any
+DOM change draws one frame, also one that changes no pixel, and a selection
+change draws one even if the visible range is the same. Both cost one frame,
+not a loop. A page that changes no pixel with a 10 ms timer (Ars Technica)
+draws one frame in 10 s.
+
+(Feature 3 adds the notes on the composition.)

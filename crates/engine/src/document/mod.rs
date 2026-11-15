@@ -42,6 +42,7 @@ mod history_api;
 mod inner_text;
 mod lazy;
 mod loads;
+mod paint_stamp;
 mod pipeline;
 mod queries;
 mod resolved;
@@ -77,6 +78,7 @@ use swb_dom::LiveRange;
 
 pub(crate) use derived::Derived;
 pub(crate) use history_api::{HistoryInfo, StateChange};
+pub(crate) use paint_stamp::PaintStamp;
 pub(crate) use pipeline::Rendering;
 pub use queries::ElementScroll;
 pub(crate) use queries::{indicated, rendered_test};
@@ -328,6 +330,8 @@ pub struct DocumentState {
     /// valid while this stays the same.
     pub(crate) layout_serial: u64,
     pub(crate) display_list: Option<DisplayList>,
+    /// The serial of `display_list` (`paint_stamp.rs`).
+    list_serial: u64,
     /// [`swb_paint::transform_ends`] of `display_list`, for a frame document
     /// (the rasterizer of its parent uses it; the top-level document's list
     /// gets it in each rasterization).
@@ -457,6 +461,7 @@ impl DocumentState {
             fragments: None,
             layout_serial: 0,
             display_list: None,
+            list_serial: 0,
             list_ends: Vec::new(),
             page_color_schemes: None,
             timings: StageTimings {

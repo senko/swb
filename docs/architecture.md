@@ -340,7 +340,18 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   window events it calls `Page::pump` (the page's event loop: network
   completions and the due tasks of the document's scripts) and waits with
   `ControlFlow::WaitUntil` until the next task is due, or for input; it
-  never busy-waits.
+  never busy-waits. Pointer moves are coalesced (`gui/input_batch.rs`): the
+  page sees the last move of a batch, before the next press, key, wheel or
+  leave, an automation request, a resize, or at the end of the batch. The
+  shell decides once per batch (`about_to_wait`, after the pump and the
+  input) whether a frame is due: `Page::frame_outdated` (the inputs of the
+  last `Page::render` against the current ones: display list serials,
+  scroll offsets, viewport, hovered link; no style or layout work) or a
+  change of the toolbar, the status bubble or the window size. It then calls
+  `request_redraw`; a task that changes nothing draws nothing. The frame
+  calls `pre_present_notify` before `present`, so that on Wayland the
+  compositor's frame callback paces the next one (ADR 0040). The window
+  title and the mouse cursor are set only when they change.
 - The automation server accepts connections on its own thread and runs one
   thread per connection. Each request goes to the page thread through a
   channel and wakes it (the GUI through its event loop proxy, the headless

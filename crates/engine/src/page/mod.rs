@@ -309,6 +309,8 @@ pub struct Page {
     /// document has a copy.
     view: View,
     input: input::InputState,
+    /// What the last [`Page::render`] drew with (ADR 0040 section 2).
+    drawn: Option<pipeline::FrameRecord>,
     /// The traversals of the session history that scripts asked for
     /// (`history.back()`, `go()`): each is a task that runs after the tasks
     /// that are due (`pump`). The deltas are relative to the entry that is
@@ -420,6 +422,7 @@ impl Page {
             document_number: 0,
             view,
             input: input::InputState::default(),
+            drawn: None,
             traversals: std::collections::VecDeque::new(),
             frames: Box::new(Frames::new()),
             registry,

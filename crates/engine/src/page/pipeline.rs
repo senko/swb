@@ -3,10 +3,24 @@
 //! the viewport, its accepted limits, and screenshots.
 
 use swb_layout::Size;
+use swb_net::Url;
 use swb_paint::Pixmap;
 
 use super::{FlushCounters, Page, StageTimings};
-use crate::document::Rendering;
+use crate::document::{DocumentState, PaintStamp, Rendering};
+use crate::frames::FrameId;
+
+/// The inputs of a render of the page (see [`Page::frame_outdated`]): the
+/// stamp of the page's document and of the frame documents that the
+/// render drew, and the hovered link.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct FrameRecord {
+    top: Option<PaintStamp>,
+    /// The frames with a box, in tree order: the viewport and the stamp
+    /// of the document.
+    frames: Vec<(FrameId, Size, Option<PaintStamp>)>,
+    link: Option<Url>,
+}
 
 impl Page {
     /// Brings styles and layout up to date: of the document, then of the
@@ -23,9 +37,80 @@ impl Page {
 
     /// Renders the viewport into `target` (device pixels). The target size
     /// should be the viewport size times the scale factor.
+    ///
+    /// The render is the page's frame: it records the inputs that
+    /// [`Page::frame_outdated`] compares. A screenshot does not record
+    /// them (it is not what the window shows).
     pub fn render(&mut self, target: &mut Pixmap) {
+        self.render_viewport(target);
+        self.drawn = Some(self.frame_record());
+    }
+
+    /// Renders the viewport without recording a frame.
+    fn render_viewport(&mut self, target: &mut Pixmap) {
         let rows = target.height();
         self.render_in_strips(target, rows, Rendering::Viewport);
+    }
+
+    /// True if a render now would draw something other than the last
+    /// [`Page::render`] drew (ADR 0040 section 2). It compares the inputs
+    /// of that render with the current ones and runs no style, layout or
+    /// paint: the identity of the display lists of the page's documents
+    /// and frame documents, their scroll offsets (of the viewport and of
+    /// the scroll containers), the viewport and the scale, and the hovered
+    /// link (the shell's status bubble). It is also true if the pipeline
+    /// has work that can change the pixels (changes of the DOM that it has
+    /// not taken, outdated styles, layout or display lists), and before the
+    /// first render. False negatives would leave a stale window; false
+    /// positives cost a frame.
+    pub fn frame_outdated(&self) -> bool {
+        let Some(drawn) = &self.drawn else {
+            return true;
+        };
+        *drawn != self.frame_record() || self.render_pending()
+    }
+
+    /// The inputs of a render now.
+    fn frame_record(&self) -> FrameRecord {
+        let top = self.doc.as_deref().map(DocumentState::paint_stamp);
+        let frames = self
+            .frames
+            .tree_order()
+            .into_iter()
+            .skip(1)
+            .filter_map(|id| {
+                let frame = self.frames.get(id).filter(|f| f.has_box)?;
+                let stamp = frame.doc.as_deref().map(DocumentState::paint_stamp);
+                Some((id, frame.viewport, stamp))
+            })
+            .collect();
+        FrameRecord {
+            top,
+            frames,
+            link: self.input.hovered_link.clone(),
+        }
+    }
+
+    /// True if the pipeline of a document that a render draws has work
+    /// (see [`DocumentState::paint_pending`]).
+    fn render_pending(&self) -> bool {
+        if self.lent {
+            return true;
+        }
+        if self
+            .doc
+            .as_deref()
+            .is_some_and(DocumentState::paint_pending)
+        {
+            return true;
+        }
+        self.frames.tree_order().into_iter().skip(1).any(|id| {
+            self.frames
+                .get(id)
+                .filter(|f| f.has_box)
+                .and_then(|f| f.doc.as_deref())
+                .is_some_and(DocumentState::paint_pending)
+        })
     }
 
     /// Renders `what` into `target` in strips of `strip_rows` device rows
@@ -101,7 +186,7 @@ impl Page {
         // size is checked first (`device_size`).
         let mut pixmap = Pixmap::new(w, h).ok_or(ScreenshotError::TooLarge(w, h))?;
         if size == viewport {
-            self.render(&mut pixmap);
+            self.render_viewport(&mut pixmap);
         } else {
             // As in Chromium: the layout keeps the viewport, and the page is
             // drawn from its top with fixed and sticky boxes where they are

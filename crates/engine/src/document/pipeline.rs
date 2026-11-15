@@ -473,6 +473,7 @@ impl DocumentState {
         if self.frame {
             self.list_ends = swb_paint::transform_ends(&list.items);
         }
+        self.list_serial = super::paint_stamp::next_list_serial();
         self.display_list = Some(list);
     }
 

@@ -4,6 +4,25 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-15: M11 feature 2, frame scheduling in the GUI
+
+- The GUI coalesces pointer moves (the page sees the last move of a batch,
+  applied before any input whose meaning depends on it, before a redraw
+  and at the end of the batch) and draws a frame only when
+  `Page::frame_outdated()` or the toolbar's state says so;
+  `pre_present_notify` paces frames on Wayland; the window title and cursor
+  are set only on change. ADR 0040 is accepted.
+- GitHub with the owner's input and JavaScript on: the move reaches the
+  frame that shows it at p90 0.71 s instead of 4.0 s, wheel p90 0.23 s
+  instead of 1.6 s, CPU 25 % instead of 56 %. Ars Technica without input:
+  3 % CPU instead of 95 % (the page's 10 ms timer no longer draws).
+- Learned: winit delivers `RedrawRequested` after the turn's window events
+  and before `about_to_wait`, so the frame of a turn must apply the pending
+  move first, or it shows a stale state and a second frame follows. The
+  review found it; an A/B run showed that the tool's "to frame" had counted
+  the stale frame (p90 0.49 s reported, 0.71 s true).
+- Next: feature 3, the composition of a frame.
+
 ## 2026-11-15: M11 plan and feature 1, measurement tools
 
 - The owner reported slow input in the GUI on GitHub and Ars Technica

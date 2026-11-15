@@ -2,6 +2,7 @@
 //! and one page.
 
 mod framelog;
+mod input_batch;
 mod toolbar;
 
 use std::num::NonZeroU32;
@@ -11,7 +12,9 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use swb_automation::Automation;
-use swb_engine::{ClockMode, Cursor, Modifiers, Page, PageClock, PageConfig, Pixmap, Size, Url};
+use swb_engine::{
+    ClockMode, Cursor, Modifiers, Page, PageClock, PageConfig, Pixmap, Size, TextEdit, Url,
+};
 use swb_net::Fetcher;
 use swb_paint::{DecodedImage, ImageRef, ImageSource, RasterParams, VectorCache};
 use swb_text::FontContext;
@@ -26,6 +29,7 @@ use winit::window::{CursorIcon, Window, WindowId};
 
 use crate::url_input::parse_address;
 use framelog::FrameLog;
+use input_batch::{Input, InputBatch};
 use toolbar::{TOOLBAR_HEIGHT, Toolbar, ToolbarHit, ToolbarState};
 
 /// Pixels scrolled per wheel "line".
@@ -109,13 +113,62 @@ struct App {
     /// open (the next use tries again).
     clipboard: Option<arboard::Clipboard>,
     automation: Option<Automation>,
-    /// The wheel delta (CSS px) since the last batch of events: the wheel
-    /// events of one batch scroll once, so a scroll container's display
-    /// list is built at most once per batch. The fraction of a pixel stays
-    /// here (scroll offsets are whole pixels, as in Chromium).
-    pending_wheel: (f32, f32),
+    /// The pointer move and the wheel delta that the current batch of
+    /// window events left for its end (ADR 0040 section 1).
+    batch: InputBatch,
+    /// What the last frame showed besides the page; `None` before the first
+    /// frame. A frame is drawn when it differs from the state now, or when
+    /// the page's frame is outdated (ADR 0040 section 2).
+    drawn: Option<FrameKey>,
+    /// True after a frame failed (the surface or the buffer): no frame is
+    /// requested until the window changes or the user's next input, so a
+    /// lasting failure does not loop and a passing one does not leave the
+    /// window stale.
+    frame_failed: bool,
+    /// The page title that the window title shows (`None`: not set yet).
+    shown_title: Option<String>,
+    /// The mouse cursor that the window shows (ADR 0040 section 4).
+    shown_cursor: ShownCursor,
     /// The input of the current batch of window events, for the frame log.
     frame_log: FrameLog,
+}
+
+/// What a frame shows besides the page (see [`App::frame_wanted`]).
+#[derive(Clone, Debug, PartialEq)]
+struct FrameKey {
+    /// The window size in device pixels.
+    size: (u32, u32),
+    scale: f32,
+    address: TextEdit,
+    focused: bool,
+    can_go_back: bool,
+    can_go_forward: bool,
+    loading: bool,
+    javascript: bool,
+    javascript_allowed: bool,
+    /// The hovered link (the status bubble).
+    status: Option<String>,
+}
+
+/// The mouse cursor that the window shows.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum ShownCursor {
+    /// Not set yet (a new window).
+    Unset,
+    /// Hidden (`cursor: none`).
+    Hidden,
+    /// The icon.
+    Icon(CursorIcon),
+}
+
+impl ShownCursor {
+    fn of(icon: Option<CursorIcon>) -> ShownCursor {
+        icon.map_or(ShownCursor::Hidden, ShownCursor::Icon)
+    }
+
+    fn is_visible(self) -> bool {
+        matches!(self, ShownCursor::Icon(_))
+    }
 }
 
 struct NoImages;
@@ -174,7 +227,11 @@ impl App {
             page_pressed: false,
             clipboard: None,
             automation: None,
-            pending_wheel: (0.0, 0.0),
+            batch: InputBatch::default(),
+            drawn: None,
+            frame_failed: false,
+            shown_title: None,
+            shown_cursor: ShownCursor::Unset,
             frame_log: FrameLog::new(),
         }
     }
@@ -182,21 +239,73 @@ impl App {
     /// Scrolls by the whole pixels of the wheel delta collected since the
     /// last batch of events: over the page, the innermost scroll container
     /// under the pointer that can scroll in that direction, else the page;
-    /// over the toolbar, the page. Returns true if something scrolled.
-    fn apply_wheel(&mut self) -> bool {
-        let ((whole_x, whole_y), rest) = split_wheel(self.pending_wheel);
-        self.pending_wheel = rest;
+    /// over the toolbar, the page.
+    fn apply_wheel(&mut self) {
+        let (whole_x, whole_y) = self.batch.take_wheel();
         if whole_x == 0.0 && whole_y == 0.0 {
-            return false;
+            return;
         }
         let scale = self.scale();
         let x = self.cursor.x as f32 / scale;
         let y = self.cursor.y as f32 / scale - TOOLBAR_HEIGHT;
         if y >= 0.0 {
-            self.page.wheel(x, y, whole_x, whole_y)
+            self.page.wheel(x, y, whole_x, whole_y);
         } else {
-            self.page.wheel_page(whole_x, whole_y)
+            self.page.wheel_page(whole_x, whole_y);
         }
+    }
+
+    /// Notes an input event and applies the pointer move that it must see
+    /// (ADR 0040 section 1).
+    fn before_input(&mut self, input: Input) {
+        // The user's input tries a failed frame again.
+        self.frame_failed = false;
+        if let Some(position) = self.batch.push(input) {
+            self.apply_move(position);
+        }
+    }
+
+    /// Applies the pending pointer move, for work that reads the page's
+    /// pointer state.
+    fn flush_move(&mut self) {
+        if let Some(position) = self.batch.take_move() {
+            self.apply_move(position);
+        }
+    }
+
+    /// The state of the window that a frame shows, besides the page: the
+    /// toolbar, the status bubble, the window size and the scale.
+    fn frame_key(&self) -> Option<FrameKey> {
+        let gfx = self.gfx.as_ref()?;
+        let size = gfx.window.inner_size();
+        Some(FrameKey {
+            size: (size.width, size.height),
+            scale: self.scale(),
+            address: self.toolbar.address.clone(),
+            focused: self.toolbar.focused,
+            can_go_back: self.page.can_go_back(),
+            can_go_forward: self.page.can_go_forward(),
+            loading: self.page.is_loading(),
+            javascript: self.page.javascript(),
+            javascript_allowed: self.page.javascript_available(),
+            status: self.page.hovered_link().map(|u| u.as_str().to_owned()),
+        })
+    }
+
+    /// True if a frame would differ from the last one: the page's frame is
+    /// outdated, or the toolbar or the window changed (ADR 0040 section 2).
+    /// A window without pixels (minimized) shows nothing.
+    fn frame_wanted(&self) -> bool {
+        if self.frame_failed {
+            return false;
+        }
+        let Some(key) = self.frame_key() else {
+            return false;
+        };
+        if key.size.0 == 0 || key.size.1 == 0 {
+            return false;
+        }
+        self.drawn.as_ref() != Some(&key) || self.page.frame_outdated()
     }
 
     /// The modifiers in the engine's form.
@@ -299,12 +408,18 @@ impl App {
                 self.toolbar.address.set_text(&text);
             }
         }
-        if let Some(gfx) = &self.gfx {
-            let title = match self.page.title() {
+        // The window title only when the page title changed (ADR 0040
+        // section 4): on Wayland a new title draws the decorations again.
+        let page_title = self.page.title();
+        if let Some(gfx) = &self.gfx
+            && self.shown_title.as_deref() != Some(page_title)
+        {
+            let title = match page_title {
                 "" => "swb".to_owned(),
                 t => format!("{t} — swb"),
             };
             gfx.window.set_title(&title);
+            self.shown_title = Some(page_title.to_owned());
         }
     }
 
@@ -348,15 +463,24 @@ impl App {
             *dst = (u32::from(src[0]) << 16) | (u32::from(src[1]) << 8) | u32::from(src[2]);
         }
         let composed = Instant::now();
+        // The compositor's frame callback paces the next frame (ADR 0040
+        // section 3).
+        gfx.window.pre_present_notify();
         buffer
             .present()
             .map_err(|e| anyhow::anyhow!("present failed: {e}"))?;
         self.frame_log.frame(started, rendered, composed);
+        self.drawn = self.frame_key();
         Ok(())
     }
 
     /// Executes automation requests. Returns true if one was executed.
     fn process_automation(&mut self, event_loop: &ActiveEventLoop) -> bool {
+        if self.automation.is_none() {
+            return false;
+        }
+        // A request reads the page's pointer state.
+        self.flush_move();
         let Some(automation) = &mut self.automation else {
             return false;
         };
@@ -376,7 +500,6 @@ impl App {
             {
                 let modifiers = self.engine_modifiers();
                 self.page.key_up(&key, modifiers);
-                self.request_redraw();
             }
             return;
         }
@@ -389,7 +512,6 @@ impl App {
                 if ctrl && (c.eq_ignore_ascii_case("q") || c.eq_ignore_ascii_case("w")) =>
             {
                 event_loop.exit();
-                return;
             }
             Key::Character(c) if ctrl && c.eq_ignore_ascii_case("l") => {
                 self.toolbar.focused = true;
@@ -414,7 +536,6 @@ impl App {
             _ if self.toolbar.focused => self.handle_address_key(event),
             _ => self.handle_page_key(event),
         }
-        self.request_redraw();
     }
 
     /// A key press while the address field has the focus.
@@ -554,7 +675,6 @@ impl App {
                         .mouse_down(x, y, swb_engine::MouseButton::Primary, modifiers, count);
                 }
                 self.sync_address();
-                self.request_redraw();
             }
             (MouseButton::Left, ElementState::Released) => {
                 if self.selecting {
@@ -566,18 +686,15 @@ impl App {
                     let selected = self.page.selected_text();
                     self.copy(selected, true);
                     self.sync_address();
-                    self.request_redraw();
                 }
             }
             (MouseButton::Back, ElementState::Pressed) => {
                 self.page.go_back();
                 self.sync_address();
-                self.request_redraw();
             }
             (MouseButton::Forward, ElementState::Pressed) => {
                 self.page.go_forward();
                 self.sync_address();
-                self.request_redraw();
             }
             _ => {}
         }
@@ -635,8 +752,17 @@ impl App {
         }
     }
 
+    /// A `CursorMoved` event: the shell's record of the pointer follows at
+    /// once; the call into the page waits for the end of the batch or for
+    /// an event that needs it (ADR 0040 section 1).
     fn handle_cursor_moved(&mut self, position: PhysicalPosition<f64>) {
         self.cursor = position;
+        self.before_input(Input::Move(position));
+    }
+
+    /// Applies a pointer move: the toolbar's drag selection, or the page's
+    /// hover, and the mouse cursor.
+    fn apply_move(&mut self, position: PhysicalPosition<f64>) {
         let scale = self.scale();
         let x = position.x as f32 / scale;
         let y = position.y as f32 / scale;
@@ -644,35 +770,46 @@ impl App {
             // Dragging outside the field selects to the start or the end.
             let text_x = Toolbar::text_x(x, self.window_size().width);
             self.toolbar.place_cursor(self.page.fonts(), text_x, true);
-            self.request_redraw();
             return;
         }
         // While the button is held after a press in the page, the page
         // gets the movement also above the page area (drag selection).
         let in_page = y >= TOOLBAR_HEIGHT || self.page_pressed;
-        let changed = if in_page {
-            self.page.mouse_move(x, y - TOOLBAR_HEIGHT)
+        if in_page {
+            self.page.mouse_move(x, y - TOOLBAR_HEIGHT);
         } else {
-            self.page.mouse_leave()
-        };
-        if let Some(gfx) = &self.gfx {
-            let icon = if in_page {
-                cursor_icon(self.page.cursor())
-            } else {
-                match Toolbar::hit(x, y, self.window_size().width) {
-                    Some(ToolbarHit::Address(_)) => Some(CursorIcon::Text),
-                    Some(_) => Some(CursorIcon::Pointer),
-                    None => Some(CursorIcon::Default),
-                }
-            };
-            gfx.window.set_cursor_visible(icon.is_some());
-            if let Some(icon) = icon {
-                gfx.window.set_cursor(icon);
+            self.page.mouse_leave();
+        }
+        let icon = if in_page {
+            cursor_icon(self.page.cursor())
+        } else {
+            match Toolbar::hit(x, y, self.window_size().width) {
+                Some(ToolbarHit::Address(_)) => Some(CursorIcon::Text),
+                Some(_) => Some(CursorIcon::Pointer),
+                None => Some(CursorIcon::Default),
             }
+        };
+        self.show_cursor(icon);
+    }
+
+    /// Sets the window's mouse cursor if it differs from the one shown
+    /// (`None` hides it; ADR 0040 section 4).
+    fn show_cursor(&mut self, icon: Option<CursorIcon>) {
+        let Some(gfx) = &self.gfx else {
+            return;
+        };
+        let shown = self.shown_cursor;
+        let wanted = ShownCursor::of(icon);
+        if shown == wanted {
+            return;
         }
-        if changed {
-            self.request_redraw();
+        if shown == ShownCursor::Unset || shown.is_visible() != wanted.is_visible() {
+            gfx.window.set_cursor_visible(wanted.is_visible());
         }
+        if let ShownCursor::Icon(icon) = wanted {
+            gfx.window.set_cursor(icon);
+        }
+        self.shown_cursor = wanted;
     }
 }
 
@@ -741,17 +878,6 @@ fn cursor_icon(cursor: Cursor) -> Option<CursorIcon> {
         Cursor::ZoomIn => CursorIcon::ZoomIn,
         Cursor::ZoomOut => CursorIcon::ZoomOut,
     })
-}
-
-/// Splits a wheel delta (CSS px) into the whole pixels to scroll now and
-/// the fraction to keep for later, on each axis (toward zero, so that
-/// small deltas in either direction add up). A component that is not
-/// finite (a sum that overflowed) counts as 0.
-fn split_wheel((dx, dy): (f32, f32)) -> ((f32, f32), (f32, f32)) {
-    let finite = |v: f32| if v.is_finite() { v } else { 0.0 };
-    let (dx, dy) = (finite(dx), finite(dy));
-    let whole = (dx.trunc(), dy.trunc());
-    (whole, (dx - whole.0, dy - whole.1))
 }
 
 /// Sets the primary selection (Linux), which a middle click pastes.
@@ -869,6 +995,9 @@ impl ApplicationHandler<UserEvent> for App {
             }
         };
         self.gfx = Some(Gfx { window, surface });
+        self.shown_title = None;
+        self.shown_cursor = ShownCursor::Unset;
+        self.drawn = None;
         self.update_viewport();
         match self.start_url.take() {
             Some(url) => self.page.navigate(url),
@@ -877,41 +1006,40 @@ impl ApplicationHandler<UserEvent> for App {
             }
         }
         self.sync_address();
+        // The first frame: `about_to_wait` finds no frame drawn.
         self.request_redraw();
     }
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
-        let changed = match event {
-            UserEvent::Network => self.page.process_network(),
-            UserEvent::Automation => false,
-        };
-        let automated = self.process_automation(event_loop);
-        if changed || automated {
-            self.sync_address();
-            self.request_redraw();
+        if matches!(event, UserEvent::Network) {
+            self.page.process_network();
         }
+        self.process_automation(event_loop);
+        // The frame decision comes at the end of the batch (`about_to_wait`).
     }
 
     fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
         self.frame_log.begin_batch();
-        if matches!(cause, StartCause::ResumeTimeReached { .. })
-            && self.process_automation(event_loop)
-        {
-            self.request_redraw();
+        if matches!(cause, StartCause::ResumeTimeReached { .. }) {
+            self.process_automation(event_loop);
         }
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        // The wheel events of this batch scroll once.
-        if self.apply_wheel() {
-            self.request_redraw();
-        }
+        // The last pointer move of this batch, then the wheel events of the
+        // batch (they scroll once).
+        self.flush_move();
+        self.apply_wheel();
         // The page's event loop: the timers and other tasks that are due.
         let pump = self.page.pump();
         if pump.changed {
             // Tasks may have settled what a waiting request waits for.
             self.process_automation(event_loop);
-            self.sync_address();
+        }
+        // One frame decision per batch, after the pump and the input
+        // (ADR 0040 section 2).
+        self.sync_address();
+        if self.frame_wanted() {
             self.request_redraw();
         }
         // Wake up when the next task is due or a waiting automation request
@@ -929,17 +1057,28 @@ impl ApplicationHandler<UserEvent> for App {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+                // The page's pointer state comes first: a new viewport
+                // moves the content under the pointer.
+                self.flush_move();
                 self.update_viewport();
-                self.request_redraw();
+                self.frame_failed = false;
             }
             WindowEvent::RedrawRequested => {
+                // winit delivers the redraw after the turn's window events
+                // and before `about_to_wait`: the frame shows the pending
+                // move and wheel of this batch, instead of a second frame
+                // after them.
+                self.flush_move();
+                self.apply_wheel();
                 if let Err(e) = self.redraw() {
                     log::error!("redraw failed: {e:#}");
+                    self.frame_failed = true;
                 }
             }
             WindowEvent::ModifiersChanged(m) => self.modifiers = m.state(),
             WindowEvent::KeyboardInput { event, .. } => {
                 self.frame_log.counts_mut().keys += 1;
+                self.before_input(Input::Key);
                 self.handle_key(event_loop, &event);
             }
             WindowEvent::CursorMoved { position, .. } => {
@@ -947,9 +1086,8 @@ impl ApplicationHandler<UserEvent> for App {
                 self.handle_cursor_moved(position);
             }
             WindowEvent::CursorLeft { .. } => {
-                if self.page.mouse_leave() {
-                    self.request_redraw();
-                }
+                self.before_input(Input::Leave);
+                self.page.mouse_leave();
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 let counts = self.frame_log.counts_mut();
@@ -957,10 +1095,12 @@ impl ApplicationHandler<UserEvent> for App {
                     ElementState::Pressed => counts.presses += 1,
                     ElementState::Released => counts.releases += 1,
                 }
+                self.before_input(Input::Button);
                 self.handle_mouse_button(button, state);
             }
             WindowEvent::MouseWheel { delta, .. } => {
                 self.frame_log.counts_mut().wheels += 1;
+                self.before_input(Input::Wheel);
                 let (dx, dy) = match delta {
                     MouseScrollDelta::LineDelta(x, y) => (-x * LINE_SCROLL, -y * LINE_SCROLL),
                     MouseScrollDelta::PixelDelta(p) => {
@@ -970,30 +1110,9 @@ impl ApplicationHandler<UserEvent> for App {
                 };
                 // Applied after this batch of events (`apply_wheel` in
                 // `about_to_wait`).
-                if dx.is_finite() && dy.is_finite() {
-                    self.pending_wheel.0 += dx;
-                    self.pending_wheel.1 += dy;
-                }
+                self.batch.add_wheel(dx, dy);
             }
             _ => {}
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn wheel_deltas_scroll_whole_pixels_and_keep_the_fraction() {
-        assert_eq!(split_wheel((48.0, -2.75)), ((48.0, -2.0), (0.0, -0.75)));
-        // Half-pixel deltas (a touchpad at scale 2) add up in both
-        // directions.
-        let (whole, rest) = split_wheel((0.0, -0.5));
-        assert_eq!((whole, rest), ((0.0, 0.0), (0.0, -0.5)));
-        let (whole, _) = split_wheel((rest.0, rest.1 - 0.5));
-        assert_eq!(whole, (0.0, -1.0));
-        // An overflowed sum is dropped, not kept as NaN.
-        assert_eq!(split_wheel((f32::INFINITY, 3.5)), ((0.0, 3.0), (0.0, 0.5)));
     }
 }
