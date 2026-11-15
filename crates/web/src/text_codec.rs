@@ -15,7 +15,7 @@
 //! but the result is one string on the heap of the script.
 
 use encoding_rs::{CoderResult, DecoderResult, Encoding};
-use swb_js::{Gc, GenericData, HostData, Object, Runtime, Slots, Tracer};
+use swb_js::{Gc, GenericData, Object, Runtime, Slots, Tracer};
 
 use crate::bindings::{self as b, Cx, Exception, Platform};
 use crate::generated as g;
@@ -60,13 +60,7 @@ impl GenericData for DecoderData {
 }
 
 fn decoder_data(rt: &mut Runtime, this: Platform) -> b::Result<&mut DecoderData> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap_mut()
-            .generic_mut::<DecoderData>(handle)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    b::glue::generic_data_mut::<DecoderData>(rt, this)
 }
 
 /// The bytes of an `ArrayBuffer` or a view: `(buffer, offset, length)`.

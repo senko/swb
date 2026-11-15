@@ -951,7 +951,7 @@ did two lookups and two clones per call).
 `swbtools ce-cases`): of the 115 `js` queries, 70 match, 6 are departures
 (`api-surface` 0, 4, 5, 6: scoped registries, `ElementInternals`,
 `CustomStateSet`, `moveBefore`; `define-errors` 10: customized built-ins;
-`define-read-order` 1: `toolFillCallback`), and 39 are later (`CE_LATER`): 31
+`define-read-order` 1: `toolFillCallback`), and 39 are later (`CE_LATER` of that time; none since 4c): 31
 of 4b (`upgrade-at-define`: the `importNode` row; `upgrade-reentrant`: the
 constructor's insertion upgrades the other element; the `reactions-*` cases,
 `fragment-parsing`, `clone-and-import`; `derived-classes` 0, the
@@ -1159,7 +1159,7 @@ attributes `title hidden lang dir tabIndex`, `style.cssText`, `setProperty`,
 `setAttributeNS`, `toggleAttribute`) and `reactions-frames` (adoption between
 the arenas of a document and an iframe's: `disc adopt conn`, an element of the
 iframe is upgraded when it enters the window's document, not before). All
-three, the 4b rows of `CE_LATER` and `fragment-parsing`, `clone-and-import`,
+three, the 4b rows of `CE_LATER` (none since 4c) and `fragment-parsing`, `clone-and-import`,
 `reactions-*` match with no departure. The probe file has 53 cases and 134
 queries (the fix round added 12 cases, section "The fix round"). Two things the cases could not use: swb has no `Range`
 (`document.createRange`), and `Attr` is not a `Node` in swb (`nodeValue`,
@@ -1169,7 +1169,7 @@ queries (the fix round added 12 cases, section "The fix round"). Two things the 
 name is inserted `undefined`; the sink queues its upgrade on the backup queue,
 which runs at the next microtask checkpoint (after the parse step and before
 the next script): the constructor sees the attributes and the parent
-(known difference, `parser-sync*` stay in `CE_LATER`).
+(known difference, `parser-sync*` stay in `CE_LATER`; none since 4c).
 
 **GitHub** (`crates/automation/tests/github.rs`, JavaScript on, the debug
 line `custom element callback NAME (ORIGIN): ELEMENT` of `reactions.rs`, where

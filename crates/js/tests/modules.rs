@@ -1,9 +1,9 @@
-//! Modules without other modules (ADR 0028 section 6, item 7;
-//! `Runtime::eval_module_at`): strict code with `this` undefined whose
-//! top-level declarations belong to the module; `export` without `from`
-//! runs (ADR 0034 3a-1); requests (`import`, `export ... from`),
-//! `import()`, `import.meta` and top-level `await` are refused. Module
-//! graphs are tested in `module_graph.rs`.
+//! Modules without other modules (ADR 0028 section 6, item 7), run through
+//! the module records (`common::eval_module`: parse, load, link, evaluate):
+//! strict code with `this` undefined whose top-level declarations belong to
+//! the module; `export` without `from` runs (ADR 0034 3a-1); `import()` and
+//! `import.meta` are refused without module hooks. Module graphs are tested
+//! in `module_graph.rs`.
 //! The expected values are Chromium's (`tools/probes/web-module-scripts.json`,
 //! case `semantics`). Each test runs with and without the GC stress mode.
 
@@ -13,14 +13,12 @@ mod common;
 
 use std::fmt::Write;
 
-use common::{Output, on_big_stack, runtime};
-use swb_js::{Runtime, ScriptError, ThrowKind};
+use common::{Output, eval_module, on_big_stack, runtime};
+use swb_js::{PromiseStatus, Runtime, ScriptError, ThrowKind};
 
 /// Runs `source` as a module: the printed lines, then the error if any.
 fn run_module_in(rt: &mut Runtime, source: &str) -> String {
-    let result = rt
-        .eval_module_at(0, source, "m.js", (0, 0))
-        .and_then(|value| rt.run_jobs().map(|()| value));
+    let result = eval_module(rt, 0, source, ("m.js", (0, 0)));
     let mut lines = rt.host_data_mut::<Output>().unwrap().take();
     if let Err(error) = result {
         lines.push(error.to_string());
@@ -103,31 +101,31 @@ fn a_second_module_does_not_see_the_declarations_of_the_first() {
 fn errors_name_the_module_and_the_position() {
     on_big_stack(|| {
         let mut rt = runtime(false);
-        let error = rt
-            .eval_module_at(0, "\n  null.x;", "http://x.test/m.js", (4, 10))
-            .unwrap_err();
-        let ScriptError::Uncaught {
-            name,
-            message,
-            offset,
-        } = error
-        else {
-            panic!("{error:?}");
+        let module = rt
+            .parse_module(0, "\n  null.x;", "http://x.test/m.js", (4, 10), 0)
+            .unwrap();
+        rt.load_requested_modules(module).unwrap();
+        rt.link(module).unwrap();
+        let promise = rt.evaluate(module).unwrap();
+        let Some((PromiseStatus::Rejected, error)) = rt.promise_settlement(promise) else {
+            panic!("the evaluation rejects");
         };
-        assert_eq!(name, "TypeError");
-        assert_eq!(message, "Cannot read properties of null (reading 'x')");
-        let location = rt.throw_location().unwrap();
+        let report = rt.error_report(error);
+        assert_eq!(
+            report.lines().next(),
+            Some("TypeError: Cannot read properties of null (reading 'x')")
+        );
+        let location = rt.error_location(error).unwrap();
         assert_eq!(location.name, "http://x.test/m.js");
         // Line 3 of the module, which starts on line 5 of the page.
         assert_eq!((location.line, location.column), (6, 8));
-        assert!(offset.is_some());
-        let stack = rt
-            .eval_module_at(0, "print(new Error('z').stack)\nfunction g() { return new Error('w').stack }\nprint(g())",
-                "m.js",
-                (0, 0),
-            )
-            .map(drop);
-        assert_eq!(stack, Ok(()));
+        eval_module(
+            &mut rt,
+            0,
+            "print(new Error('z').stack)\nfunction g() { return new Error('w').stack }\nprint(g())",
+            ("m.js", (0, 0)),
+        )
+        .unwrap();
         let lines = rt.host_data_mut::<Output>().unwrap().take();
         assert_eq!(
             lines,
@@ -168,7 +166,7 @@ fn syntax_that_is_an_error_in_modules() {
         let source = source.to_owned();
         on_big_stack(move || {
             let mut rt = runtime(false);
-            let error = rt.eval_module_at(0, &source, "m.js", (0, 0)).unwrap_err();
+            let error = eval_module(&mut rt, 0, &source, ("m.js", (0, 0))).unwrap_err();
             assert!(!error.is_unsupported(), "{source}: {error}");
             assert_eq!(error.to_string(), format!("SyntaxError: {message}"));
         });
@@ -181,35 +179,23 @@ fn the_same_text_is_a_script() {
         let mut rt = runtime(false);
         // As a script, `010` and `with` are legal sloppy code.
         assert!(rt.eval("var o = 010; with ({}) {}").is_ok());
-        assert!(
-            rt.eval_module_at(0, "var o = 010;", "m.js", (0, 0))
-                .is_err()
-        );
+        assert!(eval_module(&mut rt, 0, "var o = 010;", ("m.js", (0, 0))).is_err());
     });
 }
 
+/// Without module hooks, `import()` and `import.meta` are refused at
+/// the parse, as in classic scripts (the page installs the hooks).
 #[test]
-fn modules_that_need_other_modules_do_not_compile() {
+fn import_call_and_import_meta_are_refused_without_module_hooks() {
     for (source, construct) in [
-        ("import './dep.js';", "module syntax"),
-        ("import {a} from './dep.js'; print(a)", "module syntax"),
-        ("import * as ns from './dep.js';", "module syntax"),
-        ("export * from './dep.js';", "module syntax"),
-        ("export { a } from './dep.js';", "module syntax"),
         ("print(1); import('./dep.js').then(print);", "import()"),
         ("print(import.meta.url);", "import.meta"),
-        ("await 0; print('after');", "top-level await"),
-        ("for await (const x of []) ;", "top-level await"),
-        (
-            "print('x'); const y = await Promise.resolve(1);",
-            "top-level await",
-        ),
     ] {
         let source = source.to_owned();
         on_big_stack(move || {
             for stress in [false, true] {
                 let mut rt = runtime(stress);
-                let error = rt.eval_module_at(0, &source, "m.js", (0, 0)).unwrap_err();
+                let error = eval_module(&mut rt, 0, &source, ("m.js", (0, 0))).unwrap_err();
                 assert!(error.is_unsupported(), "{source}: {error}");
                 let ScriptError::Compile { kind, message, .. } = &error else {
                     panic!("{source}: {error:?}");
@@ -220,6 +206,31 @@ fn modules_that_need_other_modules_do_not_compile() {
                 let printed = rt.host_data_mut::<Output>().unwrap().take();
                 assert_eq!(printed, Vec::<String>::new());
             }
+        });
+    }
+}
+
+/// Requests and top-level `await` are for the module graphs: the parse
+/// accepts them (`module_graph.rs` runs them).
+#[test]
+fn modules_with_requests_and_top_level_await_parse() {
+    for source in [
+        "import './dep.js';",
+        "import {a} from './dep.js'; print(a)",
+        "import * as ns from './dep.js';",
+        "export * from './dep.js';",
+        "export { a } from './dep.js';",
+        "await 0; print('after');",
+        "for await (const x of []) ;",
+        "print('x'); const y = await Promise.resolve(1);",
+    ] {
+        let source = source.to_owned();
+        on_big_stack(move || {
+            let mut rt = runtime(false);
+            assert!(
+                rt.parse_module(0, &source, "m.js", (0, 0), 0).is_ok(),
+                "{source}"
+            );
         });
     }
 }
@@ -275,7 +286,7 @@ fn the_budgets_of_scripts_apply() {
         for i in 0..70_000 {
             write!(source, "let v{i};").unwrap();
         }
-        let error = rt.eval_module_at(0, &source, "m.js", (0, 0)).unwrap_err();
+        let error = eval_module(&mut rt, 0, &source, ("m.js", (0, 0))).unwrap_err();
         assert!(!error.is_unsupported());
         assert!(matches!(error, ScriptError::Compile { .. }), "{error:?}");
         // A module of 60,000 bindings is under the limit.
@@ -287,14 +298,12 @@ fn the_budgets_of_scripts_apply() {
         assert_eq!(run_module_in(&mut rt, &source), "59999");
         // A deep expression is a range error, not a crash.
         let deep = format!("{}1{}", "(".repeat(100_000), ")".repeat(100_000));
-        assert!(rt.eval_module_at(0, &deep, "m.js", (0, 0)).is_err());
+        assert!(eval_module(&mut rt, 0, &deep, ("m.js", (0, 0))).is_err());
         // An endless loop ends at the deadline.
         rt.set_deadline(Some(
             std::time::Instant::now() + std::time::Duration::from_millis(100),
         ));
-        let error = rt
-            .eval_module_at(0, "for (;;) {}", "m.js", (0, 0))
-            .unwrap_err();
+        let error = eval_module(&mut rt, 0, "for (;;) {}", ("m.js", (0, 0))).unwrap_err();
         assert!(matches!(error, ScriptError::Terminated(_)), "{error:?}");
     });
 }

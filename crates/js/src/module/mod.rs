@@ -34,7 +34,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use swb_js_syntax::{BindingKind, Script};
-use swb_js_text::{Str16, String16};
+use swb_js_text::String16;
 
 pub(crate) use dynamic::DynamicImport;
 pub(crate) use load::ModuleTable;
@@ -612,73 +612,6 @@ impl Runtime {
             .map(Value::Object)
             .map_err(crate::runtime::finish_error)
     }
-
-    /// Runs a module that requests no other module through the module
-    /// path (ADR 0034 sub-feature 3a-1): parse, link (which runs the
-    /// prologue), evaluate. Errors as [`Runtime::eval_named_at`]; a module
-    /// with requests is refused ("not supported yet (module syntax)"), and
-    /// so is a module with top-level `await` ("not supported yet
-    /// (top-level await)", at offset 0).
-    pub(crate) fn run_module_without_requests(
-        &mut self,
-        realm: u32,
-        source: Str16<'_>,
-        name: &str,
-        start: (u32, u32),
-    ) -> Result<Value, ScriptError> {
-        let (script, code, compiled) =
-            self.parse_and_compile(source, name, start, crate::runtime::Goal::Module)?;
-        // The host path runs a module to its end in one task; a module that
-        // waits is for the module graphs of sub-feature 3b-1.
-        if script
-            .module
-            .as_ref()
-            .is_some_and(|m| m.has_top_level_await)
-        {
-            return Err(ScriptError::Compile {
-                kind: crate::error::ThrowKind::SyntaxError,
-                message: format!(
-                    "{} (top-level await)",
-                    swb_js_syntax::messages::NOT_SUPPORTED
-                ),
-                offset: 0,
-            });
-        }
-        if let Some(offset) = first_request_offset(&script) {
-            return Err(ScriptError::Compile {
-                kind: crate::error::ThrowKind::SyntaxError,
-                message: format!("{} (module syntax)", swb_js_syntax::messages::NOT_SUPPORTED),
-                offset,
-            });
-        }
-        let record = self
-            .module_record(&script, (code, compiled), realm, 0)
-            .map_err(crate::runtime::finish_error)?;
-        let handle = self
-            .heap
-            .alloc_generic(record)
-            .map_err(|e| crate::runtime::finish_error(e.into()))?;
-        self.set_script_or_module(code, ScriptOrModule::Module(handle))
-            .map_err(crate::runtime::finish_error)?;
-        // The record is rooted by the handle scope of the run.
-        let scope = self.heap.open_scope();
-        self.heap.record(crate::heap::Root::Generic(handle));
-        let result = self.run_lone_module(handle);
-        let result = self.finish(result);
-        if let Err(error) = self.heap.close_scope(scope) {
-            return Err(crate::runtime::finish_error(error.into()));
-        }
-        result
-    }
-
-    /// Links and evaluates a module without requests; errors go to the
-    /// host as the errors of a script run.
-    fn run_lone_module(&mut self, module: Gc<Generic>) -> VmResult<Value> {
-        self.record_mut(module)?.status = Status::Unlinked;
-        self.link_module(module)?;
-        self.evaluate_sync(module)?;
-        Ok(Value::Undefined)
-    }
 }
 
 /// The atom of a name of the script.
@@ -692,27 +625,6 @@ fn name_atom(
         .get(name)
         .ok_or(VmError::invariant("a module name outside the interner"))?;
     Ok(rt.heap.intern(text)?)
-}
-
-/// The offset of the first statement of a module that requests another
-/// module (an import, or an export with `from`), if any.
-fn first_request_offset(script: &Script) -> Option<u32> {
-    if script.module.as_ref().is_none_or(|m| m.requests.is_empty()) {
-        return None;
-    }
-    script
-        .ast
-        .stmt_ids()
-        .map(|id| script.ast.stmt(id))
-        .filter(|stmt| {
-            matches!(
-                stmt.kind,
-                swb_js_syntax::StmtKind::Import | swb_js_syntax::StmtKind::ExportList
-            )
-        })
-        .map(|stmt| stmt.span.start)
-        .min()
-        .or(Some(0))
 }
 
 /// A loader for the unit tests of the module files: sources by name, the
@@ -858,19 +770,18 @@ mod tests {
 
     #[test]
     fn a_module_without_requests_runs_through_the_records() {
-        let mut rt = runtime(&[], true);
-        assert!(
-            rt.eval_module_at(0, "export const a = 1;", "m.js", (0, 0))
-                .is_ok()
-        );
-        let error = rt
-            .eval_module_at(0, "let x;\nimport './a.js';", "m.js", (0, 0))
-            .expect_err("refused");
-        assert!(error.is_unsupported());
-        assert!(
-            matches!(error, ScriptError::Compile { offset: 7, .. }),
-            "{error:?}"
-        );
+        let mut rt = runtime(&[("m.js", "export const a = 1;")], true);
+        let module = linked(&mut rt, "m.js");
+        let promise = rt.evaluate(module).expect("evaluates");
+        assert!(matches!(
+            rt.promise_settlement(promise),
+            Some((crate::vm::PromiseStatus::Fulfilled, _))
+        ));
+        // A module with a request parses; the graph load asks for it.
+        let module = rt
+            .parse_module(0, "let x;\nimport './a.js';", "n.js", (0, 0), 1)
+            .expect("parses");
+        assert_eq!(rt.module_requests(module).len(), 1);
     }
 
     #[test]

@@ -26,6 +26,7 @@
 //! limit of the task, because native work does not tick the countdown of
 //! the VM.
 
+use crate::state::Place;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
@@ -58,9 +59,6 @@ pub(crate) const MAX_TRANSIENTS: usize = 500_000;
 /// The work units (nodes visited, registrations made) after which the host
 /// checks the time limit of the task.
 const WORK_PER_CHECK: usize = 4096;
-
-/// A node of a document of the runtime.
-type Place = (u32, NodeId);
 
 /// The kind of a record (`MutationRecord.type`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -470,7 +468,7 @@ impl Registry {
         let mut any = false;
         let mut sources: HashMap<(u32, Place), Place> = HashMap::new();
         for &(old, new) in pairs {
-            let (before, after) = ((from, old), (to, new));
+            let (before, after) = (Place::new(from, old), Place::new(to, new));
             let Some(list) = self.nodes.remove(&before) else {
                 continue;
             };
@@ -586,7 +584,7 @@ impl Registry {
         let mut visited = 0;
         while let Some(current) = node {
             visited += 1;
-            if let Some(list) = self.nodes.get(&(document, current)) {
+            if let Some(list) = self.nodes.get(&Place::new(document, current)) {
                 visited += list.len();
                 for registration in list {
                     if wants(&registration.options, kind, current == target, attribute) {
@@ -707,13 +705,13 @@ impl Registry {
         let mut visited = 0;
         while let Some(current) = node {
             visited += 1;
-            if let Some(list) = self.nodes.get(&(document, current)) {
+            if let Some(list) = self.nodes.get(&Place::new(document, current)) {
                 visited += list.len();
                 for registration in list.iter().filter(|r| r.options.subtree) {
                     sources.push(Registration {
                         observer: registration.observer,
                         options: registration.options.clone(),
-                        source: Some(registration.source.unwrap_or((document, current))),
+                        source: Some(registration.source.unwrap_or(Place::new(document, current))),
                     });
                 }
             }
@@ -734,7 +732,7 @@ impl Registry {
                     }
                     return;
                 }
-                let list = self.nodes.entry((document, gone)).or_default();
+                let list = self.nodes.entry(Place::new(document, gone)).or_default();
                 let duplicate = list.iter().any(|r| {
                     r.observer == source.observer
                         && r.source == source.source
@@ -746,7 +744,7 @@ impl Registry {
                 list.push(source.clone());
                 self.transients += 1;
                 if let Some(entry) = self.entries.get_mut(&source.observer) {
-                    entry.transient_nodes.insert((document, gone));
+                    entry.transient_nodes.insert(Place::new(document, gone));
                     self.notify.insert(source.observer);
                 }
             }
@@ -798,7 +796,7 @@ mod tests {
     #[test]
     fn a_registration_is_replaced_by_a_second_observe() {
         let mut registry = Registry::new(Rc::new(Cell::new(false)));
-        let node = (0, NodeId::DOCUMENT);
+        let node = Place::new(0, NodeId::DOCUMENT);
         registry.observe(1, node, options(true, false));
         registry.observe(1, node, options(true, true));
         assert_eq!(registry.nodes[&node].len(), 1);
@@ -815,7 +813,7 @@ mod tests {
         let doc = Document::new();
         registry.observe(
             1,
-            (0, NodeId::DOCUMENT),
+            Place::new(0, NodeId::DOCUMENT),
             Options {
                 character_data: true,
                 character_data_old_value: true,
@@ -850,7 +848,7 @@ mod tests {
     fn transient_registrations_are_bounded_and_released() {
         let mut registry = Registry::new(Rc::new(Cell::new(false)));
         let doc = Document::new();
-        registry.observe(1, (0, NodeId::DOCUMENT), options(true, true));
+        registry.observe(1, Place::new(0, NodeId::DOCUMENT), options(true, true));
         let gone: Vec<NodeId> = (1..=MAX_TRANSIENTS + 10)
             .filter_map(NodeId::from_index)
             .collect();
@@ -881,7 +879,11 @@ mod tests {
         let mut registry = Registry::new(Rc::new(Cell::new(false)));
         let doc = Document::new();
         for observer in [1, 2] {
-            registry.observe(observer, (0, NodeId::DOCUMENT), options(true, false));
+            registry.observe(
+                observer,
+                Place::new(0, NodeId::DOCUMENT),
+                options(true, false),
+            );
         }
         registry.change(
             0,
@@ -908,7 +910,7 @@ mod tests {
         let doc = Document::new();
         registry.observe(
             1,
-            (0, NodeId::DOCUMENT),
+            Place::new(0, NodeId::DOCUMENT),
             Options {
                 character_data: true,
                 ..Options::default()
@@ -940,7 +942,7 @@ mod tests {
         let doc = Document::new();
         registry.observe(
             1,
-            (0, NodeId::DOCUMENT),
+            Place::new(0, NodeId::DOCUMENT),
             Options {
                 character_data: true,
                 ..Options::default()

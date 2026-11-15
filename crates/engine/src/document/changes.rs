@@ -27,8 +27,8 @@
 //! Shadow trees (ADR 0036 section 3): "in the document" means connected, so
 //! the walks are shadow-including: the images, frames and form controls of a
 //! connected shadow tree work, and the sheets of its `style` and `link`
-//! elements are collected with the shadow root as their scope (the stylist
-//! does not apply them until sub-feature 5c).
+//! elements are collected with the shadow root as their scope
+//! (`shadow_styles.rs` builds their scoped stylists).
 
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};

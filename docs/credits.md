@@ -171,7 +171,7 @@ Format: source, license (for code), what it influenced.
   selection members of `HTMLInputElement` and `HTMLTextAreaElement`
   (BSD-3-Clause, as above); "set the selection range", "set range text"
   (the four selection modes), the dirtiness flag of `option` and the
-  selectedness setting algorithm (`crates/web/src/html/selection.rs`,
+  selectedness setting algorithm (`crates/web/src/html/text_selection.rs`,
   `crates/engine/src/forms/`, `crates/engine/src/edit.rs`). The other
   rules come from black-box measurements of Chromium (probes
   `web-forms-script.json`, `web-forms-selection.json`; ADR 0021).

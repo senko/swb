@@ -715,7 +715,9 @@ fn only_the_global_object_of_a_realm_is_a_target() {
     assert!(rt.new_window_proxy(1 << 31, None).is_err());
     assert!(rt.set_global_this(0, object).is_err());
     assert!(rt.eval_named_at(5, "1", "", (0, 0), None).is_err());
-    assert!(rt.eval_module_at(5, "1", "", (0, 0)).is_err());
+    // The realm of a module is checked when the graph loads.
+    let module = rt.parse_module(5, "1", "", (0, 0), 0).unwrap();
+    assert!(rt.load_requested_modules(module).is_err());
     let global = rt.global(0).unwrap();
     rt.set_global_this(0, global).unwrap();
     let key = rt.key_from_str("globalThis").unwrap();

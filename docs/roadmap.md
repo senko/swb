@@ -4472,7 +4472,7 @@ Steps:
    `swb_dom::click_target`, ADR 0028 "Nested activation"), with and without
    scripts; `bbc.rs` tests the items "Sport" and "Artificial Intelligence".
 
-## M10: GitHub (github.com/senko/swb)
+## M10: GitHub (github.com/senko/swb) — done
 
 Owner decisions (2026-11-07, ground rules): the target is the front page
 of the repository github.com/senko/swb, logged out, with JavaScript on and
@@ -5210,7 +5210,25 @@ Steps:
       Feature 9 is complete (2026-11-15).
 
    Then sub-feature 4c (done 2026-11-15, under feature 4) and the
-   end-of-milestone maintenance.
+   end-of-milestone maintenance. Done 2026-11-15: two read-only reviews
+   listed 24 items; one implementer session applied 19, three of them in
+   part (the pre-graph module path `Runtime::eval_module_at` removed, its
+   tests run through the module records; shared brand checks and toggle
+   tasks; one `state::Place`; shared probe rows for the engine tests;
+   `swbtools` writes the probe case files with one function; the hostile
+   cases and three large files split; dead code, names, comments, the test
+   rows of docs/testing.md), the orchestrator two (README, a line about
+   `tools/github_swb_records.py`). One item was already done and two were
+   skipped (a four-line `ToUint32` copy; the long functions are under
+   clippy's limit). Behaviour unchanged: JS-off snapshot identical,
+   `compare --all --js` unchanged (Ars Technica varies from run to run with
+   the old binary too), hostile set as before, test262 41,842 passes as
+   before, generated bindings and probe test cases unchanged. Left (low
+   value): split `hostile_cases/dom.py` (1,501 lines);
+   `node_iterator::AwayPointers` as a `Place`; one brand-check helper that
+   returns a `VmError` for the other 20 copies.
+
+   M10 is complete (2026-11-15).
 
 ## Pending decisions
 

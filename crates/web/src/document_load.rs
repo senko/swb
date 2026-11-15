@@ -174,17 +174,6 @@ impl ScriptRuntime {
         }
     }
 
-    /// True if a script of the document waits for style sheets that block
-    /// scripts (then the engine calls [`ScriptRuntime::style_sheets_changed`]
-    /// after each style sheet).
-    pub fn waits_for_style_sheets(&self) -> bool {
-        scripts(&self.rt).is_ok_and(|s| match s.phase {
-            Phase::Parsing => s.pending_parsing_blocking.is_some(),
-            Phase::Deferred => true,
-            _ => false,
-        })
-    }
-
     /// True when "the end" reached the wait for the load event: the parse,
     /// the deferred scripts and `DOMContentLoaded` are done, and no script
     /// waits to run as soon as possible. The engine then fires `load`

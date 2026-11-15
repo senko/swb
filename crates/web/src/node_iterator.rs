@@ -41,7 +41,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::rc::Rc;
 
 use swb_dom::{ArenaWork, DeadIds, NodeData, NodeId, Spot, WORK_PER_CHECK};
-use swb_js::{Gc, GenericData, HostData, Object, Runtime, Tracer, Value, VmResult};
+use swb_js::{Gc, GenericData, Object, Runtime, Tracer, Value, VmResult};
 
 use crate::bindings::convert::{self, IntMode};
 use crate::bindings::{self as b, Cx, Exception, NodeRef, Platform};
@@ -136,26 +136,8 @@ impl Drop for IteratorData {
     }
 }
 
-fn illegal() -> Exception {
-    Exception::type_error("Illegal invocation")
-}
-
 fn iterator_data(rt: &Runtime, this: Platform) -> b::Result<&IteratorData> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap()
-            .generic::<IteratorData>(handle)
-            .map_err(|_| illegal()),
-        HostData::Word(_) => Err(illegal()),
-    }
-}
-
-/// The arena of document `key`, if the runtime has it now.
-fn arena(rt: &mut Runtime, key: DocKey) -> Option<&mut swb_dom::Document> {
-    state::ensure_lent(rt, key).ok()?;
-    let state = rt.host_data_mut::<WebState>()?;
-    let record = state::document_mut(state, key)?;
-    Some(record.host.as_deref_mut()?.dom_mut())
+    b::glue::generic_data::<IteratorData>(rt, this)
 }
 
 /// The key of the document whose arena holds the entry of iterator `id`.
@@ -166,7 +148,7 @@ fn home_of(rt: &Runtime, id: u32) -> Option<DocKey> {
 /// The arena that holds the entry of iterator `id`.
 fn arena_of(rt: &mut Runtime, id: u32) -> Option<&mut swb_dom::Document> {
     let key = home_of(rt, id)?;
-    arena(rt, key)
+    state::arena_mut(rt, key)
 }
 
 /// Removes the entries of the iterators that the collector freed and clears
@@ -178,7 +160,7 @@ fn reap(rt: &mut Runtime) -> VmResult<()> {
             continue;
         };
         // A document that is not available has no script that could run in it.
-        if let Some(dom) = arena(rt, key) {
+        if let Some(dom) = state::arena_mut(rt, key) {
             dom.remove_node_iterator(id);
         }
     }
@@ -325,7 +307,7 @@ pub(crate) fn create(
     table.next_id = id;
     let dead = Rc::clone(&table.dead);
     let work = ArenaWork::new(Rc::clone(&table.steps), request, Rc::clone(&dead));
-    let Some(dom) = arena(rt, root.document) else {
+    let Some(dom) = state::arena_mut(rt, root.document) else {
         return Err(Exception::type_error("the document is not available"));
     };
     dom.set_iterator_work(work);
@@ -356,7 +338,7 @@ fn position(rt: &mut Runtime, this: Platform) -> b::Result<swb_dom::IteratorPosi
     let id = entry(rt, this)?;
     arena_of(rt, id)
         .and_then(|dom| dom.node_iterator(id))
-        .ok_or_else(illegal)
+        .ok_or_else(b::glue::illegal_invocation)
 }
 
 /// The document and node that a spot of iterator `id` names now. A node that
@@ -438,7 +420,7 @@ fn step_from(
         }
         Spot::Away(key, node) => {
             let (key, node) = state::settled(state_mut(rt).ok()?, key, node);
-            let dom = arena(rt, key)?;
+            let dom = state::arena_mut(rt, key)?;
             let (next, flag) = dom.iterator_step(None, node, before, forward)?;
             Some((Spot::Away(key, next), flag))
         }
@@ -475,7 +457,7 @@ fn traverse(cx: &mut Cx<'_>, this: Platform, forward: bool) -> b::Result<Option<
     }
     let result = walk(rt, this, id, what_to_show, filter, forward);
     if let Some(home) = home_of(rt, id)
-        && let Some(dom) = arena(rt, home)
+        && let Some(dom) = state::arena_mut(rt, home)
     {
         match &result {
             Ok(Some(_)) => dom.node_iterator_accept(id),
@@ -573,8 +555,7 @@ fn accepts(
 
 /// The `nodeType` of `node` in the arena of the document `key`.
 pub(crate) fn node_type(rt: &mut Runtime, key: DocKey, node: NodeId) -> Option<u32> {
-    state::ensure_lent(rt, key).ok()?;
-    let dom = state::dom_of(rt, key).ok()?;
+    let dom = state::dom_lent(rt, key)?;
     Some(match dom.get(node)?.data {
         NodeData::Element(_) => 1,
         NodeData::Text(_) => 3,

@@ -4310,7 +4310,7 @@ below):
 - **Selection API.** `selectionStart`, `selectionEnd`, `selectionDirection`,
   `select()`, `setSelectionRange()` and `setRangeText()` (both forms) on
   `input` (types `text`, `search`, `tel`, `url`, `password`) and `textarea`
-  (`html/selection.rs`, over `TextEdit`: `select_range_utf16`,
+  (`html/text_selection.rs`, over `TextEdit`: `select_range_utf16`,
   `selection_utf16`, `replace_range_utf16`, `is_backward`). Measured in
   Chromium: other types give `null` and throw `InvalidStateError` (`The
   input element's type ('email') does not support selection.`) from the

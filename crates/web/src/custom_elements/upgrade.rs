@@ -7,9 +7,9 @@
 use swb_dom::{CustomElementState, LocalName, NodeId, ns};
 use swb_js::{ScriptError, ThrowKind, Value, VmError, VmResult};
 
-use super::reactions::{self, Args, Origin, Place, Reaction};
+use super::reactions::{self, Args, Origin, Reaction};
 use super::{Callback, StackEntry, definition, definition_mut};
-use crate::state::{dom, dom_mut};
+use crate::state::{Place, dom, dom_mut};
 use swb_js::Runtime;
 
 /// The nodes that a walk visits between two checks of the time limit.
@@ -77,7 +77,7 @@ pub(crate) fn try_upgrade(rt: &mut Runtime, element: NodeId) -> VmResult<()> {
         return Ok(());
     };
     let key = crate::state::document_key(rt)?;
-    enqueue_upgrade(rt, (key, element), number)
+    enqueue_upgrade(rt, Place { key, node: element }, number)
 }
 
 /// The upgrade candidates of a new definition: an upgrade reaction for each
@@ -109,7 +109,7 @@ pub(crate) fn upgrade_candidates(
     let key = crate::state::document_key(rt)?;
     let count = candidates.len();
     for node in candidates {
-        enqueue_upgrade(rt, (key, node), number)?;
+        enqueue_upgrade(rt, Place { key, node }, number)?;
     }
     Ok(count)
 }
@@ -151,8 +151,8 @@ pub(crate) fn upgrade_reaction(rt: &mut Runtime, place: Place, number: u32) -> V
     if super::window_gone(rt, number)? {
         return Ok(place);
     }
-    let entered = crate::state::switch_if_other(rt, place.0)?;
-    let result = upgrade(rt, place.1, number);
+    let entered = crate::state::switch_if_other(rt, place.key)?;
+    let result = upgrade(rt, place.node, number);
     crate::state::leave(rt, entered);
     Ok(result?.unwrap_or(place))
 }
@@ -191,7 +191,7 @@ fn upgrade(rt: &mut Runtime, element: NodeId, number: u32) -> VmResult<Option<Pl
     );
     let connected = dom.is_connected(element);
     let key = crate::state::document_key(rt)?;
-    let place = (key, element);
+    let place = Place { key, node: element };
     // Steps 2 to 5.
     dom_mut(rt)?.set_custom_element_state(element, CustomElementState::Failed, Some(number));
     for args in attributes {
@@ -215,7 +215,7 @@ fn upgrade(rt: &mut Runtime, element: NodeId, number: u32) -> VmResult<Option<Pl
     // followed it (`Definition::rekey_stack`).
     let end = definition_mut(rt, number)?.construction_stack.pop();
     let place = end.map_or(place, StackEntry::place);
-    let entered = crate::state::switch_if_other(rt, place.0)?;
+    let entered = crate::state::switch_if_other(rt, place.key)?;
     let failure = finish(rt, place, number, result);
     crate::state::leave(rt, entered);
     let Some(failure) = failure? else {
@@ -250,7 +250,7 @@ fn finish(
     number: u32,
     result: Result<Value, ScriptError>,
 ) -> VmResult<Option<Failure>> {
-    let element = place.1;
+    let element = place.node;
     let failure = match result {
         Ok(value) => {
             let wrapper = crate::state::existing_wrapper(rt, element)?;
@@ -279,7 +279,7 @@ fn fail(rt: &mut Runtime, place: Place, number: u32) -> VmResult<()> {
         "the upgrade of a custom element failed: {}",
         definition(rt, number)?.name
     );
-    let element = place.1;
+    let element = place.node;
     let (state, _) = dom(rt)?.custom_element_state(element);
     dom_mut(rt)?.set_custom_element_state(element, state, Some(0));
     reactions::shared(rt)?.borrow_mut().clear(place);

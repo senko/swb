@@ -49,6 +49,15 @@ COMMANDS = {
     TOP_LAYER_PROBE_FILE: ("top-layer-cases", "Top layer tests"),
 }
 
+# The subcommand of each cases file: its probe file and its Rust file.
+SUBCOMMANDS = {
+    "module-cases": (PROBE_FILE, CASES_FILE),
+    "module-graph-cases": (GRAPH_PROBE_FILE, GRAPH_CASES_FILE),
+    "ce-cases": (CE_PROBE_FILE, CE_CASES_FILE),
+    "shadow-cases": (SHADOW_PROBE_FILE, SHADOW_CASES_FILE),
+    "top-layer-cases": (TOP_LAYER_PROBE_FILE, TOP_LAYER_CASES_FILE),
+}
+
 
 def render(
     probe: dict[str, Any],
@@ -103,60 +112,13 @@ def render(
     return "\n".join(out) + "\n"
 
 
-def write_module_cases(chromium_json: Path) -> int:
-    """Writes the cases file of the module script probe from the `probe
-    --json` output in `chromium_json`."""
+def write_cases(probe_file: Path, cases_file: Path, chromium_json: Path) -> int:
+    """Writes the cases file `cases_file` of the probe file `probe_file` from
+    the `probe --json` output in `chromium_json`."""
     root = paths.repo_root()
-    probe = json.loads((root / PROBE_FILE).read_text(encoding="utf-8"))
+    probe = json.loads((root / probe_file).read_text(encoding="utf-8"))
     chromium = json.loads(chromium_json.read_text(encoding="utf-8"))
-    (root / CASES_FILE).write_text(render(probe, chromium), encoding="utf-8")
-    print(f"wrote {CASES_FILE}")
-    return 0
-
-
-def write_module_graph_cases(chromium_json: Path) -> int:
-    """Writes the cases file of the module graph probe from the `probe --json`
-    output in `chromium_json`."""
-    root = paths.repo_root()
-    probe = json.loads((root / GRAPH_PROBE_FILE).read_text(encoding="utf-8"))
-    chromium = json.loads(chromium_json.read_text(encoding="utf-8"))
-    text = render(probe, chromium, GRAPH_PROBE_FILE)
-    (root / GRAPH_CASES_FILE).write_text(text, encoding="utf-8")
-    print(f"wrote {GRAPH_CASES_FILE}")
-    return 0
-
-
-def write_ce_cases(chromium_json: Path) -> int:
-    """Writes the cases file of the custom element probe from the `probe
-    --json` output in `chromium_json`."""
-    root = paths.repo_root()
-    probe = json.loads((root / CE_PROBE_FILE).read_text(encoding="utf-8"))
-    chromium = json.loads(chromium_json.read_text(encoding="utf-8"))
-    text = render(probe, chromium, CE_PROBE_FILE)
-    (root / CE_CASES_FILE).write_text(text, encoding="utf-8")
-    print(f"wrote {CE_CASES_FILE}")
-    return 0
-
-
-def write_shadow_cases(chromium_json: Path) -> int:
-    """Writes the cases file of the shadow DOM probe from the `probe --json`
-    output in `chromium_json`."""
-    root = paths.repo_root()
-    probe = json.loads((root / SHADOW_PROBE_FILE).read_text(encoding="utf-8"))
-    chromium = json.loads(chromium_json.read_text(encoding="utf-8"))
-    text = render(probe, chromium, SHADOW_PROBE_FILE)
-    (root / SHADOW_CASES_FILE).write_text(text, encoding="utf-8")
-    print(f"wrote {SHADOW_CASES_FILE}")
-    return 0
-
-
-def write_top_layer_cases(chromium_json: Path) -> int:
-    """Writes the cases file of the top layer probe from the `probe --json`
-    output in `chromium_json`."""
-    root = paths.repo_root()
-    probe = json.loads((root / TOP_LAYER_PROBE_FILE).read_text(encoding="utf-8"))
-    chromium = json.loads(chromium_json.read_text(encoding="utf-8"))
-    text = render(probe, chromium, TOP_LAYER_PROBE_FILE)
-    (root / TOP_LAYER_CASES_FILE).write_text(text, encoding="utf-8")
-    print(f"wrote {TOP_LAYER_CASES_FILE}")
+    text = render(probe, chromium, probe_file)
+    (root / cases_file).write_text(text, encoding="utf-8")
+    print(f"wrote {cases_file}")
     return 0

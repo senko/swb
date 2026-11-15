@@ -148,6 +148,37 @@ pub fn this_platform(rt: &Runtime, call: &NativeCall, class: ClassId) -> Result<
     }
 }
 
+/// The `TypeError: Illegal invocation` of a failed brand check.
+pub fn illegal_invocation() -> Exception {
+    Exception::type_error("Illegal invocation")
+}
+
+/// The generic data of the platform object `this` as a `T`, or
+/// `TypeError: Illegal invocation` if `this` has other data.
+pub fn generic_data<T: swb_js::GenericData>(rt: &Runtime, this: Platform) -> Result<&T> {
+    match this.data {
+        swb_js::HostData::Generic(handle) => rt
+            .heap()
+            .generic::<T>(handle)
+            .map_err(|_| illegal_invocation()),
+        swb_js::HostData::Word(_) => Err(illegal_invocation()),
+    }
+}
+
+/// [`generic_data`] for changes.
+pub fn generic_data_mut<T: swb_js::GenericData>(
+    rt: &mut Runtime,
+    this: Platform,
+) -> Result<&mut T> {
+    match this.data {
+        swb_js::HostData::Generic(handle) => rt
+            .heap_mut()
+            .generic_mut::<T>(handle)
+            .map_err(|_| illegal_invocation()),
+        swb_js::HostData::Word(_) => Err(illegal_invocation()),
+    }
+}
+
 /// The error of a failed brand check: a cross-origin object as `this` gets the
 /// `SecurityError` (measured: `Document.prototype.title` of a cross-origin
 /// window), another value `error`.

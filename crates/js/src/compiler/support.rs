@@ -4,8 +4,9 @@
 //! `SyntaxError` "not supported yet (construct)" at the first such
 //! construct in the source. These are `import()` and `import.meta` (ADR
 //! 0034 sub-feature 3a-3): they need the host's loader and meta hook
-//! (`Runtime::set_module_hooks`), and the web layer installs none before
-//! sub-feature 3b-1, so its scripts keep the refusal.
+//! (`Runtime::set_module_hooks`). The web layer installs them
+//! (`web/src/scripts/module_hooks.rs`), the shell too; a runtime without them
+//! (some tests) keeps the refusal.
 
 use swb_js_syntax::{ExprKind, Script};
 

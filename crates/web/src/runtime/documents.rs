@@ -180,7 +180,9 @@ impl ScriptRuntime {
         .unwrap_or(true)
     }
 
-    /// [`ScriptRuntime::waits_for_style_sheets`] of the document `key`.
+    /// True if a script of the document `key` waits for style sheets that
+    /// block scripts (then the engine calls
+    /// [`ScriptRuntime::style_sheets_changed`] after each style sheet).
     pub fn waits_for_style_sheets_in(&self, key: DocumentKey) -> bool {
         self.read_document(key, |d| match d.scripts.phase {
             crate::scripts::Phase::Parsing => d.scripts.pending_parsing_blocking.is_some(),

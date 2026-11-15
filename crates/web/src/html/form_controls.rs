@@ -140,23 +140,23 @@ impl g::html_input_element::HTMLInputElementImpl for WebState {
     }
 
     fn selection_start(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<u32>> {
-        super::selection::selection_start(cx, this)
+        super::text_selection::selection_start(cx, this)
     }
 
     fn set_selection_start(cx: &mut Cx<'_>, this: NodeId, value: Option<u32>) -> b::Result<()> {
-        super::selection::set_selection_start(cx, this, value)
+        super::text_selection::set_selection_start(cx, this, value)
     }
 
     fn selection_end(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<u32>> {
-        super::selection::selection_end(cx, this)
+        super::text_selection::selection_end(cx, this)
     }
 
     fn set_selection_end(cx: &mut Cx<'_>, this: NodeId, value: Option<u32>) -> b::Result<()> {
-        super::selection::set_selection_end(cx, this, value)
+        super::text_selection::set_selection_end(cx, this, value)
     }
 
     fn selection_direction(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<String>> {
-        super::selection::selection_direction(cx, this)
+        super::text_selection::selection_direction(cx, this)
     }
 
     fn set_selection_direction(
@@ -164,15 +164,15 @@ impl g::html_input_element::HTMLInputElementImpl for WebState {
         this: NodeId,
         value: Option<String>,
     ) -> b::Result<()> {
-        super::selection::set_selection_direction(cx, this, value.as_deref())
+        super::text_selection::set_selection_direction(cx, this, value.as_deref())
     }
 
     fn select(cx: &mut Cx<'_>, this: NodeId) -> b::Result<()> {
-        super::selection::select(cx, this)
+        super::text_selection::select(cx, this)
     }
 
     fn set_range_text_1(cx: &mut Cx<'_>, this: NodeId, replacement: String) -> b::Result<()> {
-        super::selection::set_range_text_selection(cx, this, &replacement)
+        super::text_selection::set_range_text_selection(cx, this, &replacement)
     }
 
     fn set_range_text_2(
@@ -183,7 +183,7 @@ impl g::html_input_element::HTMLInputElementImpl for WebState {
         end: u32,
         selection_mode: g::types::SelectionMode,
     ) -> b::Result<()> {
-        super::selection::set_range_text(cx, this, &replacement, start, end, selection_mode)
+        super::text_selection::set_range_text(cx, this, &replacement, start, end, selection_mode)
     }
 
     fn set_selection_range(
@@ -193,7 +193,7 @@ impl g::html_input_element::HTMLInputElementImpl for WebState {
         end: u32,
         direction: Option<String>,
     ) -> b::Result<()> {
-        super::selection::set_selection_range(cx, this, start, end, direction.as_deref())
+        super::text_selection::set_selection_range(cx, this, start, end, direction.as_deref())
     }
 
     fn autocomplete(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {

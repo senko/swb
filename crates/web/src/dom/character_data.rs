@@ -10,23 +10,10 @@
 
 use swb_dom::{NodeData, NodeId};
 
-use super::{dom_result, next_element_sibling, previous_element_sibling, utf16_len};
+use super::{byte_index, dom_result, next_element_sibling, previous_element_sibling, utf16_len};
 use crate::bindings::{self as b, Cx, Exception};
 use crate::generated as g;
 use crate::state::{WebState, dom, dom_mut};
-
-/// The byte index of the UTF-16 `offset` in `text`, or none if it is past
-/// the end.
-fn byte_index(text: &str, offset: u32) -> Option<usize> {
-    let mut units = 0u32;
-    for (i, c) in text.char_indices() {
-        if units >= offset {
-            return Some(i);
-        }
-        units += u32::try_from(c.len_utf16()).unwrap_or(2);
-    }
-    (units >= offset).then_some(text.len())
-}
 
 /// The exception for an offset past the end of the data.
 fn offset_error(offset: u32, length: u32) -> Exception {

@@ -8,8 +8,7 @@
 //! and the module probes `web-module-scripts.json` (M9 feature 7) and
 //! `web-module-graph.json` (ADR 0034 sub-feature 3b-1: module graphs,
 //! their errors, top-level `await`, `import()`, `import.meta`); and the
-//! custom element probe `web-custom-elements.json` (ADR 0035; the cases of
-//! the later sub-features are listed in `CE_LATER`), the shadow DOM probe
+//! custom element probe `web-custom-elements.json` (ADR 0035), the shadow DOM probe
 //! `web-shadow-dom.json` (ADR 0036) and the top layer probe
 //! `web-top-layer.json` (ADR 0037; `TOP_LAYER_LATER` lists the cases of the
 //! sub-features after 6a).
@@ -708,10 +707,6 @@ const CE_DEPARTURES: &[Departure] = &[
     ),
 ];
 
-/// The cases of the custom element probe that later sub-features run (none
-/// since ADR 0035 sub-feature 4c).
-const CE_LATER: &[Later] = &[];
-
 const PARSER_PAUSE: &str = "the parser pauses for custom element reactions only between \
      tokens (html5ever's tree builder cannot stop inside a token): the reactions of the adoption \
      agency's moves at `</b>` run after the token, all of them before the next token. Chromium \
@@ -1159,7 +1154,7 @@ fn shadow_dom_probe_cases_match_chromium() {
 #[test]
 fn custom_element_probe_cases_match_chromium() {
     on_page_thread(|| {
-        let failures = failures_but_later(custom_element_cases::CASES, CE_DEPARTURES, CE_LATER, 3);
+        let failures = failures(custom_element_cases::CASES, CE_DEPARTURES, 3);
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     });
 }

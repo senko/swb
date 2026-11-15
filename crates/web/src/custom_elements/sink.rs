@@ -29,8 +29,8 @@ use std::rc::Rc;
 use swb_dom::{CustomElementState, Document, LocalName, NodeId, QualName, ns};
 
 use super::Callback;
-use super::reactions::{Args, Enqueued, Origin, Place, Reaction, Reactions};
-use crate::state::DocKey;
+use super::reactions::{Args, Enqueued, Origin, Reaction, Reactions};
+use crate::state::{DocKey, Place};
 
 /// What the sink needs to know of a definition (a Rust copy of the parts of
 /// the runtime's `Definition`).
@@ -185,7 +185,7 @@ impl Reactions {
         node: NodeId,
         old_document: NodeId,
     ) -> bool {
-        self.on_adopted_from(key, doc, node, (key, old_document))
+        self.on_adopted_from(key, doc, node, Place::new(key, old_document))
     }
 
     /// The reactions of an adoption of the subtree of `node` that came from
@@ -200,7 +200,7 @@ impl Reactions {
         if !doc.has_custom_names() {
             return false;
         }
-        let new = (key, doc.node_document(node));
+        let new = Place::new(key, doc.node_document(node));
         self.walk(key, doc, node, Walk::Adopt { old, new }) || self.work >= WORK_PER_CHECK
     }
 
@@ -253,7 +253,7 @@ impl Reactions {
             namespace: (name.ns != ns!()).then(|| name.ns.to_string()),
         };
         self.sink_enqueue(
-            (key, element),
+            Place::new(key, element),
             Reaction::Callback(Callback::AttributeChanged, args, Origin::Sink),
         )
     }
@@ -287,7 +287,7 @@ impl Reactions {
                 _ => None,
             };
             if let Some(reaction) = reaction {
-                attention |= self.sink_enqueue((key, node), reaction);
+                attention |= self.sink_enqueue(Place::new(key, node), reaction);
             }
         }
         self.work += visited;
@@ -322,17 +322,17 @@ impl Reactions {
         self.work += self.queues.len() + self.stack.len() + self.backup.len();
         let index: HashMap<NodeId, NodeId> = pairs.iter().copied().collect();
         let moved = |place: &mut Place| {
-            if place.0 == from
-                && let Some(&new) = index.get(&place.1)
+            if place.key == from
+                && let Some(&new) = index.get(&place.node)
             {
-                *place = (to, new);
+                *place = Place::new(to, new);
             }
         };
         let queues = std::mem::take(&mut self.queues);
         self.queued_docs.clear();
         for (mut place, pending) in queues {
             moved(&mut place);
-            *self.queued_docs.entry(place.0).or_default() += 1;
+            *self.queued_docs.entry(place.key).or_default() += 1;
             self.queues.insert(place, pending);
         }
         self.stack.iter_mut().for_each(moved);
@@ -389,9 +389,9 @@ mod tests {
         doc.append_child(root, a).unwrap();
         r.push();
         r.on_children(KEY, &doc, root, &[b, a], &[]);
-        assert_eq!(r.take((KEY, b)), Some(Reaction::Upgrade(2)));
+        assert_eq!(r.take(Place::new(KEY, b)), Some(Reaction::Upgrade(2)));
         assert_eq!(
-            r.take((KEY, a)),
+            r.take(Place::new(KEY, a)),
             Some(Reaction::Callback(
                 Callback::Connected,
                 Args::None,
@@ -401,18 +401,18 @@ mod tests {
         // Removal: only the custom element.
         r.on_children(KEY, &doc, root, &[], &[a, b]);
         assert_eq!(
-            r.take((KEY, a)),
+            r.take(Place::new(KEY, a)),
             Some(Reaction::Callback(
                 Callback::Disconnected,
                 Args::None,
                 Origin::Sink
             ))
         );
-        assert_eq!(r.take((KEY, b)), None);
+        assert_eq!(r.take(Place::new(KEY, b)), None);
         // A detached parent: nothing.
         let detached = doc.create_node(NodeData::DocumentFragment).unwrap();
         r.on_children(KEY, &doc, detached, &[a], &[]);
-        assert_eq!(r.take((KEY, a)), None);
+        assert_eq!(r.take(Place::new(KEY, a)), None);
     }
 
     /// An attribute change enqueues a callback only for a custom element
@@ -428,9 +428,9 @@ mod tests {
         r.on_attribute(KEY, &doc, a, &other, None);
         r.on_attribute(KEY, &doc, b, &name, Some("1"));
         let queue = r.pop();
-        assert_eq!(queue, vec![(KEY, a)]);
+        assert_eq!(queue, vec![Place::new(KEY, a)]);
         assert_eq!(
-            r.take((KEY, a)),
+            r.take(Place::new(KEY, a)),
             Some(Reaction::Callback(
                 Callback::AttributeChanged,
                 Args::Attribute {
@@ -449,13 +449,13 @@ mod tests {
     fn a_transplant_rekeys_the_queues() {
         let (_doc, mut r, _root, a, b) = setup();
         r.push();
-        r.enqueue((KEY, a), Reaction::Upgrade(1));
-        r.enqueue((KEY, b), Reaction::Upgrade(2));
+        r.enqueue(Place::new(KEY, a), Reaction::Upgrade(1));
+        r.enqueue(Place::new(KEY, b), Reaction::Upgrade(2));
         r.rekey(KEY, 7, &[(a, b)]);
         let queue = r.pop();
-        assert_eq!(queue, vec![(7, b), (KEY, b)]);
-        assert_eq!(r.take((7, b)), Some(Reaction::Upgrade(1)));
-        assert_eq!(r.take((KEY, b)), Some(Reaction::Upgrade(2)));
+        assert_eq!(queue, vec![Place::new(7, b), Place::new(KEY, b)]);
+        assert_eq!(r.take(Place::new(7, b)), Some(Reaction::Upgrade(1)));
+        assert_eq!(r.take(Place::new(KEY, b)), Some(Reaction::Upgrade(2)));
     }
 
     /// A transplant moves the reactions of the backup queue (no element
@@ -464,12 +464,12 @@ mod tests {
     fn a_transplant_rekeys_the_backup_queue() {
         let (_doc, mut r, _root, a, b) = setup();
         assert_eq!(
-            r.enqueue((KEY, a), Reaction::Upgrade(1)),
+            r.enqueue(Place::new(KEY, a), Reaction::Upgrade(1)),
             Enqueued::NeedsMicrotask
         );
         r.rekey(KEY, 7, &[(a, b)]);
-        assert_eq!(r.take_backup(), vec![(7, b)]);
-        assert_eq!(r.take((7, b)), Some(Reaction::Upgrade(1)));
+        assert_eq!(r.take_backup(), vec![Place::new(7, b)]);
+        assert_eq!(r.take(Place::new(7, b)), Some(Reaction::Upgrade(1)));
     }
 
     /// A transplant from a document with nothing queued costs nothing; one
@@ -479,14 +479,14 @@ mod tests {
     fn a_transplant_from_a_document_with_nothing_queued_is_free() {
         let (_doc, mut r, _root, a, b) = setup();
         r.push();
-        r.enqueue((KEY, a), Reaction::Upgrade(1));
+        r.enqueue(Place::new(KEY, a), Reaction::Upgrade(1));
         r.rekey(5, 6, &[(a, b)]);
         assert_eq!(r.work, 0);
         r.rekey(KEY, 7, &[(a, b)]);
         assert!(r.work > 0);
         assert_eq!(r.queued_docs.get(&7), Some(&1));
         assert_eq!(r.queued_docs.get(&KEY), None);
-        assert!(r.take((7, b)).is_some());
+        assert!(r.take(Place::new(7, b)).is_some());
         assert!(r.queued_docs.is_empty());
         // A stale entry of the old key does nothing.
         r.work = 0;

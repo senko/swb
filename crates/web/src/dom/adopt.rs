@@ -71,7 +71,7 @@ fn move_detached(
     attention_for_roots(rt)?;
     state::move_node_state(rt, document, &placed.pairs)?;
     // DOM "adopt": the callbacks of the nodes that came from another arena.
-    crate::custom_elements::adopted_from(rt, placed.root, (document, old_owner))?;
+    crate::custom_elements::adopted_from(rt, placed.root, state::Place::new(document, old_owner))?;
     put_controls(rt, controls, &placed.pairs)?;
     rt.check_time()?;
     Ok(placed.root)

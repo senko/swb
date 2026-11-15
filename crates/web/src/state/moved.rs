@@ -78,6 +78,21 @@ pub(crate) fn dom_of(rt: &Runtime, key: DocKey) -> VmResult<&Document> {
         .ok_or(VmError::type_error(NO_DOCUMENT))
 }
 
+/// The arena of document `key`, if the runtime has it now.
+pub(crate) fn arena_mut(rt: &mut Runtime, key: DocKey) -> Option<&mut Document> {
+    ensure_lent(rt, key).ok()?;
+    let state = rt.host_data_mut::<super::WebState>()?;
+    let record = super::document_mut(state, key)?;
+    Some(record.host.as_deref_mut()?.dom_mut())
+}
+
+/// The DOM of the document `key` after [`ensure_lent`], if the runtime has
+/// it now.
+pub(crate) fn dom_lent(rt: &mut Runtime, key: DocKey) -> Option<&Document> {
+    ensure_lent(rt, key).ok()?;
+    dom_of(rt, key).ok()
+}
+
 /// What belongs to the nodes of `pairs` (old id, new id) goes from the document
 /// `source` to the current one (ADR 0031 "Done (feature 12b2)"): each wrapper
 /// gets its new word and stays the same object, with its expandos; its

@@ -41,7 +41,7 @@ use crate::bindings::{self as b, Cx, Exception, Platform};
 use crate::generated as g;
 use crate::generated::types::{MutationCallback, MutationObserverInit};
 use crate::mutation_registry::{Options, Record, Registry, Shared, Sink};
-use crate::state::{WebState, dom_mut, state, state_mut};
+use crate::state::{Place, WebState, dom_mut, state, state_mut};
 
 /// The mutation observer state of the agent.
 pub(crate) struct MutationState {
@@ -154,33 +154,15 @@ impl GenericData for RecordData {
 }
 
 fn observer_data(rt: &Runtime, this: Platform) -> b::Result<&ObserverData> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap()
-            .generic::<ObserverData>(handle)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    b::glue::generic_data::<ObserverData>(rt, this)
 }
 
 fn record_data(rt: &Runtime, this: Platform) -> b::Result<&RecordData> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap()
-            .generic::<RecordData>(handle)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    b::glue::generic_data::<RecordData>(rt, this)
 }
 
 fn record_data_mut(rt: &mut Runtime, this: Platform) -> b::Result<&mut RecordData> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap_mut()
-            .generic_mut::<RecordData>(handle)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    b::glue::generic_data_mut::<RecordData>(rt, this)
 }
 
 /// Called by the glue after each native call and by the microtask
@@ -586,10 +568,11 @@ impl g::mutation_observer::MutationObserverImpl for WebState {
         crate::state::leave(cx.rt, entered);
         installed?;
         let mutation = &mut state_mut(cx.rt)?.mutation;
-        mutation
-            .registry
-            .borrow_mut()
-            .observe(id, (target.document, target.node), options);
+        mutation.registry.borrow_mut().observe(
+            id,
+            Place::new(target.document, target.node),
+            options,
+        );
         mutation.kept.insert(id, this.object);
         Ok(())
     }

@@ -62,7 +62,10 @@
 //!   element interfaces),
 //!   `mutation_observer` with `mutation_registry`, `intersection_observer`
 //!   and `resize_observer`, and `image_events` (the `load` and
-//!   `error` events of images and style sheets).
+//!   `error` events of images and style sheets). Inside `html`: `popover`
+//!   and `dialog` (the popover and dialog algorithms for scripts, the top
+//!   layer: ADR 0037), `text_selection` (the selection of text controls)
+//!   and `selection_events` (the `selectionchange` event).
 //! - CSS for scripts: `cssom` (`element.style`, `CSS`), `cssom_view`
 //!   (geometry, scrolling, `screen`), and `dom_matrix` over `matrix`
 //!   (`DOMMatrix`, `DOMPoint`).
@@ -85,7 +88,8 @@
 //!   `originAgentCluster`), `cssom_sheets` (`document.styleSheets` and the
 //!   rules of a sheet), `node_iterator` (`NodeIterator`, `NodeFilter`),
 //!   `tree_walker` (`TreeWalker`), `range` (`AbstractRange`, `StaticRange`,
-//!   `Range`),
+//!   `Range`), `selection` (`Selection`, `getSelection`), `adopted`
+//!   (`adoptedStyleSheets` of documents and shadow roots),
 //!   `message_port` and `messaging` (`MessageChannel`, `MessagePort`,
 //!   `postMessage` across runtimes), `storage_events` (the `storage` event)
 //!   and `page_budget` (the budgets that the runtimes of a page share).

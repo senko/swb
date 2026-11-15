@@ -40,9 +40,9 @@ use std::collections::HashMap;
 
 pub(crate) use body::utf8_text;
 
-use swb_js::{Gc, HostData, Object, Runtime, ThrowKind, Tracer, Value, VmResult};
+use swb_js::{Gc, Object, Runtime, ThrowKind, Tracer, Value, VmResult};
 
-use crate::bindings::{self as b, Cx, Exception, Platform};
+use crate::bindings::{self as b, Cx, Exception};
 use crate::generated::types::RequestInit;
 use crate::state::{engine_mut, state_mut};
 
@@ -112,30 +112,7 @@ impl Fetches {
     }
 }
 
-/// The data of a platform object `this` as a `T`.
-pub(super) fn generic<T: swb_js::GenericData>(rt: &Runtime, this: Platform) -> b::Result<&T> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap()
-            .generic::<T>(handle)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
-}
-
-/// [`generic`] for changes.
-pub(super) fn generic_mut<T: swb_js::GenericData>(
-    rt: &mut Runtime,
-    this: Platform,
-) -> b::Result<&mut T> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap_mut()
-            .generic_mut::<T>(handle)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
-}
+pub(super) use crate::bindings::glue::{generic_data as generic, generic_data_mut as generic_mut};
 
 /// `value` parsed against the document's base URL and serialized, or
 /// `None` if it does not parse.

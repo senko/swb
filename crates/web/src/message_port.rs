@@ -322,10 +322,6 @@ fn ports_of(rt: &Runtime) -> VmResult<Rc<Ports>> {
     Ok(Rc::clone(&state(rt)?.ports))
 }
 
-fn illegal() -> Exception {
-    Exception::type_error("Illegal invocation")
-}
-
 /// A new `MessagePort` object for `id` in `realm`.
 fn new_port_object(
     rt: &mut Runtime,
@@ -494,14 +490,8 @@ impl g::message_channel::MessageChannelImpl for WebState {
 
 /// The two ports of the channel `this`.
 fn channel(rt: &Runtime, this: Platform) -> b::Result<(Gc<Object>, Gc<Object>)> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap()
-            .generic::<ChannelData>(handle)
-            .map(|data| (data.port1, data.port2))
-            .map_err(|_| illegal()),
-        HostData::Word(_) => Err(illegal()),
-    }
+    let data = b::glue::generic_data::<ChannelData>(rt, this)?;
+    Ok((data.port1, data.port2))
 }
 
 // ----- MessagePort -----
@@ -531,7 +521,7 @@ impl g::message_port::MessagePortImpl for WebState {
 
     fn close(cx: &mut Cx<'_>, this: Platform) -> b::Result<()> {
         let Some(info) = port_info(cx.rt, this.object) else {
-            return Err(illegal());
+            return Err(b::glue::illegal_invocation());
         };
         if !info.detached {
             let ports = ports_of(cx.rt)?;
@@ -556,7 +546,7 @@ impl g::message_port::MessagePortImpl for WebState {
 /// is delivered or dropped.
 fn post(cx: &mut Cx<'_>, this: Platform, message: Value, transfer: &[Gc<Object>]) -> b::Result<()> {
     let Some(info) = port_info(cx.rt, this.object) else {
-        return Err(illegal());
+        return Err(b::glue::illegal_invocation());
     };
     let ports = ports_of(cx.rt)?;
     ports.hub.reap();

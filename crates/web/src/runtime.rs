@@ -30,6 +30,7 @@ use crate::event_loop::Task;
 use crate::events::{DispatchTarget, TrustedEvent};
 use crate::generated as g;
 use crate::host::{EngineHost, FrameHost};
+use crate::html::popover::ToggleKind;
 use crate::state::{DocState, WebState, state_mut};
 
 mod documents;
@@ -761,13 +762,16 @@ impl ScriptRuntime {
             Task::Toggle { node, serial } => self.task("the event 'toggle'", |rt| {
                 set_listener_checkpoints(rt, true);
                 let result =
-                    crate::html::popover::toggle_task(rt, node, serial).map_err(task_error);
+                    crate::html::popover::toggle_task(rt, ToggleKind::Popover, node, serial)
+                        .map_err(task_error);
                 set_listener_checkpoints(rt, false);
                 result
             }),
             Task::DialogToggle { node, serial } => self.task("the event 'toggle'", |rt| {
                 set_listener_checkpoints(rt, true);
-                let result = crate::html::dialog::toggle_task(rt, node, serial).map_err(task_error);
+                let result =
+                    crate::html::popover::toggle_task(rt, ToggleKind::Dialog, node, serial)
+                        .map_err(task_error);
                 set_listener_checkpoints(rt, false);
                 result
             }),

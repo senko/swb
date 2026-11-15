@@ -19,7 +19,7 @@
 //! `NaN`); `calc()` is not accepted in a matrix string; `DOMQuad` and the
 //! SVG point and matrix interfaces are not in swb.
 
-use swb_js::{Gc, GenericData, HostData, Object, Runtime, Tracer, Value, VmResult};
+use swb_js::{Gc, GenericData, Object, Runtime, Tracer, Value, VmResult};
 
 use crate::bindings::{self as b, Cx, Exception, Platform};
 use crate::generated as g;
@@ -64,64 +64,29 @@ fn new_point(rt: &mut Runtime, realm: u32, point: [f64; 4]) -> VmResult<Gc<Objec
     rt.new_host_object(realm, g::DOM_POINT, data)
 }
 
-fn illegal_invocation() -> Exception {
-    Exception::type_error("Illegal invocation")
-}
-
 /// The matrix of `this`.
 fn matrix_of(rt: &Runtime, this: Platform) -> b::Result<Matrix> {
-    match this.data {
-        HostData::Generic(handle) => Ok(rt
-            .heap()
-            .generic::<MatrixData>(handle)
-            .map_err(|_| illegal_invocation())?
-            .0),
-        HostData::Word(_) => Err(illegal_invocation()),
-    }
+    Ok(b::glue::generic_data::<MatrixData>(rt, this)?.0)
 }
 
 /// Changes the matrix of `this`.
 fn change_matrix(rt: &mut Runtime, this: Platform, f: impl FnOnce(&mut Matrix)) -> b::Result<()> {
-    match this.data {
-        HostData::Generic(handle) => {
-            let data = rt
-                .heap_mut()
-                .generic_mut::<MatrixData>(handle)
-                .map_err(|_| illegal_invocation())?;
-            f(&mut data.0);
-            Ok(())
-        }
-        HostData::Word(_) => Err(illegal_invocation()),
-    }
+    f(&mut b::glue::generic_data_mut::<MatrixData>(rt, this)?.0);
+    Ok(())
 }
 
 /// The point of `this`.
 fn point_of(rt: &Runtime, this: Platform) -> b::Result<[f64; 4]> {
-    match this.data {
-        HostData::Generic(handle) => Ok(rt
-            .heap()
-            .generic::<PointData>(handle)
-            .map_err(|_| illegal_invocation())?
-            .0),
-        HostData::Word(_) => Err(illegal_invocation()),
-    }
+    Ok(b::glue::generic_data::<PointData>(rt, this)?.0)
 }
 
 /// Changes one value of the point of `this`.
 fn set_point(rt: &mut Runtime, this: Platform, index: usize, value: f64) -> b::Result<()> {
-    match this.data {
-        HostData::Generic(handle) => {
-            let data = rt
-                .heap_mut()
-                .generic_mut::<PointData>(handle)
-                .map_err(|_| illegal_invocation())?;
-            if let Some(slot) = data.0.get_mut(index) {
-                *slot = value;
-            }
-            Ok(())
-        }
-        HostData::Word(_) => Err(illegal_invocation()),
+    let data = b::glue::generic_data_mut::<PointData>(rt, this)?;
+    if let Some(slot) = data.0.get_mut(index) {
+        *slot = value;
     }
+    Ok(())
 }
 
 // ----- Creating matrices -----

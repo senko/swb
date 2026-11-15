@@ -20,24 +20,30 @@ Early development. JavaScript is off by default.
   positioning, 2D transforms, masks, filters and `backdrop-filter`, scroll
   containers, `aspect-ratio`, web fonts (WOFF2, variable fonts), inline SVG
   and SVG images, responsive and lazy images, video posters, CSS counters,
-  quirks mode, and `iframe` documents (also with JavaScript off).
+  cascade layers (`@layer`), container queries, `@property`, the top layer
+  (popovers and dialogs), quirks mode, and `iframe` documents (also with
+  JavaScript off).
 - Interaction: links, scrolling, back/forward, the address bar, hover
   effects, keyboard focus (Tab), text selection with copy, forms (GET and
   POST), cookies, and `details` menus.
 - JavaScript (turn it on with the toolbar's JS button, Ctrl+Shift+J or
-  `--js`): a JavaScript engine of its own (`crates/js*`; 40,574 tests of
+  `--js`): a JavaScript engine of its own (`crates/js*`; 41,842 tests of
   its test262 subset pass), the DOM and many web APIs (events, scripts in
   the parser and `document.write`, the CSS object model, `fetch` and
   `XMLHttpRequest`, storage, observers, `Intl` for English), module
-  scripts that import nothing, and frames, with one script runtime per
-  origin and `postMessage` between them. Not done: modules that import
-  other modules, workers, `window.open` and tabs, media playback.
-- Six target pages match Chromium: senko.net, Hacker News, a Wikipedia
-  article, a Craigslist posting, and the Ars Technica and BBC front
-  pages. Hacker News, Wikipedia, Craigslist, Ars Technica and BBC also
-  work with JavaScript on, with the interactions that
+  scripts with static and dynamic imports and import maps, custom
+  elements, shadow DOM, popovers and dialogs, `Range` and `Selection`,
+  `TreeWalker`, and frames, with one script runtime per origin and
+  `postMessage` between them. Not done: workers, `window.open` and tabs,
+  media playback, CSS anchor positioning.
+- Seven target pages match Chromium: senko.net, Hacker News, a Wikipedia
+  article, a Craigslist posting, the Ars Technica and BBC front pages,
+  and the front page of this repository on GitHub. Hacker News,
+  Wikipedia, Craigslist, Ars Technica, BBC and GitHub also work with
+  JavaScript on, with the interactions that
   [docs/targets.md](docs/targets.md) lists (menus, dialogs, consent
-  banners, carousels, the map of the Craigslist posting).
+  banners, carousels, the map of the Craigslist posting, GitHub's header
+  menus, Code popover, branch selector and file finder).
 
 See [docs/roadmap.md](docs/roadmap.md) and [docs/targets.md](docs/targets.md).
 

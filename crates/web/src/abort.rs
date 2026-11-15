@@ -388,14 +388,7 @@ impl g::abort_controller::AbortControllerImpl for WebState {
 
 /// The signal of the controller `this`.
 fn controller(rt: &Runtime, this: Platform) -> b::Result<Gc<Object>> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap()
-            .generic::<ControllerData>(handle)
-            .map(|data| data.signal)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    Ok(b::glue::generic_data::<ControllerData>(rt, this)?.signal)
 }
 
 impl g::abort_signal::AbortSignalImpl for WebState {

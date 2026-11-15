@@ -23,7 +23,7 @@
 //! - `inner_text.rs`: `innerText` and `outerText` (feature 7b2);
 //! - `validation.rs`: constraint validation (`validity`,
 //!   `checkValidity()`, `invalid` events, ...) and `labels` (feature 9b2);
-//! - `selection.rs`: the selection members of `input` and `textarea`
+//! - `text_selection.rs`: the selection members of `input` and `textarea`
 //!   (feature 9b1);
 //! - `selection_events.rs`: their `select` and `selectionchange` events
 //!   (feature 9b2);
@@ -49,10 +49,10 @@ mod hyperlink;
 mod inner_text;
 mod owner;
 pub(crate) mod popover;
-mod selection;
 pub(crate) mod selection_events;
 mod slot;
 mod tables;
+mod text_selection;
 mod token_lists;
 pub(crate) mod validation;
 

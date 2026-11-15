@@ -11,10 +11,10 @@
 use swb_dom::{ClosedBy, NodeId, QualName, ns};
 use swb_js::{Runtime, VmResult};
 
-use super::popover::WebHost;
+use super::popover::{ToggleKind, WebHost, queue_toggle_task};
 use crate::bindings::{self as b, Cx};
 use crate::event_loop::Task;
-use crate::events::{DispatchTarget, EventInterface, TrustedEvent, fire_trusted};
+use crate::events::{DispatchTarget, TrustedEvent, fire_trusted};
 use crate::generated as g;
 use crate::state::{WebState, dom, dom_mut, state_mut};
 
@@ -64,6 +64,62 @@ impl g::html_dialog_element::HTMLDialogElementImpl for WebState {
     }
 }
 
+/// The dialog steps of [`WebHost`] (its `TopLayerHost` methods call them).
+impl WebHost<'_> {
+    pub(super) fn focus_dialog_steps(&mut self, dialog: NodeId) -> bool {
+        if self.error.is_some() {
+            return false;
+        }
+        match super::focus::focus_dialog(self.rt, dialog) {
+            Ok(focused) => focused,
+            Err(error) => {
+                self.error = Some(error);
+                false
+            }
+        }
+    }
+
+    pub(super) fn set_open_attribute(&mut self, dialog: NodeId, open: bool) -> bool {
+        if self.error.is_some() {
+            return false;
+        }
+        match set_open(self.rt, dialog, open) {
+            Ok(()) => true,
+            Err(error) => {
+                self.error = Some(error);
+                false
+            }
+        }
+    }
+
+    pub(super) fn fire_cancel_event(&mut self, dialog: NodeId, cancelable: bool) -> Option<bool> {
+        if self.error.is_some() {
+            return None;
+        }
+        let mut event = TrustedEvent::new("cancel");
+        event.cancelable = cancelable;
+        match fire_trusted(self.rt, DispatchTarget::Node(dialog), &event) {
+            Ok(proceed) => Some(proceed),
+            Err(error) => {
+                self.error = Some(error);
+                None
+            }
+        }
+    }
+
+    pub(super) fn queue_dialog_toggle(&mut self, dialog: NodeId, serial: u64) {
+        if let Err(error) = queue_toggle_task(self.rt, ToggleKind::Dialog, dialog, serial) {
+            self.error.get_or_insert(error);
+        }
+    }
+
+    pub(super) fn queue_close(&mut self, dialog: NodeId) {
+        if let Err(error) = queue_close_task(self.rt, dialog) {
+            self.error.get_or_insert(error);
+        }
+    }
+}
+
 /// Sets or removes the `open` attribute of `dialog` for the dialog
 /// algorithms, as a script's change (mutation records, custom element
 /// reactions, `Attr` objects).
@@ -80,25 +136,6 @@ pub(crate) fn set_open(rt: &mut Runtime, dialog: NodeId, open: bool) -> VmResult
     }
 }
 
-/// Queues the dialog `toggle` task of `dialog` at the end and removes the
-/// one that waits (HTML "queue a dialog toggle event task").
-pub(crate) fn queue_toggle_task(rt: &mut Runtime, dialog: NodeId, serial: u64) -> VmResult<()> {
-    let now = crate::event_loop::page_now(rt);
-    let state = state_mut(rt)?;
-    if let Some(old) = state.doc.dialog_toggle_tasks.remove(&dialog) {
-        state.event_loop.tasks.remove(old);
-    }
-    let key = state.event_loop.tasks.push(
-        now,
-        Task::DialogToggle {
-            node: dialog,
-            serial,
-        },
-    );
-    state.doc.dialog_toggle_tasks.insert(dialog, key);
-    Ok(())
-}
-
 /// Queues the task that fires `close` at `dialog`.
 pub(crate) fn queue_close_task(rt: &mut Runtime, dialog: NodeId) -> VmResult<()> {
     let now = crate::event_loop::page_now(rt);
@@ -107,29 +144,6 @@ pub(crate) fn queue_close_task(rt: &mut Runtime, dialog: NodeId) -> VmResult<()>
         .tasks
         .push(now, Task::DialogClose(dialog));
     Ok(())
-}
-
-/// The dialog `toggle` task of `dialog`: fires `toggle` with the coalesced
-/// states, unless a later change replaced the task.
-pub(crate) fn toggle_task(rt: &mut Runtime, dialog: NodeId, serial: u64) -> VmResult<()> {
-    state_mut(rt)?.doc.dialog_toggle_tasks.remove(&dialog);
-    let Some(toggle) = dom_mut(rt)?.take_dialog_toggle(dialog, serial) else {
-        return Ok(());
-    };
-    // A node that went to another arena is an empty comment here.
-    if dom(rt)?.element(dialog).is_none() {
-        return Ok(());
-    }
-    let mut event = TrustedEvent::new("toggle");
-    event.interface = EventInterface::Toggle {
-        old: toggle.old,
-        new: toggle.new,
-        source: toggle
-            .source
-            .filter(|&s| dom(rt).is_ok_and(|d| d.element(s).is_some())),
-        foreign: None,
-    };
-    fire_trusted(rt, DispatchTarget::Node(dialog), &event).map(|_| ())
 }
 
 /// The `close` task of `dialog`: an `Event` that does not bubble and cannot

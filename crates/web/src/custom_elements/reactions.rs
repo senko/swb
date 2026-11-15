@@ -27,10 +27,7 @@ use swb_dom::{LocalName, NodeId};
 use swb_js::{NativeCall, NativeReturn, Runtime, ScriptError, Value, VmError, VmResult};
 
 use super::Callback;
-use crate::state::{DocKey, state, state_mut};
-
-/// An element of a document of the runtime.
-pub(crate) type Place = (DocKey, NodeId);
+use crate::state::{DocKey, Place, state, state_mut};
 
 /// The most nested reaction invocations and synchronous constructions
 /// (Chromium 148, measured: cases `reactions-depth-limit`,
@@ -219,7 +216,7 @@ impl Reactions {
         match self.queues.entry(place) {
             Entry::Vacant(slot) => {
                 slot.insert(Pending::One(reaction));
-                *self.queued_docs.entry(place.0).or_default() += 1;
+                *self.queued_docs.entry(place.key).or_default() += 1;
             }
             Entry::Occupied(mut slot) => {
                 let pending = slot.get_mut();
@@ -251,7 +248,7 @@ impl Reactions {
         let reaction = match self.queues.get_mut(&place)? {
             Pending::One(_) => match self.queues.remove(&place) {
                 Some(Pending::One(reaction)) => {
-                    self.forget_queue(place.0);
+                    self.forget_queue(place.key);
                     Some(reaction)
                 }
                 _ => None,
@@ -260,7 +257,7 @@ impl Reactions {
                 let reaction = queue.pop_front();
                 if queue.is_empty() {
                     self.queues.remove(&place);
-                    self.forget_queue(place.0);
+                    self.forget_queue(place.key);
                 }
                 reaction
             }
@@ -483,8 +480,8 @@ fn call_callback(
     args: Args,
     origin: Origin,
 ) -> VmResult<()> {
-    let entered = crate::state::switch_if_other(rt, place.0)?;
-    let result = call_callback_here(rt, place.1, callback, args, origin);
+    let entered = crate::state::switch_if_other(rt, place.key)?;
+    let result = call_callback_here(rt, place.node, callback, args, origin);
     crate::state::leave(rt, entered);
     result
 }
@@ -535,7 +532,7 @@ fn call_callback_here(
         }
         Args::Adopted { old, new } => {
             let mut values = Vec::with_capacity(2);
-            for (key, node) in [old, new] {
+            for Place { key, node } in [old, new] {
                 let entered = crate::state::switch_if_other(rt, key)?;
                 let wrapper = crate::state::wrap_node_with_proto(rt, node, None);
                 crate::state::leave(rt, entered);
@@ -600,7 +597,10 @@ mod tests {
     use super::*;
 
     fn place(i: usize) -> Place {
-        (0, NodeId::from_index(i).unwrap())
+        Place {
+            key: 0,
+            node: NodeId::from_index(i).unwrap(),
+        }
     }
 
     fn connected() -> Reaction {

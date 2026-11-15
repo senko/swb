@@ -27,6 +27,7 @@ use std::time::Duration;
 use serde_json::Value;
 use swb_engine::{Page, Size, Url};
 
+use common::probe_rows::{box_row, number, viewport_of};
 use common::{OnePage, answer, differences, new_page, on_page_threads, repo_root};
 
 /// The cases that wait for a later sub-feature: (case, why).
@@ -47,10 +48,6 @@ fn open(html: &str, size: Size) -> Page {
     page.navigate(Url::parse(PAGE).unwrap());
     assert!(page.wait_until_loaded(Duration::from_secs(20)));
     page
-}
-
-fn number(v: &Value) -> f64 {
-    v.as_f64().unwrap()
 }
 
 /// The `js` row: swb's answer to the expression against Chromium's.
@@ -82,46 +79,6 @@ fn close(a: &Value, b: &Value) -> bool {
     }
 }
 
-/// The `boxes` row: the border box of the element with the index in
-/// document order, or no box (`rect` is null).
-fn check_box(case: &str, row: usize, page: &mut Page, result: &Value) -> Vec<String> {
-    let index = result["index"].as_u64().unwrap();
-    let expression = format!(
-        "(() => {{ const e = document.querySelectorAll('*')[{index}]; const r = e.getBoundingClientRect(); return [e.localName, e.getClientRects().length, r.x + scrollX, r.y + scrollY, r.width, r.height]; }})()"
-    );
-    let got = answer(page, &expression);
-    let tag_ok = got.get(0) == Some(&result["tag"]);
-    let has_box = got.get(1).and_then(Value::as_u64).unwrap_or(0) > 0;
-    let ok = tag_ok
-        && match result["rect"].as_array() {
-            None => !has_box,
-            Some(want) => {
-                has_box
-                    && got
-                        .as_array()
-                        .unwrap()
-                        .iter()
-                        .skip(2)
-                        .zip(want)
-                        .all(|(a, b)| {
-                            (a.as_f64().unwrap_or(f64::NAN) - number(b)).abs() <= TOLERANCE
-                        })
-            }
-        };
-    if ok {
-        return Vec::new();
-    }
-    vec![format!(
-        "{case} #{row} {}: swb {got}, Chromium {} {}",
-        result["label"], result["tag"], result["rect"]
-    )]
-}
-
-fn viewport_of(results: &Value) -> Size {
-    let viewport = results["viewport"].as_array().unwrap();
-    Size::new(number(&viewport[0]) as f32, number(&viewport[1]) as f32)
-}
-
 /// The probe file and Chromium's answers.
 fn load_cases() -> (&'static [Value], &'static [Value]) {
     let probe: &'static Value = Box::leak(Box::new(
@@ -150,7 +107,9 @@ fn run_case(case: &'static Value, results: &'static Value) -> Vec<String> {
     for (row, result) in results["results"].as_array().unwrap().iter().enumerate() {
         failures.extend(match result["kind"].as_str().unwrap() {
             "js" => check_js(name, row, &mut page, result),
-            "boxes" => check_box(name, row, &mut page, result),
+            "boxes" => box_row(name, row, &mut page, result, TOLERANCE)
+                .into_iter()
+                .collect(),
             other => vec![format!("{name} #{row}: unknown kind {other}")],
         });
     }

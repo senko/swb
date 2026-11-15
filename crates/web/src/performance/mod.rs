@@ -273,13 +273,7 @@ impl PerfState {
 }
 
 fn entry_data(rt: &Runtime, this: Platform) -> b::Result<&EntryData> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap()
-            .generic::<EntryData>(handle)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    b::glue::generic_data::<EntryData>(rt, this)
 }
 
 /// The kind, name and start of an entry object.

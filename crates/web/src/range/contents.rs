@@ -16,7 +16,7 @@
 use swb_dom::{LiveRange, NodeData, NodeId, local_name};
 use swb_js::{Gc, Object, Runtime};
 
-use super::{arena_or_error, current, illegal, no_parent_error, store};
+use super::{arena_or_error, current, no_parent_error, store};
 use crate::bindings::{self as b, Cx, Exception, NodeRef, Platform};
 use crate::custom_elements::upgrade;
 use crate::dom::{cloning_steps, dom_result, node_name, tree_ops};
@@ -225,7 +225,7 @@ pub(super) fn surround_contents(
         let new_parent = new_parent.refreshed(cx.rt).unwrap_or(new_parent);
         let range = arena_or_error(cx.rt, key)?
             .live_range(id)
-            .ok_or_else(illegal)?;
+            .ok_or_else(b::glue::illegal_invocation)?;
         let placed = insert_at(cx.rt, id, range, new_parent)?;
         tree_ops::pre_insert(cx, placed, fragment, None)?;
         let dom = dom(cx.rt)?;

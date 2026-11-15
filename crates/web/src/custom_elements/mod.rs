@@ -13,10 +13,13 @@
 //! - `constructor.rs`: the HTML element constructors (`[HTMLConstructor]`)
 //!   with the construction stack of each definition; `create.rs`: "create an
 //!   element" with the synchronous custom elements flag (`createElement`,
-//!   `createElementNS`); `upgrade.rs`: the upgrade, "try to upgrade" and the
-//!   upgrade candidates of a new definition; `reactions.rs`: the custom
-//!   element reactions (the element queues, the reactions stack, the backup
-//!   element queue, the invocation with its nesting limit).
+//!   `createElementNS`, and the parser's synchronous construction,
+//!   `parser_custom_element`); `upgrade.rs`: the upgrade, "try to upgrade"
+//!   and the upgrade candidates of a new definition; `reactions.rs`: the
+//!   custom element reactions (the element queues, the reactions stack, the
+//!   backup element queue, the invocation with its nesting limit);
+//!   `sink.rs`: the reactions of DOM changes, which the document's mutation
+//!   sink enqueues.
 //!
 //! Only the window's document has a registry: a document of
 //! `createHTMLDocument`, `DOMParser` or template contents has none (measured,
@@ -42,7 +45,7 @@ use std::rc::Rc;
 use swb_dom::{LocalName, NodeId};
 use swb_js::{Gc, Object, Runtime, Tracer, VmError, VmResult};
 
-use crate::state::{DocKey, state, state_mut};
+use crate::state::{DocKey, Place, state, state_mut};
 
 pub(crate) use reactions::Reactions;
 pub(crate) use registry::registry_object;
@@ -109,15 +112,15 @@ pub(crate) enum StackEntry {
 
 impl StackEntry {
     /// The element of the entry.
-    pub(crate) fn place(self) -> reactions::Place {
+    pub(crate) fn place(self) -> Place {
         match self {
             StackEntry::Element(key, node) | StackEntry::AlreadyConstructed(key, node) => {
-                (key, node)
+                Place { key, node }
             }
         }
     }
 
-    fn with_place(self, (key, node): reactions::Place) -> StackEntry {
+    fn with_place(self, Place { key, node }: Place) -> StackEntry {
         match self {
             StackEntry::Element(..) => StackEntry::Element(key, node),
             StackEntry::AlreadyConstructed(..) => StackEntry::AlreadyConstructed(key, node),
@@ -152,11 +155,11 @@ impl Definition {
     /// construction stack follow them.
     pub(crate) fn rekey_stack(&mut self, from: DocKey, to: DocKey, pairs: &[(NodeId, NodeId)]) {
         for entry in &mut self.construction_stack {
-            let (key, node) = entry.place();
+            let Place { key, node } = entry.place();
             if key == from
                 && let Some(&(_, new)) = pairs.iter().find(|(old, _)| *old == node)
             {
-                *entry = entry.with_place((to, new));
+                *entry = entry.with_place(Place { key: to, node: new });
             }
         }
     }
@@ -307,7 +310,7 @@ pub(crate) fn look_up(rt: &Runtime, document: NodeId, local: &LocalName) -> Opti
 
 /// DOM "adopt" for a subtree that came from the document node `old` (of
 /// another arena): `adoptedCallback` reactions for its custom elements.
-pub(crate) fn adopted_from(rt: &mut Runtime, root: NodeId, old: reactions::Place) -> VmResult<()> {
+pub(crate) fn adopted_from(rt: &mut Runtime, root: NodeId, old: Place) -> VmResult<()> {
     if !any_definitions(rt) {
         return Ok(());
     }

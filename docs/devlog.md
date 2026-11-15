@@ -4,6 +4,47 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-15: M10 maintenance; end of M10
+
+- Two read-only reviewers (the script layer: `web`, `webidl`, `js*`; the
+  rest: DOM, rendering, engine, tools, docs) listed 24 items and no bug. One
+  implementer session applied 19 of them (three in part) and I applied two,
+  without a change of behaviour:
+  - Dead code: the pre-graph module path (`Runtime::eval_module_at` and
+    four helpers). Its tests run through the module records with one
+    helper (`tests/common::eval_module`); the refusal of requests and
+    top-level `await` had no subject left and became a test that they
+    parse. `ScriptRuntime::waits_for_style_sheets`, `CE_LATER`.
+  - Duplicates: one brand check for generic host data
+    (`bindings::glue::generic_data`, about 25 copies); one toggle task for
+    popovers and dialogs (`popover::ToggleKind`); one `state::Place`; the
+    UTF-16 offset helpers of `Range` and the form controls; the probe rows
+    of seven engine tests (`tests/common/probe_rows.rs`); `swbtools`
+    writes the five probe case files with one function.
+  - Names and splits: `html/selection.rs` is `html/text_selection.rs` (the
+    `Selection` API is `selection.rs`); `dom/top_layer/popover.rs`,
+    `style/cascade/scoping.rs` and `layout/inline/lines.rs` moved out of
+    their large files without a change; the hostile cases of
+    `write_cssom_modules.py` are in four modules (516 case names, same
+    order).
+  - Docs: docs/testing.md lists the tests and probes of M10 that had no
+    row, and says why `tools/github_swb_records.py` is not in the package;
+    ADR 0035 notes that no probe case waits since 4c.
+- README: the rendering and script features of M10, the seven targets and
+  GitHub's interactions with JavaScript on. docs/targets.md: GitHub is
+  `done`.
+- Proof of no behaviour change: JS-off snapshot identical (370 files);
+  `compare --all --js` equal to the base (Ars Technica gives pixels 0.9901
+  or 0.9891 from run to run with both binaries); hostile set 516 cases, all
+  ok except the known `nest-div-100000`; test262 41,842 pass; the
+  generated bindings and probe test cases unchanged.
+- Skipped: a four-line copy of `ToUint32`; the long functions that the
+  review named are under clippy's limit. Left: split
+  `hostile_cases/dom.py`; `node_iterator::AwayPointers` as a `Place`; a
+  `VmError` brand-check helper for the other 20 copies.
+
+Next: the owner reviews the GitHub target and chooses the next milestone.
+
 ## 2026-11-15: M10 4c: custom elements in the parser (feature 4 complete)
 
 - A token sink between html5ever's tokenizer and tree builder reads one

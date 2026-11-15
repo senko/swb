@@ -92,6 +92,20 @@ pub(crate) type WindowNames = HashMap<String, (NodeId, u8)>;
 /// first document has the key 0.
 pub(crate) type DocKey = u32;
 
+/// A node and the document of the runtime whose arena holds it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct Place {
+    pub(crate) key: DocKey,
+    pub(crate) node: NodeId,
+}
+
+impl Place {
+    /// The node `node` of the document `key`.
+    pub(crate) fn new(key: DocKey, node: NodeId) -> Place {
+        Place { key, node }
+    }
+}
+
 /// The binding state of a runtime: what belongs to the agent.
 #[derive(Default)]
 pub(crate) struct WebState {

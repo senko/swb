@@ -72,9 +72,22 @@ pub(crate) fn dom_result<T>(rt: &mut Runtime, result: Result<T, DomError>) -> b:
 }
 
 /// The number of UTF-16 code units of `text` (the length of a DOM string).
-fn utf16_len(text: &str) -> u32 {
+pub(crate) fn utf16_len(text: &str) -> u32 {
     let units: usize = text.chars().map(char::len_utf16).sum();
     u32::try_from(units).unwrap_or(u32::MAX)
+}
+
+/// The byte index of the UTF-16 `offset` in `text` (rounded up to the end
+/// of a character that it falls inside), or none if it is past the end.
+pub(crate) fn byte_index(text: &str, offset: u32) -> Option<usize> {
+    let mut units = 0u32;
+    for (i, c) in text.char_indices() {
+        if units >= offset {
+            return Some(i);
+        }
+        units += u32::try_from(c.len_utf16()).unwrap_or(2);
+    }
+    (units >= offset).then_some(text.len())
 }
 
 /// DOM `nodeName`: the HTML-uppercased qualified name of an element (all

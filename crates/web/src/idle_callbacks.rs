@@ -25,9 +25,9 @@
 
 use std::collections::BTreeMap;
 
-use swb_js::{Gc, GenericData, HostData, Object, Runtime, ScriptError, Tracer, Value};
+use swb_js::{Gc, GenericData, Object, Runtime, ScriptError, Tracer, Value};
 
-use crate::bindings::{self as b, Cx, Exception, Platform};
+use crate::bindings::{self as b, Cx, Platform};
 use crate::event_loop::{Task, TaskKey};
 use crate::generated as g;
 use crate::generated::types::IdleRequestOptions;
@@ -88,13 +88,7 @@ impl GenericData for DeadlineData {
 }
 
 fn deadline_data(rt: &Runtime, this: Platform) -> b::Result<&DeadlineData> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap()
-            .generic::<DeadlineData>(handle)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    b::glue::generic_data::<DeadlineData>(rt, this)
 }
 
 /// `requestIdleCallback(callback, options)`: the handle.

@@ -67,7 +67,7 @@ fn run_case(case: &'static Case) -> Vec<String> {
                 "{} #{index}: {}\n{}",
                 case.name,
                 query.chars().take(120).collect::<String>(),
-                differences(&want, &got)
+                list_differences(&want, &got)
             ));
         }
     }
@@ -75,7 +75,7 @@ fn run_case(case: &'static Case) -> Vec<String> {
 }
 
 /// The items of two lists that differ (or both values).
-fn differences(want: &serde_json::Value, got: &serde_json::Value) -> String {
+fn list_differences(want: &serde_json::Value, got: &serde_json::Value) -> String {
     match (want.as_array(), got.as_array()) {
         (Some(w), Some(g)) if w.len() == g.len() => w
             .iter()

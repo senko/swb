@@ -180,13 +180,6 @@ impl Document {
         }
     }
 
-    /// Makes a close watcher of `kind` for `element` (HTML "create a close
-    /// watcher"). The popover algorithms make the watchers of popovers;
-    /// sub-feature 6d makes those of dialogs.
-    pub fn create_close_watcher(&mut self, element: NodeId, kind: WatcherKind) {
-        self.top_layer_state().watchers.create(element, kind);
-    }
-
     /// Destroys the close watcher of `kind` of `element`, if it has one.
     pub fn destroy_close_watcher(&mut self, element: NodeId, kind: WatcherKind) {
         if let Some(state) = self.top_layer.as_deref_mut() {
@@ -222,11 +215,6 @@ impl Document {
     /// makes a host.
     pub fn close_requests_matter(&self) -> bool {
         self.top_layer.is_some() || self.early_activation
-    }
-
-    /// True if a request to close would find a watcher.
-    pub fn has_close_watchers(&self) -> bool {
-        self.close_watcher_counts().0 > 0
     }
 }
 

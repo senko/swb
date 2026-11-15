@@ -31,6 +31,7 @@ use std::time::Duration;
 use serde_json::Value;
 use swb_engine::{Page, Size, Url};
 
+use common::probe_rows::{existing_box_row, number, style_row};
 use common::{OnePage, answer, differences, new_page, on_page_threads, repo_root};
 
 /// The largest difference of a channel that counts as equal (the probe tool
@@ -96,11 +97,6 @@ fn open(html: &str, size: Size, javascript: bool) -> Page {
     page
 }
 
-/// A number of a JSON value.
-fn number(v: &Value) -> f64 {
-    v.as_f64().unwrap()
-}
-
 /// The `js` row: swb's answer to the expression against Chromium's.
 fn check_js(case: &str, row: usize, page: &mut Page, result: &Value) -> Vec<String> {
     let query = result["label"].as_str().unwrap();
@@ -121,57 +117,6 @@ fn check_js(case: &str, row: usize, page: &mut Page, result: &Value) -> Vec<Stri
         &query[..query.len().min(120)],
         differences(&want, &got)
     )]
-}
-
-/// The `boxes` row: the border box of the element with the index in
-/// document order.
-fn check_box(case: &str, row: usize, page: &mut Page, result: &Value) -> Vec<String> {
-    let index = result["index"].as_u64().unwrap();
-    let expression = format!(
-        "(() => {{ const e = document.querySelectorAll('*')[{index}]; const r = e.getBoundingClientRect(); return [e.localName, r.x + scrollX, r.y + scrollY, r.width, r.height]; }})()"
-    );
-    let got = answer(page, &expression);
-    let want: Vec<f64> = result["rect"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(number)
-        .collect();
-    let ok = got.as_array().is_some_and(|g| {
-        g.first() == Some(&result["tag"])
-            && g.iter()
-                .skip(1)
-                .zip(&want)
-                .all(|(a, b)| (a.as_f64().unwrap_or(f64::NAN) - b).abs() <= 1.0)
-    });
-    if ok {
-        return Vec::new();
-    }
-    vec![format!(
-        "{case} #{row} {}: swb {got}, Chromium {} {want:?}",
-        result["label"], result["tag"]
-    )]
-}
-
-/// The `style` row: the computed values of the properties.
-fn check_style(case: &str, row: usize, page: &mut Page, result: &Value) -> Vec<String> {
-    let label = result["label"].as_str().unwrap();
-    let (selector, number) = label.rsplit_once('[').unwrap();
-    let number: usize = number.trim_end_matches(']').parse().unwrap();
-    let mut failures = Vec::new();
-    for (property, want) in result["style"].as_object().unwrap() {
-        let expression = format!(
-            "getComputedStyle(document.querySelectorAll({selector:?})[{}]).getPropertyValue({property:?})",
-            number - 1
-        );
-        let got = answer(page, &expression);
-        if &got != want {
-            failures.push(format!(
-                "{case} #{row} {label} {property}: swb {got}, Chromium {want}"
-            ));
-        }
-    }
-    failures
 }
 
 /// The `pixels` row: swb's colors at the points against Chromium's.
@@ -244,8 +189,8 @@ fn run_case(case: &'static Value, results: &'static Value) -> Vec<String> {
     for (row, result) in rows.iter().enumerate() {
         failures.extend(match result["kind"].as_str().unwrap() {
             "js" => check_js(name, row, &mut page, result),
-            "boxes" => check_box(name, row, &mut page, result),
-            "style" => check_style(name, row, &mut page, result),
+            "boxes" => existing_box_row(name, row, &mut page, result, 1.0),
+            "style" => style_row(name, row, &mut page, result),
             "pixels" => check_pixels(name, row, shot.as_ref().unwrap(), result),
             other => vec![format!("{name} #{row}: unknown kind {other}")],
         });

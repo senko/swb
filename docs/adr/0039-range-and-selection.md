@@ -43,7 +43,7 @@ What exists (read in swb's code at 1e6b95f):
   comparisons is `TreeOrder`, derived data rebuilt after a DOM change.
 - **Text controls** have their own selection (`TextEdit`) and the HTML
   selection API with `select` and `selectionchange` at the control
-  (`crates/web/src/html/selection.rs`, `selection_events.rs`, which also
+  (`crates/web/src/html/text_selection.rs`, `selection_events.rs`, which also
   tracks which control "owns" the document's selection).
 - **NodeIterator** (ADR 0028 "Feature 15a", `swb_dom::iterator`) keeps live
   positions as plain data in the arena of its root; the change functions

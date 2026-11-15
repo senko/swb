@@ -26,7 +26,8 @@ use std::time::Duration;
 use serde_json::Value;
 use swb_engine::{Page, Size, Url};
 
-use common::{OnePage, answer, new_page, on_page_threads, repo_root};
+use common::probe_rows::{box_row, number};
+use common::{OnePage, new_page, on_page_threads, repo_root};
 
 /// The largest difference of a box coordinate from Chromium's, in px.
 const TOLERANCE: f64 = 0.5;
@@ -38,43 +39,6 @@ fn open(html: &str, size: Size) -> Page {
     page.navigate(Url::parse(common::CASE_PAGE).unwrap());
     assert!(page.wait_until_loaded(Duration::from_secs(20)));
     page
-}
-
-fn number(v: &Value) -> f64 {
-    v.as_f64().unwrap()
-}
-
-/// The failure of a `boxes` row, if swb's box differs from Chromium's.
-fn check_box(case: &str, row: usize, page: &mut Page, result: &Value) -> Option<String> {
-    let index = result["index"].as_u64().unwrap();
-    let expression = format!(
-        "(() => {{ const e = document.querySelectorAll('*')[{index}]; const r = e.getBoundingClientRect(); return [e.localName, e.getClientRects().length, r.x + scrollX, r.y + scrollY, r.width, r.height]; }})()"
-    );
-    let got = answer(page, &expression);
-    let tag_ok = got.get(0) == Some(&result["tag"]);
-    let has_box = got.get(1).and_then(Value::as_u64).unwrap_or(0) > 0;
-    let ok = tag_ok
-        && match result["rect"].as_array() {
-            None => !has_box,
-            Some(want) => {
-                has_box
-                    && got
-                        .as_array()
-                        .unwrap()
-                        .iter()
-                        .skip(2)
-                        .zip(want)
-                        .all(|(a, b)| {
-                            (a.as_f64().unwrap_or(f64::NAN) - number(b)).abs() <= TOLERANCE
-                        })
-            }
-        };
-    (!ok).then(|| {
-        format!(
-            "{case} #{row} {}: swb {got}, Chromium {} {}",
-            result["label"], result["tag"], result["rect"]
-        )
-    })
 }
 
 /// Runs the rows of a case.
@@ -89,7 +53,7 @@ fn run_case(case: &'static Value, results: &'static Value) -> Vec<String> {
         .iter()
         .enumerate()
         .filter_map(|(row, result)| match result["kind"].as_str().unwrap() {
-            "boxes" => check_box(name, row, &mut page, result),
+            "boxes" => box_row(name, row, &mut page, result, TOLERANCE),
             other => Some(format!("{name} #{row}: unknown kind {other}")),
         })
         .collect()

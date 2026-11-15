@@ -442,39 +442,6 @@ impl Runtime {
         result
     }
 
-    /// Compiles and runs a module that requests no other module, in the
-    /// realm `realm` (ADR 0028 section 6, item 7; since ADR 0034 3a-1 on
-    /// the path of module records: link, then evaluate): strict code with
-    /// `this` undefined, whose top-level declarations belong to the module
-    /// and not to the global object; `export` declarations without `from`
-    /// run. `name` and `start` are as in [`Runtime::eval_named_at`]. A
-    /// module with requests (`import`, `export ... from`), `import()`,
-    /// `import.meta` and top-level `await` fail with a `SyntaxError` whose
-    /// message starts with "not supported yet"
-    /// ([`ScriptError::is_unsupported`]); module graphs use
-    /// [`Runtime::parse_module`], [`Runtime::load_requested_modules`],
-    /// [`Runtime::link`] and [`Runtime::evaluate`].
-    pub fn eval_module_at(
-        &mut self,
-        realm: u32,
-        source: &str,
-        name: &str,
-        start: (u32, u32),
-    ) -> Result<Value, ScriptError> {
-        if self.budget.enter(REENTRY_WEIGHT).is_err() {
-            return self.finish(Err(VmError::range_error(STACK_OVERFLOW)));
-        }
-        let text = String16::from(source);
-        self.vm.error_offset = None;
-        let run = self.run_start();
-        let result = self.run_module_without_requests(realm, text.as_str16(), name, start);
-        if result.is_err() {
-            self.restore_run_start(&run);
-        }
-        self.budget.leave(REENTRY_WEIGHT);
-        result
-    }
-
     fn eval_text(
         &mut self,
         realm: u32,

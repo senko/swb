@@ -153,17 +153,6 @@ impl Runtime {
         Ok(promise)
     }
 
-    /// Evaluate for a host run that reports errors as a script does
-    /// ([`Runtime::eval_module_at`], a module without requests and without
-    /// top-level `await`): a thrown value is the error.
-    pub(crate) fn evaluate_sync(&mut self, module: Gc<Generic>) -> VmResult<()> {
-        match self.evaluate_graph(module)? {
-            None => Ok(()),
-            Some(EvaluationError::Thrown(error)) => Err(VmError::Throw(error)),
-            Some(EvaluationError::Terminated(reason)) => Err(VmError::Terminated(reason)),
-        }
-    }
-
     /// Steps 4 to 10 of Evaluate: `InnerModuleEvaluation` from `module`;
     /// on an error, every module on the stack is evaluated with that error.
     /// Returns the error (`None` without one). A termination or an engine

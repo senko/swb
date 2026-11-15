@@ -31,7 +31,8 @@ use std::time::Duration;
 use serde_json::Value;
 use swb_engine::{Page, Size, Url};
 
-use common::{OnePage, answer, differences, new_page, on_page_threads, repo_root, settle};
+use common::probe_rows::{box_row, load_cases, number, style_row_at_once, viewport_of};
+use common::{OnePage, answer, differences, new_page, on_page_threads, settle};
 
 /// Rows where swb differs on purpose: (case, row, why).
 const DEPARTURES: &[(&str, usize, &str)] = &[
@@ -95,10 +96,6 @@ fn open(html: &str, size: Size) -> Page {
     page
 }
 
-fn number(v: &Value) -> f64 {
-    v.as_f64().unwrap()
-}
-
 /// True if the values are equal, numbers within 0.05.
 fn close(a: &Value, b: &Value) -> bool {
     match (a, b) {
@@ -125,86 +122,6 @@ fn check_js(case: &str, row: usize, page: &mut Page, result: &Value) -> Option<S
     })
 }
 
-fn check_box(case: &str, row: usize, page: &mut Page, result: &Value) -> Option<String> {
-    let index = result["index"].as_u64().unwrap();
-    let expression = format!(
-        "(() => {{ const e = document.querySelectorAll('*')[{index}]; const r = e.getBoundingClientRect(); return [e.localName, e.getClientRects().length, r.x + scrollX, r.y + scrollY, r.width, r.height]; }})()"
-    );
-    let got = answer(page, &expression);
-    let tag_ok = got.get(0) == Some(&result["tag"]);
-    let has_box = got.get(1).and_then(Value::as_u64).unwrap_or(0) > 0;
-    let ok = tag_ok
-        && match result["rect"].as_array() {
-            None => !has_box,
-            Some(want) => {
-                has_box
-                    && got
-                        .as_array()
-                        .unwrap()
-                        .iter()
-                        .skip(2)
-                        .zip(want)
-                        .all(|(a, b)| {
-                            (a.as_f64().unwrap_or(f64::NAN) - number(b)).abs() <= TOLERANCE
-                        })
-            }
-        };
-    (!ok).then(|| {
-        format!(
-            "{case} #{row} {}: swb {got}, Chromium {} {}",
-            result["label"], result["tag"], result["rect"]
-        )
-    })
-}
-
-/// A `style` row: the label is `SELECTOR[N]` or `(SELECTOR LIST)[N]`.
-fn check_style(case: &str, row: usize, page: &mut Page, result: &Value) -> Option<String> {
-    let label = result["label"].as_str().unwrap();
-    let (selector, index) = label.rsplit_once('[').unwrap();
-    let index: usize = index.trim_end_matches(']').parse().unwrap();
-    let selector = selector
-        .strip_prefix('(')
-        .and_then(|s| s.strip_suffix(')'))
-        .unwrap_or(selector);
-    let want = result["style"].as_object().unwrap();
-    let props: Vec<&String> = want.keys().collect();
-    let expression = format!(
-        "(() => {{ const s = getComputedStyle(document.querySelectorAll({selector:?})[{}]); return {props:?}.map(p => s.getPropertyValue(p)); }})()",
-        index - 1
-    );
-    let got = answer(page, &expression);
-    let want_values: Vec<Value> = want.values().cloned().collect();
-    (got != Value::Array(want_values.clone())).then(|| {
-        format!("{case} #{row} {label}: swb {got}, Chromium {want_values:?} for {props:?}")
-    })
-}
-
-fn viewport_of(results: &Value) -> Size {
-    let viewport = results["viewport"].as_array().unwrap();
-    Size::new(number(&viewport[0]) as f32, number(&viewport[1]) as f32)
-}
-
-/// The probe file and Chromium's answers of the cases named in `answers`.
-fn load(probe: &str, answers: &'static str) -> Vec<(&'static Value, &'static Value)> {
-    let probe: &'static Value = Box::leak(Box::new(
-        serde_json::from_str(&std::fs::read_to_string(repo_root().join(probe)).unwrap()).unwrap(),
-    ));
-    let expected: &'static Value = Box::leak(Box::new(serde_json::from_str(answers).unwrap()));
-    let cases = probe["cases"].as_array().unwrap();
-    expected["cases"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|answer| {
-            let case = cases
-                .iter()
-                .find(|c| c["name"] == answer["name"])
-                .unwrap_or_else(|| panic!("no case {}", answer["name"]));
-            (case, answer)
-        })
-        .collect()
-}
-
 fn listed(list: &[(&str, usize, &str)], case: &str, row: usize) -> bool {
     list.iter().any(|&(c, r, _)| c == case && r == row)
 }
@@ -226,8 +143,8 @@ fn run_case(case: &'static Value, results: &'static Value) -> Vec<String> {
     for (row, result) in results["results"].as_array().unwrap().iter().enumerate() {
         let failure = match result["kind"].as_str().unwrap() {
             "js" => check_js(name, row, &mut page, result),
-            "boxes" => check_box(name, row, &mut page, result),
-            "style" => check_style(name, row, &mut page, result),
+            "boxes" => box_row(name, row, &mut page, result, TOLERANCE),
+            "style" => style_row_at_once(name, row, &mut page, result),
             other => Some(format!("{name} #{row}: unknown kind {other}")),
         };
         let skipped = listed(DEPARTURES, name, row) || listed(LATER, name, row);
@@ -244,11 +161,11 @@ fn run_case(case: &'static Value, results: &'static Value) -> Vec<String> {
 
 #[test]
 fn container_query_probe_cases_match_chromium() {
-    let mut cases = load(
+    let mut cases = load_cases(
         "tools/probes/container-queries.json",
         include_str!("data/container-queries.json"),
     );
-    cases.extend(load(
+    cases.extend(load_cases(
         "tools/probes/github-css.json",
         include_str!("data/github-css-containers.json"),
     ));

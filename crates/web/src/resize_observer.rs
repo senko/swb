@@ -207,34 +207,15 @@ impl GenericData for SizeData {
 }
 
 fn observer_id(rt: &Runtime, this: Platform) -> b::Result<u32> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap()
-            .generic::<ObserverData>(handle)
-            .map(|d| d.id)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    Ok(b::glue::generic_data::<ObserverData>(rt, this)?.id)
 }
 
 fn entry_of(rt: &Runtime, this: Platform) -> b::Result<&EntryData> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap()
-            .generic::<EntryData>(handle)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    b::glue::generic_data::<EntryData>(rt, this)
 }
 
 fn size_of_object(rt: &Runtime, this: Platform) -> b::Result<&SizeData> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap()
-            .generic::<SizeData>(handle)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    b::glue::generic_data::<SizeData>(rt, this)
 }
 
 impl g::resize_observer::ResizeObserverImpl for WebState {

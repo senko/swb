@@ -4,8 +4,8 @@
 //! constants are also used by the compiler and the interpreter, so that
 //! each text exists once.
 
-/// The compiler's message for a construct that it does not compile (module
-/// code, `import()`, `import.meta`).
+/// The compiler's message for a construct that it does not compile
+/// (`import()` and `import.meta` in a runtime without module hooks).
 pub const NOT_SUPPORTED: &str = "not supported yet";
 /// The `RangeError` for nesting beyond the recursion budget.
 pub const STACK_OVERFLOW: &str = "Maximum call stack size exceeded";

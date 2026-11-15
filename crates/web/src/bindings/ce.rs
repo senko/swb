@@ -70,7 +70,7 @@ mod tests {
     use crate::custom_elements::Callback;
     use crate::custom_elements::reactions::{Args, Origin, Reaction, enqueue};
     use crate::runtime::ScriptRuntime;
-    use crate::state::state;
+    use crate::state::{Place, state};
 
     fn backup_len(rt: &Runtime) -> usize {
         state(rt).unwrap().custom.reactions.borrow().backup_len()
@@ -86,7 +86,10 @@ mod tests {
         let rt = &mut runtime.rt;
         let handles = rt.heap_mut().open_scope();
         assert_eq!(rt.host_flags() & (1 << DEFINITIONS_BIT), 0);
-        let place = (0, NodeId::from_index(1).unwrap());
+        let place = Place {
+            key: 0,
+            node: NodeId::from_index(1).unwrap(),
+        };
         let mut during = 0;
         let _ = scope(rt, |rt| {
             rt.set_host_flag_bit(DEFINITIONS_BIT, true);

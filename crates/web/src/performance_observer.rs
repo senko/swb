@@ -82,13 +82,7 @@ impl GenericData for ListData {
 }
 
 fn observer_of(rt: &mut Runtime, this: Platform) -> b::Result<&mut ObserverData> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap_mut()
-            .generic_mut::<ObserverData>(handle)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    b::glue::generic_data_mut::<ObserverData>(rt, this)
 }
 
 /// The data of an observer object that the registry holds.
@@ -101,13 +95,7 @@ fn registered_data(rt: &mut Runtime, object: Gc<Object>) -> Option<&mut Observer
 }
 
 fn list_of(rt: &Runtime, this: Platform) -> b::Result<&ListData> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap()
-            .generic::<ListData>(handle)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    b::glue::generic_data::<ListData>(rt, this)
 }
 
 /// Queues the new entry `entry` of `kind` at the observers that observe

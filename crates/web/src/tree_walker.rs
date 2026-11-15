@@ -35,14 +35,7 @@ use crate::bindings::{self as b, Cx, Exception, Platform};
 use crate::generated as g;
 use crate::generated::types::NodeFilter;
 use crate::node_iterator::{call_filter, node_type, wrapper_in};
-use crate::state::{self, DocKey, WebState, state_mut};
-
-/// A node and the document whose arena holds it.
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct Place {
-    key: DocKey,
-    node: NodeId,
-}
+use crate::state::{self, Place, WebState, state_mut};
 
 /// The host data of a `TreeWalker`.
 struct WalkerData {
@@ -76,32 +69,22 @@ impl GenericData for WalkerData {
     }
 }
 
-fn illegal() -> Exception {
-    Exception::type_error("Illegal invocation")
-}
-
 fn walker_data(rt: &Runtime, this: Platform) -> b::Result<&WalkerData> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap()
-            .generic::<WalkerData>(handle)
-            .map_err(|_| illegal()),
-        HostData::Word(_) => Err(illegal()),
-    }
+    b::glue::generic_data::<WalkerData>(rt, this)
 }
 
 /// The root of the walker `this`, with its new place if it moved.
 fn root_of(rt: &mut Runtime, this: Platform) -> b::Result<Place> {
     let HostData::Generic(handle) = this.data else {
-        return Err(illegal());
+        return Err(b::glue::illegal_invocation());
     };
     state::settle_generic(rt, handle)?;
     let word = rt
         .heap()
         .generic_host_word(handle)
-        .map_err(|_| illegal())?
-        .ok_or_else(illegal)?;
-    let (key, node) = b::word_parts(word).ok_or_else(illegal)?;
+        .map_err(|_| b::glue::illegal_invocation())?
+        .ok_or_else(b::glue::illegal_invocation)?;
+    let (key, node) = b::word_parts(word).ok_or_else(b::glue::illegal_invocation)?;
     Ok(Place { key, node })
 }
 
@@ -209,8 +192,7 @@ impl Walk<'_> {
         read: impl FnOnce(&swb_dom::Node) -> Option<NodeId>,
     ) -> Option<Place> {
         let place = self.settle(place);
-        state::ensure_lent(self.rt, place.key).ok()?;
-        let dom = state::dom_of(self.rt, place.key).ok()?;
+        let dom = state::dom_lent(self.rt, place.key)?;
         let node = read(dom.get(place.node)?)?;
         Some(Place {
             key: place.key,

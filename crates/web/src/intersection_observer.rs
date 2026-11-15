@@ -205,33 +205,15 @@ impl GenericData for EntryData {
 }
 
 fn observer_data(rt: &Runtime, this: Platform) -> b::Result<&ObserverData> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap()
-            .generic::<ObserverData>(handle)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    b::glue::generic_data::<ObserverData>(rt, this)
 }
 
 fn entry_data(rt: &Runtime, this: Platform) -> b::Result<&EntryData> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap()
-            .generic::<EntryData>(handle)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    b::glue::generic_data::<EntryData>(rt, this)
 }
 
 fn entry_data_mut(rt: &mut Runtime, this: Platform) -> b::Result<&mut EntryData> {
-    match this.data {
-        HostData::Generic(handle) => rt
-            .heap_mut()
-            .generic_mut::<EntryData>(handle)
-            .map_err(|_| Exception::type_error("Illegal invocation")),
-        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    b::glue::generic_data_mut::<EntryData>(rt, this)
 }
 
 // ----- Margins -----

@@ -22,9 +22,9 @@ use crate::state::{dom, dom_mut, state, state_mut};
 
 /// The host of the popover algorithms for scripts.
 pub(crate) struct WebHost<'a> {
-    rt: &'a mut Runtime,
+    pub(super) rt: &'a mut Runtime,
     /// The first error of the runtime (a termination): the algorithm stops.
-    error: Option<VmError>,
+    pub(super) error: Option<VmError>,
     /// A document to lend when the runtime has none (the algorithm then
     /// stops at its next event).
     spare: Option<Document>,
@@ -120,27 +120,10 @@ impl TopLayerHost for WebHost<'_> {
         }
     }
 
-    /// Queues the task at the end and removes the element's task that waits
-    /// (HTML: "remove ... task from its task queue"), so that an element has
-    /// at most one task in the queue.
     fn queue_toggle_task(&mut self, element: NodeId, serial: u64) {
-        let now = crate::event_loop::page_now(self.rt);
-        let state = match state_mut(self.rt) {
-            Ok(state) => state,
-            Err(error) => {
-                self.error.get_or_insert(error);
-                return;
-            }
-        };
-        if let Some(old) = state.doc.toggle_tasks.remove(&element) {
-            state.event_loop.tasks.remove(old);
+        if let Err(error) = queue_toggle_task(self.rt, ToggleKind::Popover, element, serial) {
+            self.error.get_or_insert(error);
         }
-        let task = Task::Toggle {
-            node: element,
-            serial,
-        };
-        let key = state.event_loop.tasks.push(now, task);
-        state.doc.toggle_tasks.insert(element, key);
     }
 
     fn focused_element(&mut self) -> Option<NodeId> {
@@ -166,56 +149,23 @@ impl TopLayerHost for WebHost<'_> {
     }
 
     fn focus_dialog(&mut self, dialog: NodeId) -> bool {
-        if self.error.is_some() {
-            return false;
-        }
-        match super::focus::focus_dialog(self.rt, dialog) {
-            Ok(focused) => focused,
-            Err(error) => {
-                self.error = Some(error);
-                false
-            }
-        }
+        self.focus_dialog_steps(dialog)
     }
 
     fn set_dialog_open(&mut self, dialog: NodeId, open: bool) -> bool {
-        if self.error.is_some() {
-            return false;
-        }
-        match super::dialog::set_open(self.rt, dialog, open) {
-            Ok(()) => true,
-            Err(error) => {
-                self.error = Some(error);
-                false
-            }
-        }
+        self.set_open_attribute(dialog, open)
     }
 
     fn fire_cancel(&mut self, dialog: NodeId, cancelable: bool) -> Option<bool> {
-        if self.error.is_some() {
-            return None;
-        }
-        let mut event = TrustedEvent::new("cancel");
-        event.cancelable = cancelable;
-        match fire_trusted(self.rt, DispatchTarget::Node(dialog), &event) {
-            Ok(proceed) => Some(proceed),
-            Err(error) => {
-                self.error = Some(error);
-                None
-            }
-        }
+        self.fire_cancel_event(dialog, cancelable)
     }
 
     fn queue_dialog_toggle_task(&mut self, dialog: NodeId, serial: u64) {
-        if let Err(error) = super::dialog::queue_toggle_task(self.rt, dialog, serial) {
-            self.error.get_or_insert(error);
-        }
+        self.queue_dialog_toggle(dialog, serial);
     }
 
     fn queue_close_task(&mut self, dialog: NodeId) {
-        if let Err(error) = super::dialog::queue_close_task(self.rt, dialog) {
-            self.error.get_or_insert(error);
-        }
+        self.queue_close(dialog);
     }
 }
 
@@ -346,12 +296,61 @@ pub(crate) fn attribute_changed(rt: &mut Runtime) -> b::Result<()> {
     host.finish(result)
 }
 
-/// The `toggle` task of `node` (HTML "queue a popover toggle event task"):
-/// fires `toggle` with the coalesced states, unless a later change replaced
-/// the task.
-pub(crate) fn toggle_task(rt: &mut Runtime, node: NodeId, serial: u64) -> VmResult<()> {
-    state_mut(rt)?.doc.toggle_tasks.remove(&node);
-    let Some(toggle) = dom_mut(rt)?.take_toggle(node, serial) else {
+/// The kind of element that a `toggle` task belongs to: a popover or a
+/// dialog (the document keeps their tasks apart).
+#[derive(Clone, Copy)]
+pub(crate) enum ToggleKind {
+    Popover,
+    Dialog,
+}
+
+/// Queues the `toggle` task of `node` at the end and removes the one of the
+/// node that waits (HTML "queue a popover toggle event task", "queue a
+/// dialog toggle event task": "remove ... task from its task queue"), so
+/// that a node has at most one task in the queue.
+pub(crate) fn queue_toggle_task(
+    rt: &mut Runtime,
+    kind: ToggleKind,
+    node: NodeId,
+    serial: u64,
+) -> VmResult<()> {
+    let now = crate::event_loop::page_now(rt);
+    let state = state_mut(rt)?;
+    let (waiting, task) = match kind {
+        ToggleKind::Popover => (&mut state.doc.toggle_tasks, Task::Toggle { node, serial }),
+        ToggleKind::Dialog => (
+            &mut state.doc.dialog_toggle_tasks,
+            Task::DialogToggle { node, serial },
+        ),
+    };
+    if let Some(old) = waiting.remove(&node) {
+        state.event_loop.tasks.remove(old);
+    }
+    let key = state.event_loop.tasks.push(now, task);
+    waiting.insert(node, key);
+    Ok(())
+}
+
+/// The `toggle` task of `node` (HTML "queue a popover toggle event task",
+/// "queue a dialog toggle event task"): fires `toggle` with the coalesced
+/// states, unless a later change replaced the task.
+pub(crate) fn toggle_task(
+    rt: &mut Runtime,
+    kind: ToggleKind,
+    node: NodeId,
+    serial: u64,
+) -> VmResult<()> {
+    let taken = match kind {
+        ToggleKind::Popover => {
+            state_mut(rt)?.doc.toggle_tasks.remove(&node);
+            dom_mut(rt)?.take_toggle(node, serial)
+        }
+        ToggleKind::Dialog => {
+            state_mut(rt)?.doc.dialog_toggle_tasks.remove(&node);
+            dom_mut(rt)?.take_dialog_toggle(node, serial)
+        }
+    };
+    let Some(toggle) = taken else {
         return Ok(());
     };
     // A node that went to another arena is an empty comment here.

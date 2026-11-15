@@ -528,7 +528,8 @@ synchronous Evaluate with cycles and cached errors; the code kind
 `Module`, `ModuleCell`, import captures, the initial suspension;
 `export default`; namespace objects; link error messages and locations
 (entry offsets in `js-syntax`); `swb-js --module`; the test262 runner's
-module loader and the static directories. `Runtime::eval_module_at` runs
+module loader and the static directories. `Runtime::eval_module_at`
+(removed in the M10 maintenance; its tests use the module records) runs
 a module without requests through the new path (so a module with only
 `export` runs, as in Chromium's `export-const` case); modules with
 requests, `import()`, `import.meta` or top-level `await` stay refused in

@@ -403,9 +403,7 @@ fn import_meta_without_the_hook_is_empty() {
 
 #[test]
 fn without_hooks_both_are_refused_as_before() {
-    // The page installs no module hooks before 3b-1: the refusal of the
-    // compiler stays, at the same offset (`MODULE_DEPARTURES` of
-    // `crates/engine/tests/probe_net.rs` is unchanged).
+    // A runtime without module hooks keeps the refusal of the compiler.
     on_big_stack(|| {
         let mut rt = Runtime::new(RuntimeConfig::default()).unwrap();
         let error = rt.eval("var x;\nimport('./a.js');").unwrap_err();
@@ -423,7 +421,7 @@ fn without_hooks_both_are_refused_as_before() {
             );
         }
         let error = rt
-            .eval_module_at(0, "let a;\nimport.meta.url;", "m.js", (0, 0))
+            .parse_module(0, "let a;\nimport.meta.url;", "m.js", (0, 0), 0)
             .unwrap_err();
         assert!(error.is_unsupported());
         assert!(

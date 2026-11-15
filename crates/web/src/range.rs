@@ -32,9 +32,10 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use swb_dom::{ArenaWork, Boundary, DeadIds, LiveRange, NodeData, NodeId, WORK_PER_CHECK};
-use swb_js::{Gc, GenericData, HostData, Object, Runtime, Tracer, VmResult};
+use swb_js::{Gc, GenericData, Object, Runtime, Tracer, VmResult};
 
 use crate::bindings::{self as b, Cx, Exception, NodeRef, Platform};
+use crate::dom::{byte_index, utf16_len};
 use crate::generated as g;
 use crate::node_iterator::wrapper_in;
 use crate::state::{self, DocKey, DocState, WebState, state_mut};
@@ -104,30 +105,12 @@ impl GenericData for StaticRangeData {
     }
 }
 
-fn illegal() -> Exception {
-    Exception::type_error("Illegal invocation")
-}
-
 fn range_data(rt: &Runtime, this: Platform) -> Option<&RangeData> {
-    match this.data {
-        HostData::Generic(handle) => rt.heap().generic::<RangeData>(handle).ok(),
-        HostData::Word(_) => None,
-    }
+    b::glue::generic_data::<RangeData>(rt, this).ok()
 }
 
 fn static_data(rt: &Runtime, this: Platform) -> Option<&StaticRangeData> {
-    match this.data {
-        HostData::Generic(handle) => rt.heap().generic::<StaticRangeData>(handle).ok(),
-        HostData::Word(_) => None,
-    }
-}
-
-/// The arena of document `key`, if the runtime has it now.
-fn arena(rt: &mut Runtime, key: DocKey) -> Option<&mut swb_dom::Document> {
-    state::ensure_lent(rt, key).ok()?;
-    let state = rt.host_data_mut::<WebState>()?;
-    let record = state::document_mut(state, key)?;
-    Some(record.host.as_deref_mut()?.dom_mut())
+    b::glue::generic_data::<StaticRangeData>(rt, this).ok()
 }
 
 /// Removes the entries of the ranges that the collector freed and clears the
@@ -138,7 +121,7 @@ fn reap(rt: &mut Runtime) -> VmResult<()> {
         let Some(key) = state_mut(rt)?.ranges.home.remove(&id) else {
             continue;
         };
-        if let Some(dom) = arena(rt, key) {
+        if let Some(dom) = state::arena_mut(rt, key) {
             // The selection keeps its entry (ADR 0039 section 4).
             dom.release_live_range(id);
         }
@@ -201,8 +184,14 @@ pub(crate) fn wrap_selection(rt: &mut Runtime, realm: u32) -> b::Result<Option<G
 
 /// The id of the `Range` object `this` and the document of its arena.
 pub(crate) fn range_entry(rt: &Runtime, this: Platform) -> b::Result<(u32, DocKey)> {
-    let id = range_data(rt, this).ok_or_else(illegal)?.id;
-    let key = *state::state(rt)?.ranges.home.get(&id).ok_or_else(illegal)?;
+    let id = range_data(rt, this)
+        .ok_or_else(b::glue::illegal_invocation)?
+        .id;
+    let key = *state::state(rt)?
+        .ranges
+        .home
+        .get(&id)
+        .ok_or_else(b::glue::illegal_invocation)?;
     Ok((id, key))
 }
 
@@ -239,7 +228,7 @@ fn store(rt: &mut Runtime, id: u32, key: DocKey, range: LiveRange) -> b::Result<
     let old = state_mut(rt)?.ranges.home.insert(id, key);
     if let Some(old) = old
         && old != key
-        && let Some(dom) = arena(rt, old)
+        && let Some(dom) = state::arena_mut(rt, old)
     {
         dom.remove_live_range(id);
     }
@@ -273,22 +262,23 @@ pub(crate) fn create_for_document(cx: &mut Cx<'_>, document: NodeId) -> b::Resul
 /// The id of the range `this`, the document of its arena and its boundary
 /// points.
 fn current(rt: &mut Runtime, this: Platform) -> b::Result<(u32, DocKey, LiveRange)> {
-    let id = range_data(rt, this).ok_or_else(illegal)?.id;
-    let key = *state::state(rt)?.ranges.home.get(&id).ok_or_else(illegal)?;
-    let range = arena(rt, key)
+    let id = range_data(rt, this)
+        .ok_or_else(b::glue::illegal_invocation)?
+        .id;
+    let key = *state::state(rt)?
+        .ranges
+        .home
+        .get(&id)
+        .ok_or_else(b::glue::illegal_invocation)?;
+    let range = state::arena_mut(rt, key)
         .and_then(|dom| dom.live_range(id))
-        .ok_or_else(illegal)?;
+        .ok_or_else(b::glue::illegal_invocation)?;
     Ok((id, key, range))
 }
 
 /// The arena of document `key`, or the error of a document that is gone.
 pub(crate) fn arena_or_error(rt: &mut Runtime, key: DocKey) -> b::Result<&mut swb_dom::Document> {
-    arena(rt, key).ok_or_else(|| Exception::type_error("the document is not available"))
-}
-
-/// The number of UTF-16 code units of `text`.
-fn utf16_len(text: &str) -> u32 {
-    u32::try_from(text.encode_utf16().count()).unwrap_or(u32::MAX)
+    state::arena_mut(rt, key).ok_or_else(|| Exception::type_error("the document is not available"))
 }
 
 /// The API offset of the byte offset `offset` in `node`.
@@ -305,14 +295,7 @@ pub(crate) fn api_offset(dom: &swb_dom::Document, node: NodeId, offset: u32) -> 
 /// The byte offset of the UTF-16 `offset` in `text` (rounded up to the end of a
 /// character that it falls inside), or `None` past the end.
 fn byte_offset(text: &str, offset: u32) -> Option<u32> {
-    let mut units = 0u32;
-    for (i, c) in text.char_indices() {
-        if units >= offset {
-            return u32::try_from(i).ok();
-        }
-        units += u32::try_from(c.len_utf16()).unwrap_or(2);
-    }
-    (units >= offset).then(|| u32::try_from(text.len()).unwrap_or(u32::MAX))
+    byte_index(text, offset).and_then(|index| u32::try_from(index).ok())
 }
 
 /// Chromium's exception for the API `offset` past the length of `node`.
@@ -637,7 +620,7 @@ impl g::range::RangeImpl for WebState {
     }
 
     fn detach(cx: &mut Cx<'_>, this: Platform) -> b::Result<()> {
-        range_data(cx.rt, this).ok_or_else(illegal)?;
+        range_data(cx.rt, this).ok_or_else(b::glue::illegal_invocation)?;
         Ok(())
     }
 

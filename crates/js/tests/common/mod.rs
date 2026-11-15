@@ -14,8 +14,8 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use swb_js::{
-    HeapConfig, NativeCall, NativeReturn, Runtime, RuntimeConfig, ScriptError, Termination, Value,
-    VmError, VmResult,
+    HeapConfig, NativeCall, NativeReturn, PromiseStatus, Runtime, RuntimeConfig, ScriptError,
+    Termination, Value, VmError, VmResult,
 };
 
 /// The output lines of `print` and `console.log`.
@@ -138,6 +138,38 @@ pub(crate) fn run_in_named(rt: &mut Runtime, source: &str, name: &str) -> String
         Err(error) => lines.push(error.to_string()),
     }
     lines.join("\n")
+}
+
+/// Runs `source` as a module that requests no other module, in the realm
+/// `realm`, through the module records: parse, link, evaluate, then the
+/// jobs. A failed step is its [`ScriptError`]; a rejected evaluation
+/// promise is a [`ScriptError::Uncaught`] with the name and message of the
+/// error (without a position).
+pub(crate) fn eval_module(
+    rt: &mut Runtime,
+    realm: u32,
+    source: &str,
+    (name, start): (&str, (u32, u32)),
+) -> Result<(), ScriptError> {
+    let module = rt.parse_module(realm, source, name, start, 0)?;
+    // No request: the load of the graph is done at once.
+    rt.load_requested_modules(module).unwrap();
+    rt.link(module)?;
+    let promise = rt.evaluate(module)?;
+    rt.run_jobs()?;
+    match rt.promise_settlement(promise) {
+        Some((PromiseStatus::Rejected, error)) => {
+            let report = rt.error_report(error);
+            let first = report.lines().next().unwrap_or("");
+            let (name, message) = first.split_once(": ").unwrap_or(("", first));
+            Err(ScriptError::Uncaught {
+                name: name.to_owned(),
+                message: message.to_owned(),
+                offset: None,
+            })
+        }
+        _ => Ok(()),
+    }
 }
 
 /// Runs `f` on a thread with an 8 MiB stack.
