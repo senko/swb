@@ -5414,6 +5414,32 @@ Features, in this order. Each ends with a review and a commit.
    back to a full restyle (listed in the ADR). Tests: an oracle that
    compares the targeted styles with a full restyle on all fixtures after
    many random state changes. Exit: the hover numbers of the M11 exit.
+
+   Done (2026-11-15): ADR 0041 (accepted). `Selector::state_reach` (css
+   crate) gives the reach of each `:hover`, `:active`, `:focus`,
+   `:focus-visible` and `:focus-within` occurrence (the element, its
+   children or descendants, its following siblings and their subtrees,
+   `:has()` anchors, or "everything"); the `Stylist` indexes them by the
+   key of the element whose state changes (`invalidation.rs`);
+   `restyle_states` (`cascade/targeted.rs`) restyles the marked elements,
+   the descendants of roots that have a subject key, and the children of
+   changed elements, in a walk from the root that enters only the paths to
+   them, and writes into the existing `StyleMap`. Fallbacks to a full
+   restyle: other states, unanalysed shapes, the root's font size, query
+   container reads, counter text with changed counter inputs. The flush
+   after a script's focus restyles from the states of the last styles.
+   Tests: the analysis table, 18 unit tests, the fixture oracle (120 random
+   changes on each page fixture) and the engine oracle (check mode in debug
+   builds; page and JS fixtures), 4 hostile cases. A hover change with its
+   render: GitHub 45.9 to 18.2 ms (JS off), 49.9 to 18.8 ms (on); Ars
+   Technica 25.5 to 15.4 ms, 23.3 to 12.5 ms; Wikipedia 16.0 to 2.1 ms, 16.3
+   to 3.1 ms (base measured in the same session). The style run of a GitHub
+   hover change 28.6 to 1.2 ms; what remains is layout and the render. Ars
+   Technica with JS off misses its 15 ms by 0.4 ms (judged in feature 7).
+   GUI, GitHub owner trace: style time 6.3 s to 0.7 s, CPU 17 % to 9 %.
+   JS-off snapshot identical, `compare --all --js` unchanged. Review fixes:
+   `use` instances made again for a `use` element that gets a style; a
+   limit on the key set of nested descendant roots (quadratic before).
 6. Restyle of the elements that a DOM change affects (`implementer-hard`;
    ADR 0041, second part), only if the click and load numbers after
    feature 5 stay above their targets (GitHub's Code button now 250 ms):
@@ -5481,6 +5507,30 @@ Not in M11 (backlog): incremental layout, a raster cache for scrolling
   matched for every element (about 5 % of a GitHub style run), also when
   no rule that matches can set `content`; an index of the pseudo-element
   rules with `sets_content` would skip most of the matching.
+- Style (feature 5): the keys of the state index are ID, class or type
+  only; compounds with only attribute selectors (`[aria-expanded]:hover`)
+  reach any element, so on GitHub every element of the hovered chain is
+  restyled (12 per change). An attribute-name key would cut it.
+- Style (feature 5): `Styler::new` evaluates all `@media` lists on each
+  targeted restyle (0.12 ms of a 1.2 ms GitHub pass); a cache per
+  environment would remove it.
+- Style (feature 5): a restyled element that reads a query container makes
+  the whole document restyle (ADR 0041 section 4; 0.9 % of the restyles of
+  the GitHub owner trace, 3.5 to 4 % of a dense hover grid); per-element
+  container reads would make the log exact without the fallback.
+- Style (feature 5): the engine oracle (`restyle_oracle.rs`, in `just
+  check`) failed once on the GitHub JS fixture and passed in 52 later runs;
+  the JS runs use real-time timers, so a rare failure may come back. Its
+  message now names the difference (`StyleMap::first_difference`).
+- Style (review of feature 5): the fixture oracles pass when the reach of
+  the next-sibling combinator or of `:has()` anchors is wrong (only the
+  unit table of `reach.rs` catches it); fixtures with such rules, or a
+  generated document per reach, would close the gap.
+- Hostile (feature 5): hover over a 10,000-deep tree or 100,000 list items
+  takes 60 s and 40 s for 100 moves in base and new alike (a full layout
+  per change); the cases were reduced to 3,000 and 20,000. The hover cases
+  run 5 to 25 % slower than the base (`hover-deep-tree-3000` 5.1 against
+  4.1 s); not examined.
 - Style (review of feature 4): `Stylist::registry()` builds a new
   `Arc<Registry>` on every pass when an `@property` rule sits inside
   `@media`, and the equality of custom-property maps compares registries

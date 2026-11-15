@@ -1,0 +1,184 @@
+//! The engine oracle of the targeted restyle (ADR 0041 section 6): with the
+//! check mode on, every restyle after a state change that takes the
+//! targeted path is compared with a full restyle (deep equality of all
+//! styles, ordinals, `use` instances and the container log), and a
+//! difference panics. The sessions play the `--bench` hover grid, presses,
+//! Tab and Shift+Tab on the page fixtures, and on the JS fixtures when
+//! `fixtures/js` exists (not committed), plus a page whose script moves the
+//! focus and reads `getComputedStyle`. The check mode exists only with
+//! debug assertions.
+
+#![cfg(debug_assertions)]
+// Test helpers outside `#[test]` functions unwrap too.
+#![allow(clippy::unwrap_used)]
+
+use std::sync::Arc;
+use std::time::Duration;
+
+use swb_engine::{Key, Modifiers, MouseButton, Page, Pixmap, Size, StateRestyles, Url};
+use swb_net::ReplayFetcher;
+
+mod common;
+use common::{CASE_PAGE, OnePage, new_page, on_page_threads, value};
+
+const VIEW: Size = Size::new(1280.0, 800.0);
+
+const SHIFT: Modifiers = Modifiers {
+    shift: true,
+    ..Modifiers::NONE
+};
+
+fn render(page: &mut Page) {
+    let size = page.viewport();
+    let mut pixmap = Pixmap::new(size.width as u32, size.height as u32).unwrap();
+    page.render(&mut pixmap);
+}
+
+/// The hover grid of `--bench` (8 x 6 points), two rounds, presses at some
+/// points, then Tab and Shift+Tab; a render after each input. `ORACLE_GRID=CxR`
+/// makes the grid finer.
+fn session(page: &mut Page) {
+    page.mouse_leave();
+    render(page);
+    let (columns, rows) = std::env::var("ORACLE_GRID")
+        .ok()
+        .and_then(|g| {
+            let (c, r) = g.split_once('x')?;
+            Some((c.parse().ok()?, r.parse().ok()?))
+        })
+        .unwrap_or((8, 6));
+    for round in 0..2 {
+        for row in 0..rows {
+            for column in 0..columns {
+                let x = VIEW.width * (column as f32 + 0.5) / columns as f32;
+                let y = VIEW.height * (row as f32 + 0.5) / rows as f32;
+                page.mouse_move(x, y);
+                render(page);
+                if (row * columns + column + round) % 7 == 0 {
+                    page.mouse_down(x, y, MouseButton::Primary, Modifiers::NONE, 1);
+                    render(page);
+                    page.mouse_up(x, y, MouseButton::Primary);
+                    render(page);
+                }
+            }
+        }
+    }
+    for i in 0..12 {
+        let modifiers = if i % 4 == 3 { SHIFT } else { Modifiers::NONE };
+        page.key_down(&Key::Tab, modifiers);
+        page.key_up(&Key::Tab, modifiers);
+        render(page);
+    }
+}
+
+/// Loads a fixture and plays the session; the paths of its restyles, or
+/// `None` without the fixture.
+fn run_fixture(name: &str, javascript: bool) -> Option<(String, StateRestyles)> {
+    let dir = common::repo_root()
+        .join(if javascript {
+            "fixtures/js"
+        } else {
+            "fixtures/pages"
+        })
+        .join(name);
+    if !dir.join("fixture.json").exists() {
+        eprintln!("{name}: no fixture in {}", dir.display());
+        return None;
+    }
+    let meta: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(dir.join("fixture.json")).unwrap()).unwrap();
+    let url = Url::parse(meta["url"].as_str().unwrap()).unwrap();
+    let fetcher = Arc::new(ReplayFetcher::load(&dir).unwrap());
+    let mut page = new_page(fetcher, 4, VIEW);
+    page.set_javascript(javascript);
+    page.navigate(url);
+    assert!(page.wait_until_loaded(Duration::from_secs(60)));
+    render(&mut page);
+    let before = page.flush_counters().state_restyles;
+    session(&mut page);
+    let paths = page.flush_counters().state_restyles.since(&before);
+    Some((format!("{name} (js {javascript})"), paths))
+}
+
+fn check(runs: Vec<Option<(String, StateRestyles)>>) {
+    for (name, paths) in runs.into_iter().flatten() {
+        eprintln!("{name}: {paths:?}");
+        assert!(
+            paths.targeted + paths.nothing > 0,
+            "{name}: no targeted restyle"
+        );
+    }
+    assert!(swb_engine::restyle_checks() > 0);
+}
+
+#[test]
+fn targeted_restyles_equal_full_restyles_on_page_fixtures() {
+    swb_engine::set_restyle_check(true);
+    let runs = on_page_threads(
+        [
+            "ars-technica",
+            "bbc",
+            "craigslist-posting",
+            "github-swb",
+            "hacker-news",
+            "senko-net",
+            "wikipedia-web-browser",
+        ]
+        .map(|name| move || run_fixture(name, false)),
+    );
+    check(runs);
+}
+
+#[test]
+fn targeted_restyles_equal_full_restyles_on_js_fixtures() {
+    swb_engine::set_restyle_check(true);
+    let runs = on_page_threads(
+        ["github-swb", "ars-technica", "wikipedia-web-browser"]
+            .map(|name| move || run_fixture(name, true)),
+    );
+    check(runs);
+}
+
+/// A script that moves the focus in a loop and reads `getComputedStyle`
+/// between the moves: the values are those of the current focus, and the
+/// flush after the task restyles from the states of the last styles.
+#[test]
+fn script_focus_and_computed_style() {
+    swb_engine::set_restyle_check(true);
+    common::on_page_thread(|| {
+        let html = "<!doctype html><style>\
+            button:focus { color: rgb(255, 0, 0) }\
+            .row:focus-within > .label { color: rgb(0, 128, 0) }\
+            .row:has(:focus-visible) { outline: 1px solid blue }\
+            </style>\
+            <div class=row><span class=label>a</span><button id=a>a</button></div>\
+            <div class=row><span class=label>b</span><button id=b>b</button></div>";
+        let fetcher = Arc::new(OnePage::new(html));
+        let mut page = new_page(fetcher, 1, VIEW);
+        page.set_javascript(true);
+        page.navigate(Url::parse(CASE_PAGE).unwrap());
+        assert!(page.wait_until_loaded(Duration::from_secs(10)));
+        render(&mut page);
+        let colors = value(
+            &mut page,
+            "const out = []; const a = document.getElementById('a'), \
+             b = document.getElementById('b'); \
+             for (let i = 0; i < 50; i++) { (i % 2 ? a : b).focus(); } \
+             out.push(getComputedStyle(a).color, getComputedStyle(b).color); \
+             a.focus(); \
+             out.push(getComputedStyle(a).color, \
+               getComputedStyle(document.querySelector('.label')).color); \
+             a.blur(); out.push(getComputedStyle(a).color); JSON.stringify(out)",
+        );
+        assert_eq!(
+            colors,
+            "\"[\\\"rgb(255, 0, 0)\\\",\\\"rgb(0, 0, 0)\\\",\\\"rgb(255, 0, 0)\\\",\\\"rgb(0, 128, 0)\\\",\\\"rgb(0, 0, 0)\\\"]\""
+        );
+        let before = page.flush_counters().state_restyles;
+        value(&mut page, "document.getElementById('b').focus(); 1");
+        render(&mut page);
+        let paths = page.flush_counters().state_restyles.since(&before);
+        assert_eq!(paths.targeted, 1, "{paths:?}");
+    });
+    assert!(swb_engine::restyle_checks() > 0);
+}

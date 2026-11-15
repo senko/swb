@@ -35,6 +35,20 @@ def test_the_pipeline_lines_parse():
     assert gui_latency.parse_stage(line.replace("style", "display list")) is None
 
 
+def test_the_restyle_lines_parse():
+    prefix = "[2026-11-15T10:00:00Z DEBUG swb_engine::document::pipeline] "
+    targeted = prefix + "targeted restyle after a state change: 12 elements restyled"
+    full = prefix + "style: full restyle after a state change (Containers)"
+    assert gui_latency.parse_restyle(targeted) == ("targeted", 12)
+    assert gui_latency.parse_restyle(full) == ("full: Containers", 0)
+    assert gui_latency.parse_restyle(prefix + "style: 22.5ms") is None
+    assert gui_latency.parse_stage(full) is None
+    paths = gui_latency.restyle_paths(
+        [(1.0, "targeted", 12), (2.0, "full: Containers", 0), (9.0, "targeted", 5)], 0.0, 5.0
+    )
+    assert paths == {"paths": {"targeted": 1, "full: Containers": 1}, "restyled_elements": 12}
+
+
 def test_the_log_is_split_into_batches_and_frames():
     batches, frames = frame_log.parse_log([BATCH_LINE, "noise", FRAME_LINE, BATCH_LINE])
     assert len(batches) == 2

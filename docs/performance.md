@@ -105,6 +105,13 @@ part of the times. The result is the key `interaction` of the JSON:
   runs of the style pass and of layout per changing step (layout runs
   when a style change needs it); `*_ms_per_change` their time. The
   `per_change` values are `null` if no step changed anything.
+  `state_restyles` (since M11 feature 5, ADR 0041) counts the paths of
+  the restyles of all hover steps: `targeted`, `nothing` (a targeted
+  restyle that found no element to restyle), `restyled_elements`, and the
+  full restyles by reason (`full_other_states`, `full_everything`,
+  `full_root_font_size`, `full_containers`, `full_counters`); the same
+  counts of the load are in `flushes.state_restyles`. `swbtools perf`
+  prints them as a third table.
 - Scroll: `Page::wheel` of 100 px down at the middle of the viewport,
   from the top of the page, until the page does not scroll any more or 20
   steps; then the same up. A step that does not scroll is not counted.
@@ -702,6 +709,74 @@ it; on Ars Technica the render and the layout are more than half. The next
 steps are not in feature 4: an invalidation that restyles only the elements
 whose matched rules depend on the changed state, and paint-only changes
 without layout (see the roadmap and the notes of this feature).
+
+## Restyle of the elements that a state change affects (M11 feature 5)
+
+ADR 0041: a change of hover, active, focus, focus-visible or focus-within
+restyles only the elements that a selector can make it affect. Release
+build, Intel Core i5-13500, `swbtools perf --runs 10` (JavaScript off, all
+page fixtures) and `swbtools perf --js github-swb ars-technica
+wikipedia-web-browser --runs 10`; before = 04f5421 (feature 4), built and
+run in the same session as after (the "before" numbers are 5 to 15 % above
+those of feature 4's section: another run on a busier machine). "Change
+median" is a hover change with its render (ms).
+
+| Fixture | JS | change median before | after | change p90 before | after | style ms per change before | after |
+|---|---|---|---|---|---|---|---|
+| github-swb | off | 45.86 | 18.22 | 47.84 | 20.14 | 28.6 | 1.18 |
+| | on | 49.91 | 18.76 | 52.99 | 21.27 | | |
+| ars-technica | off | 25.50 | 15.35 | 28.75 | 17.59 | 9.0 | 0.23 |
+| | on | 23.29 | 12.51 | 25.94 | 13.79 | | |
+| wikipedia-web-browser | off | 15.97 | 2.14 | 30.50 | 17.20 | 11.6 | 0.05 |
+| | on | 16.34 | 3.06 | 30.28 | 18.91 | | |
+| bbc | off | 21.91 | 15.31 | 24.32 | 16.36 | | |
+| hacker-news | off | 2.81 | 0.75 | 5.14 | 2.92 | | |
+| senko-net | off | 0.68 | 0.59 | 1.05 | 1.01 | | |
+
+The load stages, the scroll steps and the number of changing steps did not
+change beyond noise (a targeted restyle counts as a style run, so the
+steps that "changed" are the same). The paths of the hover steps
+(`interaction.hover.state_restyles`, the third table of `swbtools perf`):
+every changing step took the targeted path or found nothing to restyle; no
+fallback on any fixture. Elements restyled per changing step: GitHub 12
+(of 1,732), Ars Technica 7.5 (of 1,943), Wikipedia 1 (of 4,052), BBC 3,
+Hacker News 0.7.
+
+What remains of a hover change: on GitHub layout 3.4 ms (in 58 % of the
+changes) and the display list and raster (about 13 ms); on Ars Technica
+layout 6.2 ms (81 % of the changes, JavaScript off; none with JavaScript
+on) and the raster (about 10 ms). The style run of GitHub (1.2 ms for 12
+elements) is mostly the cascade of the hovered chain's elements (2,131
+custom properties each); the setup outside the walk is 0.12 ms
+(`Styler::new`: the `@media` lists, the Bloom filter), the marking 0.03
+ms. The full `StateSet` (0.14 ms) and the seed of the whole custom-property
+pool (0.1 ms) were replaced by the lazy set and a seed of the restyled
+elements' maps (ADR 0041, implementation notes).
+
+GUI on Xvfb, 1280 x 900, JavaScript on, `swbtools gui-latency` (median /
+p90 / max in ms; before and after in the same session):
+
+| Run | Input | to batch end before | after | to frame before | after |
+|---|---|---|---|---|---|
+| GitHub, `github-owner` | move (1065) | 50 / 90 / 179 | 1 / 19 / 118 | 124 / 503 / 1995 | 101 / 661 / 1994 |
+| | press (6) | 194 / 381 / 381 | 19 / 32 / 32 | 228 / 937 / 937 | 38 / 860 / 860 |
+| | release (6) | 130 / 293 / 293 | 62 / 175 / 175 | 148 / 873 / 873 | 193 / 1381 / 1381 |
+| | wheel (89) | 2 / 23 / 82 | 1 / 4 / 25 | 12 / 74 / 1073 | 9 / 132 / 1020 |
+| Ars Technica, `ars-owner` | move (234) | 1 / 25 / 67 | 0 / 2 / 56 | 438 / 921 / 1057 | 433 / 905 / 1041 |
+| | wheel (27) | 22 / 59 / 62 | 19 / 29 / 54 | 54 / 73 / 97 | 47 / 63 / 67 |
+
+| Run | CPU trace before | after | style runs (ms) before | after | frames/s before | after |
+|---|---|---|---|---|---|---|
+| GitHub, `github-owner` | 17.4 % | 8.8 % | 174 (6,303) | 243 (716) | 2.48 | 3.01 |
+| Ars Technica, `ars-owner` | 22.3 % | 15.5 % | 48 (613) | 51 (48) | 3.12 | 3.38 |
+
+The time to the end of a batch is what the restyle changed; "to frame" of
+a move counts moves that change no pixel up to the next frame that other
+input causes (performance.md, "Interaction baseline"), so its p90 and max
+move with the timing of the page's own frames, not with the restyle. In
+the GitHub trace 227 restyles were targeted (1,376 elements in all) and 2
+fell back to a full restyle for query containers (0.9 %); in the Ars
+Technica trace all 48 were targeted (73 elements).
 
 ## Script runtime of a document
 

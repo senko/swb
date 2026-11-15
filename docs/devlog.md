@@ -4,6 +4,31 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-15: M11 feature 5, restyle of the elements that a state change affects
+
+- ADR 0041 (style invalidation for element states) came first. A change
+  of hover, active, focus, focus-visible or focus-within now restyles only
+  the elements that a selector lets it affect. The analysis follows
+  Selectors 4: where the state pseudo-class sits in the selector gives
+  the reach (the element, its children or descendants, its following
+  siblings and their subtrees, `:has()` anchors), and two keys filter the
+  elements. A walk from the root enters only the paths to them, so the
+  Bloom filter, tree scopes and query containers are those of a full walk.
+  Fallbacks keep the full restyle where the pass cannot be exact.
+- Hover change with its render: GitHub 46 to 18 ms, Ars Technica 26 to
+  15 ms, Wikipedia 16 to 2 ms (JS off; JS on alike). The style run of a
+  GitHub hover change is 1.2 ms; layout and the render remain. In the GUI
+  trace of GitHub, style time went from 6.3 s to 0.7 s.
+- Oracles compare each targeted restyle with a full one: random changes on
+  the page fixtures, and a check mode of the engine (debug builds) on the
+  page and JS fixtures. The review found a `use` element that got a style
+  on hover but no instance (its icon was not drawn) and a quadratic case
+  with many nested roots; both fixed, with tests. One oracle failure on
+  the GitHub JS fixture, seen once in 53 runs, is not explained (backlog).
+- The owner asked to pause after this feature. Next: feature 6 (restyle
+  after DOM changes), only if the click and load numbers stay above their
+  targets; then feature 7 (exit measurement and maintenance).
+
 ## 2026-11-15: M11 feature 4, cheaper style comparison and pseudo-elements
 
 - A GitHub hover change spent most of its time comparing old and new

@@ -44,6 +44,19 @@ pub enum PseudoKind {
     Backdrop,
 }
 
+impl PseudoKind {
+    /// All kinds.
+    pub const ALL: [PseudoKind; 7] = [
+        PseudoKind::Before,
+        PseudoKind::After,
+        PseudoKind::Marker,
+        PseudoKind::Placeholder,
+        PseudoKind::DetailsSummary,
+        PseudoKind::DetailsContent,
+        PseudoKind::Backdrop,
+    ];
+}
+
 /// Computed styles for the elements of a document.
 #[derive(Clone, Debug, Default)]
 pub struct StyleMap {
@@ -63,6 +76,15 @@ pub struct StyleMap {
     /// True if a stored style skips its contents (set when the cascade
     /// stores it, so that layout does not scan the styles).
     hidden_contents: bool,
+    /// The elements whose style or pseudo-element styles read a query
+    /// container (ADR 0041 section 2).
+    container_readers: HashSet<NodeId>,
+    /// True if `counters::resolve` wrote the text of a counter into a
+    /// pseudo-element's content (ADR 0041 section 2). It can stay true
+    /// after a targeted restyle removed that content.
+    counter_text: bool,
+    /// True if `counters::resolve` reached the limit of counter text.
+    counter_limit: bool,
 }
 
 /// The identity of the instance tree of one SVG `use` element (SVG 2 §5.6).
@@ -153,7 +175,207 @@ impl StyleMap {
             root_uses: HashMap::new(),
             container_log: ContainerLog::default(),
             hidden_contents: false,
+            container_readers: HashSet::new(),
+            counter_text: false,
+            counter_limit: false,
         }
+    }
+
+    /// Notes that the style of `node` or of its pseudo-elements read a
+    /// query container.
+    pub(crate) fn add_container_reader(&mut self, node: NodeId) {
+        self.container_readers.insert(node);
+    }
+
+    /// True if the style of `node` or of its pseudo-elements read a query
+    /// container.
+    pub(crate) fn is_container_reader(&self, node: NodeId) -> bool {
+        !self.container_readers.is_empty() && self.container_readers.contains(&node)
+    }
+
+    /// Records what `counters::resolve` did: it wrote counter text, and it
+    /// reached the limit of counter text (each flag stays set once set).
+    pub(crate) fn note_counters(&mut self, text: bool, limit: bool) {
+        self.counter_text |= text;
+        self.counter_limit |= limit;
+    }
+
+    /// See [`StyleMap::note_counters`].
+    pub(crate) fn counter_flags(&self) -> (bool, bool) {
+        (self.counter_text, self.counter_limit)
+    }
+
+    /// The container log, for the targeted restyle.
+    pub(crate) fn container_log_mut(&mut self) -> &mut ContainerLog {
+        &mut self.container_log
+    }
+
+    /// Removes the style of `node` and of its pseudo-elements.
+    pub(crate) fn clear_element(&mut self, node: NodeId) {
+        if let Some(slot) = self.elements.get_mut(node.index()) {
+            *slot = None;
+        }
+        self.remove_pseudos(node);
+    }
+
+    /// Removes the pseudo-element styles of `node`.
+    pub(crate) fn remove_pseudos(&mut self, node: NodeId) {
+        if self.pseudos.is_empty() {
+            return;
+        }
+        for kind in PseudoKind::ALL {
+            self.pseudos.remove(&(node, kind));
+        }
+    }
+
+    /// The ordinals of the list items.
+    pub(crate) fn ordinals(&self) -> &HashMap<NodeId, i32> {
+        &self.ordinals
+    }
+
+    /// Keeps only the ordinals that the style walk sets (the default
+    /// summaries of `details`, 0), before `counters::resolve` runs again.
+    pub(crate) fn reset_ordinals(&mut self) {
+        let pseudos = &self.pseudos;
+        self.ordinals
+            .retain(|&node, _| pseudos.contains_key(&(node, PseudoKind::DetailsSummary)));
+        for value in self.ordinals.values_mut() {
+            *value = 0;
+        }
+    }
+
+    /// True if the map has instance trees of `use` elements.
+    pub(crate) fn has_instances(&self) -> bool {
+        !self.instances.is_empty() || !self.root_uses.is_empty()
+    }
+
+    /// The `use` elements of the document tree and the elements that some
+    /// instance tree copies.
+    pub(crate) fn instance_nodes(&self) -> HashSet<NodeId> {
+        let mut nodes: HashSet<NodeId> = self.root_uses.keys().copied().collect();
+        for instance in &self.instances {
+            nodes.extend(instance.styles.keys().copied());
+            nodes.extend(instance.uses.keys().copied());
+        }
+        nodes
+    }
+
+    /// Removes the instance trees (before `expand_uses` runs again) and
+    /// returns them.
+    pub(crate) fn take_instances(&mut self) -> (Vec<UseInstance>, HashMap<NodeId, InstanceId>) {
+        (
+            std::mem::take(&mut self.instances),
+            std::mem::take(&mut self.root_uses),
+        )
+    }
+
+    /// True if the map's instance trees equal `instances` and `root_uses`.
+    pub(crate) fn same_instances(
+        &self,
+        instances: &[UseInstance],
+        root_uses: &HashMap<NodeId, InstanceId>,
+    ) -> bool {
+        let same = |a: &Arc<ComputedStyle>, b: &Arc<ComputedStyle>| Arc::ptr_eq(a, b) || a == b;
+        self.root_uses == *root_uses
+            && self.instances.len() == instances.len()
+            && self.instances.iter().zip(instances).all(|(a, b)| {
+                a.uses == b.uses
+                    && a.styles.len() == b.styles.len()
+                    && a.styles
+                        .iter()
+                        .all(|(k, x)| b.styles.get(k).is_some_and(|y| same(x, y)))
+            })
+    }
+
+    /// Computes [`StyleMap::has_hidden_contents`] again from all styles.
+    pub(crate) fn recompute_hidden_contents(&mut self) {
+        self.hidden_contents = self
+            .elements
+            .iter()
+            .flatten()
+            .chain(self.pseudos.values())
+            .any(|s| s.skips_contents());
+    }
+
+    /// The pseudo-element styles of `node`, by kind.
+    pub(crate) fn pseudos_of(&self, node: NodeId) -> [Option<Arc<ComputedStyle>>; 7] {
+        PseudoKind::ALL.map(|kind| self.pseudos.get(&(node, kind)).cloned())
+    }
+
+    /// Stores (or with `None` removes) a pseudo-element style.
+    pub(crate) fn put_pseudo(
+        &mut self,
+        node: NodeId,
+        kind: PseudoKind,
+        style: Option<Arc<ComputedStyle>>,
+    ) {
+        match style {
+            Some(style) => self.set_pseudo(node, kind, style),
+            None => {
+                self.pseudos.remove(&(node, kind));
+            }
+        }
+    }
+
+    /// What differs between two maps, for the messages of tests: the first
+    /// element or pseudo-element style, ordinal, or the other parts that
+    /// [`StyleMap::same_result`] compares.
+    #[doc(hidden)]
+    pub fn first_difference(&self, other: &StyleMap) -> Option<String> {
+        let same = |a: Option<&Arc<ComputedStyle>>, b: Option<&Arc<ComputedStyle>>| match (a, b) {
+            (Some(a), Some(b)) => Arc::ptr_eq(a, b) || a == b,
+            (None, None) => true,
+            _ => false,
+        };
+        let count = self.elements.len().max(other.elements.len());
+        for index in 0..count {
+            let a = self.elements.get(index).and_then(Option::as_ref);
+            let b = other.elements.get(index).and_then(Option::as_ref);
+            if !same(a, b) {
+                return Some(format!(
+                    "the style of node {index}: {}",
+                    style_difference(a, b)
+                ));
+            }
+        }
+        for (key, a) in &self.pseudos {
+            if !same(Some(a), other.pseudos.get(key)) {
+                return Some(format!(
+                    "the pseudo-element {key:?}: {}",
+                    style_difference(Some(a), other.pseudos.get(key))
+                ));
+            }
+        }
+        if let Some(key) = other.pseudos.keys().find(|k| !self.pseudos.contains_key(k)) {
+            return Some(format!("the pseudo-element {key:?} is missing"));
+        }
+        if self.ordinals != other.ordinals {
+            return Some("the ordinals".to_owned());
+        }
+        if !self.same_instances(&other.instances, &other.root_uses) {
+            return Some("the use instances".to_owned());
+        }
+        if !self.container_log.same_as(&other.container_log) {
+            return Some(format!(
+                "the container log: {:?} against {:?}",
+                self.container_log, other.container_log
+            ));
+        }
+        if self.hidden_contents != other.hidden_contents {
+            return Some("the hidden contents flag".to_owned());
+        }
+        None
+    }
+
+    /// True if both maps have the same container log, `use` instances and
+    /// styles ([`StyleMap::same_styles`]): for the tests that compare a
+    /// targeted restyle with a full one. The hidden contents flag must be
+    /// equal too.
+    pub fn same_result(&self, other: &StyleMap) -> bool {
+        self.same_styles(other)
+            && other.same_styles(self)
+            && self.container_log.same_as(&other.container_log)
+            && self.hidden_contents == other.hidden_contents
     }
 
     /// What the styles read of query containers: the engine checks it
@@ -300,32 +522,63 @@ impl StyleMap {
     /// element styles in document order, then those of pseudo-element
     /// styles (in no particular order).
     pub fn image_urls(&self) -> Vec<Arc<str>> {
-        let mut seen: HashSet<Arc<str>> = HashSet::new();
-        let mut urls = Vec::new();
-        let mut visited: HashSet<*const ComputedStyle> = HashSet::new();
-        let styles = self.elements.iter().flatten().chain(self.pseudos.values());
-        for style in styles {
-            if !visited.insert(Arc::as_ptr(style)) {
-                continue;
-            }
-            let masks = style.mask_image.iter().filter_map(|m| match m {
-                MaskImage::Image(image) => Some(image),
-                _ => None,
-            });
-            let images = style
-                .background_image
-                .iter()
-                .flatten()
-                .chain(masks)
-                .chain(style.list_style_image.as_ref());
-            for image in images {
-                if let Image::Url(url) = image
-                    && seen.insert(Arc::clone(url))
-                {
-                    urls.push(Arc::clone(url));
-                }
+        image_urls_of(self.elements.iter().flatten().chain(self.pseudos.values()))
+    }
+}
+
+/// A short description of how two styles differ, for test messages.
+fn style_difference(a: Option<&Arc<ComputedStyle>>, b: Option<&Arc<ComputedStyle>>) -> String {
+    match (a, b) {
+        (Some(a), Some(b)) => {
+            let (a, b) = (format!("{a:?}"), format!("{b:?}"));
+            let start = a
+                .bytes()
+                .zip(b.bytes())
+                .position(|(x, y)| x != y)
+                .unwrap_or(0);
+            let start = a.floor_char_boundary(start.saturating_sub(80));
+            let end_a = a.ceil_char_boundary((start + 240).min(a.len()));
+            let end_b = b.ceil_char_boundary((start + 240).min(b.len()));
+            format!(
+                "...{} against ...{}",
+                a.get(start..end_a).unwrap_or(""),
+                b.get(start..end_b).unwrap_or("")
+            )
+        }
+        (a, b) => format!("{:?} against {:?}", a.is_some(), b.is_some()),
+    }
+}
+
+/// The absolute URLs of the `background-image`, `mask-image` and
+/// `list-style-image` `url()` values of `styles`, without duplicates, in
+/// order.
+pub(crate) fn image_urls_of<'a>(
+    styles: impl Iterator<Item = &'a Arc<ComputedStyle>>,
+) -> Vec<Arc<str>> {
+    let mut seen: HashSet<Arc<str>> = HashSet::new();
+    let mut urls = Vec::new();
+    let mut visited: HashSet<*const ComputedStyle> = HashSet::new();
+    for style in styles {
+        if !visited.insert(Arc::as_ptr(style)) {
+            continue;
+        }
+        let masks = style.mask_image.iter().filter_map(|m| match m {
+            MaskImage::Image(image) => Some(image),
+            _ => None,
+        });
+        let images = style
+            .background_image
+            .iter()
+            .flatten()
+            .chain(masks)
+            .chain(style.list_style_image.as_ref());
+        for image in images {
+            if let Image::Url(url) = image
+                && seen.insert(Arc::clone(url))
+            {
+                urls.push(Arc::clone(url));
             }
         }
-        urls
     }
+    urls
 }

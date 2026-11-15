@@ -106,13 +106,26 @@ impl DocumentState {
         self.pseudo_styles.clear();
     }
 
-    /// Recomputes the styles after a change of the element states. The
-    /// layout stays if no style changed.
+    /// Recomputes the styles after a change of the element states, from
+    /// the states of the last styles to the current ones: only the elements
+    /// that the change can affect (ADR 0041), or the whole document when
+    /// the targeted restyle cannot handle the change. The layout stays if no
+    /// style changed.
     pub(crate) fn restyle(&mut self) {
         self.sync();
-        let Some(old) = self.styles.take() else {
+        let Some(mut old) = self.styles.take() else {
             return;
         };
+        if let Some(changed) = self.targeted_restyle(&mut old) {
+            self.styles = Some(old);
+            if self.frame && self.update_canvas_text() {
+                self.compute_styles();
+                self.invalidate_layout();
+            } else if changed {
+                self.invalidate_layout();
+            }
+            return;
+        }
         self.compute_styles_from(Some(&old));
         if !self
             .styles
@@ -121,6 +134,95 @@ impl DocumentState {
         {
             self.invalidate_layout();
         }
+    }
+
+    /// The restyle of ADR 0041 on `map`, the styles for
+    /// [`DocumentState::style_states`]: `Some(changed)` if it brought `map`
+    /// up to date for the current states, `None` if the whole document must
+    /// be restyled (then `map` is unchanged).
+    fn targeted_restyle(&mut self, map: &mut swb_style::StyleMap) -> Option<bool> {
+        let current = self.stylist.is_some() && !self.adopted.out_of_date(&self.dom);
+        if !current || self.images.sources_outdated {
+            self.flushes
+                .state_restyles
+                .fallback(swb_style::FullReason::OtherStates);
+            return None;
+        }
+        let env = self.media_environment();
+        let stylist = self.stylist.as_ref()?;
+        let started = Instant::now();
+        let outcome = swb_style::restyle_states(
+            &self.dom,
+            stylist,
+            &env,
+            self.base_url.value(),
+            &self.container_sizes,
+            &self.style_states,
+            &self.states,
+            map,
+        );
+        let (changed, restyled, image_urls) = match outcome {
+            swb_style::Restyle::Full(reason) => {
+                log::debug!("style: full restyle after a state change ({reason:?})");
+                self.flushes.state_restyles.fallback(reason);
+                return None;
+            }
+            swb_style::Restyle::Done {
+                changed,
+                restyled,
+                image_urls,
+            } => (changed, restyled, image_urls),
+        };
+        self.timings.style = started.elapsed();
+        self.flushes.style(self.timings.style, self.in_query);
+        let counts = &mut self.flushes.state_restyles;
+        if restyled == 0 {
+            counts.nothing = counts.nothing.saturating_add(1);
+        } else {
+            counts.targeted = counts.targeted.saturating_add(1);
+        }
+        counts.restyled_elements = counts.restyled_elements.saturating_add(restyled as u64);
+        log::debug!("style: {:?}", self.timings.style);
+        log::debug!("targeted restyle after a state change: {restyled} elements restyled");
+        self.style_states = self.states.clone();
+        self.styles_stale = false;
+        self.clear_element_styles();
+        #[cfg(debug_assertions)]
+        self.check_targeted_restyle(map);
+        for url in image_urls {
+            if let Ok(url) = Url::parse(&url) {
+                self.start_image(url);
+            }
+        }
+        Some(changed)
+    }
+
+    /// The engine's check mode (debug builds, tests only): after a targeted
+    /// restyle, a full restyle must give the same result (ADR 0041 section
+    /// 6).
+    #[cfg(debug_assertions)]
+    fn check_targeted_restyle(&self, map: &swb_style::StyleMap) {
+        if !super::restyle_check::enabled() {
+            return;
+        }
+        let Some(stylist) = &self.stylist else {
+            return;
+        };
+        let full = swb_style::compute_styles_with_containers(
+            &self.dom,
+            stylist,
+            &self.media_environment(),
+            &self.states,
+            self.base_url.value(),
+            &self.container_sizes,
+        );
+        if let Some(difference) = map.first_difference(&full) {
+            panic!(
+                "the targeted restyle of {} differs from a full restyle: {difference}",
+                self.url.as_str()
+            );
+        }
+        super::restyle_check::count();
     }
 
     /// The media environment of the document: the viewport, the scale,
@@ -141,8 +243,15 @@ impl DocumentState {
     /// loaded, there are no styles.
     pub fn update_style(&mut self) {
         self.sync();
-        if (self.styles.is_none() || self.styles_stale) && self.stylesheets_settled() {
+        if !self.stylesheets_settled() {
+            return;
+        }
+        if self.styles.is_none() {
             self.compute_styles();
+        } else if self.styles_stale {
+            // A script changed the focus since the styles (ADR 0041
+            // section 5).
+            self.restyle();
         }
     }
 
@@ -598,6 +707,7 @@ impl DocumentState {
         log::debug!("style: {:?}", self.timings.style);
         let image_urls = styles.image_urls();
         self.styles = Some(styles);
+        self.style_states = self.states.clone();
         self.styles_stale = false;
         self.clear_element_styles();
         for url in image_urls {

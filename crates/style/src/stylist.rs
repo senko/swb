@@ -53,6 +53,7 @@ use crate::container::Containers;
 use crate::cssom::sheet::{Hold, RuleKind, RuleRef, StyleSheet};
 use crate::element::DomElement;
 use crate::font_face::FontFace;
+use crate::invalidation::StateIndex;
 use crate::layers::{LayerTree, UNLAYERED};
 use crate::parse::ParserContext;
 use crate::properties::{DeclarationBlock, is_supported};
@@ -373,6 +374,9 @@ pub struct Stylist {
     scoped_targets: u8,
     /// What the scoped stylists hold of the document's style memory.
     scope_holds: Vec<Hold>,
+    /// The dependencies of the selectors on the element states (ADR 0041),
+    /// built at the first state change that needs them.
+    state_index: OnceLock<StateIndex>,
 }
 
 /// The estimated bytes of a scoped stylist without its rules, for the
@@ -467,6 +471,7 @@ impl Stylist {
             scope_of_root: HashMap::new(),
             scoped_targets: 0,
             scope_holds: Vec::new(),
+            state_index: OnceLock::new(),
         }
     }
 
@@ -549,6 +554,19 @@ impl Stylist {
     /// states change, styles stay the same.
     pub fn state_dependencies(&self) -> ElementState {
         self.state_dependencies
+    }
+
+    /// The dependencies of all selectors (of the scoped stylists too) on
+    /// the states of ADR 0041, built at the first call.
+    pub(crate) fn state_index(&self) -> &StateIndex {
+        self.state_index.get_or_init(|| {
+            let selectors = self
+                .rules
+                .iter()
+                .chain(self.scopes.iter().flat_map(|s| s.rules.iter()))
+                .map(|r| &r.selector);
+            StateIndex::new(selectors, self.quirks)
+        })
     }
 
     /// True in quirks mode.

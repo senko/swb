@@ -763,8 +763,9 @@ def javascript_link_loop_js_on() -> Page:
     "without a form and once inside a submit button that acts, a listener on each element, and a "
     "click at the innermost span (the pointer, click() and dispatchEvent), with JavaScript on: "
     "the rule for the activation target walks the path once and looks for a button that acts "
-    "above a link once per click (ADR 0028 'Nested activation')",
-    swb_args=steps_args([{"click": [5, 5]}, {"click": [5, 30]}]),
+    "above a link once per click (ADR 0028 'Nested activation'); the page settles 500 ms, so "
+    "that the log of the timer after the load comes also when the clicks are fast",
+    swb_args=(*steps_args([{"click": [5, 5]}, {"click": [5, 30]}]), "--settle-ms", "500"),
     time_limit_s=15,
     rss_limit_mib=1024,
     expect_log="nested activation done",

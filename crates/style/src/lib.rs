@@ -52,6 +52,7 @@ mod font_cycle;
 mod font_face;
 mod font_settings;
 mod hints;
+mod invalidation;
 mod layers;
 mod parse;
 mod properties;
@@ -63,6 +64,7 @@ mod svg_attributes;
 mod transform_list;
 mod values;
 
+pub use cascade::targeted::{FullReason, Restyle, restyle_states};
 pub use cascade::{
     compute_element_styles, compute_element_styles_with_containers, compute_pseudo_element_style,
     compute_pseudo_element_style_with_containers, compute_styles, compute_styles_reusing,

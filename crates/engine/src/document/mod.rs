@@ -46,6 +46,8 @@ mod paint_stamp;
 mod pipeline;
 mod queries;
 mod resolved;
+#[cfg(debug_assertions)]
+pub(crate) mod restyle_check;
 mod script_actions;
 mod script_forms;
 mod script_validity;
@@ -314,6 +316,9 @@ pub struct DocumentState {
     /// True if a script changed the focus and the styles that depend on
     /// `:focus` are outdated: the next style flush computes them again.
     pub(crate) styles_stale: bool,
+    /// The element states that `styles` were computed with: a restyle after
+    /// state changes starts from them (ADR 0041 section 5).
+    pub(crate) style_states: ElementStates,
     /// What scripts asked for during the task (navigation, scrolling).
     pub(crate) script_requests: ScriptRequests,
     /// The session history as scripts see it; the page keeps it current.
@@ -454,6 +459,7 @@ impl DocumentState {
             styles: None,
             container_sizes: swb_style::ContainerSizes::new(),
             styles_stale: false,
+            style_states: ElementStates::default(),
             script_requests: ScriptRequests::default(),
             history: HistoryInfo::default(),
             navigation: swb_web::NavigationInfo::default(),

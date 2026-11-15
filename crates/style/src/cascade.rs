@@ -61,6 +61,9 @@ mod scoping;
 mod scoping_tests;
 #[cfg(test)]
 mod small_features_tests;
+pub(crate) mod targeted;
+#[cfg(test)]
+mod targeted_tests;
 #[cfg(test)]
 mod top_layer_tests;
 pub(crate) mod use_instances;
@@ -588,6 +591,7 @@ impl<'a> Styler<'a> {
             };
             let is_root = node == root;
             self.scope = scope;
+            self.containers.take_read();
             let style = self.style_element(&el, &parent, layout_parent, is_root);
             if is_root {
                 self.cx.root_font_size = style.font_size;
@@ -630,6 +634,9 @@ impl<'a> Styler<'a> {
                         child_scope,
                     ));
                 }
+            }
+            if self.containers.take_read() {
+                map.add_container_reader(node);
             }
             map.set(node, style);
         }

@@ -38,7 +38,7 @@ pub(crate) const MAX_INSTANCE_ELEMENTS: usize = 20_000;
 pub(crate) const MAX_USE_DEPTH: usize = 16;
 
 /// Whether the element is an SVG `use` element.
-fn is_svg_use(e: &swb_dom::ElementData) -> bool {
+pub(super) fn is_svg_use(e: &swb_dom::ElementData) -> bool {
     e.name.ns == ns!(svg) && &**e.local_name() == "use"
 }
 

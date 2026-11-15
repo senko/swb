@@ -26,6 +26,7 @@ mod anb;
 mod display;
 mod matching;
 mod parse;
+mod reach;
 mod specificity;
 
 pub use anb::AnB;
@@ -33,6 +34,7 @@ pub use matching::{
     CaseSensitivity, Element, ElementState, MATCH_BUDGET, MatchingContext, QuirksMode, matches,
     matches_any, matches_in_tree, matches_part, matches_slotted, matches_with_scope,
 };
+pub use reach::{StateDependency, StateReach};
 pub use specificity::Specificity;
 
 use crate::cursor::ParseError;

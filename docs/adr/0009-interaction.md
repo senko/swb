@@ -34,6 +34,15 @@ This is not incremental restyling, but it costs nothing when a page has no
 rules for a state, and it avoids a layout when the rules do not match the
 elements involved. Incremental style and layout remain in the roadmap.
 
+Update (2026-11-15, M11 feature 5): a change of hover, active, focus,
+focus-visible or focus-within restyles only the elements that a selector
+can make it affect ([ADR 0041](0041-style-invalidation.md)): the hovered
+chain's elements that selectors name, their children when their style
+changed, and the descendants or siblings that selectors reach; other
+states and the cases of ADR 0041 section 4 keep the full restyle. The style
+run of a hover change on GitHub went from 28.6 ms to 1.2 ms, on Wikipedia
+from 11.6 ms to 0.05 ms; layout still runs in full when a style changed.
+
 ### Pointer, clicks and keys
 
 - The engine gets mouse down, move and up events and key presses in its own
@@ -180,7 +189,8 @@ focus until the next one.
 
 - Hover on pages with `:hover` rules costs a full restyle and often a full
   layout. On the Wikipedia fixture that is about 16 ms; acceptable until
-  incremental style and layout exist.
+  incremental style and layout exist. (Since M11 feature 5 the restyle is
+  targeted, ADR 0041; the layout is still full.)
 - Text fragments carry caret stops (8 bytes per cluster) and their line
   box.
 - Copy and paste through Xwayland depends on Mutter's clipboard bridge

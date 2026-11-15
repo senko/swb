@@ -180,6 +180,7 @@ class LogCollector(threading.Thread):
         self.batches: list[frame_log.Batch] = []
         self.frames: list[frame_log.Frame] = []
         self.stages: list[tuple[float, str, float]] = []
+        self.restyles: list[tuple[float, str, int]] = []
         self.logged = dict.fromkeys(frame_log.KIND_FIELDS, 0)
 
     def run(self) -> None:
@@ -196,6 +197,9 @@ class LogCollector(threading.Thread):
                 stage = parse_stage(line)
                 if stage is not None:
                     self.stages.append((arrived, *stage))
+                restyle = parse_restyle(line)
+                if restyle is not None:
+                    self.restyles.append((arrived, *restyle))
 
 
 _STAGE = re.compile(r"pipeline\]\s+(style|layout): ([0-9.]+)(ns|µs|ms|s)\s*$")
@@ -210,6 +214,35 @@ def parse_stage(line: str) -> tuple[str, float] | None:
         return None
     scale = {"ns": 1e-6, "µs": 1e-3, "ms": 1.0, "s": 1000.0}[match.group(3)]
     return match.group(1), float(match.group(2)) * scale
+
+
+_TARGETED = re.compile(r"pipeline\]\s+targeted restyle after a state change: (\d+) elements")
+_FULL = re.compile(r"pipeline\]\s+style: full restyle after a state change \((\w+)\)")
+
+
+def parse_restyle(line: str) -> tuple[str, int] | None:
+    """The path of a restyle after a state change (ADR 0041) from a pipeline
+    log line: (`targeted`, restyled elements) or (`full: REASON`, 0); None
+    for other lines."""
+    match = _TARGETED.search(line)
+    if match is not None:
+        return "targeted", int(match.group(1))
+    match = _FULL.search(line)
+    if match is not None:
+        return f"full: {match.group(1)}", 0
+    return None
+
+
+def restyle_paths(restyles: list[tuple[float, str, int]], start: float, end: float) -> dict:
+    """The restyles after state changes logged from `start` up to `end`, by
+    path, and the elements that the targeted ones restyled."""
+    paths: dict[str, int] = {}
+    elements = 0
+    for arrived, path, count in restyles:
+        if start <= arrived < end:
+            paths[path] = paths.get(path, 0) + 1
+            elements += count
+    return {"paths": paths, "restyled_elements": elements}
 
 
 def process_cpu_s(pid: int) -> float:
@@ -373,7 +406,8 @@ def run(options: Options) -> dict:
         batches = [b for b in collector.batches[batches_before:] if b.start >= injected.start]
         frames = list(collector.frames)
         stages = list(collector.stages)
-    return build_report(
+        restyles = list(collector.restyles)
+    report = build_report(
         options,
         injected,
         batches,
@@ -386,6 +420,8 @@ def run(options: Options) -> dict:
             "drain_s": waited,
         },
     )
+    report["restyles"] = restyle_paths(restyles, injected.start, injected.end)
+    return report
 
 
 def stage_totals(
@@ -519,6 +555,13 @@ def markdown(report: dict) -> str:
         f"{after['style_runs']} ({after['style_ms']:.0f}) | "
         f"{after['layout_runs']} ({after['layout_ms']:.0f}) | {cpu['drain_s']} |",
     ]
+    restyles = report.get("restyles", {})
+    if restyles.get("paths"):
+        paths = ", ".join(f"{path} {n}" for path, n in sorted(restyles["paths"].items()))
+        lines.append(
+            f"\nRestyles after state changes in the trace: {paths} "
+            f"({restyles['restyled_elements']} elements restyled)."
+        )
     for kind, counts in report["count_mismatch"].items():
         lines.append(
             f"\nCount mismatch ({kind}): the tool sent {counts['injected']} events, the frame "

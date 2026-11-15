@@ -167,6 +167,7 @@ pub(crate) fn resolve(doc: &Document, map: &mut StyleMap) {
             Visit::Leave(node, depth) => pass.leave(node, depth, map),
         }
     }
+    map.note_counters(pass.counters.wrote_text, pass.counters.text_left == 0);
 }
 
 /// A step of a walk over the elements, with data `T` (the depth in the
@@ -448,6 +449,8 @@ struct Counters {
     cache: HashMap<[usize; 3], CachedDirectives>,
     /// The counter text that the document may still produce.
     text_left: usize,
+    /// True once a `counter()` or `counters()` was replaced with text.
+    wrote_text: bool,
 }
 
 /// The combined directives of a combination of counter lists, with name
@@ -469,6 +472,7 @@ impl Counters {
             slots: Vec::new(),
             cache: HashMap::new(),
             text_left: MAX_COUNTER_TEXT,
+            wrote_text: false,
         };
         let index = counters.intern(&Arc::from(LIST_ITEM));
         debug_assert_eq!(index, LIST_ITEM_INDEX);
@@ -622,6 +626,7 @@ impl Counters {
         {
             return;
         }
+        self.wrote_text = true;
         let mut resolved = Vec::new();
         let mut run: Option<String> = None;
         for item in items.iter() {

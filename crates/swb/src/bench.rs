@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 use serde_json::json;
-use swb_engine::{FlushCounters, Page, Pixmap, Point, StageTimings, Url};
+use swb_engine::{FlushCounters, Page, Pixmap, Point, StageTimings, StateRestyles, Url};
 use swb_net::{Destination, Fetcher, Request, fetch_following_redirects};
 
 /// Runs the benchmark for the loaded `page` and prints the result.
@@ -100,6 +100,21 @@ fn flushes_json(c: &FlushCounters) -> serde_json::Value {
         "sheet_changes": c.sheet_changes,
         "container_passes": c.container_passes,
         "container_pass_limits": c.container_pass_limits,
+        "state_restyles": state_restyles_json(&c.state_restyles),
+    })
+}
+
+/// The paths of the restyles after state changes (ADR 0041).
+fn state_restyles_json(r: &StateRestyles) -> serde_json::Value {
+    json!({
+        "targeted": r.targeted,
+        "nothing": r.nothing,
+        "restyled_elements": r.restyled_elements,
+        "full_other_states": r.other_states,
+        "full_everything": r.everything,
+        "full_root_font_size": r.root_font_size,
+        "full_containers": r.containers,
+        "full_counters": r.counters,
     })
 }
 
@@ -153,6 +168,7 @@ fn delta(before: &FlushCounters, after: &FlushCounters) -> FlushCounters {
         layout_runs: after.layout_runs - before.layout_runs,
         layout_time: after.layout_time.saturating_sub(before.layout_time),
         display_list_runs: after.display_list_runs - before.display_list_runs,
+        state_restyles: after.state_restyles.since(&before.state_restyles),
         ..FlushCounters::default()
     }
 }
@@ -208,7 +224,25 @@ fn hover_stage(page: &mut Page, pixmap: &mut Pixmap, rounds: usize) -> serde_jso
         "layout_runs_per_change": per_change(sum(|s| f64::from(s.flushes.layout_runs))),
         "style_ms_per_change": per_change(sum(|s| s.flushes.style_time.as_secs_f64() * 1e3)),
         "layout_ms_per_change": per_change(sum(|s| s.flushes.layout_time.as_secs_f64() * 1e3)),
+        "state_restyles": state_restyles_json(&steps.iter().fold(
+            StateRestyles::default(),
+            |total, s| add_restyles(total, &s.flushes.state_restyles)
+        )),
     })
+}
+
+/// The sum of two counts of restyle paths.
+fn add_restyles(a: StateRestyles, b: &StateRestyles) -> StateRestyles {
+    StateRestyles {
+        targeted: a.targeted + b.targeted,
+        nothing: a.nothing + b.nothing,
+        restyled_elements: a.restyled_elements + b.restyled_elements,
+        other_states: a.other_states + b.other_states,
+        everything: a.everything + b.everything,
+        root_font_size: a.root_font_size + b.root_font_size,
+        containers: a.containers + b.containers,
+        counters: a.counters + b.counters,
+    }
 }
 
 /// Scroll: wheel steps of [`WHEEL_STEP`] px down from the top until the end

@@ -120,9 +120,12 @@ pub struct StageTimings {
 /// too, but they are counted apart, not as forced style runs.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FlushCounters {
-    /// Full style runs (all elements).
+    /// Style runs of the document: full runs (all elements) and the
+    /// restyles after a change of the element states, also those that
+    /// restyle only the elements the change can affect (ADR 0041; see
+    /// [`FlushCounters::state_restyles`]).
     pub style_runs: u32,
-    /// The time of the full style runs.
+    /// The time of the style runs.
     pub style_time: Duration,
     /// Layout runs.
     pub layout_runs: u32,
@@ -158,6 +161,65 @@ pub struct FlushCounters {
     /// The layout flushes that stopped at the bound of the container
     /// passes (`MAX_CONTAINER_PASSES`).
     pub container_pass_limits: u32,
+    /// The paths of the restyles after state changes (ADR 0041).
+    pub state_restyles: StateRestyles,
+}
+
+/// The restyles after a change of the element states, by path (ADR 0041):
+/// targeted (only the elements the change can affect), and the full
+/// restyles by the reason of the fallback.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct StateRestyles {
+    /// Targeted restyles that restyled at least one element.
+    pub targeted: u32,
+    /// Targeted restyles that found nothing to restyle.
+    pub nothing: u32,
+    /// The elements that the targeted restyles matched and cascaded.
+    pub restyled_elements: u64,
+    /// Full restyles: the styles were not current (outdated image sources,
+    /// a stylist to rebuild), or a state other than hover, active and focus
+    /// changed.
+    pub other_states: u32,
+    /// Full restyles: a dependency that the analysis does not handle.
+    pub everything: u32,
+    /// Full restyles: the root's font size changed.
+    pub root_font_size: u32,
+    /// Full restyles: query containers.
+    pub containers: u32,
+    /// Full restyles: counters.
+    pub counters: u32,
+}
+
+impl StateRestyles {
+    /// Records a fallback to a full restyle.
+    pub(crate) fn fallback(&mut self, reason: swb_style::FullReason) {
+        use swb_style::FullReason as R;
+        let slot = match reason {
+            R::OtherStates => &mut self.other_states,
+            R::Everything => &mut self.everything,
+            R::RootFontSize => &mut self.root_font_size,
+            R::Containers => &mut self.containers,
+            R::Counters => &mut self.counters,
+        };
+        *slot = slot.saturating_add(1);
+    }
+
+    /// The counts since `before`.
+    #[must_use]
+    pub fn since(&self, before: &StateRestyles) -> StateRestyles {
+        StateRestyles {
+            targeted: self.targeted.saturating_sub(before.targeted),
+            nothing: self.nothing.saturating_sub(before.nothing),
+            restyled_elements: self
+                .restyled_elements
+                .saturating_sub(before.restyled_elements),
+            other_states: self.other_states.saturating_sub(before.other_states),
+            everything: self.everything.saturating_sub(before.everything),
+            root_font_size: self.root_font_size.saturating_sub(before.root_font_size),
+            containers: self.containers.saturating_sub(before.containers),
+            counters: self.counters.saturating_sub(before.counters),
+        }
+    }
 }
 
 impl FlushCounters {

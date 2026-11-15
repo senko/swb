@@ -126,6 +126,37 @@ impl ContainerLog {
         })
     }
 
+    /// Sets the size of each logged container to `size(container)`: what a
+    /// new pass with the current sizes records (ADR 0041 section 2).
+    pub(crate) fn refresh_sizes(&mut self, size: impl Fn(NodeId) -> Option<(f32, f32)>) {
+        for (&node, entry) in &mut self.entries {
+            entry.size = size(node);
+        }
+    }
+
+    /// True if both logs record the same reads: the same containers with
+    /// the same sizes, axes, fonts and unit reads, and the same conditions
+    /// (by address) with the same results in the same order. For tests that
+    /// compare a targeted restyle with a full one.
+    pub fn same_as(&self, other: &ContainerLog) -> bool {
+        self.root_font_size == other.root_font_size
+            && self.viewport == other.viewport
+            && self.entries.len() == other.entries.len()
+            && self.entries.iter().all(|(node, a)| {
+                other.entries.get(node).is_some_and(|b| {
+                    a.size == b.size
+                        && a.axes == b.axes
+                        && a.fonts == b.fonts
+                        && a.units == b.units
+                        && a.conditions.len() == b.conditions.len()
+                        && a.conditions
+                            .iter()
+                            .zip(&b.conditions)
+                            .all(|((x, r), (y, s))| Arc::ptr_eq(x, y) && r == s)
+                })
+            })
+    }
+
     fn container_size(&self, size: Option<(f32, f32)>, entry: &LogEntry) -> ContainerSize {
         query_size(
             size,
@@ -197,6 +228,9 @@ pub(crate) struct Containers<'a> {
     bases: HashMap<NodeId, ContainerBasis>,
     log: ContainerLog,
     viewport: ContainerBasis,
+    /// True once a condition or a container unit read a container, until
+    /// [`Containers::take_read`] (ADR 0041: the readers of a style pass).
+    read: bool,
 }
 
 impl<'a> Containers<'a> {
@@ -217,7 +251,14 @@ impl<'a> Containers<'a> {
                 width: env.viewport_width,
                 height: env.viewport_height,
             },
+            read: false,
         }
+    }
+
+    /// True if a condition or a container unit read a query container
+    /// since the last call.
+    pub(crate) fn take_read(&mut self) -> bool {
+        std::mem::take(&mut self.read)
     }
 
     /// Sets the root font size (for `rem` in queries) once the root is
@@ -270,6 +311,7 @@ impl<'a> Containers<'a> {
         let Some(index) = self.lookup(condition) else {
             return false;
         };
+        self.read = true;
         let Some(entry) = self.stack.get(index) else {
             return false;
         };
@@ -356,6 +398,7 @@ impl<'a> Containers<'a> {
         let Some(top) = self.nearest() else {
             return self.viewport;
         };
+        self.read = true;
         if let Some(&basis) = self.bases.get(&top) {
             return basis;
         }

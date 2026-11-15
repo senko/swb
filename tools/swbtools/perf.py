@@ -106,6 +106,37 @@ def interaction_table(results: dict[str, dict]) -> str:
     return "\n".join(lines)
 
 
+RESTYLE_PATHS = [
+    "targeted",
+    "nothing",
+    "restyled_elements",
+    "full_other_states",
+    "full_everything",
+    "full_root_font_size",
+    "full_containers",
+    "full_counters",
+]
+"""The keys of `interaction.hover.state_restyles` (ADR 0041)."""
+
+
+def restyle_table(results: dict[str, dict]) -> str | None:
+    """The paths of the restyles of the hover steps (targeted, nothing to
+    restyle, the restyled elements, the full restyles by reason) as a
+    Markdown table; None if no result has them (an older swb)."""
+    rows = {
+        name: result["interaction"]["hover"]["state_restyles"]
+        for name, result in results.items()
+        if "state_restyles" in result.get("interaction", {}).get("hover", {})
+    }
+    if not rows:
+        return None
+    header = ["Fixture", *(k.replace("_", " ") for k in RESTYLE_PATHS)]
+    lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
+    for name, paths_ in rows.items():
+        lines.append("| " + " | ".join([name, *(str(paths_[k]) for k in RESTYLE_PATHS)]) + " |")
+    return "\n".join(lines)
+
+
 def perf(names: list[str], swb_path: Path | None, runs: int, javascript: bool = False) -> int:
     """Benchmarks the fixtures and prints the tables."""
     binary = swb.find_swb(swb_path)
@@ -123,4 +154,8 @@ def perf(names: list[str], swb_path: Path | None, runs: int, javascript: bool = 
     print(table(results))
     print()
     print(interaction_table(results))
+    restyles = restyle_table(results)
+    if restyles is not None:
+        print()
+        print(restyles)
     return 0

@@ -23,6 +23,9 @@ mod web_fonts;
 
 pub use boxes::{ElementBox, element_boxes};
 pub use document::DocumentState;
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub use document::restyle_check::{restyle_checks, set_restyle_check};
 pub use edit::TextEdit;
 pub use frames::{
     DEFAULT_FRAME_VIEWPORT, FrameId, MAX_DEPTH, MAX_FONT_BYTES, MAX_FRAMES, MAX_IMAGE_BYTES,
@@ -33,7 +36,7 @@ pub use input::{Key, Modifiers, MouseButton};
 pub use page::{
     AgentLimits, ElementScroll, FlushCounters, LoadState, MAX_AGENTS, MAX_SCALE,
     MAX_SCREENSHOT_PIXELS, MAX_VIEWPORT_SIDE, Page, PageConfig, Pump, ScreenshotError,
-    StageTimings, ViewportError, check_scale, check_viewport_size, device_size,
+    StageTimings, StateRestyles, ViewportError, check_scale, check_viewport_size, device_size,
 };
 pub use selection::{Selection, TextPosition};
 pub use swb_dom::NodeId;
