@@ -1,6 +1,7 @@
 //! The windowed browser: a winit window, a softbuffer surface, the toolbar
 //! and one page.
 
+mod framelog;
 mod toolbar;
 
 use std::num::NonZeroU32;
@@ -24,6 +25,7 @@ use winit::keyboard::{Key, ModifiersState, NamedKey};
 use winit::window::{CursorIcon, Window, WindowId};
 
 use crate::url_input::parse_address;
+use framelog::FrameLog;
 use toolbar::{TOOLBAR_HEIGHT, Toolbar, ToolbarHit, ToolbarState};
 
 /// Pixels scrolled per wheel "line".
@@ -112,6 +114,8 @@ struct App {
     /// list is built at most once per batch. The fraction of a pixel stays
     /// here (scroll offsets are whole pixels, as in Chromium).
     pending_wheel: (f32, f32),
+    /// The input of the current batch of window events, for the frame log.
+    frame_log: FrameLog,
 }
 
 struct NoImages;
@@ -171,6 +175,7 @@ impl App {
             clipboard: None,
             automation: None,
             pending_wheel: (0.0, 0.0),
+            frame_log: FrameLog::new(),
         }
     }
 
@@ -315,6 +320,7 @@ impl App {
     }
 
     fn redraw(&mut self) -> Result<()> {
+        let started = Instant::now();
         let scale = self.scale();
         let Some(gfx) = &mut self.gfx else {
             return Ok(());
@@ -327,7 +333,8 @@ impl App {
             .resize(w, h)
             .map_err(|e| anyhow::anyhow!("resize failed: {e}"))?;
 
-        let frame = compose_frame(&mut self.page, &self.toolbar, (w.get(), h.get()), scale)?;
+        let (frame, rendered) =
+            compose_frame(&mut self.page, &self.toolbar, (w.get(), h.get()), scale)?;
 
         let Some(gfx) = &mut self.gfx else {
             return Ok(());
@@ -340,9 +347,11 @@ impl App {
         for (dst, src) in buffer.iter_mut().zip(pixels) {
             *dst = (u32::from(src[0]) << 16) | (u32::from(src[1]) << 8) | u32::from(src[2]);
         }
+        let composed = Instant::now();
         buffer
             .present()
             .map_err(|e| anyhow::anyhow!("present failed: {e}"))?;
+        self.frame_log.frame(started, rendered, composed);
         Ok(())
     }
 
@@ -762,18 +771,20 @@ fn set_primary(_clipboard: &mut arboard::Clipboard, _text: String) -> Result<(),
 }
 
 /// Renders a whole window frame: the page below the toolbar, then the
-/// toolbar and the status bubble. Sizes are in device pixels.
+/// toolbar and the status bubble. Sizes are in device pixels. Also returns
+/// the time at which the page render ended (for the frame log).
 fn compose_frame(
     page: &mut Page,
     toolbar: &Toolbar,
     (width, height): (u32, u32),
     scale: f32,
-) -> Result<Pixmap> {
+) -> Result<(Pixmap, Instant)> {
     let mut frame = Pixmap::new(width, height).context("cannot allocate frame")?;
     let toolbar_px = (TOOLBAR_HEIGHT * scale).round() as u32;
     let content_h = height.saturating_sub(toolbar_px).max(1);
     let mut content = Pixmap::new(width, content_h).context("cannot allocate page")?;
     page.render(&mut content);
+    let rendered = Instant::now();
     frame.draw_pixmap(
         0,
         toolbar_px as i32,
@@ -806,7 +817,7 @@ fn compose_frame(
         page.fonts(),
         &NoImages,
     );
-    Ok(frame)
+    Ok((frame, rendered))
 }
 
 /// Renders what the browser window would show for `page` (toolbar included)
@@ -822,7 +833,7 @@ pub(crate) fn render_window(page: &mut Page, window: Size, scale: f32) -> Result
     );
     let w = (window.width * scale).round() as u32;
     let h = (window.height * scale).round() as u32;
-    compose_frame(page, &toolbar, (w.max(1), h.max(1)), scale)
+    compose_frame(page, &toolbar, (w.max(1), h.max(1)), scale).map(|(frame, _)| frame)
 }
 
 impl ApplicationHandler<UserEvent> for App {
@@ -882,6 +893,7 @@ impl ApplicationHandler<UserEvent> for App {
     }
 
     fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
+        self.frame_log.begin_batch();
         if matches!(cause, StartCause::ResumeTimeReached { .. })
             && self.process_automation(event_loop)
         {
@@ -910,6 +922,7 @@ impl ApplicationHandler<UserEvent> for App {
             (a, b) => a.or(b),
         };
         event_loop.set_control_flow(deadline.map_or(ControlFlow::Wait, ControlFlow::WaitUntil));
+        self.frame_log.end_batch();
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
@@ -925,17 +938,29 @@ impl ApplicationHandler<UserEvent> for App {
                 }
             }
             WindowEvent::ModifiersChanged(m) => self.modifiers = m.state(),
-            WindowEvent::KeyboardInput { event, .. } => self.handle_key(event_loop, &event),
-            WindowEvent::CursorMoved { position, .. } => self.handle_cursor_moved(position),
+            WindowEvent::KeyboardInput { event, .. } => {
+                self.frame_log.counts_mut().keys += 1;
+                self.handle_key(event_loop, &event);
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                self.frame_log.counts_mut().moves += 1;
+                self.handle_cursor_moved(position);
+            }
             WindowEvent::CursorLeft { .. } => {
                 if self.page.mouse_leave() {
                     self.request_redraw();
                 }
             }
             WindowEvent::MouseInput { state, button, .. } => {
+                let counts = self.frame_log.counts_mut();
+                match state {
+                    ElementState::Pressed => counts.presses += 1,
+                    ElementState::Released => counts.releases += 1,
+                }
                 self.handle_mouse_button(button, state);
             }
             WindowEvent::MouseWheel { delta, .. } => {
+                self.frame_log.counts_mut().wheels += 1;
                 let (dx, dy) = match delta {
                     MouseScrollDelta::LineDelta(x, y) => (-x * LINE_SCROLL, -y * LINE_SCROLL),
                     MouseScrollDelta::PixelDelta(p) => {

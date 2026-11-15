@@ -5230,6 +5230,145 @@ Steps:
 
    M10 is complete (2026-11-15).
 
+## M11: Interaction performance
+
+Owner decision (2026-11-15): after the diagnosis of the slow interaction in
+the GUI ([performance.md](performance.md), "Interaction in the GUI (M11
+diagnosis)"), the next milestone makes input fast. No new target page; the
+pages of the diagnosis are GitHub and Ars Technica with JavaScript on, and
+the other targets must not get slower. Rendering must not change: the
+JS-off snapshot stays identical and the scores stay the same, with
+JavaScript on and off.
+
+The causes, in short: a hover change restyles and compares every element
+and often lays out the whole document (GitHub 88 ms, of which 71 % is the
+comparison of custom properties); the GUI handles every pointer move at
+once, so a batch of moves becomes seconds of work before the next frame;
+the GUI redraws after every task, also when nothing changed (Ars
+Technica's 10 ms timer: 95 frames per second, 100 % CPU without input);
+every frame allocates, rasterizes and copies the whole window.
+
+Exit (targets; revisited after feature 3 with the new numbers). Measured
+with the tools of feature 1 on the fixtures, GUI at 1280 x 900 on Xvfb,
+JavaScript on:
+
+- GitHub, the owner's recorded input: pointer move to frame p90 at most
+  100 ms (now 3.1 s), wheel notch at most 50 ms (now 1.08 s), press at
+  most 150 ms.
+- Ars Technica: 10 s without input after the load at most 5 % of one core
+  (now 95 %); pointer move to frame p90 at most 50 ms.
+- One hover change with its render (`--bench`, headless, the median of
+  the changing steps; the render alone is 2 to 11 ms): GitHub at most 20
+  ms (now 93 ms JS off, 96 ms JS on), Ars Technica at most 15 ms (38 /
+  48 ms), Wikipedia at most 8 ms (29 / 28 ms).
+- No change in rendering: JS-off snapshot identical, `compare --all` and
+  `compare --all --js` scores unchanged, hostile set passes.
+
+ADRs: [ADR 0040](adr/0040-frames-in-the-gui.md) (frame scheduling and
+composition in the GUI) with feature 2; ADR 0041 (style invalidation)
+before feature 5, written by the session of feature 5 and read by the
+orchestrator before the code.
+
+Features, in this order. Each ends with a review and a commit.
+
+1. Measurement tools (`implementer`):
+   - `--bench` gets interaction stages: hover changes over a fixed grid of
+     points (the median time of one hover change with its render, and the
+     style and layout runs per change) and scroll frames (a wheel step and
+     its render). They use the page's normal input paths. The JSON format
+     is documented in `performance.md`; `swbtools perf` prints the new
+     columns.
+   - A frame log in the GUI: with `RUST_LOG=swb::gui=debug`, one line per
+     frame (the time on `CLOCK_MONOTONIC`, the input events handled since
+     the last frame by kind, the times of render, composition and
+     present) and one per batch of window events.
+   - `swbtools gui-latency`: runs the GUI on a private Xvfb display with a
+     fixture (or a live URL), sets the window size, plays an input trace
+     with XTest (`ctypes` on libX11 and libXtst; no Python dependency with
+     a copyleft license, ADR 0003), reads the frame log and reports the
+     time from each input to the next frame (median, p90, max per kind),
+     the frames per second and the CPU of the process. Traces are JSON
+     files in `tools/traces/`: the pointer input of the owner's two
+     sessions (extracted from the Wayland traces), and synthetic ones
+     (idle, pointer sweeps, wheel bursts). Without Xvfb the tool stops
+     with a message.
+   - Baseline numbers of all targets in `performance.md`.
+
+   Done (2026-11-15): `--bench` has the keys `interaction.hover` (an 8 x 6
+   grid, up to 5 rounds, a move and a render per step; a step that ran a
+   style pass counts as a change) and `interaction.scroll` (wheel steps of
+   100 px down and up); `swbtools perf [--js]` prints them. The GUI writes
+   a frame log at `RUST_LOG=swb::gui=debug`. `swbtools gui-latency` plays
+   the traces of `tools/traces/` (the owner's GitHub and Ars Technica
+   input, idle, a pointer sweep, a wheel burst; `tools/make_traces.py`
+   extracts the owner's) and reports, per kind of input, the time to the
+   end of its batch and to the next frame, the frames per second, the CPU
+   and the style and layout runs. Baseline (performance.md, "Interaction
+   baseline (M11 feature 1)"): a GitHub hover change 93 / 96 ms (JS off /
+   on, with the render), Ars Technica 38 / 48 ms, Wikipedia 29 / 28 ms;
+   the owner's GitHub input with JavaScript on: move to frame median
+   2.5 s, p90 4.0 s, wheel p90 1.6 s; Ars Technica without input with
+   JavaScript on: 94 to 95 % CPU, 49 frames per second.
+2. Frame scheduling in the GUI (`implementer`; ADR 0040):
+   - Pointer moves are coalesced: the GUI keeps the last position of a
+     batch and applies it before any other input event of the batch
+     (press, release, key, wheel, leave) and at the end of the batch.
+   - The page says whether a new frame would differ: `Pump` and the input
+     methods report a repaint only when something that is drawn changed
+     (the DOM or the style sheets of a document, element states, scroll
+     offsets, the selection and the caret, images and fonts that arrived,
+     frame documents, the toolbar's state). A task that changes nothing
+     draws nothing (backlog item from M8 5b).
+   - Frame pacing: `pre_present_notify` before present, so that on
+     Wayland redraws follow the compositor's frame callbacks.
+   - `set_title` and `set_cursor` only when the value changes.
+   - Exit: Ars Technica without input at most 5 % CPU; the GitHub trace
+     no longer waits for whole batches of moves.
+3. Frame composition (`implementer`): the page is drawn straight into the
+   window's frame (the rows below the toolbar are one contiguous part of
+   the frame), the frame pixmap is kept between frames, the toolbar is
+   drawn only when its state changed, and the page is rasterized again
+   only when the page changed (the status bubble of a hovered link
+   alone reuses the page's pixels). Exit: the overhead without the page
+   raster at most 1 ms at 1280 x 900 and 5 ms at 5120 x 1440; window
+   screenshots (`--with-chrome`) unchanged.
+4. Cheaper style comparison and pseudo-elements (`implementer`):
+   - `CustomProperties` compare by pointer first and by a fingerprint
+     next; equal maps of one restyle share one `Arc`, and the maps of the
+     last restyle are reused when they are equal, so that the next
+     comparison is a pointer check.
+   - `::before` and `::after` get a full cascade only when a rule that can
+     match them sets `content`; their styles for scripts
+     (`getComputedStyle`) stay as they are.
+   - A style difference that only changes painting (colors, outlines,
+     text decoration, shadows, `visibility`, `cursor` alone) rebuilds the
+     display list without a layout.
+   - Exit: one hover change with its render (`--bench`) on GitHub at most
+     45 ms, Ars Technica at most 25 ms.
+5. Restyle of the elements that a state change affects (`implementer-hard`;
+   ADR 0041 first): selector analysis in the `Stylist` for `:hover`,
+   `:active`, `:focus`, `:focus-visible` and `:focus-within` (the subject
+   compound, compounds left of descendant, child and sibling combinators,
+   and inside `:is()`, `:where()`, `:not()` and `:has()`); a state change
+   restyles the elements that such a selector can reach, from the
+   existing styles of their parents, and their descendants only when an
+   inherited value changed or a selector reaches them. Counters, list
+   ordinals, `use` instances, container queries and similar cases fall
+   back to a full restyle (listed in the ADR). Tests: an oracle that
+   compares the targeted styles with a full restyle on all fixtures after
+   many random state changes. Exit: the hover numbers of the M11 exit.
+6. Restyle of the elements that a DOM change affects (`implementer-hard`;
+   ADR 0041, second part), only if the click and load numbers after
+   feature 5 stay above their targets (GitHub's Code button now 250 ms):
+   attribute, class and id changes restyle the elements whose selectors
+   depend on them; insertions and removals restyle the new subtree, the
+   siblings that structural selectors reach, and the ancestors that
+   `:has()` reaches; the oracle test after random DOM changes.
+7. Exit measurement and the end-of-milestone maintenance.
+
+Not in M11 (backlog): incremental layout, a raster cache for scrolling
+(tiles), image decoding on other threads, CSS transitions and animations.
+
 ## Pending decisions
 
 - Clean-room rewrites of the code derived from Chromium (table layout
@@ -5237,6 +5376,21 @@ Steps:
   sizing; sticky offsets; two float helpers), Skia data and Servo
   (`collapsed_margin.rs`, MPL-2.0); kept with attribution for now
   (ADR 0021).
+
+## Backlog from M11
+
+- GUI on X11 (found in feature 1): winit reports one wheel notch as two
+  wheel events (the press and the release of button 4 or 5), so the page
+  scrolls twice per notch under X11. `swbtools gui-latency` allows for it.
+  Wayland is not affected.
+- `swbtools gui-latency` (feature 1): the trace starts after `waitForLoad`
+  and a fixed settle time, not at the page's first frame; the GUI has no
+  virtual time, so the timers of JS fixtures run in real time and their
+  phase differs from run to run.
+- BBC with JavaScript on (feature 1): only 1 of 240 steps of the `--bench`
+  hover grid changes the hover state (65 with JavaScript off). Not
+  examined; the consent dialog covers the page in the JS fixture, which may
+  be the reason.
 
 ## Backlog from M10
 

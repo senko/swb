@@ -4,6 +4,42 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-15: M11 plan and feature 1, measurement tools
+
+- The owner reported slow input in the GUI on GitHub and Ars Technica
+  (scrolls that lag 4 to 5 s, hover menus and clicks that take seconds,
+  100 % CPU). Diagnosis (docs/performance.md, "Interaction in the GUI (M11
+  diagnosis)"): headless runs, the GUI on Xvfb with XTest input, a stack
+  sampler, and two sessions of the owner recorded on Wayland
+  (`WAYLAND_DEBUG=1`). Causes: a hover change restyles and compares every
+  element (GitHub: 2,131 custom properties per element make the comparison
+  71 % of a change) and often lays out again; the GUI handles every
+  pointer move at once, so a batch of moves becomes seconds of work before
+  the next frame; the GUI redraws after every task, also when nothing
+  changed (Ars Technica's 10 ms timer: up to 95 frames per second, 100 %
+  CPU without input); each frame allocates, rasterizes and copies the
+  whole window. The owner chose this as M11 (roadmap, "M11: Interaction
+  performance"); ADR 0040 (proposed) describes the GUI side.
+- Feature 1 (`implementer`): `--bench` interaction stages (hover grid and
+  scroll steps, each with its render), a frame log in the GUI
+  (`RUST_LOG=swb::gui=debug`, times on `CLOCK_MONOTONIC`), and
+  `swbtools gui-latency`: the GUI on a private Xvfb, XTest input through
+  `ctypes` (no copyleft Python dependency), traces in `tools/traces/`
+  (among them the owner's two sessions, pointer data only). The baseline
+  reproduces the diagnosis: a GitHub hover change 93 / 96 ms (JS off / on,
+  with the render); the owner's GitHub input with JavaScript on gives a
+  move-to-frame p90 of 4.0 s; Ars Technica without input 94 to 95 % CPU
+  and 49 frames per second with JavaScript on, 0 with it off. The review
+  found that the tool skipped the frame drawn inside an event's own batch
+  (winit draws a turn's frame before `about_to_wait`); fixed, and the
+  baseline measured again.
+- Learned: under X11, winit reports a wheel notch as two wheel events (the
+  press and the release of button 4 or 5), so the GUI scrolls twice per
+  notch there (backlog; Wayland is not affected). A GUI window that an
+  agent opens on the desktop takes the owner's keyboard focus: GUI
+  experiments run on Xvfb only.
+- Next: feature 2, frame scheduling in the GUI (ADR 0040).
+
 ## 2026-11-15: M10 maintenance; end of M10
 
 - Two read-only reviewers (the script layer: `web`, `webidl`, `js*`; the

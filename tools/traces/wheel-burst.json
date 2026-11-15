@@ -1,0 +1,28 @@
+{
+  "description": "synthetic: the pointer to the page's middle, then 10 wheel notches down and 10 up, 30 ms apart",
+  "window": null,
+  "duration": 2.5,
+  "events": [
+    {"t": 0.0, "kind": "move", "x": 640, "y": 500},
+    {"t": 0.5, "kind": "wheel", "notches": 1},
+    {"t": 0.53, "kind": "wheel", "notches": 1},
+    {"t": 0.56, "kind": "wheel", "notches": 1},
+    {"t": 0.59, "kind": "wheel", "notches": 1},
+    {"t": 0.62, "kind": "wheel", "notches": 1},
+    {"t": 0.65, "kind": "wheel", "notches": 1},
+    {"t": 0.68, "kind": "wheel", "notches": 1},
+    {"t": 0.71, "kind": "wheel", "notches": 1},
+    {"t": 0.74, "kind": "wheel", "notches": 1},
+    {"t": 0.77, "kind": "wheel", "notches": 1},
+    {"t": 1.5, "kind": "wheel", "notches": -1},
+    {"t": 1.53, "kind": "wheel", "notches": -1},
+    {"t": 1.56, "kind": "wheel", "notches": -1},
+    {"t": 1.59, "kind": "wheel", "notches": -1},
+    {"t": 1.62, "kind": "wheel", "notches": -1},
+    {"t": 1.65, "kind": "wheel", "notches": -1},
+    {"t": 1.68, "kind": "wheel", "notches": -1},
+    {"t": 1.71, "kind": "wheel", "notches": -1},
+    {"t": 1.74, "kind": "wheel", "notches": -1},
+    {"t": 1.77, "kind": "wheel", "notches": -1}
+  ]
+}

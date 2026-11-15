@@ -84,7 +84,7 @@ class Browser:
                     command, stdout=subprocess.PIPE, stderr=stderr, text=True
                 )
         try:
-            return cls(_read_address(process), process)
+            return cls(read_address(process), process)
         except BaseException:
             _stop(process)
             raise
@@ -217,7 +217,7 @@ class Browser:
         self.close()
 
 
-def _read_address(process: subprocess.Popen[str]) -> str:
+def read_address(process: subprocess.Popen[str]) -> str:
     """Reads the server address from swb's first output lines."""
     found: list[str] = []
 

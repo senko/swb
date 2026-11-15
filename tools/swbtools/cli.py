@@ -10,6 +10,8 @@ from swbtools import paths, swb
 from swbtools.capture import capture, capture_missing, directory_size
 from swbtools.compare import Options, compare_fixture, update_scores
 from swbtools.cssom_cases import write_cssom_cases
+from swbtools.gui_latency import Options as GuiOptions
+from swbtools.gui_latency import fixture_directory, gui_latency
 from swbtools.hostile import hostile
 from swbtools.js_intl_data import write_data as write_js_intl_data
 from swbtools.js_survey import js_survey
@@ -34,6 +36,7 @@ from swbtools.reference import reference, reference_js
 from swbtools.replay import DEFAULT_PAUSE_MS, replay_command
 from swbtools.scoring import DEFAULT_TOLERANCE, Scores
 from swbtools.substitute import substitute
+from swbtools.traces import TraceError, load_trace
 from swbtools.web_cases import write_web_cases
 
 log = logging.getLogger("swbtools")
@@ -99,8 +102,36 @@ def cmd_compare(args: argparse.Namespace) -> int:
 
 
 def cmd_perf(args: argparse.Namespace) -> int:
-    names = _names(args) or list_fixtures()
-    return perf(names, args.swb, args.runs)
+    names = _names(args) or (list_js_fixtures() if args.js else list_fixtures())
+    return perf(names, args.swb, args.runs, args.js)
+
+
+def cmd_gui_latency(args: argparse.Namespace) -> int:
+    try:
+        trace = load_trace(args.trace)
+        directory = None
+        if args.url is None:
+            if args.name is None:
+                raise ValueError("give a fixture name or --url")
+            directory = fixture_directory(args.name, args.js, args.fixtures)
+        elif args.name is not None:
+            raise ValueError("give a fixture name or --url, not both")
+        width, height = (int(v) for v in args.window.split("x"))
+    except (TraceError, ValueError) as error:
+        log.error("%s", error)
+        return 2
+    options = GuiOptions(
+        trace=trace,
+        fixture=directory,
+        url=args.url,
+        javascript=args.js,
+        window=(width, height),
+        settle_s=args.settle,
+        idle_s=args.idle,
+        swb_path=args.swb,
+        label=args.url or f"{directory.parent.name}/{args.name}",  # type: ignore[union-attr]
+    )
+    return gui_latency(options, args.json)
 
 
 def cmd_jsdiff(args: argparse.Namespace) -> int:
@@ -365,8 +396,39 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("names", nargs="*", metavar="NAME")
     p.add_argument("--all", action="store_true", help="all fixtures (the default)")
     p.add_argument("--runs", type=int, default=20, help="runs per stage (default: 20)")
+    p.add_argument(
+        "--js",
+        action="store_true",
+        help="the fixtures of fixtures/js/, with JavaScript on and the fixture's clock",
+    )
     p.add_argument("--swb", type=Path, help="path of the swb binary")
     p.set_defaults(func=cmd_perf)
+
+    p = commands.add_parser(
+        "gui-latency",
+        help="play an input trace into the GUI on a private Xvfb and report the input latency",
+    )
+    p.add_argument("name", nargs="?", metavar="NAME", help="a fixture (see --fixtures)")
+    p.add_argument("--url", help="a live URL instead of a fixture")
+    p.add_argument(
+        "--fixtures",
+        choices=["pages", "js"],
+        help="where NAME is (default: fixtures/js with --js, else fixtures/pages)",
+    )
+    p.add_argument("--js", action="store_true", help="JavaScript on (with the fixture's clock)")
+    p.add_argument(
+        "--trace",
+        default="pointer-sweep",
+        help="a trace file or the name of one in tools/traces/ (default: pointer-sweep)",
+    )
+    p.add_argument(
+        "--window", default="1280x900", help="window size, WIDTHxHEIGHT (default 1280x900)"
+    )
+    p.add_argument("--settle", type=float, default=1.0, help="seconds after the load (default 1)")
+    p.add_argument("--idle", type=float, default=3.0, help="idle seconds measured after the trace")
+    p.add_argument("--swb", type=Path, help="path of the swb binary")
+    p.add_argument("--json", action="store_true", help="print the report as JSON")
+    p.set_defaults(func=cmd_gui_latency)
 
     p = commands.add_parser(
         "measure", help="measure the Chromium behaviour that swb's data comes from"

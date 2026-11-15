@@ -183,11 +183,18 @@ def serve_command(
 
 
 def bench_command(
-    swb: Path, fixture: Path, url: str, viewport: tuple[int, int], runs: int
+    swb: Path,
+    fixture: Path,
+    url: str,
+    viewport: tuple[int, int],
+    runs: int,
+    extra: list[str] | None = None,
 ) -> list[str]:
     """Command line that loads `url` from the fixture with the test fonts and
-    prints the time of each pipeline stage as JSON (`--bench`)."""
-    return [*_replay_options(swb, fixture, viewport), "--bench", str(runs), url]
+    prints the time of each pipeline stage and interaction stage as JSON
+    (`--bench`). `extra` are additional swb options, for example the
+    JavaScript options of a JavaScript fixture."""
+    return [*_replay_options(swb, fixture, viewport), *(extra or []), "--bench", str(runs), url]
 
 
 def run(command: list[str], log_file: Path | None = None, stdout_file: Path | None = None) -> int:

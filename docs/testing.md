@@ -119,7 +119,8 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just compare --js NAME...`  | `compare --js NAME...`                 | Runs swb with JavaScript on over `fixtures/js/NAME` and compares with `out/js-reference/NAME/` (see "Compare with JavaScript on"). |
 | `just update-scores`         | `compare --all --update-scores`        | Also writes the scores to `fixtures/scores.json`. |
 | `just layout-refs [NAME...]` | `layout-refs [NAME...]`                | Writes `tests/layout/NAME.boxes.json` with Chromium. |
-| `just perf [NAME...]`        | `perf [NAME...] [--runs N]`            | Times swb's pipeline stages per fixture ([performance.md](performance.md)). |
+| `just perf [NAME...]`        | `perf [NAME...] [--runs N] [--js]`     | Times swb's pipeline stages and the interaction (hover, scroll) per fixture; with `--js` the fixtures of `fixtures/js/` with JavaScript on ([performance.md](performance.md)). |
+| `just tools gui-latency NAME` | `gui-latency NAME [--js] [--trace T] [--window WxH] [--json]` | Plays an input trace into the GUI on a private Xvfb and reports the input latency (see "GUI input latency"). Also `--url URL` for a live page. |
 | `just tools measure [NAME...]` | `measure [NAME...]`                  | Measures the Chromium behaviour that some of swb's data comes from (see "Measure Chromium behaviour"). `font-size-sweep` runs only when named. |
 | `just probe FILE...`         | `probe FILE... [--case NAME]... [--with-swb] [--tolerance PX] [--json]` | Asks Chromium (and with `--with-swb`, swb) about the cases of JSON files: boxes, line fragments, computed styles, JS values, ink and the colors at points (`pixels`); cases with `"javascript": true` run their scripts (see "Probe Chromium behaviour"). |
 | `just hostile [NAME...]`     | `hostile [NAME...] [--swb PATH] [--list] [--keep]` | Runs swb on the hostile-page set and checks time and memory limits (see "Hostile-page set"). `just` builds swb first. |
@@ -883,6 +884,103 @@ the tailorings that Chromium has. The rules come from measurements:
 
 After a Chromium upgrade, measure again, generate the tables, and check the
 differences.
+
+### GUI input latency
+
+`swbtools gui-latency` measures how fast the GUI reacts to input, with real
+X events. It starts its own `Xvfb` (a free display number, 5120 x 1440; it
+refuses the desktop display and removes the Wayland variables), runs the
+release GUI binary there, sets the window size with `XMoveResizeWindow`
+(Xvfb has no window manager), waits for the load (the automation server's
+`page.waitForLoad`), waits `--settle` seconds (default 1) and plays a trace
+with XTEST. The input goes through `ctypes` on `libX11.so.6` and
+`libXtst.so.6` (`swbtools/xinput.py`); no Python package is needed
+(python-xlib is LGPL, ADR 0003). The tool stops Xvfb and swb by their
+PIDs at the end, also after an error. Without `Xvfb` or the libraries it
+stops with a message.
+
+```
+just build
+uv run --project tools swbtools gui-latency github-swb --js --trace github-owner
+uv run --project tools swbtools gui-latency ars-technica --js --trace idle-10s --json
+uv run --project tools swbtools gui-latency --url https://example.org/ --trace wheel-burst
+```
+
+`NAME` is a fixture: `fixtures/js/NAME` with `--js` (JavaScript on, with the
+fixture's clock: `--now` from `fixture.json`; the GUI has no virtual time),
+else `fixtures/pages/NAME`; `--fixtures js` picks `fixtures/js` without
+JavaScript. The GUI runs with `--replay`, `--test-fonts` and the URL of
+`fixture.json`. `--window WxH` is the window size (default 1280x900),
+`--idle S` the idle time measured after the trace (default 3 s).
+
+The GUI runs with `RUST_LOG=warn,swb::gui=debug,swb_engine::document::pipeline=debug`
+and prints its frame log (format: performance.md, "The frame log of the
+GUI"). The tool reads it and maps each injected event to its batch of
+window events by order within its kind (`move`, `wheel`, `press`,
+`release`): the k-th event of a kind is in the batch where the running
+count of that kind first reaches k. It checks that the GUI counted as many
+events as it sent and prints a line when it did not (X11 gives a wheel
+notch as two window events, the press and the release of the button; the
+tool expects that). The tool takes the time of an event just before it
+sends it, on `CLOCK_MONOTONIC` as the log does. Moves to the place where
+the pointer already is give no X event and are skipped (counted); moves
+outside the window are clamped into it (counted).
+
+Report (a Markdown table, or `--json`): per kind of input, the events, the
+time from the input to the end of its batch and to the first frame after
+that batch (median, p90, max in ms), and the events that no frame follows
+within 2 s of their batch (not in the "to frame" numbers; an input that
+changes nothing draws nothing, and its "to frame" is the time to the next
+frame that other input caused); the frames per second during the trace
+and the render, composition and present times of the frames; the CPU of
+the swb process during the trace and during the idle period after the
+input drained (from `/proc/PID/stat`, all threads, as a share of one core);
+the style and layout runs and their total time during the trace and after
+it (from the pipeline log); the time that the GUI needed after the trace
+to count all events (`drain`, at most 60 s, or until it stalls for 10 s).
+
+Traces are JSON files in `tools/traces/` (`--trace NAME`, or a path):
+
+```json
+{
+  "description": "text",
+  "window": [1280, 935],
+  "duration": 12.5,
+  "events": [
+    {"t": 0.016, "kind": "move", "x": 640, "y": 300},
+    {"t": 0.5, "kind": "press", "button": 1},
+    {"t": 0.58, "kind": "release", "button": 1},
+    {"t": 1.0, "kind": "wheel", "notches": 1}
+  ]
+}
+```
+
+Times are seconds from the start of the trace, in order. The trace starts
+when the page has loaded and settled (it has had its first frame).
+`kind` is `move`, `press`, `release` or `wheel` (one notch: 1 down, -1
+up). Coordinates are window pixels, the toolbar included. `duration` is at
+least the last event's time; an idle trace has no events. The traces:
+
+| Trace | What |
+|---|---|
+| `github-owner` | The owner's input of the GitHub session (52 s, window 1280 x 935): 1,073 moves (8 of them to the place where the pointer already is, which give no X event), 89 wheel notches, 6 clicks. |
+| `ars-owner` | The owner's Ars Technica session up to 7.7 s (the click at 7.8 s opened an article that the fixture does not have): 234 moves, 27 notches, 1 click. |
+| `idle-10s` | No input for 10 s: the CPU and the frames of a page at rest. |
+| `pointer-sweep` | A diagonal pointer sweep, 125 moves per second for 3 s. |
+| `wheel-burst` | The pointer to the page's middle, 10 notches down and 10 up, 30 ms apart. |
+
+`tools/make_traces.py` makes them: `synthetic` writes the last three;
+`wayland LOG NAME --description TEXT [--until S] [--window WxH]` extracts the
+pointer input over the window from a `WAYLAND_DEBUG=1` log (each line
+prefixed with `CLOCK_MONOTONIC` seconds, as `out/perf/record.sh` made them
+in the M11 diagnosis): the events of `wl_pointer` on the window's main
+surface (`enter`, `motion`, the vertical `axis`, the left button) with the
+compositor's time stamp, relative to the first commit of that surface;
+the pointer over the window decorations gives nothing. The logs are not in
+the repository.
+
+The test (`tools/tests/test_gui_latency.py`) runs the tool on senko-net
+with a short trace; it is skipped without `Xvfb` or the release binary.
 
 ### Check that a refactoring does not change rendering
 

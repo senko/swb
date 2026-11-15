@@ -66,6 +66,89 @@ table.
 With `RUST_LOG=swb_engine=debug`, swb also logs the duration of each stage
 whenever it runs (style, layout, display list).
 
+### Interaction stages (`--bench`, M11)
+
+After the stages, `--bench` runs two interaction stages with the page's
+normal input paths: `Page::mouse_move` or `Page::wheel`, then
+`Page::render` into the viewport pixmap when the input says that the page
+needs a repaint, as the GUI does. The GUI's composition of the window (the
+toolbar and the copies, 5.5 ms at 1280 x 900 before M11 feature 3) is not
+part of the times. The result is the key `interaction` of the JSON:
+
+```json
+"interaction": {
+  "hover": {
+    "grid": [8, 6], "rounds": 5, "steps": 240, "changed": 120,
+    "changed_median_ms": 91.6, "changed_p90_ms": 123.9,
+    "median_ms": 75.6, "p90_ms": 123.3,
+    "style_runs_per_change": 1.0, "layout_runs_per_change": 0.6,
+    "style_ms_per_change": 24.1, "layout_ms_per_change": 3.1
+  },
+  "scroll": {
+    "steps": 40, "median_ms": 5.8, "p90_ms": 15.3,
+    "style_runs": 0, "layout_runs": 0, "style_ms": 0.0, "layout_ms": 0.0
+  }
+}
+```
+
+- Hover: a grid of 8 x 6 points over the viewport (the centers of the
+  cells, so inset from the edges), visited row by row. The pointer starts
+  outside the page (`mouse_leave`). The grid is visited for `min(N, 5)`
+  rounds (`rounds`); each step is one move and, if the move needs a
+  repaint, one render. A step
+  `changed` the hover state if it ran a style pass (the style run counter
+  of `FlushCounters` moved: a move that keeps the hovered element, or
+  changes nothing that a selector or script sees, runs none). The times
+  are of the move and its render together, in milliseconds: the median
+  and 90th percentile (nearest rank) of the steps that changed it, and of
+  all steps. `style_runs_per_change` and `layout_runs_per_change` are the
+  runs of the style pass and of layout per changing step (layout runs
+  when a style change needs it); `*_ms_per_change` their time. The
+  `per_change` values are `null` if no step changed anything.
+- Scroll: `Page::wheel` of 100 px down at the middle of the viewport,
+  from the top of the page, until the page does not scroll any more or 20
+  steps; then the same up. A step that does not scroll is not counted.
+  `steps` is the number of steps, `median_ms` and `p90_ms` their time,
+  `style_runs`, `layout_runs` and their time (`*_ms`) are the totals of all
+  steps. A scroll changes no style, so style and layout stay 0 unless a
+  script's scroll handler changes the page.
+
+The stages work with JavaScript on: `--js --virtual-time` (and the
+fixture's `--now` and `--settle-ms`) as for the other JS tools. `swbtools
+perf --js NAME...` runs the fixtures of `fixtures/js/` that way and prints
+the interaction numbers as a second Markdown table (columns: the hover
+steps, those that changed the state, the median and p90 of the changing
+steps and of all steps, the style and layout runs per change; the scroll
+steps, median, p90, style and layout runs).
+
+### The frame log of the GUI (M11)
+
+`RUST_LOG=swb::gui=debug swb URL` makes the GUI print two kinds of lines on
+standard error, with times in seconds of `CLOCK_MONOTONIC` (six decimals):
+
+```
+batch start=12.500000 end=12.562500 moves=3 wheels=1 presses=0 releases=2 keys=4
+frame at=100.250000 render=0.010000 compose=0.003000 present=0.001500
+```
+
+- `batch`: one per batch of window events that had input, from the start of
+  `new_events` to the end of `about_to_wait` (the wheel is applied, and
+  the page's tasks that are due run, inside the batch). The counts are the
+  input events that the window delivered in the batch (`moves`: pointer
+  moves; `wheels`: wheel events; `presses` and `releases`: mouse buttons;
+  `keys`: key events). A batch without input prints no line.
+- `frame`: one per presented frame. `at` is the time after `present`; the
+  other three are durations: from the start of the redraw to the end of
+  the page render (the surface resize and the allocation of the pixmaps
+  included), the composition (the copy of the page into the frame, the
+  toolbar, the conversion into the window buffer), and `present`.
+
+The log costs a few counters per event; the clock reads and the lines exist
+only at the debug level. `swbtools gui-latency` (docs/testing.md) reads
+these lines. Together with `RUST_LOG=swb_engine::document::pipeline=debug`
+(the style, layout and display list stages) they show what a burst of input
+costs.
+
 ## Baseline
 
 2026-10-09, M5 (commit 1cbcadb). Release build, Linux, Intel Core i5-13500,
@@ -262,6 +345,240 @@ ms (2.5 %). None of the three is needed for the budget (2.785 s of 4.60
 s). The part that dominates, the 2.4 s of script execution, is the
 interpreter's speed on the Next.js and styled-components code (about 1.7 G
 instructions per second); the next step for the time is there.
+
+## Interaction in the GUI (M11 diagnosis)
+
+2026-11-15, after M10 (37acef8). The owner reported that GitHub and Ars
+Technica react slowly in the GUI: a scroll right after the load lags 4 to
+5 s, hover menus open after seconds, clicks take seconds, and the CPU is at
+100 % meanwhile; with JavaScript off it is less, but still there. The page
+loads themselves are within their budgets. This section is the diagnosis
+that planned M11 (roadmap, M11). Release build, Intel Core i5-13500.
+
+Method. Headless runs through the automation server (time and CPU of each
+input, the stage logs); the GUI on a private X server (Xvfb) with real X
+input events (XTest), timed from the input to the first changed pixels;
+a stack sampler on the page thread (`eu-stack`, as `perf` is not
+available); two sessions of the owner on GNOME Wayland, recorded with
+`WAYLAND_DEBUG=1` (pointer events with the compositor's time stamps, the
+commits of the window surface, the window size), the pipeline log and the
+CPU of each thread. The scripts of this diagnosis were working files; the
+tools of M11 feature 1 replace them.
+
+The owner's sessions (window 1280 x 935, not maximized; display 60 Hz):
+
+| | GitHub, JS on, 52 s | Ars Technica, JS on, 29 s |
+|---|---|---|
+| CPU of the main thread | 32.1 s | 28.0 s (96 to 100 % in every second) |
+| Input | 1,102 pointer moves (up to 108 in one second), 89 wheel notches, 7 presses | 779 moves, 155 notches, 5 presses; an article opened at 7.8 s |
+| Frames (commits of the window surface) | 153; 0 or 1 per second while the pointer moves | 1,244, up to 95 per second |
+| Style runs | 275, each 15 to 40 ms (7.8 s) | 402 (4.7 s) |
+| Pointer move to the next frame | median 1.4 s, p90 3.1 s, max 4.7 s | median 56 ms, p90 589 ms |
+| Wheel notch to the next frame | 10 to 20 ms without a backlog, up to 1.9 s behind one | median 22 ms, p90 323 ms |
+| Press to the next frame | 160 to 180 ms without a backlog, 1.3 to 2.4 s behind one | median 44 ms |
+
+Causes, by their effect:
+
+1. A hover change restyles the whole document. `DocumentState::update_states`
+   restyles every element when any selector of the page depends on the
+   changed state (`Stylist::state_dependencies`), then
+   `StyleMap::same_styles` compares every element's old and new style, and
+   if one differs the whole document is laid out again and the whole
+   window drawn. One hover change (headless replay, median and p90):
+
+   | Page | JS on | JS off | Style run | Layout |
+   |---|---|---|---|---|
+   | GitHub | 88 / 130 ms | 75 / 113 ms | 22 to 26 ms | 3 ms (in 60 % of the changes) |
+   | Ars Technica | 37 / 38 ms | 28 / 32 ms | 14 to 16 ms | 0.5 to 2.4 ms |
+   | Wikipedia | | 27 / 39 ms | 8 ms | 3.7 ms |
+   | BBC | | 5 / 11 ms | | |
+   | Hacker News | | 1.7 / 3.5 ms | | |
+
+   A move that keeps the hovered element costs 0.04 to 0.2 ms. On GitHub,
+   71 % of a hover change is the comparison: every element has about 2,131
+   custom properties (`getComputedStyle(document.body)`), and the equality
+   of `CustomProperties` looks up every key of one map in the other
+   (SipHash). Old and new maps never share an `Arc`, and the type is not
+   `Eq`, so `Arc`'s pointer check does not apply. 1,747 elements x 2,131
+   properties are about 3.7 M lookups per hover change. On Ars Technica (220
+   custom properties per element) the comparison is 25 % and the styles of
+   `::before` and `::after` are 36 %: every element gets a full cascade for
+   them (rules such as `*, ::before, ::after` match all), although almost
+   none has `content` and makes a box.
+2. The GUI handles every pointer move at once (`handle_cursor_moved` calls
+   `Page::mouse_move`); only the wheel is coalesced per batch of events.
+   Wayland delivers up to 108 moves in one batch; each move that changes
+   the hovered element costs one hover change (about 125 ms on GitHub in
+   the owner's session), and the frame comes after the whole batch. Wheel
+   notches and presses wait behind the moves. With the pointer at rest, a
+   wheel notch reaches the screen in 10 to 20 ms.
+3. The GUI redraws after every turn of the event loop that ran a task
+   (`Pump::changed`), also when the task changed nothing. Ars Technica's
+   pages run an obfuscated `setTimeout(fn, 10)` loop (about 100 ticks per
+   second, no DOM change): the GUI draws up to 95 frames per second and the
+   main thread stays at 96 to 100 % without input. GitHub has 2 timers in 5
+   s.
+4. Every frame is drawn in full. `compose_frame` allocates two pixmaps of
+   the window size, rasterizes the whole viewport, copies the page into the
+   frame with `Pixmap::draw_pixmap` (tiny-skia's blending pipeline for a
+   plain copy), rasterizes the toolbar, and converts each pixel into the
+   window buffer. The overhead without the page raster: 5.5 ms at 1280 x
+   900, 17.8 ms at 2560 x 1440, 35.7 ms at 5120 x 1440. The page raster
+   (`--bench`): GitHub 10.7 / 20.6 / 22.5 ms, Ars Technica 7.0 / 18.5 /
+   20.8 ms, Wikipedia 1.9 / 3.1 / 3.9 ms at 1280 x 800, 2560 x 1340 and
+   5120 x 1340. In a replay of the owner's input on the Ars Technica
+   article, 89 % of the main thread was `redraw` (44 % the copy and other
+   blending, 36 % the page raster), 7 % restyles, 4 % script tasks.
+5. Every style flush is a full restyle, also after a script's DOM change:
+   the click on GitHub's Code button costs 250 ms (two full restyles, one
+   forced by `getBoundingClientRect` in a microtask, and the comparison);
+   the scripts' own time is small.
+6. Small items: the GUI calls `set_title` after every turn of the event
+   loop that changed something (`sync_address`; on Wayland the
+   window decorations are then drawn again, 5 new buffers: 6,525 commits in
+   the Ars Technica session) and `set_cursor` for every move (2,145
+   cursor-shape requests in the GitHub session).
+
+Not causes: hit testing, the moves that keep the hovered element, the wheel
+alone (19 ms of CPU per notch at 1280 x 900, 37 ms at 5120 x 1400), the
+pages' own handlers of pointer events (10 to 13 ms of a hover change on
+GitHub and Ars Technica), the window size (the owner's window was at swb's
+default size).
+
+Open: after a click at 21.4 s, the owner's Ars Technica session had about
+40 pairs of a style run (9 ms) and a layout (15 ms) without input; a replay
+of the same input on the same article did not reproduce them.
+
+## Interaction baseline (M11 feature 1)
+
+2026-11-15, base 37acef8 with the tools of M11 feature 1 (after the fixes
+of its review), release build, Intel Core i5-13500. The tools: the
+interaction stages of `--bench` and `swbtools perf` (above, "Interaction
+stages"), the frame log of the GUI, `swbtools gui-latency`
+(docs/testing.md). These are the numbers that M11 must improve (targets:
+roadmap, M11 "Exit"). Load average (1 minute) 1.3 before and 0.8 after the
+runs; one run each.
+
+### `--bench`: hover and scroll, headless
+
+`swbtools perf --all --runs 10` (JavaScript off; hover: 5 rounds of the 8
+x 6 grid) and `swbtools perf --js github-swb ars-technica
+wikipedia-web-browser hacker-news bbc --runs 10` (JavaScript on, the
+fixtures of `fixtures/js/`). Times in ms; a step is one move or wheel step
+with its render when it needs one; "changed" is a step that ran a style
+pass.
+
+JavaScript off (`fixtures/pages`), viewport 1280 x 800:
+
+| Fixture | Hover steps | changed | change median ms | change p90 ms | all median ms | all p90 ms | style runs/change | layout runs/change | Scroll steps | median ms | p90 ms | style runs | layout runs |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| ars-technica | 240 | 85 | 38.36 | 40.66 | 0.04 | 39.74 | 1.0 | 0.8 | 40 | 18.30 | 22.66 | 0 | 0 |
+| bbc | 240 | 65 | 19.33 | 20.55 | 0.04 | 19.64 | 1.0 | 0.8 | 40 | 3.84 | 5.55 | 0 | 0 |
+| craigslist-posting | 240 | 0 | 0.00 | 0.00 | 0.00 | 0.00 | - | - | 4 | 1.01 | 1.14 | 0 | 0 |
+| github-swb | 240 | 120 | 92.52 | 129.30 | 75.69 | 125.86 | 1.0 | 0.6 | 40 | 5.66 | 15.09 | 0 | 0 |
+| hacker-news | 240 | 136 | 2.32 | 4.20 | 2.18 | 4.09 | 1.0 | 0.4 | 10 | 0.68 | 0.83 | 0 | 0 |
+| senko-net | 240 | 85 | 0.64 | 1.00 | 0.00 | 0.65 | 1.0 | 0.1 | 2 | 0.64 | 0.64 | 0 | 0 |
+| wikipedia-web-browser | 240 | 120 | 29.14 | 29.97 | 25.90 | 29.67 | 1.0 | 0.3 | 40 | 1.34 | 1.86 | 0 | 0 |
+
+JavaScript on (`fixtures/js`, `--js --virtual-time`, the fixture's clock):
+
+| Fixture | Hover steps | changed | change median ms | change p90 ms | all median ms | all p90 ms | style runs/change | layout runs/change | Scroll steps | median ms | p90 ms | style runs | layout runs |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| github-swb | 240 | 135 | 96.15 | 134.88 | 82.28 | 134.29 | 1.0 | 0.6 | 40 | 5.11 | 12.80 | 0 | 0 |
+| ars-technica | 240 | 91 | 48.20 | 49.04 | 0.11 | 48.53 | 1.0 | 0.0 | 40 | 22.88 | 25.71 | 0 | 0 |
+| wikipedia-web-browser | 240 | 135 | 27.85 | 37.28 | 25.79 | 28.71 | 1.0 | 0.4 | 40 | 1.71 | 2.00 | 0 | 0 |
+| hacker-news | 240 | 121 | 2.32 | 4.18 | 2.16 | 4.10 | 1.0 | 0.4 | 10 | 0.74 | 0.86 | 0 | 0 |
+| bbc | 240 | 1 | 20.19 | 20.19 | 0.08 | 14.01 | 1.0 | 0.0 | 40 | 14.88 | 16.74 | 0 | 0 |
+
+Every changing step runs one full style pass and, in 0 to 80 % of the
+cases, a layout. A step that changes nothing needs no render, so the
+"all" columns are low where few steps change the state. A scroll step
+runs no style and no layout. The bench's hover time includes the render
+(raster 7 to 11 ms on Ars Technica and GitHub), which the diagnosis's
+style and layout numbers do not; that and the different points (a grid
+over the whole viewport) explain why the headless numbers are 10 to 20 %
+above the diagnosis (GitHub JS off 92.5 against 75 ms, Ars Technica JS
+off 38.4 against 28 ms, Wikipedia 29.1 against 27 ms). The Ars Technica
+JS-on fixture has 2,698 elements against 1,943 with JavaScript off. On BBC
+with JavaScript on, only 1 of 240 grid steps changed the hover state (65
+with JavaScript off); the cause is not examined (backlog).
+
+### GUI: input latency on Xvfb, 1280 x 900
+
+`swbtools gui-latency NAME --js --trace TRACE` (fixtures of `fixtures/js`;
+JavaScript off: `--fixtures js` without `--js`). The input times are the
+medians, 90th percentiles and maxima in ms. "To frame" is the time to the
+first frame presented at or after the start of the event's batch (winit
+draws the frame of a turn after its input, inside the batch); it counts
+only the events that a frame follows within 2 s of their batch ("no
+frame" are the others). A move or wheel step that changes nothing draws
+nothing, so its "to frame" is the time to the next frame that any other
+input caused; "to batch end" has no such effect. On X11 a wheel notch
+makes 2 window events (the press and the release of the button), so the
+GUI scrolls twice per notch; the tool accounts for that when it maps
+events to batches.
+
+| Run | Input | Events | to batch end (ms) | to frame (ms) | no frame |
+|---|---|---|---|---|---|
+| GitHub, github-owner, JS on | move | 1065 | 2405 / 4059 / 4575 | 2451 / 4048 / 4575 | 12 |
+| GitHub, github-owner, JS on | press | 6 | 704 / 3004 / 3004 | 703 / 3000 / 3000 | 0 |
+| GitHub, github-owner, JS on | release | 6 | 640 / 2916 / 2916 | 639 / 2912 / 2912 | 0 |
+| GitHub, github-owner, JS on | wheel | 89 | 7 / 496 / 2440 | 30 / 1591 / 2439 | 7 |
+| GitHub, github-owner, JS off | move | 1065 | 1285 / 3458 / 4219 | 1378 / 3464 / 4219 | 10 |
+| GitHub, github-owner, JS off | press | 6 | 311 / 2402 / 2402 | 311 / 2402 / 2402 | 0 |
+| GitHub, github-owner, JS off | release | 6 | 247 / 2314 / 2314 | 247 / 2314 / 2314 | 0 |
+| GitHub, github-owner, JS off | wheel | 89 | 0 / 215 / 1319 | 26 / 629 / 1463 | 7 |
+| Ars Technica, ars-owner, JS on | move | 234 | 121 / 483 / 667 | 118 / 475 / 659 | 0 |
+| Ars Technica, ars-owner, JS on | press | 1 | 177 / 177 / 177 | 177 / 177 / 177 | 0 |
+| Ars Technica, ars-owner, JS on | release | 1 | 81 / 81 / 81 | 81 / 81 / 81 | 0 |
+| Ars Technica, ars-owner, JS on | wheel | 27 | 66 / 154 / 186 | 57 / 153 / 185 | 0 |
+| Ars Technica, ars-owner, JS off | move | 234 | 0 / 140 / 356 | 123 / 517 / 589 | 148 |
+| Ars Technica, ars-owner, JS off | press | 1 | 61 / 61 / 61 | 61 / 61 / 61 | 0 |
+| Ars Technica, ars-owner, JS off | release | 1 | 67 / 67 / 67 | 63 / 63 / 63 | 0 |
+| Ars Technica, ars-owner, JS off | wheel | 27 | 0 / 4 / 9 | 30 / 33 / 37 | 13 |
+| Wikipedia, pointer-sweep, JS on | move | 375 | 16 / 87 / 237 | 48 / 164 / 372 | 2 |
+| Hacker News, pointer-sweep, JS on | move | 375 | 0 / 10 / 15 | 43 / 618 / 914 | 0 |
+
+| Run | Frames/s | CPU trace | CPU idle | Style runs (ms) | Layout runs (ms) | Drain (s) |
+|---|---|---|---|---|---|---|
+| GitHub, github-owner, JS on | 1.9 | 55.8 % | 1.0 % | 249 (6907) | 89 (496) | 0.2 |
+| GitHub, github-owner, JS off | 1.38 | 45.0 % | 0.0 % | 219 (5109) | 62 (310) | 0.05 |
+| Ars Technica, ars-owner, JS on | 26.75 | 97.5 % | 97.3 % | 50 (1319) | 10 (72) | 0.1 |
+| Ars Technica, ars-owner, JS off | 2.99 | 16.0 % | 0.0 % | 22 (448) | 8 (46) | 0.05 |
+| Ars Technica, idle-10s, JS on | 48.9 | 95.1 % | 94.0 % | 1 (26) | 1 (7) | 0.0 |
+| Ars Technica, idle-10s, JS off | 0.0 | 0.0 % | 0.0 % | 0 (0) | 0 (0) | 0.0 |
+| Wikipedia, pointer-sweep, JS on | 20.0 | 67.0 % | 0.0 % | 54 (525) | 20 (213) | 0.0 |
+| Hacker News, pointer-sweep, JS on | 21.33 | 23.0 % | 0.0 % | 65 (96) | 12 (20) | 0.05 |
+
+"CPU trace" is the CPU of the swb process (all threads) during the trace
+as a share of one core, "CPU idle" the same during 3 s after the input
+drained. "Style runs" and "Layout runs" are those logged during the trace.
+Moves that the tool sends to the place where the pointer is, and so give no
+X event, are skipped (8 in the GitHub trace); the counts of the frame log
+matched the injected events in every run. The frame times of the first
+run of the tool (before the review): render 1.5 to 20 ms, composition 6.6
+ms, `present` under 0.1 ms on Xvfb (the real compositor's cost is not in
+it).
+
+Agreement with the diagnosis (owner's sessions on Wayland):
+
+- GitHub hover change: 92.5 ms (JS off) and 96.2 ms (JS on) in the bench,
+  with the render; the diagnosis: 75 and 88 ms without it. Agrees.
+- GitHub owner trace, pointer move to frame: median 2.5 s, p90 4.0 s, max
+  4.6 s (diagnosis: 1.4 s, 3.1 s, 4.7 s; the same order, in seconds; the
+  replay is another run on another display server). 249 style runs of 28
+  ms on average (diagnosis: 275 of 15 to 40 ms). Wheel to frame p90 1.6 s
+  (diagnosis: up to 1.9 s behind a backlog); press 0.7 s median
+  (diagnosis: 1.3 to 2.4 s behind a backlog). Agrees.
+- Ars Technica, 10 s without input: 94 to 95 % of one core with
+  JavaScript on, 48.9 frames per second (the diagnosis: 96 to 100 %, 1,244
+  frames in 29 s, 43 per second on average, up to 95 in one second); 0 %
+  and 0 frames with JavaScript off. Agrees.
+- Ars Technica owner trace: move to frame p90 0.48 s (diagnosis 0.59 s),
+  median 0.12 s (0.056 s); wheel median 0.06 s (0.022 s). The p90 agrees;
+  the medians are 2 to 3 times the diagnosis's. Not examined (X11 and
+  Wayland deliver input differently; the replay starts the trace in a
+  fixed state, and the page's 10 ms timer competes for the main thread).
 
 ## Script runtime of a document
 

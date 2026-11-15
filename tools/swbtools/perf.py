@@ -1,8 +1,12 @@
-"""`swbtools perf`: times each pipeline stage of swb for page fixtures.
+"""`swbtools perf`: times each pipeline stage and the interaction of swb for
+page fixtures.
 
 For each fixture, `swb --bench N` loads the page from the fixture with the
-test fonts and runs every stage N times (docs/performance.md). This prints
-the median times as a Markdown table.
+test fonts, runs every stage N times, then moves the pointer over a grid
+(hover) and turns the wheel (scroll) (docs/performance.md). This prints the
+median times of the stages as a Markdown table, and the interaction numbers
+as a second table. With `--js`, the fixtures are those of `fixtures/js/`,
+loaded with JavaScript on and the fixture's clock (as `compare --js`).
 """
 
 import json
@@ -11,6 +15,7 @@ import subprocess
 from pathlib import Path
 
 from swbtools import paths, swb
+from swbtools.compare import swb_js_options
 from swbtools.pages import read_meta
 
 log = logging.getLogger(__name__)
@@ -19,12 +24,13 @@ STAGES = ["parse", "stylesheets", "style", "layout", "display_list", "raster"]
 """The stages in pipeline order (the keys of swb's output)."""
 
 
-def bench_fixture(binary: Path, name: str, runs: int) -> dict | None:
-    """Runs `swb --bench` for a fixture and returns its JSON output, or None
-    if swb failed."""
-    directory = paths.fixture_dir(name)
+def bench_fixture(binary: Path, name: str, runs: int, javascript: bool = False) -> dict | None:
+    """Runs `swb --bench` for a fixture (of `fixtures/js/` with `javascript`)
+    and returns its JSON output, or None if swb failed."""
+    directory = paths.js_fixture_dir(name) if javascript else paths.fixture_dir(name)
     meta = read_meta(directory)
-    command = swb.bench_command(binary, directory, meta.url, meta.viewport, runs)
+    extra = swb_js_options(javascript, meta.captured)
+    command = swb.bench_command(binary, directory, meta.url, meta.viewport, runs, extra)
     log.info("running %s", " ".join(command))
     result = subprocess.run(
         command, capture_output=True, text=True, timeout=swb.SWB_TIMEOUT_S, check=False
@@ -47,8 +53,61 @@ def table(results: dict[str, dict]) -> str:
     return "\n".join(lines)
 
 
-def perf(names: list[str], swb_path: Path | None, runs: int) -> int:
-    """Benchmarks the fixtures and prints the table."""
+INTERACTION_HEADER = [
+    "Fixture",
+    "Hover steps",
+    "changed",
+    "change median ms",
+    "change p90 ms",
+    "all median ms",
+    "all p90 ms",
+    "style runs/change",
+    "layout runs/change",
+    "Scroll steps",
+    "median ms",
+    "p90 ms",
+    "style runs",
+    "layout runs",
+]
+
+
+def _number(value: float | None, digits: int = 2) -> str:
+    """A number for a table cell; `-` for none (no hover change)."""
+    return "-" if value is None else f"{value:.{digits}f}"
+
+
+def interaction_table(results: dict[str, dict]) -> str:
+    """The interaction numbers (hover and scroll) as a Markdown table, one
+    row per fixture. Results without the `interaction` key are skipped."""
+    header = INTERACTION_HEADER
+    lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
+    for name, result in results.items():
+        interaction = result.get("interaction")
+        if interaction is None:
+            continue
+        hover, scroll = interaction["hover"], interaction["scroll"]
+        cells = [
+            name,
+            str(hover["steps"]),
+            str(hover["changed"]),
+            _number(hover["changed_median_ms"]),
+            _number(hover["changed_p90_ms"]),
+            _number(hover["median_ms"]),
+            _number(hover["p90_ms"]),
+            _number(hover["style_runs_per_change"], 1),
+            _number(hover["layout_runs_per_change"], 1),
+            str(scroll["steps"]),
+            _number(scroll["median_ms"]),
+            _number(scroll["p90_ms"]),
+            str(scroll["style_runs"]),
+            str(scroll["layout_runs"]),
+        ]
+        lines.append("| " + " | ".join(cells) + " |")
+    return "\n".join(lines)
+
+
+def perf(names: list[str], swb_path: Path | None, runs: int, javascript: bool = False) -> int:
+    """Benchmarks the fixtures and prints the tables."""
     binary = swb.find_swb(swb_path)
     if binary is None:
         log.error("swb binary not found; build it (`just build`) or pass --swb PATH")
@@ -57,9 +116,11 @@ def perf(names: list[str], swb_path: Path | None, runs: int) -> int:
         log.warning("%s is a debug build; times are not representative", binary)
     results = {}
     for name in names:
-        result = bench_fixture(binary, name, runs)
+        result = bench_fixture(binary, name, runs, javascript)
         if result is None:
             return 1
         results[name] = result
     print(table(results))
+    print()
+    print(interaction_table(results))
     return 0
