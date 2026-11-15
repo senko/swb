@@ -1,0 +1,179 @@
+{
+ "notifications": {
+  "records": [
+   {
+    "url": "https://github.com/senko/swb"
+   },
+   {
+    "url": "chrome-error://chromewebdata/"
+   }
+  ],
+  "missing": [
+   "https://github.com/login?return_to=%2Fsenko%2Fswb"
+  ]
+ },
+ "fork": {
+  "records": [
+   {
+    "url": "https://github.com/senko/swb"
+   },
+   {
+    "url": "chrome-error://chromewebdata/"
+   }
+  ],
+  "missing": [
+   "https://github.com/login?return_to=%2Fsenko%2Fswb"
+  ]
+ },
+ "star": {
+  "records": [
+   {
+    "url": "https://github.com/senko/swb"
+   },
+   {
+    "url": "chrome-error://chromewebdata/"
+   }
+  ],
+  "missing": [
+   "https://github.com/login?return_to=%2Fsenko%2Fswb"
+  ]
+ },
+ "tab-issues": {
+  "records": [
+   {
+    "url": "https://github.com/senko/swb"
+   },
+   {
+    "url": "chrome-error://chromewebdata/"
+   }
+  ],
+  "missing": [
+   "https://github.com/senko/swb/issues"
+  ]
+ },
+ "tab-pulls": {
+  "records": [
+   {
+    "url": "https://github.com/senko/swb"
+   },
+   {
+    "url": "chrome-error://chromewebdata/"
+   }
+  ],
+  "missing": [
+   "https://github.com/senko/swb/pulls"
+  ]
+ },
+ "file-dir": {
+  "records": [
+   {
+    "url": "https://github.com/senko/swb"
+   },
+   {
+    "url": "https://github.com/senko/swb/tree/main/crates"
+   }
+  ],
+  "missing": [
+   "https://github.com/senko/swb/_file_tree_layout",
+   "https://github.com/senko/swb/latest-commit/main/crates",
+   "https://github.com/senko/swb/tree-commit-info/main/crates",
+   "https://github.com/senko/swb/tree/main/crates"
+  ]
+ },
+ "file-file": {
+  "records": [
+   {
+    "url": "https://github.com/senko/swb"
+   },
+   {
+    "url": "https://github.com/senko/swb/blob/main/.gitignore"
+   }
+  ],
+  "missing": [
+   "https://github.com/senko/swb/_file_tree_layout",
+   "https://github.com/senko/swb/_layout/main/.gitignore",
+   "https://github.com/senko/swb/_styled/main/.gitignore",
+   "https://github.com/senko/swb/blob/main/.gitignore",
+   "https://github.com/senko/swb/deferred-metadata/main/.gitignore",
+   "https://github.com/senko/swb/latest-commit/main/.gitignore"
+  ]
+ },
+ "commit-msg": {
+  "records": [
+   {
+    "url": "https://github.com/senko/swb"
+   },
+   {
+    "url": "chrome-error://chromewebdata/"
+   }
+  ],
+  "missing": [
+   "https://github.com/senko/swb/commit/cdbcd8ab523f11f08d622e915366e935786624b2"
+  ]
+ },
+ "sign-in": {
+  "records": [
+   {
+    "url": "https://github.com/senko/swb"
+   },
+   {
+    "url": "chrome-error://chromewebdata/"
+   }
+  ],
+  "missing": [
+   "https://github.com/login?return_to=https%3A%2F%2Fgithub.com%2Fsenko%2Fswb"
+  ]
+ },
+ "sign-up": {
+  "records": [
+   {
+    "url": "https://github.com/senko/swb"
+   },
+   {
+    "url": "chrome-error://chromewebdata/"
+   }
+  ],
+  "missing": [
+   "https://github.com/signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E&source=header-repo&source_repo=senko%2Fswb"
+  ]
+ },
+ "branches-link": {
+  "records": [
+   {
+    "url": "https://github.com/senko/swb"
+   },
+   {
+    "url": "chrome-error://chromewebdata/"
+   }
+  ],
+  "missing": [
+   "https://github.com/senko/swb/branches"
+  ]
+ },
+ "commits-link": {
+  "records": [
+   {
+    "url": "https://github.com/senko/swb"
+   },
+   {
+    "url": "chrome-error://chromewebdata/"
+   }
+  ],
+  "missing": [
+   "https://github.com/senko/swb/commits/main/"
+  ]
+ },
+ "readme-anchor": {
+  "records": [
+   {
+    "url": "https://github.com/senko/swb"
+   },
+   {
+    "url": "https://github.com/senko/swb?tab=readme-ov-file"
+   }
+  ],
+  "missing": [
+   "https://github.com/senko/swb/_sidebar/about"
+  ]
+ }
+}

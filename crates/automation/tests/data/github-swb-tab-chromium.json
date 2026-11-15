@@ -1,0 +1,534 @@
+[
+ {
+  "active": "body|||||Skip to content {\"pr",
+  "rect": "0,0,1280,3157",
+  "focusVisible": false,
+  "outline": "none 3px rgb(31, 35, 40) 0px",
+  "scroll": 0
+ },
+ {
+  "active": "a||||#js-repo-pjax-container|Skip to content",
+  "rect": "0,0,109,69",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 0
+ },
+ {
+  "active": "a||Homepage||/|",
+  "rect": "32,20,32,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(48, 148, 255) 0px",
+  "scroll": 0
+ },
+ {
+  "active": "button|||button||Platform",
+  "rect": "80,16,98,40",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(255, 255, 255) 0px",
+  "scroll": 0
+ },
+ {
+  "active": "button|||button||Solutions",
+  "rect": "178,16,104,40",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(255, 255, 255) 0px",
+  "scroll": 0
+ },
+ {
+  "active": "button|||button||Resources",
+  "rect": "281,16,115,40",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(255, 255, 255) 0px",
+  "scroll": 0
+ },
+ {
+  "active": "button|||button||Open Source",
+  "rect": "396,16,133,40",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(255, 255, 255) 0px",
+  "scroll": 0
+ },
+ {
+  "active": "button|||button||Enterprise",
+  "rect": "529,16,111,40",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(255, 255, 255) 0px",
+  "scroll": 0
+ },
+ {
+  "active": "a||||https://github.com/pricing|Pricing",
+  "rect": "640,16,67,40",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(255, 255, 255) 0px",
+  "scroll": 0
+ },
+ {
+  "active": "button||Search or jump to, type / to search|button||Search/",
+  "rect": "1005,20,42,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(48, 148, 255) 0px",
+  "scroll": 0
+ },
+ {
+  "active": "a||||/login?return_to=https%3A%2F%2Fgithub.com%2Fsenko%2Fswb|Sign in",
+  "rect": "1055,20,70,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(48, 148, 255) 0px",
+  "scroll": 0
+ },
+ {
+  "active": "a||||/signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E&source=he",
+  "rect": "1133,20,75,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(48, 148, 255) 0px",
+  "scroll": 0
+ },
+ {
+  "active": "button|||button||",
+  "rect": "1216,20,32,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(48, 148, 255) 0px",
+  "scroll": 0
+ },
+ {
+  "active": "a||||/senko|senko",
+  "rect": "16,88,49,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) 0px",
+  "scroll": 0
+ },
+ {
+  "active": "a||||/senko/swb|swb",
+  "rect": "80,88,39,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) 0px",
+  "scroll": 0
+ },
+ {
+  "active": "a||||/senko/swb|Code",
+  "rect": "16,132,75,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgba(0, 0, 0, 0) -2px",
+  "scroll": 0
+ },
+ {
+  "active": "a||||/senko/swb/issues|Issues",
+  "rect": "99,132,84,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgba(0, 0, 0, 0) -2px",
+  "scroll": 0
+ },
+ {
+  "active": "a||||/senko/swb/pulls|Pull requests",
+  "rect": "191,132,128,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgba(0, 0, 0, 0) -2px",
+  "scroll": 0
+ },
+ {
+  "active": "a||||/senko/swb/actions|Actions",
+  "rect": "327,132,91,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgba(0, 0, 0, 0) -2px",
+  "scroll": 0
+ },
+ {
+  "active": "a||||/senko/swb/projects|Projects",
+  "rect": "426,132,95,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgba(0, 0, 0, 0) -2px",
+  "scroll": 0
+ },
+ {
+  "active": "a||||/senko/swb/security|Security and quality",
+  "rect": "529,132,173,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgba(0, 0, 0, 0) -2px",
+  "scroll": 0
+ },
+ {
+  "active": "a||||/senko/swb/pulse|Insights",
+  "rect": "710,132,94,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgba(0, 0, 0, 0) -2px",
+  "scroll": 0
+ },
+ {
+  "active": "div|||||swbPublicNotificatio",
+  "rect": "0,-14,1280,2871",
+  "focusVisible": true,
+  "outline": "auto 1px rgb(16, 16, 16) 0px",
+  "scroll": 172
+ },
+ {
+  "active": "a|repo-name-link|||/senko/swb|swb",
+  "rect": "64,9,39,22",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a|notifications-sign-in-button|You must be signed in to change notification settings|button|/login?return_to=%",
+  "rect": "957,6,103,28",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a|fork-button|You must be signed in to fork a repository|button|/login?return_to=%2Fsenko%2Fswb|Fork0 (0)",
+  "rect": "1069,6,87,28",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a|star-button||button|/login?return_to=%2Fsenko%2Fswb|Star0 (0)",
+  "rect": "1163,6,85,28",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "button|anchor-button|main branch|button||main",
+  "rect": "32,79,104,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a|||button|/senko/swb/branches|1 Branch",
+  "rect": "144,79,90,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a|||button|/senko/swb/tags|0 Tags",
+  "rect": "234,79,75,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "input||Go to file|text||",
+  "rect": "623,80,181,30",
+  "focusVisible": true,
+  "outline": "none 0px rgb(31, 35, 40) 0px",
+  "scroll": 172
+ },
+ {
+  "active": "button|||button||Code",
+  "rect": "829,79,107,32",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a|avatar-icon-link|||/senko|",
+  "rect": "45,144,29,21",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||commits by senko||/senko/swb/commits?author=senko|senko",
+  "rect": "74,144,40,21",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/17646c1fe7daab06870aea108021c9a07f1c1dfe|M7 12a: Date",
+  "rect": "122,146,84,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "button|latest-commit-details-toggle||button||",
+  "rect": "215,140,28,28",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "button|checks-status-badge-icon||button||",
+  "rect": "251,140,28,28",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||Commit 17646c1||/senko/swb/commit/17646c1fe7daab06870aea108021c9a07f1c1dfe|17646c1",
+  "rect": "698,145,46,18",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commits/main/|86 Commits",
+  "rect": "821,140,102,28",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||.claude/agents, (Directory)||/senko/swb/tree/main/.claude/agents|.claude/agents",
+  "rect": "75,193,91,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/cdbcd8ab523f11f08d622e915366e935786624b2|M6 step 1: JavaScrip",
+  "rect": "410,193,357,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||.github/workflows, (Directory)||/senko/swb/tree/main/.github/workflows|.github/workflows",
+  "rect": "75,234,107,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/499f6f47cdcd3423b9a3034850142ffb02762443|Shared tools: Chromi",
+  "rect": "410,234,403,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||crates, (Directory)||/senko/swb/tree/main/crates|crates",
+  "rect": "75,275,38,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/17646c1fe7daab06870aea108021c9a07f1c1dfe|M7 12a: Date",
+  "rect": "410,275,84,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||docs, (Directory)||/senko/swb/tree/main/docs|docs",
+  "rect": "75,316,30,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/17646c1fe7daab06870aea108021c9a07f1c1dfe|M7 12a: Date",
+  "rect": "410,316,84,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||fixtures, (Directory)||/senko/swb/tree/main/fixtures|fixtures",
+  "rect": "75,357,45,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/1cbcadb9dffb61077a6657fc3fc5406cb1919759|Final pass on BBC: g",
+  "rect": "410,357,363,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||tests/layout, (Directory)||/senko/swb/tree/main/tests/layout|tests/layout",
+  "rect": "75,398,71,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/fcab42b04967a1bb71481262a7915365bf0fd153|Grid and flex button",
+  "rect": "410,398,227,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||tools, (Directory)||/senko/swb/tree/main/tools|tools",
+  "rect": "75,439,30,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/17646c1fe7daab06870aea108021c9a07f1c1dfe|M7 12a: Date",
+  "rect": "410,439,84,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||.editorconfig, (File)||/senko/swb/blob/main/.editorconfig|.editorconfig",
+  "rect": "75,480,76,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/07126da0a562bb5a753913ed7d87fb34e4bdae42|Foundation: a workin",
+  "rect": "410,480,276,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||.gitattributes, (File)||/senko/swb/blob/main/.gitattributes|.gitattributes",
+  "rect": "75,521,76,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/07126da0a562bb5a753913ed7d87fb34e4bdae42|Foundation: a workin",
+  "rect": "410,521,276,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||.gitignore, (File)||/senko/swb/blob/main/.gitignore|.gitignore",
+  "rect": "75,562,58,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/05beb3dff841992f0bd0ac90d5002013a65390dc|M1 maintenance: remo",
+  "rect": "410,562,381,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||CLAUDE.md, (File)||/senko/swb/blob/main/CLAUDE.md|CLAUDE.md",
+  "rect": "75,603,80,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/df2eb90c8387dadff7bf55608b9595f9c164313b|M7 6c: iterator help",
+  "rect": "410,603,245,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||Cargo.lock, (File)||/senko/swb/blob/main/Cargo.lock|Cargo.lock",
+  "rect": "75,644,67,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/17646c1fe7daab06870aea108021c9a07f1c1dfe|M7 12a: Date",
+  "rect": "410,644,84,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||Cargo.toml, (File)||/senko/swb/blob/main/Cargo.toml|Cargo.toml",
+  "rect": "75,685,68,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/17646c1fe7daab06870aea108021c9a07f1c1dfe|M7 12a: Date",
+  "rect": "410,685,84,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||LICENSE, (File)||/senko/swb/blob/main/LICENSE|LICENSE",
+  "rect": "75,726,60,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/07126da0a562bb5a753913ed7d87fb34e4bdae42|Foundation: a workin",
+  "rect": "410,726,276,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||README.md, (File)||/senko/swb/blob/main/README.md|README.md",
+  "rect": "75,767,83,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||||/senko/swb/commit/1cbcadb9dffb61077a6657fc3fc5406cb1919759|Final pass on BBC: g",
+  "rect": "410,767,363,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 172
+ },
+ {
+  "active": "a||THIRD_PARTY_NOTICES.md, (File)||/senko/swb/blob/main/THIRD_PARTY_NOTICES.md|THIRD_PARTY_NOTICES.",
+  "rect": "75,378,189,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 602
+ },
+ {
+  "active": "a||||/senko/swb/commit/ad32583328c0af82042f6c4ef4e8fda6bff977a9|M7 8c: Unicode prope",
+  "rect": "410,378,288,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 602
+ },
+ {
+  "active": "a||THIRD_PARTY_NOTICES.md, (File)||/senko/swb/blob/main/THIRD_PARTY_NOTICES.md|THIRD_PARTY_NOTICES.",
+  "rect": "75,378,189,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 602
+ },
+ {
+  "active": "a||||/senko/swb/commit/1cbcadb9dffb61077a6657fc3fc5406cb1919759|Final pass on BBC: g",
+  "rect": "410,337,363,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 602
+ },
+ {
+  "active": "a||README.md, (File)||/senko/swb/blob/main/README.md|README.md",
+  "rect": "75,337,83,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 602
+ },
+ {
+  "active": "a||||/senko/swb/commit/07126da0a562bb5a753913ed7d87fb34e4bdae42|Foundation: a workin",
+  "rect": "410,296,276,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 602
+ },
+ {
+  "active": "a||LICENSE, (File)||/senko/swb/blob/main/LICENSE|LICENSE",
+  "rect": "75,296,60,16",
+  "focusVisible": true,
+  "outline": "solid 2px rgb(9, 105, 218) -2px",
+  "scroll": 602
+ }
+]

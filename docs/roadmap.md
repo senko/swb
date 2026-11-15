@@ -5161,8 +5161,29 @@ Steps:
       - 9c the interaction test (`implementer`): the steps and Chromium's
         records of items 3 to 8 and 10 in `github_swb.rs`; the warning
         "Web workers are not available" as a departure (no `Worker`).
+        Done (2026-11-15): three tests next to the first-view test, with
+        three equal Chromium runs of each record
+        (`tools/github_swb_records.py`): the interactions (items 3 to 7:
+        26 groups, a record after each, 17 pixel points, the console, the
+        URLs that the fixture lacks; 16.5 s), the Tab order (item 10: 75
+        stops, rectangles and scroll relative to the header, whose error
+        state appears at another stop in each run; 7.2 s) and the
+        navigations (item 8: 13 loads, the sets of URLs; 15.1 s). The
+        departures are stated in the tests: no `box-shadow` (the pixel
+        points avoid the rings), anchor positioning, the scrollbar width
+        of the file finder list, no `Worker`. The `More items` button
+        that took the focus in some Tab runs: a style sheet that a script
+        adds and that is still loading emptied the styles and the layout,
+        so `IntersectionObserver` saw no nav item fit. Now only the
+        parser's `link` elements block rendering, as in Chromium (probe
+        `tools/probes/web-pending-sheets.json`, test
+        `crates/engine/tests/pending_sheets.rs`); 0 of 15 Tab runs fail
+        (before: 4 of 10 under load). Scores and the JS-off snapshot
+        unchanged; callgrind within 0.1 %.
 
-   Then the end-of-milestone maintenance.
+      Feature 9 is complete (2026-11-15).
+
+   Then sub-feature 4c and the end-of-milestone maintenance.
 
 ## Pending decisions
 
@@ -5366,13 +5387,24 @@ Steps:
   warns "Web workers are not available" when "Go to file" starts its
   worker); no `document.execCommand` or `queryCommandSupported` (GitHub's
   clipboard fallback); the tooltip "success" that Chromium opens after
-  Escape closes the check-status dialog does not open in swb; a hidden
-  `More items` button took the focus once in three swb Tab runs (9c
-  checks it); camelCase members of `getComputedStyle` for properties
+  Escape closes the check-status dialog does not open in swb; camelCase members of `getComputedStyle` for properties
   without a computed value (`boxShadow`) are `undefined`; the scrollbar
   of a scroll container takes no width (the file finder list: Chromium
   625 px, swb 640 px); `Attr` is no node, so it cannot be the root or
   current node of a walker or iterator.
+  Found in 9c and its review: the focus stays on an element that becomes
+  unrendered (Chromium moves it to the body after the next frame; the
+  focus fixup rule); the page renders one element more or less at the
+  load in some runs (1872 or 1873; Chromium 1873; the test tolerates 3);
+  `stylesheets_settled` ignores `media`, so a parser `link media=print`
+  that is still loading empties the styles and the layout (Chromium
+  renders; measured); a script that changes the `href` of a parser `link`
+  drops the old sheet at once (Chromium keeps it until the new one
+  arrives; measured); the paint of a page whose script inserts its main
+  sheet is not compared with Chromium's (its scripts see the same unstyled
+  values); the virtual clock puts the page's 1 s retry timers on the
+  steps of the Tab test, so keep the `wait` values of new step files off
+  the page's timer values.
 - Range and Selection (found in 9b-1, ADR 0039): `getComposedRanges`
   (decision 2 of the ADR); `Selection.modify`, `Range.expand` and
   `ShadowRoot.getSelection` (Chromium has them, no fixture uses them);

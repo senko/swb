@@ -1,0 +1,157 @@
+[
+ {
+  "name": "notifications",
+  "steps": [
+   {
+    "click": "[data-testid=notifications-sign-in-button]"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "fork",
+  "steps": [
+   {
+    "click": "[data-testid=fork-button]"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "star",
+  "steps": [
+   {
+    "click": "[data-testid=star-button]"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "tab-issues",
+  "steps": [
+   {
+    "click": "nav[aria-label=Repository] a[href='/senko/swb/issues']"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "tab-pulls",
+  "steps": [
+   {
+    "click": "nav[aria-label=Repository] a[href='/senko/swb/pulls']"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "file-dir",
+  "steps": [
+   {
+    "click": [
+     94,
+     469
+    ]
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "file-file",
+  "steps": [
+   {
+    "click": [
+     115,
+     748
+    ]
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "commit-msg",
+  "steps": [
+   {
+    "click": "a[href^='/senko/swb/commit/cdbcd8']"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "sign-in",
+  "steps": [
+   {
+    "click": [
+     1090,
+     36
+    ]
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "sign-up",
+  "steps": [
+   {
+    "click": "a[href^='/signup']"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "branches-link",
+  "steps": [
+   {
+    "click": "a[href='/senko/swb/branches']"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "commits-link",
+  "steps": [
+   {
+    "click": "a[href='/senko/swb/commits/main/']"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "readme-anchor",
+  "steps": [
+   {
+    "click": [
+     1026,
+     395
+    ]
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ }
+]

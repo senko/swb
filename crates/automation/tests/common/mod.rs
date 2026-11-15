@@ -46,10 +46,11 @@ impl Fetcher for OnePage {
 }
 
 /// A fetcher that records the URLs of its requests, in order, and answers
-/// from the fixture.
+/// from the fixture. It also records the URLs that the fixture lacks.
 pub(crate) struct Recording {
     inner: ReplayFetcher,
     urls: Mutex<Vec<String>>,
+    missing: Mutex<Vec<String>>,
 }
 
 impl Recording {
@@ -58,6 +59,7 @@ impl Recording {
         Recording {
             inner,
             urls: Mutex::new(Vec::new()),
+            missing: Mutex::new(Vec::new()),
         }
     }
 
@@ -65,12 +67,25 @@ impl Recording {
     pub(crate) fn urls(&self) -> Vec<String> {
         self.urls.lock().unwrap().clone()
     }
+
+    /// The URLs requested so far that the fixture lacks, sorted, each once
+    /// (the set that `swbtools replay` logs as "not in fixture").
+    pub(crate) fn missing(&self) -> Vec<String> {
+        let mut urls = self.missing.lock().unwrap().clone();
+        urls.sort();
+        urls.dedup();
+        urls
+    }
 }
 
 impl Fetcher for Recording {
     fn fetch(&self, request: &Request) -> Result<Response, NetError> {
         self.urls.lock().unwrap().push(request.url.to_string());
-        self.inner.fetch(request)
+        let result = self.inner.fetch(request);
+        if matches!(result, Err(NetError::NotInFixture(_))) {
+            self.missing.lock().unwrap().push(request.url.to_string());
+        }
+        result
     }
 
     fn cookie_jar(&self) -> Option<&CookieJar> {

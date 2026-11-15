@@ -4,6 +4,30 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-15: M10 9c: GitHub's interaction tests (feature 9 complete)
+
+- With 9a and 9b, items 3 to 8 and 10 of the M10 list equal Chromium's
+  replay: the header menus, the Code popover, the branch selector, "Go to
+  file", the "..." button, 13 navigations and 75 Tab stops. The page's
+  errors are the same three failed fetches in both browsers.
+- Three new tests in `github_swb.rs` (interactions 16.5 s, Tab order
+  7.2 s, navigation 15.1 s); the records come from three equal Chromium
+  runs (`tools/github_swb_records.py`). The departures stated in the tests:
+  no `box-shadow`, anchor positioning, the scrollbar width of a scroll
+  container, no `Worker`. The header's error state appears at another Tab
+  stop in each run of both browsers, so the Tab record is relative to the
+  header.
+- The intermittent focus on the hidden `More items` button: a style sheet
+  that a script added and that was still loading (a lazy chunk the
+  fixture lacks) emptied the styles and the layout. Every rectangle was 0,
+  the nav's `IntersectionObserver` saw no item fit and showed the button,
+  and Tab went to it. Chromium keeps rendering with the sheets it has, so
+  now only the parser's `link` elements block rendering. 0 of 15 Tab runs
+  fail (before: 4 of 10 under load).
+- Scores and the JS-off snapshot unchanged; callgrind within 0.1 %.
+- Next: sub-feature 4c (synchronous custom element construction in the
+  parser), then the end-of-milestone maintenance.
+
 ## 2026-11-14: M10 9b-3: Range contents, createContextualFragment, geometry
 
 - The five contents operations are iterative functions of `swb_dom`:

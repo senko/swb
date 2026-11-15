@@ -1,0 +1,31 @@
+{
+  "groups": ["platform open", "resources switch", "code cli tab", "branch open", "branch tags tab", "go to file type", "commit dots"],
+  "group_points": {
+    "platform open": ["platform "],
+    "resources switch": ["resources "],
+    "code cli tab": ["code "],
+    "branch open": ["branch "],
+    "branch tags tab": ["tags "],
+    "go to file type": ["goto "],
+    "commit dots": ["dots "]
+  },
+  "points": {
+    "platform black": [250, 420],
+    "platform footer": [900, 515],
+    "platform page": [30, 650],
+    "resources black": [600, 350],
+    "resources footer": [800, 395],
+    "resources page": [1150, 255],
+    "code white": [760, 372],
+    "code input": [800, 406],
+    "code page": [700, 633],
+    "branch white": [250, 462],
+    "branch input": [250, 365],
+    "branch page": [700, 469],
+    "tags white": [300, 480],
+    "goto white": [300, 330],
+    "goto page": [900, 469],
+    "dots tooltip": [170, 372],
+    "dots message": [700, 500]
+  }
+}

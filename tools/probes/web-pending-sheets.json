@@ -1,0 +1,26 @@
+{
+ "viewport": [400, 200],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "script-link-pending-geometry",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=a style=\"height:50px\">x</div><script>var R={};setTimeout(function(){var l=document.createElement('link');l.rel='stylesheet';l.href='slow.css';document.head.appendChild(l);var a=document.getElementById('a');R.h1=a.getBoundingClientRect().height;a.style.height='80px';R.h2=a.getBoundingClientRect().height;var d=document.createElement('p');d.id='p';d.textContent='y';d.style.margin='0';document.body.appendChild(d);R.p=d.getBoundingClientRect().height>0;R.color=getComputedStyle(a).color;R.rects=a.getClientRects().length;setTimeout(function(){R.h3=a.getBoundingClientRect().height;R.sheet=document.styleSheets.length},300)},100)</script></body></html>",
+   "measure": [
+    {"js": "new Promise(function(r){setTimeout(function(){r(JSON.stringify(R))},700)})"}
+   ],
+   "resources": {
+    "slow.css": {"text": "#a{color:rgb(255,0,0)}", "delay_ms": 1500}
+   }
+  },
+  {
+   "name": "script-link-pending-focus-and-observer",
+   "html": "<!DOCTYPE html><html><head></head><body><button id=b>b</button><button id=c>c</button><script>var R={};setTimeout(function(){var l=document.createElement('link');l.rel='stylesheet';l.href='slow.css';document.head.appendChild(l);document.getElementById('b').focus();R.focus=document.activeElement.id;var io=new IntersectionObserver(function(es){R.io=es.map(function(e){return e.isIntersecting+':'+Math.round(e.boundingClientRect.height)})});io.observe(document.getElementById('c'));},100)</script></body></html>",
+   "measure": [
+    {"js": "new Promise(function(r){setTimeout(function(){r(JSON.stringify(R))},700)})"}
+   ],
+   "resources": {
+    "slow.css": {"text": "#a{color:rgb(255,0,0)}", "delay_ms": 1500}
+   }
+  }
+ ]
+}

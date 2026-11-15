@@ -1,0 +1,611 @@
+{
+ "platform open": {
+  "platform black": [
+   0,
+   0,
+   0
+  ],
+  "platform footer": [
+   15,
+   21,
+   17
+  ],
+  "platform page": [
+   255,
+   255,
+   255
+  ],
+  "resources black": [
+   0,
+   0,
+   0
+  ],
+  "resources footer": [
+   0,
+   0,
+   0
+  ],
+  "resources page": [
+   253,
+   253,
+   253
+  ],
+  "code white": [
+   0,
+   0,
+   0
+  ],
+  "code input": [
+   0,
+   0,
+   0
+  ],
+  "code page": [
+   255,
+   255,
+   255
+  ],
+  "branch white": [
+   0,
+   0,
+   0
+  ],
+  "branch input": [
+   0,
+   0,
+   0
+  ],
+  "branch page": [
+   0,
+   0,
+   0
+  ],
+  "tags white": [
+   0,
+   0,
+   0
+  ],
+  "goto white": [
+   0,
+   0,
+   0
+  ],
+  "goto page": [
+   0,
+   0,
+   0
+  ],
+  "dots tooltip": [
+   0,
+   0,
+   0
+  ],
+  "dots message": [
+   15,
+   21,
+   17
+  ]
+ },
+ "resources switch": {
+  "platform black": [
+   255,
+   255,
+   255
+  ],
+  "platform footer": [
+   255,
+   255,
+   255
+  ],
+  "platform page": [
+   255,
+   255,
+   255
+  ],
+  "resources black": [
+   0,
+   0,
+   0
+  ],
+  "resources footer": [
+   15,
+   21,
+   17
+  ],
+  "resources page": [
+   255,
+   255,
+   255
+  ],
+  "code white": [
+   15,
+   21,
+   17
+  ],
+  "code input": [
+   15,
+   21,
+   17
+  ],
+  "code page": [
+   255,
+   255,
+   255
+  ],
+  "branch white": [
+   255,
+   255,
+   255
+  ],
+  "branch input": [
+   246,
+   248,
+   250
+  ],
+  "branch page": [
+   255,
+   255,
+   255
+  ],
+  "tags white": [
+   255,
+   255,
+   255
+  ],
+  "goto white": [
+   0,
+   0,
+   0
+  ],
+  "goto page": [
+   168,
+   173,
+   179
+  ],
+  "dots tooltip": [
+   255,
+   255,
+   255
+  ],
+  "dots message": [
+   255,
+   255,
+   255
+  ]
+ },
+ "code cli tab": {
+  "platform black": [
+   255,
+   255,
+   255
+  ],
+  "platform footer": [
+   255,
+   255,
+   255
+  ],
+  "platform page": [
+   255,
+   255,
+   255
+  ],
+  "resources black": [
+   209,
+   217,
+   224
+  ],
+  "resources footer": [
+   246,
+   248,
+   250
+  ],
+  "resources page": [
+   255,
+   255,
+   255
+  ],
+  "code white": [
+   255,
+   255,
+   255
+  ],
+  "code input": [
+   246,
+   248,
+   250
+  ],
+  "code page": [
+   255,
+   255,
+   255
+  ],
+  "branch white": [
+   255,
+   255,
+   255
+  ],
+  "branch input": [
+   246,
+   248,
+   250
+  ],
+  "branch page": [
+   255,
+   255,
+   255
+  ],
+  "tags white": [
+   255,
+   255,
+   255
+  ],
+  "goto white": [
+   246,
+   248,
+   250
+  ],
+  "goto page": [
+   255,
+   255,
+   255
+  ],
+  "dots tooltip": [
+   255,
+   255,
+   255
+  ],
+  "dots message": [
+   255,
+   255,
+   255
+  ]
+ },
+ "branch open": {
+  "platform black": [
+   255,
+   255,
+   255
+  ],
+  "platform footer": [
+   255,
+   255,
+   255
+  ],
+  "platform page": [
+   255,
+   255,
+   255
+  ],
+  "resources black": [
+   246,
+   248,
+   250
+  ],
+  "resources footer": [
+   255,
+   255,
+   255
+  ],
+  "resources page": [
+   255,
+   255,
+   255
+  ],
+  "code white": [
+   255,
+   255,
+   255
+  ],
+  "code input": [
+   255,
+   255,
+   255
+  ],
+  "code page": [
+   255,
+   255,
+   255
+  ],
+  "branch white": [
+   255,
+   255,
+   255
+  ],
+  "branch input": [
+   255,
+   255,
+   255
+  ],
+  "branch page": [
+   255,
+   255,
+   255
+  ],
+  "tags white": [
+   255,
+   255,
+   255
+  ],
+  "goto white": [
+   255,
+   255,
+   255
+  ],
+  "goto page": [
+   168,
+   173,
+   179
+  ],
+  "dots tooltip": [
+   255,
+   255,
+   255
+  ],
+  "dots message": [
+   255,
+   255,
+   255
+  ]
+ },
+ "branch tags tab": {
+  "platform black": [
+   255,
+   255,
+   255
+  ],
+  "platform footer": [
+   255,
+   255,
+   255
+  ],
+  "platform page": [
+   255,
+   255,
+   255
+  ],
+  "resources black": [
+   246,
+   248,
+   250
+  ],
+  "resources footer": [
+   255,
+   255,
+   255
+  ],
+  "resources page": [
+   255,
+   255,
+   255
+  ],
+  "code white": [
+   255,
+   255,
+   255
+  ],
+  "code input": [
+   255,
+   255,
+   255
+  ],
+  "code page": [
+   255,
+   255,
+   255
+  ],
+  "branch white": [
+   255,
+   235,
+   233
+  ],
+  "branch input": [
+   255,
+   255,
+   255
+  ],
+  "branch page": [
+   255,
+   255,
+   255
+  ],
+  "tags white": [
+   255,
+   235,
+   233
+  ],
+  "goto white": [
+   255,
+   255,
+   255
+  ],
+  "goto page": [
+   168,
+   173,
+   179
+  ],
+  "dots tooltip": [
+   255,
+   255,
+   255
+  ],
+  "dots message": [
+   255,
+   255,
+   255
+  ]
+ },
+ "go to file type": {
+  "platform black": [
+   255,
+   255,
+   255
+  ],
+  "platform footer": [
+   255,
+   255,
+   255
+  ],
+  "platform page": [
+   255,
+   255,
+   255
+  ],
+  "resources black": [
+   255,
+   255,
+   255
+  ],
+  "resources footer": [
+   255,
+   255,
+   255
+  ],
+  "resources page": [
+   255,
+   255,
+   255
+  ],
+  "code white": [
+   255,
+   255,
+   255
+  ],
+  "code input": [
+   255,
+   255,
+   255
+  ],
+  "code page": [
+   255,
+   255,
+   255
+  ],
+  "branch white": [
+   255,
+   255,
+   255
+  ],
+  "branch input": [
+   255,
+   255,
+   255
+  ],
+  "branch page": [
+   255,
+   255,
+   255
+  ],
+  "tags white": [
+   255,
+   255,
+   255
+  ],
+  "goto white": [
+   255,
+   255,
+   255
+  ],
+  "goto page": [
+   168,
+   173,
+   179
+  ],
+  "dots tooltip": [
+   252,
+   252,
+   252
+  ],
+  "dots message": [
+   255,
+   255,
+   255
+  ]
+ },
+ "commit dots": {
+  "platform black": [
+   246,
+   248,
+   250
+  ],
+  "platform footer": [
+   246,
+   248,
+   250
+  ],
+  "platform page": [
+   255,
+   255,
+   255
+  ],
+  "resources black": [
+   246,
+   248,
+   250
+  ],
+  "resources footer": [
+   246,
+   248,
+   250
+  ],
+  "resources page": [
+   255,
+   255,
+   255
+  ],
+  "code white": [
+   246,
+   248,
+   250
+  ],
+  "code input": [
+   246,
+   248,
+   250
+  ],
+  "code page": [
+   246,
+   248,
+   250
+  ],
+  "branch white": [
+   246,
+   248,
+   250
+  ],
+  "branch input": [
+   37,
+   41,
+   46
+  ],
+  "branch page": [
+   246,
+   248,
+   250
+  ],
+  "tags white": [
+   246,
+   248,
+   250
+  ],
+  "goto white": [
+   246,
+   248,
+   250
+  ],
+  "goto page": [
+   246,
+   248,
+   250
+  ],
+  "dots tooltip": [
+   37,
+   41,
+   46
+  ],
+  "dots message": [
+   246,
+   248,
+   250
+  ]
+ }
+}

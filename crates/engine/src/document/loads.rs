@@ -32,7 +32,7 @@ use swb_text::{FontContext, WebFaceId};
 use super::DocumentState;
 use super::changes::LoadPlan;
 use crate::image_source;
-use crate::resources::{AutoSizes, ImageState, Pending, Requests, SheetSlot};
+use crate::resources::{AutoSizes, ImageState, Pending, Requests};
 use crate::web_fonts::{FACE_COST, FontFile, LOCAL_FACE_COST, Source, web_font_face};
 
 impl DocumentState {
@@ -300,9 +300,19 @@ impl DocumentState {
         self.requests.pending.insert(id, Pending::Image { url });
     }
 
-    /// True if every stylesheet arrived or failed: rendering can start.
+    /// True if every stylesheet that blocks rendering arrived or failed:
+    /// rendering can start. Only the `link` elements of the parser block
+    /// (HTML "render-blocking": a script's `link` does not, unless it has
+    /// `blocking=render`, which swb ignores). A page that adds a style sheet
+    /// later (a lazy chunk with its CSS) keeps its styles and its layout
+    /// while the sheet loads: the pending sheet is not in the stylist yet and
+    /// joins when it arrives. Without this, every rectangle of the page was
+    /// empty for the time of the load (found in M10 9c: a focus order that
+    /// ran into an empty layout).
     pub(crate) fn stylesheets_settled(&self) -> bool {
-        self.sheets.iter().all(SheetSlot::is_settled)
+        self.sheets
+            .iter()
+            .all(|sheet| sheet.is_settled() || !sheet.blocks_scripts)
     }
 
     /// Cancels the running requests (the page stopped loading): sheets

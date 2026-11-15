@@ -1,0 +1,324 @@
+[
+ {
+  "name": "platform open",
+  "steps": [
+   {
+    "click": [
+     129,
+     36
+    ]
+   },
+   {
+    "wait": 600
+   }
+  ]
+ },
+ {
+  "name": "platform escape",
+  "steps": [
+   {
+    "key": "Escape"
+   },
+   {
+    "wait": 400
+   }
+  ]
+ },
+ {
+  "name": "solutions open",
+  "steps": [
+   {
+    "click": [
+     230,
+     36
+    ]
+   },
+   {
+    "wait": 600
+   }
+  ]
+ },
+ {
+  "name": "resources switch",
+  "steps": [
+   {
+    "click": [
+     338,
+     36
+    ]
+   },
+   {
+    "wait": 600
+   }
+  ]
+ },
+ {
+  "name": "resources escape",
+  "steps": [
+   {
+    "key": "Escape"
+   },
+   {
+    "wait": 400
+   }
+  ]
+ },
+ {
+  "name": "open source open",
+  "steps": [
+   {
+    "click": [
+     462,
+     36
+    ]
+   },
+   {
+    "wait": 600
+   }
+  ]
+ },
+ {
+  "name": "open source escape",
+  "steps": [
+   {
+    "key": "Escape"
+   },
+   {
+    "wait": 400
+   }
+  ]
+ },
+ {
+  "name": "enterprise open",
+  "steps": [
+   {
+    "click": [
+     584,
+     36
+    ]
+   },
+   {
+    "wait": 600
+   }
+  ]
+ },
+ {
+  "name": "enterprise escape",
+  "steps": [
+   {
+    "key": "Escape"
+   },
+   {
+    "wait": 400
+   }
+  ]
+ },
+ {
+  "name": "code open",
+  "steps": [
+   {
+    "click": [
+     882,
+     281
+    ]
+   },
+   {
+    "wait": 1000
+   }
+  ]
+ },
+ {
+  "name": "code cli tab",
+  "steps": [
+   {
+    "click": [
+     674,
+     366
+    ]
+   },
+   {
+    "wait": 500
+   }
+  ]
+ },
+ {
+  "name": "code https tab",
+  "steps": [
+   {
+    "click": [
+     588,
+     366
+    ]
+   },
+   {
+    "wait": 500
+   }
+  ]
+ },
+ {
+  "name": "code escape",
+  "steps": [
+   {
+    "key": "Escape"
+   },
+   {
+    "wait": 500
+   }
+  ]
+ },
+ {
+  "name": "branch open",
+  "steps": [
+   {
+    "click": "#ref-picker-repos-header-ref-selector"
+   },
+   {
+    "wait": 1200
+   }
+  ]
+ },
+ {
+  "name": "branch type",
+  "steps": [
+   {
+    "type": "xyz"
+   },
+   {
+    "wait": 600
+   }
+  ]
+ },
+ {
+  "name": "branch clear",
+  "steps": [
+   {
+    "key": "Backspace"
+   },
+   {
+    "key": "Backspace"
+   },
+   {
+    "key": "Backspace"
+   },
+   {
+    "wait": 600
+   }
+  ]
+ },
+ {
+  "name": "branch tags tab",
+  "steps": [
+   {
+    "click": [
+     150,
+     414
+    ]
+   },
+   {
+    "wait": 800
+   }
+  ]
+ },
+ {
+  "name": "branch escape",
+  "steps": [
+   {
+    "key": "Escape"
+   },
+   {
+    "wait": 500
+   }
+  ]
+ },
+ {
+  "name": "go to file click",
+  "steps": [
+   {
+    "click": "input[aria-label='Go to file']"
+   },
+   {
+    "wait": 800
+   }
+  ]
+ },
+ {
+  "name": "go to file type",
+  "steps": [
+   {
+    "type": "cr"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "go to file escape",
+  "steps": [
+   {
+    "key": "Escape"
+   },
+   {
+    "wait": 500
+   }
+  ]
+ },
+ {
+  "name": "blank click",
+  "steps": [
+   {
+    "click": [
+     700,
+     215
+    ]
+   },
+   {
+    "wait": 300
+   }
+  ]
+ },
+ {
+  "name": "key t",
+  "steps": [
+   {
+    "key": "t"
+   },
+   {
+    "wait": 800
+   }
+  ]
+ },
+ {
+  "name": "t escape",
+  "steps": [
+   {
+    "key": "Escape"
+   },
+   {
+    "wait": 500
+   }
+  ]
+ },
+ {
+  "name": "commit dots",
+  "steps": [
+   {
+    "click": "[data-testid=latest-commit-details-toggle]"
+   },
+   {
+    "wait": 800
+   }
+  ]
+ },
+ {
+  "name": "commit dots escape",
+  "steps": [
+   {
+    "key": "Escape"
+   },
+   {
+    "wait": 500
+   }
+  ]
+ }
+]
