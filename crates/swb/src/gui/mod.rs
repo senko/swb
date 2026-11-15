@@ -1,6 +1,7 @@
 //! The windowed browser: a winit window, a softbuffer surface, the toolbar
 //! and one page.
 
+mod compose;
 mod framelog;
 mod input_batch;
 mod toolbar;
@@ -16,7 +17,6 @@ use swb_engine::{
     ClockMode, Cursor, Modifiers, Page, PageClock, PageConfig, Pixmap, Size, TextEdit, Url,
 };
 use swb_net::Fetcher;
-use swb_paint::{DecodedImage, ImageRef, ImageSource, RasterParams, VectorCache};
 use swb_text::FontContext;
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalPosition};
@@ -28,9 +28,10 @@ use winit::keyboard::{Key, ModifiersState, NamedKey};
 use winit::window::{CursorIcon, Window, WindowId};
 
 use crate::url_input::parse_address;
+use compose::{Composer, compose_window};
 use framelog::FrameLog;
 use input_batch::{Input, InputBatch};
-use toolbar::{TOOLBAR_HEIGHT, Toolbar, ToolbarHit, ToolbarState};
+use toolbar::{TOOLBAR_HEIGHT, Toolbar, ToolbarHit};
 
 /// Pixels scrolled per wheel "line".
 const LINE_SCROLL: f32 = 48.0;
@@ -131,6 +132,8 @@ struct App {
     shown_cursor: ShownCursor,
     /// The input of the current batch of window events, for the frame log.
     frame_log: FrameLog,
+    /// The kept pixmaps of the frame (`None` before the first frame).
+    composer: Option<Composer>,
 }
 
 /// What a frame shows besides the page (see [`App::frame_wanted`]).
@@ -168,18 +171,6 @@ impl ShownCursor {
 
     fn is_visible(self) -> bool {
         matches!(self, ShownCursor::Icon(_))
-    }
-}
-
-struct NoImages;
-
-impl ImageSource for NoImages {
-    fn image(&self, _image: &ImageRef) -> Option<&DecodedImage> {
-        None
-    }
-
-    fn vector_cache(&self) -> Option<&VectorCache> {
-        None
     }
 }
 
@@ -233,6 +224,7 @@ impl App {
             shown_title: None,
             shown_cursor: ShownCursor::Unset,
             frame_log: FrameLog::new(),
+            composer: None,
         }
     }
 
@@ -448,8 +440,17 @@ impl App {
             .resize(w, h)
             .map_err(|e| anyhow::anyhow!("resize failed: {e}"))?;
 
-        let (frame, rendered) =
-            compose_frame(&mut self.page, &self.toolbar, (w.get(), h.get()), scale)?;
+        // The layers stay between frames; a new window size or scale makes
+        // new ones (ADR 0040 section 5).
+        let size = (w.get(), h.get());
+        if !self.composer.as_ref().is_some_and(|c| c.fits(size, scale)) {
+            self.composer = None;
+            self.composer = Some(Composer::new(size, scale)?);
+        }
+        let Some(composer) = &mut self.composer else {
+            return Ok(());
+        };
+        let rendered = composer.compose(&mut self.page, &self.toolbar);
 
         let Some(gfx) = &mut self.gfx else {
             return Ok(());
@@ -458,10 +459,9 @@ impl App {
             .surface
             .buffer_mut()
             .map_err(|e| anyhow::anyhow!("buffer failed: {e}"))?;
-        let (pixels, _) = frame.data().as_chunks::<4>();
-        for (dst, src) in buffer.iter_mut().zip(pixels) {
-            *dst = (u32::from(src[0]) << 16) | (u32::from(src[1]) << 8) | u32::from(src[2]);
-        }
+        // The buffer's old contents are not used (its age may be 0), so
+        // every pixel is written.
+        composer.write_buffer(&mut buffer);
         let composed = Instant::now();
         // The compositor's frame callback paces the next frame (ADR 0040
         // section 3).
@@ -896,56 +896,6 @@ fn set_primary(_clipboard: &mut arboard::Clipboard, _text: String) -> Result<(),
     Ok(())
 }
 
-/// Renders a whole window frame: the page below the toolbar, then the
-/// toolbar and the status bubble. Sizes are in device pixels. Also returns
-/// the time at which the page render ended (for the frame log).
-fn compose_frame(
-    page: &mut Page,
-    toolbar: &Toolbar,
-    (width, height): (u32, u32),
-    scale: f32,
-) -> Result<(Pixmap, Instant)> {
-    let mut frame = Pixmap::new(width, height).context("cannot allocate frame")?;
-    let toolbar_px = (TOOLBAR_HEIGHT * scale).round() as u32;
-    let content_h = height.saturating_sub(toolbar_px).max(1);
-    let mut content = Pixmap::new(width, content_h).context("cannot allocate page")?;
-    page.render(&mut content);
-    let rendered = Instant::now();
-    frame.draw_pixmap(
-        0,
-        toolbar_px as i32,
-        content.as_ref(),
-        &tiny_skia::PixmapPaint::default(),
-        tiny_skia::Transform::identity(),
-        None,
-    );
-
-    let status = page.hovered_link().map(|u| u.as_str().to_owned());
-    let state = ToolbarState {
-        can_go_back: page.can_go_back(),
-        can_go_forward: page.can_go_forward(),
-        loading: page.is_loading(),
-        javascript: page.javascript(),
-        javascript_allowed: page.javascript_available(),
-        status: status.as_deref(),
-    };
-    let css_width = width as f32 / scale;
-    let css_height = height as f32 / scale;
-    let list = toolbar.display_list(page.fonts(), css_width, css_height, &state);
-    swb_paint::rasterize(
-        &list,
-        &mut frame,
-        RasterParams {
-            scroll: swb_layout::Point::default(),
-            viewport_scroll: swb_layout::Point::default(),
-            scale,
-        },
-        page.fonts(),
-        &NoImages,
-    );
-    Ok((frame, rendered))
-}
-
 /// Renders what the browser window would show for `page` (toolbar included)
 /// at a window size in CSS px. Used by headless mode to test the user
 /// interface without a display.
@@ -959,7 +909,7 @@ pub(crate) fn render_window(page: &mut Page, window: Size, scale: f32) -> Result
     );
     let w = (window.width * scale).round() as u32;
     let h = (window.height * scale).round() as u32;
-    compose_frame(page, &toolbar, (w.max(1), h.max(1)), scale).map(|(frame, _)| frame)
+    compose_window(page, &toolbar, (w.max(1), h.max(1)), scale)
 }
 
 impl ApplicationHandler<UserEvent> for App {

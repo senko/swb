@@ -346,12 +346,15 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   shell decides once per batch (`about_to_wait`, after the pump and the
   input) whether a frame is due: `Page::frame_outdated` (the inputs of the
   last `Page::render` against the current ones: display list serials,
-  scroll offsets, viewport, hovered link; no style or layout work) or a
-  change of the toolbar, the status bubble or the window size. It then calls
+  scroll offsets, viewport; no style or layout work) or a change of the
+  toolbar, the status bubble or the window size. It then calls
   `request_redraw`; a task that changes nothing draws nothing. The frame
-  calls `pre_present_notify` before `present`, so that on Wayland the
-  compositor's frame callback paces the next one (ADR 0040). The window
-  title and the mouse cursor are set only when they change.
+  (`gui/compose.rs`) keeps its pixmaps between frames: the page area, drawn
+  only when the page is outdated, and the toolbar and status bubble, drawn
+  only when they changed; one pass converts them into the softbuffer
+  buffer. It calls `pre_present_notify` before `present`, so that on
+  Wayland the compositor's frame callback paces the next one (ADR 0040).
+  The window title and the mouse cursor are set only when they change.
 - The automation server accepts connections on its own thread and runs one
   thread per connection. Each request goes to the page thread through a
   channel and wakes it (the GUI through its event loop proxy, the headless

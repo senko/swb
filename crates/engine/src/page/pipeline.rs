@@ -3,7 +3,6 @@
 //! the viewport, its accepted limits, and screenshots.
 
 use swb_layout::Size;
-use swb_net::Url;
 use swb_paint::Pixmap;
 
 use super::{FlushCounters, Page, StageTimings};
@@ -12,14 +11,14 @@ use crate::frames::FrameId;
 
 /// The inputs of a render of the page (see [`Page::frame_outdated`]): the
 /// stamp of the page's document and of the frame documents that the
-/// render drew, and the hovered link.
+/// render drew. (The hovered link is not an input: the page does not draw
+/// it; the shell's status bubble does.)
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct FrameRecord {
     top: Option<PaintStamp>,
     /// The frames with a box, in tree order: the viewport and the stamp
     /// of the document.
     frames: Vec<(FrameId, Size, Option<PaintStamp>)>,
-    link: Option<Url>,
 }
 
 impl Page {
@@ -57,8 +56,9 @@ impl Page {
     /// of that render with the current ones and runs no style, layout or
     /// paint: the identity of the display lists of the page's documents
     /// and frame documents, their scroll offsets (of the viewport and of
-    /// the scroll containers), the viewport and the scale, and the hovered
-    /// link (the shell's status bubble). It is also true if the pipeline
+    /// the scroll containers), the viewport and the scale. The hovered link
+    /// is not one of them (the shell draws the status bubble over the
+    /// page's pixels; ADR 0040 section 5). It is also true if the pipeline
     /// has work that can change the pixels (changes of the DOM that it has
     /// not taken, outdated styles, layout or display lists), and before the
     /// first render. False negatives would leave a stale window; false
@@ -84,11 +84,7 @@ impl Page {
                 Some((id, frame.viewport, stamp))
             })
             .collect();
-        FrameRecord {
-            top,
-            frames,
-            link: self.input.hovered_link.clone(),
-        }
+        FrameRecord { top, frames }
     }
 
     /// True if the pipeline of a document that a render draws has work

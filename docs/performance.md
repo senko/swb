@@ -634,6 +634,31 @@ features 3 to 5:
 | | press (6) | 317 / 449 / 449 | 389 / 1019 / 1019 | 0 |
 | | wheel (89) | 2 / 100 / 254 | 21 / 229 / 651 | 7 |
 
+## Frame composition in the GUI (M11 feature 3)
+
+ADR 0040 section 5: the pixmaps stay between frames, the page is drawn into
+a kept pixmap and not copied with `draw_pixmap`, the toolbar and the status
+bubble are drawn only when they changed, and one pass converts the layers
+into the softbuffer buffer. Release build, Xvfb, `swbtools gui-latency`,
+github-swb (`github-owner` with JS on, `pointer-sweep` with JS off); before =
+commit ab059e1, after = this change. Compose time of the frame log (toolbar,
+bubble, conversion; the page raster is in "render"), median / p90 in ms:
+
+| Run | Window | Compose before | Compose after | Render before | Render after |
+|---|---|---|---|---|---|
+| `github-owner`, JS on | 1280 x 900 | 6.8 / 7.4 | 0.5 / 0.6 | 11.5 | 10.6 |
+| | 5120 x 1400 | 42.6 / 45.0 | 3.4 / 4.0 | 16.8 | 14.2 |
+| `pointer-sweep`, JS off | 1280 x 900 | 6.8 / 8.6 | 0.5 / 0.7 | 18.7 | 12.5 |
+| | 5120 x 1400 | 43.2 / 43.2 | 3.2 / 3.9 | 25.2 | 30.3 |
+
+What remains of the compose time is the conversion (0.5 ms and 3.3 ms in
+the bench of the diagnosis), which writes every pixel because softbuffer's
+buffer can be a new one each frame. Input latency does not change in these
+traces (move to frame, median: 244 ms before, 247 after, 1280 x 900,
+`github-owner`): a frame costs the page's render, and the hover restyle
+dominates (features 4 and 5). Frames that need no page raster (the toolbar,
+the status bubble) now cost the conversion plus the small raster.
+
 ## Script runtime of a document
 
 The engine creates a `swb_web::ScriptRuntime` for each document that

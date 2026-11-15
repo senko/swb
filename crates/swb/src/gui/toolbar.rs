@@ -36,8 +36,9 @@ pub(crate) enum ToolbarHit {
     Address(f32),
 }
 
-/// State that the toolbar shows.
-pub(crate) struct ToolbarState<'a> {
+/// State that the toolbar shows, besides the address field.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct ToolbarState {
     pub(crate) can_go_back: bool,
     pub(crate) can_go_forward: bool,
     pub(crate) loading: bool,
@@ -46,7 +47,6 @@ pub(crate) struct ToolbarState<'a> {
     /// False if the stack limit of the process rules JavaScript out
     /// (the toggle is dimmed and does nothing).
     pub(crate) javascript_allowed: bool,
-    pub(crate) status: Option<&'a str>,
 }
 
 /// The toolbar: address field state and geometry.
@@ -114,8 +114,7 @@ impl Toolbar {
         &self,
         fonts: &mut FontContext,
         width: f32,
-        height: f32,
-        state: &ToolbarState<'_>,
+        state: &ToolbarState,
     ) -> DisplayList {
         let mut items = Vec::new();
         items.push(rect(Rect::new(0.0, 0.0, width, TOOLBAR_HEIGHT), BACKGROUND));
@@ -204,20 +203,27 @@ impl Toolbar {
         }
         items.push(DisplayItem::PopClip);
 
-        if let Some(status) = state.status {
-            status_bubble(&mut items, fonts, status, width, height);
-        }
         DisplayList { items }
+    }
+
+    /// Builds the display list of the status bubble (the URL of the hovered
+    /// link) for a window of `width` x `height` CSS px, and the bubble's
+    /// rectangle in CSS px. It is drawn after the toolbar, over the page.
+    pub(crate) fn status_list(
+        fonts: &mut FontContext,
+        status: &str,
+        width: f32,
+        height: f32,
+    ) -> (DisplayList, Rect) {
+        let mut items = Vec::new();
+        let bubble = status_bubble(&mut items, fonts, status, width, height);
+        (DisplayList { items }, bubble)
     }
 }
 
 /// The JavaScript toggle: "JS" on a blue pill when JavaScript is on, gray
 /// text when it is off, light gray text when it is not available.
-fn javascript_toggle(
-    items: &mut Vec<DisplayItem>,
-    fonts: &mut FontContext,
-    state: &ToolbarState<'_>,
-) {
+fn javascript_toggle(items: &mut Vec<DisplayItem>, fonts: &mut FontContext, state: &ToolbarState) {
     let r = button_rect(3);
     let color = if state.javascript && state.javascript_allowed {
         let radius = r.height / 2.0;
@@ -247,7 +253,7 @@ fn status_bubble(
     status: &str,
     width: f32,
     height: f32,
-) {
+) -> Rect {
     // Long URLs (for example `data:` links) are cut; the bubble shows at
     // most 60% of the window width anyway.
     const MAX_CHARS: usize = 300;
@@ -278,6 +284,7 @@ fn status_bubble(
         Rgba::rgb(0x30, 0x30, 0x30),
     );
     items.push(DisplayItem::PopClip);
+    r
 }
 
 fn rect(rect: Rect, color: Rgba) -> DisplayItem {

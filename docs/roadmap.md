@@ -5352,6 +5352,23 @@ Features, in this order. Each ends with a review and a commit.
    alone reuses the page's pixels). Exit: the overhead without the page
    raster at most 1 ms at 1280 x 900 and 5 ms at 5120 x 1440; window
    screenshots (`--with-chrome`) unchanged.
+
+   Done (2026-11-15): `crates/swb/src/gui/compose.rs` keeps a page pixmap
+   and a chrome pixmap (the toolbar rows and the status bubble's
+   rectangle) between frames; no `draw_pixmap`. The page is rasterized
+   only on the first frame, after a resize or a scale change and when
+   `Page::frame_outdated()` says so; the toolbar only when its state
+   changed; the bubble when its text changed or the pixels under it were
+   drawn again. One conversion pass reads the toolbar rows from the chrome
+   pixmap, the other rows from the page pixmap and the bubble's rectangle
+   over them, so the page is never copied and its pixels show again
+   without a raster when the bubble goes away. (Departure from the plan:
+   the page has its own pixmap, because `Page::render` takes a whole
+   `Pixmap`.) The hovered link is no longer an input of
+   `Page::frame_outdated`; the shell's `FrameKey` has it. Composition time
+   (frame log median): 6.8 ms to 0.5 ms at 1280 x 900, 42.6 ms to 3.4 ms
+   at 5120 x 1400. `--with-chrome` screenshots and the JS-off snapshot
+   unchanged.
 4. Cheaper style comparison and pseudo-elements (`implementer`):
    - `CustomProperties` compare by pointer first and by a fingerprint
      next; equal maps of one restyle share one `Arc`, and the maps of the
@@ -5425,6 +5442,18 @@ Not in M11 (backlog): incremental layout, a raster cache for scrolling
   pixel is the time to the next frame that other input causes; a column
   of the moves that changed the hover state would measure the moves
   themselves.
+- GUI composition (feature 3): a frame that changes a small part of the
+  page still rasterizes the whole page; damage rectangles (ADR 0040,
+  "Alternatives") are the next step for the page raster time. The
+  conversion into the window buffer (0.5 ms at 1280 x 900, 3.3 ms at 5120
+  x 1440) could skip unchanged rows with softbuffer's buffer age, if a
+  profile shows that it matters.
+- `swbtools gui-latency` (feature 3): no trace has frames for the toolbar
+  or the status bubble alone (links whose hover changes no page pixel).
+- GUI composition (found in the review of feature 3): at a scale below 1
+  (for example 0.5) the toolbar's thin lines spill into the page's first
+  row, so the kept layers differ from a full composition in that row. A
+  scale below 1 does not occur on the owner's desktop.
 
 ## Backlog from M10
 

@@ -154,7 +154,7 @@ fn a_screenshot_is_not_a_frame() {
 }
 
 const LINKS: &str = "<!DOCTYPE html><style>body { margin: 0; font: 20px sans-serif }\
-    a:hover { text-decoration: underline } #b:active { background: red }\
+    #a:hover { text-decoration: none } #b:active { background: red }\
     #plain { height: 50px }</style>\
     <p style='margin:0'><a id=a href='t.html'>a link</a> and <span id=b>an active</span></p>\
     <a id=n href='n.html' style='display:block;height:40px'></a>\
@@ -168,16 +168,20 @@ fn hover_and_the_status_link() {
         changes(&mut page, "hover a link", |p| {
             p.mouse_move(x, y);
         });
+        changes(&mut page, "leave a link with a style", |p| {
+            let (x, y) = center(rect(p, "plain"));
+            p.mouse_move(x, y);
+        });
         // The link changes and the style does not (no `:hover` rule on
-        // `#n`): the status bubble still changes.
+        // `#n`): the page's pixels stay, only the shell's status bubble
+        // changes (ADR 0040 section 5).
         let (x, y) = center(rect(&mut page, "n"));
-        changes(&mut page, "hover a link without a style", |p| {
-            p.mouse_move(x, y);
-        });
+        page.mouse_move(x, y);
+        assert!(page.hovered_link().is_some());
+        assert!(!page.frame_outdated(), "a link without a style");
         let (x, y) = center(rect(&mut page, "plain"));
-        changes(&mut page, "leave links", |p| {
-            p.mouse_move(x, y);
-        });
+        page.mouse_move(x, y);
+        assert!(page.hovered_link().is_none());
         // Moves that change nothing leave the frame current.
         assert!(!page.frame_outdated());
         page.mouse_move(x + 1.0, y);

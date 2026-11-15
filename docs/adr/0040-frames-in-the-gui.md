@@ -89,7 +89,9 @@ running style or layout:
   scale;
 - the overlay scroll indicators of the viewport (they follow the scroll
   offset and the content size);
-- the hovered link (the status bubble).
+- (the hovered link was an input in feature 2; since feature 3 it is not:
+  the page does not draw the status bubble, the shell does, and the shell's
+  frame key holds the link.)
 
 `Page::render` records these inputs. Every change that alters pixels must
 either invalidate a display list (style, layout, images, fonts, focus
@@ -127,10 +129,9 @@ and `set_cursor_visible` only when the icon or visibility differs.
 
 - The frame pixmap stays between frames (it is made again only when the
   window size changes).
-- The page is rasterized straight into the frame: the rows below the
-  toolbar are one contiguous part of the frame's pixel data, so a
-  `PixmapMut` over that part is the page's target. No second pixmap, no
-  `draw_pixmap`.
+- The page is rasterized into a kept pixmap, not copied with
+  `draw_pixmap`: the conversion reads the page's rows from it directly (see
+  the implementation notes for why not into the frame itself).
 - The page area is rasterized only when `frame_outdated()` is true or the
   window changed; the toolbar only when its state changed. A frame for the
   toolbar alone (for example the status bubble of a hovered link, or the
@@ -198,7 +199,8 @@ paint_stamp.rs`). `Page::render` records a `FrameRecord`: for the page's
 document and for each frame document that has a box, a `PaintStamp` (the
 serial of the display list, the scroll offset of the viewport, the scroll
 offsets of the scroll containers, the `View`: viewport, scale, indicators,
-color scheme), the frame's viewport, and the hovered link. The serial is
+color scheme), and the frame's viewport (and, until feature 3, the hovered
+link). The serial is
 taken from one process-wide counter each time `update_display_list` builds a
 list (so a frame's new document never reuses the serial of the old one).
 `frame_outdated` is true before the first render, when the record differs,
@@ -226,7 +228,7 @@ Sources of a pixel change, and how each one shows:
 | Images (also lazy ones) and fonts that arrived | an arrival drops the layout or the list |
 | Frame documents: their lists, scrolls, viewports, a new or removed frame | one `PaintStamp` per frame with a box, in the record; the frame's viewport is in the record; a change of the parent's layout drops its list |
 | Viewport, scale, color scheme, the indicator setting | `View` in the stamp (and the restyle that a change causes) |
-| Hovered link | the record |
+| Hovered link | not a page input since feature 3: the shell's `FrameKey` (status bubble) |
 
 The oracle (`crates/engine/tests/frame_oracle.rs`) plays moves, wheel
 events, double clicks, drags, Ctrl+A, Tab, arrows, Page Down, Home and End,
@@ -247,4 +249,60 @@ change draws one even if the visible range is the same. Both cost one frame,
 not a loop. A page that changes no pixel with a 10 ms timer (Ars Technica)
 draws one frame in 10 s.
 
-(Feature 3 adds the notes on the composition.)
+### Feature 3 (section 5)
+
+**What is kept.** `gui/compose.rs` has `Composer`, one per window size and
+scale (`App::composer`; `fits` decides, a new size or scale makes a new one
+and so draws everything again). It holds two pixmaps: `page` (the page
+area, the target of `Page::render`) and `chrome` (window-sized; only the
+toolbar rows and the bubble's rectangle are used). The design in section 5
+said "rasterize into the frame, no second pixmap". The page is a kept
+pixmap instead, because `Page::render` takes a `&mut Pixmap` and a view
+over the lower rows of another pixmap would need a change in the engine's
+render path; and a kept page pixmap is what brings the page's pixels back
+when the bubble goes away. The page is never copied: the conversion reads
+the toolbar rows from `chrome` and the other rows from `page`.
+
+**When each layer is drawn.**
+
+- The page: on the first frame, after a resize or scale change, and when
+  `Page::frame_outdated()`. For this, the hovered link is no longer an
+  input of `frame_outdated` (the page does not draw it); the shell's
+  `FrameKey` has it. A new link alone draws no page.
+- The toolbar: when its key changes (the address text, selection and
+  focus, back, forward, loading, the JavaScript switch; `ToolbarKey`). The
+  rows are cleared first, so the result equals a fresh frame. At a scale
+  where `40 * scale` is not whole and rounds down (for example 1.03125) the
+  toolbar covers part of the first page row; that row belongs to `chrome`
+  (a copy of the page's row, drawn over), so the toolbar is drawn again
+  when the page is.
+- The status bubble: its list is separate from the toolbar's
+  (`Toolbar::status_list`). When the link text changes, or the page or the
+  toolbar was drawn, the page's pixels under the bubble's rectangle (with a
+  2 px margin for anti-aliased edges) are copied from `page` into `chrome`
+  and the bubble is drawn there. The conversion puts that rectangle over the
+  page's rows. When the link goes away, the rectangle is not used: the page
+  pixels show again at once, with no raster. A bubble over the toolbar (a
+  window lower than 62 px) draws over the toolbar's rows; when such a
+  bubble goes away, changes or is drawn again over a new page, the toolbar
+  is drawn again first, so that neither the old bubble nor a second copy
+  of it stays on the toolbar (found in the review).
+
+**Conversion.** One pass over the rows into the softbuffer buffer
+(`Composer::write_buffer`). It does not skip rows: softbuffer's buffer may
+be a different one each frame (the age can be 0), so old contents cannot be
+relied on; a full pass is 0.5 ms at 1280 x 900 and 3.3 ms at 5120 x 1440,
+within the budget.
+
+**Headless.** `render_window` (`--with-chrome`) keeps the simple path
+(`compose_window`: fresh pixmaps, `draw_pixmap`); the unit tests compare the
+`Composer`'s frames with it after each kind of change at scales 1, 33/32
+and 2 (also the converted buffer), and count the rasters of each layer.
+
+**Numbers** (release, Xvfb, `gui-latency`, github-swb; the compose time of
+the frame log, median in ms): 1280 x 900: 6.8 before, 0.5 after (JS on,
+`github-owner`) and 6.8 / 0.5 (JS off, `pointer-sweep`); 5120 x 1400: 42.6
+before, 3.4 after (`github-owner`) and 43.2 / 3.2 (`pointer-sweep`). Both
+are within the exit limits (1 and 5 ms). The `--with-chrome` screenshots of
+senko-net, hacker-news and github-swb at scales 1, 1.25 and 2, and the
+JS-off snapshot, are byte-identical to the base.

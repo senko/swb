@@ -4,6 +4,19 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-15: M11 feature 3, frame composition in the GUI
+
+- The GUI keeps a page pixmap and a chrome pixmap (toolbar and status
+  bubble) between frames, rasterizes the page only when the page changed
+  and the toolbar only when its state changed, and converts both into the
+  window buffer in one pass, without the blending copy (`draw_pixmap`).
+  The status bubble comes and goes without a raster of the page.
+- Composition time per frame: 6.8 ms to 0.5 ms at 1280 x 900, 42.6 ms to
+  3.4 ms at 5120 x 1400. The latency of a GitHub hover is unchanged (the
+  restyle dominates; features 4 and 5).
+- Next: feature 4, the cost of the style comparison and of
+  pseudo-elements.
+
 ## 2026-11-15: M11 feature 2, frame scheduling in the GUI
 
 - The GUI coalesces pointer moves (the page sees the last move of a batch,
