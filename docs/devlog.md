@@ -4,6 +4,24 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-15: M11 feature 4, cheaper style comparison and pseudo-elements
+
+- A GitHub hover change spent most of its time comparing old and new
+  styles (2,131 custom properties per element, SipHash lookups); Ars
+  Technica's spent much in the cascade of `::before` and `::after` that
+  have no box. Custom-property maps now have a fingerprint, are `Eq`, and
+  are interned in a pool seeded from the previous style pass, so the
+  comparison of unchanged elements is a pointer check; rules carry a
+  `sets_content` flag, and pseudo-elements without one are not cascaded.
+- Hover change with its render: GitHub 92 to 41 ms, Ars Technica 38 to 22
+  ms, Wikipedia 29 to 13 ms (JS off; JS on alike). Rendering unchanged.
+- I took the paint-only item out of the feature: fragments hold their own
+  styles, so skipping layout needs a restyle of the fragment tree, for 2
+  to 4 ms (backlog).
+- Next: feature 5. 82 % of the remaining GitHub style run is selector
+  matching over all elements; restyling only the elements that the
+  changed state can affect removes it.
+
 ## 2026-11-15: M11 feature 3, frame composition in the GUI
 
 - The GUI keeps a page pixmap and a chrome pixmap (toolbar and status

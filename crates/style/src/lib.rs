@@ -65,7 +65,8 @@ mod values;
 
 pub use cascade::{
     compute_element_styles, compute_element_styles_with_containers, compute_pseudo_element_style,
-    compute_pseudo_element_style_with_containers, compute_styles, compute_styles_with_containers,
+    compute_pseudo_element_style_with_containers, compute_styles, compute_styles_reusing,
+    compute_styles_with_containers,
 };
 pub use color_scheme::{parse_meta_color_scheme, used_color_scheme};
 pub use computed::ComputedStyle;

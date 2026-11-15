@@ -6,13 +6,14 @@
 //! document order.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Instant;
 
 use swb_css::MediaEnvironment;
 use swb_dom::{Document, NodeId};
 use swb_style::{
-    ComputedStyle, Display, ElementStates, FontFamily, GenericFamily, LengthPercentage, Rgba,
-    StyleMap, Stylist, compute_styles,
+    ComputedStyle, ContainerSizes, Display, ElementStates, FontFamily, GenericFamily,
+    LengthPercentage, Rgba, StyleMap, Stylist, compute_styles, compute_styles_reusing,
 };
 use url::Url;
 
@@ -262,4 +263,94 @@ fn senko_net() {
     let styles = styles(&page);
     let body = page.doc.body().expect("body");
     assert!(styles.get(body).is_some());
+}
+
+/// The element nodes of the page, in document order.
+fn elements(page: &Page) -> Vec<NodeId> {
+    page.doc
+        .descendants(NodeId::DOCUMENT)
+        .filter(|&n| page.doc.element(n).is_some())
+        .collect()
+}
+
+/// A series of hover, active and focus changes on `nodes`, ending with
+/// none.
+fn state_series(nodes: &[NodeId]) -> Vec<ElementStates> {
+    let step = (nodes.len() / 12).max(1);
+    let mut series = Vec::new();
+    for (i, &node) in nodes.iter().enumerate().step_by(step) {
+        series.push(ElementStates {
+            hover: Some(node),
+            ..ElementStates::default()
+        });
+        series.push(if i % 2 == 0 {
+            ElementStates {
+                hover: Some(node),
+                active: Some(node),
+                ..ElementStates::default()
+            }
+        } else {
+            ElementStates {
+                focus: Some(node),
+                focus_visible: true,
+                ..ElementStates::default()
+            }
+        });
+    }
+    series.push(ElementStates::default());
+    series
+}
+
+/// A restyle that reuses the previous styles ([`compute_styles_reusing`])
+/// gives the same styles as a fresh one, after a series of hover, active
+/// and focus changes, and an element whose custom properties did not
+/// change keeps the very same map (ADR 0007, "Sharing of custom-property
+/// maps"). `same_styles` compares every element's and pseudo-element's
+/// style deeply, so this covers the reuse on all page fixtures.
+#[test]
+fn restyle_reuse_matches_a_fresh_restyle() {
+    let sizes = ContainerSizes::new();
+    for name in [
+        "ars-technica",
+        "bbc",
+        "github-swb",
+        "hacker-news",
+        "senko-net",
+        "wikipedia-web-browser",
+    ] {
+        let page = load(name);
+        let nodes = elements(&page);
+        let mut previous = styles(&page);
+        let mut shared = 0usize;
+        for states in state_series(&nodes) {
+            let env = environment();
+            let fresh = compute_styles(&page.doc, &page.stylist, &env, &states, &page.url);
+            let reused = compute_styles_reusing(
+                &page.doc,
+                &page.stylist,
+                &env,
+                &states,
+                &page.url,
+                &sizes,
+                &previous,
+            );
+            assert!(reused.same_styles(&fresh), "{name}: {states:?}");
+            assert!(fresh.same_styles(&reused), "{name}: {states:?}");
+            for &node in &nodes {
+                let (Some(old), Some(new)) = (previous.get(node), reused.get(node)) else {
+                    continue;
+                };
+                match (&old.custom_properties, &new.custom_properties) {
+                    (Some(a), Some(b)) if **a == **b => {
+                        assert!(Arc::ptr_eq(a, b), "{name}: an unchanged map is not shared");
+                        shared += 1;
+                    }
+                    (Some(_), Some(_)) | (None, None) => {}
+                    _ => panic!("{name}: custom properties appeared or vanished"),
+                }
+            }
+            previous = reused;
+        }
+        eprintln!("{name}: {shared} shared maps");
+    }
 }

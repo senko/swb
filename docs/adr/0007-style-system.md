@@ -471,3 +471,71 @@ style and box rows again with JavaScript off).
   24.4 ms before and 23.9 to 24.6 ms after; the stylist build (parse and
   index) 62.9 to 64.6 ms before and 65.5 to 66.9 ms after (the layer tree
   and the layer of each of 16,282 rules).
+
+## Update (2026-11-15, cheaper comparison and pseudo-elements, M11 feature 4)
+
+A hover change restyles the document and compares the old and new styles
+(`StyleMap::same_styles`). On GitHub the comparison was 71 % of the change
+(2,131 custom properties per element, each lookup a SipHash lookup); on Ars
+Technica the cascade of `::before` and `::after` of every element was 36 %.
+
+### Sharing of custom-property maps
+
+- **What.** `CustomProperties` is `Eq`, so `Arc<CustomProperties>`
+  comparison checks the pointer first. A map has a fingerprint: the wrapping
+  sum of a 64-bit hash of each entry (name and value), which `insert`,
+  `invalidate` and the reset of non-inherited properties keep up to date. It
+  does not depend on the insertion order. The hash of an entry reads at
+  most the first 16 component values of the value (nested ones counted) and
+  the first 64 bytes of each string, so its cost does not grow with the
+  value (the review measured a page with a 1 MB inherited property and
+  20,000 elements with their own custom properties: 6 s of style with a
+  hash of the whole value, 41 ms with the bound; base 36 ms). Equality
+  compares the registry
+  (pointer), the fingerprint, the length, the `resettable` flag, the
+  `invalid` list, and then the entries (one pass over both tables in the
+  same order, and a lookup of each entry if the order differs).
+- **The pool.** A `CustomPool` in the cascade context holds the maps of the
+  previous style pass (`compute_styles_reusing`, called by
+  `DocumentState::restyle` with the old `StyleMap`; the container re-run uses
+  it too) and the maps that this pass has made. A map that
+  `compute_custom_properties` has built is looked up by fingerprint and
+  equality, and the pooled `Arc` is used if there is one. So an element
+  whose map did not change has the very same `Arc` as before, and its
+  descendants, which inherit it, too. This is a hash-consing table (interning
+  of equal immutable values); no paper or other engine's design was used.
+  Per fingerprint the pool keeps at most 8 maps.
+- **No copy without a change.** The element's working map is the parent's
+  `Arc` (a `Cow`) until a declaration changes an entry: a declaration whose
+  value equals the inherited one (`*, ::before, ::after { --x: 0 }`, or a
+  `var()` that resolves to the inherited value) copies nothing, and an
+  element with such declarations shares its parent's map. The unresolved
+  `var()` values are held beside the map, not in it, for that.
+- **Invariants.** Maps are immutable once in an `Arc`. Equal maps are
+  interchangeable (equality includes everything that `get`, `names` and the
+  children's reset read). The fingerprint is a filter: equal fingerprints
+  never decide equality, only different ones do. The reuse changes no
+  result: a fresh `compute_styles` and a reusing pass give deeply equal
+  styles (test `restyle_reuse_matches_a_fresh_restyle` on the page
+  fixtures, with hover, active and focus changes), and unchanged maps are
+  pointer-equal.
+
+### The `content` flag
+
+- **What.** A `Rule` has `sets_content`, computed when the rule is added: one
+  of its declarations (normal or `!important`) is `content`, or `all` (stored
+  as one declaration per longhand, so that it shows as `content`). In the
+  cascade, the `::before` and `::after` of an element get a style only if
+  one of their matched rules (document or shadow scopes) has the flag.
+- **Why.** Without such a rule `content` is `normal`, and a pseudo-element
+  with `content: normal` has no box, so the style would be dropped. The
+  flag is per rule, not per winning declaration: it is a superset (an
+  `!important` rule that loses, a rule in a lower layer, `all: unset` and
+  `content: inherit` all run the cascade, which then decides), so no
+  result changes, and the check costs one flag read per matched rule.
+- **Not changed.** Markers, placeholders, backdrops and the `details`
+  pseudo-elements keep their paths. `getComputedStyle(el, '::before')` uses
+  `compute_pseudo_element_style` (`always`), which runs the cascade whatever
+  the rules are.
+- Cost: see `docs/performance.md`, "Cheaper style comparison and
+  pseudo-elements (M11 feature 4)".

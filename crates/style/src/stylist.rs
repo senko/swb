@@ -129,6 +129,12 @@ pub(crate) struct Rule {
     /// `content`, which can use `attr()`. Styles from such rules are not
     /// shared between elements.
     pub(crate) uses_element_data: bool,
+    /// True if a declaration of the rule can set `content`: `content`
+    /// itself, or `all` (which expands to every longhand, `content`
+    /// included). Without such a rule, the `::before` and `::after` of an
+    /// element have `content: normal` and no box, and the cascade skips
+    /// them (ADR 0007, "The `content` flag").
+    pub(crate) sets_content: bool,
 }
 
 impl Rule {
@@ -831,11 +837,14 @@ impl Stylist {
         if block.is_empty() {
             return;
         }
+        // `all` is stored as one declaration per longhand, so it shows as
+        // `content` here.
         let uses_element_data = block
             .normal
             .iter()
             .chain(&block.important)
             .any(|d| d.longhand() == Some(crate::properties::LonghandId::Content));
+        let sets_content = uses_element_data;
         for selector in selectors {
             let Some(target) = RuleTarget::of(selector.pseudo_element()) else {
                 if let Some(other) = selector.pseudo_element() {
@@ -873,6 +882,7 @@ impl Stylist {
                 container: scope.container,
                 ancestor_hashes: ancestor_hashes(selector, self.quirks).into_iter().collect(),
                 uses_element_data,
+                sets_content,
             });
             self.next_order += 1;
         }

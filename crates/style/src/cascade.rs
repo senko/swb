@@ -54,6 +54,8 @@
 
 #[cfg(test)]
 mod container_tests;
+#[cfg(test)]
+mod pseudo_content_tests;
 mod scoping;
 #[cfg(test)]
 mod scoping_tests;
@@ -75,7 +77,9 @@ use url::Url;
 use crate::ComputedStyle;
 use crate::bloom::AncestorFilter;
 use crate::container::{ContainerSizes, Containers};
-use crate::custom::{CustomProperties, Registered, compute_custom_properties, substitute};
+use crate::custom::{
+    CustomPool, CustomProperties, Registered, compute_custom_properties, substitute,
+};
 use crate::element::{DomElement, ElementStates, StateSet};
 use crate::font_cycle::{Property as FontProperty, cycle_names};
 use crate::hints::{HintContext, collect_hints};
@@ -109,7 +113,7 @@ pub fn compute_styles(
     base_url: &Url,
 ) -> StyleMap {
     let sizes = ContainerSizes::new();
-    compute_styles_with_options(doc, stylist, env, states, base_url, true, &sizes)
+    compute_styles_with_options(doc, stylist, env, states, base_url, true, &sizes, None)
 }
 
 /// [`compute_styles`] with the content boxes of the query containers from
@@ -123,11 +127,39 @@ pub fn compute_styles_with_containers(
     base_url: &Url,
     sizes: &ContainerSizes,
 ) -> StyleMap {
-    compute_styles_with_options(doc, stylist, env, states, base_url, true, sizes)
+    compute_styles_with_options(doc, stylist, env, states, base_url, true, sizes, None)
+}
+
+/// [`compute_styles_with_containers`] for a restyle: the custom-property
+/// maps of `previous` are reused for equal maps, so that an unchanged
+/// element has a pointer-equal map and the comparison of the two style maps
+/// ([`StyleMap::same_styles`]) is cheap (ADR 0007, "Sharing of
+/// custom-property maps"). The result equals that of a fresh
+/// [`compute_styles_with_containers`].
+pub fn compute_styles_reusing(
+    doc: &Document,
+    stylist: &Stylist,
+    env: &MediaEnvironment,
+    states: &ElementStates,
+    base_url: &Url,
+    sizes: &ContainerSizes,
+    previous: &StyleMap,
+) -> StyleMap {
+    compute_styles_with_options(
+        doc,
+        stylist,
+        env,
+        states,
+        base_url,
+        true,
+        sizes,
+        Some(previous),
+    )
 }
 
 /// [`compute_styles`] with the ancestor Bloom filter optional (tests check
 /// that the filter does not change the result).
+#[allow(clippy::too_many_arguments)]
 fn compute_styles_with_options(
     doc: &Document,
     stylist: &Stylist,
@@ -136,9 +168,12 @@ fn compute_styles_with_options(
     base_url: &Url,
     use_filter: bool,
     sizes: &ContainerSizes,
+    previous: Option<&StyleMap>,
 ) -> StyleMap {
     let state_set = StateSet::new(doc, states);
-    let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, use_filter, sizes);
+    let mut styler = Styler::new(
+        doc, &state_set, stylist, env, base_url, use_filter, sizes, previous,
+    );
     styler.run()
 }
 
@@ -205,7 +240,7 @@ pub fn compute_element_styles_with_containers(
     // Without the per-document tables: a pass over the document would
     // cost more than the cascade of a few elements.
     let state_set = StateSet::lazy(doc, states);
-    let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, false, sizes);
+    let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, false, sizes, None);
     let mut parent = Arc::clone(&styler.cx.initial);
     let mut layout_parent = None;
     let mut out = Vec::with_capacity(chain.len());
@@ -270,7 +305,7 @@ pub fn compute_pseudo_element_style_with_containers(
 ) -> Option<ComputedStyle> {
     let (node, style) = chain.last()?;
     let state_set = StateSet::lazy(doc, states);
-    let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, false, sizes);
+    let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, false, sizes, None);
     if let Some((_, root)) = chain.first() {
         styler.cx.root_font_size = root.font_size;
         styler.containers.set_root_font_size(root.font_size);
@@ -351,6 +386,9 @@ struct CascadeContext<'a> {
     /// The registered custom properties (`@property`) for the environment's
     /// media conditions; `None` without any.
     registry: Option<Arc<Registry>>,
+    /// The custom-property maps of the previous style pass and of this one,
+    /// so that equal maps are shared (ADR 0007).
+    custom_pool: CustomPool,
 }
 
 impl CascadeContext<'_> {
@@ -439,7 +477,9 @@ struct Styler<'a> {
 
 impl<'a> Styler<'a> {
     /// A styler for the elements of `doc`, with the ancestor Bloom filter
-    /// if `use_filter`.
+    /// if `use_filter`. The custom-property maps of `previous` (the styles
+    /// of the last pass, for a restyle) are reused for equal maps.
+    #[allow(clippy::too_many_arguments)]
     fn new(
         doc: &'a Document,
         states: &'a StateSet<'a>,
@@ -448,8 +488,13 @@ impl<'a> Styler<'a> {
         base_url: &Url,
         use_filter: bool,
         sizes: &'a ContainerSizes,
+        previous: Option<&StyleMap>,
     ) -> Self {
         let quirks = stylist.quirks();
+        let custom_pool = CustomPool::default();
+        if let Some(previous) = previous {
+            previous.seed_custom_pool(&custom_pool);
+        }
         let author = ParserContext::author(Some(Arc::new(base_url.clone())), quirks);
         let media = stylist.evaluate_media(env);
         let registry = stylist.registry(&media);
@@ -462,7 +507,8 @@ impl<'a> Styler<'a> {
             // The root inherits the initial values of the registered
             // properties.
             let mut style = (*initial).clone();
-            style.custom_properties = Some(Arc::new(CustomProperties::new(Some(registry))));
+            style.custom_properties =
+                Some(custom_pool.intern(CustomProperties::new(Some(registry))));
             initial = Arc::new(style);
         }
         Styler {
@@ -476,6 +522,7 @@ impl<'a> Styler<'a> {
                 initial,
                 layer_ranks: stylist.layer_ranks(&media),
                 registry,
+                custom_pool,
             },
             media,
             matching: MatchingContext::new(if quirks {
@@ -907,32 +954,46 @@ impl<'a> Styler<'a> {
             self.depth(self.scope)
         };
         let boxed = matches!(kind, PseudoKind::Marker | PseudoKind::Placeholder);
-        let pseudo = if !matched.is_empty() || !scoped.is_empty() || boxed || always {
-            let rules = MatchedRules {
-                document: &matched,
-                scoped: &scoped,
-                own,
+        // `::before` and `::after` have a box only with a `content` other
+        // than `normal` and `none`, and `content: normal` is the value
+        // without a matched declaration that sets `content`: no cascade
+        // then (ADR 0007, "The `content` flag"). `getComputedStyle`
+        // (`always`) needs the style in any case.
+        let content_possible = always
+            || !matches!(kind, PseudoKind::Before | PseudoKind::After)
+            || matched
+                .iter()
+                .any(|&i| self.cx.stylist.rule(i).sets_content)
+            || scoped
+                .iter()
+                .any(|m| self.cx.scoped_rule(m).is_some_and(|r| r.sets_content));
+        let pseudo =
+            if content_possible && (!matched.is_empty() || !scoped.is_empty() || boxed || always) {
+                let rules = MatchedRules {
+                    document: &matched,
+                    scoped: &scoped,
+                    own,
+                };
+                let mut pseudo = self.cascade_with_units(
+                    &rules,
+                    ExtraDeclarations::default(),
+                    style,
+                    Some(el.data()),
+                    false,
+                );
+                // Also the backdrop of an element outside the top layer, for
+                // `getComputedStyle` (measured: `position: absolute` and
+                // `display: block`, case `backdrop-popover`).
+                if kind == PseudoKind::Backdrop {
+                    top_layer_fixup(&mut pseudo, false);
+                }
+                if !boxed {
+                    apply_fixups(&mut pseudo, false, pseudo_layout_parent);
+                }
+                Some(pseudo)
+            } else {
+                None
             };
-            let mut pseudo = self.cascade_with_units(
-                &rules,
-                ExtraDeclarations::default(),
-                style,
-                Some(el.data()),
-                false,
-            );
-            // Also the backdrop of an element outside the top layer, for
-            // `getComputedStyle` (measured: `position: absolute` and
-            // `display: block`, case `backdrop-popover`).
-            if kind == PseudoKind::Backdrop {
-                top_layer_fixup(&mut pseudo, false);
-            }
-            if !boxed {
-                apply_fixups(&mut pseudo, false, pseudo_layout_parent);
-            }
-            Some(pseudo)
-        } else {
-            None
-        };
         self.matched = matched;
         self.scoped_matched = scoped;
         pseudo
@@ -1424,6 +1485,7 @@ fn compute(
             lengths: &lengths,
             font_cycle: &winners.font_cycle,
         }),
+        &cx.custom_pool,
     );
     let mut ccx = ComputeContext {
         parent,
@@ -1461,6 +1523,7 @@ fn compute(
                 lengths: &ccx.lengths,
                 font_cycle: &winners.font_cycle,
             }),
+            &cx.custom_pool,
         );
     }
     // The other longhands that have a winner, in the order of `ALL`.
@@ -2682,6 +2745,7 @@ mod tests {
                 &base(),
                 true,
                 &ContainerSizes::new(),
+                None,
             );
             let without = compute_styles_with_options(
                 &doc,
@@ -2691,6 +2755,7 @@ mod tests {
                 &base(),
                 false,
                 &ContainerSizes::new(),
+                None,
             );
             let mut compared = 0;
             for node in doc.descendants(NodeId::DOCUMENT) {

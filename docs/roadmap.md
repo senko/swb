@@ -5377,11 +5377,31 @@ Features, in this order. Each ends with a review and a commit.
    - `::before` and `::after` get a full cascade only when a rule that can
      match them sets `content`; their styles for scripts
      (`getComputedStyle`) stay as they are.
-   - A style difference that only changes painting (colors, outlines,
-     text decoration, shadows, `visibility`, `cursor` alone) rebuilds the
-     display list without a layout.
    - Exit: one hover change with its render (`--bench`) on GitHub at most
      45 ms, Ars Technica at most 25 ms.
+
+   Done (2026-11-15): `CustomProperties` has a fingerprint (a sum of
+   per-entry hashes, kept up to date) and is `Eq`, so `Arc` equality
+   starts with the pointer; a pool seeded from the previous style map
+   interns the maps of a pass, so unchanged elements and their descendants
+   keep the old `Arc` and the comparison of a restyle is a pointer check;
+   an element whose custom-property declarations change nothing shares
+   its parent's map (`compute_styles_reusing`, ADR 0007). `Rule::
+   sets_content` marks rules that declare `content` or `all`: `::before`
+   and `::after` are cascaded only when a matched rule has it (the
+   `getComputedStyle` path keeps the full cascade). Hover change with its
+   render: GitHub 92 to 41 ms (JS off), 96 to 43 ms (JS on); Ars Technica
+   38 to 22 ms, 47 to 20 ms; Wikipedia 29 to 13 ms. The cold `style` stage
+   of Ars Technica 20.8 to 7.5 ms. What remains of a GitHub hover change:
+   the style run (23.5 ms, 82 % of it selector matching), layout (3.5
+   ms), display list and raster (13 ms); the comparison is 0.2 ms. JS-off
+   snapshot identical.
+   - Removed from the plan (orchestrator, 2026-11-15): a style difference
+     that only changes painting would rebuild the display list without a
+     layout. Fragments hold their own `Arc<ComputedStyle>` (box, text,
+     canvas and table-part fragments; anonymous boxes get derived styles),
+     so the display list would need a restyle of the fragment tree, for a
+     saving of 2 to 4 ms of layout per hover change. Backlog.
 5. Restyle of the elements that a state change affects (`implementer-hard`;
    ADR 0041 first): selector analysis in the `Stylist` for `:hover`,
    `:active`, `:focus`, `:focus-visible` and `:focus-within` (the subject
@@ -5450,6 +5470,24 @@ Not in M11 (backlog): incremental layout, a raster cache for scrolling
   profile shows that it matters.
 - `swbtools gui-latency` (feature 3): no trace has frames for the toolbar
   or the status bubble alone (links whose hover changes no page pixel).
+- Style changes that only change painting (colors, outlines, text
+  decoration, shadows, `visibility`, `cursor` alone) could rebuild the
+  display list without a layout (2 to 4 ms of a hover change on GitHub,
+  Ars Technica and Wikipedia). Fragments hold their own
+  `Arc<ComputedStyle>`, and anonymous boxes get styles derived from their
+  parents', so this needs a restyle of the fragment tree (taken out of
+  M11 feature 4).
+- Style (feature 4): the rules of `::before` and `::after` are still
+  matched for every element (about 5 % of a GitHub style run), also when
+  no rule that matches can set `content`; an index of the pseudo-element
+  rules with `sets_content` would skip most of the matching.
+- Style (review of feature 4): `Stylist::registry()` builds a new
+  `Arc<Registry>` on every pass when an `@property` rule sits inside
+  `@media`, and the equality of custom-property maps compares registries
+  by pointer, so such pages get no sharing across passes (correct, but
+  slower). `compute_styles_with_options` and `Styler::new` take 8
+  parameters (`#[allow(clippy::too_many_arguments)]`); an options struct
+  would remove it.
 - GUI composition (found in the review of feature 3): at a scale below 1
   (for example 0.5) the toolbar's thin lines spill into the page's first
   row, so the kept layers differ from a full composition in that row. A

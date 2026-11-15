@@ -10,6 +10,7 @@ use crate::ComputedStyle;
 use crate::container::ContainerLog;
 use crate::content::content_text;
 use crate::counter_style::marker_text;
+use crate::custom::{CustomPool, CustomProperties};
 use crate::values::{Content, Image, ListStyleType, MaskImage};
 
 /// A pseudo-element that generates a box.
@@ -268,6 +269,24 @@ impl StyleMap {
                         .iter()
                         .all(|(k, x)| b.styles.get(k).is_some_and(|y| same(x, y)))
             })
+    }
+
+    /// Adds the custom-property maps of all styles to `pool`, each map
+    /// once (the elements that inherit a map share its `Arc`).
+    pub(crate) fn seed_custom_pool(&self, pool: &CustomPool) {
+        let mut last: Option<&Arc<CustomProperties>> = None;
+        let mut seen: HashSet<*const CustomProperties> = HashSet::new();
+        let styles = self.elements.iter().flatten().chain(self.pseudos.values());
+        for style in styles {
+            let Some(map) = &style.custom_properties else {
+                continue;
+            };
+            if last.is_some_and(|l| Arc::ptr_eq(l, map)) || !seen.insert(Arc::as_ptr(map)) {
+                continue;
+            }
+            last = Some(map);
+            pool.seed(map);
+        }
     }
 
     /// Stores the style of a pseudo-element.

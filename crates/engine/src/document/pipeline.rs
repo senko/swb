@@ -113,7 +113,7 @@ impl DocumentState {
         let Some(old) = self.styles.take() else {
             return;
         };
-        self.compute_styles();
+        self.compute_styles_from(Some(&old));
         if !self
             .styles
             .as_ref()
@@ -305,7 +305,7 @@ impl DocumentState {
             let Some(old) = self.styles.take() else {
                 break;
             };
-            self.compute_styles();
+            self.compute_styles_from(Some(&old));
             if self
                 .styles
                 .as_ref()
@@ -558,6 +558,12 @@ impl DocumentState {
 
     /// Computes the styles, after the stylist if it is dirty.
     fn compute_styles(&mut self) {
+        self.compute_styles_from(None);
+    }
+
+    /// [`Self::compute_styles`] for a restyle: equal custom-property maps
+    /// of `previous` are reused (ADR 0007).
+    fn compute_styles_from(&mut self, previous: Option<&swb_style::StyleMap>) {
         self.refresh_forms();
         if self.images.sources_outdated {
             self.select_image_sources();
@@ -568,14 +574,25 @@ impl DocumentState {
             return;
         };
         let started = Instant::now();
-        let styles = swb_style::compute_styles_with_containers(
-            &self.dom,
-            stylist,
-            &env,
-            &self.states,
-            self.base_url.value(),
-            &self.container_sizes,
-        );
+        let styles = match previous {
+            Some(previous) => swb_style::compute_styles_reusing(
+                &self.dom,
+                stylist,
+                &env,
+                &self.states,
+                self.base_url.value(),
+                &self.container_sizes,
+                previous,
+            ),
+            None => swb_style::compute_styles_with_containers(
+                &self.dom,
+                stylist,
+                &env,
+                &self.states,
+                self.base_url.value(),
+                &self.container_sizes,
+            ),
+        };
         self.timings.style = started.elapsed();
         self.flushes.style(self.timings.style, self.in_query);
         log::debug!("style: {:?}", self.timings.style);

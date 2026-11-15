@@ -659,6 +659,50 @@ traces (move to frame, median: 244 ms before, 247 after, 1280 x 900,
 dominates (features 4 and 5). Frames that need no page raster (the toolbar,
 the status bubble) now cost the conversion plus the small raster.
 
+## Cheaper style comparison and pseudo-elements (M11 feature 4)
+
+ADR 0007, "Update (2026-11-15, cheaper comparison and pseudo-elements)":
+custom-property maps that compare by pointer and are reused across
+restyles, no copy of the parent's map without a change, and no cascade for
+`::before` and `::after` that no matched rule gives a `content`. Release
+build, Intel Core i5-13500, `swbtools perf --runs 10`, before = 48a3e4a,
+after = this change; "change median" is a hover change with its render (ms).
+
+| Fixture | JS | Before | After | `style` stage before | after |
+|---|---|---|---|---|---|
+| github-swb | off | 91.8 | 40.5 | 24.5 | 22.8 |
+| | on | 95.8 | 43.4 | 28.0 | 26.0 |
+| ars-technica | off | 37.7 | 22.0 | 20.8 | 7.5 |
+| | on | 47.4 | 20.0 | 25.7 | 8.7 |
+| wikipedia-web-browser | off | 29.1 | 13.1 | 9.6 | 9.6 |
+| | on | 27.6 | 13.4 | 9.4 | 9.4 |
+| bbc, hacker-news, senko-net | off | unchanged | | | |
+
+The other columns (parse, stylesheets, layout, display list, raster, scroll)
+did not change beyond noise. The step that took most: GitHub 92 to 44.7 ms
+with the maps alone (pointer equality, pool); Ars Technica 37.7 to 27.1 ms
+with the `content` flag, and to 21.9 ms when an element that re-declares
+what it inherits stopped copying the parent's map (the `*, ::before,
+::after { --tw-...: ... }` rule of Tailwind-style sheets).
+
+What is left of a hover change (instruction counts of `valgrind
+--tool=callgrind swb --headless --replay ... --bench 3`, scaled to the
+median):
+
+| | GitHub (40.5 ms) | Ars Technica (22.0 ms) |
+|---|---|---|
+| Style run (`compute_styles_reusing`) | about 23.5 ms, of which selector matching 19 of 23.5 (82 %), the cascade 14 %, custom properties 8 % | about 6 ms |
+| Comparison (`same_styles`) | 0.2 ms (2.7 M instructions; it was 71 % of a change) | 0.1 ms |
+| Layout (0.6 / 0.8 runs per change) | about 3.5 ms | about 5 ms |
+| Display list and raster | about 13 ms | about 11 ms |
+
+On GitHub the style run is 59 % of a hover change and selector matching
+(`Stylist::matching_rules`, about 200 k instructions per element) is most of
+it; on Ars Technica the render and the layout are more than half. The next
+steps are not in feature 4: an invalidation that restyles only the elements
+whose matched rules depend on the changed state, and paint-only changes
+without layout (see the roadmap and the notes of this feature).
+
 ## Script runtime of a document
 
 The engine creates a `swb_web::ScriptRuntime` for each document that
