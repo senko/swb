@@ -4750,6 +4750,32 @@ Steps:
       replay 35 and 76; every other element matches the replay.
       - 4c synchronous construction in the parser (`implementer-hard`):
         after features 5 to 8 (GitHub's first load does not need it).
+        Done (2026-11-15): a token sink between html5ever's tokenizer
+        and tree builder ends the token after which the tree builder
+        created an element with a defined name; the sink gives html5ever
+        a placeholder, records its insertion and maps it to the element
+        that the constructor returns (ADR 0035 "4c implementation
+        notes"). The constructor runs in a task of its own with the
+        throw-on-dynamic-markup-insertion counter raised (`write`,
+        `writeln`, `open` and `close` throw Chromium's
+        `InvalidStateError`); the token's attributes and the insertion
+        follow with their callbacks. The parser also pauses after a token
+        whose moves queued reactions. Probe: the 4 `parser-sync*` cases
+        and 5 new ones match Chromium (58 cases, 140 queries, none
+        waiting), except the reaction timing of the adoption agency
+        (departure: html5ever cannot pause inside a token). 4 new hostile
+        cases. Without a definition the parser reads one `Cell` per
+        token: the parse +0.7 to +1.2 %, totals within +0.15 %. Scores,
+        the JS-off snapshot and GitHub's DOM unchanged. Review fixes: a
+        script that adopted an element open in the parser into another
+        document panicked the parser (also before 4c); the parser now
+        drops what goes into such an element (departure: Chromium parses
+        into it in the other document); a construction that the parser
+        starts gets Chromium's nesting limit (44 runs, not 43); a thrown
+        primitive or `DOMException` in a parser constructor reports 0:0
+        as in Chromium. 63 probe cases, 145 queries.
+
+      Feature 4 is complete (2026-11-15).
       Exit (after 4b): GitHub's 74 definitions succeed, its 10 elements
       are upgraded, and its callback counts equal Chromium's replay
       (connected 35, attributeChanged 76); the targets keep their scores
@@ -5183,7 +5209,8 @@ Steps:
 
       Feature 9 is complete (2026-11-15).
 
-   Then sub-feature 4c and the end-of-milestone maintenance.
+   Then sub-feature 4c (done 2026-11-15, under feature 4) and the
+   end-of-milestone maintenance.
 
 ## Pending decisions
 
@@ -5211,6 +5238,22 @@ Steps:
   the media list (it matches nothing). The hostile case
   `layers-many-names` (100,000 layers) uses 502 MiB, most of it the CSSOM
   rules.
+- Custom elements in the parser (found in 4c and its review, ADR 0035
+  "4c implementation notes"): Chromium runs the reactions of the
+  adoption agency's first move inside the token, swb after it (html5ever
+  cannot stop inside a token); the content that the parser would put into
+  an element that a script adopted into another document is dropped, and
+  its custom elements are not constructed (Chromium parses into the
+  element in the other document); a constructor that adopts `this` into
+  a frame's document gives a TypeError (Chromium: NotSupportedError "The
+  result must be in the same document"; also in 4a's `createElement`);
+  the `window.onerror` message of a `DOMException` that a constructor
+  throws is `Uncaught NotFoundError: zz` (Chromium `Uncaught
+  [NotFoundError: zz]`); the parser's alias table never shrinks (one entry
+  per construction, bounded by the node limit; after the first
+  construction every sink call does a hash lookup); `document.open()` or
+  `write()` in a `connectedCallback` during the parse is not compared
+  (Chromium never finishes the load).
 - Shadow DOM (ADR 0036): declarative shadow roots (`<template
   shadowrootmode>`, html5ever's `attach_declarative_shadow`) with
   `getHTML`, `setHTMLUnsafe`, `parseHTMLUnsafe` (probe cases

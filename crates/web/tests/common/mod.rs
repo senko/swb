@@ -182,12 +182,28 @@ impl EngineHost for TestDocument {
 
     fn parse_step(&mut self) -> Option<(ParseStep, Option<TextPosition>)> {
         let parser = self.parser.as_mut()?;
-        if let Ok(ParseStep::Script(node)) = parser.resume(&mut self.dom) {
-            let position = (!parser.script_written()).then(|| parser.script_position());
-            return Some((ParseStep::Script(node), position));
+        match parser.resume(&mut self.dom) {
+            Ok(ParseStep::Script(node)) => {
+                let position = (!parser.script_written()).then(|| parser.script_position());
+                return Some((ParseStep::Script(node), position));
+            }
+            Ok(step @ (ParseStep::CustomElement(_) | ParseStep::Reactions)) => {
+                return Some((step, None));
+            }
+            _ => {}
         }
         self.parser = None;
         Some((ParseStep::Finished, None))
+    }
+
+    fn finish_custom_element(
+        &mut self,
+        placeholder: swb_dom::NodeId,
+        element: Option<swb_dom::NodeId>,
+    ) {
+        if let Some(parser) = self.parser.as_mut() {
+            parser.finish_custom_element(&mut self.dom, placeholder, element);
+        }
     }
 
     fn parser(&mut self) -> Option<&mut HtmlParser> {

@@ -122,15 +122,31 @@ impl Reactions {
         std::mem::take(&mut self.microtask_wanted)
     }
 
+    /// True once if the sink put an element on the backup queue since the
+    /// last call: a change of the parser that no element queue holds, whose
+    /// reactions run before the parser's next token (ADR 0035 section 8,
+    /// `Document::request_parser_pause`).
+    pub(crate) fn take_parser_wanted(&mut self) -> bool {
+        std::mem::take(&mut self.parser_wanted)
+    }
+
     /// Enqueues for the sink: like [`Reactions::enqueue`], and a request for
     /// the backup queue's microtask is kept for the host. Returns true if
     /// the host must look at the reactions.
     fn sink_enqueue(&mut self, place: Place, reaction: Reaction) -> bool {
-        if self.enqueue(place, reaction) == Enqueued::NeedsMicrotask {
-            self.microtask_wanted = true;
-            return true;
+        let backup = self.marks_empty();
+        match self.enqueue(place, reaction) {
+            Enqueued::Dropped => false,
+            Enqueued::Done => {
+                self.parser_wanted |= backup;
+                false
+            }
+            Enqueued::NeedsMicrotask => {
+                self.parser_wanted = true;
+                self.microtask_wanted = true;
+                true
+            }
         }
-        false
     }
 
     /// The reactions of a `Change::Children` (DOM "insert" and "remove"

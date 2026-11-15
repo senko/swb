@@ -148,6 +148,9 @@ pub(crate) struct Reactions {
     backup_processing: bool,
     /// The nested invocations.
     depth: u32,
+    /// Levels that the limit gets while the parser runs its own
+    /// invocations (0 or 1; `parser_level`).
+    parser_free: u32,
     /// The queued reactions and element queue entries, and the bytes of
     /// their argument text.
     queued: usize,
@@ -165,6 +168,9 @@ pub(crate) struct Reactions {
     /// The sink put an element on the backup queue and its microtask is not
     /// queued yet.
     pub(super) microtask_wanted: bool,
+    /// The sink put an element on the backup queue since the dispatcher last
+    /// asked (`sink.rs`, `take_parser_wanted`).
+    pub(super) parser_wanted: bool,
 }
 
 impl Reactions {
@@ -179,6 +185,12 @@ impl Reactions {
         let queue = self.stack.split_off(mark.min(self.stack.len()));
         self.queued = self.queued.saturating_sub(queue.len());
         queue
+    }
+
+    /// True if the reactions stack is empty (an enqueue goes to the backup
+    /// queue).
+    pub(super) fn marks_empty(&self) -> bool {
+        self.marks.is_empty()
     }
 
     /// True if the reactions stack is empty.
@@ -294,7 +306,7 @@ impl Reactions {
     /// Enters a nested invocation; false at the nesting limit (the
     /// reaction is dropped, without a report).
     pub(crate) fn enter(&mut self) -> bool {
-        if self.depth >= MAX_DEPTH {
+        if self.depth >= MAX_DEPTH + self.parser_free {
             return false;
         }
         self.depth += 1;
@@ -324,6 +336,26 @@ pub(crate) fn shared(rt: &Runtime) -> VmResult<Rc<RefCell<Reactions>>> {
     Ok(Rc::clone(&state(rt)?.custom.reactions))
 }
 
+/// The start of an invocation that the parser makes (a construction, the
+/// reactions of its tokens): the parser's own level does not count as
+/// nested, so the limit grows by one while it runs. A constructor that
+/// makes a new instance of its own element then runs 44 times when the
+/// parser started it, as when a script did (measured, cases
+/// `parser-depth-limit*`; without the extra level it ran 43 times).
+/// Returns what [`end_parser_level`] needs.
+pub(crate) fn start_parser_level(rt: &Runtime) -> VmResult<u32> {
+    let reactions = shared(rt)?;
+    let mut reactions = reactions.borrow_mut();
+    Ok(std::mem::replace(&mut reactions.parser_free, 1))
+}
+
+/// The end of [`start_parser_level`]'s invocation.
+pub(crate) fn end_parser_level(rt: &Runtime, before: u32) {
+    if let Ok(reactions) = shared(rt) {
+        reactions.borrow_mut().parser_free = before;
+    }
+}
+
 /// Pushes a new element queue (the start of a `[CEReactions]` scope): one
 /// lookup of the state, no `Rc` clone.
 pub(crate) fn push_queue(rt: &mut Runtime) {
@@ -340,6 +372,17 @@ pub(crate) fn pop_and_invoke(rt: &mut Runtime) -> VmResult<()> {
         return Ok(());
     }
     invoke(rt, &queue)
+}
+
+/// Pops the current element queue and drops its reactions (a termination
+/// in the scope).
+pub(crate) fn pop_and_drop(rt: &mut Runtime) -> VmResult<()> {
+    let reactions = shared(rt)?;
+    let mut reactions = reactions.borrow_mut();
+    for place in reactions.pop() {
+        reactions.clear(place);
+    }
+    Ok(())
 }
 
 /// Invokes the reactions of the backup element queue now (its microtask,

@@ -221,6 +221,35 @@ impl Document {
             names.insert(local.clone());
         }
     }
+
+    /// Notes that the registry of the window of [`NodeId::DOCUMENT`] defines
+    /// `local` (`customElements.define`): from now on the parser constructs
+    /// the elements with this name synchronously (ADR 0035 section 8).
+    pub fn add_defined_name(&mut self, local: LocalName) {
+        self.defined_names.get_or_insert_default().insert(local);
+    }
+
+    /// True if the registry of the window of [`NodeId::DOCUMENT`] defines
+    /// `local` ([`add_defined_name`](Self::add_defined_name)). One test of
+    /// an `Option` while nothing is defined: the parser asks for every
+    /// element.
+    #[inline]
+    pub fn is_defined_name(&self, local: &LocalName) -> bool {
+        self.defined_names
+            .as_ref()
+            .is_some_and(|names| names.contains(local))
+    }
+
+    /// Asks the parser of the document, if it runs, to pause after the
+    /// current token: the mutation sink queued custom element reactions for
+    /// a change of the parser that no element queue holds (ADR 0035 section
+    /// 8, "Reactions of other parser changes"). The caller then invokes
+    /// them before the parser goes on. Does nothing without a parser.
+    pub fn request_parser_pause(&self) {
+        if let Some(cell) = &self.parser_pause {
+            cell.set(cell.get() | crate::parser::PAUSE_REACTIONS);
+        }
+    }
 }
 
 #[cfg(test)]

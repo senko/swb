@@ -19,7 +19,7 @@ use html5ever::tree_builder::{
 use html5ever::{QualName, TokenizerResult, local_name, ns};
 
 use super::sink::Sink;
-use super::{HtmlParser, ParseStep, push_text};
+use super::{HtmlParser, push_text};
 use crate::mutation::{DomError, element_bytes, name_bytes};
 use crate::tree::{Document, Limits, NodeData, NodeId, QuirksMode};
 
@@ -89,7 +89,7 @@ pub fn parse_document(doc: &mut Document, markup: &str) -> Result<NodeId, DomErr
     });
     temp.set_journaling(false);
     let mut parser = HtmlParser::new(&mut temp, markup, false);
-    while let Ok(ParseStep::Script(_)) = parser.resume(&mut temp) {}
+    parser.run_to_end(&mut temp);
     if parser.stopped_at_limit() {
         return Err(limit_error(&temp, limits));
     }

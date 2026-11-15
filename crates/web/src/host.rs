@@ -440,6 +440,16 @@ pub trait EngineHost: Any {
         None
     }
 
+    /// Ends the pause of the parser for a custom element
+    /// ([`ParseStep::CustomElement`], [`WrittenStep::CustomElement`]; ADR
+    /// 0035 section 8): `element` takes the place of `placeholder` and is
+    /// inserted where the tree builder asked ([`HtmlParser::finish_custom_element`];
+    /// `None`: the placeholder is inserted with the token's attributes). The
+    /// changes are processed with the next step.
+    fn finish_custom_element(&mut self, placeholder: NodeId, element: Option<NodeId>) {
+        let _ = (placeholder, element);
+    }
+
     /// True if the document has a style sheet that is blocking scripts
     /// (HTML §4.2.4): a style sheet of the parser, for the current media,
     /// that has not loaded yet.

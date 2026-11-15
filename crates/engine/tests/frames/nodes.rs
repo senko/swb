@@ -206,3 +206,37 @@ fn a_move_that_does_not_fit_leaves_the_subtree_whole() {
         assert_eq!(evaluate(&mut page, "d.getElementById('n') === n"), true);
     });
 }
+
+/// A script or a constructor adopts an element that is open in the parser into
+/// the document of a frame (M10 4c, ADR 0035 section 8 notes). No panic; the
+/// parser drops what it would put into the element (Chromium keeps parsing into
+/// the element in the frame) and goes on with the rest of the page.
+#[test]
+fn an_open_element_that_a_script_adopts_into_a_frame_loses_the_rest_of_its_parse() {
+    const STATE: &str = "var f = document.getElementById('f').contentDocument; \
+        [f.getElementById('d') !== null, f.getElementById('i') === null, \
+         f.getElementById('d').childNodes.length <= 1, document.getElementById('d') === null, \
+         document.getElementById('after') !== null, document.readyState]";
+    const ADOPT: &str = "var f = document.getElementById('f').contentDocument; \
+        f.body.appendChild(f.adoptNode(document.getElementById('d')));";
+    let pages = [
+        // A script of the page, with the markup after it in the element.
+        format!(
+            "<!DOCTYPE html><iframe id=f></iframe><div id=d><script>{ADOPT}</script>\
+             <i id=i>t</i><b>u</b></div><u id=after></u>"
+        ),
+        // The constructor of a custom element in the element.
+        format!(
+            "<!DOCTYPE html><iframe id=f></iframe><script>customElements.define('x-a', \
+             class extends HTMLElement {{ constructor() {{ super(); {ADOPT} }} }});</script>\
+             <div id=d><x-a id=m></x-a><i id=i>t</i><b>u</b></div><u id=after></u>"
+        ),
+    ];
+    for html in pages {
+        on_page_thread(move || {
+            let (mut page, _sim) = open(&html, &[], true);
+            let want = serde_json::json!([true, true, true, true, true, "complete"]);
+            assert_eq!(evaluate(&mut page, STATE), want, "{html}");
+        });
+    }
+}

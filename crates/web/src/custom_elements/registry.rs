@@ -294,6 +294,10 @@ fn add_definition(
         .map_err(|_| Exception::range_error("too many custom element definitions"))?;
     web.doc.custom.by_name.insert(local.clone(), number);
     web.doc.custom.by_constructor.insert(constructor, number);
+    // The parser constructs the elements of the name from now on (ADR 0035
+    // section 8).
+    crate::state::dom_mut(rt)?.add_defined_name(local.clone());
+    let web = state_mut(rt)?;
     let mask = read
         .callbacks
         .iter()

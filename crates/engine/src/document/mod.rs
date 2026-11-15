@@ -581,6 +581,10 @@ impl swb_web::EngineHost for DocumentState {
         self.parse_written_step()
     }
 
+    fn finish_custom_element(&mut self, placeholder: NodeId, element: Option<NodeId>) {
+        self.finish_custom_element(placeholder, element);
+    }
+
     fn style_sheets_block_scripts(&mut self) -> bool {
         self.style_sheets_block_scripts()
     }
@@ -1074,8 +1078,23 @@ impl DocumentState {
     /// Runs the parser to the end without scripts, if a parse in steps
     /// goes on: the document has no script runtime (or lost it).
     pub(crate) fn run_parser(&mut self) {
-        while let Some((ParseStep::Script(_), _)) = self.parse_step() {}
+        loop {
+            match self.parse_step() {
+                Some((ParseStep::Script(_) | ParseStep::Reactions, _)) => {}
+                Some((ParseStep::CustomElement(placeholder), _)) => {
+                    self.finish_custom_element(placeholder, None);
+                }
+                Some((ParseStep::Finished, _)) | None => break,
+            }
+        }
         self.sync();
+    }
+
+    /// See [`swb_web::EngineHost::finish_custom_element`].
+    pub(crate) fn finish_custom_element(&mut self, placeholder: NodeId, element: Option<NodeId>) {
+        if let Some(parser) = self.parser.as_mut() {
+            parser.finish_custom_element(&mut self.dom, placeholder, element);
+        }
     }
 
     /// The document stays as it is and runs no scripts: the rest of its parse
@@ -1148,7 +1167,8 @@ impl DocumentState {
     /// One step of the parser (the script runtime calls it through
     /// [`swb_web::EngineHost::parse_step`]): the changes of the scripts
     /// before it are processed, then the parser runs to the next `script`
-    /// end tag or to the end, and the changes of the step are processed
+    /// end tag, pause for a custom element (ADR 0035 section 8) or to the
+    /// end, and the changes of the step are processed
     /// (the style sheets that it finds block scripts). The parser goes away
     /// at the end. `None` without a parser.
     pub(crate) fn parse_step(&mut self) -> Option<(ParseStep, Option<TextPosition>)> {
@@ -1181,6 +1201,10 @@ impl DocumentState {
                 let position = (!parser.script_written()).then(|| parser.script_position());
                 self.parser = Some(parser);
                 Some((ParseStep::Script(node), position))
+            }
+            Ok(step @ (ParseStep::CustomElement(_) | ParseStep::Reactions)) => {
+                self.parser = Some(parser);
+                Some((step, None))
             }
             Ok(ParseStep::Finished) => Some((ParseStep::Finished, None)),
             Err(e) => {

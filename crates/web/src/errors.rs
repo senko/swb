@@ -91,11 +91,25 @@ impl<'a> Site<'a> {
 /// is the task's to report (`runtime.rs`). A termination of an `error`
 /// listener goes up.
 pub(crate) fn report(rt: &mut Runtime, site: &Site<'_>, error: &ScriptError) -> VmResult<()> {
+    report_with(rt, site, error, None)
+}
+
+/// [`report`]; a thrown value that is not an error object has the place
+/// `unlocated` if given (else the place of the throw).
+fn report_with(
+    rt: &mut Runtime,
+    site: &Site<'_>,
+    error: &ScriptError,
+    unlocated: Option<SourceLocation>,
+) -> VmResult<()> {
     match error {
         ScriptError::Uncaught { .. } => {
             // Both are taken before the text is made: the serializer is a run.
             let value = rt.last_value();
-            let location = rt.error_location(value).or_else(|| rt.throw_location());
+            let location = rt
+                .error_location(value)
+                .or(unlocated)
+                .or_else(|| rt.throw_location());
             crate::runtime::pin(rt, value);
             let message = format!("Uncaught {}", crate::runtime::thrown_text(rt, error));
             let result = report_exception(rt, site.name, value, &message, location);
@@ -150,6 +164,31 @@ pub(crate) fn report_callback(
     result
 }
 
+/// [`report_callback`] for the exception of a constructor that the parser
+/// runs: a thrown value that is not an error object (a primitive, a
+/// `DOMException`) is reported at the document's URL, line 0, column 0
+/// (measured in Chromium 148, cases `parser-sync-throw-*`).
+pub(crate) fn report_parser_constructor(
+    rt: &mut Runtime,
+    callback: Gc<Object>,
+    site: &Site<'_>,
+    error: &ScriptError,
+) -> VmResult<()> {
+    let origin = SourceLocation {
+        name: crate::scripts::document_url(rt),
+        line: 0,
+        column: 0,
+    };
+    if !rt.host_flag() {
+        return report_with(rt, site, error, Some(origin));
+    }
+    let key = crate::state::document_of_function(rt, callback)?;
+    let entered = crate::state::switch_if_other(rt, key)?;
+    let result = report_with(rt, site, error, Some(origin));
+    crate::state::leave(rt, entered);
+    result
+}
+
 /// The resize observer loop error (Resize Observer §3.4 "deliver resize
 /// loop error notification"): an `ErrorEvent` at the window with this
 /// message, no error object, the document's URL as the file and the
@@ -193,10 +232,22 @@ pub(crate) fn report_host_error(
     value: Value,
     dom_exception: bool,
 ) -> VmResult<()> {
+    let location = rt.script_location();
+    report_host_error_at(rt, value, dom_exception, location)
+}
+
+/// [`report_host_error`] at `location`: the parser's failures of custom
+/// element constructors have the document's URL and 0:0 (measured, case
+/// `parser-sync-failures`).
+pub(crate) fn report_host_error_at(
+    rt: &mut Runtime,
+    value: Value,
+    dom_exception: bool,
+    location: Option<SourceLocation>,
+) -> VmResult<()> {
     crate::runtime::pin(rt, value);
     let text = format!("Uncaught {}", crate::runtime::thrown_value_text(rt, value));
     let message = if dom_exception { "Uncaught " } else { &text };
-    let location = rt.script_location();
     let result = report_exception_with(
         rt,
         "a custom element constructor",

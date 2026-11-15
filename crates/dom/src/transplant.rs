@@ -168,6 +168,7 @@ impl Document {
     /// comment.
     pub fn take_subtree(&mut self, root: NodeId) -> Subtree {
         let found = self.subtree_nodes(root, true, true);
+        self.subtrees_taken = true;
         let mut subtree = Subtree {
             nodes: Vec::with_capacity(found.len()),
             ..Subtree::default()

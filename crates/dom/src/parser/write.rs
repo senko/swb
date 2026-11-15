@@ -33,7 +33,7 @@
 use html5ever::TokenizerResult;
 use html5ever::tokenizer::BufferQueue;
 
-use super::{HtmlParser, push_text};
+use super::{HtmlParser, Pause, pause_of, push_text};
 use crate::mutation::DomError;
 use crate::tree::{Document, NodeId};
 
@@ -53,6 +53,12 @@ pub enum WrittenStep {
     /// (inside the written text): the script may run now, then the caller
     /// calls [`HtmlParser::resume_written`] again.
     Script(NodeId),
+    /// A custom element waits for its construction, as in
+    /// [`ParseStep::CustomElement`](super::ParseStep::CustomElement); then
+    /// the caller calls [`HtmlParser::resume_written`] again.
+    CustomElement(NodeId),
+    /// Reactions wait, as in [`ParseStep::Reactions`](super::ParseStep::Reactions).
+    Reactions,
     /// The parser read all the written text, up to the insertion point.
     Parsed,
 }
@@ -131,9 +137,10 @@ impl HtmlParser {
     }
 
     /// Reads the written text up to the insertion point, or up to the next
-    /// `script` end tag. `doc` must be the document that the parser started
-    /// with. Without a [`write`](Self::write) in the current run it does
-    /// nothing. It does not end the input.
+    /// `script` end tag or pause for a custom element or for reactions.
+    /// `doc` must be the document that the parser started with. Without a
+    /// [`write`](Self::write) in the current run it does nothing. It does
+    /// not end the input.
     pub fn resume_written(&mut self, doc: &mut Document) -> Result<WrittenStep, DomError> {
         if doc.arena_id() != self.arena_id {
             return Err(DomError::WrongDocument);
@@ -142,10 +149,19 @@ impl HtmlParser {
             return Ok(WrittenStep::Parsed);
         }
         self.flush_written();
-        let sink = &self.tokenizer.sink.sink;
+        let sink = &self.tokenizer.sink.tree_builder.sink;
         std::mem::swap(&mut *sink.doc.borrow_mut(), doc);
         let step = loop {
-            match self.tokenizer.feed(&self.input) {
+            let result = match self.tokenizer.feed(&self.input) {
+                TokenizerResult::Script(node) => match pause_of(&self.tokenizer.sink, node) {
+                    Pause::Script(node) => TokenizerResult::Script(node),
+                    Pause::CustomElement(node) => break WrittenStep::CustomElement(node),
+                    Pause::Reactions => break WrittenStep::Reactions,
+                    Pause::None => continue,
+                },
+                other => other,
+            };
+            match result {
                 TokenizerResult::Script(node) if !sink.stopped.get() => {
                     break WrittenStep::Script(node);
                 }

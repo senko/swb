@@ -218,6 +218,11 @@ impl MutationSink for Sink {
         if attention {
             self.request.set(true);
         }
+        if reactions.take_parser_wanted() {
+            // A change of the parser (ADR 0035 section 8): its reactions run
+            // before the next token.
+            doc.request_parser_pause();
+        }
     }
 
     fn adopted(&mut self, doc: &Document, node: NodeId, old_document: NodeId) {
@@ -226,6 +231,9 @@ impl MutationSink for Sink {
             && reactions.on_adopted(self.document, doc, node, old_document)
         {
             self.request.set(true);
+        }
+        if reactions.take_parser_wanted() {
+            doc.request_parser_pause();
         }
     }
 }

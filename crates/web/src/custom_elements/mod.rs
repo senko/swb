@@ -235,6 +235,11 @@ pub(crate) struct Registry {
     pub(crate) when_defined_bytes: usize,
     /// True after the warning about the when-defined budget.
     pub(crate) when_defined_warned: bool,
+    /// HTML "throw-on-dynamic-markup-insertion counter" of the window's
+    /// document: above 0 while the parser runs a custom element constructor
+    /// (`create.rs`, `create_for_token`); `document.write`, `writeln`,
+    /// `open` and `close` throw then (`document_write.rs`).
+    pub(crate) throw_on_dynamic_markup: u32,
 }
 
 impl Registry {

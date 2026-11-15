@@ -1327,3 +1327,193 @@ that the only child already has keeps the text node when a definition exists
 and no observer does (Chromium: `true,true` in both), which only the
 `DocState::observing` flag gets right. Mutation checks: each test fails when
 its fix is removed.
+
+## 4c implementation notes
+
+Facts of sub-feature 4c (synchronous construction in the parser) that
+differ from section 8 or that later work needs. Code: `crates/dom/src/
+parser/token_sink.rs` (new), `parser/sink.rs`, `parser.rs`, `parser/write.rs`,
+`custom.rs` (the defined names, the pause request); `crates/web/src/
+custom_elements/create.rs` (`parser_custom_element`, `create_for_token`,
+`parser_reactions`), `document_load.rs`, `document_write.rs`, `host.rs`
+(`EngineHost::finish_custom_element`), `mutation_registry.rs`,
+`custom_elements/sink.rs`, `registry.rs`; `crates/engine/src/document/mod.rs`.
+
+**The token sink.** `Wrapper` sits between html5ever's tokenizer and its
+tree builder and forwards the three methods of `TokenSink`. After each token
+it reads one `Rc<Cell<u8>>` (bit 0: a custom element waits; bit 1: the
+mutation sink queued reactions). While it is 0 the tree builder's answer
+passes unchanged. A pause turns a "continue" answer to a start or end tag
+into `TokenSinkResult::Script(NodeId::DOCUMENT)` and keeps the bits for the
+parser (`take_paused`), which tells a pause from a `script` end tag by them.
+Only tags pause: only tags create or move elements, and the tokenizer's
+handling of a `Script` answer to another token is not known (swb does not
+read html5ever's source). A token whose answer is not "continue" (the start
+tags that switch the tokenizer to raw text, script data or `plaintext`, the
+`script` end tag) never creates a custom element; should a waiting element
+meet one, its placeholder is inserted as an ordinary element. The pauses
+stop before `Tokenizer::end`. The tests of `crates/dom/src/parser/tests/
+custom.rs` compare the tree of 26 markup cases (a custom element before
+`textarea`, `script`, `plaintext`, `style`, `title`, `xmp`, `iframe`,
+`noscript`, `noembed`, in SVG, `foreignObject`, `annotation-xml`, tables with
+foster parenting, `select`, the adoption agency, `template`, `head`,
+`frameset`, forms, lists, CDATA, duplicate attributes) and of every test page
+with all its custom element names defined, with and without construction,
+with the tree without definitions: equal.
+
+**Placeholder, recorded insertion, alias table** (section 8 steps 1 and 4):
+as designed. The sink records the parent (after the tree depth limit) and the
+sibling when the tree builder asks for the insertion, as HTML finds the
+adjusted insertion location before it creates the element; at the finish a
+sibling that is no longer a child of the parent gives an append. The
+insertion uses `insert_before` (with its checks) inside `parser_moves`: a
+callback of the token's attributes can have inserted the element elsewhere
+(it moves) or made it an ancestor of the parent (the insertion is dropped,
+no cycle). In template contents, whose document has no registry, the
+placeholder becomes an ordinary element at its insertion and the parser does
+not stop (Chromium: no constructor there, case `parser-sync-contexts`). The
+parser never pauses for an element at a limit of the arena. Each
+synchronous construction leaves one empty detached placeholder in the arena
+and one entry in the alias table. `elem_name` does not resolve its handle: a
+placeholder has the name of the element that takes its place (the checks of
+a constructed element and the failed fallback keep the local name, and the
+parser's HTML elements have no prefix), and the tree builder asks for names
+at nearly every token (resolving there cost 1.8 % of the parse of
+Wikipedia).
+
+**The defined names.** `Document::add_defined_name`, filled by `define` in
+the arena of the window's document; the parser's sink tests the HTML
+namespace and the set (`None` until the first definition) for each element.
+The fragment parser's temporary arena has no names, so fragments never
+pause.
+
+**The web layer.** A pause for a custom element runs in a task of its own
+(`document_load.rs`, like an inline script), or inside `write` for written
+text: the reactions that the token queued before (the backup queue), then
+"create an element for a token" (`create_for_token`: the counter, the
+microtask checkpoint, which does nothing while a script runs, an element
+queue around "create an element" with the synchronous flag and the token's
+attributes through `dom::attrs::set_attribute`), then an element queue
+around `EngineHost::finish_custom_element`, popped and invoked. The listener
+checkpoints are on while no script runs, so the microtasks of a callback run
+after it (case `parser-sync`). With the scripts stopped, after a termination,
+or without a runtime (`DocumentState::run_parser`, `HtmlParser::run_to_end`),
+the placeholder is inserted with the token's attributes. The parser's
+reports of a failed check use `errors::report_host_error_at` with the
+document's URL and 0:0 and no "Failed to execute" prefix (measured).
+
+**The pause for reactions.** HTML pushes an element queue only around the
+insertion of a new element; the adoption agency's moves, `reparent_children`
+and `remove_from_parent` go to the backup element queue. The mutation sink
+notes an enqueue with an empty reactions stack (`Reactions::parser_wanted`)
+and the dispatcher asks the document's parser to pause
+(`Document::request_parser_pause`, a no-op without a running parser); at the
+pause (`ParseStep::Reactions`) the web layer invokes the backup queue. Inside
+`write` the glue's `[CEReactions]` scope holds the reactions, so written text
+does not pause for them. Measured (case `parser-sync-adoption`, Chromium 148,
+three equal runs): for `<b>1<p>2<x-a></x-a>3</b>` Chromium runs the
+disconnected and connected callbacks of the first move (the `p` into `body`)
+inside the `</b>` token, before the later moves, and those of the moves into
+the new `b` from the backup queue after the next token. A pause between
+tokens cannot split them: swb runs all four callbacks after the token (the
+first pair sees the final parent `b`, the second pair runs before the next
+token). Listed in `CE_DEPARTURES`.
+
+**A handle whose element left the arena.** A script or a constructor can
+adopt an element that is open in the parser into another document (a
+frame's: `Document::take_subtree` leaves the id as an empty detached
+comment). Chromium keeps parsing into the element in the other document.
+The parser's arena is separate, so swb departs: every sink method treats a
+handle that names a comment as gone (`is_gone`, tested only after the first
+`take_subtree` of the arena, `Document::subtrees_taken`; no cost for the
+parse of a page without one: callgrind, Wikipedia JS off, base against fix
+parse 261,602,777 → 261,625,151 instructions, +0.009 %). `elem_name` gives
+the name `div`; appends of nodes and text to it, `reparent_children` into it
+and a form pointer to it do nothing; `get_template_contents` gives a fresh
+detached fragment. A custom element whose insertion goes to such a handle is
+dropped without its construction: no constructor runs for the elements that
+the parser drops, and a placeholder that waits ends the wait
+(`Sink::drop_insertion`). The rest of the page is parsed as before (tests:
+`a_handle_whose_element_left_the_arena_drops_what_the_parser_adds`, engine
+test `an_open_element_that_a_script_adopts_into_a_frame_loses_the_rest_of_its_parse`,
+hostile case `ce-parser-adopted-open-element`).
+
+**The nesting level of the parser.** A constructor that makes a new instance
+of its own element, started by the parser, runs 44 times in Chromium and 43
+when a script started it (measured, cases `parser-depth-limit`,
+`parser-depth-limit-conn`, `parser-depth-limit-ctor`, three equal runs): the
+parser's own invocation is not nested. `start_parser_level` raises the limit
+of `Reactions` by one while `parser_custom_element` and `parser_reactions`
+run.
+
+**The report of a parser constructor's exception.** A thrown value that is
+not an error object (a primitive, a `DOMException`) is reported at the
+document's URL, line 0, column 0 (measured, cases `parser-sync-throw-primitive`
+and `parser-sync-throw-domexception`; `Error` objects keep the place of their
+stack). `createElement` keeps the place of the throw. (Backlog: the
+`window.onerror` message of a thrown `DOMException` is `Uncaught
+[NotFoundError: zz]` in Chromium, `Uncaught NotFoundError: zz` in swb, also
+for `createElement`.)
+
+**The counter.** `Registry::throw_on_dynamic_markup` (the registry belongs
+to the window's document). `write`, `writeln`, `open` and `close` of the
+window's document throw `InvalidStateError` first while it is above 0;
+`writeln`'s text names `write()` (measured, case `parser-sync-writeln`).
+
+**The backup-queue upgrade of parsed elements.** No code had to go: 4b's sink
+upgrades an `undefined` element with a defined name at its insertion, and
+since 4c the parser inserts no such element except in the fallbacks above
+(a termination, stopped scripts, a limit), where the upgrade from the backup
+queue remains the answer.
+
+**Measured cases** (Chromium 148, three equal runs of the whole file; the
+file has 63 cases and 145 queries): `parser-sync-adoption` (above),
+`parser-sync-contexts` (template contents, SVG, `foreignObject`,
+`annotation-xml`, foster parenting, `textarea`, the adoption agency around a
+custom element with a `div`), `parser-sync-select` (a custom element in
+`select` is constructed and kept), `parser-sync-writeln`,
+`parser-sync-reentrant` (the microtasks of a constructor run before the next
+constructor; a constructor that defines another name upgrades the earlier
+element of that name inside the call, and the parser constructs the later
+one; a constructor that removes its parent: the parser goes on in the removed
+element). With the four cases of the ADR, all match except the one departure.
+
+**Hostile cases** (JavaScript on, all `ok`): `ce-parser-100000` (100,000
+parsed elements with a definition before the markup: 100,000 pauses,
+constructions and connected callbacks, 1.3 s, 345 MiB; peak RSS of `swb
+--headless --js --dump-boxes` for 100,000 elements without attributes: 302
+MiB parsed after their definition, 305 MiB upgraded at a `define` after the
+markup, 273 MiB without a definition, so the placeholders and the alias
+table cost little), `ce-parser-nested-100000` (100,000 nested elements without end tags,
+2.6 s, 257 MiB), `ce-write-in-constructor` (10,000 constructors that call
+`write`, `writeln`, `open` and `close` 25 times each: 1,000,000
+`InvalidStateError`s, nothing written, 1.8 s), `ce-parser-define-remove`
+(each of 10,000 constructors defines the next name, removes its parent and
+an earlier element, and inserts a new element elsewhere: 0.7 s),
+`ce-parser-adopted-open-element` (a script adopts the open `div` into
+a frame's document, 10,000 elements with children follow: 0.6 s, 82 MiB).
+
+**Performance.** No definition: one read of the pause cell and one test of
+the token kind per token, one test of the defined names (an `Option`) per
+created element, one test of a `Cell` per handle of the other sink methods
+(the alias table) and of the pause cell per insertion. Callgrind, release
+builds, `swb --headless --replay fixtures/js/NAME --test-fonts --size
+1280x800 --virtual-time [--js] --bench 3 URL`, base a794c1f against 4c
+(the final code; total instructions, and the inclusive cost of
+`HtmlParser::resume`, the parse):
+
+| Fixture | Total base → 4c | Parse base → 4c |
+|---|---|---|
+| Wikipedia, JS off | 2,109.0 M → 2,112.1 M (+0.15 %) | 259.9 M → 261.6 M (+0.66 %) |
+| Wikipedia, JS on | 2,018.9 M → 2,021.2 M (+0.11 %) | 286.6 M → 288.5 M (+0.67 %) |
+| GitHub, JS off | 5,258.0 M → 5,261.9 M (+0.08 %) | 162.7 M → 164.2 M (+0.93 %) |
+| GitHub, JS on | 9.27 to 10.95 G in runs of either binary | 173.7 M → 175.7 M (+0.96 to +1.19 %) |
+
+The totals are within the budgets (+0.3 % JS off, +1 % JS on); GitHub's
+total with JavaScript on varies by 15 % between runs of one binary (work that
+depends on the time limits), so its row gives only the parse, which varies
+by 0.2 % between runs. The parse costs 0.7 to 1.2 % more: the token sink's
+read and the tests in the sink, and a different inlining of html5ever's
+tokenizer and tree builder around the new token sink type. A first version
+resolved the handle in `elem_name` (+2.6 % for the parse of Wikipedia); the
+recorded insertion's test is inline, its body out of line.

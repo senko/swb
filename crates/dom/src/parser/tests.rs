@@ -875,3 +875,5 @@ fn written_text_stops_at_the_node_limit() {
     assert_eq!(parser.resume(&mut doc), Ok(ParseStep::Finished));
     assert!((50..60).contains(&doc.len()), "{}", doc.len());
 }
+
+mod custom;

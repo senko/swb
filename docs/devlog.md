@@ -4,6 +4,39 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-15: M10 4c: custom elements in the parser (feature 4 complete)
+
+- A token sink between html5ever's tokenizer and tree builder reads one
+  `Cell` per token. After a tag token for which the tree builder created
+  an element with a defined name, it ends the token; html5ever keeps a
+  placeholder, and the sink records the insertion and maps the placeholder
+  to the element that the constructor returns (ADR 0035 section 8 and "4c
+  implementation notes").
+- The constructor runs in a task of its own with the
+  throw-on-dynamic-markup-insertion counter raised: `write`, `writeln`,
+  `open` and `close` throw Chromium's `InvalidStateError` there (`writeln`
+  names `write()`, measured). The element sees no attributes and no
+  parent; the token's attributes and the insertion follow with
+  `attributeChangedCallback` and `connectedCallback`.
+- The parser also pauses after a token whose tree changes queued
+  reactions. Chromium runs the reactions of the adoption agency's first
+  move inside the token; html5ever cannot stop there, so swb runs them
+  after it (departure).
+- The 4 waiting `parser-sync*` probe cases and 5 new ones match Chromium;
+  4 new hostile cases (100,000 parsed custom elements flat and nested, a
+  constructor that writes, one that defines and removes elements).
+- No target defines an element before its markup: scores, the JS-off
+  snapshot and GitHub's DOM are unchanged. The parse without a definition
+  costs 0.7 to 1.2 % more (the token sink); totals within 0.15 %.
+- The review found a parser panic that existed before 4c: a script that
+  adopts an element open in the parser into another document left the
+  parser with a handle to the empty comment that the arena keeps in its
+  place. The sink now tests for such handles (one flag test while no
+  subtree left) and drops what goes into them. Also fixed: the nesting
+  limit of parser constructions (44 as in Chromium) and the 0:0 position
+  of a thrown primitive or `DOMException`.
+- Next: the end-of-milestone maintenance.
+
 ## 2026-11-15: M10 9c: GitHub's interaction tests (feature 9 complete)
 
 - With 9a and 9b, items 3 to 8 and 10 of the M10 list equal Chromium's

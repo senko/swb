@@ -48,15 +48,22 @@
 //! - Microtasks of a written script run when the outermost script ends, as
 //!   in Chromium (measured), not at the end of the written script.
 //!
-//! Out of scope: XML documents (swb has none), Trusted Types, the
-//! throw-on-dynamic-markup-insertion counter (swb has no custom elements),
-//! and Chromium's intervention that blocks written cross-site scripts on
-//! slow connections.
+//! The throw-on-dynamic-markup-insertion counter (ADR 0035 section 8): while
+//! the parser runs a custom element constructor, `write`, `writeln`, `open`
+//! and `close` of the window's document throw `InvalidStateError` with
+//! Chromium's text, which names `write()` also for `writeln` (measured,
+//! cases `parser-sync-dynamic-markup`, `parser-sync-writeln`). A custom
+//! element in written text is constructed inside `write`
+//! (`WrittenStep::CustomElement`).
+//!
+//! Out of scope: XML documents (swb has none), Trusted Types, and
+//! Chromium's intervention that blocks written cross-site scripts on slow
+//! connections.
 
 use swb_dom::{NodeId, WrittenStep};
 use swb_js::{ScriptError, VmError, VmResult};
 
-use crate::bindings::{self as b, Cx};
+use crate::bindings::{self as b, Cx, Exception};
 use crate::scripts::{ParserScript, Phase, Prepared, scripts, scripts_mut};
 use crate::state::engine_mut;
 
@@ -80,6 +87,7 @@ pub(crate) fn write(
     text: &[String],
     newline: bool,
 ) -> b::Result<()> {
+    check_counter(cx.rt, this, "write")?;
     let mut input = text.concat();
     if newline {
         input.push('\n');
@@ -89,6 +97,7 @@ pub(crate) fn write(
 
 /// `document.open()`: HTML "document open steps". Returns the document.
 pub(crate) fn open(cx: &mut Cx<'_>, this: NodeId) -> b::Result<NodeId> {
+    check_counter(cx.rt, this, "open")?;
     if this == NodeId::DOCUMENT && script_depth(cx.rt)? > 0 {
         // Step 8: an active parser whose script nesting level is above 0.
         return Ok(this);
@@ -99,12 +108,23 @@ pub(crate) fn open(cx: &mut Cx<'_>, this: NodeId) -> b::Result<NodeId> {
 
 /// `document.close()`: HTML "document close steps" return when the document
 /// has no script-created parser, and `open()` never makes one.
-#[allow(
-    clippy::unnecessary_wraps,
-    reason = "the signature of the generated trait"
-)]
-pub(crate) fn close(_cx: &mut Cx<'_>, _this: NodeId) -> b::Result<()> {
-    Ok(())
+pub(crate) fn close(cx: &mut Cx<'_>, this: NodeId) -> b::Result<()> {
+    check_counter(cx.rt, this, "close")
+}
+
+/// The step of `write`, `open` and `close` that throws while the parser runs
+/// a custom element constructor (the throw-on-dynamic-markup-insertion
+/// counter of the document is above 0). Only the window's document has a
+/// parser.
+fn check_counter(rt: &swb_js::Runtime, this: NodeId, method: &str) -> b::Result<()> {
+    if this != NodeId::DOCUMENT || crate::state::state(rt)?.doc.custom.throw_on_dynamic_markup == 0
+    {
+        return Ok(());
+    }
+    Err(Exception::dom(
+        "InvalidStateError",
+        format!("Custom Element constructor should not use {method}()."),
+    ))
 }
 
 /// The script nesting level of the window's document: the number of scripts
@@ -225,8 +245,17 @@ fn read_written_text(rt: &mut swb_js::Runtime) -> VmResult<()> {
         let inserted = engine_mut(rt)?.take_inserted_frames();
         crate::frames::parser_inserted(rt, inserted)?;
         crate::scripts::written_links(rt)?;
-        let Some(WrittenStep::Script(node)) = step else {
-            return Ok(());
+        let node = match step {
+            Some(WrittenStep::Script(node)) => node,
+            Some(WrittenStep::CustomElement(placeholder)) => {
+                crate::custom_elements::create::parser_custom_element(rt, placeholder)?;
+                continue;
+            }
+            Some(WrittenStep::Reactions) => {
+                crate::custom_elements::create::parser_reactions(rt)?;
+                continue;
+            }
+            _ => return Ok(()),
         };
         run_written_script(rt, node)?;
         if scripts(rt)?.pending_parsing_blocking.is_some() {

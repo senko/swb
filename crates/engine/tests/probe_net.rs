@@ -700,18 +700,24 @@ const CE_DEPARTURES: &[Departure] = &[
         r#""C.prototype,connectedCallback,disconnectedCallback,connectedMoveCallback,adoptedCallback,attributeChangedCallback,C.observedAttributes,C.disabledFeatures,C.formAssociated,formAssociatedCallback,formResetCallback,formDisabledCallback,formStateRestoreCallback""#,
         "swb does not read Chromium's own `toolFillCallback` (ADR 0035 section 9)",
     ),
+    (
+        "parser-sync-adoption",
+        0,
+        r#""ctor:x-a:0:0:0 attr:x-a#m:id:null:m conn:x-a#m c-after:false:p mt:p disc:x-a#m d-after:false conn:x-a#m c-after:false:b mt:b disc:x-a#m d-after:false conn:x-a#m c-after:false:b mt:b end:b:p""#,
+        PARSER_PAUSE,
+    ),
 ];
 
-const SUB_4C: &str = "ADR 0035 sub-feature 4c: synchronous construction in the parser";
+/// The cases of the custom element probe that later sub-features run (none
+/// since ADR 0035 sub-feature 4c).
+const CE_LATER: &[Later] = &[];
 
-/// The cases of the custom element probe that ADR 0035 sub-feature 4c
-/// (synchronous construction in the parser) runs.
-const CE_LATER: &[Later] = &[
-    ("parser-sync", None, SUB_4C),
-    ("parser-sync-document-write", None, SUB_4C),
-    ("parser-sync-dynamic-markup", None, SUB_4C),
-    ("parser-sync-failures", None, SUB_4C),
-];
+const PARSER_PAUSE: &str = "the parser pauses for custom element reactions only between \
+     tokens (html5ever's tree builder cannot stop inside a token): the reactions of the adoption \
+     agency's moves at `</b>` run after the token, all of them before the next token. Chromium \
+     runs those of the first move (the `p` into `body`) inside the token, before the next moves, \
+     and those of the moves into the new `b` from the backup element queue, after the next \
+     token (ADR 0035 \"4c implementation notes\")";
 
 const STEPS: &str = "the case has input steps: it runs in `crates/automation/tests/real_input.rs`";
 const DECLARATIVE: &str = "backlog (ADR 0036 section 10): declarative shadow roots and the \

@@ -385,13 +385,28 @@ impl ScriptRuntime {
             };
             self.connect_parser_frames();
             self.start_parser_links();
-            let Some((ParseStep::Script(node), position)) = step else {
-                if self.defer_parse_end() {
-                    self.queue_resume();
-                } else {
-                    self.parse_finished();
+            let (node, position) = match step {
+                Some((ParseStep::Script(node), position)) => (node, position),
+                Some((ParseStep::CustomElement(placeholder), _)) => {
+                    self.parser_custom_element(placeholder);
+                    continue;
                 }
-                return;
+                Some((ParseStep::Reactions, _)) => {
+                    if !self.stopped() {
+                        let _ = self.task("custom element reactions", |rt| {
+                            crate::custom_elements::create::parser_reactions(rt).map_err(task_error)
+                        });
+                    }
+                    continue;
+                }
+                _ => {
+                    if self.defer_parse_end() {
+                        self.queue_resume();
+                    } else {
+                        self.parse_finished();
+                    }
+                    return;
+                }
             };
             if self.stopped() {
                 continue;
@@ -408,6 +423,24 @@ impl ScriptRuntime {
                 Ok(Prepared::Nothing) => {}
                 Err(error) => log::warn!("a script element was not prepared: {error:?}"),
             }
+        }
+    }
+
+    /// The parser's pause for a custom element whose name the window's
+    /// registry defines (ADR 0035 section 8): its constructor runs in a task
+    /// of its own, as an inline script does. With the scripts stopped, the
+    /// element is inserted as the parser made it.
+    fn parser_custom_element(&mut self, placeholder: NodeId) {
+        if !self.stopped() {
+            let _ = self.task("a custom element constructor", |rt| {
+                crate::custom_elements::create::parser_custom_element(rt, placeholder)
+                    .map_err(task_error)
+            });
+        }
+        // After a termination (or without scripts) the placeholder is
+        // inserted as it is; after a construction this does nothing.
+        if let Ok(host) = engine_mut(&mut self.rt) {
+            host.finish_custom_element(placeholder, None);
         }
     }
 

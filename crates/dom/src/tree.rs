@@ -566,6 +566,9 @@ pub struct Document {
     /// ([`ElementData::parser_form`]); the change functions then clear the
     /// pointers of moved subtrees (HTML "reset the form owner").
     pub(crate) parser_forms: bool,
+    /// True once a subtree left the arena ([`Document::take_subtree`]): its
+    /// ids are detached comments, and the parser tests for them.
+    pub(crate) subtrees_taken: bool,
     pub(crate) mutation_sink: Option<Box<dyn MutationSink>>,
     /// The template contents owner document of each document node that
     /// has one (created when the document gets its first template). An
@@ -596,6 +599,15 @@ pub struct Document {
     /// [`Document::take_defined_changed`] (`:defined` may match differently;
     /// ADR 0035 "4a implementation notes").
     pub(crate) defined_changed: bool,
+    /// The local names that the registry of the window of
+    /// [`NodeId::DOCUMENT`] defines (`custom.rs`; ADR 0035 section 3): the
+    /// parser constructs the elements with these names synchronously
+    /// (section 8). `None` until the first definition.
+    pub(crate) defined_names: Option<std::collections::HashSet<LocalName>>,
+    /// The pause cell of the parser of [`NodeId::DOCUMENT`] while it parses
+    /// (`parser/token_sink.rs`): the mutation sink asks the parser through
+    /// it to pause after the current token ([`Document::request_parser_pause`]).
+    pub(crate) parser_pause: Option<std::rc::Rc<std::cell::Cell<u8>>>,
     /// The shadow roots and slots of the arena (`shadow.rs`, `slots.rs`;
     /// ADR 0036 section 1). `None` until the first shadow root: a page
     /// without one pays one test per change.
@@ -654,6 +666,7 @@ impl Document {
             text_bytes: 0,
             limits,
             parser_forms: false,
+            subtrees_taken: false,
             mutation_sink: None,
             template_owners: HashMap::new(),
             template_hosts: HashMap::new(),
@@ -664,6 +677,8 @@ impl Document {
             ranges: None,
             custom_names: None,
             defined_changed: false,
+            defined_names: None,
+            parser_pause: None,
             shadow: None,
             top_layer: None,
             early_activation: false,

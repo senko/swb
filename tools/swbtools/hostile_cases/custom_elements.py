@@ -238,3 +238,124 @@ def ce_transplant_100000() -> Page:
         "? 'transplant ok ' : 'transplant wrong ') + built + ' ' + moved), 10);</script>"
     )
     return Page(doc("<iframe id=f></iframe>" + "<x-t></x-t>" * 100000 + script))
+
+
+@case(
+    "100,000 custom elements in the markup after their definition: the parser pauses after "
+    "each start tag and runs its constructor, then its insertion with the `connectedCallback` "
+    "(ADR 0035 section 8): linear time, one placeholder per element, and a timer logs "
+    "`parser ok`",
+    time_limit_s=30,
+    expect_log="parser ok",
+    swb_args=("--js", "--settle-ms", "500"),
+)
+def ce_parser_100000() -> Page:
+    script = (
+        "<script>let built = 0, connected = 0, bare = 0; customElements.define('x-p', class "
+        "extends HTMLElement { constructor() { super(); built++; if (!this.attributes.length "
+        "&& !this.parentNode) bare++; } connectedCallback() { connected++; } });</script>"
+    )
+    check = (
+        "<script>setTimeout(() => console.warn((built === 100000 && connected === 100000 && "
+        "bare === 100000 ? 'parser ok ' : 'parser wrong ') + built + ' ' + connected + ' ' + "
+        "bare), 10);</script>"
+    )
+    return Page(doc(script + "<x-p a=1></x-p>" * 100000 + check))
+
+
+@case(
+    "100,000 nested custom elements after their definition (no end tags): a pause and a "
+    "construction for each; the tree depth limit attaches the deep ones at depth 512, and a "
+    "timer logs `nested ok` (ADR 0035 section 8)",
+    time_limit_s=30,
+    expect_log="nested ok",
+    swb_args=("--js", "--settle-ms", "500"),
+)
+def ce_parser_nested_100000() -> Page:
+    script = (
+        "<script>let built = 0; customElements.define('x-n', class extends HTMLElement { "
+        "constructor() { super(); built++; } }); setTimeout(() => console.warn((built === "
+        "100000 && document.querySelectorAll(':defined').length > 100000 ? 'nested ok ' : "
+        "'nested wrong ') + built), 10);</script>"
+    )
+    return Page(doc(script + "<x-n>" * 100000))
+
+
+@case(
+    "a constructor of 10,000 parsed elements that calls `document.write`, `writeln`, `open` "
+    "and `close` 25 times each: every call throws `InvalidStateError` (the "
+    "throw-on-dynamic-markup-insertion counter), nothing is written, and a timer logs "
+    "`write ok` (ADR 0035 section 8)",
+    time_limit_s=20,
+    expect_log="write ok",
+    swb_args=("--js", "--settle-ms", "500"),
+)
+def ce_write_in_constructor() -> Page:
+    script = (
+        "<script>let thrown = 0; customElements.define('x-w', class extends HTMLElement { "
+        "constructor() { super(); for (let i = 0; i < 25; i++) for (const f of [() => "
+        "document.write('<i>x</i>'), () => document.writeln('<i>x</i>'), () => document.open(), "
+        "() => document.close()]) { try { f(); } catch (e) { if (e.name === "
+        "'InvalidStateError') thrown++; } } } });</script>"
+    )
+    check = (
+        "<script>setTimeout(() => console.warn((thrown === 1000000 && "
+        "document.getElementsByTagName('i').length === 0 ? 'write ok ' : 'write wrong ') + "
+        "thrown), 10);</script>"
+    )
+    return Page(doc(script + "<x-w></x-w>" * 10000 + check))
+
+
+@case(
+    "constructors that change the parse: each of 10,000 parsed elements defines the name of "
+    "the next one, removes the element before it and its own parent `div` (the parser goes "
+    "on in the removed `div`), and inserts a new element into `head`: no panic, "
+    "linear time, and a timer logs `reparse ok` (ADR 0035 section 8)",
+    time_limit_s=20,
+    expect_log="reparse ok",
+    swb_args=("--js", "--settle-ms", "500"),
+)
+def ce_parser_define_remove() -> Page:
+    script = (
+        "<script>let built = 0; function def(i) { if (customElements.get('x-r' + i)) return; "
+        "customElements.define('x-r' + i, class extends HTMLElement { constructor() { "
+        "super(); built++; def(i + 1); const d = document.getElementById('d' + i); if (d) "
+        "d.remove(); const p = document.body.lastElementChild; if (p && p.localName === 'p') "
+        "p.remove(); document.head.appendChild(document.createElement('x-z')); } }); } def(0);"
+        "</script>"
+    )
+    elements = "".join(f"<p></p><div id=d{i}><x-r{i}></x-r{i}>t</div>" for i in range(10000))
+    check = (
+        "<script>setTimeout(() => console.warn((built === 10000 && "
+        "document.querySelectorAll('div, p').length === 0 ? 'reparse ok ' : 'reparse wrong ') "
+        "+ built), 10);</script>"
+    )
+    return Page(doc(script + elements + check))
+
+
+@case(
+    "a script adopts the open `div` of the parser into a frame's document, and 10,000 custom "
+    "elements with children follow in the markup: no panic, the parser drops them (no "
+    "constructor runs), the rest of the page is parsed, and a timer logs `adopt ok` "
+    "(ADR 0035 section 8 notes)",
+    time_limit_s=20,
+    expect_log="adopt ok",
+    swb_args=("--js", "--settle-ms", "500"),
+)
+def ce_parser_adopted_open_element() -> Page:
+    define = (
+        "<script>let built = 0; customElements.define('x-d', class extends HTMLElement { "
+        "constructor() { super(); built++; } });</script>"
+    )
+    adopt = (
+        "<script>const f = document.getElementById('f').contentDocument; "
+        "f.body.appendChild(f.adoptNode(document.getElementById('d')));</script>"
+    )
+    check = (
+        "<script>setTimeout(() => console.warn((built === 0 && "
+        "document.getElementById('after') !== null && document.getElementsByTagName('i')."
+        "length === 0 ? 'adopt ok ' : 'adopt wrong ') + built), 10);</script>"
+    )
+    body = "<x-d><i>t</i></x-d>" * 10000
+    markup = f"<iframe id=f></iframe><div id=d>{adopt}{body}</div><u id=after></u>"
+    return Page(doc(define + markup + check))
