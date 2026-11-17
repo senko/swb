@@ -55,7 +55,7 @@ mod storage;
 mod tree_walker;
 #[path = "frames/window_proxy.rs"]
 mod window_proxy;
-use common::{finish_loading, new_page, on_page_thread, value};
+use common::{finish_loading, new_page, on_page_thread, pump_for, value};
 
 const MAIN: &str = "http://127.0.0.1:8000";
 const OTHER: &str = "http://127.0.0.1:8001";
@@ -1064,16 +1064,6 @@ fn start(html: &str, resources: &[(&str, Res)], frames: usize) -> (Page, Arc<Sim
     (page, sim)
 }
 
-/// Runs the event loop for `ms` of real time.
-fn pump_for(page: &mut Page, ms: u64) {
-    let end = Instant::now() + Duration::from_millis(ms);
-    while Instant::now() < end {
-        page.process_network();
-        page.pump();
-        std::thread::sleep(Duration::from_millis(5));
-    }
-}
-
 /// `geometry`, the style of the `iframe` elements in the parent: display,
 /// border style, width and color, overflow and vertical-align (fields 6 to
 /// 13 of Chromium's rows, the color has three tokens) run with JavaScript
@@ -1265,7 +1255,7 @@ fn a_completion_after_removal_is_dropped() {
                 let parent = dom.parent(node).unwrap();
                 dom.remove_child(parent, node).unwrap();
             });
-            pump_for(&mut page, 600);
+            pump_for(&mut page, Duration::from_millis(600));
             assert_eq!(page.frame_count(), 0);
             assert!(!page.is_loading());
             assert!(page.wait_until_loaded(Duration::from_secs(2)));
@@ -1297,7 +1287,7 @@ fn moves_and_detached_iframes() {
         let new = frame(&page, "a");
         assert_ne!(old, new);
         assert_eq!(page.frame_count(), 1);
-        pump_for(&mut page, 200);
+        pump_for(&mut page, Duration::from_millis(200));
         assert_eq!(sim.requests().len(), before + 1, "one request for the move");
         value(
             &mut page,
@@ -1308,12 +1298,12 @@ fn moves_and_detached_iframes() {
              var d2 = document.implementation.createHTMLDocument(''); \
              d2.body.appendChild(d2.createElement('iframe')); 1",
         );
-        pump_for(&mut page, 100);
+        pump_for(&mut page, Duration::from_millis(100));
         assert_eq!(page.frame_count(), 1, "no frames for detached iframes");
         assert_eq!(sim.requests().len(), before + 1);
         // The fragment's iframe gets a frame when it is inserted.
         value(&mut page, "d.appendChild(fr); 1");
-        pump_for(&mut page, 100);
+        pump_for(&mut page, Duration::from_millis(100));
         assert_eq!(page.frame_count(), 2);
     });
 }
@@ -1331,7 +1321,7 @@ fn load_events_survive_removal_in_listeners() {
             <iframe id=b srcdoc=y onload=\"log.push('b load')\"></iframe>\
             <iframe id=c srcdoc=z onload=\"log.push('c load'); this.remove()\"></iframe></div>";
         let (mut page, _) = open(html, &[], true);
-        pump_for(&mut page, 100);
+        pump_for(&mut page, Duration::from_millis(100));
         let log = value(&mut page, "log.join()");
         let log: String = serde_json::from_str(&log).unwrap();
         let events: Vec<&str> = log.split(',').collect();
@@ -1386,19 +1376,19 @@ fn frame_documents_share_a_source_budget() {
         let first = frame(&page, "f0");
         let last = frame(&page, "f69");
         value(&mut page, "f0.srcdoc = 'small'; 1");
-        pump_for(&mut page, 100);
+        pump_for(&mut page, Duration::from_millis(100));
         assert_eq!(page.frame_source_bytes(), budget - (1 << 20) + 5);
         // One byte more than the room does not fit; the room itself does.
         value(&mut page, "f69.srcdoc = 'x'.repeat((1 << 20) - 4); 1");
-        pump_for(&mut page, 100);
+        pump_for(&mut page, Duration::from_millis(100));
         assert_eq!(page.frame_source_bytes(), budget - (1 << 20) + 5, "too big");
         value(&mut page, "f69.srcdoc = 'x'.repeat((1 << 20) - 5); 1");
-        pump_for(&mut page, 100);
+        pump_for(&mut page, Duration::from_millis(100));
         assert_eq!(page.frame_source_bytes(), budget);
         assert!(page.frame_document(first).is_some() && page.frame_document(last).is_some());
         // Removal releases the bytes.
         value(&mut page, "document.body.textContent = ''; 1");
-        pump_for(&mut page, 50);
+        pump_for(&mut page, Duration::from_millis(50));
         assert_eq!(page.frame_count(), 0);
         assert_eq!(page.frame_source_bytes(), 0);
     });
@@ -1513,9 +1503,9 @@ fn replacing_frame_documents_does_not_use_up_the_budget() {
                 &mut page,
                 &format!("f.srcdoc = 'x'.repeat(1 << 20) + {i}; 1"),
             );
-            pump_for(&mut page, 5);
+            pump_for(&mut page, Duration::from_millis(5));
         }
-        pump_for(&mut page, 100);
+        pump_for(&mut page, Duration::from_millis(100));
         assert!(page.frame_source_bytes() <= (1 << 20) + 3);
         let doc = page.frame_document(frame(&page, "f")).unwrap();
         let body = doc.dom().body().unwrap();

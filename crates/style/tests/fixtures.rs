@@ -13,8 +13,8 @@ use swb_css::MediaEnvironment;
 use swb_dom::{Document, NodeId};
 use swb_style::{
     ComputedStyle, ContainerSizes, Display, DomChanges, ElementStates, FontFamily, GenericFamily,
-    LengthPercentage, Restyle, Rgba, StyleMap, Stylist, compute_styles, compute_styles_reusing,
-    compute_styles_with_containers, restyle_states, restyle_targeted,
+    LengthPercentage, Restyle, RestyleInputs, Rgba, StyleMap, Stylist, compute_styles,
+    compute_styles_reusing, compute_styles_with_containers, restyle_states, restyle_targeted,
 };
 use url::Url;
 
@@ -399,29 +399,6 @@ fn random_states(
     next
 }
 
-/// The first element or pseudo-element whose style differs, for messages.
-fn first_difference(page: &Page, a: &StyleMap, b: &StyleMap) -> String {
-    for node in page.doc.descendants(NodeId::DOCUMENT) {
-        if a.get(node) != b.get(node) {
-            let e = page.doc.element(node);
-            return format!(
-                "element {node:?} <{}> class={:?}",
-                e.map_or(String::new(), |e| e.local_name().to_string()),
-                e.and_then(|e| e.attr("class"))
-            );
-        }
-        for kind in swb_style::PseudoKind::ALL {
-            if a.pseudo(node, kind) != b.pseudo(node, kind) {
-                return format!("pseudo {kind:?} of {node:?}");
-            }
-        }
-        if a.list_item_ordinal(node) != b.list_item_ordinal(node) {
-            return format!("ordinal of {node:?}");
-        }
-    }
-    "the container log, the instances or the hidden contents flag".to_owned()
-}
-
 /// Runs a random series of state changes on `page` and checks that the
 /// targeted restyle ([`restyle_states`]) gives the result of a full
 /// restyle after each (ADR 0041 section 6). Returns the number of changes
@@ -452,16 +429,14 @@ fn targeted_series(page: &Page, sizes: &ContainerSizes, steps: usize) -> Vec<(St
         let full =
             compute_styles_with_containers(&page.doc, &page.stylist, &env, &new, &page.url, sizes);
         let before = map.clone();
-        let outcome = restyle_states(
-            &page.doc,
-            &page.stylist,
-            &env,
-            &page.url,
+        let inputs = RestyleInputs {
+            doc: &page.doc,
+            stylist: &page.stylist,
+            env: &env,
+            base_url: &page.url,
             sizes,
-            &states,
-            &new,
-            &mut map,
-        );
+        };
+        let outcome = restyle_states(&inputs, &states, &new, &mut map);
         let path = match &outcome {
             Restyle::Done { restyled: 0, .. } => "nothing".to_owned(),
             Restyle::Done { .. } => "targeted".to_owned(),
@@ -472,10 +447,10 @@ fn targeted_series(page: &Page, sizes: &ContainerSizes, steps: usize) -> Vec<(St
             Restyle::Done { changed, .. } => {
                 assert!(
                     map.same_result(&full),
-                    "step {step}: {:?} -> {:?}: {}",
+                    "step {step}: {:?} -> {:?}: {:?}",
                     states.hover,
                     new.hover,
-                    first_difference(page, &map, &full)
+                    map.first_difference(&full)
                 );
                 assert_eq!(
                     changed,
@@ -800,14 +775,7 @@ fn drain(doc: &mut Document, changes: &mut DomChanges, described: &mut Vec<Strin
     assert!(!journal.incomplete());
     described.extend(journal.iter().map(|c| describe(doc, &c)));
     for change in journal.iter() {
-        let target = match &change {
-            swb_dom::Change::Children { parent, .. } => *parent,
-            swb_dom::Change::Attribute { element, .. } | swb_dom::Change::TopLayer { element } => {
-                *element
-            }
-            swb_dom::Change::Text { node, .. } => *node,
-        };
-        let connected = doc.shadow_including_root(target) == NodeId::DOCUMENT;
+        let connected = doc.shadow_including_root(change.target()) == NodeId::DOCUMENT;
         changes.record(doc, &change, connected);
     }
 }
@@ -860,17 +828,14 @@ fn dom_series(page: &mut Page, steps: usize, seed: u64) -> Vec<(String, usize)> 
         let full =
             compute_styles_with_containers(&page.doc, &page.stylist, &env, &new, &page.url, &sizes);
         let before = map.clone();
-        let outcome = restyle_targeted(
-            &page.doc,
-            &page.stylist,
-            &env,
-            &page.url,
-            &sizes,
-            &states,
-            &new,
-            &changes,
-            &mut map,
-        );
+        let inputs = RestyleInputs {
+            doc: &page.doc,
+            stylist: &page.stylist,
+            env: &env,
+            base_url: &page.url,
+            sizes: &sizes,
+        };
+        let outcome = restyle_targeted(&inputs, &states, &new, &changes, &mut map);
         let path = match &outcome {
             Restyle::Done { restyled: 0, .. } => "nothing".to_owned(),
             Restyle::Done { .. } => "targeted".to_owned(),
@@ -881,8 +846,7 @@ fn dom_series(page: &mut Page, steps: usize, seed: u64) -> Vec<(String, usize)> 
             Restyle::Done { .. } => {
                 assert!(
                     map.same_result(&full),
-                    "step {step}: {} ({:?}); the changes: {described:#?}; hover {:?} -> {:?}",
-                    first_difference(page, &map, &full),
+                    "step {step}: {:?}; the changes: {described:#?}; hover {:?} -> {:?}",
                     map.first_difference(&full),
                     states.hover,
                     new.hover

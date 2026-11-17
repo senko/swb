@@ -17,8 +17,9 @@
 //!   the composition (toolbar, copy into the window buffer) and of
 //!   `present`.
 //!
-//! The cost without the debug level is a few counters per event and one
-//! `Instant` read per frame. The log lines and the clock reads of batches
+//! The cost without the debug level is a few counters per event and three
+//! `Instant` reads per frame (the start, the end of the page render and the
+//! end of the composition). The log lines and the clock reads of batches
 //! exist only at the debug level.
 
 use std::time::{Duration, Instant};

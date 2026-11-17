@@ -121,9 +121,10 @@ pub struct StageTimings {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FlushCounters {
     /// Style runs of the document: full runs (all elements) and the
-    /// restyles after a change of the element states, also those that
-    /// restyle only the elements the change can affect (ADR 0041; see
-    /// [`FlushCounters::state_restyles`]).
+    /// restyles after a change of the element states or of the DOM, also
+    /// those that restyle only the elements the change can affect (ADR
+    /// 0041 and 0042; see [`FlushCounters::state_restyles`] and
+    /// [`FlushCounters::dom_restyles`]).
     pub style_runs: u32,
     /// The time of the style runs.
     pub style_time: Duration,
@@ -162,17 +163,17 @@ pub struct FlushCounters {
     /// passes (`MAX_CONTAINER_PASSES`).
     pub container_pass_limits: u32,
     /// The paths of the restyles after state changes (ADR 0041).
-    pub state_restyles: StateRestyles,
+    pub state_restyles: RestylePaths,
     /// The paths of the restyles after DOM changes (ADR 0042; the state
     /// changes since the styles are part of them).
-    pub dom_restyles: StateRestyles,
+    pub dom_restyles: RestylePaths,
 }
 
-/// The restyles after a change of the element states, by path (ADR 0041):
-/// targeted (only the elements the change can affect), and the full
-/// restyles by the reason of the fallback.
+/// The restyles after a change of the element states (ADR 0041) or of the
+/// DOM (ADR 0042), by path: targeted (only the elements the change can
+/// affect), and the full restyles by the reason of the fallback.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct StateRestyles {
+pub struct RestylePaths {
     /// Targeted restyles that restyled at least one element.
     pub targeted: u32,
     /// Targeted restyles that found nothing to restyle.
@@ -180,8 +181,8 @@ pub struct StateRestyles {
     /// The elements that the targeted restyles matched and cascaded.
     pub restyled_elements: u64,
     /// Full restyles: the styles were not current (outdated image sources,
-    /// a stylist to rebuild), or a state other than hover, active and focus
-    /// changed.
+    /// a stylist to rebuild), or a state that the targeted restyle does not
+    /// handle changed.
     pub other_states: u32,
     /// Full restyles: a dependency that the analysis does not handle.
     pub everything: u32,
@@ -199,7 +200,7 @@ pub struct StateRestyles {
     pub structure: u32,
 }
 
-impl StateRestyles {
+impl RestylePaths {
     /// Records a fallback to a full restyle.
     pub(crate) fn fallback(&mut self, reason: swb_style::FullReason) {
         use swb_style::FullReason as R;
@@ -217,20 +218,36 @@ impl StateRestyles {
 
     /// The counts since `before`.
     #[must_use]
-    pub fn since(&self, before: &StateRestyles) -> StateRestyles {
-        StateRestyles {
-            targeted: self.targeted.saturating_sub(before.targeted),
-            nothing: self.nothing.saturating_sub(before.nothing),
-            restyled_elements: self
-                .restyled_elements
-                .saturating_sub(before.restyled_elements),
-            other_states: self.other_states.saturating_sub(before.other_states),
-            everything: self.everything.saturating_sub(before.everything),
-            root_font_size: self.root_font_size.saturating_sub(before.root_font_size),
-            containers: self.containers.saturating_sub(before.containers),
-            counters: self.counters.saturating_sub(before.counters),
-            too_large: self.too_large.saturating_sub(before.too_large),
-            structure: self.structure.saturating_sub(before.structure),
+    pub fn since(&self, before: &RestylePaths) -> RestylePaths {
+        self.zip_with(before, u32::saturating_sub, u64::saturating_sub)
+    }
+
+    /// The sum of two counts.
+    #[must_use]
+    pub fn plus(&self, other: &RestylePaths) -> RestylePaths {
+        self.zip_with(other, u32::saturating_add, u64::saturating_add)
+    }
+
+    /// Combines each field of `self` and `other` with `f` (the counts) or
+    /// `g` (the element count). One list of the fields for `since` and
+    /// `plus`.
+    fn zip_with(
+        &self,
+        other: &RestylePaths,
+        f: impl Fn(u32, u32) -> u32,
+        g: impl Fn(u64, u64) -> u64,
+    ) -> RestylePaths {
+        RestylePaths {
+            targeted: f(self.targeted, other.targeted),
+            nothing: f(self.nothing, other.nothing),
+            restyled_elements: g(self.restyled_elements, other.restyled_elements),
+            other_states: f(self.other_states, other.other_states),
+            everything: f(self.everything, other.everything),
+            root_font_size: f(self.root_font_size, other.root_font_size),
+            containers: f(self.containers, other.containers),
+            counters: f(self.counters, other.counters),
+            too_large: f(self.too_large, other.too_large),
+            structure: f(self.structure, other.structure),
         }
     }
 }

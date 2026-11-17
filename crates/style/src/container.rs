@@ -138,7 +138,7 @@ impl ContainerLog {
     /// the same sizes, axes, fonts and unit reads, and the same conditions
     /// (by address) with the same results in the same order. For tests that
     /// compare a targeted restyle with a full one.
-    pub fn same_as(&self, other: &ContainerLog) -> bool {
+    pub(crate) fn same_as(&self, other: &ContainerLog) -> bool {
         self.root_font_size == other.root_font_size
             && self.viewport == other.viewport
             && self.entries.len() == other.entries.len()

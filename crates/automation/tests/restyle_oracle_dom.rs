@@ -13,28 +13,14 @@
 
 use std::time::Duration;
 
-use serde_json::Value;
 use swb_automation::run_steps;
 
 mod common;
-use common::{fixture, load_at_capture, on_page_thread};
-
-/// The steps of a steps file: a list of groups, each a list of steps or
-/// `{name, steps}`.
-fn steps(text: &str) -> Vec<Value> {
-    let groups: Vec<Value> = serde_json::from_str(text).unwrap();
-    groups
-        .into_iter()
-        .flat_map(|g| match g {
-            Value::Array(steps) => steps,
-            group => group["steps"].as_array().cloned().unwrap_or_default(),
-        })
-        .collect()
-}
+use common::{fixture, load_at_capture, on_page_thread, step_groups};
 
 /// Loads the fixture `name`, plays `steps` in check mode and returns the
 /// paths of the restyles after DOM changes; `None` without the fixture.
-fn play(name: &str, steps_text: &'static str) -> Option<swb_engine::StateRestyles> {
+fn play(name: &str, steps_text: &'static str) -> Option<swb_engine::RestylePaths> {
     let dir = fixture(name)?;
     let (tx, rx) = std::sync::mpsc::channel();
     on_page_thread(move || {
@@ -44,8 +30,10 @@ fn play(name: &str, steps_text: &'static str) -> Option<swb_engine::StateRestyle
         let start = page.flush_counters();
         // A step that fails (a selector that the page does not have at
         // this point) does not stop the session.
-        for step in steps(steps_text) {
-            let _ = run_steps(&mut page, std::slice::from_ref(&step));
+        for (_, steps) in step_groups(steps_text) {
+            for step in steps {
+                let _ = run_steps(&mut page, std::slice::from_ref(&step));
+            }
         }
         // A step can navigate: the counters are then those of the new
         // document.

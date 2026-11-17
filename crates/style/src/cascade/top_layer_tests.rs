@@ -7,6 +7,7 @@
 use swb_css::MediaEnvironment;
 use swb_dom::{Document, ToggleState, TopLayerHost, parse_html};
 
+use super::test_util::node;
 use super::*;
 use crate::values::Position;
 use crate::values::*;
@@ -35,11 +36,6 @@ impl TopLayerHost for Silent<'_> {
     fn queue_toggle_task(&mut self, element: NodeId, serial: u64) {
         let _ = self.0.take_toggle(element, serial);
     }
-}
-
-fn node(doc: &Document, id: &str) -> NodeId {
-    doc.element_by_id(id)
-        .unwrap_or_else(|| panic!("no element #{id}"))
 }
 
 /// Parses `html`, shows the popovers `open` in order and styles the

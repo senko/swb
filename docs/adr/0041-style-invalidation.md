@@ -169,7 +169,8 @@ prototype shows why both matter: on GitHub, without the subject key, a
 hover change marks 641 of 1,258 elements; with it, 24 (section 7).
 
 **Where it lives.** The analysis is a function of the css crate
-(`Selector::state_reach`, beside `Selector::state_dependencies`): for one
+(`Selector::for_each_dependency`, beside `Selector::state_dependencies`; named
+`state_reach` when this ADR was written, see "Changed by ADR 0042"): for one
 flag, the list of (reach, E key, subject key). The `Stylist` builds, per
 flag, an index of these entries by E key (buckets of IDs, classes, local
 names and a universal list, as `RuleMap`; quirks mode folds case), with
@@ -526,7 +527,7 @@ about 3.5 ms layout and 13 ms display list and raster; Ars Technica about
   readers and two counter flags.
 - The selector analysis must follow new selector features: a new
   pseudo-class with a selector argument, or a new combinator, must get a
-  reach in `Selector::state_reach` (or "everything"); the oracle catches
+  reach in `Selector::for_each_dependency` (or "everything"); the oracle catches
   a missing one on the fixtures only, so the unit table is the guard.
 - Full restyles stay for the other states, for DOM changes (until M11
   feature 6), for the shapes and cases of section 4, and for the first
@@ -542,11 +543,11 @@ container rule of section 4 stays conservative, with its rate measured.
 **Where the parts are.**
 
 - The analysis: `crates/css/src/selector/reach.rs`
-  (`Selector::state_reach`, `StateReach`, `StateDependency`), with the
-  table of section 6 as unit tests.
+  (`Selector::for_each_dependency`, `StateReach`, `DependencyKey`,
+  `DependencyView`), with the table of section 6 as unit tests.
 - The index and the marking: `crates/style/src/invalidation.rs`
-  (`StateIndex`, built by `Stylist::state_index` at the first use; `flipped`,
-  `plan`, `KeySet`).
+  (`InvalidationIndex`, built by `Stylist::invalidation_index` at the first
+  use; `flipped`, `Planner`, `KeySet`).
 - The pruned walk and the end of the pass:
   `crates/style/src/cascade/targeted.rs` (`restyle_states`, `Restyle`,
   `FullReason`); it shares `style_element` and `style_pseudo_elements`
@@ -555,7 +556,7 @@ container rule of section 4 stays conservative, with its rate measured.
   `Styler::run` from `Containers::take_read`) and two flags of the counter
   pass (`note_counters`); `StyleMap::same_result` and `first_difference`
   serve the oracles.
-- The engine: `DocumentState::restyle` runs `targeted_restyle` and falls
+- The engine: `DocumentState::restyle` runs `run_targeted` (`RestylePath::State`) and falls
   back to `compute_styles_from`; `style_states` holds the states of the
   current styles (set by every full pass and every targeted one);
   `update_style` with `styles_stale` (a script's focus) calls `restyle`.
@@ -638,7 +639,7 @@ mode, and a page whose script moves the focus and reads
 `hover-many-has-rules` (`tools/swbtools/hostile_cases/style_invalidation.py`).
 
 **Changed by ADR 0042** (M11 feature 6, style invalidation for DOM
-changes): `Selector::state_reach` became `Selector::dependencies` (one
+changes): `Selector::state_reach` became `Selector::for_each_dependency` (one
 analysis for states and the DOM) and `StateIndex` became
 `InvalidationIndex`; `:has()` in a compound that is not the subject is no
 longer "everything": its entries carry an anchor key, and the anchors with

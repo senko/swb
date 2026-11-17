@@ -10,13 +10,15 @@ use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use swb_engine::{
     ElementBox, Evaluation, FontContext, JsonForm, Key, Modifiers, NodeId, Page, PageConfig,
     Pixmap, Rect, Size, Url,
 };
-use swb_net::{Fetcher, Headers, Method, NetError, NetworkFetcher, Request, Response};
+use swb_net::{
+    Fetcher, Headers, Method, NetError, NetworkFetcher, ReplayFetcher, Request, Response,
+};
 use swb_paint::{DisplayList, ImageRef, ImageSizes, NoHighlights, Scrolling};
 
 /// A directory with test pages, removed at the end of the test.
@@ -256,6 +258,62 @@ pub(crate) fn new_page(fetcher: Arc<dyn Fetcher>, network_threads: usize, viewpo
         scripts_allowed: true,
     };
     Page::new(config, FontContext::for_tests(), viewport, 1.0)
+}
+
+/// Renders the viewport of `page` into a new pixmap of its size.
+pub(crate) fn render_viewport(page: &mut Page) -> Pixmap {
+    let size = page.viewport();
+    let mut pixmap =
+        Pixmap::new(size.width as u32, size.height as u32).expect("a viewport-sized pixmap");
+    page.render(&mut pixmap);
+    pixmap
+}
+
+/// Runs the event loop of `page` (network results and tasks) for `duration`
+/// of real time.
+pub(crate) fn pump_for(page: &mut Page, duration: Duration) {
+    let started = Instant::now();
+    while started.elapsed() < duration {
+        page.process_network();
+        page.pump();
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+
+/// Loads the fixture `name` (`fixtures/js` if `javascript`, else
+/// `fixtures/pages`) from its replay store into a page with `view`, and
+/// waits for the load. `configure` runs on the page before the navigation.
+/// `None` if the fixture is missing (it is not committed for the JS ones).
+pub(crate) fn load_fixture(
+    name: &str,
+    javascript: bool,
+    view: Size,
+    configure: impl FnOnce(&mut Page),
+) -> Option<Page> {
+    let dir = repo_root()
+        .join(if javascript {
+            "fixtures/js"
+        } else {
+            "fixtures/pages"
+        })
+        .join(name);
+    if !dir.join("fixture.json").exists() {
+        eprintln!("{name}: no fixture in {}", dir.display());
+        return None;
+    }
+    let meta: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(dir.join("fixture.json")).expect("a readable fixture.json"),
+    )
+    .expect("a valid fixture.json");
+    let url = Url::parse(meta["url"].as_str().expect("a url in fixture.json"))
+        .expect("a valid fixture URL");
+    let fetcher = Arc::new(ReplayFetcher::load(&dir).expect("a replay store"));
+    let mut page = new_page(fetcher, 4, view);
+    page.set_javascript(javascript);
+    configure(&mut page);
+    page.navigate(url);
+    assert!(page.wait_until_loaded(Duration::from_secs(60)));
+    Some(page)
 }
 
 /// The element with the ID `id`.

@@ -4,6 +4,42 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-17: M11 maintenance; end of M11
+
+- Two read-only reviewers (the css and style crates; the engine, the GUI,
+  the tests, the tools and the docs) listed 33 items and no bug. I chose
+  29; one implementer session applied 28 of them without a change of
+  behaviour:
+  - Duplicates: one engine function for the targeted restyles after state
+    and DOM changes (`run_targeted`; the differences of the DOM path stay:
+    the form refresh, the kept layout, its counters and log texts);
+    `Change::target()` for the three journal drains; `FullReason` instead
+    of a second enum for the DOM fallbacks; `FrameKey` holds the
+    composer's `ToolbarKey`; shared test helpers for seven cascade test
+    files and four engine tests.
+  - Names and parameters: `RestyleInputs` replaces five of the nine
+    parameters of `restyle_states` and `restyle_targeted`; `StateRestyles`
+    is `RestylePaths` (it counts the DOM restyles too; JSON keys
+    unchanged); the test-only items of the selector analysis are private.
+  - Docs: ADR 0041's implementation notes use the names of ADR 0042;
+    testing.md lists the DOM restyle, pseudo-element and frame tests;
+    performance.md lists the restyle keys of feature 6, and the `perf`
+    table shows its two fallbacks.
+- Skipped: `same_result` through `first_difference`; they differ in two
+  cases (trailing empty slots, empty pseudo-element entries), and the
+  merge would make the oracles weaker.
+- Proof of no behaviour change: JS-off snapshot identical (370 files);
+  `compare --all --js` as at feature 7 (Ars Technica gives pixels 0.9901
+  or 0.9891 from run to run with both binaries); hostile set 524 of 525
+  (the known `nest-div-100000`); `--bench` hover change on GitHub with
+  JavaScript 16.5 ms (16.6 ms before).
+- Backlog: four items of low value (roadmap, "Backlog from M11") and an
+  untested suspicion of a reviewer: the state path does not refresh the
+  form controls before its targeted restyle.
+- README: one line on the speed of hover and clicks.
+
+Next: the owner chooses the next milestone.
+
 ## 2026-11-17: M11 feature 7, exit measurement
 
 - The first exit run missed every GUI latency target (GitHub move p90

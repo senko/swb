@@ -13,9 +13,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use swb_automation::Automation;
-use swb_engine::{
-    ClockMode, Cursor, Modifiers, Page, PageClock, PageConfig, Pixmap, Size, TextEdit, Url,
-};
+use swb_engine::{ClockMode, Cursor, Modifiers, Page, PageClock, PageConfig, Pixmap, Size, Url};
 use swb_net::Fetcher;
 use swb_text::FontContext;
 use winit::application::ApplicationHandler;
@@ -28,7 +26,7 @@ use winit::keyboard::{Key, ModifiersState, NamedKey};
 use winit::window::{CursorIcon, Window, WindowId};
 
 use crate::url_input::parse_address;
-use compose::{Composer, compose_window};
+use compose::{Composer, ToolbarKey, compose_window, device_size};
 use framelog::FrameLog;
 use input_batch::{Input, InputBatch};
 use toolbar::{TOOLBAR_HEIGHT, Toolbar, ToolbarHit};
@@ -142,13 +140,8 @@ struct FrameKey {
     /// The window size in device pixels.
     size: (u32, u32),
     scale: f32,
-    address: TextEdit,
-    focused: bool,
-    can_go_back: bool,
-    can_go_forward: bool,
-    loading: bool,
-    javascript: bool,
-    javascript_allowed: bool,
+    /// The inputs of the toolbar.
+    toolbar: ToolbarKey,
     /// The hovered link (the status bubble).
     status: Option<String>,
 }
@@ -273,13 +266,7 @@ impl App {
         Some(FrameKey {
             size: (size.width, size.height),
             scale: self.scale(),
-            address: self.toolbar.address.clone(),
-            focused: self.toolbar.focused,
-            can_go_back: self.page.can_go_back(),
-            can_go_forward: self.page.can_go_forward(),
-            loading: self.page.is_loading(),
-            javascript: self.page.javascript(),
-            javascript_allowed: self.page.javascript_available(),
+            toolbar: ToolbarKey::of(&self.page, &self.toolbar),
             status: self.page.hovered_link().map(|u| u.as_str().to_owned()),
         })
     }
@@ -907,8 +894,7 @@ pub(crate) fn render_window(page: &mut Page, window: Size, scale: f32) -> Result
         Size::new(window.width, (window.height - TOOLBAR_HEIGHT).max(1.0)),
         scale,
     );
-    let w = (window.width * scale).round() as u32;
-    let h = (window.height * scale).round() as u32;
+    let (w, h) = device_size(window, scale);
     compose_window(page, &toolbar, (w.max(1), h.max(1)), scale)
 }
 

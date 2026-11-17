@@ -251,8 +251,9 @@ def parse_restyle(line: str) -> tuple[str, int] | None:
 
 
 def restyle_paths(restyles: list[tuple[float, str, int]], start: float, end: float) -> dict:
-    """The restyles after state changes logged from `start` up to `end`, by
-    path, and the elements that the targeted ones restyled."""
+    """The restyles after state changes and after DOM changes (the paths
+    with the prefix `DOM `) logged from `start` up to `end`, by path, and
+    the elements that the targeted ones restyled."""
     paths: dict[str, int] = {}
     elements = 0
     for arrived, path, count in restyles:

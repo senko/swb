@@ -109,9 +109,12 @@ part of the times. The result is the key `interaction` of the JSON:
   the restyles of all hover steps: `targeted`, `nothing` (a targeted
   restyle that found no element to restyle), `restyled_elements`, and the
   full restyles by reason (`full_other_states`, `full_everything`,
-  `full_root_font_size`, `full_containers`, `full_counters`); the same
-  counts of the load are in `flushes.state_restyles`. `swbtools perf`
-  prints them as a third table.
+  `full_root_font_size`, `full_containers`, `full_counters`,
+  `full_too_large`, `full_structure`; the last two since M11 feature 6,
+  ADR 0042); the same counts of the load are in `flushes.state_restyles`,
+  and `flushes.dom_restyles` has the paths of the restyles after DOM
+  changes with the same keys. The hover stage reports the state paths
+  only. `swbtools perf` prints them as a third table.
 - Scroll: `Page::wheel` of 100 px down at the middle of the viewport,
   from the top of the page, until the page does not scroll any more or 20
   steps; then the same up. A step that does not scroll is not counted.

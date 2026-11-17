@@ -5230,7 +5230,7 @@ Steps:
 
    M10 is complete (2026-11-15).
 
-## M11: Interaction performance
+## M11: Interaction performance — done
 
 Owner decision (2026-11-15): after the diagnosis of the slow interaction in
 the GUI ([performance.md](performance.md), "Interaction in the GUI (M11
@@ -5497,6 +5497,29 @@ Features, in this order. Each ends with a review and a commit.
    Technica 14.6 / 11.2 ms (15), Wikipedia 2.0 / 2.6 ms (8). `compare
    --all --js` scores those of M10; hostile set unchanged.
 
+   Then the end-of-milestone maintenance. Done 2026-11-17: two read-only
+   reviews (the css and style crates; the engine, the GUI, the tests, the
+   tools and the docs) listed 33 items and no bug. One implementer session
+   applied 28 of the 29 selected: one engine function for the targeted
+   restyles after state and DOM changes (`run_targeted`); `RestyleInputs`
+   for the shared inputs of `restyle_states` and `restyle_targeted`;
+   `Change::target()` for the three journal drains; `FullReason` instead
+   of `DomFullReason`; `StateRestyles` renamed `RestylePaths` (same JSON
+   keys); `FrameKey` holds the composer's `ToolbarKey`; shared test
+   helpers (`style/src/cascade/test_util.rs`, the engine's `tests/common`);
+   the test-only items of the selector analysis private; the docs that
+   named replaced items (ADR 0040 to 0042, architecture.md, testing.md,
+   performance.md). The `perf` table shows the two fallbacks of feature 6.
+   Skipped: `same_result` through `first_difference` (they differ:
+   `same_result` rejects trailing empty slots and empty pseudo-element
+   entries). Behaviour unchanged: JS-off snapshot identical (370 files),
+   `compare --all --js` as at feature 7 (Ars Technica gives pixels 0.9901
+   or 0.9891 from run to run with both binaries), hostile set as before,
+   `--bench` hover change on GitHub with JavaScript 16.5 ms (16.6 ms
+   before).
+
+   M11 is complete (2026-11-17).
+
 Not in M11 (backlog): incremental layout, a raster cache for scrolling
 (tiles), image decoding on other threads, CSS transitions and animations.
 
@@ -5623,6 +5646,17 @@ Not in M11 (backlog): incremental layout, a raster cache for scrolling
   (for example 0.5) the toolbar's thin lines spill into the page's first
   row, so the kept layers differ from a full composition in that row. A
   scale below 1 does not occur on the owner's desktop.
+- Engine (M11 maintenance review, not tested): the targeted restyle after
+  a state change does not call `refresh_forms()` first; the one after DOM
+  changes does. A state change alone, while the form controls are out of
+  date, then depends on a later `sync()`. The oracles pass.
+- Maintenance (M11, low value, not done): `restyle_states` is only
+  `restyle_targeted` without DOM changes (kept: the callers read better);
+  `finish_targeted` is 101 lines (the pass over pseudo-elements and
+  ordinals could be a function); the composer's `Rasters` counters are
+  read by tests only; the four fields of a pending restyle
+  (`stale_styles`, `dom_changes`, `styles_full`, `kept_layout`) are reset
+  in three places and could be one struct.
 
 ## Backlog from M10
 

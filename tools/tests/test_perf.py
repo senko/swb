@@ -18,4 +18,9 @@ def test_restyle_table_only_with_the_paths():
     assert text is not None
     lines = text.splitlines()
     assert lines[0].startswith("| Fixture | targeted | nothing |")
-    assert lines[2] == "| a | 7 | 0 | 30 | 0 | 0 | 0 | 0 | 0 |"
+    assert lines[2] == "| a | 7 | 0 | 30 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |"
+    # An older swb has no `full_too_large` and `full_structure`.
+    older = {k: v for k, v in paths.items() if k not in ("full_too_large", "full_structure")}
+    text = restyle_table({"a": {"interaction": {"hover": {"state_restyles": older}}}})
+    assert text is not None
+    assert text.splitlines()[2] == lines[2]

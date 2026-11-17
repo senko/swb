@@ -7,6 +7,11 @@
 //! `fixtures/js` exists (not committed), plus a page whose script moves the
 //! focus and reads `getComputedStyle`. The check mode exists only with
 //! debug assertions.
+//!
+//! The file also holds two tests of the restyle after DOM changes (ADR
+//! 0042): `script_dom_changes_equal_full_restyles` runs scripts that change
+//! the DOM in the same check mode, and `slot_changes_restyle_in_full` has
+//! no oracle: it checks that slot changes restyle the document in full.
 
 #![cfg(debug_assertions)]
 // Test helpers outside `#[test]` functions unwrap too.
@@ -15,23 +20,15 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use swb_engine::{Key, Modifiers, MouseButton, Page, Pixmap, Size, StateRestyles, Url};
-use swb_net::ReplayFetcher;
+use swb_engine::{Key, Modifiers, MouseButton, Page, RestylePaths, Size, Url};
 
 mod common;
-use common::{CASE_PAGE, OnePage, new_page, on_page_threads, value};
+use common::{CASE_PAGE, OnePage, SHIFT, new_page, on_page_threads, value};
 
 const VIEW: Size = Size::new(1280.0, 800.0);
 
-const SHIFT: Modifiers = Modifiers {
-    shift: true,
-    ..Modifiers::NONE
-};
-
 fn render(page: &mut Page) {
-    let size = page.viewport();
-    let mut pixmap = Pixmap::new(size.width as u32, size.height as u32).unwrap();
-    page.render(&mut pixmap);
+    common::render_viewport(page);
 }
 
 /// The hover grid of `--bench` (8 x 6 points), two rounds, presses at some
@@ -73,26 +70,8 @@ fn session(page: &mut Page) {
 
 /// Loads a fixture and plays the session; the paths of its restyles, or
 /// `None` without the fixture.
-fn run_fixture(name: &str, javascript: bool) -> Option<(String, StateRestyles)> {
-    let dir = common::repo_root()
-        .join(if javascript {
-            "fixtures/js"
-        } else {
-            "fixtures/pages"
-        })
-        .join(name);
-    if !dir.join("fixture.json").exists() {
-        eprintln!("{name}: no fixture in {}", dir.display());
-        return None;
-    }
-    let meta: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(dir.join("fixture.json")).unwrap()).unwrap();
-    let url = Url::parse(meta["url"].as_str().unwrap()).unwrap();
-    let fetcher = Arc::new(ReplayFetcher::load(&dir).unwrap());
-    let mut page = new_page(fetcher, 4, VIEW);
-    page.set_javascript(javascript);
-    page.navigate(url);
-    assert!(page.wait_until_loaded(Duration::from_secs(60)));
+fn run_fixture(name: &str, javascript: bool) -> Option<(String, RestylePaths)> {
+    let mut page = common::load_fixture(name, javascript, VIEW, |_| {})?;
     render(&mut page);
     let before = page.flush_counters().state_restyles;
     session(&mut page);
@@ -100,7 +79,7 @@ fn run_fixture(name: &str, javascript: bool) -> Option<(String, StateRestyles)> 
     Some((format!("{name} (js {javascript})"), paths))
 }
 
-fn check(runs: Vec<Option<(String, StateRestyles)>>) {
+fn check(runs: Vec<Option<(String, RestylePaths)>>) {
     for (name, paths) in runs.into_iter().flatten() {
         eprintln!("{name}: {paths:?}");
         assert!(

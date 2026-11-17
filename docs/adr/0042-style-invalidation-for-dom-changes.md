@@ -43,7 +43,7 @@ What the GitHub clicks do (the 48 restyles of the interaction steps):
   menu; 39 to 127 styles change), about 51 ms. Escape: one, 25 ms.
 - By kind: attribute changes only 26 (671 ms); insertions or removals with
   attribute changes 18 (480 ms); top layer 2 (52 ms); 2 restyles after a
-  state change that fell back at the early check of `targeted_restyle` (55
+  state change that fell back at the early check of `run_targeted` (55
   ms; the adopted sheets or the image sources, not told apart). No
   stylesheet change, no `:defined` change, no shadow change.
 - Attribute names (connected elements): `class` 228, `data-component` 129,
@@ -488,7 +488,7 @@ two to three restyles of 25 ms, and the layouts (5 to 7 ms each) remain.
 - The stale map is held from a drain to the next flush: one extra map per
   document while its styles are dirty (no copy; it is the old map).
 - GitHub's Tab steps fall back in 8 of 35 restyles at the early check of
-  `targeted_restyle` (`AdoptedSheets::out_of_date` or
+  `run_targeted` (`AdoptedSheets::out_of_date` or
   `images.sources_outdated`) after a focus change. Not examined; outside
   this feature (backlog).
 
@@ -500,7 +500,7 @@ two to three restyles of 25 ms, and the layouts (5 to 7 ms each) remain.
 - One selector analysis serves states and DOM changes; the `Stylist` holds
   `InvalidationIndex` instead of `StateIndex`; the engine holds a change
   set and the stale map between a drain and the next flush.
-- New selector features need a dependency in `Selector::dependencies()`,
+- New selector features need a dependency in `Selector::for_each_dependency`,
   and new attribute reads outside selectors an entry in
   `ATTRIBUTES_READ_BY_OTHERS` or the layout list of section 6.
 - Full restyles stay for stylesheet changes, `:defined` and shadow changes,
@@ -519,8 +519,8 @@ GitHub's Tab and typing steps is a backlog item.
 **Where the parts are.**
 
 - The analysis: `crates/css/src/selector/reach.rs`
-  (`Selector::dependencies`, `Selector::for_each_dependency`,
-  `DependencyKey`, `Dependency`, `Anchor`), with the unit table of the
+  (`Selector::for_each_dependency`, and `Selector::dependencies` for the tests,
+  `DependencyKey`, `DependencyView`), with the unit table of the
   dependencies, the `:has()` shapes and the anchor keys.
 - The index and the marking: `crates/style/src/invalidation.rs`
   (`InvalidationIndex`, built by `Stylist::invalidation_index` at the first
@@ -534,7 +534,7 @@ GitHub's Tab and typing steps is a backlog item.
 - The engine: `DocumentState::stale_styles`, `dom_changes` and
   `styles_full`; the drain records each entry while the document has styles
   (`changes.rs`) and calls `invalidate_styles_for_dom`;
-  `compute_styles` runs `targeted_dom_restyle` or the full restyle with the
+  `compute_styles` runs `run_targeted` (`RestylePath::Dom`) or the full restyle with the
   stale map as `previous` (`pipeline.rs`). `FlushCounters::dom_restyles`
   counts the paths (`--bench`: `flushes.dom_restyles`); the pipeline log has
   `targeted restyle after DOM changes: N elements restyled` and `style: full

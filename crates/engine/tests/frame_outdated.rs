@@ -14,12 +14,16 @@ use swb_engine::{Key, Modifiers, MouseButton, Page, Pixmap, Point, Size, Url};
 use swb_net::{Fetcher, Headers, NetError, Request, Response};
 
 mod common;
-use common::{center, finish_loading, new_page, node, on_page_thread, rect, value};
+use common::{
+    center, finish_loading, new_page, node, on_page_thread, rect, render_viewport, value,
+};
 
 const URL: &str = "https://site.test/page.html";
 const VIEW: Size = Size::new(400.0, 300.0);
 
-/// Serves pages at once and other resources after `delay`.
+/// Serves pages at once and other resources after `delay`. (`common::Site`
+/// and `common::OnePage` answer at once, so they cannot make a resource
+/// arrive after a render.)
 struct Site {
     files: HashMap<String, (&'static str, Vec<u8>)>,
     delay: Duration,
@@ -88,10 +92,7 @@ fn load_js(html: &str) -> Page {
 
 /// Renders the viewport.
 fn draw(page: &mut Page) -> Pixmap {
-    let size = page.viewport();
-    let mut pixmap = Pixmap::new(size.width as u32, size.height as u32).unwrap();
-    page.render(&mut pixmap);
-    pixmap
+    render_viewport(page)
 }
 
 /// `change` makes the frame outdated; a render makes it current again.

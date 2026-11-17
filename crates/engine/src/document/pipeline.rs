@@ -6,6 +6,14 @@
 //! outdated computes that element and its ancestors only
 //! ([`DocumentState::query_element_style`]). The runs are counted in
 //! [`DocumentState::flushes`], those that script queries force apart.
+//!
+//! After a change of the element states or of the DOM the styles are not
+//! dropped but restyled in part (`run_targeted`: ADR 0041 for states, ADR
+//! 0042 for DOM changes): after DOM changes the old map waits as
+//! `stale_styles` and the layout as `kept_layout` (`invalidate_styles_for_dom`,
+//! `set_layout_aside`, `restore_layout`), and the next style computation
+//! restyles only what the recorded changes affect, or falls back to a full
+//! restyle.
 
 use std::time::Instant;
 
@@ -20,6 +28,7 @@ use super::{DocumentState, ScrollTarget};
 use crate::forms::{ControlType, InputType, LayoutControls, display_offset};
 use crate::frames::paint::FrameSource;
 use crate::frames::{FrameId, Frames};
+use crate::page::RestylePaths;
 use crate::selection::Highlight;
 
 /// The most layout passes of one [`DocumentState::update_layout`]: web
@@ -62,6 +71,26 @@ fn container_sizes(
     sizes
 }
 
+/// The change that a targeted restyle follows, which decides its counters,
+/// its log text and the follow-up of the layout.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RestylePath {
+    /// A change of the element states (ADR 0041).
+    State,
+    /// DOM changes, and the state changes since the styles (ADR 0042).
+    Dom,
+}
+
+impl RestylePath {
+    /// The cause as the debug log words it.
+    fn cause(self) -> &'static str {
+        match self {
+            RestylePath::State => "a state change",
+            RestylePath::Dom => "DOM changes",
+        }
+    }
+}
+
 /// What [`DocumentState::render_in_strips`] draws.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Rendering {
@@ -84,7 +113,9 @@ impl DocumentState {
 
     /// Drops the styles and everything after them (the styles are dirty);
     /// the next computation is a full restyle (with the old map's
-    /// custom-property maps reused).
+    /// custom-property maps reused). The old map stays as the stale map and
+    /// `styles_full` forbids the targeted restyle; for the targeted case see
+    /// [`DocumentState::invalidate_styles_for_dom`].
     pub(crate) fn invalidate_styles(&mut self) {
         self.stash_styles();
         self.styles_full = true;
@@ -103,6 +134,21 @@ impl DocumentState {
             self.invalidate_layout();
         } else {
             self.set_layout_aside();
+        }
+    }
+
+    /// Invalidates what the DOM changes of one drain affect: everything
+    /// from the stylist on if a sheet changed, else the styles for a
+    /// targeted restyle if a change is in the document.
+    pub(crate) fn invalidate_for_batch(&mut self, stylist_dirty: bool, in_document: bool) {
+        if stylist_dirty {
+            self.invalidate_style();
+        } else if in_document {
+            self.invalidate_styles_for_dom();
+        } else if self.styles.is_some() {
+            // Changes outside the document only, with current styles: nothing
+            // for a restyle to know.
+            self.dom_changes.clear();
         }
     }
 
@@ -178,14 +224,9 @@ impl DocumentState {
         let Some(mut old) = self.styles.take() else {
             return;
         };
-        if let Some(changed) = self.targeted_restyle(&mut old) {
+        if let Some(changed) = self.run_targeted(&mut old, RestylePath::State) {
             self.styles = Some(old);
-            if self.frame && self.update_canvas_text() {
-                self.compute_styles();
-                self.invalidate_layout();
-            } else if changed {
-                self.invalidate_layout();
-            }
+            self.after_targeted(changed, RestylePath::State);
             return;
         }
         self.compute_styles_from(Some(&old));
@@ -198,35 +239,60 @@ impl DocumentState {
         }
     }
 
-    /// The restyle of ADR 0041 on `map`, the styles for
-    /// [`DocumentState::style_states`]: `Some(changed)` if it brought `map`
-    /// up to date for the current states, `None` if the whole document must
-    /// be restyled (then `map` is unchanged).
-    fn targeted_restyle(&mut self, map: &mut swb_style::StyleMap) -> Option<bool> {
+    /// The counts of the restyle paths of `path`.
+    fn restyle_counts(&mut self, path: RestylePath) -> &mut RestylePaths {
+        match path {
+            RestylePath::State => &mut self.flushes.state_restyles,
+            RestylePath::Dom => &mut self.flushes.dom_restyles,
+        }
+    }
+
+    /// The targeted restyle of `path` on `map`, the styles for
+    /// [`DocumentState::style_states`] (before the recorded DOM changes for
+    /// [`RestylePath::Dom`], ADR 0042; ADR 0041 for [`RestylePath::State`]).
+    /// `Some(drop_layout)` if it brought `map` up to date for the current
+    /// states and DOM (`drop_layout` if a style changed or, after DOM
+    /// changes, a change can change the layout), `None` if the whole
+    /// document must be restyled (then `map` is unchanged).
+    fn run_targeted(&mut self, map: &mut swb_style::StyleMap, path: RestylePath) -> Option<bool> {
+        if path == RestylePath::Dom {
+            self.refresh_forms();
+        }
         let current = self.stylist.is_some() && !self.adopted.out_of_date(&self.dom);
         if !current || self.images.sources_outdated {
-            self.flushes
-                .state_restyles
+            self.restyle_counts(path)
                 .fallback(swb_style::FullReason::OtherStates);
+            if path == RestylePath::Dom {
+                log::debug!("style: full restyle after DOM changes (stylist)");
+            }
             return None;
         }
         let env = self.media_environment();
         let stylist = self.stylist.as_ref()?;
         let started = Instant::now();
-        let outcome = swb_style::restyle_states(
-            &self.dom,
+        let inputs = swb_style::RestyleInputs {
+            doc: &self.dom,
             stylist,
-            &env,
-            self.base_url.value(),
-            &self.container_sizes,
-            &self.style_states,
-            &self.states,
-            map,
-        );
+            env: &env,
+            base_url: self.base_url.value(),
+            sizes: &self.container_sizes,
+        };
+        let outcome = match path {
+            RestylePath::State => {
+                swb_style::restyle_states(&inputs, &self.style_states, &self.states, map)
+            }
+            RestylePath::Dom => swb_style::restyle_targeted(
+                &inputs,
+                &self.style_states,
+                &self.states,
+                &self.dom_changes,
+                map,
+            ),
+        };
         let (changed, restyled, image_urls) = match outcome {
             swb_style::Restyle::Full(reason) => {
-                log::debug!("style: full restyle after a state change ({reason:?})");
-                self.flushes.state_restyles.fallback(reason);
+                log::debug!("style: full restyle after {} ({reason:?})", path.cause());
+                self.restyle_counts(path).fallback(reason);
                 return None;
             }
             swb_style::Restyle::Done {
@@ -237,7 +303,7 @@ impl DocumentState {
         };
         self.timings.style = started.elapsed();
         self.flushes.style(self.timings.style, self.in_query);
-        let counts = &mut self.flushes.state_restyles;
+        let counts = self.restyle_counts(path);
         if restyled == 0 {
             counts.nothing = counts.nothing.saturating_add(1);
         } else {
@@ -245,10 +311,17 @@ impl DocumentState {
         }
         counts.restyled_elements = counts.restyled_elements.saturating_add(restyled as u64);
         log::debug!("style: {:?}", self.timings.style);
-        log::debug!("targeted restyle after a state change: {restyled} elements restyled");
+        log::debug!(
+            "targeted restyle after {}: {restyled} elements restyled",
+            path.cause()
+        );
+        let layout_free = self.dom_changes.layout_free();
         self.style_states = self.states.clone();
         self.styles_stale = false;
         self.clear_element_styles();
+        if path == RestylePath::Dom {
+            self.dom_changes.clear();
+        }
         #[cfg(debug_assertions)]
         self.check_targeted_restyle(map);
         for url in image_urls {
@@ -256,7 +329,22 @@ impl DocumentState {
                 self.start_image(url);
             }
         }
-        Some(changed)
+        Some(changed || (path == RestylePath::Dom && !layout_free))
+    }
+
+    /// After a targeted restyle of `path` that left its map in `styles`:
+    /// the canvas text color may have changed (a full restyle follows),
+    /// else the layout is dropped if `drop_layout` and, after DOM changes,
+    /// put back otherwise.
+    fn after_targeted(&mut self, drop_layout: bool, path: RestylePath) {
+        if self.frame && self.update_canvas_text() {
+            self.compute_styles();
+            self.invalidate_layout();
+        } else if drop_layout {
+            self.invalidate_layout();
+        } else if path == RestylePath::Dom {
+            self.restore_layout();
+        }
     }
 
     /// The engine's check mode (debug builds, tests only): after a targeted
@@ -743,87 +831,13 @@ impl DocumentState {
             self.compute_styles_from(Some(&map));
             return;
         }
-        match self.targeted_dom_restyle(&mut map) {
+        match self.run_targeted(&mut map, RestylePath::Dom) {
             Some(drop_layout) => {
                 self.styles = Some(map);
-                if self.frame && self.update_canvas_text() {
-                    self.compute_styles_from(None);
-                    self.invalidate_layout();
-                } else if drop_layout {
-                    self.invalidate_layout();
-                } else {
-                    self.restore_layout();
-                }
+                self.after_targeted(drop_layout, RestylePath::Dom);
             }
             None => self.compute_styles_from(Some(&map)),
         }
-    }
-
-    /// The restyle of ADR 0042 on `map`, the styles before the recorded DOM
-    /// changes and for [`DocumentState::style_states`]: `Some(drop_layout)`
-    /// if it brought `map` up to date (`drop_layout` if a style changed or a
-    /// change can change the layout), `None` if the whole document must be
-    /// restyled (then `map` is unchanged).
-    fn targeted_dom_restyle(&mut self, map: &mut swb_style::StyleMap) -> Option<bool> {
-        self.refresh_forms();
-        let current = self.stylist.is_some() && !self.adopted.out_of_date(&self.dom);
-        if !current || self.images.sources_outdated {
-            self.flushes
-                .dom_restyles
-                .fallback(swb_style::FullReason::OtherStates);
-            log::debug!("style: full restyle after DOM changes (stylist)");
-            return None;
-        }
-        let env = self.media_environment();
-        let stylist = self.stylist.as_ref()?;
-        let started = Instant::now();
-        let outcome = swb_style::restyle_targeted(
-            &self.dom,
-            stylist,
-            &env,
-            self.base_url.value(),
-            &self.container_sizes,
-            &self.style_states,
-            &self.states,
-            &self.dom_changes,
-            map,
-        );
-        let (changed, restyled, image_urls) = match outcome {
-            swb_style::Restyle::Full(reason) => {
-                log::debug!("style: full restyle after DOM changes ({reason:?})");
-                self.flushes.dom_restyles.fallback(reason);
-                return None;
-            }
-            swb_style::Restyle::Done {
-                changed,
-                restyled,
-                image_urls,
-            } => (changed, restyled, image_urls),
-        };
-        self.timings.style = started.elapsed();
-        self.flushes.style(self.timings.style, self.in_query);
-        let counts = &mut self.flushes.dom_restyles;
-        if restyled == 0 {
-            counts.nothing = counts.nothing.saturating_add(1);
-        } else {
-            counts.targeted = counts.targeted.saturating_add(1);
-        }
-        counts.restyled_elements = counts.restyled_elements.saturating_add(restyled as u64);
-        log::debug!("style: {:?}", self.timings.style);
-        log::debug!("targeted restyle after DOM changes: {restyled} elements restyled");
-        let layout_free = self.dom_changes.layout_free();
-        self.style_states = self.states.clone();
-        self.styles_stale = false;
-        self.clear_element_styles();
-        self.dom_changes.clear();
-        #[cfg(debug_assertions)]
-        self.check_targeted_restyle(map);
-        for url in image_urls {
-            if let Ok(url) = Url::parse(&url) {
-                self.start_image(url);
-            }
-        }
-        Some(changed || !layout_free)
     }
 
     /// [`Self::compute_styles`] for a restyle: equal custom-property maps

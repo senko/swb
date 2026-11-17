@@ -14,6 +14,7 @@ use std::collections::{HashMap, HashSet};
 
 use swb_dom::{Change, Document, ElementData, LocalName, NodeId, local_name};
 
+use crate::cascade::targeted::FullReason;
 use crate::element::ElementStates;
 use crate::invalidation::{
     At, CHAIN_STATES, DOM_STATES, ElementKeys, InvalidationIndex, Key, KeySet, Planner,
@@ -31,15 +32,6 @@ const MAX_ROOTS: usize = 100_000;
 /// their keys: a full restyle (a script that removes a large subtree again
 /// and again).
 const MAX_WALKED: usize = 200_000;
-
-/// Why a set of changes needs a restyle of the whole document.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum DomFullReason {
-    /// Too many changes (ADR 0042 section 5, item 6).
-    TooLarge,
-    /// The document element or the `body` element was inserted or removed.
-    Structure,
-}
 
 /// The attributes of one element that changed.
 #[derive(Clone, Debug, Default)]
@@ -61,7 +53,7 @@ struct OldValue(Option<String>);
 /// section 3).
 #[derive(Clone, Debug)]
 pub struct DomChanges {
-    full: Option<DomFullReason>,
+    full: Option<FullReason>,
     attributes: HashMap<NodeId, ChangedAttributes>,
     /// The parents whose children changed (connected at the drain).
     parents: HashSet<NodeId>,
@@ -139,8 +131,9 @@ impl DomChanges {
             && self.top_layer.is_empty()
     }
 
-    /// The reason for a full restyle, if one is needed.
-    pub fn full_reason(&self) -> Option<DomFullReason> {
+    /// The reason for a full restyle, if one is needed: [`FullReason::TooLarge`]
+    /// or [`FullReason::Structure`].
+    pub(crate) fn full_reason(&self) -> Option<FullReason> {
         self.full
     }
 
@@ -156,7 +149,7 @@ impl DomChanges {
     }
 
     /// Notes that a full restyle is needed; the lists are dropped.
-    fn set_full(&mut self, reason: DomFullReason) {
+    fn set_full(&mut self, reason: FullReason) {
         *self = DomChanges {
             full: Some(reason),
             layout_free: false,
@@ -203,7 +196,7 @@ impl DomChanges {
             }
         }
         if self.entries > MAX_ENTRIES {
-            self.set_full(DomFullReason::TooLarge);
+            self.set_full(FullReason::TooLarge);
         }
     }
 
@@ -222,7 +215,7 @@ impl DomChanges {
             }
         }
         if self.roots.len() > MAX_ROOTS {
-            self.set_full(DomFullReason::TooLarge);
+            self.set_full(FullReason::TooLarge);
             return;
         }
         if !connected {
@@ -239,7 +232,7 @@ impl DomChanges {
             || (doc.document_element() == Some(parent)
                 && added.iter().chain(removed).any(|&n| structural(n)))
         {
-            self.set_full(DomFullReason::Structure);
+            self.set_full(FullReason::Structure);
             return;
         }
         self.parents.insert(parent);
@@ -263,7 +256,7 @@ impl DomChanges {
             }
         }
         if self.walked > MAX_WALKED {
-            self.set_full(DomFullReason::TooLarge);
+            self.set_full(FullReason::TooLarge);
         }
     }
 

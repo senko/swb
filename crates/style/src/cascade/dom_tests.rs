@@ -4,29 +4,15 @@
 //! change is checked against a full restyle ([`StyleMap::first_difference`]).
 
 use std::fmt::Write;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use swb_css::MediaEnvironment;
-use swb_dom::{Change, Document, parse_html};
+use swb_dom::{Document, parse_html};
 
-use super::targeted::{FullReason, Restyle, restyle_targeted};
+use super::targeted::{FullReason, Restyle, RestyleInputs, restyle_targeted};
+use super::test_util::*;
 use super::*;
 use crate::DomChanges;
-
-fn base() -> Url {
-    Url::parse("https://example.com/").expect("valid URL")
-}
-
-fn node(doc: &Document, id: &str) -> NodeId {
-    doc.element_by_id(id)
-        .unwrap_or_else(|| panic!("no element #{id}"))
-}
-
-fn stylist(doc: &Document, css: &str) -> Stylist {
-    let mut stylist = Stylist::new(doc.quirks_mode);
-    stylist.add_author_sheet(&swb_css::parse_stylesheet(css), &base());
-    stylist
-}
 
 /// Adds the changes of `doc`'s journal to `changes`, as one drain of the
 /// engine records them.
@@ -34,12 +20,7 @@ fn record_into(doc: &mut Document, changes: &mut DomChanges) {
     let journal = doc.take_journal();
     assert!(!journal.incomplete());
     for change in journal.iter() {
-        let target = match &change {
-            Change::Children { parent, .. } => *parent,
-            Change::Attribute { element, .. } | Change::TopLayer { element } => *element,
-            Change::Text { node, .. } => *node,
-        };
-        let connected = doc.shadow_including_root(target) == NodeId::DOCUMENT;
+        let connected = doc.shadow_including_root(change.target()) == NodeId::DOCUMENT;
         changes.record(doc, &change, connected);
     }
 }
@@ -86,17 +67,14 @@ fn dom_changes_in_drains(
         record_into(&mut doc, &mut changes);
     }
     let before = map.clone();
-    let result = restyle_targeted(
-        &doc,
-        &st,
-        &env,
-        &base(),
-        &sizes,
-        &states,
-        &states,
-        &changes,
-        &mut map,
-    );
+    let inputs = RestyleInputs {
+        doc: &doc,
+        stylist: &st,
+        env: &env,
+        base_url: &base(),
+        sizes: &sizes,
+    };
+    let result = restyle_targeted(&inputs, &states, &states, &changes, &mut map);
     let full = compute_styles_with_containers(&doc, &st, &env, &states, &base(), &sizes);
     match &result {
         Restyle::Done { .. } => {
@@ -108,14 +86,6 @@ fn dom_changes_in_drains(
         Restyle::Full(_) => assert!(map.same_result(&before), "a fallback keeps the map"),
     }
     (result, map, doc)
-}
-
-/// The number of restyled elements of a targeted result.
-fn restyled(result: &Restyle) -> usize {
-    match result {
-        Restyle::Done { restyled, .. } => *restyled,
-        Restyle::Full(reason) => panic!("a full restyle: {reason:?}"),
-    }
 }
 
 fn element(doc: &mut Document, name: &str, class: &str) -> NodeId {
@@ -425,14 +395,6 @@ fn large_change_sets_restyle_in_full() {
     assert_eq!(result, Restyle::Full(FullReason::TooLarge));
 }
 
-/// Runs `f` and fails if it took longer than `limit`.
-fn within(limit: Duration, what: &str, f: impl FnOnce()) {
-    let started = Instant::now();
-    f();
-    let took = started.elapsed();
-    assert!(took < limit, "{what}: {took:?}");
-}
-
 /// Applies `edit` to `doc` `rounds` times, with a targeted restyle after
 /// each; the last result must equal a full restyle.
 fn rounds(
@@ -451,17 +413,14 @@ fn rounds(
     for round in 0..rounds {
         edit(doc, round);
         let changes = record(doc);
-        let result = restyle_targeted(
+        let inputs = RestyleInputs {
             doc,
-            &st,
-            &env,
-            &base(),
-            &sizes,
-            &states,
-            &states,
-            &changes,
-            &mut map,
-        );
+            stylist: &st,
+            env: &env,
+            base_url: &base(),
+            sizes: &sizes,
+        };
+        let result = restyle_targeted(&inputs, &states, &states, &changes, &mut map);
         if let Restyle::Full(_) = result {
             map = compute_styles_with_containers(doc, &st, &env, &states, &base(), &sizes);
         }

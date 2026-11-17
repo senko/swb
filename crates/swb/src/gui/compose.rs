@@ -22,13 +22,13 @@
 use std::time::Instant;
 
 use anyhow::{Context, Result};
-use swb_engine::{Page, Pixmap, TextEdit};
+use swb_engine::{Page, Pixmap, Size, TextEdit};
 use swb_layout::{Point, Rect};
 use swb_paint::{DecodedImage, ImageRef, ImageSource, RasterParams, VectorCache};
 
 use super::toolbar::{TOOLBAR_HEIGHT, Toolbar, ToolbarState};
 
-/// Pixels of the page area, rows, in `Pixmap` data.
+/// Bytes per pixel in `Pixmap` data (RGBA, 8 bits per channel).
 const BYTES_PER_PIXEL: usize = 4;
 
 /// Extra pixels around the bubble that are copied from the page before the
@@ -47,12 +47,24 @@ impl ImageSource for NoImages {
     }
 }
 
-/// What the toolbar's pixels depend on.
+/// What the toolbar's pixels depend on: the one list of the toolbar's
+/// inputs, for the layer cache and for the frame key.
 #[derive(Clone, Debug, PartialEq)]
-struct ToolbarKey {
+pub(super) struct ToolbarKey {
     state: ToolbarState,
     address: TextEdit,
     focused: bool,
+}
+
+impl ToolbarKey {
+    /// The inputs of the toolbar for `page` and `toolbar`.
+    pub(super) fn of(page: &Page, toolbar: &Toolbar) -> Self {
+        ToolbarKey {
+            state: toolbar_state(page),
+            address: toolbar.address.clone(),
+            focused: toolbar.focused,
+        }
+    }
 }
 
 /// A rectangle of window pixels: columns `x0..x1`, rows `y0..y1`.
@@ -99,6 +111,14 @@ pub(super) struct Composer {
 /// The toolbar's height in device pixels.
 fn toolbar_rows(scale: f32) -> usize {
     (TOOLBAR_HEIGHT * scale).round() as usize
+}
+
+/// The size of a window of `window` CSS px at `scale`, in device pixels.
+pub(super) fn device_size(window: Size, scale: f32) -> (u32, u32) {
+    (
+        (window.width * scale).round() as u32,
+        (window.height * scale).round() as u32,
+    )
 }
 
 impl Composer {
@@ -183,11 +203,7 @@ impl Composer {
     /// Rasterizes the toolbar into `chrome` if its state changed (or the
     /// page row under its edge did). Returns true if it did.
     fn draw_toolbar(&mut self, page: &mut Page, toolbar: &Toolbar, page_drawn: bool) -> bool {
-        let key = ToolbarKey {
-            state: toolbar_state(page),
-            address: toolbar.address.clone(),
-            focused: toolbar.focused,
-        };
+        let key = ToolbarKey::of(page, toolbar);
         let edge_changed = page_drawn && self.edge > 0;
         if self.toolbar_key.as_ref() == Some(&key) && !edge_changed {
             return false;
@@ -369,7 +385,7 @@ pub(super) fn compose_window(
     scale: f32,
 ) -> Result<Pixmap> {
     let mut frame = Pixmap::new(width, height).context("cannot allocate frame")?;
-    let toolbar_px = (TOOLBAR_HEIGHT * scale).round() as u32;
+    let toolbar_px = toolbar_rows(scale) as u32;
     let content_h = height.saturating_sub(toolbar_px).max(1);
     let mut content = Pixmap::new(width, content_h).context("cannot allocate page")?;
     page.render(&mut content);
@@ -410,7 +426,7 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
 
-    use swb_engine::{PageConfig, Size, Url};
+    use swb_engine::{PageConfig, Url};
 
     use super::*;
 
@@ -451,13 +467,6 @@ mod tests {
         })
         .expect("the page thread runs");
         std::fs::remove_file(&path).ok();
-    }
-
-    fn device_size(window: Size, scale: f32) -> (u32, u32) {
-        (
-            (window.width * scale).round() as u32,
-            (window.height * scale).round() as u32,
-        )
     }
 
     /// Composes a frame and checks that it equals the simple path's.

@@ -91,6 +91,20 @@ pub enum Change<'a> {
     },
 }
 
+impl Change<'_> {
+    /// The node that the change is about: the parent of a children change,
+    /// the element of an attribute or top-layer change, the node of a text
+    /// change.
+    #[must_use]
+    pub fn target(&self) -> NodeId {
+        match self {
+            Change::Children { parent, .. } => *parent,
+            Change::Attribute { element, .. } | Change::TopLayer { element } => *element,
+            Change::Text { node, .. } => *node,
+        }
+    }
+}
+
 /// A receiver of each primitive change at the moment it happens.
 ///
 /// The document calls it after the change, with the document in its new

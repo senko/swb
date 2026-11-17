@@ -25,7 +25,7 @@ use super::Styler;
 use super::use_instances::is_svg_use;
 use crate::ComputedStyle;
 use crate::container::ContainerSizes;
-use crate::dom_changes::{DomChanges, DomFullReason, plan_dom};
+use crate::dom_changes::{DomChanges, plan_dom};
 use crate::element::{DomElement, ElementStates, StateSet};
 use crate::invalidation::{KeySet, Plan, Planner, TARGETED_STATES, flipped};
 use crate::style_map::{PseudoKind, PseudoStyles, StyleMap, image_urls_of};
@@ -58,7 +58,24 @@ pub enum FullReason {
     Structure,
 }
 
-/// The result of [`restyle_states`].
+/// The inputs of a restyle that stay the same between the old and the new
+/// styles: they must be those of the style map that is brought up to date
+/// (the container sizes may be those of a later layout whose log held).
+#[derive(Clone, Copy)]
+pub struct RestyleInputs<'a> {
+    /// The document.
+    pub doc: &'a Document,
+    /// The stylist.
+    pub stylist: &'a Stylist,
+    /// The media environment.
+    pub env: &'a MediaEnvironment,
+    /// The base URL of the author styles.
+    pub base_url: &'a Url,
+    /// The sizes of the query containers.
+    pub sizes: &'a ContainerSizes,
+}
+
+/// The result of [`restyle_states`] and [`restyle_targeted`].
 #[derive(Clone, Debug, PartialEq)]
 pub enum Restyle {
     /// The map is up to date for the new states.
@@ -80,28 +97,13 @@ pub enum Restyle {
 /// the container sizes) must be those of `map` (the container sizes may be
 /// those of a later layout whose log held). On [`Restyle::Full`], `map` is
 /// unchanged.
-#[allow(clippy::too_many_arguments)]
 pub fn restyle_states(
-    doc: &Document,
-    stylist: &Stylist,
-    env: &MediaEnvironment,
-    base_url: &Url,
-    sizes: &ContainerSizes,
+    inputs: &RestyleInputs<'_>,
     old: &ElementStates,
     new: &ElementStates,
     map: &mut StyleMap,
 ) -> Restyle {
-    restyle_targeted(
-        doc,
-        stylist,
-        env,
-        base_url,
-        sizes,
-        old,
-        new,
-        &DomChanges::default(),
-        map,
-    )
+    restyle_targeted(inputs, old, new, &DomChanges::default(), map)
 }
 
 /// Brings `map`, the styles of `doc` before the DOM changes `dom` and for
@@ -109,18 +111,20 @@ pub fn restyle_states(
 /// restyling only the elements that the changes can affect (ADR 0041, ADR
 /// 0042). The other inputs as for [`restyle_states`]. On [`Restyle::Full`],
 /// `map` is unchanged.
-#[allow(clippy::too_many_arguments)]
 pub fn restyle_targeted(
-    doc: &Document,
-    stylist: &Stylist,
-    env: &MediaEnvironment,
-    base_url: &Url,
-    sizes: &ContainerSizes,
+    inputs: &RestyleInputs<'_>,
     old: &ElementStates,
     new: &ElementStates,
     dom: &DomChanges,
     map: &mut StyleMap,
 ) -> Restyle {
+    let RestyleInputs {
+        doc,
+        stylist,
+        env,
+        base_url,
+        sizes,
+    } = *inputs;
     let unchanged = Restyle::Done {
         changed: false,
         restyled: 0,
@@ -132,10 +136,8 @@ pub fn restyle_targeted(
     if !same_sources || !(changed - TARGETED_STATES).is_empty() {
         return Restyle::Full(FullReason::OtherStates);
     }
-    match dom.full_reason() {
-        Some(DomFullReason::TooLarge) => return Restyle::Full(FullReason::TooLarge),
-        Some(DomFullReason::Structure) => return Restyle::Full(FullReason::Structure),
-        None => {}
+    if let Some(reason) = dom.full_reason() {
+        return Restyle::Full(reason);
     }
     if changed.is_empty() && dom.is_empty() {
         return unchanged;
@@ -146,12 +148,7 @@ pub fn restyle_targeted(
     if !map.container_log().holds(sizes) {
         return Restyle::Full(FullReason::Containers);
     }
-    let styled = if dom.is_empty() {
-        0
-    } else {
-        map.styled_count()
-    };
-    if !dom.is_empty() && dom.too_many_added(doc, styled) {
+    if !dom.is_empty() && dom.too_many_added(doc, map.styled_count()) {
         return Restyle::Full(FullReason::TooLarge);
     }
     let index = stylist.invalidation_index();

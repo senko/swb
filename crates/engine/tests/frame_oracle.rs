@@ -7,14 +7,12 @@
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
 
-use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use swb_engine::{Key, Modifiers, MouseButton, Page, Pixmap, Size, Url};
-use swb_net::ReplayFetcher;
+use swb_engine::{Key, Modifiers, MouseButton, Page, Size};
 
 mod common;
-use common::{new_page, on_page_thread};
+use common::{SHIFT, load_fixture, on_page_thread, pump_for, render_viewport};
 
 const VIEW: Size = Size::new(1280.0, 800.0);
 
@@ -29,10 +27,7 @@ struct Oracle {
 impl Oracle {
     fn step(&mut self, page: &mut Page, label: &str) {
         let outdated = page.frame_outdated();
-        let size = page.viewport();
-        let mut pixmap = Pixmap::new(size.width as u32, size.height as u32).unwrap();
-        page.render(&mut pixmap);
-        let data = pixmap.data().to_vec();
+        let data = render_viewport(page).data().to_vec();
         if outdated {
             self.frames += 1;
         } else {
@@ -47,20 +42,6 @@ impl Oracle {
         self.last = Some(data);
     }
 }
-
-fn pump_for(page: &mut Page, duration: Duration) {
-    let started = Instant::now();
-    while started.elapsed() < duration {
-        page.process_network();
-        page.pump();
-        std::thread::sleep(Duration::from_millis(3));
-    }
-}
-
-const SHIFT: Modifiers = Modifiers {
-    shift: true,
-    ..Modifiers::NONE
-};
 
 /// The scripted session: moves, wheel, drags, clicks, keys, resize, each
 /// followed by the event loop and an oracle step.
@@ -137,27 +118,9 @@ fn session(page: &mut Page, oracle: &mut Oracle) {
 }
 
 fn run_fixture(name: &str, javascript: bool) -> Option<(usize, usize)> {
-    let root = common::repo_root();
-    let dir = root
-        .join(if javascript {
-            "fixtures/js"
-        } else {
-            "fixtures/pages"
-        })
-        .join(name);
-    if !dir.join("fixture.json").exists() {
-        eprintln!("{name}: no fixture in {}", dir.display());
-        return None;
-    }
-    let meta: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(dir.join("fixture.json")).unwrap()).unwrap();
-    let url = Url::parse(meta["url"].as_str().unwrap()).unwrap();
-    let fetcher = Arc::new(ReplayFetcher::load(&dir).unwrap());
-    let mut page = new_page(fetcher, 4, VIEW);
-    page.set_javascript(javascript);
-    page.set_scroll_indicators(true);
-    page.navigate(url);
-    assert!(page.wait_until_loaded(Duration::from_secs(60)));
+    let mut page = load_fixture(name, javascript, VIEW, |page| {
+        page.set_scroll_indicators(true);
+    })?;
     let mut oracle = Oracle {
         last: None,
         frames: 0,

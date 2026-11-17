@@ -313,12 +313,7 @@ impl DocumentState {
         let mut dom_changes = std::mem::take(&mut self.dom_changes);
         for change in journal.iter() {
             if !batch.in_document || record {
-                let target = match &change {
-                    Change::Children { parent, .. } => *parent,
-                    Change::Attribute { element, .. } | Change::TopLayer { element } => *element,
-                    Change::Text { node, .. } => *node,
-                };
-                let in_document = connected.check(target);
+                let in_document = connected.check(change.target());
                 batch.in_document |= in_document;
                 if record {
                     dom_changes.record(&self.dom, &change, in_document);
@@ -582,15 +577,7 @@ impl DocumentState {
         for node in batch.loading_images {
             self.lazy_loading_changed(node);
         }
-        if stylist_dirty {
-            self.invalidate_style();
-        } else if batch.in_document {
-            self.invalidate_styles_for_dom();
-        } else if self.styles.is_some() {
-            // Changes outside the document only, with current styles: nothing
-            // for a restyle to know.
-            self.dom_changes.clear();
-        }
+        self.invalidate_for_batch(stylist_dirty, batch.in_document);
     }
 
     /// True if the sheets of `placed` are in tree order with their

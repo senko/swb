@@ -8,24 +8,10 @@ use std::time::{Duration, Instant};
 use swb_css::MediaEnvironment;
 use swb_dom::{Document, ShadowRootInit, ShadowRootMode, SlotAssignment, parse_html};
 
-use super::targeted::{FullReason, Restyle, restyle_states};
+use super::targeted::{FullReason, Restyle, RestyleInputs, restyle_states};
+use super::test_util::*;
 use super::*;
 use crate::cssom::sheet::StyleMemory;
-
-fn base() -> Url {
-    Url::parse("https://example.com/").expect("valid URL")
-}
-
-fn node(doc: &Document, id: &str) -> NodeId {
-    doc.element_by_id(id)
-        .unwrap_or_else(|| panic!("no element #{id}"))
-}
-
-fn stylist(doc: &Document, css: &str) -> Stylist {
-    let mut stylist = Stylist::new(doc.quirks_mode);
-    stylist.add_author_sheet(&swb_css::parse_stylesheet(css), &base());
-    stylist
-}
 
 fn hover(node: Option<NodeId>) -> ElementStates {
     ElementStates {
@@ -47,7 +33,14 @@ fn change_with(
     let env = MediaEnvironment::default();
     let mut map = compute_styles_with_containers(doc, stylist, &env, old, &base(), sizes);
     let before = map.clone();
-    let result = restyle_states(doc, stylist, &env, &base(), sizes, old, new, &mut map);
+    let inputs = RestyleInputs {
+        doc,
+        stylist,
+        env: &env,
+        base_url: &base(),
+        sizes,
+    };
+    let result = restyle_states(&inputs, old, new, &mut map);
     let full = compute_styles_with_containers(doc, stylist, &env, new, &base(), sizes);
     match &result {
         Restyle::Done { changed, .. } => {
@@ -63,14 +56,6 @@ fn change_with(
 
 fn change(doc: &Document, css: &str, old: &ElementStates, new: &ElementStates) -> Restyle {
     change_with(doc, &stylist(doc, css), &ContainerSizes::new(), old, new).0
-}
-
-/// The number of restyled elements of a targeted result.
-fn restyled(result: &Restyle) -> usize {
-    match result {
-        Restyle::Done { restyled, .. } => *restyled,
-        Restyle::Full(reason) => panic!("a full restyle: {reason:?}"),
-    }
 }
 
 /// Hovers `id` from nothing and back, checking both changes; returns the
@@ -299,32 +284,28 @@ fn container_sizes_that_the_log_does_not_hold() {
     let mut sizes = ContainerSizes::new();
     sizes.insert(node(&doc, "c"), 200.0, 100.0);
     let new = hover(Some(node(&doc, "y")));
-    let result = restyle_states(
-        &doc,
-        &st,
-        &env,
-        &base(),
-        &sizes,
-        &hover(None),
-        &new,
-        &mut map,
-    );
+    let inputs = RestyleInputs {
+        doc: &doc,
+        stylist: &st,
+        env: &env,
+        base_url: &base(),
+        sizes: &sizes,
+    };
+    let result = restyle_states(&inputs, &hover(None), &new, &mut map);
     assert_eq!(result, Restyle::Full(FullReason::Containers));
     // With sizes that the log holds, the same change is targeted.
     let mut map =
         compute_styles_with_containers(&doc, &st, &env, &hover(None), &base(), &old_sizes);
     let mut sizes = ContainerSizes::new();
     sizes.insert(node(&doc, "c"), 400.0, 100.0);
-    let result = restyle_states(
-        &doc,
-        &st,
-        &env,
-        &base(),
-        &sizes,
-        &hover(None),
-        &new,
-        &mut map,
-    );
+    let inputs = RestyleInputs {
+        doc: &doc,
+        stylist: &st,
+        env: &env,
+        base_url: &base(),
+        sizes: &sizes,
+    };
+    let result = restyle_states(&inputs, &hover(None), &new, &mut map);
     assert!(restyled(&result) > 0);
 }
 
@@ -461,14 +442,6 @@ fn hostile_document(depth: usize, siblings: usize) -> Document {
     parse_html(&html)
 }
 
-/// Runs `f` and fails if it took longer than `limit`.
-fn within(limit: Duration, what: &str, f: impl FnOnce()) {
-    let started = Instant::now();
-    f();
-    let took = started.elapsed();
-    assert!(took < limit, "{what}: {took:?}");
-}
-
 #[test]
 fn hostile_deep_tree() {
     let doc = hostile_document(5_000, 10);
@@ -479,9 +452,16 @@ fn hostile_deep_tree() {
     let leaf = hover(Some(node(&doc, "leaf")));
     let sizes = ContainerSizes::new();
     let mut map = compute_styles_with_containers(&doc, &st, &env, &hover(None), &base(), &sizes);
+    let inputs = RestyleInputs {
+        doc: &doc,
+        stylist: &st,
+        env: &env,
+        base_url: &base(),
+        sizes: &sizes,
+    };
     within(Duration::from_secs(20), "deep tree, in and out", || {
         for (a, b) in [(&hover(None), &leaf), (&leaf, &hover(None))] {
-            let result = restyle_states(&doc, &st, &env, &base(), &sizes, a, b, &mut map);
+            let result = restyle_states(&inputs, a, b, &mut map);
             assert!(matches!(result, Restyle::Done { .. }), "{result:?}");
         }
     });
@@ -524,16 +504,14 @@ fn hostile_nested_roots_with_different_keys() {
     let full = compute_styles_with_containers(&doc, &st, &env, &on, &base(), &sizes);
     let full_took = started.elapsed();
     let started = Instant::now();
-    let result = restyle_states(
-        &doc,
-        &st,
-        &env,
-        &base(),
-        &sizes,
-        &hover(None),
-        &on,
-        &mut map,
-    );
+    let inputs = RestyleInputs {
+        doc: &doc,
+        stylist: &st,
+        env: &env,
+        base_url: &base(),
+        sizes: &sizes,
+    };
+    let result = restyle_states(&inputs, &hover(None), &on, &mut map);
     let took = started.elapsed();
     assert!(matches!(result, Restyle::Done { .. }), "{result:?}");
     assert!(map.first_difference(&full).is_none());
@@ -565,9 +543,15 @@ fn hostile_long_sibling_list() {
             let started = Instant::now();
             let full = compute_styles_with_containers(&doc, &st, &env, &next, &base(), &sizes);
             let limit = started.elapsed() * 3 + Duration::from_millis(200);
+            let inputs = RestyleInputs {
+                doc: &doc,
+                stylist: &st,
+                env: &env,
+                base_url: &base(),
+                sizes: &sizes,
+            };
             within(limit, css, || {
-                let result =
-                    restyle_states(&doc, &st, &env, &base(), &sizes, &states, &next, &mut map);
+                let result = restyle_states(&inputs, &states, &next, &mut map);
                 assert!(matches!(result, Restyle::Done { .. }), "{result:?}");
             });
             assert!(map.same_result(&full));
@@ -591,10 +575,17 @@ fn hostile_many_rules() {
     let sizes = ContainerSizes::new();
     let mut map = compute_styles_with_containers(&doc, &st, &env, &hover(None), &base(), &sizes);
     let mut states = hover(None);
+    let inputs = RestyleInputs {
+        doc: &doc,
+        stylist: &st,
+        env: &env,
+        base_url: &base(),
+        sizes: &sizes,
+    };
     within(Duration::from_secs(20), "many rules", || {
         for id in ["leaf", "l10", "l150"] {
             let next = hover(Some(node(&doc, id)));
-            let result = restyle_states(&doc, &st, &env, &base(), &sizes, &states, &next, &mut map);
+            let result = restyle_states(&inputs, &states, &next, &mut map);
             assert!(
                 matches!(result, Restyle::Done { restyled: 0, .. }),
                 "{result:?}"

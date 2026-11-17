@@ -51,6 +51,10 @@
 //! `counters::resolve` replaces `counter()` and `counters()`
 //! in the `content` of pseudo-elements with their text and computes the
 //! ordinal values of list items.
+//!
+//! The `targeted` submodule brings a computed map up to date after a change
+//! of the element states or of the DOM, walking only the elements that the
+//! change can affect ([`targeted::restyle_targeted`], ADR 0041 and 0042).
 
 #[cfg(test)]
 mod container_tests;
@@ -66,6 +70,8 @@ mod small_features_tests;
 pub(crate) mod targeted;
 #[cfg(test)]
 mod targeted_tests;
+#[cfg(test)]
+mod test_util;
 #[cfg(test)]
 mod top_layer_tests;
 pub(crate) mod use_instances;

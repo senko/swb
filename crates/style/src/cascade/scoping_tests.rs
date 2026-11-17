@@ -7,18 +7,10 @@
 use swb_css::MediaEnvironment;
 use swb_dom::{Document, ShadowRootInit, ShadowRootMode, SlotAssignment, parse_html};
 
+use super::test_util::{base, node};
 use super::*;
 use crate::cssom::sheet::StyleMemory;
 use crate::values::*;
-
-fn base() -> Url {
-    Url::parse("https://example.com/").expect("valid URL")
-}
-
-fn node(doc: &Document, id: &str) -> NodeId {
-    doc.element_by_id(id)
-        .unwrap_or_else(|| panic!("no element #{id}"))
-}
 
 /// Attaches an open root to `host` with `markup` as its content and returns
 /// the root.

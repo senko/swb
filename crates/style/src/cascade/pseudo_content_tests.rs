@@ -6,23 +6,14 @@
 use swb_css::MediaEnvironment;
 use swb_dom::{Document, parse_html};
 
+use super::test_util::*;
 use super::*;
 use crate::Rgba;
 use crate::content::content_text;
 
-fn base() -> Url {
-    Url::parse("https://example.com/").expect("valid URL")
-}
-
-fn stylist_for(doc: &Document, css: &str) -> Stylist {
-    let mut stylist = Stylist::new(doc.quirks_mode);
-    stylist.add_author_sheet(&swb_css::parse_stylesheet(css), &base());
-    stylist
-}
-
 fn render(html: &str, css: &str) -> (Document, StyleMap) {
     let doc = parse_html(&format!("<!DOCTYPE html>{html}"));
-    let stylist = stylist_for(&doc, css);
+    let stylist = stylist(&doc, css);
     let map = compute_styles(
         &doc,
         &stylist,
@@ -31,11 +22,6 @@ fn render(html: &str, css: &str) -> (Document, StyleMap) {
         &base(),
     );
     (doc, map)
-}
-
-fn node(doc: &Document, id: &str) -> NodeId {
-    doc.element_by_id(id)
-        .unwrap_or_else(|| panic!("no element #{id}"))
 }
 
 /// The text of the `::before` of `#id`, or `None` if it has no box.
@@ -48,7 +34,7 @@ fn before_text(doc: &Document, map: &StyleMap, id: &str) -> Option<String> {
 fn flags(css: &str) -> Vec<bool> {
     let doc = parse_html("<!DOCTYPE html>");
     let user_agent_rules = Stylist::new(doc.quirks_mode).len();
-    let stylist = stylist_for(&doc, css);
+    let stylist = stylist(&doc, css);
     (user_agent_rules..stylist.len())
         .map(|i| {
             stylist
@@ -184,7 +170,7 @@ fn get_computed_style_of_a_pseudo_element_without_content_is_unchanged() {
     // `getComputedStyle(el, '::before')` runs the cascade also without
     // `content` and for a pseudo-element without a box.
     let doc = parse_html("<!DOCTYPE html><p id=a>a</p><p id=b>b</p><p id=c>c</p>");
-    let stylist = stylist_for(
+    let stylist = stylist(
         &doc,
         "#a::before { color: red; display: block } #b::before { content: 'x'; color: blue }",
     );

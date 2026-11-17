@@ -2,7 +2,7 @@
 //! (ADR 0041, ADR 0042).
 //!
 //! [`InvalidationIndex`] holds the dependencies of the stylist's selectors
-//! ([`swb_css::Selector::dependencies`]): per state flag, class name, ID,
+//! ([`swb_css::Selector::for_each_dependency`]): per state flag, class name, ID,
 //! attribute name, `:empty`, the structural pseudo-classes and the presence
 //! of compounds, indexed as the rule buckets index rules (by the key that
 //! the element where the change happened must have). [`Planner`] turns the

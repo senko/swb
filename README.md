@@ -25,7 +25,9 @@ Early development. JavaScript is off by default.
   JavaScript off).
 - Interaction: links, scrolling, back/forward, the address bar, hover
   effects, keyboard focus (Tab), text selection with copy, forms (GET and
-  POST), cookies, and `details` menus.
+  POST), cookies, and `details` menus. A hover change or a click restyles
+  only the elements that it can affect, and the window draws a frame only
+  when its pixels can change.
 - JavaScript (turn it on with the toolbar's JS button, Ctrl+Shift+J or
   `--js`): a JavaScript engine of its own (`crates/js*`; 41,842 tests of
   its test262 subset pass), the DOM and many web APIs (events, scripts in

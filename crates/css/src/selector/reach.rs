@@ -21,7 +21,7 @@ use super::{BucketKey, Combinator, Component, ElementState, PseudoClass, Selecto
 
 bitflags! {
     /// Where the elements are whose match can change when something
-    /// changes on an element E. A [`Dependency`] has exactly one flag.
+    /// changes on an element E. A dependency has exactly one flag.
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub struct StateReach: u16 {
         /// E itself (and its pseudo-elements).
@@ -75,32 +75,36 @@ pub enum DependencyKey<'a> {
 
 /// The `:has()` anchors of a dependency: the elements found from E by
 /// `kind` (one of the `HAS_*` flags) that have one of `keys` (any element
-/// if empty) are the starting points of the dependency's reach.
+/// if empty) are the starting points of the dependency's reach. For the
+/// tests only: production code reads [`DependencyView`].
+#[cfg(test)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Anchor<'a> {
+struct Anchor<'a> {
     /// One `HAS_*` flag.
-    pub kind: StateReach,
+    kind: StateReach,
     /// The keys of the compound that holds `:has()`.
-    pub keys: Vec<BucketKey<'a>>,
+    keys: Vec<BucketKey<'a>>,
 }
 
 /// One dependency of a selector: a change of `key` on an element E that has
 /// one of `element_keys` (any element if empty) can change the match of
 /// the elements at `reach` from E (or, with an anchor, from each anchor)
-/// that have `subject_key`.
+/// that have `subject_key`. For the tests only: production code reads
+/// [`DependencyView`].
+#[cfg(test)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Dependency<'a> {
+struct Dependency<'a> {
     /// What changed.
-    pub key: DependencyKey<'a>,
+    key: DependencyKey<'a>,
     /// One flag: a position flag or [`StateReach::EVERYTHING`].
-    pub reach: StateReach,
+    reach: StateReach,
     /// The `:has()` anchors between E and the reach, if any.
-    pub anchor: Option<Anchor<'a>>,
+    anchor: Option<Anchor<'a>>,
     /// E has one of these keys; empty means any element.
-    pub element_keys: Vec<BucketKey<'a>>,
+    element_keys: Vec<BucketKey<'a>>,
     /// The key of the selector's subject ([`BucketKey::Universal`] for
     /// none).
-    pub subject_key: BucketKey<'a>,
+    subject_key: BucketKey<'a>,
 }
 
 /// A dependency as [`Selector::for_each_dependency`] lends it: the keys
@@ -140,8 +144,10 @@ const POSITIONS: StateReach = StateReach::SELF
 
 impl Selector {
     /// All dependencies of the selector (ADR 0042 section 1), one per
-    /// dependency, reach, anchor and keys, without duplicates.
-    pub fn dependencies(&self) -> Vec<Dependency<'_>> {
+    /// dependency, reach, anchor and keys, without duplicates. For the
+    /// tests.
+    #[cfg(test)]
+    fn dependencies(&self) -> Vec<Dependency<'_>> {
         let mut out: Vec<Dependency<'_>> = Vec::new();
         let subject_key = self.bucket_key();
         self.for_each_dependency(|d| {

@@ -6,17 +6,9 @@
 use swb_css::MediaEnvironment;
 use swb_dom::{Document, parse_html};
 
+use super::test_util::*;
 use super::*;
 use crate::values::{ContentVisibility, FieldSizing, LengthPercentage, Rgba};
-
-fn node(doc: &Document, id: &str) -> NodeId {
-    doc.element_by_id(id)
-        .unwrap_or_else(|| panic!("no element #{id}"))
-}
-
-fn base() -> Url {
-    Url::parse("https://example.com/").expect("valid URL")
-}
 
 fn render(html: &str, css: &str) -> (Document, StyleMap) {
     let doc = parse_html(&format!("<!DOCTYPE html>{html}"));

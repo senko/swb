@@ -75,7 +75,7 @@ position would use `getCoalescedEvents()`, which swb does not have
 ### 2. A frame only when the page or the toolbar changed
 
 The page answers one question: would a new frame of the page differ from
-the last one that it rendered? `Page::frame_outdated()` (name open)
+the last one that it rendered? `Page::frame_outdated()`
 compares the inputs of the last render with the current ones, without
 running style or layout:
 
@@ -217,7 +217,7 @@ Sources of a pixel change, and how each one shows:
 
 | Source | How it shows |
 |---|---|
-| DOM changes by scripts or the parser, attributes, text, `details` `open`, popovers, dialogs and the top layer | the DOM generation and journal (not drained), then styles dropped, so no list |
+| DOM changes by scripts or the parser, attributes, text, `details` `open`, popovers, dialogs and the top layer | the DOM generation and journal (not drained), then the styles move to `stale_styles` and, when only style-only attributes changed, the layout to `kept_layout` (since feature 6, [ADR 0042](0042-style-invalidation-for-dom-changes.md) section 6); `paint_pending` reads `styles.is_none()` for that, so there is no list until the restyle |
 | Style sheets (a `style` or `link` element, CSSOM rules, adopted sheets, `media`), arrival of a sheet | stylist and styles dropped; a sheet that arrives makes the styles buildable (`paint_pending`) |
 | Element states: hover, active, focus, focus-visible, the focus ring | `restyle` drops the layout when a style differs; a script's focus sets `styles_stale`; a focus that moves between form controls drops the layout (the caret) |
 | Selection of the page (user, script) | the selection generation against the one the list shows; the list is dropped when the visible range differs |

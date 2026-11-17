@@ -174,7 +174,7 @@ Rules:
   target elements. A change restyles only if a selector depends on that
   state; the layout stays if no style changed (ADR 0009). A change of
   hover, active, focus, focus-visible or focus-within restyles only the
-  elements that it can affect (ADR 0041): `swb_css::Selector::dependencies`
+  elements that it can affect (ADR 0041): `swb_css::Selector::for_each_dependency`
   analyses each selector, `style/src/invalidation.rs` indexes the
   dependencies in the `Stylist` and marks the elements, and
   `style/src/cascade/targeted.rs` (`restyle_targeted`) restyles them with a

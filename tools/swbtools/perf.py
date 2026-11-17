@@ -115,8 +115,10 @@ RESTYLE_PATHS = [
     "full_root_font_size",
     "full_containers",
     "full_counters",
+    "full_too_large",
+    "full_structure",
 ]
-"""The keys of `interaction.hover.state_restyles` (ADR 0041)."""
+"""The keys of `interaction.hover.state_restyles` (ADR 0041 and 0042)."""
 
 
 def restyle_table(results: dict[str, dict]) -> str | None:
@@ -133,7 +135,8 @@ def restyle_table(results: dict[str, dict]) -> str | None:
     header = ["Fixture", *(k.replace("_", " ") for k in RESTYLE_PATHS)]
     lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
     for name, paths_ in rows.items():
-        lines.append("| " + " | ".join([name, *(str(paths_[k]) for k in RESTYLE_PATHS)]) + " |")
+        counts = (str(paths_.get(k, 0)) for k in RESTYLE_PATHS)
+        lines.append("| " + " | ".join([name, *counts]) + " |")
     return "\n".join(lines)
 
 

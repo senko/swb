@@ -7,27 +7,13 @@
 use swb_css::MediaEnvironment;
 use swb_dom::{Document, parse_html};
 
+use super::test_util::*;
 use super::*;
 use crate::container::ContainerSizes;
 use crate::values::Rgba;
 
 const RED: Rgba = Rgba::rgb(255, 0, 0);
 const GREEN: Rgba = Rgba::rgb(0, 128, 0);
-
-fn node(doc: &Document, id: &str) -> NodeId {
-    doc.element_by_id(id)
-        .unwrap_or_else(|| panic!("no element #{id}"))
-}
-
-fn base() -> Url {
-    Url::parse("https://example.com/").expect("valid URL")
-}
-
-fn stylist(doc: &Document, css: &str) -> Stylist {
-    let mut stylist = Stylist::new(doc.quirks_mode);
-    stylist.add_author_sheet(&swb_css::parse_stylesheet(css), &base());
-    stylist
-}
 
 /// Styles `html` with `css`, the containers `sizes` (id, width, height)
 /// standing for the last layout.
