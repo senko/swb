@@ -935,11 +935,15 @@ the pointer already is give no X event and are skipped (counted); moves
 outside the window are clamped into it (counted).
 
 Report (a Markdown table, or `--json`): per kind of input, the events, the
-time from the input to the end of its batch and to the first frame after
-that batch (median, p90, max in ms), and the events that no frame follows
-within 2 s of their batch (not in the "to frame" numbers; an input that
-changes nothing draws nothing, and its "to frame" is the time to the next
-frame that other input caused); the frames per second during the trace
+time from the input to the end of its batch (all events) and to the first
+frame after that batch (median, p90, max in ms; only the events whose batch
+requested a frame, the field `frame=1` of the batch line, without a
+cut-off), the events whose batch requested no frame ("no frame needed":
+an input that changes nothing that a frame shows draws nothing, so it has
+no "to frame"), and the events whose batch requested a frame that was not
+presented afterwards ("no frame"). A log without the `frame` field (from
+before M11 feature 7a) counts every event for "to frame" and cuts off at
+2 s after the batch, as before. The frames per second during the trace
 and the render, composition and present times of the frames; the CPU of
 the swb process during the trace and during the idle period after the
 input drained (from `/proc/PID/stat`, all threads, as a share of one core);

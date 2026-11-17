@@ -5483,6 +5483,20 @@ Features, in this order. Each ends with a review and a commit.
    JS-off snapshot identical, `compare --all --js` unchanged.
 7. Exit measurement and the end-of-milestone maintenance.
 
+   Exit measured (2026-11-17, performance.md "M11 exit (feature 7)"):
+   first with the old "to frame" rule, which gave moves and wheel notches
+   that request no frame the time to the next input (the owner's pauses:
+   GitHub move p90 674 ms, Ars Technica 895 ms). The frame log's batch
+   line now says whether the batch requested a frame (`frame=1`), and
+   `gui-latency` counts "to frame" only for those events ("no frame
+   needed" for the rest). Results: GitHub owner trace move p90 35 to 36
+   ms (target 100), wheel p90 15 to 19 ms (50), press at most 36 ms (150);
+   Ars Technica 1.5 to 1.8 % CPU without input (5 %), move p90 49, 50 and
+   52 ms (50; at the target, the rest is the raster of the whole page);
+   hover change with render GitHub 17.6 / 16.6 ms (JS off / on; 20), Ars
+   Technica 14.6 / 11.2 ms (15), Wikipedia 2.0 / 2.6 ms (8). `compare
+   --all --js` scores those of M10; hostile set unchanged.
+
 Not in M11 (backlog): incremental layout, a raster cache for scrolling
 (tiles), image decoding on other threads, CSS transitions and animations.
 
@@ -5518,13 +5532,11 @@ Not in M11 (backlog): incremental layout, a raster cache for scrolling
   compositor (no GUI runs on the owner's desktop).
 - `frame_oracle` (feature 2): its JavaScript run needs `fixtures/js`,
   which is not committed; without it only the JS-off pages are tested.
-- `swbtools gui-latency` (feature 2): "to frame" of a move that changes no
-  pixel is the time to the next frame that other input causes; a column
-  of the moves that changed the hover state would measure the moves
-  themselves.
 - GUI composition (feature 3): a frame that changes a small part of the
   page still rasterizes the whole page; damage rectangles (ADR 0040,
-  "Alternatives") are the next step for the page raster time. The
+  "Alternatives") are the next step for the page raster time (at the M11
+  exit, the Ars Technica move p90 of 49 to 52 ms is mostly this raster,
+  24 to 29 ms per frame). The
   conversion into the window buffer (0.5 ms at 1280 x 900, 3.3 ms at 5120
   x 1440) could skip unchanged rows with softbuffer's buffer age, if a
   profile shows that it matters.
@@ -5594,10 +5606,12 @@ Not in M11 (backlog): incremental layout, a raster cache for scrolling
   27,793 rules after each stylist build (three during GitHub's load); a
   cache of each selector's dependencies with the parsed rule would leave
   only the bucketing.
-- `swbtools gui-latency` (feature 6): "no frame" counts releases whose
-  click already drew at the press; GitHub's header menus open on hover, so
-  a click trace on them depends on timing (`github-clicks` does not use
-  them).
+- `swbtools gui-latency` (feature 6): GitHub's header menus open on
+  hover, so a click trace on them depends on timing (`github-clicks` does
+  not use them).
+- `swbtools gui-latency` (feature 7): the `--json` output has summaries
+  per kind only; the times of each event would make the analysis of the
+  slow events a tool run (feature 7 used a throw-away wrapper).
 - Style (review of feature 4): `Stylist::registry()` builds a new
   `Arc<Registry>` on every pass when an `@property` rule sits inside
   `@media`, and the equality of custom-property maps compares registries

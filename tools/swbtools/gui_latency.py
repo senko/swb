@@ -548,8 +548,8 @@ def markdown(report: dict) -> str:
     if report["events"]:
         lines += [
             "| Input | Events | to batch end median / p90 / max (ms) | "
-            "to frame median / p90 / max (ms) | no frame |",
-            "|---|---|---|---|---|",
+            "to frame median / p90 / max (ms) | no frame | no frame needed |",
+            "|---|---|---|---|---|---|",
         ]
     for kind, e in report["events"].items():
         batch, frame = e["to_batch_end_ms"], e["to_frame_ms"]
@@ -557,7 +557,7 @@ def markdown(report: dict) -> str:
             f"| {kind} | {e['injected']} | "
             f"{_cell(batch['median'])} / {_cell(batch['p90'])} / {_cell(batch['max'])} | "
             f"{_cell(frame['median'])} / {_cell(frame['p90'])} / {_cell(frame['max'])} | "
-            f"{e['no_frame']} |"
+            f"{e['no_frame']} | {e['no_frame_needed']} |"
         )
     cpu, frames, pipeline = report["cpu"], report["frames"], report["pipeline"]
     during, after = pipeline["trace"], pipeline["after_trace"]

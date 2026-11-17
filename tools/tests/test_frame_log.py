@@ -8,7 +8,7 @@ from swbtools.traces import Trace
 
 BATCH_LINE = (
     "[2026-11-15T10:00:00Z DEBUG swb::gui::framelog] batch start=12.500000 end=12.562500 "
-    "moves=3 wheels=1 presses=0 releases=2 keys=4"
+    "moves=3 wheels=1 presses=0 releases=2 keys=4 frame=1"
 )
 FRAME_LINE = (
     "[2026-11-15T10:00:00Z DEBUG swb::gui::framelog] frame at=100.250000 render=0.010000 "
@@ -17,7 +17,14 @@ FRAME_LINE = (
 
 
 def test_the_lines_of_the_gui_parse():
-    assert frame_log.parse_line(BATCH_LINE) == Batch(12.5, 12.5625, 3, 1, 0, 2, 4)
+    assert frame_log.parse_line(BATCH_LINE) == Batch(12.5, 12.5625, 3, 1, 0, 2, 4, True)
+    assert frame_log.parse_line(BATCH_LINE.replace("frame=1", "frame=0")) == Batch(
+        12.5, 12.5625, 3, 1, 0, 2, 4, False
+    )
+    # A log from before the field.
+    assert frame_log.parse_line(BATCH_LINE.removesuffix(" frame=1")) == Batch(
+        12.5, 12.5625, 3, 1, 0, 2, 4, None
+    )
     assert frame_log.parse_line(FRAME_LINE) == Frame(100.25, 0.01, 0.003, 0.0015)
     assert frame_log.parse_line("[x DEBUG swb_engine::document::pipeline] style: 5ms") is None
     assert frame_log.parse_line("batch start=1 end=2") is None
@@ -141,6 +148,26 @@ def test_a_frame_more_than_two_seconds_later_is_no_frame():
     assert result["to_frame_ms"]["n"] == 0
 
 
+def test_events_of_a_batch_without_a_frame_request_need_no_frame():
+    batches = [
+        Batch(0.0, 0.5, moves=1, frame=True),
+        Batch(1.0, 1.5, moves=1, frame=False),
+        Batch(2.0, 2.5, moves=1, frame=True),
+        Batch(3.0, 3.5, moves=1, frame=True),
+    ]
+    # The frame of the third batch comes 5 s after it: no cut-off with the field.
+    frames = [Frame(0.4, 0, 0, 0), Frame(7.5, 0, 0, 0)]
+    result = frame_log.event_latencies([-0.1, 0.9, 1.9, 2.9], batches, frames, "move")
+    assert result["no_frame_needed"] == 1
+    assert result["no_frame"] == 0
+    assert result["to_batch_end_ms"]["n"] == 4
+    assert result["to_frame_ms"]["n"] == 3
+    assert result["to_frame_ms"]["max"] == pytest.approx(5600.0)
+    # A requested frame that never comes is no frame.
+    result = frame_log.event_latencies([-0.1, 0.9], batches[:2], [], "move")
+    assert (result["no_frame"], result["no_frame_needed"]) == (1, 1)
+
+
 def test_the_report_and_its_tables():
     options = gui_latency.Options(
         trace=Trace("t", "", None, 2.0, ()), javascript=True, label="js/x"
@@ -169,4 +196,5 @@ def test_the_report_and_its_tables():
     text = gui_latency.markdown(report)
     assert text.startswith("js/x: trace `t`")
     assert "| move | 2 |" in text
+    assert "no frame needed" in text
     assert "Count mismatch (wheel)" in text

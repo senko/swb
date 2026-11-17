@@ -134,7 +134,7 @@ steps, median, p90, style and layout runs).
 standard error, with times in seconds of `CLOCK_MONOTONIC` (six decimals):
 
 ```
-batch start=12.500000 end=12.562500 moves=3 wheels=1 presses=0 releases=2 keys=4
+batch start=12.500000 end=12.562500 moves=3 wheels=1 presses=0 releases=2 keys=4 frame=1
 frame at=100.250000 render=0.010000 compose=0.003000 present=0.001500
 ```
 
@@ -143,7 +143,10 @@ frame at=100.250000 render=0.010000 compose=0.003000 present=0.001500
   the page's tasks that are due run, inside the batch). The counts are the
   input events that the window delivered in the batch (`moves`: pointer
   moves; `wheels`: wheel events; `presses` and `releases`: mouse buttons;
-  `keys`: key events). A batch without input prints no line.
+  `keys`: key events). `frame` is 1 if the batch requested a redraw (the
+  frame decision at the end of `about_to_wait`, ADR 0040 section 2), else
+  0: the batch changed nothing that a frame shows (M11 feature 7). A batch
+  without input prints no line.
 - `frame`: one per presented frame. `at` is the time after `present`; the
   other three are durations: from the start of the redraw to the end of
   the page render (the surface resize and the allocation of the pixmaps
@@ -878,6 +881,60 @@ s (0.1 s), `dom-append-with-layout-1000` 2.4 s (2.1 s). The last and the
 deep `:has()` case restyle nearly every element at each flush; there the
 targeted pass costs up to about 1.3 to 1.6 times a full one (backlog). The
 whole hostile set: 524 cases ok, 1 known failure (as before).
+
+## M11 exit (feature 7)
+
+Release build of 1d18ee9 with the frame log change of feature 7, GUI at
+1280 x 900 on Xvfb, JavaScript on, the fixtures; baseline = feature 1.
+
+**The measurement.** Since feature 2 the GUI draws only when something
+drawn changed. A move that changes no hover state, or a wheel notch at the
+end of the page, requests no frame, and `gui-latency` gave it the time to
+the next frame that later input caused: in the owner's traces, the pauses
+of the input (2 to 5 s on GitHub). With that rule the GitHub move p90 was
+674 ms and the Ars Technica move p90 895 ms (worse than feature 1, whose
+Ars Technica frames came 49 times a second without input). The batch line
+of the frame log now says whether the batch requested a frame (`frame=1`),
+and "to frame" counts only those events; the others are "no frame needed"
+(GitHub owner trace: about 970 of 1,065 moves, 17 of 89 wheel events, 1
+of 6 presses; Ars Technica: 224 of 234 moves).
+
+| Target | Feature 1 | Now (separate runs) | Target | Result |
+|---|---|---|---|---|
+| GitHub owner trace, move to frame p90 | 4.0 s | 35, 36, 36 ms | 100 ms | met |
+| GitHub owner trace, wheel to frame p90 | 1.6 s | 15, 17, 19 ms | 50 ms | met |
+| GitHub owner trace, press to frame (max of 6) | 3.0 s (p90) | 32, 34, 36 ms | 150 ms | met |
+| Ars Technica, 10 s without input, CPU | 95 % | 1.5, 1.8 % | 5 % | met |
+| Ars Technica owner trace, move to frame p90 | 577 ms | 50, 49, 52 ms | 50 ms | at the target |
+| Hover change with render, GitHub (JS off / on) | 93 / 96 ms | 17.6 / 16.6 ms | 20 ms | met |
+| Hover change with render, Ars Technica | 38 / 48 ms | 14.6 / 11.2 ms | 15 ms | met |
+| Hover change with render, Wikipedia | 29 / 28 ms | 2.0 / 2.6 ms | 8 ms | met |
+
+Also: GitHub owner trace, release to frame p90 91, 91 and 101 ms; the
+`github-clicks` trace press p90 45 and 42 ms, release p90 95 and 96 ms;
+Ars Technica wheel to frame p90 54, 51, 47 ms. CPU during the GitHub owner
+trace 5.8 to 7.2 % (feature 1: 55 %).
+
+Ars Technica moves: only about 10 of the 234 moves request a frame, so the
+p90 is the ninth of ten values. The moves over 50 ms (52 and 53 ms) come
+during the wheel burst: the move arrives while a frame renders (24 to 29
+ms, the raster of the whole page), and its own frame costs the same; no
+style or layout run is between. Damage rectangles (backlog of feature 3)
+would cut the raster.
+
+Examined: after some move batches with `frame=0` the log shows a restyle
+of 14 to 34 elements, a layout and a display list before the next press.
+These lines belong to the press batch (a batch line is printed at its
+end): the press sets `:active` on the chain of the pointed element (in
+the case checked in detail, the release restyled the same 34 elements). A
+move with a pending
+change would have requested a frame (`Page::frame_outdated()` includes
+pending pipeline work).
+
+Rendering: `compare --all --js` gives the scores of the end of M10 for every
+page; `compare --all` geometry 1.0 on every page; the JS-off snapshot was
+identical to its base at each feature of M11; the hostile set 524 of 525
+(the known failure `nest-div-100000`).
 
 ## Script runtime of a document
 

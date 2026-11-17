@@ -4,6 +4,25 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-17: M11 feature 7, exit measurement
+
+- The first exit run missed every GUI latency target (GitHub move p90
+  674 ms, Ars Technica 895 ms). The log showed why: the long waits were
+  pauses in the owner's recorded input, and the events before them
+  changed nothing, so the GUI drew no frame for them (correct since
+  feature 2). The tool gave them the time to the next input.
+- The frame log's batch line now says whether the batch requested a
+  frame, and `gui-latency` measures "to frame" only for those events. The
+  backlog item of feature 2 is closed.
+- Exit: GitHub move p90 35 ms (target 100), wheel 15 to 19 ms (50), press
+  at most 36 ms (150); Ars Technica idle CPU 1.5 % (5 %), move p90 49 to
+  52 ms (50: at the target; the rest is the raster of the whole page);
+  hover change GitHub 17 ms, Ars Technica 15 / 11 ms, Wikipedia 2 ms.
+  Scores and the hostile set unchanged.
+- A suspected undrawn hover change turned out to be the restyle of the
+  next press (a batch line is printed at the end of its batch).
+- Next: the end-of-milestone maintenance.
+
 ## 2026-11-17: M11 feature 6, restyle of the elements that a DOM change affects
 
 - Decision: after feature 5, a GitHub click still took 168 to 191 ms from

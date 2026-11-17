@@ -5,10 +5,13 @@
 //! `CLOCK_MONOTONIC`, six decimals; the reader is `tools/swbtools/
 //! frame_log.py`):
 //!
-//! - `batch start=T end=T moves=N wheels=N presses=N releases=N keys=N`:
-//!   one per batch of window events that had input, from `new_events` to
-//!   the end of `about_to_wait`. The counts are the input events that the
-//!   window delivered in the batch.
+//! - `batch start=T end=T moves=N wheels=N presses=N releases=N keys=N
+//!   frame=F`: one per batch of window events that had input, from
+//!   `new_events` to the end of `about_to_wait`. The counts are the input
+//!   events that the window delivered in the batch. `frame` is 1 if the
+//!   batch requested a redraw (the frame decision at the end of
+//!   `about_to_wait`, ADR 0040), else 0: a batch with `frame=0` changed
+//!   nothing that a frame shows, so no frame follows it.
 //! - `frame at=T render=D compose=D present=D`: one per presented frame:
 //!   the time after `present`, and the durations of the page render, of
 //!   the composition (toolbar, copy into the window buffer) and of
@@ -77,12 +80,12 @@ impl FrameLog {
     }
 
     /// The batch ends (the end of `about_to_wait`): prints its line if it
-    /// had input.
-    pub(crate) fn end_batch(&mut self) {
+    /// had input. `frame` is true if the batch requested a redraw.
+    pub(crate) fn end_batch(&mut self, frame: bool) {
         if !self.enabled || self.counts.is_empty() {
             return;
         }
-        let line = batch_line(self.batch_start, monotonic_seconds(), &self.counts);
+        let line = batch_line(self.batch_start, monotonic_seconds(), &self.counts, frame);
         log::debug!(target: TARGET, "{line}");
         self.counts = InputCounts::default();
     }
@@ -106,10 +109,16 @@ impl FrameLog {
 }
 
 /// The text of a batch line.
-pub(crate) fn batch_line(start: f64, end: f64, counts: &InputCounts) -> String {
+pub(crate) fn batch_line(start: f64, end: f64, counts: &InputCounts, frame: bool) -> String {
     format!(
-        "batch start={start:.6} end={end:.6} moves={} wheels={} presses={} releases={} keys={}",
-        counts.moves, counts.wheels, counts.presses, counts.releases, counts.keys
+        "batch start={start:.6} end={end:.6} moves={} wheels={} presses={} releases={} keys={} \
+         frame={}",
+        counts.moves,
+        counts.wheels,
+        counts.presses,
+        counts.releases,
+        counts.keys,
+        u8::from(frame)
     )
 }
 
@@ -159,9 +168,11 @@ mod tests {
             keys: 4,
         };
         assert_eq!(
-            batch_line(12.5, 12.5625, &counts),
-            "batch start=12.500000 end=12.562500 moves=3 wheels=1 presses=0 releases=2 keys=4"
+            batch_line(12.5, 12.5625, &counts, true),
+            "batch start=12.500000 end=12.562500 moves=3 wheels=1 presses=0 releases=2 keys=4 \
+             frame=1"
         );
+        assert!(batch_line(1.0, 2.0, &counts, false).ends_with(" frame=0"));
     }
 
     #[test]
@@ -191,7 +202,7 @@ mod tests {
         assert!(log.counts.is_empty());
         log.counts_mut().moves += 1;
         assert!(!log.counts.is_empty());
-        log.end_batch();
+        log.end_batch(false);
         assert!(log.counts.is_empty());
     }
 }

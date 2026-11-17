@@ -989,7 +989,8 @@ impl ApplicationHandler<UserEvent> for App {
         // One frame decision per batch, after the pump and the input
         // (ADR 0040 section 2).
         self.sync_address();
-        if self.frame_wanted() {
+        let frame = self.frame_wanted();
+        if frame {
             self.request_redraw();
         }
         // Wake up when the next task is due or a waiting automation request
@@ -1000,7 +1001,7 @@ impl ApplicationHandler<UserEvent> for App {
             (a, b) => a.or(b),
         };
         event_loop.set_control_flow(deadline.map_or(ControlFlow::Wait, ControlFlow::WaitUntil));
-        self.frame_log.end_batch();
+        self.frame_log.end_batch(frame);
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
