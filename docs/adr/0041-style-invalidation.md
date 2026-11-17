@@ -637,6 +637,17 @@ mode, and a page whose script moves the focus and reads
 `hover-20000-siblings-next`, `hover-5000-siblings-subsequent` and
 `hover-many-has-rules` (`tools/swbtools/hostile_cases/style_invalidation.py`).
 
+**Changed by ADR 0042** (M11 feature 6, style invalidation for DOM
+changes): `Selector::state_reach` became `Selector::dependencies` (one
+analysis for states and the DOM) and `StateIndex` became
+`InvalidationIndex`; `:has()` in a compound that is not the subject is no
+longer "everything": its entries carry an anchor key, and the anchors with
+that key start the compound's position; a dependency in any compound of the
+relative selector has the anchors of section 1 (not only one in its
+subject); `:target` and the control states are targeted too
+(`FullReason::OtherStates` remains for the image dimension sources). See ADR
+0042, section 1 and its implementation notes.
+
 **Open.** Once, in the first run of the engine oracle (the JS fixtures and
 the page fixtures in parallel), the check mode reported a difference on
 the GitHub JS fixture after a hover; 16 later runs (one with a 40 x 30 grid,

@@ -5441,12 +5441,46 @@ Features, in this order. Each ends with a review and a commit.
    `use` instances made again for a `use` element that gets a style; a
    limit on the key set of nested descendant roots (quadratic before).
 6. Restyle of the elements that a DOM change affects (`implementer-hard`;
-   ADR 0041, second part), only if the click and load numbers after
+   ADR 0042), only if the click and load numbers after
    feature 5 stay above their targets (GitHub's Code button now 250 ms):
    attribute, class and id changes restyle the elements whose selectors
    depend on them; insertions and removals restyle the new subtree, the
    siblings that structural selectors reach, and the ancestors that
    `:has()` reaches; the oracle test after random DOM changes.
+
+   Decision (2026-11-17, measured at 34a1b6f): needed. GUI `github-owner`
+   release to frame median 168 ms (target 150 ms); a Code popover click
+   ran 2 to 3 full restyles of 26 to 28 ms; GitHub's 54 interaction steps
+   ran 48 full restyles (1,257 ms), all after DOM changes.
+
+   Done (2026-11-17): ADR 0042 (accepted). `Selector::dependencies()` (css
+   crate) extends ADR 0041's analysis from states to classes, IDs,
+   attributes, the HTML attribute states, `:empty`, the structural
+   pseudo-classes and the presence of compounds; `:has()` gets anchor keys
+   in any compound (ADR 0041's `:has()` reach revised). The `Stylist`'s
+   `InvalidationIndex` replaces the state index. A drain records the
+   journal in a `DomChanges` set and keeps the old styles aside; the next
+   flush restyles the elements that the changes can reach (attribute
+   changes, insertions with their siblings and `:has()` anchors, removals,
+   text, the top layer, the states since the last styles) with ADR 0041's
+   pruned walk, and clears the styles of removed nodes. When every change
+   is an attribute that layout does not read (`class`, `style`, `title`,
+   `role`, `tabindex`, `data-*`, `aria-*`; not `id`) and no computed style
+   changed, the layout stays. Full restyles stay for sheet changes,
+   `:defined` and shadow changes, structure changes of the root and body,
+   large change sets and the late fallbacks of ADR 0041, plus a new one:
+   query container sizes that the old styles' log does not hold. GitHub,
+   Code popover click: the restyles after its DOM changes 78 to 10.7 ms;
+   the style of 14 clicks 709 to 164 ms. GUI `github-owner` release to
+   frame median 168 to 191 ms before (three runs), 92 ms with the final
+   build (92 to 145 ms in earlier runs); the new `github-clicks` trace 178
+   to 90 ms.
+   GitHub load style flushes 457 to 153 ms. Tests: the analysis table, unit
+   tests, the fixture oracle (150 random DOM changes per page fixture), an
+   oracle on a generated page with rules of each shape (12 x 300 changes),
+   the engine check mode on the JS fixtures' interaction steps, slot
+   changes, 5 hostile cases. `swbtools gui-latency --log` keeps the GUI log.
+   JS-off snapshot identical, `compare --all --js` unchanged.
 7. Exit measurement and the end-of-milestone maintenance.
 
 Not in M11 (backlog): incremental layout, a raster cache for scrolling
@@ -5525,12 +5559,45 @@ Not in M11 (backlog): incremental layout, a raster cache for scrolling
 - Style (review of feature 5): the fixture oracles pass when the reach of
   the next-sibling combinator or of `:has()` anchors is wrong (only the
   unit table of `reach.rs` catches it); fixtures with such rules, or a
-  generated document per reach, would close the gap.
+  generated document per reach, would close the gap. Feature 6 added a
+  generated page with rules of each shape; it catches three reach
+  mutations of the review, but it did not catch the removal bug that the
+  review of feature 6 found (old keys lost across drains), because its
+  rules without keys restyle the siblings at every removal anyway. Small
+  generated pages with one rule each would test the keyed paths alone.
 - Hostile (feature 5): hover over a 10,000-deep tree or 100,000 list items
   takes 60 s and 40 s for 100 moves in base and new alike (a full layout
   per change); the cases were reduced to 3,000 and 20,000. The hover cases
   run 5 to 25 % slower than the base (`hover-deep-tree-3000` 5.1 against
   4.1 s); not examined.
+- Style (feature 6): GitHub's Tab steps (8 of 35 restyles) and two typing
+  steps take a full restyle at the early check of the targeted restyle
+  (adopted sheets out of date or image sources outdated) after a focus
+  change. Not examined.
+- Style (feature 6): a change that restyles nearly every element costs 1.3
+  to 1.7 times a full restyle (the comparisons and bookkeeping of the
+  targeted pass; hostile cases `dom-append-with-layout-1000` and
+  `dom-deep-has-3000`). A switch to the full walk when the targeted walk
+  has restyled most elements would bound it.
+- Style (feature 6): stylesheet changes (BBC's CSSOM rule changes on
+  clicks, 9 of 27 restyles; GitHub's Tab steps) stay full restyles with a
+  stylist rebuild; the selectors of the changed rules could be the
+  dependencies of a targeted pass.
+- Style (feature 6): `:defined` changes and shadow changes (an attached
+  shadow root, a changed slot assignment, `slot` and slot `name`
+  attributes) stay full restyles; a list of the changed elements and slots
+  would make them targeted. None occur on the click steps of the fixtures.
+- Style (feature 6): Wikipedia's interaction steps take a full restyle for
+  counters 19 times (counter text in references, a changed list item);
+  counter passes per scope would avoid it.
+- Style (feature 6): the dependency index takes 9.1 to 9.7 ms on GitHub's
+  27,793 rules after each stylist build (three during GitHub's load); a
+  cache of each selector's dependencies with the parsed rule would leave
+  only the bucketing.
+- `swbtools gui-latency` (feature 6): "no frame" counts releases whose
+  click already drew at the press; GitHub's header menus open on hover, so
+  a click trace on them depends on timing (`github-clicks` does not use
+  them).
 - Style (review of feature 4): `Stylist::registry()` builds a new
   `Arc<Registry>` on every pass when an `@property` rule sits inside
   `@media`, and the equality of custom-property maps compares registries

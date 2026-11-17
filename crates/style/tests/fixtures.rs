@@ -12,9 +12,9 @@ use std::time::Instant;
 use swb_css::MediaEnvironment;
 use swb_dom::{Document, NodeId};
 use swb_style::{
-    ComputedStyle, ContainerSizes, Display, ElementStates, FontFamily, GenericFamily,
+    ComputedStyle, ContainerSizes, Display, DomChanges, ElementStates, FontFamily, GenericFamily,
     LengthPercentage, Restyle, Rgba, StyleMap, Stylist, compute_styles, compute_styles_reusing,
-    compute_styles_with_containers, restyle_states,
+    compute_styles_with_containers, restyle_states, restyle_targeted,
 };
 use url::Url;
 
@@ -534,4 +534,493 @@ fn targeted_restyle_with_container_sizes() {
     assert!(!sizes.is_empty());
     let paths = targeted_series(&page, &sizes, 120);
     eprintln!("github-swb with sizes: {paths:?}");
+}
+
+/// Attribute names that the random DOM changes set: those that selectors,
+/// the HTML states and the table of attributes read by other elements
+/// (ADR 0042 section 2) look at, and some that nothing reads.
+const ATTRIBUTES: &[&str] = &[
+    "hidden",
+    "aria-expanded",
+    "aria-hidden",
+    "aria-current",
+    "data-state",
+    "open",
+    "disabled",
+    "checked",
+    "selected",
+    "required",
+    "readonly",
+    "placeholder",
+    "value",
+    "type",
+    "href",
+    "lang",
+    "dir",
+    "title",
+    "role",
+    "tabindex",
+    "contenteditable",
+    "link",
+    "cellpadding",
+    "border",
+    "start",
+    "reversed",
+    "width",
+    "height",
+    "bgcolor",
+    "align",
+    "rel",
+    "name",
+];
+
+/// Values for the attributes of [`ATTRIBUTES`] and for `style`.
+const VALUES: &[&str] = &[
+    "",
+    "true",
+    "false",
+    "rtl",
+    "en",
+    "de",
+    "3",
+    "#x",
+    "text",
+    "checkbox",
+    "red",
+    "color: red",
+    "display: none",
+    "display: block",
+    "display: list-item",
+    "counter-increment: c",
+    "font-size: 30px",
+];
+
+/// The connected elements below the `body` (the root, `head` and `body`
+/// stay).
+fn movable_elements(doc: &Document) -> Vec<NodeId> {
+    let Some(body) = doc.body() else {
+        return Vec::new();
+    };
+    doc.descendants(body)
+        .skip(1)
+        .filter(|&n| doc.element(n).is_some())
+        .collect()
+}
+
+/// An attribute name without a namespace.
+fn qual(name: &str) -> swb_dom::QualName {
+    swb_dom::QualName::new(None, swb_dom::ns!(), swb_dom::LocalName::from(name))
+}
+
+/// A clone of `source` or a new element (with a class of `classes` and
+/// maybe a text), not yet inserted.
+fn new_subtree(
+    doc: &mut Document,
+    source: NodeId,
+    classes: &[String],
+    seed: &mut u64,
+) -> Option<NodeId> {
+    if next_random(seed, 2) == 0 {
+        return doc
+            .clone_node(source, NodeId::DOCUMENT, true)
+            .ok()
+            .map(|c| c.root);
+    }
+    let name = ["div", "li", "span", "p", "td"][next_random(seed, 5)];
+    let qualified =
+        swb_dom::QualName::new(None, swb_dom::ns!(html), swb_dom::LocalName::from(name));
+    let created = doc.create_element(qualified, Vec::new()).ok()?;
+    if !classes.is_empty() {
+        let class = classes[next_random(seed, classes.len())].clone();
+        let _ = doc.set_attr(created, "class", &class);
+    }
+    if next_random(seed, 2) == 0
+        && let Ok(t) = doc.create_text("t")
+    {
+        let _ = doc.append_child(created, t);
+    }
+    Some(created)
+}
+
+/// One random DOM change of `doc` (ADR 0042 section 7): class tokens, IDs,
+/// other attributes and `style` added, changed and removed; subtrees
+/// inserted (new elements and clones), removed and moved; text changed,
+/// emptied and filled. Errors (a move into the moved subtree) are ignored.
+fn random_dom_change(doc: &mut Document, classes: &[String], seed: &mut u64) {
+    let elements = movable_elements(doc);
+    if elements.is_empty() {
+        return;
+    }
+    let pick = |seed: &mut u64| elements[next_random(seed, elements.len())];
+    match next_random(seed, 12) {
+        0..=2 => {
+            let e = pick(seed);
+            let mut tokens: Vec<String> = doc
+                .element(e)
+                .map(|d| d.classes().map(str::to_owned).collect())
+                .unwrap_or_default();
+            if !tokens.is_empty() && next_random(seed, 2) == 0 {
+                tokens.remove(next_random(seed, tokens.len()));
+            } else if !classes.is_empty() {
+                tokens.push(classes[next_random(seed, classes.len())].clone());
+            }
+            let _ = doc.set_attr(e, "class", &tokens.join(" "));
+        }
+        3 => {
+            let e = pick(seed);
+            if next_random(seed, 3) == 0 {
+                doc.remove_attribute(e, &qual("id"));
+            } else {
+                let other = pick(seed);
+                let id = doc
+                    .element(other)
+                    .and_then(|d| d.id())
+                    .map_or_else(|| format!("r{}", next_random(seed, 50)), str::to_owned);
+                let _ = doc.set_attr(e, "id", &id);
+            }
+        }
+        4 | 5 => {
+            let e = pick(seed);
+            let name = if next_random(seed, 4) == 0 {
+                "style"
+            } else {
+                ATTRIBUTES[next_random(seed, ATTRIBUTES.len())]
+            };
+            if next_random(seed, 3) == 0 {
+                doc.remove_attribute(e, &qual(name));
+            } else {
+                let _ = doc.set_attr(e, name, VALUES[next_random(seed, VALUES.len())]);
+            }
+        }
+        6 => {
+            let source = pick(seed);
+            if let Some(node) = new_subtree(doc, source, classes, seed) {
+                insert_somewhere(doc, node, &elements, seed);
+            }
+        }
+        7 => {
+            let e = pick(seed);
+            doc.remove(e);
+        }
+        8 => {
+            // A move.
+            let e = pick(seed);
+            doc.remove(e);
+            insert_somewhere(doc, e, &elements, seed);
+        }
+        9 => {
+            let texts: Vec<NodeId> = doc
+                .descendants(NodeId::DOCUMENT)
+                .filter(|&n| doc.node(n).as_text().is_some())
+                .collect();
+            if !texts.is_empty() {
+                let t = texts[next_random(seed, texts.len())];
+                let data = if next_random(seed, 2) == 0 {
+                    ""
+                } else {
+                    "changed"
+                };
+                let _ = doc.set_data(t, data);
+            }
+        }
+        10 => {
+            // Text into an element (maybe empty before).
+            let e = pick(seed);
+            if let Ok(t) = doc.create_text("x") {
+                let _ = doc.append_child(e, t);
+            }
+        }
+        _ => {
+            // Empty an element.
+            let e = pick(seed);
+            let children: Vec<NodeId> = doc.children(e).collect();
+            for c in children {
+                doc.remove(c);
+            }
+        }
+    }
+}
+
+/// Inserts `node` before a random element of `elements` or as the last
+/// child of one.
+fn insert_somewhere(doc: &mut Document, node: NodeId, elements: &[NodeId], seed: &mut u64) {
+    let target = elements[next_random(seed, elements.len())];
+    if doc.shadow_including_root(target) != NodeId::DOCUMENT {
+        return;
+    }
+    if next_random(seed, 2) == 0 {
+        if let Some(parent) = doc.parent(target) {
+            let _ = doc.insert_before(parent, node, Some(target));
+        }
+    } else {
+        let _ = doc.append_child(target, node);
+    }
+}
+
+/// A journal entry, for messages.
+fn describe(doc: &Document, change: &swb_dom::Change<'_>) -> String {
+    let name = |n: NodeId| {
+        doc.element(n).map_or_else(
+            || format!("{n:?}"),
+            |e| format!("{n:?}<{} class={:?}>", e.local_name(), e.attr("class")),
+        )
+    };
+    match change {
+        swb_dom::Change::Children {
+            parent,
+            added,
+            removed,
+            ..
+        } => format!(
+            "children of {}: +{:?} -{:?}",
+            name(*parent),
+            added.iter().map(|&n| name(n)).collect::<Vec<_>>(),
+            removed.iter().map(|&n| name(n)).collect::<Vec<_>>()
+        ),
+        swb_dom::Change::Attribute {
+            element,
+            name: attr,
+            old_value,
+        } => format!(
+            "{} [{}] {:?} -> {:?}",
+            name(*element),
+            attr.local,
+            old_value,
+            doc.element(*element).and_then(|e| e.attr(&attr.local))
+        ),
+        swb_dom::Change::Text { node, .. } => format!("text {node:?}"),
+        swb_dom::Change::TopLayer { element } => format!("top layer {}", name(*element)),
+    }
+}
+
+/// Records the journal of `doc` in `changes`, as one drain of the engine
+/// does, and appends the descriptions of its changes to `described`.
+fn drain(doc: &mut Document, changes: &mut DomChanges, described: &mut Vec<String>) {
+    let journal = doc.take_journal();
+    assert!(!journal.incomplete());
+    described.extend(journal.iter().map(|c| describe(doc, &c)));
+    for change in journal.iter() {
+        let target = match &change {
+            swb_dom::Change::Children { parent, .. } => *parent,
+            swb_dom::Change::Attribute { element, .. } | swb_dom::Change::TopLayer { element } => {
+                *element
+            }
+            swb_dom::Change::Text { node, .. } => *node,
+        };
+        let connected = doc.shadow_including_root(target) == NodeId::DOCUMENT;
+        changes.record(doc, &change, connected);
+    }
+}
+
+/// Runs a seeded random series of DOM changes (one to three between two
+/// flushes, in one drain or in one drain each, sometimes with a hover
+/// change) on `page` and checks after each flush that the targeted restyle
+/// ([`restyle_targeted`]) gives the result of a full restyle, with no style
+/// left for a node outside the document (ADR 0042 section 7). Returns the
+/// number of flushes per path.
+fn dom_series(page: &mut Page, steps: usize, seed: u64) -> Vec<(String, usize)> {
+    let env = environment();
+    let sizes = ContainerSizes::new();
+    page.doc.set_journaling(true);
+    let _ = page.doc.take_journal();
+    let classes: Vec<String> = {
+        let mut set = std::collections::BTreeSet::new();
+        for n in page.doc.descendants(NodeId::DOCUMENT) {
+            if let Some(e) = page.doc.element(n) {
+                set.extend(e.classes().map(str::to_owned));
+            }
+        }
+        set.into_iter().take(400).collect()
+    };
+    let mut states = ElementStates::default();
+    let mut map =
+        compute_styles_with_containers(&page.doc, &page.stylist, &env, &states, &page.url, &sizes);
+    let mut seed = seed;
+    let mut paths = std::collections::BTreeMap::<String, usize>::new();
+    let mut changes = DomChanges::default();
+    for step in 0..steps {
+        // Several drains before one flush: the tasks of a page between two
+        // rendering updates.
+        let drain_each = next_random(&mut seed, 2) == 0;
+        let mut described = Vec::new();
+        for _ in 0..=next_random(&mut seed, 3) {
+            random_dom_change(&mut page.doc, &classes, &mut seed);
+            if drain_each {
+                drain(&mut page.doc, &mut changes, &mut described);
+            }
+        }
+        let mut new = states.clone();
+        if next_random(&mut seed, 4) == 0 {
+            let elements = movable_elements(&page.doc);
+            if !elements.is_empty() {
+                new.hover = Some(elements[next_random(&mut seed, elements.len())]);
+            }
+        }
+        drain(&mut page.doc, &mut changes, &mut described);
+        let full =
+            compute_styles_with_containers(&page.doc, &page.stylist, &env, &new, &page.url, &sizes);
+        let before = map.clone();
+        let outcome = restyle_targeted(
+            &page.doc,
+            &page.stylist,
+            &env,
+            &page.url,
+            &sizes,
+            &states,
+            &new,
+            &changes,
+            &mut map,
+        );
+        let path = match &outcome {
+            Restyle::Done { restyled: 0, .. } => "nothing".to_owned(),
+            Restyle::Done { .. } => "targeted".to_owned(),
+            Restyle::Full(reason) => format!("full: {reason:?}"),
+        };
+        *paths.entry(path).or_default() += 1;
+        match outcome {
+            Restyle::Done { .. } => {
+                assert!(
+                    map.same_result(&full),
+                    "step {step}: {} ({:?}); the changes: {described:#?}; hover {:?} -> {:?}",
+                    first_difference(page, &map, &full),
+                    map.first_difference(&full),
+                    states.hover,
+                    new.hover
+                );
+            }
+            Restyle::Full(_) => {
+                assert!(before.same_result(&map), "a fallback leaves the map");
+                map = full;
+            }
+        }
+        changes.clear();
+        states = new;
+    }
+    paths.into_iter().collect()
+}
+
+/// The targeted restyle of ADR 0042 gives the styles of a full restyle after
+/// a random series of DOM changes on every page fixture, and most flushes
+/// take the targeted path.
+#[test]
+fn dom_restyle_matches_a_full_restyle() {
+    for name in [
+        "ars-technica",
+        "bbc",
+        "craigslist-posting",
+        "github-swb",
+        "hacker-news",
+        "senko-net",
+        "wikipedia-web-browser",
+    ] {
+        let mut page = load(name);
+        let paths = dom_series(&mut page, 150, 0xd0d0);
+        eprintln!("{name}: {paths:?}");
+        let targeted: usize = paths
+            .iter()
+            .filter(|(p, _)| p == "targeted" || p == "nothing")
+            .map(|(_, n)| n)
+            .sum();
+        assert!(targeted >= 75, "{name}: {paths:?}");
+    }
+}
+
+/// A generated page with rules of each shape that ADR 0042 section 1
+/// analyses (sibling combinators, the structural pseudo-classes, `:empty`,
+/// `:has()` in the subject and in other compounds with both leading
+/// combinators, `:lang()`, `:dir()`, attribute selectors, states), and a
+/// small set of classes, so that random changes hit the rules often: a
+/// wrong reach shows as a difference from the full restyle.
+const SHAPES_CSS: &str = "
+    .a + .b { color: rgb(1, 0, 0) }
+    .a ~ .c { margin-left: 1px }
+    .b + .c .d { padding-left: 1px }
+    .c ~ .a > .d { padding-top: 1px }
+    li:first-child { color: rgb(2, 0, 0) }
+    li:last-child { color: rgb(3, 0, 0) }
+    li:only-child { margin-top: 2px }
+    li:nth-child(2n+1) { background-color: rgb(0, 1, 0) }
+    li:nth-last-child(2) { border-left: 1px solid }
+    span:first-of-type { color: rgb(4, 0, 0) }
+    span:last-of-type .d { color: rgb(5, 0, 0) }
+    div:empty { height: 3px }
+    .a:empty + .b { width: 7px }
+    .a:has(.b) { color: rgb(6, 0, 0) }
+    .a:has(> .c) .d { color: rgb(7, 0, 0) }
+    .b:has(+ .c) { margin-right: 3px }
+    .c:has(~ .a .b) ~ .d { margin-bottom: 3px }
+    .a:has(.c .d) > .b { padding-right: 2px }
+    section:has(.e) li { text-indent: 2px }
+    :lang(de) .d { font-style: italic }
+    :dir(rtl) > .b { text-align: right }
+    [data-state] .c { color: rgb(8, 0, 0) }
+    [aria-expanded=true] + .d { color: rgb(9, 0, 0) }
+    [hidden] { display: none }
+    .e[title] ~ li { word-spacing: 1px }
+    .a:hover .b { color: rgb(10, 0, 0) }
+    .e:hover + .c { color: rgb(11, 0, 0) }
+    :is(.a, .e) .b + .d { letter-spacing: 1px }
+    :not(.c) > .e { padding-bottom: 1px }
+    #x .a { color: rgb(12, 0, 0) }
+    #y + .b { color: rgb(13, 0, 0) }
+    ol li::marker { color: rgb(14, 0, 0) }
+    .d::before { content: 'x' }
+    input:disabled + .a { color: rgb(15, 0, 0) }
+    input:checked ~ .b { color: rgb(16, 0, 0) }
+    fieldset:disabled .e { color: rgb(17, 0, 0) }
+    [contenteditable] :read-write { color: rgb(18, 0, 0) }
+    details[open] > .c { color: rgb(19, 0, 0) }
+    table td { padding-left: 1px }
+";
+
+/// The generated page of [`SHAPES_CSS`].
+fn shapes_page() -> Page {
+    use std::fmt::Write as _;
+    let classes = ["a", "b", "c", "d", "e"];
+    let mut html = String::from("<!DOCTYPE html><html lang=en><body>");
+    let mut seed = 7_u64;
+    for section in 0..6 {
+        let _ = write!(html, "<section id=s{section}>");
+        for item in 0..5 {
+            let class = classes[next_random(&mut seed, classes.len())];
+            let other = classes[next_random(&mut seed, classes.len())];
+            let _ = write!(
+                html,
+                "<div class='{class}'><span class={other}>t</span><span class=d></span>\
+                 <ul><li class={class}>1</li><li>2</li><li class={other}>3</li></ul>\
+                 <div class={other}></div></div>"
+            );
+            if item == 2 {
+                html.push_str(
+                    "<ol><li>a</li><li class=a>b</li></ol>\
+                     <fieldset><input type=checkbox><div class=a><span class=e>f</span></div></fieldset>\
+                     <details><summary>s</summary><div class=c>c</div></details>\
+                     <table><tr><td class=a>1</td><td>2</td></tr></table>",
+                );
+            }
+        }
+        html.push_str("<div id=x><p class=a>x</p></div><div id=y></div><p class=b>y</p></section>");
+    }
+    html.push_str("</body></html>");
+    let (doc, _) = swb_dom::parse_html_bytes(html.as_bytes(), Some("utf-8"));
+    let mut stylist = Stylist::new(doc.quirks_mode);
+    let url = Url::parse("https://example.com/").expect("url");
+    stylist.add_author_sheet(&swb_css::parse_stylesheet(SHAPES_CSS), &url);
+    Page { doc, stylist, url }
+}
+
+/// The oracle on the generated page: many changes, several seeds.
+#[test]
+fn dom_restyle_matches_on_every_rule_shape() {
+    for seed in [1_u64, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] {
+        let mut page = shapes_page();
+        let paths = dom_series(&mut page, 300, seed);
+        eprintln!("shapes (seed {seed}): {paths:?}");
+        let targeted: usize = paths
+            .iter()
+            .filter(|(p, _)| p == "targeted" || p == "nothing")
+            .map(|(_, n)| n)
+            .sum();
+        assert!(targeted >= 200, "{paths:?}");
+    }
 }

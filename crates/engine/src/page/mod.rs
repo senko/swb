@@ -163,6 +163,9 @@ pub struct FlushCounters {
     pub container_pass_limits: u32,
     /// The paths of the restyles after state changes (ADR 0041).
     pub state_restyles: StateRestyles,
+    /// The paths of the restyles after DOM changes (ADR 0042; the state
+    /// changes since the styles are part of them).
+    pub dom_restyles: StateRestyles,
 }
 
 /// The restyles after a change of the element states, by path (ADR 0041):
@@ -188,6 +191,12 @@ pub struct StateRestyles {
     pub containers: u32,
     /// Full restyles: counters.
     pub counters: u32,
+    /// Full restyles: too many DOM changes, or a marking larger than a full
+    /// restyle (ADR 0042).
+    pub too_large: u32,
+    /// Full restyles: the document element or the body was inserted or
+    /// removed (ADR 0042).
+    pub structure: u32,
 }
 
 impl StateRestyles {
@@ -200,6 +209,8 @@ impl StateRestyles {
             R::RootFontSize => &mut self.root_font_size,
             R::Containers => &mut self.containers,
             R::Counters => &mut self.counters,
+            R::TooLarge => &mut self.too_large,
+            R::Structure => &mut self.structure,
         };
         *slot = slot.saturating_add(1);
     }
@@ -218,6 +229,8 @@ impl StateRestyles {
             root_font_size: self.root_font_size.saturating_sub(before.root_font_size),
             containers: self.containers.saturating_sub(before.containers),
             counters: self.counters.saturating_sub(before.counters),
+            too_large: self.too_large.saturating_sub(before.too_large),
+            structure: self.structure.saturating_sub(before.structure),
         }
     }
 }

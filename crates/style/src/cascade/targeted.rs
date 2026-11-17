@@ -1,10 +1,11 @@
-//! The restyle after a change of the element states (ADR 0041 section 2):
-//! only the elements that the analysis marks, the descendants of its roots
-//! that have one of the roots' subject keys, and the children of elements
-//! whose style changed are matched and cascaded again; the other styles
-//! stay.
+//! The restyle after a change of the element states (ADR 0041 section 2)
+//! and after DOM changes (ADR 0042): only the elements that the analysis
+//! marks, the descendants of its roots that have one of the roots' subject
+//! keys, and the children of elements whose style changed are matched and
+//! cascaded again; the other styles stay, and the styles of nodes that left
+//! the document go.
 //!
-//! [`restyle_states`] walks the flat tree from the document element like
+//! [`restyle_targeted`] walks the flat tree from the document element like
 //! `Styler::run`, with the same per-element step, but enters only the
 //! elements on the way to work: so the ancestor Bloom filter, the tree
 //! scopes, the query container stack and the root font size are those of
@@ -12,7 +13,7 @@
 //! a case that this pass cannot handle exactly ([`FullReason`]) leaves the
 //! map as it was, and the caller restyles the whole document.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -24,9 +25,10 @@ use super::Styler;
 use super::use_instances::is_svg_use;
 use crate::ComputedStyle;
 use crate::container::ContainerSizes;
+use crate::dom_changes::{DomChanges, DomFullReason, plan_dom};
 use crate::element::{DomElement, ElementStates, StateSet};
-use crate::invalidation::{KeySet, Plan, TARGETED_STATES, flipped, plan};
-use crate::style_map::{PseudoKind, StyleMap, image_urls_of};
+use crate::invalidation::{KeySet, Plan, Planner, TARGETED_STATES, flipped};
+use crate::style_map::{PseudoKind, PseudoStyles, StyleMap, image_urls_of};
 use crate::stylist::Stylist;
 use crate::values::{Content, ContentItem, Display};
 
@@ -48,6 +50,12 @@ pub enum FullReason {
     /// Counter values may change while pseudo-elements hold counter text,
     /// or the counter text reached its limit.
     Counters,
+    /// Too many DOM changes, or the marking would do more work than a full
+    /// restyle (ADR 0042 section 5).
+    TooLarge,
+    /// The document element or the `body` element was inserted or removed
+    /// (ADR 0042 section 5).
+    Structure,
 }
 
 /// The result of [`restyle_states`].
@@ -83,6 +91,36 @@ pub fn restyle_states(
     new: &ElementStates,
     map: &mut StyleMap,
 ) -> Restyle {
+    restyle_targeted(
+        doc,
+        stylist,
+        env,
+        base_url,
+        sizes,
+        old,
+        new,
+        &DomChanges::default(),
+        map,
+    )
+}
+
+/// Brings `map`, the styles of `doc` before the DOM changes `dom` and for
+/// the states `old`, up to date for the current DOM and the states `new`,
+/// restyling only the elements that the changes can affect (ADR 0041, ADR
+/// 0042). The other inputs as for [`restyle_states`]. On [`Restyle::Full`],
+/// `map` is unchanged.
+#[allow(clippy::too_many_arguments)]
+pub fn restyle_targeted(
+    doc: &Document,
+    stylist: &Stylist,
+    env: &MediaEnvironment,
+    base_url: &Url,
+    sizes: &ContainerSizes,
+    old: &ElementStates,
+    new: &ElementStates,
+    dom: &DomChanges,
+    map: &mut StyleMap,
+) -> Restyle {
     let unchanged = Restyle::Done {
         changed: false,
         restyled: 0,
@@ -94,23 +132,59 @@ pub fn restyle_states(
     if !same_sources || !(changed - TARGETED_STATES).is_empty() {
         return Restyle::Full(FullReason::OtherStates);
     }
-    if changed.is_empty() {
+    match dom.full_reason() {
+        Some(DomFullReason::TooLarge) => return Restyle::Full(FullReason::TooLarge),
+        Some(DomFullReason::Structure) => return Restyle::Full(FullReason::Structure),
+        None => {}
+    }
+    if changed.is_empty() && dom.is_empty() {
         return unchanged;
     }
-    let flips = flipped(doc, old, new, changed);
-    let plan = plan(doc, stylist.state_index(), stylist.quirks(), &flips);
+    // The sizes must be ones that the log holds: after the bound of the
+    // container passes (ADR 0038 section 4) a query result can be out of
+    // date, and only a full restyle evaluates it again with `sizes`.
+    if !map.container_log().holds(sizes) {
+        return Restyle::Full(FullReason::Containers);
+    }
+    let styled = if dom.is_empty() {
+        0
+    } else {
+        map.styled_count()
+    };
+    if !dom.is_empty() && dom.too_many_added(doc, styled) {
+        return Restyle::Full(FullReason::TooLarge);
+    }
+    let index = stylist.invalidation_index();
+    // The marking may do at most about the work of a full restyle: a unit
+    // of marking (a key check, a lookup) costs far less than the cascade of
+    // an element.
+    let budget = doc.len().saturating_mul(16).saturating_add(10_000);
+    let mut planner = Planner::new(doc, index, stylist.quirks(), budget);
+    if !changed.is_empty() {
+        planner.flip_states(&flipped(doc, old, new, changed));
+    }
+    if !dom.is_empty() && !planner.done() {
+        plan_dom(&mut planner, dom, old, new, map.has_use_elements());
+    }
+    let plan = planner.finish();
     if plan.everything {
         return Restyle::Full(FullReason::Everything);
     }
-    if plan.is_empty() {
+    if plan.too_large {
+        return Restyle::Full(FullReason::TooLarge);
+    }
+    if plan.is_empty() && dom.is_empty() {
         return unchanged;
     }
     // The tables of a full state set cost a pass over the document; the
     // lazy set answers the few elements of a targeted restyle without it.
     let states = StateSet::lazy(doc, new);
     let mut styler = Styler::new(doc, &states, stylist, env, base_url, true, sizes, None);
-    match styler.run_targeted(map, &plan) {
-        Ok(changes) => styler.finish_targeted(&changes, map, sizes),
+    let changes = styler
+        .run_targeted(map, &plan)
+        .and_then(|changes| styler.collect_stale(map, dom, changes));
+    match changes {
+        Ok(changes) => styler.finish_targeted(&changes, &plan, map, sizes),
         Err(reason) => Restyle::Full(reason),
     }
 }
@@ -128,6 +202,9 @@ struct Visit {
     /// True if the parent's style or the box it passes on changed: the
     /// element is restyled.
     parent_changed: bool,
+    /// True inside an inserted subtree (ADR 0042): a moved element with an
+    /// old style counts as appearing for the counter pass.
+    inserted: bool,
     /// The subject keys of the roots above the element.
     active: Option<Rc<KeySet>>,
 }
@@ -150,11 +227,27 @@ struct Changes {
     counter_content: bool,
     /// The restyled elements and those that lost their styles.
     touched: Vec<NodeId>,
+    /// The restyled elements (they have a style after the pass).
+    styled: NodeSet,
+    /// Nodes that left the document or are no longer rendered after DOM
+    /// changes: their styles go (ADR 0042 section 3, "Removed styles").
+    stale: Vec<NodeId>,
     /// A descendant reach of the walk ended at a `display: none` element:
     /// elements below it have no style in the map, but the instance trees
     /// of `use` elements that copy them may change.
     hidden_reach: bool,
     restyled: usize,
+}
+
+/// True if a style that appears or goes away (a new or removed element or
+/// pseudo-element) changes what the counter pass computes: a list item or
+/// counter properties. Another element without a box of its own for
+/// counters changes no counter value (ADR 0042 section 4).
+fn is_counter_input(style: &ComputedStyle) -> bool {
+    style.display == Display::ListItem
+        || !style.counter_reset.is_empty()
+        || !style.counter_increment.is_empty()
+        || !style.counter_set.is_empty()
 }
 
 /// The values of a style that the counter pass reads (ADR 0041 section 2):
@@ -175,7 +268,7 @@ fn counter_inputs_differ(a: Option<&ComputedStyle>, b: Option<&ComputedStyle>) -
                 || a.counter_increment != b.counter_increment
                 || a.counter_set != b.counter_set
         }
-        _ => true,
+        (Some(s), None) | (None, Some(s)) => is_counter_input(s),
     }
 }
 
@@ -187,12 +280,44 @@ fn has_counters(style: &ComputedStyle) -> bool {
 
 /// Notes whether the new pseudo-elements of `node` change a counter input
 /// or hold counters.
-fn note_pseudo_counters(map: &StyleMap, node: NodeId, changes: &mut Changes) {
+fn note_pseudo_counters(map: &StyleMap, node: NodeId, inserted: bool, changes: &mut Changes) {
+    let (olds, news) = (
+        map.pseudo_styles_of(node),
+        changes.pseudos.pseudo_styles_of(node),
+    );
+    if olds.is_none() && news.is_none() {
+        return;
+    }
     for kind in [PseudoKind::Before, PseudoKind::After, PseudoKind::Marker] {
-        let old = map.pseudo(node, kind);
-        let new = changes.pseudos.pseudo(node, kind);
+        let old = olds.and_then(|p| p[kind as usize].as_ref());
+        let new = news.and_then(|p| p[kind as usize].as_ref());
         changes.counter_inputs |= counter_inputs_differ(old.map(|s| &**s), new.map(|s| &**s));
+        // A moved element's pseudo-elements move with it.
+        changes.counter_inputs |=
+            inserted && old.into_iter().chain(new).any(|s| is_counter_input(s));
         changes.counter_content |= new.is_some_and(|s| has_counters(s));
+    }
+}
+
+/// A set of nodes, as bits by node index: the walk inserts every restyled
+/// element, so a hash set would cost a hash per element.
+#[derive(Debug, Default)]
+struct NodeSet(Vec<u64>);
+
+impl NodeSet {
+    fn insert(&mut self, node: NodeId) {
+        let (word, bit) = (node.index() / 64, node.index() % 64);
+        if word >= self.0.len() {
+            self.0.resize(word + 1, 0);
+        }
+        if let Some(w) = self.0.get_mut(word) {
+            *w |= 1 << bit;
+        }
+    }
+
+    fn contains(&self, node: NodeId) -> bool {
+        let (word, bit) = (node.index() / 64, node.index() % 64);
+        self.0.get(word).is_some_and(|w| w & (1 << bit) != 0)
     }
 }
 
@@ -236,6 +361,8 @@ struct Descend {
     active: Option<Rc<KeySet>>,
     /// True if the element was pushed on the query container stack.
     pushed: bool,
+    /// True inside an inserted subtree.
+    inserted: bool,
 }
 
 impl Styler<'_> {
@@ -262,6 +389,7 @@ impl Styler<'_> {
             depth: 0,
             scope: NodeId::DOCUMENT,
             parent_changed: false,
+            inserted: false,
             active: None,
         }];
         let mut path: Vec<NodeId> = Vec::new();
@@ -314,6 +442,7 @@ impl Styler<'_> {
                     depth: visit.depth + 1,
                     scope: child_scope,
                     parent_changed: descend.children_changed,
+                    inserted: descend.inserted,
                     active: descend.active.clone(),
                 });
             }
@@ -337,6 +466,7 @@ impl Styler<'_> {
         let is_root = node == root;
         self.scope = visit.scope;
         let active = enter_root(visit.active.clone(), plan.roots.get(&node));
+        let inserted = visit.inserted || plan.inserted.contains(&node);
         let old = map.get(node).cloned();
         let restyle = visit.parent_changed
             || plan.marked.contains(&node)
@@ -344,7 +474,15 @@ impl Styler<'_> {
                 .as_ref()
                 .is_some_and(|a| a.matches(el.data(), self.cx.quirks));
         let (style, changed) = if restyle {
-            self.restyle_one(el, visit, is_root, old.as_ref(), map, changes)?
+            self.restyle_one(el, visit, is_root, old.as_ref(), map, changes)
+                .map(|(style, changed)| {
+                    // A moved element changes the counters where it left
+                    // and where it arrived.
+                    changes.counter_inputs |= inserted
+                        && (is_counter_input(&style)
+                            || old.as_deref().is_some_and(is_counter_input));
+                    (style, changed)
+                })?
         } else {
             let Some(old) = old.clone() else {
                 // No style: not rendered, as in a full restyle.
@@ -383,7 +521,7 @@ impl Styler<'_> {
                 return Err(FullReason::Containers);
             }
             changes.pseudo_nodes.push(node);
-            note_pseudo_counters(map, node, changes);
+            note_pseudo_counters(map, node, inserted, changes);
         }
         Ok(Some(Descend {
             children_changed: restyle && (changed || layout_parent != old_layout_parent),
@@ -392,6 +530,7 @@ impl Styler<'_> {
             old_layout_parent,
             active,
             pushed,
+            inserted,
         }))
     }
 
@@ -423,11 +562,12 @@ impl Styler<'_> {
         }
         changes.restyled += 1;
         changes.touched.push(node);
+        changes.styled.insert(node);
         let Some(old) = old else {
             if new.is_query_container() {
                 return Err(FullReason::Containers);
             }
-            changes.counter_inputs = true;
+            changes.counter_inputs |= is_counter_input(&new);
             changes.elements.push((node, Arc::clone(&new)));
             return Ok((new, true));
         };
@@ -443,6 +583,56 @@ impl Styler<'_> {
         changes.counter_inputs |= counter_inputs_differ(Some(old), Some(&new));
         changes.elements.push((node, Arc::clone(&new)));
         Ok((new, true))
+    }
+
+    /// Adds the nodes whose styles go after the DOM changes `dom` (ADR 0042
+    /// section 3, "Removed styles"): in the current subtrees of the inserted
+    /// and removed roots, each node with a style that the walk did not
+    /// restyle. Such a node left the document or is below an element
+    /// without a box. A restyled root's subtree was walked; a node that an
+    /// earlier root's walk visited is skipped with its subtree. A cleared
+    /// node that read a query container makes the pass fail.
+    fn collect_stale(
+        &self,
+        map: &StyleMap,
+        dom: &DomChanges,
+        mut changes: Changes,
+    ) -> Result<Changes, FullReason> {
+        let doc = self.doc;
+        let mut visited: HashSet<NodeId> = HashSet::new();
+        let mut stack = Vec::new();
+        for &root in dom.roots() {
+            if doc.get(root).is_none() || changes.styled.contains(root) {
+                continue;
+            }
+            stack.push(root);
+            while let Some(n) = stack.pop() {
+                if !visited.insert(n) {
+                    continue;
+                }
+                stack.extend(doc.children(n));
+                if let Some(shadow) = doc.shadow_root(n) {
+                    stack.push(shadow);
+                }
+                if changes.styled.contains(n) {
+                    continue;
+                }
+                let Some(old) = map.get(n) else {
+                    continue;
+                };
+                if map.is_container_reader(n) {
+                    return Err(FullReason::Containers);
+                }
+                changes.counter_inputs |= is_counter_input(old)
+                    || [PseudoKind::Before, PseudoKind::After, PseudoKind::Marker]
+                        .into_iter()
+                        .filter_map(|kind| map.pseudo(n, kind))
+                        .any(|s| is_counter_input(s));
+                changes.touched.push(n);
+                changes.stale.push(n);
+            }
+        }
+        Ok(changes)
     }
 
     /// Notes the descendants of `node`, which became `display: none`, as
@@ -475,15 +665,23 @@ impl Styler<'_> {
     fn finish_targeted(
         &mut self,
         changes: &Changes,
+        plan: &Plan,
         map: &mut StyleMap,
         sizes: &ContainerSizes,
     ) -> Restyle {
         let (counter_text, counter_limit) = map.counter_flags();
-        let resolve = changes.counter_inputs || changes.counter_content;
-        if resolve && (counter_limit || (changes.counter_inputs && counter_text)) {
+        let counter_inputs = changes.counter_inputs || plan.counter_inputs;
+        let resolve = counter_inputs || changes.counter_content;
+        if resolve && (counter_limit || (counter_inputs && counter_text)) {
             return Restyle::Full(FullReason::Counters);
         }
-        let mut changed = !changes.elements.is_empty() || !changes.cleared.is_empty();
+        let mut changed = !changes.elements.is_empty()
+            || !changes.cleared.is_empty()
+            || !changes.stale.is_empty();
+        map.fit(self.doc.len());
+        for &node in &changes.stale {
+            map.clear_element(node);
+        }
         let mut image_urls = image_urls_of(changes.elements.iter().map(|(_, s)| s));
         for (node, style) in &changes.elements {
             map.set(*node, Arc::clone(style));
@@ -500,16 +698,13 @@ impl Styler<'_> {
         }
         // The pseudo-elements: the old ones, to compare after the counter
         // pass (which writes counter text into the new ones).
-        let old_pseudos: Vec<(NodeId, [Option<Arc<ComputedStyle>>; 7])> = changes
+        let old_pseudos: Vec<(NodeId, PseudoStyles)> = changes
             .pseudo_nodes
             .iter()
             .map(|&node| (node, map.pseudos_of(node)))
             .collect();
         for &node in &changes.pseudo_nodes {
-            let new = changes.pseudos.pseudos_of(node);
-            for (kind, style) in PseudoKind::ALL.into_iter().zip(new) {
-                map.put_pseudo(node, kind, style);
-            }
+            map.replace_pseudos(node, changes.pseudos.pseudos_of(node));
         }
         let before = resolve.then(|| map.ordinals().clone());
         // The ordinals of the default summaries that the walk set, before
@@ -523,24 +718,29 @@ impl Styler<'_> {
             changed |= *map.ordinals() != before;
         }
         for (node, old) in old_pseudos {
-            for (kind, old) in PseudoKind::ALL.into_iter().zip(old) {
-                let new = map.pseudo(node, kind).cloned();
-                match (&old, &new) {
+            let mut new = map.pseudos_of(node);
+            let mut kept = false;
+            for (old, new) in old.iter().zip(new.iter_mut()) {
+                match (old, &*new) {
                     (Some(a), Some(b)) if same(a, b) => {
                         // Keep the old object.
-                        map.put_pseudo(node, kind, Some(Arc::clone(a)));
+                        *new = Some(Arc::clone(a));
+                        kept = true;
                     }
                     (None, None) => {}
                     _ => {
                         changed = true;
-                        if let Some(b) = &new {
+                        if let Some(b) = &*new {
                             image_urls.extend(image_urls_of(std::iter::once(b)));
                         }
                     }
                 }
             }
+            if kept {
+                map.replace_pseudos(node, new);
+            }
         }
-        if self.uses_outdated(changes, map) {
+        if plan.uses || self.uses_outdated(changes, map) {
             let (instances, root_uses) = map.take_instances();
             self.expand_uses(map);
             changed |= !map.same_instances(&instances, &root_uses);

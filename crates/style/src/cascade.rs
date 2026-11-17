@@ -55,6 +55,8 @@
 #[cfg(test)]
 mod container_tests;
 #[cfg(test)]
+mod dom_tests;
+#[cfg(test)]
 mod pseudo_content_tests;
 mod scoping;
 #[cfg(test)]

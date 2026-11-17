@@ -65,6 +65,7 @@ impl Styler<'_> {
                 chain: Arc::from([]),
             })
             .collect();
+        map.set_use_elements(!queue.is_empty());
         if queue.is_empty() {
             return;
         }

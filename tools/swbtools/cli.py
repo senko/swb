@@ -130,6 +130,7 @@ def cmd_gui_latency(args: argparse.Namespace) -> int:
         idle_s=args.idle,
         swb_path=args.swb,
         label=args.url or f"{directory.parent.name}/{args.name}",  # type: ignore[union-attr]
+        log_file=args.log,
     )
     return gui_latency(options, args.json)
 
@@ -428,6 +429,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--idle", type=float, default=3.0, help="idle seconds measured after the trace")
     p.add_argument("--swb", type=Path, help="path of the swb binary")
     p.add_argument("--json", action="store_true", help="print the report as JSON")
+    p.add_argument(
+        "--log",
+        type=Path,
+        metavar="FILE",
+        help="write the GUI's stderr (the frame log and the pipeline log) to FILE",
+    )
     p.set_defaults(func=cmd_gui_latency)
 
     p = commands.add_parser(

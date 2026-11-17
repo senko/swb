@@ -46,6 +46,7 @@ mod counter_style;
 mod counters;
 pub mod cssom;
 mod custom;
+mod dom_changes;
 mod element;
 mod element_kinds;
 mod font_cycle;
@@ -64,7 +65,7 @@ mod svg_attributes;
 mod transform_list;
 mod values;
 
-pub use cascade::targeted::{FullReason, Restyle, restyle_states};
+pub use cascade::targeted::{FullReason, Restyle, restyle_states, restyle_targeted};
 pub use cascade::{
     compute_element_styles, compute_element_styles_with_containers, compute_pseudo_element_style,
     compute_pseudo_element_style_with_containers, compute_styles, compute_styles_reusing,
@@ -75,6 +76,7 @@ pub use computed::ComputedStyle;
 pub use container::{ContainerLog, ContainerSizes};
 pub use content::content_text;
 pub use custom::CustomProperties;
+pub use dom_changes::{DomChanges, DomFullReason};
 pub use element::{
     CONTROL_STATES, DisabledElements, ElementStates, is_actually_disabled, query_selector_all,
 };

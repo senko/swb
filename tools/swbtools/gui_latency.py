@@ -72,6 +72,7 @@ class Options:
     drain_timeout_s: float = 60.0
     swb_path: Path | None = None
     label: str = ""
+    log_file: Path | None = None
 
 
 # ----- Processes -----
@@ -174,9 +175,10 @@ class LogCollector(threading.Thread):
     """Reads the stderr of the GUI: the frame log and the style and layout
     runs of the pipeline log, each with the time of its arrival."""
 
-    def __init__(self, stream: object) -> None:
+    def __init__(self, stream: object, log_file: Path | None = None) -> None:
         super().__init__(daemon=True)
         self.stream = stream
+        self.log_file = log_file
         self.batches: list[frame_log.Batch] = []
         self.frames: list[frame_log.Frame] = []
         self.stages: list[tuple[float, str, float]] = []
@@ -184,8 +186,18 @@ class LogCollector(threading.Thread):
         self.logged = dict.fromkeys(frame_log.KIND_FIELDS, 0)
 
     def run(self) -> None:
+        copy = self.log_file.open("w", encoding="utf-8") if self.log_file else None
+        try:
+            self.read(copy)
+        finally:
+            if copy is not None:
+                copy.close()
+
+    def read(self, copy: object) -> None:
         for line in self.stream:  # type: ignore[attr-defined]
             arrived = monotonic()
+            if copy is not None:
+                copy.write(line)  # type: ignore[attr-defined]
             item = frame_log.parse_line(line)
             if isinstance(item, frame_log.Batch):
                 self.batches.append(item)
@@ -216,20 +228,25 @@ def parse_stage(line: str) -> tuple[str, float] | None:
     return match.group(1), float(match.group(2)) * scale
 
 
-_TARGETED = re.compile(r"pipeline\]\s+targeted restyle after a state change: (\d+) elements")
-_FULL = re.compile(r"pipeline\]\s+style: full restyle after a state change \((\w+)\)")
+_TARGETED = re.compile(
+    r"pipeline\]\s+targeted restyle after (a state change|DOM changes): (\d+) elements"
+)
+_FULL = re.compile(r"pipeline\]\s+style: full restyle after (a state change|DOM changes) \((\w+)\)")
 
 
 def parse_restyle(line: str) -> tuple[str, int] | None:
-    """The path of a restyle after a state change (ADR 0041) from a pipeline
-    log line: (`targeted`, restyled elements) or (`full: REASON`, 0); None
-    for other lines."""
+    """The path of a restyle after a state change (ADR 0041) or after DOM
+    changes (ADR 0042) from a pipeline log line: (`targeted`, restyled
+    elements) or (`full: REASON`, 0), with `DOM ` before the path of a
+    restyle after DOM changes; None for other lines."""
     match = _TARGETED.search(line)
     if match is not None:
-        return "targeted", int(match.group(1))
+        prefix = "DOM " if match.group(1) == "DOM changes" else ""
+        return f"{prefix}targeted", int(match.group(2))
     match = _FULL.search(line)
     if match is not None:
-        return f"full: {match.group(1)}", 0
+        prefix = "DOM " if match.group(1) == "DOM changes" else ""
+        return f"{prefix}full: {match.group(2)}", 0
     return None
 
 
@@ -329,7 +346,7 @@ def private_session(
             stderr=subprocess.PIPE,
             text=True,
         )
-        collector = LogCollector(gui.stderr)
+        collector = LogCollector(gui.stderr, options.log_file)
         collector.start()
         address = automation.read_address(gui)
         window = display.wait_for_window(30.0)
@@ -559,7 +576,7 @@ def markdown(report: dict) -> str:
     if restyles.get("paths"):
         paths = ", ".join(f"{path} {n}" for path, n in sorted(restyles["paths"].items()))
         lines.append(
-            f"\nRestyles after state changes in the trace: {paths} "
+            f"\nTargeted and full restyles in the trace (DOM: after DOM changes): {paths} "
             f"({restyles['restyled_elements']} elements restyled)."
         )
     for kind, counts in report["count_mismatch"].items():

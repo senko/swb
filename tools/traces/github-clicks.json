@@ -1,0 +1,202 @@
+{
+ "description": "GitHub clicks (senko/swb, JavaScript on), window 1280 x 900 with the 40 px toolbar: twice each: the Code button opens its popover and a click on a blank area of the page closes it, the branch selector opens its menu and a blank click closes it, the '...' button of the latest commit shows its details and a second click on it hides them; 1.8 s between clicks (M11 feature 6, each click checked with screenshots in the GUI; the header menus are not used because they also open on hover)",
+ "window": [
+  1280,
+  900
+ ],
+ "duration": 22.1,
+ "events": [
+  {
+   "t": 0.0,
+   "kind": "move",
+   "x": 882,
+   "y": 321
+  },
+  {
+   "t": 0.4,
+   "kind": "press",
+   "button": 1
+  },
+  {
+   "t": 0.48,
+   "kind": "release",
+   "button": 1
+  },
+  {
+   "t": 1.8,
+   "kind": "move",
+   "x": 700,
+   "y": 255
+  },
+  {
+   "t": 2.2,
+   "kind": "press",
+   "button": 1
+  },
+  {
+   "t": 2.28,
+   "kind": "release",
+   "button": 1
+  },
+  {
+   "t": 3.6,
+   "kind": "move",
+   "x": 84,
+   "y": 321
+  },
+  {
+   "t": 4.0,
+   "kind": "press",
+   "button": 1
+  },
+  {
+   "t": 4.08,
+   "kind": "release",
+   "button": 1
+  },
+  {
+   "t": 5.4,
+   "kind": "move",
+   "x": 700,
+   "y": 255
+  },
+  {
+   "t": 5.8,
+   "kind": "press",
+   "button": 1
+  },
+  {
+   "t": 5.88,
+   "kind": "release",
+   "button": 1
+  },
+  {
+   "t": 7.2,
+   "kind": "move",
+   "x": 229,
+   "y": 380
+  },
+  {
+   "t": 7.6,
+   "kind": "press",
+   "button": 1
+  },
+  {
+   "t": 7.68,
+   "kind": "release",
+   "button": 1
+  },
+  {
+   "t": 9.0,
+   "kind": "move",
+   "x": 229,
+   "y": 380
+  },
+  {
+   "t": 9.4,
+   "kind": "press",
+   "button": 1
+  },
+  {
+   "t": 9.48,
+   "kind": "release",
+   "button": 1
+  },
+  {
+   "t": 10.8,
+   "kind": "move",
+   "x": 882,
+   "y": 321
+  },
+  {
+   "t": 11.2,
+   "kind": "press",
+   "button": 1
+  },
+  {
+   "t": 11.28,
+   "kind": "release",
+   "button": 1
+  },
+  {
+   "t": 12.6,
+   "kind": "move",
+   "x": 700,
+   "y": 255
+  },
+  {
+   "t": 13.0,
+   "kind": "press",
+   "button": 1
+  },
+  {
+   "t": 13.08,
+   "kind": "release",
+   "button": 1
+  },
+  {
+   "t": 14.4,
+   "kind": "move",
+   "x": 84,
+   "y": 321
+  },
+  {
+   "t": 14.8,
+   "kind": "press",
+   "button": 1
+  },
+  {
+   "t": 14.88,
+   "kind": "release",
+   "button": 1
+  },
+  {
+   "t": 16.2,
+   "kind": "move",
+   "x": 700,
+   "y": 255
+  },
+  {
+   "t": 16.6,
+   "kind": "press",
+   "button": 1
+  },
+  {
+   "t": 16.68,
+   "kind": "release",
+   "button": 1
+  },
+  {
+   "t": 18.0,
+   "kind": "move",
+   "x": 229,
+   "y": 380
+  },
+  {
+   "t": 18.4,
+   "kind": "press",
+   "button": 1
+  },
+  {
+   "t": 18.48,
+   "kind": "release",
+   "button": 1
+  },
+  {
+   "t": 19.8,
+   "kind": "move",
+   "x": 229,
+   "y": 380
+  },
+  {
+   "t": 20.2,
+   "kind": "press",
+   "button": 1
+  },
+  {
+   "t": 20.28,
+   "kind": "release",
+   "button": 1
+  }
+ ]
+}

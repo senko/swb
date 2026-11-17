@@ -778,6 +778,107 @@ the GitHub trace 227 restyles were targeted (1,376 elements in all) and 2
 fell back to a full restyle for query containers (0.9 %); in the Ars
 Technica trace all 48 were targeted (73 elements).
 
+## Restyle of the elements that a DOM change affects (M11 feature 6)
+
+ADR 0042: a DOM change (an attribute, an insertion or removal, text, the
+top layer) restyles only the elements that a selector can make it affect;
+the old styles stay from the drain to the next flush. Release build, Intel
+Core i5-13500; base = 34a1b6f (the main checkout's binary), measured in the
+same session.
+
+**GitHub clicks, headless** (JS fixture, 1280 x 800, `out/m11-f6/clicks.py`
+from the orchestrator's `clicks_headless.py`: a click and 1.5 s of the log;
+style = the sum of the style runs logged after the click, state restyles
+included):
+
+| Click | style ms before | after | full restyles ms before | restyles after DOM changes ms after | call ms before | after |
+|---|---|---|---|---|---|---|
+| code open | 87.9 | 19.6 | 78.2 | 10.6 | 156 | 85 |
+| blank (dismiss) | 30.2 | 8.9 | 24.7 | 3.3 | 67 | 44 |
+| platform open | 59.6 | 15.5 | 49.5 | 5.5 | 60 | 38 |
+| Escape | 25.4 | 5.6 | 25.1 | 5.3 | 16 | 8 |
+| code open | 64.5 | 18.5 | 54.5 | 8.5 | 118 | 67 |
+| Escape | 26.2 | 3.6 | 25.9 | 3.3 | 44 | 20 |
+| platform open | 60.8 | 16.8 | 50.0 | 5.7 | 62 | 48 |
+| platform close (click) | 31.8 | 11.7 | 25.1 | 5.2 | 17 | 15 |
+| branch open | 90.6 | 19.7 | 80.4 | 9.7 | 160 | 82 |
+| Escape | 26.0 | 3.7 | 25.7 | 3.4 | 44 | 20 |
+| commit dots | 84.0 | 10.4 | 77.5 | 3.8 | 32 | 30 |
+| Escape | 26.5 | 2.0 | 26.1 | 1.6 | 5 | 4 |
+| code open | 62.6 | 15.9 | 55.4 | 8.6 | 140 | 90 |
+| blank (dismiss) | 32.8 | 9.1 | 25.9 | 3.4 | 72 | 44 |
+| all 14 | 709 | 161 | 624 | 78 | | |
+
+All restyles after DOM changes of the 14 clicks took the targeted path (no
+fallback). The rest of a click's style time is ADR 0041's restyles after
+the state changes of the press, release and focus (3 to 4 per click, 0.3 to
+4 ms each).
+
+**GUI on Xvfb**, 1280 x 900, JavaScript on, `swbtools gui-latency
+github-swb --js` (median / p90 / max in ms; several values are separate
+runs; six releases make the median of `github-owner` noisy):
+
+| Trace | Input | to batch end before | after | to frame before | after |
+|---|---|---|---|---|---|
+| `github-owner` | release (6) | 62 / 174 / 174, 53 / 164 / 164 | 45 / 128 / 128, 27 / 81 / 81, 29 / 78 / 78 | 191 / 1382 / 1382, 178 / 1371 / 1371 | 145 / 1375 / 1375, 95 / 1373 / 1373, 92 / 1371 / 1371 |
+| | press (6) | 17 / 34 / 34 | 19 / 23 / 23 | 37 / 858 / 858 | 36 / 854 / 854 |
+| | move (1065) | 1 / 20 / 112 | 1 / 15 / 50 | 102 / 682 / 1997 | 95 / 677 / 1997 |
+| `github-clicks` | release (12) | 93 / 164 / 171 | 40 / 81 / 89, 34 / 70 / 76 | 178 / 1343 / 1345 | 96 / 1346 / 1346, 83 / 1341 / 1341 |
+| | press (12) | 16 / 64 / 69 | 19 / 41 / 51, 13 / 32 / 35 | 29 / 77 / 81 | 32 / 53 / 65, 25 / 43 / 49 |
+
+| Trace | style runs (ms) before | after | layout runs (ms) before | after | CPU before | after |
+|---|---|---|---|---|---|---|
+| `github-owner` | 237 (698) | 244 to 250 (220 to 320) | 99 (774) | 99 to 100 (551 to 710) | 8.7 % | 5.6 to 7.8 % |
+| `github-clicks` | 68 (794) | 68 (158 to 213) | 55 (349) | 55 (307 to 368) | 8.8 % | 5.2 to 6.2 % |
+
+The final build (with the layout of section 6 moved aside while a restyle
+is pending, and the fallback for container sizes that the log does not
+hold) runs the same style and layout runs on each of the 14 headless
+clicks as the build of the tables: the restyles after the Code popover's
+DOM changes 10.7, 8.7 and 8.6 ms, the 14 clicks' style 164 ms. GUI:
+`github-owner` release to batch end 26 / 77 / 77 ms, to frame 92 / 1374 /
+1374 ms, style 246 runs (258 ms); `github-clicks` release to batch end
+33 / 77 / 81 ms, to frame 90 / 1341 / 1342 ms, style 68 runs (159 ms).
+
+The `github-clicks` trace (new, `tools/traces/`) clicks the Code button, the
+branch selector and the "..." button of the latest commit and closes each
+again (each click checked with screenshots in the GUI). Before, its
+releases waited for two to three full restyles of 25 to 28 ms each.
+
+**The load** (`--bench` "flushes", JavaScript on, median of three loads):
+
+| Fixture | style runs | style ms before | after | layout runs before | after | layout ms before | after |
+|---|---|---|---|---|---|---|---|
+| github-swb | 17 | 457 | 153 | 17 | 11 | 98 | 63 |
+| ars-technica | 17 | 150 | 28 | 21 | 20 | 143 | 132 |
+| wikipedia-web-browser | 5 | 48 | 44 | 6 | 6 | 69 | 62 |
+| bbc | 9 | 42 | 28 | 11 | 11 | 108 | 113 |
+| craigslist-posting | 7 | 5.0 | 4.0 | 7 | 7 | 4.9 | 4.9 |
+
+On GitHub the layout runs of the load fall from 17 to 11: six flushes
+changed only attributes that the style system alone reads and no style. The
+paths of the load's restyles after DOM changes: GitHub 12 targeted and 1
+with nothing to restyle; Ars Technica 14 targeted, 1 full for a change of
+the `body` (structure) and 1 for too many inserted elements; Wikipedia 1
+targeted, 1 full for counters; BBC 4 targeted; Craigslist 5 targeted and 1
+too large.
+
+`swbtools perf --all --runs 10` (JavaScript off) and `swbtools perf --js
+github-swb ars-technica wikipedia-web-browser bbc craigslist-posting --runs
+10`: the load stages and the hover and scroll steps are those of the base
+within noise (the stages run each step in full, so the targeted restyle does
+not change them). The index of the dependencies takes 9.1 to 9.7 ms on
+GitHub's 27,793 rules, once per stylist build.
+
+The JS-off snapshot is identical, `compare --all --js` gives the same
+scores. Hostile cases (new): `dom-class-toggles-20000-siblings` 2.2 s
+(base: over the 5 s script limit), `dom-deep-has-3000` 3.9 s (base 2.9 s),
+`dom-insert-100000-children` 1.7 s (1.8 s), `dom-attribute-rules-10000` 0.1
+s (0.1 s), `dom-append-with-layout-1000` 2.4 s (2.1 s). The last and the
+deep `:has()` case restyle nearly every element at each flush; there the
+targeted pass costs up to about 1.3 to 1.6 times a full one (backlog). The
+whole hostile set: 524 cases ok, 1 known failure (as before).
+
 ## Script runtime of a document
 
 The engine creates a `swb_web::ScriptRuntime` for each document that

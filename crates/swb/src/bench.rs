@@ -101,10 +101,12 @@ fn flushes_json(c: &FlushCounters) -> serde_json::Value {
         "container_passes": c.container_passes,
         "container_pass_limits": c.container_pass_limits,
         "state_restyles": state_restyles_json(&c.state_restyles),
+        "dom_restyles": state_restyles_json(&c.dom_restyles),
     })
 }
 
-/// The paths of the restyles after state changes (ADR 0041).
+/// The paths of the restyles after state changes (ADR 0041) or DOM
+/// changes (ADR 0042).
 fn state_restyles_json(r: &StateRestyles) -> serde_json::Value {
     json!({
         "targeted": r.targeted,
@@ -115,6 +117,8 @@ fn state_restyles_json(r: &StateRestyles) -> serde_json::Value {
         "full_root_font_size": r.root_font_size,
         "full_containers": r.containers,
         "full_counters": r.counters,
+        "full_too_large": r.too_large,
+        "full_structure": r.structure,
     })
 }
 
@@ -242,6 +246,8 @@ fn add_restyles(a: StateRestyles, b: &StateRestyles) -> StateRestyles {
         root_font_size: a.root_font_size + b.root_font_size,
         containers: a.containers + b.containers,
         counters: a.counters + b.counters,
+        too_large: a.too_large + b.too_large,
+        structure: a.structure + b.structure,
     }
 }
 

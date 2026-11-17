@@ -4,6 +4,42 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-17: M11 feature 6, restyle of the elements that a DOM change affects
+
+- Decision: after feature 5, a GitHub click still took 168 to 191 ms from
+  release to frame in the GUI (target 150 ms). A Code popover click ran
+  two to three full restyles of 26 to 28 ms, all after DOM changes
+  (attributes and small insertions). Feature 6 was needed.
+- ADR 0042 (style invalidation for DOM changes) came first. Feature 5's
+  analysis now also gives the dependencies on classes, IDs, attributes,
+  `:empty`, structural pseudo-classes and `:has()`; one index serves states
+  and the DOM. The drain keeps the old styles aside; the flush restyles the
+  elements that the journal's changes can reach, with feature 5's walk.
+  `:has()` outside the subject compound, and a dependency in any compound
+  of its argument, now get anchors instead of a full restyle (ADR 0041
+  revised).
+- The layout stays when only attributes that layout does not read changed
+  and no computed style changed. A first version left the layout in place
+  until the flush, so scripts read old geometry (Wikipedia's JS test); the
+  layout is now moved aside at the drain and put back only when no style
+  changed.
+- A latent gap of feature 5 came out: after the bound of the container
+  passes, the targeted pass kept stale query results. It now falls back to
+  a full restyle when the old container log does not hold the new sizes.
+- GitHub Code popover: the restyles after its DOM changes 78 to 11 ms. GUI
+  release to frame median 92 ms on the owner trace (target met); the new
+  `github-clicks` trace 178 to 90 ms. GitHub load style 457 to 153 ms.
+- Tests: an oracle with random DOM changes on the page fixtures, an oracle
+  on a generated page with rules of each selector shape, the engine check
+  mode on the JS fixtures' interaction steps. JS-off snapshot identical.
+- The review found a stale style that no oracle showed: a class change in
+  one task and the removal of the same element in the next lost the old
+  class for the removal's lookups. Fixed, with a unit test. The random
+  oracles miss such cases because rules without keys restyle the siblings
+  anyway (backlog). A race between GUI composition tests (from feature 3)
+  failed `just check` once; fixed.
+- Next: feature 7 (exit measurement and end-of-milestone maintenance).
+
 ## 2026-11-15: M11 feature 5, restyle of the elements that a state change affects
 
 - ADR 0041 (style invalidation for element states) came first. A change

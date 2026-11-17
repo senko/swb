@@ -19,10 +19,11 @@
 //! images (as the walk does). Across drains, each kind starts in the order
 //! of insertion.
 //!
-//! Invalidation: any change marks the styles dirty (a full restyle, M8; also
-//! a popover that shows or hides, `Change::TopLayer`, ADR 0037); a
-//! change of a stylesheet (added, removed, moved, its text, `media` or
-//! URL) or of the base URL marks the stylist dirty.
+//! Invalidation: a change in the document marks the styles dirty and is
+//! recorded for the targeted restyle of ADR 0042 (also a popover that shows
+//! or hides, `Change::TopLayer`, ADR 0037); a change of a stylesheet
+//! (added, removed, moved, its text, `media` or URL) or of the base URL
+//! marks the stylist dirty (a full restyle).
 //!
 //! Shadow trees (ADR 0036 section 3): "in the document" means connected, so
 //! the walks are shadow-including: the images, frames and form controls of a
@@ -306,14 +307,22 @@ impl DocumentState {
         let mut visited = HashSet::new();
         let mut removed_visited = HashSet::new();
         let mut connected = Connected::new(&self.dom);
+        // The changes that a targeted restyle needs (ADR 0042 section 3),
+        // while there are styles to keep.
+        let record = self.styles.is_some() || self.stale_styles.is_some();
+        let mut dom_changes = std::mem::take(&mut self.dom_changes);
         for change in journal.iter() {
-            if !batch.in_document {
+            if !batch.in_document || record {
                 let target = match &change {
                     Change::Children { parent, .. } => *parent,
                     Change::Attribute { element, .. } | Change::TopLayer { element } => *element,
                     Change::Text { node, .. } => *node,
                 };
-                batch.in_document = connected.check(target);
+                let in_document = connected.check(target);
+                batch.in_document |= in_document;
+                if record {
+                    dom_changes.record(&self.dom, &change, in_document);
+                }
             }
             match change {
                 Change::Children {
@@ -370,6 +379,7 @@ impl DocumentState {
                 Change::TopLayer { .. } => {}
             }
         }
+        self.dom_changes = dom_changes;
         self.finish_batch(batch);
     }
 
@@ -575,7 +585,11 @@ impl DocumentState {
         if stylist_dirty {
             self.invalidate_style();
         } else if batch.in_document {
-            self.invalidate_styles();
+            self.invalidate_styles_for_dom();
+        } else if self.styles.is_some() {
+            // Changes outside the document only, with current styles: nothing
+            // for a restyle to know.
+            self.dom_changes.clear();
         }
     }
 

@@ -121,7 +121,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just update-scores`         | `compare --all --update-scores`        | Also writes the scores to `fixtures/scores.json`. |
 | `just layout-refs [NAME...]` | `layout-refs [NAME...]`                | Writes `tests/layout/NAME.boxes.json` with Chromium. |
 | `just perf [NAME...]`        | `perf [NAME...] [--runs N] [--js]`     | Times swb's pipeline stages and the interaction (hover, scroll) per fixture; with `--js` the fixtures of `fixtures/js/` with JavaScript on ([performance.md](performance.md)). |
-| `just tools gui-latency NAME` | `gui-latency NAME [--js] [--trace T] [--window WxH] [--json]` | Plays an input trace into the GUI on a private Xvfb and reports the input latency (see "GUI input latency"). Also `--url URL` for a live page. |
+| `just tools gui-latency NAME` | `gui-latency NAME [--js] [--trace T] [--window WxH] [--json] [--log FILE]` | Plays an input trace into the GUI on a private Xvfb and reports the input latency (see "GUI input latency"). Also `--url URL` for a live page. |
 | `just tools measure [NAME...]` | `measure [NAME...]`                  | Measures the Chromium behaviour that some of swb's data comes from (see "Measure Chromium behaviour"). `font-size-sweep` runs only when named. |
 | `just probe FILE...`         | `probe FILE... [--case NAME]... [--with-swb] [--tolerance PX] [--json]` | Asks Chromium (and with `--with-swb`, swb) about the cases of JSON files: boxes, line fragments, computed styles, JS values, ink and the colors at points (`pixels`); cases with `"javascript": true` run their scripts (see "Probe Chromium behaviour"). |
 | `just hostile [NAME...]`     | `hostile [NAME...] [--swb PATH] [--list] [--keep]` | Runs swb on the hostile-page set and checks time and memory limits (see "Hostile-page set"). `just` builds swb first. |
@@ -912,16 +912,19 @@ fixture's clock: `--now` from `fixture.json`; the GUI has no virtual time),
 else `fixtures/pages/NAME`; `--fixtures js` picks `fixtures/js` without
 JavaScript. The GUI runs with `--replay`, `--test-fonts` and the URL of
 `fixture.json`. `--window WxH` is the window size (default 1280x900),
-`--idle S` the idle time measured after the trace (default 3 s).
+`--idle S` the idle time measured after the trace (default 3 s). `--log FILE`
+writes the GUI's stderr (the frame log and the pipeline log) to FILE.
 
 The GUI runs with `RUST_LOG=warn,swb::gui=debug,swb_engine::document::pipeline=debug`
 and prints its frame log (format: performance.md, "The frame log of the
-GUI"). The report also counts the restyles after state changes in the
-trace by path (ADR 0041: targeted, with the elements restyled, and the full
-restyles by reason), from the pipeline log's lines `targeted restyle after a
-state change: N elements restyled` and `style: full restyle after a state
-change (REASON)`. The tool reads it and maps each injected event to its batch of
-window events by order within its kind (`move`, `wheel`, `press`,
+GUI"). The report also counts the restyles after state changes and after
+DOM changes in the trace by path (ADR 0041 and ADR 0042: targeted, with the
+elements restyled, and the full restyles by reason; the paths after DOM
+changes start with `DOM`), from the pipeline log's lines `targeted restyle
+after a state change: N elements restyled`, `style: full restyle after a
+state change (REASON)` and the same with `DOM changes`. The tool reads it
+and maps each injected event to its batch of window events by order within
+its kind (`move`, `wheel`, `press`,
 `release`): the k-th event of a kind is in the batch where the running
 count of that kind first reaches k. It checks that the GUI counted as many
 events as it sent and prints a line when it did not (X11 gives a wheel
@@ -969,6 +972,7 @@ least the last event's time; an idle trace has no events. The traces:
 | Trace | What |
 |---|---|
 | `github-owner` | The owner's input of the GitHub session (52 s, window 1280 x 935): 1,073 moves (8 of them to the place where the pointer already is, which give no X event), 89 wheel notches, 6 clicks. |
+| `github-clicks` | Twelve clicks on GitHub (22 s, window 1280 x 900), 1.8 s apart, twice each: the Code button opens its popover and a click on a blank area closes it, the branch selector opens its menu and a blank click closes it, the "..." button of the latest commit shows its details and a second click hides them (M11 feature 6; each click checked with screenshots in the GUI; the header menus are not used because they also open on hover). `tools/make_traces.py` does not make it; it was written by hand. |
 | `ars-owner` | The owner's Ars Technica session up to 7.7 s (the click at 7.8 s opened an article that the fixture does not have): 234 moves, 27 notches, 1 click. |
 | `idle-10s` | No input for 10 s: the CPU and the frames of a page at rest. |
 | `pointer-sweep` | A diagonal pointer sweep, 125 moves per second for 3 s. |

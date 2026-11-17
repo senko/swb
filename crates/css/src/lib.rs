@@ -46,10 +46,10 @@ pub use cursor::{ParseError, Parser};
 pub use media::{ColorScheme, MediaEnvironment, MediaQueryList, MediaType};
 pub use parser::{parse_component_values, parse_rule, parse_style_attribute, parse_stylesheet};
 pub use selector::{
-    AnB, BucketKey, CaseSensitivity, Element, ElementState, HostRelation, MATCH_BUDGET,
-    MatchingContext, PseudoElement, QuirksMode, Selector, SelectorList, ShadowPseudoKind,
-    Specificity, StateDependency, StateReach, matches, matches_any, matches_in_tree, matches_part,
-    matches_slotted, matches_with_scope,
+    AnB, Anchor, BucketKey, CaseSensitivity, Dependency, DependencyKey, DependencyView, Element,
+    ElementState, HostRelation, MATCH_BUDGET, MatchingContext, PseudoElement, QuirksMode, Selector,
+    SelectorList, ShadowPseudoKind, Specificity, StateReach, matches, matches_any, matches_in_tree,
+    matches_part, matches_slotted, matches_with_scope,
 };
 pub use serialize::{serialize_component_values, serialize_identifier, serialize_string};
 pub use sizes::{allows_auto, source_size};

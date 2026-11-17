@@ -421,11 +421,13 @@ mod tests {
     /// A page for `HTML` in a window of `window` CSS px at `scale`, with
     /// the toolbar that the window starts with.
     fn with_window(window: Size, scale: f32, test: impl FnOnce(&mut Page, &mut Toolbar) + Send) {
-        let path = std::env::temp_dir().join(format!(
-            "swb-compose-{}-{}.html",
-            std::process::id(),
-            scale.to_bits()
-        ));
+        // One file per call: tests run in parallel, and a test removes its
+        // file at the end (a name per scale let one test remove the file
+        // of another before it loaded).
+        static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path =
+            std::env::temp_dir().join(format!("swb-compose-{}-{call}.html", std::process::id()));
         std::fs::write(&path, HTML).expect("the temporary directory is writable");
         let url = Url::from_file_path(&path).expect("an absolute path");
         crate::stack::on_page_thread(|| {

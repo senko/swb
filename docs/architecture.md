@@ -174,12 +174,16 @@ Rules:
   target elements. A change restyles only if a selector depends on that
   state; the layout stays if no style changed (ADR 0009). A change of
   hover, active, focus, focus-visible or focus-within restyles only the
-  elements that it can affect (ADR 0041): `swb_css::Selector::state_reach`
+  elements that it can affect (ADR 0041): `swb_css::Selector::dependencies`
   analyses each selector, `style/src/invalidation.rs` indexes the
   dependencies in the `Stylist` and marks the elements, and
-  `style/src/cascade/targeted.rs` (`restyle_states`) restyles them with a
+  `style/src/cascade/targeted.rs` (`restyle_targeted`) restyles them with a
   walk from the root that enters only the elements on the way to them; the
-  document keeps the states of its styles (`style_states`).
+  document keeps the states of its styles (`style_states`). DOM changes
+  take the same path (ADR 0042): the drain records them in a
+  `swb_style::DomChanges` set and keeps the old map (`stale_styles`) until
+  the next style computation, and `style/src/dom_changes.rs` marks what they
+  can affect.
 - **Scroll offsets** (`engine`, ADR 0019): one per scroll container,
   keyed by `NodeId`, in whole CSS px, clamped after each layout. Layout
   stores each scroll container's scrollable overflow in

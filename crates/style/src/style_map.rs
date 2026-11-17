@@ -57,13 +57,23 @@ impl PseudoKind {
     ];
 }
 
+/// The pseudo-element styles of one element, indexed by [`PseudoKind`].
+pub(crate) type PseudoStyles = [Option<Arc<ComputedStyle>>; 7];
+
+/// The index of `kind` in [`PseudoStyles`].
+fn slot(kind: PseudoKind) -> usize {
+    kind as usize
+}
+
 /// Computed styles for the elements of a document.
 #[derive(Clone, Debug, Default)]
 pub struct StyleMap {
     /// Indexed by `NodeId::index()`. `None` for non-elements and for
     /// elements in `display: none` subtrees (which have no style).
     elements: Vec<Option<Arc<ComputedStyle>>>,
-    pseudos: HashMap<(NodeId, PseudoKind), Arc<ComputedStyle>>,
+    /// The pseudo-element styles of each element that has one, by
+    /// [`PseudoKind`] (one lookup per element).
+    pseudos: HashMap<NodeId, PseudoStyles>,
     /// The ordinal value of each list item (see `counters.rs`).
     ordinals: HashMap<NodeId, i32>,
     /// The instance trees of SVG `use` elements (`use_instances.rs`).
@@ -85,6 +95,10 @@ pub struct StyleMap {
     counter_text: bool,
     /// True if `counters::resolve` reached the limit of counter text.
     counter_limit: bool,
+    /// True if the document had `use` elements when the instance trees
+    /// were made (ADR 0042 section 4: a change of an ID or of the tree can
+    /// change them).
+    use_elements: bool,
 }
 
 /// The identity of the instance tree of one SVG `use` element (SVG 2 §5.6).
@@ -178,7 +192,31 @@ impl StyleMap {
             container_readers: HashSet::new(),
             counter_text: false,
             counter_limit: false,
+            use_elements: false,
         }
+    }
+
+    /// The number of elements with a style.
+    pub(crate) fn styled_count(&self) -> usize {
+        self.elements.iter().filter(|s| s.is_some()).count()
+    }
+
+    /// Makes room for the nodes of a document of `len` nodes, as a map that
+    /// a full pass over that document makes.
+    pub(crate) fn fit(&mut self, len: usize) {
+        if self.elements.len() < len {
+            self.elements.resize(len, None);
+        }
+    }
+
+    /// Notes whether the document has `use` elements.
+    pub(crate) fn set_use_elements(&mut self, any: bool) {
+        self.use_elements = any;
+    }
+
+    /// True if the document had `use` elements at the last instance pass.
+    pub(crate) fn has_use_elements(&self) -> bool {
+        self.use_elements
     }
 
     /// Notes that the style of `node` or of its pseudo-elements read a
@@ -210,22 +248,20 @@ impl StyleMap {
         &mut self.container_log
     }
 
-    /// Removes the style of `node` and of its pseudo-elements.
+    /// Removes the style of `node` and of its pseudo-elements, its ordinal
+    /// and its mark as a reader of query containers.
     pub(crate) fn clear_element(&mut self, node: NodeId) {
         if let Some(slot) = self.elements.get_mut(node.index()) {
             *slot = None;
         }
         self.remove_pseudos(node);
+        self.ordinals.remove(&node);
+        self.container_readers.remove(&node);
     }
 
     /// Removes the pseudo-element styles of `node`.
     pub(crate) fn remove_pseudos(&mut self, node: NodeId) {
-        if self.pseudos.is_empty() {
-            return;
-        }
-        for kind in PseudoKind::ALL {
-            self.pseudos.remove(&(node, kind));
-        }
+        self.pseudos.remove(&node);
     }
 
     /// The ordinals of the list items.
@@ -237,8 +273,11 @@ impl StyleMap {
     /// summaries of `details`, 0), before `counters::resolve` runs again.
     pub(crate) fn reset_ordinals(&mut self) {
         let pseudos = &self.pseudos;
-        self.ordinals
-            .retain(|&node, _| pseudos.contains_key(&(node, PseudoKind::DetailsSummary)));
+        self.ordinals.retain(|&node, _| {
+            pseudos
+                .get(&node)
+                .is_some_and(|p| p[slot(PseudoKind::DetailsSummary)].is_some())
+        });
         for value in self.ordinals.values_mut() {
             *value = 0;
         }
@@ -289,32 +328,38 @@ impl StyleMap {
 
     /// Computes [`StyleMap::has_hidden_contents`] again from all styles.
     pub(crate) fn recompute_hidden_contents(&mut self) {
-        self.hidden_contents = self
+        let hidden = self
             .elements
             .iter()
             .flatten()
-            .chain(self.pseudos.values())
+            .chain(self.pseudo_styles())
             .any(|s| s.skips_contents());
+        self.hidden_contents = hidden;
+    }
+
+    /// The pseudo-element styles of `node`, if it has one.
+    pub(crate) fn pseudo_styles_of(&self, node: NodeId) -> Option<&PseudoStyles> {
+        self.pseudos.get(&node)
+    }
+
+    /// All pseudo-element styles.
+    fn pseudo_styles(&self) -> impl Iterator<Item = &Arc<ComputedStyle>> {
+        self.pseudos.values().flat_map(|p| p.iter().flatten())
     }
 
     /// The pseudo-element styles of `node`, by kind.
     pub(crate) fn pseudos_of(&self, node: NodeId) -> [Option<Arc<ComputedStyle>>; 7] {
-        PseudoKind::ALL.map(|kind| self.pseudos.get(&(node, kind)).cloned())
+        self.pseudos.get(&node).cloned().unwrap_or_default()
     }
 
-    /// Stores (or with `None` removes) a pseudo-element style.
-    pub(crate) fn put_pseudo(
-        &mut self,
-        node: NodeId,
-        kind: PseudoKind,
-        style: Option<Arc<ComputedStyle>>,
-    ) {
-        match style {
-            Some(style) => self.set_pseudo(node, kind, style),
-            None => {
-                self.pseudos.remove(&(node, kind));
-            }
+    /// Replaces the pseudo-element styles of `node`.
+    pub(crate) fn replace_pseudos(&mut self, node: NodeId, styles: PseudoStyles) {
+        if styles.iter().all(Option::is_none) {
+            self.pseudos.remove(&node);
+            return;
         }
+        self.hidden_contents |= styles.iter().flatten().any(|s| s.skips_contents());
+        self.pseudos.insert(node, styles);
     }
 
     /// What differs between two maps, for the messages of tests: the first
@@ -338,16 +383,17 @@ impl StyleMap {
                 ));
             }
         }
-        for (key, a) in &self.pseudos {
-            if !same(Some(a), other.pseudos.get(key)) {
-                return Some(format!(
-                    "the pseudo-element {key:?}: {}",
-                    style_difference(Some(a), other.pseudos.get(key))
-                ));
+        for &node in self.pseudos.keys().chain(other.pseudos.keys()) {
+            for kind in PseudoKind::ALL {
+                let (a, b) = (self.pseudo(node, kind), other.pseudo(node, kind));
+                if !same(a, b) {
+                    return Some(format!(
+                        "the pseudo-element {:?}: {}",
+                        (node, kind),
+                        style_difference(a, b)
+                    ));
+                }
             }
-        }
-        if let Some(key) = other.pseudos.keys().find(|k| !self.pseudos.contains_key(k)) {
-            return Some(format!("the pseudo-element {key:?} is missing"));
         }
         if self.ordinals != other.ordinals {
             return Some("the ordinals".to_owned());
@@ -396,7 +442,7 @@ impl StyleMap {
 
     /// The style of a pseudo-element of `id`, if it generates a box.
     pub fn pseudo(&self, id: NodeId, kind: PseudoKind) -> Option<&Arc<ComputedStyle>> {
-        self.pseudos.get(&(id, kind))
+        self.pseudos.get(&id)?[slot(kind)].as_ref()
     }
 
     /// The style of a pseudo-element of `id`, for changes.
@@ -405,7 +451,7 @@ impl StyleMap {
         id: NodeId,
         kind: PseudoKind,
     ) -> Option<&mut Arc<ComputedStyle>> {
-        self.pseudos.get_mut(&(id, kind))
+        self.pseudos.get_mut(&id)?[slot(kind)].as_mut()
     }
 
     /// True if a style skips its contents
@@ -477,10 +523,15 @@ impl StyleMap {
                     _ => false,
                 })
             && self.pseudos.len() == other.pseudos.len()
-            && self
-                .pseudos
-                .iter()
-                .all(|(key, a)| other.pseudos.get(key).is_some_and(|b| same(a, b)))
+            && self.pseudos.iter().all(|(node, a)| {
+                other.pseudos.get(node).is_some_and(|b| {
+                    a.iter().zip(b).all(|pair| match pair {
+                        (Some(x), Some(y)) => same(x, y),
+                        (None, None) => true,
+                        _ => false,
+                    })
+                })
+            })
             && self.ordinals == other.ordinals
             && self.root_uses == other.root_uses
             && self.instances.len() == other.instances.len()
@@ -498,7 +549,7 @@ impl StyleMap {
     pub(crate) fn seed_custom_pool(&self, pool: &CustomPool) {
         let mut last: Option<&Arc<CustomProperties>> = None;
         let mut seen: HashSet<*const CustomProperties> = HashSet::new();
-        let styles = self.elements.iter().flatten().chain(self.pseudos.values());
+        let styles = self.elements.iter().flatten().chain(self.pseudo_styles());
         for style in styles {
             let Some(map) = &style.custom_properties else {
                 continue;
@@ -514,7 +565,7 @@ impl StyleMap {
     /// Stores the style of a pseudo-element.
     pub(crate) fn set_pseudo(&mut self, id: NodeId, kind: PseudoKind, style: Arc<ComputedStyle>) {
         self.hidden_contents |= style.skips_contents();
-        self.pseudos.insert((id, kind), style);
+        self.pseudos.entry(id).or_default()[slot(kind)] = Some(style);
     }
 
     /// The absolute URLs of all `background-image`, `mask-image` and
@@ -522,7 +573,7 @@ impl StyleMap {
     /// element styles in document order, then those of pseudo-element
     /// styles (in no particular order).
     pub fn image_urls(&self) -> Vec<Arc<str>> {
-        image_urls_of(self.elements.iter().flatten().chain(self.pseudos.values()))
+        image_urls_of(self.elements.iter().flatten().chain(self.pseudo_styles()))
     }
 }
 

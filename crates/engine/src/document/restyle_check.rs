@@ -1,6 +1,7 @@
-//! The check mode of the targeted restyle (ADR 0041 section 6), for tests:
-//! when it is on, each restyle after a state change that took the targeted
-//! path is compared with a full restyle, and a difference panics. Only in
+//! The check mode of the targeted restyle (ADR 0041 section 6, ADR 0042
+//! section 7), for tests: when it is on, each restyle after a state change
+//! or after DOM changes that took the targeted path is compared with a full
+//! restyle, and a difference panics. Only in
 //! builds with debug assertions; release builds have no check and no cost.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};

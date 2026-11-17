@@ -2403,6 +2403,16 @@ page would spend up to 3 s in style alone. The plan:
    boundaries, keeping fragment subtrees) is a separate design when a
    page's forced layout time is above its share of the budget.
 
+(M11 feature 6, ADR 0042: the restyle of dirty subtrees exists now in
+another form. A drain no longer drops the styles of a document that has
+them: it keeps them as the stale map and records the changes; the next
+style flush restyles only the elements that the changes can affect, and
+keeps the layout when only attributes that the style system alone reads
+changed and no style changed. `styles` and the layout are `None` between
+the drain and the flush (the layout is moved aside, not dropped), so the
+style of one element on demand and the layout flush of a geometry read
+work as before.)
+
 ### 10. CSSOM
 
 - `element.style`: a `CSSStyleDeclaration` over the `style` attribute:

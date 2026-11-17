@@ -182,3 +182,97 @@ fn script_focus_and_computed_style() {
     });
     assert!(swb_engine::restyle_checks() > 0);
 }
+
+/// Loads `html` (with scripts) at 1280 x 800.
+fn scripted_page(html: &'static str) -> Page {
+    let fetcher = Arc::new(OnePage::new(html));
+    let mut page = new_page(fetcher, 1, VIEW);
+    page.set_javascript(true);
+    page.navigate(Url::parse(CASE_PAGE).unwrap());
+    assert!(page.wait_until_loaded(Duration::from_secs(10)));
+    render(&mut page);
+    page
+}
+
+/// ADR 0042: a script that changes classes, attributes, text and the tree
+/// in loops, with `getComputedStyle` and `getBoundingClientRect` between
+/// the changes (forced flushes in the middle of a task). In check mode each
+/// targeted restyle after DOM changes equals a full restyle.
+#[test]
+fn script_dom_changes_equal_full_restyles() {
+    swb_engine::set_restyle_check(true);
+    common::on_page_thread(|| {
+        let mut page = scripted_page(
+            "<!doctype html><style>\
+             .open > .menu { display: block } .menu { display: none }\
+             li:nth-child(odd) { color: rgb(1, 2, 3) } li + li { margin-top: 1px }\
+             .list:has(.hot) { outline: 1px solid red } p:empty { height: 4px }\
+             [aria-expanded=true] ~ .tip { color: rgb(0, 128, 0) }\
+             ol > li { display: list-item }\
+             </style>\
+             <div id=nav><button id=b aria-expanded=false>m</button><span class=tip>t</span>\
+             <div class=menu><a href=#>x</a></div></div>\
+             <ul class=list id=l><li>a</li><li>b</li></ul><p id=p>t</p><ol id=o><li>1</li></ol>",
+        );
+        let before = page.flush_counters().dom_restyles;
+        let out = value(
+            &mut page,
+            "const nav = document.getElementById('nav'), b = document.getElementById('b'), \
+             l = document.getElementById('l'), p = document.getElementById('p'), \
+             o = document.getElementById('o'); const out = []; \
+             for (let i = 0; i < 20; i++) { \
+               nav.classList.toggle('open'); b.setAttribute('aria-expanded', String(i % 2 == 0)); \
+               out.push(getComputedStyle(nav.querySelector('.menu')).display); \
+               const li = document.createElement('li'); li.textContent = 'n' + i; \
+               if (i % 3 == 0) li.className = 'hot'; l.insertBefore(li, l.firstChild); \
+               out.push(getComputedStyle(l).outlineStyle, getComputedStyle(li).color); \
+               if (i % 4 == 3) { l.lastChild.remove(); o.append(document.createElement('li')); } \
+               p.textContent = i % 2 ? '' : 'x'; \
+               out.push(String(p.getBoundingClientRect().height > 0)); \
+               if (i % 5 == 4) l.querySelector('.hot')?.remove(); \
+             } \
+             out.push(getComputedStyle(document.querySelector('.tip')).color); \
+             JSON.stringify(out.slice(-6))",
+        );
+        assert!(out.contains("rgb"), "{out}");
+        render(&mut page);
+        let paths = page.flush_counters().dom_restyles.since(&before);
+        eprintln!("script: {paths:?}");
+        assert!(paths.targeted > 10, "{paths:?}");
+    });
+    assert!(swb_engine::restyle_checks() > 0);
+}
+
+/// ADR 0042 section 4: a change of the `slot` attribute of a host's child,
+/// or of the `name` of a slot, changes the assigned nodes; the DOM notes a
+/// shadow change, and the styles are computed in full (with `::slotted()`
+/// rules that see the new assignment).
+#[test]
+fn slot_changes_restyle_in_full() {
+    common::on_page_thread(|| {
+        let mut page = scripted_page(
+            "<!doctype html><div id=h><span id=c slot=a>c</span></div>\
+             <script>const r = document.getElementById('h').attachShadow({mode: 'open'}); \
+             r.innerHTML = '<style>::slotted(*) { color: rgb(0, 0, 255) } \
+             slot[name=b]::slotted(*) { color: rgb(255, 0, 0) }</style>\
+             <slot name=a></slot><slot name=b></slot>';</script>",
+        );
+        let color =
+            |page: &mut Page| value(page, "getComputedStyle(document.getElementById('c')).color");
+        assert_eq!(color(&mut page), "\"rgb(0, 0, 255)\"");
+        let before = page.flush_counters();
+        value(&mut page, "document.getElementById('c').slot = 'b'; 1");
+        render(&mut page);
+        assert_eq!(color(&mut page), "\"rgb(255, 0, 0)\"");
+        value(
+            &mut page,
+            "document.getElementById('h').shadowRoot.querySelector('slot[name=b]').name = 'x'; 1",
+        );
+        render(&mut page);
+        assert_eq!(color(&mut page), "\"rgb(0, 0, 0)\"");
+        let after = page.flush_counters();
+        let dom = after.dom_restyles.since(&before.dom_restyles);
+        assert_eq!(dom.targeted + dom.nothing, 0, "{dom:?}");
+        assert!(after.style_runs >= before.style_runs + 2);
+    });
+}

@@ -82,15 +82,77 @@ impl DocumentState {
         self.invalidate_styles();
     }
 
-    /// Drops the styles and everything after them (the styles are dirty).
+    /// Drops the styles and everything after them (the styles are dirty);
+    /// the next computation is a full restyle (with the old map's
+    /// custom-property maps reused).
     pub(crate) fn invalidate_styles(&mut self) {
-        self.styles = None;
+        self.stash_styles();
+        self.styles_full = true;
         self.clear_element_styles();
         self.invalidate_layout();
     }
 
+    /// Makes the styles dirty after the DOM changes recorded in
+    /// `dom_changes` (ADR 0042 section 3): the old map is kept for the
+    /// targeted restyle, and the layout stays while every change is an
+    /// attribute that only the style system reads (section 6).
+    pub(crate) fn invalidate_styles_for_dom(&mut self) {
+        self.stash_styles();
+        self.clear_element_styles();
+        if self.styles_full || !self.dom_changes.layout_free() {
+            self.invalidate_layout();
+        } else {
+            self.set_layout_aside();
+        }
+    }
+
+    /// Moves the styles aside as the stale map (the first one of a series
+    /// of drains is the one that the recorded changes start from).
+    fn stash_styles(&mut self) {
+        if let Some(styles) = self.styles.take()
+            && self.stale_styles.is_none()
+        {
+            self.stale_styles = Some(styles);
+        }
+    }
+
+    /// Moves the layout and the display list aside while a restyle is
+    /// pending (ADR 0042 section 6): readers see no layout and flush, and
+    /// the restyle puts them back if no style changed
+    /// ([`DocumentState::restore_layout`]). Only the first layout of a
+    /// series of drains is kept.
+    fn set_layout_aside(&mut self) {
+        if self.kept_layout.is_some() || self.fragments.is_none() {
+            return;
+        }
+        self.kept_layout = Some(Box::new(super::KeptLayout {
+            fragments: self.fragments.take(),
+            display_list: self.display_list.take(),
+            used_boxes: self.used_boxes.take(),
+            geometry: self.geometry.take(),
+            client_rects: self.client_rects.take(),
+            svg_geometry: self.svg_geometry.take(),
+        }));
+    }
+
+    /// Puts back the layout that [`DocumentState::set_layout_aside`] kept.
+    fn restore_layout(&mut self) {
+        if let Some(kept) = self.kept_layout.take()
+            && self.fragments.is_none()
+        {
+            let kept = *kept;
+            self.fragments = kept.fragments;
+            self.display_list = kept.display_list;
+            self.used_boxes = kept.used_boxes;
+            self.geometry = kept.geometry;
+            self.client_rects = kept.client_rects;
+            self.svg_geometry = kept.svg_geometry;
+        }
+    }
+
     /// Drops the layout and the display list.
     pub(crate) fn invalidate_layout(&mut self) {
+        self.kept_layout = None;
         self.fragments = None;
         self.display_list = None;
         self.used_boxes = None;
@@ -244,6 +306,11 @@ impl DocumentState {
     pub fn update_style(&mut self) {
         self.sync();
         if !self.stylesheets_settled() {
+            // A layout kept for a targeted restyle (ADR 0042 section 6) must
+            // not outlive styles that cannot be computed now.
+            if self.styles.is_none() {
+                self.kept_layout = None;
+            }
             return;
         }
         if self.styles.is_none() {
@@ -665,14 +732,108 @@ impl DocumentState {
         self.flushes.stylist(self.timings.stylesheets);
     }
 
-    /// Computes the styles, after the stylist if it is dirty.
+    /// Computes the styles, after the stylist if it is dirty: from the stale
+    /// map and the DOM changes since it if it can (ADR 0042), else in full.
     fn compute_styles(&mut self) {
-        self.compute_styles_from(None);
+        let Some(mut map) = self.stale_styles.take() else {
+            self.compute_styles_from(None);
+            return;
+        };
+        if self.styles_full {
+            self.compute_styles_from(Some(&map));
+            return;
+        }
+        match self.targeted_dom_restyle(&mut map) {
+            Some(drop_layout) => {
+                self.styles = Some(map);
+                if self.frame && self.update_canvas_text() {
+                    self.compute_styles_from(None);
+                    self.invalidate_layout();
+                } else if drop_layout {
+                    self.invalidate_layout();
+                } else {
+                    self.restore_layout();
+                }
+            }
+            None => self.compute_styles_from(Some(&map)),
+        }
+    }
+
+    /// The restyle of ADR 0042 on `map`, the styles before the recorded DOM
+    /// changes and for [`DocumentState::style_states`]: `Some(drop_layout)`
+    /// if it brought `map` up to date (`drop_layout` if a style changed or a
+    /// change can change the layout), `None` if the whole document must be
+    /// restyled (then `map` is unchanged).
+    fn targeted_dom_restyle(&mut self, map: &mut swb_style::StyleMap) -> Option<bool> {
+        self.refresh_forms();
+        let current = self.stylist.is_some() && !self.adopted.out_of_date(&self.dom);
+        if !current || self.images.sources_outdated {
+            self.flushes
+                .dom_restyles
+                .fallback(swb_style::FullReason::OtherStates);
+            log::debug!("style: full restyle after DOM changes (stylist)");
+            return None;
+        }
+        let env = self.media_environment();
+        let stylist = self.stylist.as_ref()?;
+        let started = Instant::now();
+        let outcome = swb_style::restyle_targeted(
+            &self.dom,
+            stylist,
+            &env,
+            self.base_url.value(),
+            &self.container_sizes,
+            &self.style_states,
+            &self.states,
+            &self.dom_changes,
+            map,
+        );
+        let (changed, restyled, image_urls) = match outcome {
+            swb_style::Restyle::Full(reason) => {
+                log::debug!("style: full restyle after DOM changes ({reason:?})");
+                self.flushes.dom_restyles.fallback(reason);
+                return None;
+            }
+            swb_style::Restyle::Done {
+                changed,
+                restyled,
+                image_urls,
+            } => (changed, restyled, image_urls),
+        };
+        self.timings.style = started.elapsed();
+        self.flushes.style(self.timings.style, self.in_query);
+        let counts = &mut self.flushes.dom_restyles;
+        if restyled == 0 {
+            counts.nothing = counts.nothing.saturating_add(1);
+        } else {
+            counts.targeted = counts.targeted.saturating_add(1);
+        }
+        counts.restyled_elements = counts.restyled_elements.saturating_add(restyled as u64);
+        log::debug!("style: {:?}", self.timings.style);
+        log::debug!("targeted restyle after DOM changes: {restyled} elements restyled");
+        let layout_free = self.dom_changes.layout_free();
+        self.style_states = self.states.clone();
+        self.styles_stale = false;
+        self.clear_element_styles();
+        self.dom_changes.clear();
+        #[cfg(debug_assertions)]
+        self.check_targeted_restyle(map);
+        for url in image_urls {
+            if let Ok(url) = Url::parse(&url) {
+                self.start_image(url);
+            }
+        }
+        Some(changed || !layout_free)
     }
 
     /// [`Self::compute_styles`] for a restyle: equal custom-property maps
     /// of `previous` are reused (ADR 0007).
     fn compute_styles_from(&mut self, previous: Option<&swb_style::StyleMap>) {
+        // A full computation is current for every change so far.
+        self.stale_styles = None;
+        self.kept_layout = None;
+        self.dom_changes.clear();
+        self.styles_full = false;
         self.refresh_forms();
         if self.images.sources_outdated {
             self.select_image_sources();

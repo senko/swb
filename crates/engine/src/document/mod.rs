@@ -99,6 +99,17 @@ pub(crate) struct View {
     pub(crate) color_scheme: swb_css::ColorScheme,
 }
 
+/// The layout products that a pending targeted restyle may put back
+/// (ADR 0042 section 6).
+pub(crate) struct KeptLayout {
+    pub(crate) fragments: Option<FragmentTree>,
+    pub(crate) display_list: Option<DisplayList>,
+    pub(crate) used_boxes: Option<(u64, resolved::BoxIndex)>,
+    pub(crate) geometry: Option<(u64, geometry::GeometryIndex)>,
+    pub(crate) client_rects: Option<geometry::RectIndex>,
+    pub(crate) svg_geometry: Option<(u64, NodeId, geometry::SvgGeometry)>,
+}
+
 /// Where to scroll after each layout until the document is loaded.
 #[derive(Clone, Debug)]
 pub(crate) enum ScrollTarget {
@@ -310,6 +321,20 @@ pub struct DocumentState {
     pub(crate) display_selection: (u64, Option<LiveRange>),
     pub(crate) stylist: Option<Stylist>,
     pub(crate) styles: Option<StyleMap>,
+    /// The styles before the DOM changes in `dom_changes`, kept from the
+    /// drain that made `styles` dirty until the next style computation
+    /// (ADR 0042 section 3).
+    pub(crate) stale_styles: Option<StyleMap>,
+    /// The DOM changes since `stale_styles` were computed.
+    pub(crate) dom_changes: swb_style::DomChanges,
+    /// True if something other than a recorded DOM change made the styles
+    /// dirty since `stale_styles` (a sheet, `:defined`, a shadow tree, the
+    /// view): the next computation is a full restyle.
+    pub(crate) styles_full: bool,
+    /// The layout and the display list of `stale_styles`, set aside while
+    /// only attributes that the style system alone reads changed (ADR 0042
+    /// section 6): the targeted restyle puts them back if no style changed.
+    pub(crate) kept_layout: Option<Box<KeptLayout>>,
     /// The content boxes of the query containers in the last layout, for
     /// the next style pass (ADR 0038).
     pub(crate) container_sizes: swb_style::ContainerSizes,
@@ -457,6 +482,10 @@ impl DocumentState {
             display_selection: (0, None),
             stylist: None,
             styles: None,
+            stale_styles: None,
+            dom_changes: swb_style::DomChanges::default(),
+            styles_full: false,
+            kept_layout: None,
             container_sizes: swb_style::ContainerSizes::new(),
             styles_stale: false,
             style_states: ElementStates::default(),
@@ -1128,6 +1157,9 @@ impl DocumentState {
         self.release_fonts_in_task();
         self.stylist = None;
         self.styles = None;
+        self.stale_styles = None;
+        self.dom_changes.clear();
+        self.kept_layout = None;
         self.fragments = None;
         self.display_list = None;
         self.list_ends = Vec::new();

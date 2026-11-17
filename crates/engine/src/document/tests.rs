@@ -637,13 +637,27 @@ fn layout_queries_count_as_forced() {
     assert_eq!((doc.flushes.style_runs, doc.flushes.layout_runs), (1, 1));
     assert_eq!(doc.flushes.forced_layout_runs, 0);
     let p = element(&doc, "p");
-    doc.change_dom(|dom| dom.set_attr(p, "class", "a")).unwrap();
+    // An attribute that layout may read (ADR 0042 section 6).
+    doc.change_dom(|dom| dom.set_attr(p, "id", "a")).unwrap();
     doc.query_layout(&mut fonts);
     doc.query_layout(&mut fonts);
     let f = doc.flushes;
     assert_eq!((f.style_runs, f.layout_runs), (2, 2));
     assert_eq!((f.forced_style_runs, f.forced_layout_runs), (1, 1));
     assert!(f.forced_layout_time <= f.layout_time);
+    // A class that no rule names: the targeted restyle changes no style,
+    // and the layout stays.
+    doc.change_dom(|dom| dom.set_attr(p, "class", "b")).unwrap();
+    doc.query_layout(&mut fonts);
+    let f = doc.flushes;
+    assert_eq!((f.style_runs, f.layout_runs), (3, 2));
+    // Both DOM changes took the targeted path.
+    assert_eq!(f.dom_restyles.nothing + f.dom_restyles.targeted, 2);
+    // A text change always lays out again.
+    let text = doc.dom.children(p).next().unwrap();
+    doc.change_dom(|dom| dom.set_data(text, "y")).unwrap();
+    doc.query_layout(&mut fonts);
+    assert_eq!(doc.flushes.layout_runs, 3);
 }
 
 // ----- The fetch() calls of scripts (feature 10a) -----

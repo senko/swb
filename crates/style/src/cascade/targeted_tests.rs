@@ -119,6 +119,12 @@ fn has_anchors() {
     hover_in_and_out(&doc, ".p:has(:hover) { color: red }", "g");
     hover_in_and_out(&doc, ".a:has(+ .b:hover) { color: red }", "s2");
     hover_in_and_out(&doc, ".a:has(~ .b .c:hover) { color: red }", "sd");
+    // ADR 0042: the dependency in any compound of the relative selector,
+    // and `:has()` in a compound that is not the subject.
+    hover_in_and_out(&doc, ".p:has(.b:hover .x) { color: red }", "s2");
+    hover_in_and_out(&doc, "body:has(.b:hover) .a { color: red }", "s2");
+    hover_in_and_out(&doc, ".p:has(.b:hover) > .a { color: red }", "s2");
+    hover_in_and_out(&doc, ".a:has(+ .b:hover) ~ .b { color: red }", "s2");
 }
 
 #[test]
@@ -127,8 +133,7 @@ fn shapes_without_analysis_restyle_everything() {
     let on = hover(Some(node(&doc, "s2")));
     for css in [
         ".b:nth-child(2 of .b:hover) { color: red }",
-        ".p:has(.b:hover .x) { color: red }",
-        "body:has(.b:hover) .a { color: red }",
+        ".p:has(:is(.b:hover .x)) { color: red }",
     ] {
         assert_eq!(
             change(&doc, css, &hover(None), &on),
@@ -274,6 +279,55 @@ fn query_containers() {
     assert_eq!(result, Restyle::Full(FullReason::Containers));
 }
 
+/// Styles left at the bound of the container passes: the log does not hold
+/// the sizes of the last layout, so even a change outside the container
+/// restyles in full (a targeted pass would record the new sizes and keep
+/// the out-of-date query result of `.x`).
+#[test]
+fn container_sizes_that_the_log_does_not_hold() {
+    let doc = parse_html(
+        "<!DOCTYPE html><div id=c class=c><p id=x class=x>x</p></div><p id=y class=y>y</p>",
+    );
+    let css = ".c { container-type: inline-size } \
+               @container (width > 300px) { .x { color: red } } .y:hover { color: red }";
+    let st = stylist(&doc, css);
+    let env = MediaEnvironment::default();
+    let mut old_sizes = ContainerSizes::new();
+    old_sizes.insert(node(&doc, "c"), 500.0, 100.0);
+    let mut map =
+        compute_styles_with_containers(&doc, &st, &env, &hover(None), &base(), &old_sizes);
+    let mut sizes = ContainerSizes::new();
+    sizes.insert(node(&doc, "c"), 200.0, 100.0);
+    let new = hover(Some(node(&doc, "y")));
+    let result = restyle_states(
+        &doc,
+        &st,
+        &env,
+        &base(),
+        &sizes,
+        &hover(None),
+        &new,
+        &mut map,
+    );
+    assert_eq!(result, Restyle::Full(FullReason::Containers));
+    // With sizes that the log holds, the same change is targeted.
+    let mut map =
+        compute_styles_with_containers(&doc, &st, &env, &hover(None), &base(), &old_sizes);
+    let mut sizes = ContainerSizes::new();
+    sizes.insert(node(&doc, "c"), 400.0, 100.0);
+    let result = restyle_states(
+        &doc,
+        &st,
+        &env,
+        &base(),
+        &sizes,
+        &hover(None),
+        &new,
+        &mut map,
+    );
+    assert!(restyled(&result) > 0);
+}
+
 #[test]
 fn root_font_size() {
     let doc = parse_html("<!DOCTYPE html><p id=p>p</p>");
@@ -318,20 +372,20 @@ fn focus_states() {
     ] {
         change(&doc, css, &a, &b);
     }
-    // Another state: full restyle.
+    // `:target` is targeted too (ADR 0042 section 2).
     let target = ElementStates {
         target: Some(node(&doc, "a")),
         ..ElementStates::default()
     };
-    assert_eq!(
+    assert!(matches!(
         change(
             &doc,
             ":target { color: red }",
             &ElementStates::default(),
             &target
         ),
-        Restyle::Full(FullReason::OtherStates)
-    );
+        Restyle::Done { restyled: 1, .. }
+    ));
 }
 
 fn attach(doc: &mut Document, host: NodeId, markup: &str) -> NodeId {
@@ -548,5 +602,5 @@ fn hostile_many_rules() {
             states = next;
         }
     });
-    assert!(st.state_index().len() >= 20_000);
+    assert!(st.invalidation_index().len() >= 20_000);
 }

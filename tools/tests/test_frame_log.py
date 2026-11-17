@@ -43,6 +43,10 @@ def test_the_restyle_lines_parse():
     assert gui_latency.parse_restyle(full) == ("full: Containers", 0)
     assert gui_latency.parse_restyle(prefix + "style: 22.5ms") is None
     assert gui_latency.parse_stage(full) is None
+    dom = prefix + "targeted restyle after DOM changes: 40 elements restyled"
+    assert gui_latency.parse_restyle(dom) == ("DOM targeted", 40)
+    dom_full = prefix + "style: full restyle after DOM changes (TooLarge)"
+    assert gui_latency.parse_restyle(dom_full) == ("DOM full: TooLarge", 0)
     paths = gui_latency.restyle_paths(
         [(1.0, "targeted", 12), (2.0, "full: Containers", 0), (9.0, "targeted", 5)], 0.0, 5.0
     )
