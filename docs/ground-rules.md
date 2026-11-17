@@ -147,3 +147,16 @@ Details and reasons are in [ADR 0025](adr/0025-javascript-approach.md).
 - The rules of M9 apply: JavaScript is off by default, the other targets
   keep their scores with JavaScript on and off, and a new HTML or CSS
   feature applies to both settings.
+
+## Decisions from 2026-11-17: OpenStreetMap
+
+- The next milestone (M12) targets the OpenStreetMap map of Zagreb's
+  central square,
+  `https://www.openstreetmap.org/?mlat=45.813114&mlon=15.976390#map=16/45.81308/15.97721`
+  (logged out), with JavaScript on and off.
+- The two vector maps of the layer panel (Shortbread, OpenMapTiles) need
+  WebGL; they are not in M12. The six raster maps are.
+- The features that call web services (search, "Where is this?",
+  directions, "Query features", the object pages) are in M12. Tests use
+  answers recorded once from the live services.
+- The rules of M9 apply.

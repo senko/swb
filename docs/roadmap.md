@@ -5523,6 +5523,139 @@ Features, in this order. Each ends with a review and a commit.
 Not in M11 (backlog): incremental layout, a raster cache for scrolling
 (tiles), image decoding on other threads, CSS transitions and animations.
 
+## M12: OpenStreetMap (Zagreb, Ban Jelačić Square)
+
+Owner decisions (2026-11-17, ground rules): the target is
+<https://www.openstreetmap.org/?mlat=45.813114&mlon=15.976390#map=16/45.81308/15.97721>
+(the map of Zagreb's central square at zoom 16, with a marker), logged
+out, with JavaScript on and off. The two vector maps of the layer panel
+(Shortbread, OpenMapTiles: MapLibre GL, which needs WebGL) are not in
+M12. The features that call web services (search, "Where is this?",
+directions, "Query features", the object pages) are in M12, tested with
+answers recorded once from the live services. The rules of M9 apply.
+
+Fixtures: `fixtures/js/osm-zagreb` (captured 2026-11-17, local only: 40
+responses, 24 tiles of zoom 16; `capture` lost the URL fragment, which was
+added to `fixture.json` by hand) and `fixtures/pages/osm-zagreb` (JS off,
+feature 1). The tile usage policy of tile.openstreetmap.org forbids bulk
+downloads: the tools record the tiles of each interaction once, and tests
+and tools never fetch from the live servers.
+
+State at the start (swb 1a18d61, release, replay): JS on geometry 0.3973,
+pixels 0.4631, 87 boxes missing. The 1.5 MB `application.js` (jQuery,
+Leaflet, MapLibre GL and the site's code) stops at `new Worker`: MapLibre
+makes its worker pool while the script runs, also when no map uses it.
+The map and the sidebar are then not built. With a `Worker` stub in a copy
+of the fixture: geometry 1.0000, pixels 0.9977; the zoom button and a drag
+work (new hash, requests for the tiles of the new view). The errors that
+remain: `ImageData is not defined` (a check of MapLibre), a `TypeError`
+(`toLowerCase` of undefined) in a timer after the zoom click, and
+Leaflet's 1 x 1 GIF without a color table does not decode. The page has
+522 elements; its pipeline takes 20 ms and a hover change 8.7 ms.
+Chromium (replay, jitless): script 93 ms, task 138 ms. Budget for the
+`load` event: three times the jitless task time plus the JS-off pipeline,
+about 0.43 s (measured again in feature 1, on an idle machine).
+
+Known gaps (first analysis): dedicated workers; `ImageData`; XML
+documents (`DOMParser` with `text/xml`, `responseXML`: jQuery's
+`parseXML` and the site's data layer read the XML of the OSM API, for the
+"Map Data" overlay and the geometry of the object pages); the URL fragment
+in `swbtools capture`.
+
+Steps:
+
+1. Diagnosis and tools (`implementer`):
+   - `capture` keeps the URL fragment.
+   - A recording of the interaction steps: the step groups of the list
+     below, run once in Chromium against the live site, with their tiles
+     and service answers added to the fixture; then the step groups in
+     Chromium's replay and in swb (with a `Worker` stub where needed), and
+     the list of what fails per item.
+   - The JS-off fixture `fixtures/pages/osm-zagreb` (with `substitute` for
+     the public repository), its Chromium reference and scores.
+   - Probe cases for the APIs that the diagnosis finds missing; the budget,
+     measured on an idle machine.
+   - A generated `gui-latency` trace of map drags and wheel zooms.
+
+   The diagnosis may change the order and the scope of the features below.
+2. ADRs before the code: dedicated workers (ADR 0043) and XML documents
+   (ADR 0044). The orchestrator reads each ADR before the code.
+3. Features, in this order. Each feature ends with a review and a commit,
+   with the checks of M9: JavaScript off by default; the other targets
+   keep their scores with JavaScript on and off; a change of a JS-off
+   fixture is reported with its scores, which must not get worse; probe
+   cases with Chromium's values; hostile cases.
+   1. Dedicated workers (`implementer-hard`, ADR 0043): `Worker` from
+      same-origin and `blob:` URLs; the worker's global scope (`self`,
+      `postMessage`, `onmessage`, timers, `fetch`, `importScripts`,
+      `TextDecoder`, `console`); structured clone and the transfer of
+      `ArrayBuffer`s; `terminate`; errors. Scope: what MapLibre's worker
+      pool and its worker code need; module workers only if the diagnosis
+      finds one. A busy worker must not stop the page (the ADR decides: a
+      thread per worker, or slices on the page's thread). Hostile cases:
+      many workers, a worker that never returns, a flood of messages,
+      workers that create workers.
+   2. Small gaps: `ImageData`, the GIF without a color table, the
+      `TypeError` after the zoom click, and the other gaps that the
+      diagnosis lists for items 1 to 6.
+   3. The map (items 3 to 6): drag, wheel, double click, the zoom buttons
+      and the keys; the hash; the tiles of the new view; the layer panel
+      with the six raster maps and the overlays; the map key; the share
+      panel. GUI: pointer move to frame p90 at most 50 ms during a drag
+      (the trace of feature 1).
+   4. XML documents (`implementer-hard`, ADR 0044): `DOMParser` with the
+      XML types, `XMLDocument`, `responseXML`, namespaces, Chromium's
+      `parsererror` document, and `XMLSerializer` if the site needs it. No
+      external entities; the expansion of internal entities is bounded
+      (hostile cases: entity expansion, deep nesting, a large document).
+   5. The sidebar (items 7 to 12): search, "Where is this?", directions,
+      "Query features", the object pages with their geometry, History and
+      Export; the navigation through `pushState` and back and forward.
+   6. JS off (item 13), if feature 1 finds differences. Then the exit
+      measurement and the end-of-milestone maintenance.
+
+   What "works" means (owner decisions of 2026-11-17), on the
+   `osm-zagreb` fixture with JavaScript on, logged out, 1280 x 800:
+
+   1. The first view renders like Chromium's replay: the header (logo,
+      Edit, the links, the language button, Log In, Sign Up), the search
+      and directions forms, the welcome box, the map at zoom 16 around the
+      square with the marker, the map controls, the scale and the
+      attribution.
+   2. The page's scripts run without a console error that Chromium does
+      not have.
+   3. The map pans by drag and zooms by wheel, double click, the + and -
+      buttons and the keys; the URL hash follows the view; the tiles of
+      the new view load.
+   4. The layer panel opens; the six raster maps (Standard, CyclOSM, Cycle
+      Map, Transport Map, Tracestrack Topo, Humanitarian) switch; the
+      overlays "Map Notes", "Map Data" and "Public GPS Traces" show at the
+      zooms where Chromium shows them.
+   5. The map key and the share panel (link, short link, HTML, the marker
+      option) open with Chromium's content.
+   6. The welcome box closes.
+   7. Search: "Trg bana Jelačića" gives Chromium's results; a result opens
+      its object page and moves the map.
+   8. "Where is this?" gives Chromium's results for the map center.
+   9. Directions between two places draw the route and list the steps,
+      with the recorded answers of one routing service.
+   10. "Query features": a click on the map lists the nearby and the
+       enclosing features (recorded Overpass answers).
+   11. An object page (node, way, relation) shows its tags and outlines
+       its geometry on the map.
+   12. History and Export open in the sidebar: History lists the
+       changesets of the view and outlines them on the map, Export shows
+       the area; back and forward return to the previous sidebar.
+   13. With JavaScript off, the page renders like Chromium's JS-off
+       reference, at scores like the other targets'.
+   14. The `load` event within the budget.
+
+   Not in M12: the vector maps (WebGL; backlog), login and editing (the iD
+   editor, new notes and comments), "Show my location" (geolocation),
+   downloads (the `.osm` file of Export, the image export), the language
+   change, the pages behind the header links (not in the fixture; they
+   only navigate), print.
+
 ## Pending decisions
 
 - Clean-room rewrites of the code derived from Chromium (table layout

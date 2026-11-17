@@ -4,6 +4,31 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-17: M12 plan: OpenStreetMap
+
+- The owner chose the next target: the OpenStreetMap map of Zagreb's
+  central square (zoom 16, with a marker), logged out, with JavaScript on
+  and off. The vector maps (WebGL) are out; search, directions, "Query
+  features" and the object pages are in, with recorded answers.
+- First analysis on a local capture (`fixtures/js/osm-zagreb`): the main
+  script stops at the missing `Worker` (MapLibre makes its worker pool
+  while the script runs), so swb shows the header and an empty map
+  (geometry 0.40, pixels 0.46). With a `Worker` stub in a copy of the
+  fixture, the first view matches Chromium (geometry 1.0000, pixels
+  0.9977), and the zoom button and a drag work. Other gaps: `ImageData`,
+  XML documents (the "Map Data" overlay and the object pages), a GIF
+  without a color table, a `TypeError` after the zoom click.
+- `swbtools capture` drops the URL fragment, so the replayed page opened
+  at another zoom without tiles; the fragment was added to the fixture by
+  hand, and feature 1 fixes the tool.
+- Plan (roadmap, M12): diagnosis and the recording of the interaction
+  steps; ADRs for workers and XML documents; dedicated workers; small
+  gaps; the map; XML documents; the sidebar; JS off; exit and
+  maintenance. targets.md has the new row; ground-rules.md the owner's
+  decisions.
+
+Next: feature 1, the diagnosis.
+
 ## 2026-11-17: M11 maintenance; end of M11
 
 - Two read-only reviewers (the css and style crates; the engine, the GUI,
