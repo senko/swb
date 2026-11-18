@@ -22,6 +22,7 @@ from swbtools.replay import (
     replay_command,
     sample_pixels,
 )
+from swbtools.routing import request_body_of
 
 
 def write(tmp_path, data):
@@ -346,3 +347,56 @@ def test_an_empty_console_makes_an_empty_file(tmp_path, monkeypatch):
         == 0
     )
     assert console.read_text() == ""
+
+
+@pytest.mark.usefixtures("chromium")
+def test_missing_urls_are_listed_per_group(tmp_path, monkeypatch):
+    page = (
+        b"<!DOCTYPE html><button id=b onclick=\"fetch('/missing-' + (++n)).catch(() => {})\">x"
+        b"</button><script>var n = 0; fetch('/missing-0').catch(() => {})</script>"
+    )
+    root = tmp_path / "root"
+    fixture = root / "fixtures" / "js" / "page"
+    fixture.mkdir(parents=True)
+    recorded = Fixture(fixture)
+    recorded.record("GET", "https://fixture.test/", 200, [("content-type", "text/html")], page)
+    recorded.save()
+    write_meta(
+        fixture,
+        FixtureMeta("https://fixture.test/", "2031-05-06T07:08:09Z", (800, 600), "test", True),
+    )
+    monkeypatch.setenv("SWB_ROOT", str(root))
+    steps = write(
+        tmp_path,
+        [
+            {"name": "one", "steps": [{"click": "#b"}, {"wait": 100}]},
+            {"name": "none", "steps": [{"wait": 50}]},
+            {"name": "two", "steps": [{"click": "#b"}, {"click": "#b"}, {"wait": 100}]},
+        ],
+    )
+    out = tmp_path / "missing.json"
+    status = replay_command(
+        "page", None, steps, "1", tmp_path / "r.json", 50, True, missing_out=out
+    )
+    assert status == 0
+    rows = json.loads(out.read_text())
+    assert [(r["label"], [u.rsplit("/", 1)[1] for u in r["missing"]]) for r in rows] == [
+        ("load", ["missing-0"]),
+        ("one", ["missing-1"]),
+        ("none", []),
+        ("two", ["missing-2", "missing-3"]),
+    ]
+
+
+def test_request_body_of_reads_the_bytes_of_a_paused_request():
+    # CDP gives the raw bytes in `postDataEntries` (base64); `postData` is
+    # only the text form and is missing for some binary bodies.
+    binary = {"postDataEntries": [{"bytes": "AP8="}, {"bytes": "YQ=="}]}
+    assert request_body_of(binary) == b"\x00\xffa"
+    assert request_body_of({"postData": "q=1"}) == b"q=1"
+    both = {"postData": "q=1", "postDataEntries": [{"bytes": "cT0x"}]}
+    assert request_body_of(both) == b"q=1"
+    # No body and an empty body are the same (as in swb's recorder).
+    assert request_body_of({}) is None
+    assert request_body_of({"postData": ""}) is None
+    assert request_body_of({"postDataEntries": []}) is None

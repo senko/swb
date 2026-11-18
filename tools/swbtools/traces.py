@@ -258,6 +258,59 @@ def _move(x: str, y: str) -> Event:
     return Event(0, "move", x=round(float(x)), y=round(float(y)))
 
 
+OSM_MAP_WINDOW = (1280, 900)
+"""The window of the `osm-map` trace. The window's y includes swb's toolbar
+(40 px: `TOOLBAR_HEIGHT` in `crates/swb/src/gui/toolbar.rs`)."""
+
+OSM_MAP_AREA = (360, 150, 1200, 840)
+"""The part of the window (left, top, right, bottom) that the `osm-map` pointer
+stays in: the map of openstreetmap.org, not the sidebar (350 px with the
+welcome box), the header (55 px under the toolbar) or the controls (right
+edge)."""
+
+OSM_DRAGS = (
+    ((900, 450), (-300, 0)),
+    ((600, 450), (250, 200)),
+    ((850, 650), (0, -300)),
+    ((850, 350), (-200, 250)),
+    ((650, 600), (350, -100)),
+)
+"""The five drags of `osm-map`: the start point and the vector, 200 to 400 px
+in different directions."""
+
+
+def osm_map_trace() -> tuple[list[Event], float]:
+    """The events and the duration of the `osm-map` trace: five drags of the
+    map (press, moves at 60 Hz over 0.6 s, a rest of 0.1 s, release; 0.8 s
+    between drags), wheel notches in and out one at a time 400 ms apart, and
+    one burst of five notches 30 ms apart, all with the pointer on the map."""
+    events: list[Event] = []
+    t = 0.5
+    steps = 36
+    for (x0, y0), (dx, dy) in OSM_DRAGS:
+        events.append(Event(round(t, 3), "move", x=x0, y=y0))
+        events.append(Event(round(t + 0.05, 3), "press", button=1))
+        t += 0.05
+        for i in range(1, steps + 1):
+            at = round(t + i / 60, 3)
+            events.append(
+                Event(at, "move", x=x0 + round(dx * i / steps), y=y0 + round(dy * i / steps))
+            )
+        t += steps / 60 + 0.1
+        events.append(Event(round(t, 3), "release", button=1))
+        t += 0.8
+    events.append(Event(round(t, 3), "move", x=800, y=450))
+    t += 0.4
+    for notches in (-1, -1, -1, 1, 1, 1):
+        events.append(Event(round(t, 3), "wheel", notches=notches))
+        t += 0.4
+    t += 0.4
+    for i in range(5):
+        events.append(Event(round(t + i * 0.03, 3), "wheel", notches=-1))
+    t += 0.12 + 1.5
+    return events, round(t, 3)
+
+
 def synthetic_traces() -> dict[str, tuple[str, tuple[int, int] | None, float, list[Event]]]:
     """The synthetic traces by name: (description, window, duration,
     events). All are for a window of at least 1280 x 900 pixels."""
@@ -273,7 +326,16 @@ def synthetic_traces() -> dict[str, tuple[str, tuple[int, int] | None, float, li
     burst = [Event(0.0, "move", x=640, y=500)]
     burst += [Event(round(0.5 + i * 0.03, 3), "wheel", notches=1) for i in range(10)]
     burst += [Event(round(1.5 + i * 0.03, 3), "wheel", notches=-1) for i in range(10)]
+    osm_events, osm_duration = osm_map_trace()
     return {
+        "osm-map": (
+            "synthetic: drags of the map of openstreetmap.org (five drags of 200 to 400 px, "
+            "60 Hz moves, a rest before the release), then wheel zooms (three in, three out, "
+            "400 ms apart, and a burst of five)",
+            OSM_MAP_WINDOW,
+            osm_duration,
+            osm_events,
+        ),
         "pointer-sweep": (
             "synthetic: a diagonal pointer sweep, 125 moves per second for 3 s",
             None,

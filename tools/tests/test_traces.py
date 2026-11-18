@@ -1,6 +1,7 @@
 """The trace format, the files in tools/traces/ and the Wayland extraction."""
 
 import json
+from itertools import pairwise
 
 import pytest
 
@@ -71,6 +72,30 @@ def test_the_traces_of_the_repository_are_valid():
     assert github.count("move") > 1000
     assert github.count("wheel") == 89
     assert github.count("press") == github.count("release") == 6
+
+
+def test_the_osm_map_trace_keeps_the_pointer_on_the_map():
+    trace = traces.load_trace("osm-map")
+    assert trace.window == traces.OSM_MAP_WINDOW
+    assert trace.count("press") == trace.count("release") == 5
+    assert trace.count("wheel") == 6 + 5
+    # Five drags of 200 to 400 px, each with moves at 60 Hz before its release.
+    for _, (dx, dy) in traces.OSM_DRAGS:
+        assert 200 <= (dx * dx + dy * dy) ** 0.5 <= 400
+    left, top, right, bottom = traces.OSM_MAP_AREA
+    for event in trace.events:
+        if event.kind == "move":
+            assert left <= event.x <= right and top <= event.y <= bottom, event
+    # The wheel notches: three in, three out (400 ms apart), then a burst of five.
+    wheel = [e for e in trace.events if e.kind == "wheel"]
+    assert [e.notches for e in wheel[:6]] == [-1, -1, -1, 1, 1, 1]
+    assert all(abs((b.t - a.t) - 0.4) < 1e-6 for a, b in pairwise(wheel[:6]))
+    assert all(abs((b.t - a.t) - 0.03) < 1e-6 for a, b in pairwise(wheel[6:]))
+    first_press = next(e for e in trace.events if e.kind == "press")
+    first_release = next(e for e in trace.events if e.kind == "release")
+    moves = [e for e in trace.events if e.kind == "move" and first_press.t < e.t < first_release.t]
+    assert len(moves) == 36 and moves[1].t - moves[0].t < 0.02
+    assert trace.duration > trace.events[-1].t
 
 
 def test_the_written_text_reads_back():

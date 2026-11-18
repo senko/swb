@@ -52,16 +52,44 @@
 //!   directory, with `/` as the separator. It must not be absolute and must
 //!   not contain `..`. An empty body also has a file.
 //!
-//! Readers ignore unknown fields. [`RecordingFetcher`] drops them when it
-//! rewrites the manifest.
+//! An entry can have one more field, after `body`:
+//!
+//! - `request_body` (string, optional): the first 16 hexadecimal digits
+//!   (lowercase) of the SHA-256 hash of the request body (see
+//!   [Matching](#matching)). `null` is the same as no field. Any other
+//!   value (a number, an empty string, a string that is not 16 lowercase
+//!   hexadecimal digits) makes the manifest invalid.
+//!
+//! Readers ignore other unknown fields. [`RecordingFetcher`] drops them when
+//! it rewrites the manifest.
 //!
 //! # Matching
 //!
 //! A request matches an entry if the serialized request URL without its
 //! fragment is equal to `url` (exact string comparison) and the request
-//! method is equal to `method`. The request body is not compared. Replayed
-//! responses keep the fragment of the request URL in
-//! [`Response::url`](crate::Response::url).
+//! method is equal to `method`. Replayed responses keep the fragment of the
+//! request URL in [`Response::url`](crate::Response::url).
+//!
+//! The request body is compared only by entries that have `request_body`:
+//! such an entry matches only a request whose body has that hash. A request
+//! without a body, or with an empty body, has no hash. A request is first
+//! matched against the entries with `request_body`; if none matches, the
+//! entries without the field match as before. So a fixture without the
+//! field behaves as it did, and a body that varies (a token, for example)
+//! still gets the one answer that was recorded for the URL.
+//!
+//! The field is for a page that sends two requests with the same method
+//! and URL and different bodies that get different answers (two `POST`s to
+//! one query endpoint). Writers add it only for such a group: if two or
+//! more entries have the same `url` and `method`, each that has a hash
+//! keeps `request_body`; a group of one entry is written without it. An
+//! entry is identified by `url`, `method` and `request_body`. A new
+//! response replaces only the entry with the same `url`, `method` and
+//! `request_body`. An entry without `request_body` stays when responses to
+//! bodies are added: it answers a request without a body and the bodies
+//! that no hashed entry matches. (It can be an older answer to one of the
+//! hashed bodies, written when its group had one entry; the hashed entry
+//! wins for that body.)
 //!
 //! # Replay patterns
 //!
@@ -126,11 +154,11 @@
 //!
 //! These rules keep diffs small and stable:
 //!
-//! - At most one entry per (`url`, `method`). A new response replaces the
-//!   old entry.
-//! - Entries are sorted by `url`, then by `method`, comparing strings by
-//!   Unicode code points (byte-wise comparison of UTF-8 gives the same
-//!   order).
+//! - At most one entry per (`url`, `method`, `request_body`). A new
+//!   response replaces the old entry.
+//! - Entries are sorted by `url`, then by `method`, then by `request_body`
+//!   (an entry without the field first), comparing strings by Unicode code
+//!   points (byte-wise comparison of UTF-8 gives the same order).
 //! - Entry fields appear in the order shown above.
 //! - The JSON is pretty-printed with an indent of 2 spaces, one array
 //!   element per line, `": "` between key and value, and non-ASCII
@@ -144,6 +172,7 @@ mod extend;
 mod record;
 mod replay;
 
+use std::collections::HashMap;
 use std::fmt::{self, Write as _};
 use std::fs;
 use std::io;
@@ -161,6 +190,7 @@ pub use replay::ReplayFetcher;
 
 use crate::error::NetError;
 use crate::file_types::extension_for_mime_type;
+use crate::request::Request;
 use crate::response::ContentType;
 
 /// The name of the manifest file in a fixture directory.
@@ -184,13 +214,55 @@ pub(crate) struct Entry {
     pub(crate) status: u16,
     pub(crate) headers: Vec<(String, String)>,
     pub(crate) body: String,
+    /// The hash of the request body ([`request_body_hash`]). Only an entry
+    /// that must be told apart from others of the same URL and method has
+    /// it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) request_body: Option<String>,
 }
 
+/// The identity of an entry: URL, method and request body hash. Sorting by
+/// it gives the file order.
+pub(crate) type EntryKey = (String, String, Option<String>);
+
 impl Entry {
-    /// The key that identifies an entry. Sorting by it gives the file order.
-    pub(crate) fn key(&self) -> (String, String) {
-        (self.url.clone(), self.method.clone())
+    /// The key that identifies an entry.
+    pub(crate) fn key(&self) -> EntryKey {
+        (
+            self.url.clone(),
+            self.method.clone(),
+            self.request_body.clone(),
+        )
     }
+}
+
+/// Returns the `request_body` value for a request body: the first 16
+/// hexadecimal digits of its SHA-256 hash.
+pub(crate) fn request_body_hash(body: &[u8]) -> String {
+    let mut hash = String::new();
+    for byte in Sha256::digest(body).iter().take(8) {
+        let _ = write!(hash, "{byte:02x}");
+    }
+    hash
+}
+
+/// Returns the hash of the body of `request`, if it has a body that is not
+/// empty.
+pub(crate) fn request_hash(request: &Request) -> Option<String> {
+    request
+        .body
+        .as_deref()
+        .filter(|body| !body.is_empty())
+        .map(request_body_hash)
+}
+
+/// Whether `value` is a valid `request_body` value: 16 lowercase
+/// hexadecimal digits.
+fn is_request_body_hash(value: &str) -> bool {
+    value.len() == 16
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 #[derive(Deserialize)]
@@ -204,9 +276,9 @@ struct ManifestIn {
 }
 
 #[derive(Serialize)]
-struct ManifestOut<'a> {
+struct ManifestOut {
     version: u32,
-    entries: Vec<&'a Entry>,
+    entries: Vec<Entry>,
 }
 
 /// Returns the `url` value of a manifest entry for a request URL.
@@ -233,6 +305,19 @@ pub(crate) fn read_manifest(dir: &Path) -> Result<Vec<Entry>, NetError> {
     }
     let manifest: ManifestIn =
         serde_json::from_str(&text).map_err(|error| fixture_error(&path, &error))?;
+    for entry in &manifest.entries {
+        if let Some(hash) = &entry.request_body
+            && !is_request_body_hash(hash)
+        {
+            return Err(fixture_error(
+                &path,
+                &format_args!(
+                    "entry {} {}: request_body {hash:?} is not 16 lowercase hexadecimal digits",
+                    entry.method, entry.url
+                ),
+            ));
+        }
+    }
     Ok(manifest.entries)
 }
 
@@ -335,8 +420,20 @@ pub(crate) fn write_manifest<'a>(
     dir: &Path,
     entries: impl IntoIterator<Item = &'a Entry>,
 ) -> Result<(), NetError> {
-    let mut entries: Vec<&Entry> = entries.into_iter().collect();
-    entries.sort_by(|a, b| (&a.url, &a.method).cmp(&(&b.url, &b.method)));
+    let mut entries: Vec<Entry> = entries.into_iter().cloned().collect();
+    entries.sort_by_key(Entry::key);
+    // A group of one entry needs no request body hash.
+    let mut groups: HashMap<(String, String), usize> = HashMap::new();
+    for entry in &entries {
+        *groups
+            .entry((entry.url.clone(), entry.method.clone()))
+            .or_default() += 1;
+    }
+    for entry in &mut entries {
+        if groups.get(&(entry.url.clone(), entry.method.clone())) == Some(&1) {
+            entry.request_body = None;
+        }
+    }
     let manifest = ManifestOut {
         version: MANIFEST_VERSION,
         entries,

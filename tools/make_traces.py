@@ -4,7 +4,7 @@
     uv run --project tools python tools/make_traces.py wayland LOG NAME \\
         --description TEXT [--until SECONDS]
 
-`synthetic` writes `pointer-sweep`, `wheel-burst` and `idle-10s`.
+`synthetic` writes `osm-map`, `pointer-sweep`, `wheel-burst` and `idle-10s`.
 `wayland` reads the output of a `WAYLAND_DEBUG=1` run of the GUI, one line
 per message, each line prefixed with the time of `CLOCK_MONOTONIC` in
 seconds (the owner's recordings of M11), and writes the pointer input over

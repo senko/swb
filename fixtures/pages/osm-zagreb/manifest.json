@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "method": "GET",
+      "url": "https://matomo.openstreetmap.org/matomo.php?idsite=1",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/gif"
+        ]
+      ],
+      "body": "files/df19241151ad16eb.gif"
+    },
+    {
+      "method": "GET",
+      "url": "https://www.openstreetmap.org/?mlat=45.813114&mlon=15.976390",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/html; charset=utf-8"
+        ]
+      ],
+      "body": "files/fbeaebeee2d8a457.html"
+    },
+    {
+      "method": "GET",
+      "url": "https://www.openstreetmap.org/assets/bootstrap-icons/font/fonts/bootstrap-icons-e82923f12cc4e8848986985c4c6121f2f9fc30f7982458a5b95e13a316ca4216.woff2?24e3eb84d0bcaf83d77f904c78ac1f47",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "font/woff2"
+        ]
+      ],
+      "body": "files/e0607afa49a64420.woff2"
+    },
+    {
+      "method": "GET",
+      "url": "https://www.openstreetmap.org/assets/leaflet-all-d3e8505f47e0f0615d3daf2619f2267c086cbe9e17e276f393ee686dca54e0d3.css",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/css"
+        ]
+      ],
+      "body": "files/1425704e8d49d9ed.css"
+    },
+    {
+      "method": "GET",
+      "url": "https://www.openstreetmap.org/assets/maplibre-gl-all-20d18df1d89490f1022cce8a156e2ff3958396ddad7f015c94b31f4da45543e6.css",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/css"
+        ]
+      ],
+      "body": "files/b7aca938d94a3add.css"
+    },
+    {
+      "method": "GET",
+      "url": "https://www.openstreetmap.org/assets/osm_logo-cc7d94392992162133be3baa21a37eb84f19f9b91178f704005378fbeecabb4e.svg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/c1039ae157e401b5.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://www.openstreetmap.org/assets/print-ltr-97dee1ca487394c852f28c2906a930316ab6d2cacf7f73e47c1c31fad8919051.css",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/css"
+        ]
+      ],
+      "body": "files/fcfd5f2aa57e7a60.css"
+    },
+    {
+      "method": "GET",
+      "url": "https://www.openstreetmap.org/assets/screen-auto-ltr-d1fba5979d2f387276d738920086742b0f4116326208bcd5cb034f984def84cb.css",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/css"
+        ]
+      ],
+      "body": "files/0abb6858013f1d7c.css"
+    }
+  ]
+}

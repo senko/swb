@@ -100,6 +100,21 @@ def _is_http(url: str) -> bool:
     return url.startswith(("http://", "https://"))
 
 
+def request_body_of(request: dict[str, Any]) -> bytes | None:
+    """The body of a paused request as bytes, or None for a request without
+    a body or with an empty one (as swb's recorder). CDP gives the bytes in
+    `postDataEntries` (base64) and, for a text body, also in `postData`."""
+    entries = request.get("postDataEntries")
+    if isinstance(entries, list) and entries:
+        body = b"".join(
+            base64.b64decode(entry.get("bytes", "")) for entry in entries if isinstance(entry, dict)
+        )
+    else:
+        data = request.get("postData")
+        body = data.encode("utf-8") if isinstance(data, str) else b""
+    return body or None
+
+
 class Interceptor:
     """Pauses every request of a page and hands it to `handle`."""
 
@@ -188,7 +203,7 @@ class Replayer(Interceptor):
         if not _is_http(url):
             await self.pass_through(event)
             return
-        entry = self.fixture.lookup(url, method)
+        entry = self.fixture.lookup(url, method, request_body_of(request))
         if entry is None:
             log.warning("not in fixture: %s %s", method, url)
             self.missing.append(url)
@@ -204,18 +219,39 @@ class Recorder(Interceptor):
 
     Redirects are not followed by the fetch: each hop is recorded and given
     to the page, which then requests the next URL. With `replay_known`,
-    requests whose URL is already in the fixture are served from it.
+    requests whose URL is already in the fixture are served from it. With
+    `reuse_get`, a `GET` whose URL got a 2xx response earlier in this
+    capture is served from that response and not fetched again: the fixture
+    keeps one response per URL, and a page that moves over a map asks for
+    the same tiles again (the browser cache does not help, because the
+    served responses have no cache headers). A server's usage policy for
+    tiles asks for that.
 
     Chromium gets the same headers as in replay (`served_headers`), so the
     capture and the replay see the same responses.
     """
 
-    def __init__(self, fixture: Fixture, context: BrowserContext, replay_known: bool) -> None:
+    def __init__(
+        self,
+        fixture: Fixture,
+        context: BrowserContext,
+        replay_known: bool,
+        max_responses: int | None = None,
+        reuse_get: bool = False,
+    ) -> None:
         super().__init__(fixture)
         self.context = context
         self.replay_known = replay_known
+        self.max_responses = max_responses
+        self.reuse_get = reuse_get
+        self.reused = 0
+        self._reusable: dict[str, Entry] = {}
         self.recorded: list[str] = []
         self.failed: list[str] = []
+        self.refused: list[str] = []
+        self.statuses: list[tuple[int, str, str]] = []
+        """(status, method, URL) of each recorded response."""
+        self._fetches = 0
 
     async def handle(self, event: dict[str, Any]) -> None:
         request = event["request"]
@@ -224,10 +260,22 @@ class Recorder(Interceptor):
             await self.pass_through(event)
             return
         if self.replay_known:
-            entry = self.fixture.get(url, method)
+            entry = self.fixture.get(url, method, request_body_of(request))
             if entry is not None:
                 await self.fulfill(event, entry, self.fixture.read_body(entry))
                 return
+        reusable = self._reusable.get(url) if self.reuse_get and method == "GET" else None
+        if reusable is not None:
+            self.reused += 1
+            await self.fulfill(event, reusable, self.fixture.read_body(reusable))
+            return
+        if self.max_responses is not None and self._fetches >= self.max_responses:
+            if not self.refused:
+                log.warning("limit of %d responses reached: new requests fail", self.max_responses)
+            self.refused.append(url)
+            await self.fail(event)
+            return
+        self._fetches += 1
         headers = {
             name: value
             for name, value in request.get("headers", {}).items()
@@ -250,7 +298,12 @@ class Recorder(Interceptor):
             await self.fail(event)
             return
         pairs = [(header["name"], header["value"]) for header in response.headers_array]
-        entry = self.fixture.record(method, url, response.status, pairs, body)
+        entry = self.fixture.record(
+            method, url, response.status, pairs, body, request_body_of(request)
+        )
+        if self.reuse_get and method == "GET" and 200 <= response.status < 300:
+            self._reusable[url] = entry
         self.recorded.append(entry.url)
+        self.statuses.append((response.status, method, entry.url))
         log.info("%d %s %s (%d bytes)", response.status, method, url, len(body))
         await self.fulfill(event, entry, body)

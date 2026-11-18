@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from swbtools import paths, swb
-from swbtools.capture import capture, capture_missing, directory_size
+from swbtools.capture import DEFAULT_MAX_RESPONSES, capture, capture_missing, directory_size
 from swbtools.compare import Options, compare_fixture, update_scores
 from swbtools.cssom_cases import write_cssom_cases
 from swbtools.gui_latency import Options as GuiOptions
@@ -52,7 +52,16 @@ def _names(args: argparse.Namespace) -> list[str] | None:
 
 def cmd_capture(args: argparse.Namespace) -> int:
     return capture(
-        args.url, args.name, args.with_swb, args.swb, args.force, args.system_fonts, args.js
+        args.url,
+        args.name,
+        args.with_swb,
+        args.swb,
+        args.force,
+        args.system_fonts,
+        args.js,
+        args.steps,
+        args.max_responses,
+        args.pause_ms,
     )
 
 
@@ -233,6 +242,7 @@ def cmd_replay(args: argparse.Namespace) -> int:
         args.pixels_out,
         args.init_script,
         args.console_out,
+        args.missing_out,
     )
 
 
@@ -290,6 +300,27 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="run the page's scripts and write fixtures/js/NAME (local only, not committed); "
         "swb recording is off unless --with-swb",
+    )
+    p.add_argument(
+        "--steps",
+        type=Path,
+        metavar="FILE",
+        help="with --js: after the load, run the step groups of FILE (the format of "
+        "`replay --steps`) in the live page and record every response of the steps too "
+        "(a pause and a capped network-idle wait after each group)",
+    )
+    p.add_argument(
+        "--max-responses",
+        type=int,
+        metavar="N",
+        help="stop fetching after N responses from the network: new requests fail and a "
+        f"warning is logged (default with --steps: {DEFAULT_MAX_RESPONSES}; none without)",
+    )
+    p.add_argument(
+        "--pause-ms",
+        type=int,
+        default=DEFAULT_PAUSE_MS,
+        help=f"with --steps: pause after each step (default {DEFAULT_PAUSE_MS})",
     )
     p.set_defaults(func=cmd_capture)
 
@@ -637,6 +668,13 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         metavar="FILE",
         help="write the console of all frames here, one line per message: type, url:line, text",
+    )
+    p.add_argument(
+        "--missing-out",
+        type=Path,
+        metavar="FILE",
+        help="write the URLs that the fixture lacks per record here: "
+        '[{"label": "load" or the group name, "missing": [url, ...]}, ...]',
     )
     p.add_argument("--system-fonts", action="store_true", help=fonts_help)
     p.set_defaults(func=cmd_replay)

@@ -111,13 +111,13 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | just                         | swbtools                               | What it does |
 |------------------------------|----------------------------------------|--------------|
 | `just capture URL NAME`      | `capture URL NAME`                     | Downloads a page into `fixtures/pages/NAME/`. |
-| `just capture URL NAME --js` | `capture --js URL NAME`                | Downloads a page with JavaScript on into `fixtures/js/NAME/` (local only; see "Capture with JavaScript on"). |
+| `just capture URL NAME --js` | `capture --js URL NAME [--steps FILE [--max-responses N] [--pause-ms MS]]` | Downloads a page with JavaScript on into `fixtures/js/NAME/` (local only; see "Capture with JavaScript on"); with `--steps` the live page also runs the step groups of FILE and the fixture gets their responses (see "Capture with step groups"). |
 | `just js-survey [NAME...]`   | `js-survey NAME... \| --all [--runs N]` | Replays `fixtures/js/NAME` in Chromium with JavaScript on and measures what the scripts do (see "Survey the scripts of a page"). |
 | `just capture-missing NAME`  | `capture-missing NAME`                 | Adds only the responses that the fixture does not have. |
 | `just substitute NAME...`    | `substitute NAME... [--check]`         | Replaces photos with placeholders and non-free fonts with free ones in a fixture (see "Substitute copyrighted content"). |
 | `just reference [NAME...]`   | `reference NAME... \| --all`           | Writes Chromium's `reference/boxes.json` and `reference/screenshot.png`. |
 | `just tools reference --js NAME...` | `reference --js NAME... \| --all` | Writes Chromium's output with JavaScript on for `fixtures/js/NAME` into `out/js-reference/NAME/` (local only; see "Compare with JavaScript on"). |
-| `just tools replay NAME --steps FILE --record EXPR` | `replay NAME --steps FILE --record EXPR [--setup FILE] [--out FILE] [--pause-ms MS] [--screenshots DIR] [--pixels FILE --pixels-out FILE] [--init-script FILE] [--console-out FILE]` | Replays `fixtures/js/NAME` in Chromium as `reference --js` does, runs the step groups of FILE and writes the value of EXPR after the load and after each group as a JSON list; with `--screenshots` also a screenshot of the viewport after each, with `--pixels` the colors at named points after the named groups (see "Automation tests"); `--init-script` runs a script in every frame before the page's scripts and `--console-out` writes the console of all frames, one line per message. |
+| `just tools replay NAME --steps FILE --record EXPR` | `replay NAME --steps FILE --record EXPR [--setup FILE] [--out FILE] [--pause-ms MS] [--screenshots DIR] [--pixels FILE --pixels-out FILE] [--init-script FILE] [--console-out FILE] [--missing-out FILE]` | Replays `fixtures/js/NAME` in Chromium as `reference --js` does, runs the step groups of FILE and writes the value of EXPR after the load and after each group as a JSON list; with `--screenshots` also a screenshot of the viewport after each, with `--pixels` the colors at named points after the named groups (see "Automation tests"); `--init-script` runs a script in every frame before the page's scripts, `--console-out` writes the console of all frames, one line per message, and `--missing-out` the URLs that the fixture lacked per record (`[{"label": "load" or the group name, "missing": [...]}, ...]`). |
 | `just compare [NAME...]`     | `compare NAME... \| --all`             | Runs swb on fixtures and compares with the references. `just` builds swb first. |
 | `just compare NAME --full-page`    | `compare NAME --full-page`       | Also compares the full-page screenshots and lists the differing regions (see "Compare swb with Chromium"). |
 | `just compare NAME --click SEL` | `compare NAME --click SELECTOR` | Compares the page after clicking the first element of SELECTOR in both browsers (repeatable). |
@@ -201,6 +201,17 @@ produces byte-identical files: the same entry order, JSON formatting, body
 file names and stored headers. Tests in `tools/tests/test_manifest.py` check
 this against the expected file of the Rust test `manifest_format_is_exact`.
 
+An entry has an optional `request_body` (the first 16 hex digits of the
+SHA-256 of the request body) for two requests with the same method and URL
+and different bodies that need different answers (two `POST`s to one query
+endpoint). Both writers add it only to such a group; an entry without it
+matches any body, and a request is first matched against the entries that have
+it. An empty body counts as no body. Any value other than 16 lowercase hex
+digits (or `null`) makes the manifest invalid in both readers. Rules:
+`crates/net/src/fixture/mod.rs`, "Matching". Chromium's replay
+(`Fixture.lookup`, `Replayer`), swb's `ReplayFetcher` and both recorders use
+it.
+
 `fixture.json`:
 
 ```json
@@ -212,8 +223,11 @@ this against the expected file of the Rust test `manifest_format_is_exact`.
 }
 ```
 
-- `url`: the captured URL as Chromium serialized it. `reference` and
-  `compare` load this URL.
+- `url`: the captured URL as Chromium serialized it, with the fragment of
+  the URL that was given to `capture` (Playwright's request URLs have none,
+  and a page's scripts can read it: a map's `#map=16/45.8/15.9`). It is the
+  URL of the first request of a redirect chain. `reference` and `compare`
+  load this URL. The manifest's entry URLs have no fragments.
 - `captured`: capture time, UTC, ISO 8601.
 - `viewport`: viewport size in CSS px.
 - `chromium`: the Chromium version used for the capture.
@@ -532,6 +546,83 @@ above, with these differences:
 - Cross-origin requests from scripts work in the capture and in the replay:
   the tool answers CORS preflights itself and reflects the request's
   origin (see "Request interception").
+
+### Capture with step groups
+
+`capture --js URL NAME --steps FILE` loads the page as above and then runs
+the step groups of FILE in the live page, recording every response of the
+load and of the steps. FILE has the format of `replay --steps` (a list of
+groups, each a list of steps or `{"name": ..., "steps": [...]}`) and runs with
+the same code (`probe.run_steps`, pause `--pause-ms` after each step, 300 ms
+by default). After each group the tool pauses 500 ms and waits for network
+idle (at most 10 s), so that the responses of the group are recorded before
+the next group starts, and it writes the manifest (a checkpoint). Use it for a
+page whose interaction calls services (search, routing, a feature query) or
+loads tiles: replay then has the answers for the steps.
+
+- Why a full capture and not "add the missing responses": a service can check
+  a token of the page against the session cookie of the same visit. The
+  fixture stores no cookies, so a page served from an old fixture sends
+  a token that the live server rejects. `Recorder` fetches with
+  `context.request`, which shares the cookies of the browser context, so
+  the `Set-Cookie` of one response reaches the later requests of the capture
+  (tested with a local server in `tools/tests/test_capture_steps.py`).
+- Safety for the live servers: `--max-responses N` (default 1000 with
+  `--steps`) caps the fetches from the network; after N, new requests fail
+  and the tool warns. Run the full step file once; fix a failure and run
+  again, but keep the number of live runs small. Tests never fetch from live
+  servers. No retries, no loops.
+- A `GET` whose URL got a 2xx response earlier in the same capture is served
+  from that response and not fetched again (`Recorder(reuse_get=True)`,
+  logged as "repeated GET requests served from the first response"). The
+  fixture keeps one response per URL, and a page that moves over a map asks
+  for the same tiles again: the served responses have no cache headers, so the
+  browser cache does not help, and the first OSM capture sent 269 requests for
+  138 tile URLs. Without `--steps` the capture is as before.
+- A step that fails (a selector that matches nothing) ends its group and is
+  logged with a warning; the next group runs, so that one wrong selector does
+  not waste a live run. `replay` of the same file then fails at the same
+  step: fix the file.
+- The log (`-v`, level `warning`) lists the number of responses per host,
+  the statuses that are not 2xx or 3xx, the requests that failed or were
+  refused by the limit, and the groups that failed.
+- Request bodies: two requests with the same method and URL and different
+  bodies are recorded as separate entries (`request_body`, see "Page
+  fixture").
+- `--steps` needs `--js` and does not go with `--with-swb`.
+
+`tools/osm_zagreb_records.py` (M12) is the example: the step groups for the
+OpenStreetMap map of Zagreb (`steps` writes the steps file and the record
+expression `window.__o()`), the Chromium records of the replay (`records`, two
+runs that must agree, the screenshots, the console and the URLs that the
+fixture lacks per group) and a table of them (`summary`).
+
+Feature 1b of M12 added two commands (the report is `docs/osm-diagnosis.md`):
+
+- `stub` makes `fixtures/js/osm-zagreb-stub` (local only): a copy of the
+  fixture (hard links) whose `application-*.js` body starts with a `Worker`
+  stub, a class that does nothing, defined only if `window.Worker` is missing
+  (a new body file; the manifest entry points to it). swb stops at `new
+  Worker` in that script, so the stub is how to look past it until swb has
+  workers. Run it again after a new capture.
+- `swb [--fixture NAME] [--groups N] [--skip N...] [--out DIR] [--chromium
+  FILE]` runs the step groups in swb: one `swb --headless --js` run (the
+  options of `compare --js`: `--now` from the capture time, `--virtual-time`,
+  `--settle-ms 1500`) with the steps of all groups, a `record` step and a
+  `screenshot` step after the load and after each group, and a pause of 300
+  ms after each step (the pause of `replay`). A selector with Playwright's
+  `:visible` or `>> nth=N` becomes an `eval` that marks the match with an
+  attribute, the step on the mark (the click still goes through the pointer
+  and the hit test) and an `eval` that removes the mark, because swb's
+  selectors are CSS. The tool compares each record with Chromium's (default
+  `DIR/osm-zagreb-chromium.json`) and writes `swb-records.json`,
+  `swb-diff.json` (the differing fields per record, objects opened to two
+  levels), `swb-times.json` (wall time per record), `swb-groups.json` (the
+  log lines of each group), `swb-log.txt` and `swb-shots/` into DIR. A step
+  that fails ends the run (swb stops at the first failing step); `--skip`
+  leaves out the steps of groups (they still get a record), to look past a
+  group that breaks the page. `--groups N` runs the first N groups. The whole
+  run of the 60 groups takes 5 to 10 s.
 
 ### Survey the scripts of a page
 
@@ -985,8 +1076,9 @@ least the last event's time; an idle trace has no events. The traces:
 | `idle-10s` | No input for 10 s: the CPU and the frames of a page at rest. |
 | `pointer-sweep` | A diagonal pointer sweep, 125 moves per second for 3 s. |
 | `wheel-burst` | The pointer to the page's middle, 10 notches down and 10 up, 30 ms apart. |
+| `osm-map` | The map of openstreetmap.org (M12 feature 1b; 13.07 s, window 1280 x 900, the pointer in the part of the window that the map covers: x 360 to 1200, y 150 to 840, toolbar included): five drags of 200 to 364 px in different directions (press, 36 moves at 60 Hz over 0.6 s, a rest of 0.1 s, release, 0.8 s between drags), then wheel notches over the map: three in and three out one at a time 400 ms apart, and a burst of five in 30 ms apart. 186 moves (the tool counted 182: moves to the place where the pointer already is give no X event), 11 notches, 5 clicks. |
 
-`tools/make_traces.py` makes them: `synthetic` writes the last three;
+`tools/make_traces.py` makes them: `synthetic` writes `osm-map` and the last three;
 `wayland LOG NAME --description TEXT [--until S] [--window WxH]` extracts the
 pointer input over the window from a `WAYLAND_DEBUG=1` log (each line
 prefixed with `CLOCK_MONOTONIC` seconds, as `out/perf/record.sh` made them
@@ -1177,7 +1269,13 @@ temporary directory, loaded by navigation.
   the page between steps (M9 feature 1; `swb_automation::run_steps` prints it
   too, for a Rust caller; the Chromium side of the probe tool only evaluates
   the expression, and `swbtools replay --record` is the Chromium way to read
-  state between steps); `{"viewport": [500, 600]}` resizes the
+  state between steps); `{"screenshot": "FILE"}` (swb only, M12 feature 1b;
+  `swb --steps` and `swb_automation::run_steps`) writes a PNG of the
+  viewport to FILE and logs `screenshot FILE` at level `info` (target
+  `swb_automation::steps`), so that a log shows which messages came before
+  it (`tools/osm_zagreb_records.py swb` splits the log at these lines; the
+  probe tool and `replay` do not know the step);
+  `{"viewport": [500, 600]}` resizes the
   viewport (Playwright's `set_viewport_size`; swb's `page.setViewport`);
   `{"colorScheme": "dark"}` sets `prefers-color-scheme` (Playwright's
   `emulate_media`; swb's `Page::set_color_scheme`; feature 7b2);
@@ -1324,6 +1422,22 @@ lines (`swb printed N answers for M --eval expressions`).
 Case files that other people should reuse go in `tools/probes/`
 (`example.json` shows the format). Scratch case files can live anywhere.
 `tools/tests/test_probe.py` runs the example file.
+
+The probe files of the M12 diagnosis (feature 1b; each ran three times in
+Chromium 148 with equal output; the swb implementation does not exist yet, so
+every case differs under `--with-swb` except one of `web-osm-gaps.json`):
+`web-workers.json` (16 cases: dedicated workers from a same-origin file and
+a `blob:` URL, structured clone both ways, a transferred `ArrayBuffer`,
+`importScripts`, `fetch` and `XMLHttpRequest` in the worker, timers,
+`terminate`, the `error` event, the global scope, the message order, and
+the message protocol of MapLibre's worker), `web-xml.json` (10 cases:
+`DOMParser` with the XML types, the elements and attributes of the OSM
+API's XML, namespaces, the `parsererror` document, `responseXML`,
+`XMLSerializer`, `createDocument`, entities and limits) and
+`web-osm-gaps.json` (10 cases: `ImageData`, Canvas 2D, `OffscreenCanvas`
+and `createImageBitmap`, `Attr` as a node, Bootstrap's `sanitizeHtml`, a GIF
+without a color table, WebGL detection, `structuredClone`, and the mouse
+events after the content under a stationary pointer changes).
 
 ## Hostile-page set
 

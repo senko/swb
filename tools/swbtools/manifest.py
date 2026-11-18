@@ -9,8 +9,9 @@ import hashlib
 import json
 import os
 import re
+from collections import Counter
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -80,35 +81,60 @@ class Entry:
     status: int
     headers: tuple[tuple[str, str], ...]
     body: str
+    request_body: str = ""
+    """The hash of the request body (`request_body_hash`), or "" (the entry
+    matches any body)."""
 
     @property
-    def key(self) -> tuple[str, str]:
-        """The sort key and identity of the entry: (url, method)."""
-        return (self.url, self.method)
+    def key(self) -> tuple[str, str, str]:
+        """The sort key and identity of the entry: (url, method, request body
+        hash). An entry without a hash sorts first."""
+        return (self.url, self.method, self.request_body)
 
     def to_json(self) -> dict[str, object]:
         """The entry as a JSON object, fields in file order."""
-        return {
+        data: dict[str, object] = {
             "method": self.method,
             "url": self.url,
             "status": self.status,
             "headers": [list(pair) for pair in self.headers],
             "body": self.body,
         }
+        if self.request_body:
+            data["request_body"] = self.request_body
+        return data
 
     @staticmethod
     def from_json(data: dict[str, Any]) -> "Entry":
-        """Reads an entry object of the manifest. Ignores unknown fields."""
+        """Reads an entry object of the manifest. Ignores unknown fields. A
+        `request_body` that is not null or 16 lowercase hex digits is an
+        error (as in the Rust reader)."""
         headers, status = data["headers"], data["status"]
         if not isinstance(headers, list) or not isinstance(status, int):
             raise ValueError(f"invalid entry {data!r}")
+        request_body = data.get("request_body")
+        if request_body is not None and not (
+            isinstance(request_body, str) and REQUEST_BODY_HASH.fullmatch(request_body)
+        ):
+            raise ValueError(f"invalid request_body in entry {data!r}")
         return Entry(
             method=str(data["method"]),
             url=str(data["url"]),
             status=status,
             headers=tuple((str(name), str(value)) for name, value in headers),
             body=str(data["body"]),
+            request_body=request_body or "",
         )
+
+
+REQUEST_BODY_HASH = re.compile(r"[0-9a-f]{16}")
+"""A valid `request_body` value."""
+
+
+def request_body_hash(body: bytes) -> str:
+    """The `request_body` value for a request body: the first 16 hex digits
+    of its SHA-256 hash."""
+    return hashlib.sha256(body).hexdigest()[:16]
 
 
 def entry_url(url: str) -> str:
@@ -135,8 +161,15 @@ def body_file_name(body: bytes, content_types: Iterable[str]) -> str:
 
 
 def format_manifest(entries: Iterable[Entry]) -> str:
-    """Returns the manifest file content, with entries sorted by (url, method)."""
+    """Returns the manifest file content, with entries sorted by (url,
+    method, request body hash). A group of one entry (the same URL and
+    method) is written without its request body hash."""
     ordered = sorted(entries, key=lambda entry: entry.key)
+    sizes = Counter((entry.url, entry.method) for entry in ordered)
+    ordered = [
+        replace(entry, request_body="") if sizes[(entry.url, entry.method)] == 1 else entry
+        for entry in ordered
+    ]
     manifest = {"version": MANIFEST_VERSION, "entries": [entry.to_json() for entry in ordered]}
     return json.dumps(manifest, indent=2, ensure_ascii=False) + "\n"
 
@@ -224,7 +257,7 @@ class Fixture:
 
     def __init__(self, path: Path) -> None:
         self.path = path
-        self.entries: dict[tuple[str, str], Entry] = {}
+        self.entries: dict[tuple[str, str, str], Entry] = {}
         self.replay_patterns = tuple(
             (pattern, pattern_regex(pattern)) for pattern in read_replay_patterns(path)
         )
@@ -232,34 +265,49 @@ class Fixture:
             for entry in read_manifest(path):
                 self.entries.setdefault(entry.key, entry)
 
-    def get(self, url: str, method: str = "GET") -> Entry | None:
-        """Returns the entry for a request URL (the fragment is ignored)."""
-        return self.entries.get((entry_url(url), method.upper()))
+    def get(self, url: str, method: str = "GET", request_body: bytes | None = None) -> Entry | None:
+        """Returns the entry for a request (the fragment is ignored). An
+        entry with a request body hash matches only a request with that
+        body and comes first; an entry without one matches any body."""
+        url, method = entry_url(url), method.upper()
+        if request_body:
+            hashed = self.entries.get((url, method, request_body_hash(request_body)))
+            if hashed is not None:
+                return hashed
+        return self.entries.get((url, method, ""))
 
-    def lookup(self, url: str, method: str = "GET") -> Entry | None:
+    def lookup(
+        self, url: str, method: str = "GET", request_body: bytes | None = None
+    ) -> Entry | None:
         """Returns the entry that replay serves for a request: the entry of
-        the URL or, if there is none, the entry of a recorded URL that
+        the URL (`get`) or, if there is none, the entry of a recorded URL that
         matches the same replay pattern as the request URL (the pattern's
         `*` is one path segment; of several entries the one with the
-        greatest URL, comparing the numbers in it as numbers). It is for
+        greatest URL, comparing the numbers in it as numbers, and of the
+        entries of that URL the one with the request body hash). It is for
         pages that request a URL with a segment that changes with time. The
         rule is in `fixture.json`:
         `"replay_patterns": ["https://example.test/static/*/app.js"]`."""
-        exact = self.get(url, method)
+        exact = self.get(url, method, request_body)
         if exact is not None or not self.replay_patterns:
             return exact
         wanted = entry_url(url)
         method = method.upper()
+        wanted_hash = request_body_hash(request_body) if request_body else ""
         for _, regex in self.replay_patterns:
             if not regex.fullmatch(wanted):
                 continue
             matching = [
                 entry
                 for entry in self.entries.values()
-                if entry.method == method and regex.fullmatch(entry.url)
+                if entry.method == method
+                and regex.fullmatch(entry.url)
+                and entry.request_body in ("", wanted_hash)
             ]
             if matching:
-                return max(matching, key=lambda entry: natural_key(entry.url))
+                return max(
+                    matching, key=lambda entry: (natural_key(entry.url), entry.request_body != "")
+                )
         return None
 
     def read_body(self, entry: Entry) -> bytes:
@@ -273,8 +321,13 @@ class Fixture:
         status: int,
         headers: Iterable[tuple[str, str]],
         body: bytes,
+        request_body: bytes | None = None,
     ) -> Entry:
-        """Stores a response. Writes the body file if it does not exist."""
+        """Stores a response. Writes the body file if it does not exist. A
+        request with a body that is not empty (`request_body`) gets its hash
+        in the entry; the entry replaces only the entry with the same URL,
+        method and hash. `save` writes the hash only if the URL and method
+        have several entries."""
         headers = list(headers)
         content_types = [value for name, value in headers if name.lower() == "content-type"]
         file_name = body_file_name(body, content_types)
@@ -289,6 +342,7 @@ class Fixture:
             status=status,
             headers=stored_headers(headers),
             body=f"{FILES_DIR}/{file_name}",
+            request_body=request_body_hash(request_body) if request_body else "",
         )
         self.entries[entry.key] = entry
         return entry

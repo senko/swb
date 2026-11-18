@@ -1,0 +1,123 @@
+{
+ "viewport": [
+  400,
+  300
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "domparser-osm-xml",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(() => { const d = P(OSM); const r = d.documentElement; const n = d.getElementsByTagName('node'); return {ct: d.contentType, ctor: d.constructor.name, isDoc: d instanceof Document, isXml: d instanceof XMLDocument, name: r.nodeName, local: r.localName, ns: r.namespaceURI, tag: r.tagName, kids: r.childNodes.length, elems: r.children.length, nodes: n.length, nds: d.getElementsByTagName('nd').length, lat: n[0].getAttribute('lat'), user: n[0].getAttribute('user'), vis: n[0].getAttribute('visible'), tagV: d.querySelector('node tag').getAttribute('v'), qsa: d.querySelectorAll('way > nd').length, byId: d.getElementById('1') && d.getElementById('1').tagName, attrs: [...n[0].attributes].map((a) => a.name + '=' + a.value).join(), has: n[1].hasAttribute('lat'), missing: n[0].getAttribute('nope'), first: r.firstChild.nodeType, firstText: JSON.stringify(r.firstChild.nodeValue), doctype: d.doctype, xmlVersion: d.xmlVersion, xmlEncoding: d.xmlEncoding, standalone: d.xmlStandalone, charset: d.characterSet, url: d.URL === document.URL, body: typeof d.body, title: typeof d.title, cookie: Q(() => d.cookie), rel: d.querySelector('member').getAttribute('role'), first_child_node: d.firstChild.nodeName, text: r.textContent.replace(/\\s+/g, ' ').trim()}; })()"
+    }
+   ]
+  },
+  {
+   "name": "domparser-types",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(() => { const out = {}; for (const t of ['text/xml', 'application/xml', 'application/xhtml+xml', 'image/svg+xml', 'text/html']) { const src = t === 'text/html' ? '<p>hi</p>' : t === 'image/svg+xml' ? '<svg xmlns=\"http://www.w3.org/2000/svg\"/>' : t === 'application/xhtml+xml' ? '<html xmlns=\"http://www.w3.org/1999/xhtml\"><body/></html>' : '<a/>'; const d = P(src, t); out[t] = [d.contentType, d.constructor.name, d.documentElement.nodeName, d.documentElement.namespaceURI]; } out.bad = Q(() => P('<a/>', 'text/plain')); out.none = Q(() => new DOMParser().parseFromString('<a/>')); out.empty = Q(() => P('', 'text/xml').documentElement.nodeName); out.parserOnly = Object.getOwnPropertyNames(DOMParser.prototype).sort().join(); return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "parsererror-document",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(() => { const out = {}; for (const src of ['<a><b></a>', '<a', 'plain text', '<a>&nope;</a>', '<a x=1/>', '<a/><b/>', '']) { const d = P(src); const pe = d.getElementsByTagName('parsererror'); out[src] = [d.documentElement ? d.documentElement.nodeName : null, pe.length, pe.length ? pe[0].namespaceURI : null, pe.length ? pe[0].textContent.replace(/\\s+/g, ' ').trim().slice(0, 120) : null]; } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "namespaces",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(() => { const d = P('<a xmlns=\"urn:x\" xmlns:p=\"urn:p\"><p:b p:attr=\"1\" plain=\"2\"/><c xmlns=\"\"/></a>'); const b = d.getElementsByTagNameNS('urn:p', 'b')[0]; const a = d.documentElement; return {a: [a.namespaceURI, a.prefix, a.localName, a.tagName], b: [b.namespaceURI, b.prefix, b.localName, b.tagName, b.getAttributeNS('urn:p', 'attr'), b.getAttribute('p:attr'), b.getAttribute('plain'), b.getAttributeNS(null, 'plain')], attrs: [...b.attributes].map((x) => [x.name, x.namespaceURI, x.prefix, x.localName]), c: d.getElementsByTagName('c')[0].namespaceURI, any: d.getElementsByTagNameNS('*', 'b').length, lookup: [b.lookupNamespaceURI('p'), b.lookupNamespaceURI(null), a.lookupPrefix('urn:p')], byName: d.getElementsByTagName('p:b').length, qs: d.querySelectorAll('b').length, xmlns: [...a.attributes].map((x) => x.name + '=' + x.namespaceURI).join()}; })()"
+    }
+   ]
+  },
+  {
+   "name": "xhr-response-xml",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { const out = {}; for (const name of ['osm.xml', 'osm-app.xml', 'plain.txt', 'bad.xml']) { const x = new XMLHttpRequest(); x.open('GET', name); await new Promise((r) => { x.onloadend = r; x.send(); }); const d = x.responseXML; out[name] = [x.status, x.getResponseHeader('content-type'), d === null ? null : [d.contentType, d.documentElement.nodeName, d.getElementsByTagName('node').length]]; } const y = new XMLHttpRequest(); y.open('GET', 'osm.xml'); y.responseType = 'document'; await new Promise((r) => { y.onloadend = r; y.send(); }); out.typeDocument = [y.response && y.response.constructor.name, y.response && y.response.contentType]; const z = new XMLHttpRequest(); z.open('GET', 'plain.txt'); z.responseType = 'text'; await new Promise((r) => { z.onloadend = r; z.send(); }); out.textType = Q(() => z.responseXML); const w = new XMLHttpRequest(); w.open('GET', 'plain.txt'); w.overrideMimeType('text/xml'); await new Promise((r) => { w.onloadend = r; w.send(); }); out.override = w.responseXML === null ? null : w.responseXML.documentElement.nodeName; return out; })()"
+    }
+   ],
+   "resources": {
+    "osm.xml": {
+     "text": "<osm><node id='1'/><node id='2'/></osm>",
+     "content_type": "text/xml"
+    },
+    "osm-app.xml": {
+     "text": "<osm><node id='1'/></osm>",
+     "content_type": "application/xml"
+    },
+    "plain.txt": {
+     "text": "<osm><node id='1'/></osm>",
+     "content_type": "text/plain"
+    },
+    "bad.xml": {
+     "text": "<osm><node></osm>",
+     "content_type": "text/xml"
+    }
+   }
+  },
+  {
+   "name": "fetch-and-parse-xml",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { const t = await (await fetch('osm.xml')).text(); const d = P(t); return [d.documentElement.nodeName, d.getElementsByTagName('node').length, Q(() => document.implementation.hasFeature('XML', '1.0'))]; })()"
+    }
+   ],
+   "resources": {
+    "osm.xml": {
+     "text": "<osm><node id='1'/><node id='2'/></osm>",
+     "content_type": "text/xml"
+    }
+   }
+  },
+  {
+   "name": "xml-serializer",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(() => { const d = P('<a xmlns:p=\"urn:p\" x=\"1&amp;2\"><p:b>t &lt; u</p:b><c/><!--k--><?pi data?></a>'); const out = {}; out.doc = new XMLSerializer().serializeToString(d); out.el = new XMLSerializer().serializeToString(d.documentElement.firstChild); out.html = new XMLSerializer().serializeToString(document.getElementById('a')); out.created = (() => { const e = document.createElement('div'); e.setAttribute('title', 'a\"b<c&'); e.textContent = '<&>'; return new XMLSerializer().serializeToString(e); })(); out.text = new XMLSerializer().serializeToString(document.createTextNode('a<b')); out.bad = Q(() => new XMLSerializer().serializeToString({})); out.names = Object.getOwnPropertyNames(XMLSerializer.prototype).sort().join(); out.domOuter = d.documentElement.outerHTML; return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "create-document",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(() => { const d = document.implementation.createDocument(null, 'osm'); const n = d.createElement('node'); n.setAttribute('id', '1'); d.documentElement.appendChild(n); const h = document.implementation.createDocument('http://www.w3.org/1999/xhtml', 'html'); const s = document.implementation.createDocument('http://www.w3.org/2000/svg', 'svg'); return [new XMLSerializer().serializeToString(d), d.contentType, d.constructor.name, h.contentType, h.documentElement.namespaceURI, s.documentElement.constructor.name, Q(() => document.implementation.createDocument(null, '1bad')), document.implementation.createHTMLDocument('t').contentType]; })()"
+    }
+   ]
+  },
+  {
+   "name": "entities-cdata-and-limits",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(() => { const out = {}; const d = P('<!DOCTYPE a [<!ENTITY e \"x\">]><a>&e;&amp;&#65;&#x42;<![CDATA[<c>]]></a>'); out.text = d.documentElement.textContent; out.doctype = d.doctype && d.doctype.name; out.cdata = [...d.documentElement.childNodes].map((n) => n.nodeType).join(); const ext = P('<!DOCTYPE a [<!ENTITY e SYSTEM \"file:///etc/passwd\">]><a>&e;</a>'); out.external = ext.documentElement.textContent.length; let laughs = '<!DOCTYPE a [<!ENTITY e0 \"lol\">'; for (let i = 1; i < 12; i++) laughs += '<!ENTITY e' + i + ' \"' + '&e' + (i - 1) + ';'.repeat(1) + '&e' + (i - 1) + ';&e' + (i - 1) + ';\">'; laughs += ']><a>&e11;</a>'; const l = P(laughs); out.laughs = [l.documentElement.nodeName, l.getElementsByTagName('parsererror').length, l.documentElement.textContent.length < 1000000]; let deep = ''; for (let i = 0; i < 2000; i++) deep += '<a>'; for (let i = 0; i < 2000; i++) deep += '</a>'; const dd = P(deep); out.deep = [dd.documentElement.nodeName, dd.getElementsByTagName('parsererror').length]; return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "xml-document-case-and-api",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(() => { const d = P('<Root><Item id=\"1\">a</Item><item>b</item></Root>'); const e = d.createElement('Foo'); return {byLower: d.getElementsByTagName('item').length, byUpper: d.getElementsByTagName('Item').length, qs: d.querySelectorAll('item').length, qsU: d.querySelectorAll('Item').length, tag: d.documentElement.firstChild.tagName, created: [e.tagName, e.localName, e.namespaceURI], cls: d.documentElement.constructor.name, style: typeof d.documentElement.style, inner: d.documentElement.innerHTML, outer: d.documentElement.outerHTML, evalFn: typeof d.evaluate, xp: Q(() => d.evaluate('count(//Item)', d, null, 0, null).numberValue), children: d.documentElement.children.length, adopt: Q(() => document.adoptNode(d.documentElement).nodeName), imp: Q(() => document.importNode(d.documentElement, true).constructor.name)}; })()"
+    }
+   ]
+  }
+ ]
+}

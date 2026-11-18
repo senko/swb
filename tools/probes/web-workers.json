@@ -1,0 +1,273 @@
+{
+ "viewport": [
+  400,
+  300
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "echo-structured-clone",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {
+    "w.js": {
+     "text": "onmessage = (e) => postMessage({got: e.data, same: e.data === self.__last}); self.__last = null;",
+     "content_type": "text/javascript"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const w = new Worker('w.js'); const p = once(w, 'message'); w.postMessage({a: 1, b: [1, 'x', null, undefined], c: new Map([[1, {x: 2}]]), d: new Set([1, 2]), e: new Date(86400000), f: new Uint8Array([1, 2, 3]), g: /ab+c/gi, h: new Error('boom'), i: 10n, j: -0, k: NaN, l: new Blob(['hi']), m: new ArrayBuffer(4), n: 'str', o: true}); const m = await p; w.terminate(); const d = m.data.got; return {type: m.type, origin: m.origin, last: m.lastEventId, source: m.source, same: m.data.same, a: d.a, b: d.b, c: [...d.c], dset: [...d.d], e: d.e.getTime(), f: [...d.f], g: String(d.g), h: [d.h.name, d.h.message, d.h instanceof Error], i: String(d.i), j: Object.is(d.j, -0), k: Number.isNaN(d.k), l: [d.l instanceof Blob, d.l.size], m: d.m.byteLength, n: d.n, o: d.o}; })()"
+    }
+   ]
+  },
+  {
+   "name": "clone-failures",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {
+    "w.js": {
+     "text": "onmessage = (e) => postMessage('ok');",
+     "content_type": "text/javascript"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const w = new Worker('w.js'); const out = []; for (const v of [() => 1, Symbol('s'), document.body, window, new WeakMap(), {f() {}}]) { try { w.postMessage(v); out.push('sent'); } catch (e) { out.push(E(e)); } } w.terminate(); return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "transfer-array-buffer",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {
+    "w.js": {
+     "text": "onmessage = (e) => { const b = e.data; const n = b.byteLength; new Uint8Array(b)[0] = 99; postMessage({n, first: new Uint8Array(b)[0], b}, [b]); };",
+     "content_type": "text/javascript"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const w = new Worker('w.js'); const b = new ArrayBuffer(8); new Uint8Array(b)[0] = 7; const p = once(w, 'message'); w.postMessage(b, [b]); const after = b.byteLength; const m = await p; const out = {after, n: m.data.n, first: m.data.first, back: m.data.b.byteLength, backFirst: new Uint8Array(m.data.b)[0]}; try { w.postMessage(b, [b]); out.again = 'sent'; } catch (e) { out.again = E(e); } const t = new Uint8Array(4); try { w.postMessage({t}, [t.buffer]); out.view = t.byteLength; } catch (e) { out.view = E(e); } try { w.postMessage(1, [1]); } catch (e) { out.badList = e.name; } w.terminate(); return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "blob-worker",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {},
+   "measure": [
+    {
+     "js": "(async () => { const src = 'onmessage = (e) => postMessage(e.data * 2 + \":\" + typeof importScripts);'; const url = URL.createObjectURL(new Blob([src], {type: 'text/javascript'})); const w = new Worker(url); const p = once(w, 'message'); w.postMessage(21); const m = await p; w.terminate(); URL.revokeObjectURL(url); return [m.data, url.startsWith('blob:')]; })()"
+    }
+   ]
+  },
+  {
+   "name": "import-scripts",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {
+    "w.js": {
+     "text": "importScripts('lib.js', 'lib2.js'); let r = [self.libValue, self.lib2Value, importScripts()]; try { importScripts('missing.js'); } catch (e) { r.push(e.name); } try { importScripts('bad.js'); } catch (e) { r.push(e.name); } postMessage(r);",
+     "content_type": "text/javascript"
+    },
+    "lib.js": {
+     "text": "self.libValue = 'lib:' + (typeof postMessage);",
+     "content_type": "text/javascript"
+    },
+    "lib2.js": {
+     "text": "self.lib2Value = self.libValue + '+2';",
+     "content_type": "text/javascript"
+    },
+    "bad.js": {
+     "text": "syntax error here (",
+     "content_type": "text/javascript"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const w = new Worker('w.js'); const m = await once(w, 'message'); w.terminate(); return m.data; })()"
+    }
+   ]
+  },
+  {
+   "name": "fetch-and-xhr-in-worker",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {
+    "w.js": {
+     "text": "(async () => { const r = await fetch('data.txt'); const t = await r.text(); const x = await new Promise((res) => { const q = new XMLHttpRequest(); q.open('GET', 'data.txt'); q.onload = () => res(q.responseText + q.status); q.send(); }); const b = await (await fetch('data.bin')).arrayBuffer(); let f; try { await fetch('nothing-here.txt').then((r) => { f = r.status; }); } catch (e) { f = e.name; } postMessage([r.status, r.url.split('/').pop(), t, x, b.byteLength, f]); })();",
+     "content_type": "text/javascript"
+    },
+    "data.txt": {
+     "text": "hello",
+     "content_type": "text/plain"
+    },
+    "data.bin": {
+     "text": "12345",
+     "content_type": "application/octet-stream"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const w = new Worker('w.js'); const m = await once(w, 'message'); w.terminate(); return m.data; })()"
+    }
+   ]
+  },
+  {
+   "name": "timers-in-worker",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {
+    "w.js": {
+     "text": "const log = []; setTimeout(() => log.push('t0'), 0); Promise.resolve().then(() => log.push('p')); queueMicrotask(() => log.push('q')); const id = setInterval(() => { log.push('i'); if (log.filter((x) => x === 'i').length === 3) { clearInterval(id); postMessage(log); } }, 10); const c = setTimeout(() => log.push('never'), 5); clearTimeout(c); log.push('sync'); postMessage(typeof requestAnimationFrame + typeof setTimeout + typeof structuredClone + typeof performance.now());",
+     "content_type": "text/javascript"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const w = new Worker('w.js'); const a = await once(w, 'message'); const b = await once(w, 'message'); w.terminate(); return [a.data, b.data]; })()"
+    }
+   ]
+  },
+  {
+   "name": "terminate",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {
+    "w.js": {
+     "text": "let n = 0; onmessage = () => { postMessage('pong' + (++n)); }; setInterval(() => postMessage('tick'), 20);",
+     "content_type": "text/javascript"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const w = new Worker('w.js'); const got = []; w.onmessage = (e) => got.push(e.data); w.postMessage(1); await wait(100); w.terminate(); const n = got.length; await wait(150); let again; try { w.postMessage(2); again = 'sent'; } catch (e) { again = E(e); } w.terminate(); await wait(50); return {first: got[0], stopped: got.length === n, again, ticks: n > 1}; })()"
+    }
+   ]
+  },
+  {
+   "name": "error-event",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {
+    "w.js": {
+     "text": "onmessage = () => { throw new Error('worker-boom'); }; addEventListener('error', () => {}); postMessage('ready');",
+     "content_type": "text/javascript"
+    },
+    "w2.js": {
+     "text": "onmessage = () => { undefinedFunction(); }; postMessage('ready');",
+     "content_type": "text/javascript"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const out = {}; const w = new Worker('w2.js'); await once(w, 'message'); const p = once(w, 'error'); w.postMessage(1); const e = await p; out.type = e.type; out.isError = e instanceof ErrorEvent; out.message = e.message; out.file = e.filename.split('/').pop(); out.line = e.lineno; out.col = e.colno; out.errorObj = e.error; out.cancelable = e.cancelable; w.postMessage(2); await wait(50); w.terminate(); return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "worker-script-syntax-and-missing",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {
+    "bad.js": {
+     "text": "this is not ( valid",
+     "content_type": "text/javascript"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const out = {}; for (const name of ['bad.js', 'missing.js']) { const w = new Worker(name); const e = await once(w, 'error'); out[name] = [e.type, e.isTrusted, e.constructor.name, e.message === '' ? 'empty' : 'msg', e.filename === '' ? 'nofile' : 'file']; w.terminate(); } try { new Worker('http://other.invalid/x.js'); out.cross = 'made'; } catch (e) { out.cross = E(e).replace(/:[0-9]+/g, ':PORT'); } try { new Worker(); } catch (e) { out.noarg = e.name; } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "worker-global-scope",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {
+    "w.js": {
+     "text": "postMessage({self: self === globalThis, ctor: self.constructor.name, proto: Object.getPrototypeOf(Object.getPrototypeOf(self)).constructor.name, loc: location.href.split('/').pop(), origin: location.origin === 'null' ? 'null' : 'origin', ua: typeof navigator.userAgent, lang: typeof navigator.language, hc: typeof navigator.hardwareConcurrency, doc: typeof document, win: typeof window, name: self.name, importScripts: typeof importScripts, closeFn: typeof close, pm: typeof postMessage, dec: typeof TextDecoder, enc: typeof TextEncoder, url: typeof URL, blob: typeof Blob, ab: typeof AbortController, off: typeof OffscreenCanvas, cib: typeof createImageBitmap, imgd: typeof ImageData, fetchFn: typeof fetch, xhr: typeof XMLHttpRequest, idb: typeof indexedDB, sab: typeof SharedArrayBuffer, wasm: typeof WebAssembly, cons: typeof console.log, perf: typeof performance, crypto: typeof crypto, caches: typeof caches, worker: typeof Worker, dp: typeof DOMParser, ws: typeof WebSocket, em: typeof EventTarget, mc: typeof MessageChannel, bc: typeof BroadcastChannel, rs: typeof ReadableStream, ds: typeof DecompressionStream, isec: self.isSecureContext});",
+     "content_type": "text/javascript"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const w = new Worker('w.js', {name: 'wname'}); const m = await once(w, 'message'); w.terminate(); return m.data; })()"
+    }
+   ]
+  },
+  {
+   "name": "worker-properties-and-events",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {
+    "w.js": {
+     "text": "onmessage = (e) => postMessage(e.data);",
+     "content_type": "text/javascript"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const w = new Worker('w.js'); const out = {}; out.proto = Object.getPrototypeOf(Worker.prototype) === EventTarget.prototype; out.names = Object.getOwnPropertyNames(Worker.prototype).sort().join(); out.onmessage = w.onmessage; out.onerror = w.onerror; const log = []; w.onmessage = () => log.push('prop'); w.addEventListener('message', () => log.push('listener')); w.postMessage(1); await wait(200); out.order = log; out.len = Worker.length; try { Worker('w.js'); } catch (e) { out.call = E(e); } w.terminate(); return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "message-order-and-flood",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {
+    "w.js": {
+     "text": "let n = 0; onmessage = (e) => { n++; postMessage(e.data); };",
+     "content_type": "text/javascript"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const w = new Worker('w.js'); const got = []; w.onmessage = (e) => got.push(e.data); for (let i = 0; i < 500; i++) w.postMessage(i); const t = Date.now(); while (got.length < 500 && Date.now() - t < 5000) await wait(10); w.terminate(); return [got.length, got.every((v, i) => v === i)]; })()"
+    }
+   ]
+  },
+  {
+   "name": "messages-from-the-main-thread-wait-for-the-script",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {
+    "w.js": {
+     "text": "importScripts('slow.js'); onmessage = (e) => postMessage('late:' + e.data);",
+     "content_type": "text/javascript"
+    },
+    "slow.js": {
+     "text": "self.x = 1;",
+     "delay_ms": 300,
+     "content_type": "text/javascript"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const w = new Worker('w.js'); w.postMessage('early'); const m = await once(w, 'message', 4000); w.terminate(); return m.data || m; })()"
+    }
+   ]
+  },
+  {
+   "name": "worker-reply-with-close",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {
+    "w.js": {
+     "text": "postMessage('a'); close(); postMessage('after-close');",
+     "content_type": "text/javascript"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const w = new Worker('w.js'); const got = []; w.onmessage = (e) => got.push(e.data); await wait(300); w.terminate(); return got; })()"
+    }
+   ]
+  },
+  {
+   "name": "maplibre-style-protocol",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst once = (w, type, ms = 3000) => new Promise((res) => {\n  const t = setTimeout(() => res({timeout: type}), ms);\n  w.addEventListener(type, (e) => { clearTimeout(t); res(e); }, {once: true});\n});\nconst E = (e) => e.name + ': ' + e.message;\n</script>",
+   "resources": {
+    "w.js": {
+     "text": "const handlers = {ping: (d) => ({ok: true, d})}; onmessage = (e) => { const m = e.data; try { const r = handlers[m.type](m.data); postMessage({id: m.id, type: '<response>', data: r, err: null}); } catch (err) { postMessage({id: m.id, type: '<response>', data: null, err}); } }; postMessage({type: 'ready'});",
+     "content_type": "text/javascript"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const w = new Worker('w.js'); const ready = await once(w, 'message'); const p = once(w, 'message'); w.postMessage({id: 'abc', type: 'ping', data: {z: [1, 2]}, targetMapId: 1, sourceMapId: null}); const m = await p; w.terminate(); return [ready.data, m.data]; })()"
+    }
+   ]
+  }
+ ]
+}

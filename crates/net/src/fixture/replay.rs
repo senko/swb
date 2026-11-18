@@ -10,8 +10,8 @@ use std::sync::Arc;
 use log::{debug, warn};
 
 use super::{
-    body_path, entry_url, fixture_error, natural_cmp, pattern_matches, read_manifest,
-    read_replay_patterns,
+    EntryKey, body_path, entry_url, fixture_error, natural_cmp, pattern_matches, read_manifest,
+    read_replay_patterns, request_hash,
 };
 use crate::builtin;
 use crate::cookies::CookieJar;
@@ -30,8 +30,8 @@ use crate::response::Response;
 /// [module documentation](super).
 pub struct ReplayFetcher {
     dir: PathBuf,
-    /// Keyed by (url, method).
-    entries: HashMap<(String, String), ReplayEntry>,
+    /// Keyed by (url, method, request body hash).
+    entries: HashMap<EntryKey, ReplayEntry>,
     /// The jar for scripts (`document.cookie`, ADR 0028 section 12). A
     /// replay sends no `Cookie` header and the fixtures have no
     /// `Set-Cookie` header, so only scripts use it.
@@ -64,9 +64,9 @@ impl ReplayFetcher {
                 bodies.insert(entry.body.clone(), Arc::clone(&body));
                 body
             };
-            match entries.entry((entry.url, entry.method)) {
+            match entries.entry((entry.url, entry.method, entry.request_body)) {
                 hash_map::Entry::Occupied(occupied) => {
-                    let (url, method) = occupied.key();
+                    let (url, method, _) = occupied.key();
                     warn!("fixture {}: duplicate entry {method} {url}", dir.display());
                 }
                 hash_map::Entry::Vacant(vacant) => {
@@ -106,17 +106,29 @@ impl ReplayFetcher {
     /// The entry for a request: the entry of its URL, else (when the
     /// fixture has `replay_patterns`) the entry of the recorded URL with the
     /// greatest URL (numbers compared as numbers) among those that match
-    /// the same pattern as the request URL, for the same method.
-    fn lookup(&self, key: &(String, String)) -> Option<&ReplayEntry> {
-        if let Some(entry) = self.entries.get(key) {
+    /// the same pattern as the request URL, for the same method. An entry
+    /// with a `request_body` hash matches only a request with that body hash
+    /// and comes first, also among pattern entries of the same URL; the
+    /// entries without it match any body.
+    fn lookup(&self, url: &str, method: &str, body: Option<&str>) -> Option<&ReplayEntry> {
+        let key = |hash: Option<&str>| (url.to_owned(), method.to_owned(), hash.map(str::to_owned));
+        if body.is_some()
+            && let Some(entry) = self.entries.get(&key(body))
+        {
             return Some(entry);
         }
-        let (url, method) = key;
+        if let Some(entry) = self.entries.get(&key(None)) {
+            return Some(entry);
+        }
         let pattern = self.patterns.iter().find(|p| pattern_matches(p, url))?;
         self.entries
             .iter()
-            .filter(|((u, m), _)| m == method && pattern_matches(pattern, u))
-            .max_by(|((a, _), _), ((b, _), _)| natural_cmp(a, b))
+            .filter(|((u, m, h), _)| {
+                m == method && pattern_matches(pattern, u) && (h.is_none() || h.as_deref() == body)
+            })
+            .max_by(|((a, _, a_hash), _), ((b, _, b_hash), _)| {
+                natural_cmp(a, b).then_with(|| a_hash.is_some().cmp(&b_hash.is_some()))
+            })
             .map(|(_, entry)| entry)
     }
 }
@@ -193,17 +205,18 @@ impl Fetcher for ReplayFetcher {
         if is_preflight(request) {
             return Ok(preflight_response(request));
         }
-        let key = (entry_url(&request.url), request.method.as_str().to_string());
-        let Some(entry) = self.lookup(&key) else {
+        let url = entry_url(&request.url);
+        let body = request_hash(request);
+        let Some(entry) = self.lookup(&url, request.method.as_str(), body.as_deref()) else {
             warn!(
                 "fixture {}: no entry for {} {}",
                 self.dir.display(),
                 request.method,
-                key.0
+                url
             );
             return Err(NetError::NotInFixture(request.url.clone()));
         };
-        debug!("served {} {}", request.method, key.0);
+        debug!("served {} {}", request.method, url);
         Ok(Response {
             url: request.url.clone(),
             status: entry.status,

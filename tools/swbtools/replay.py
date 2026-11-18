@@ -33,6 +33,10 @@ all frames, every type, one line each (`type  url:line  text`), so that the
 output of the wrapper is readable; the file also has the messages up to a step that
 fails, and is empty for an empty console. The setup script of `--setup` still runs
 after the load.
+
+`--missing-out FILE` (M12) writes the URLs that the fixture lacked since the
+record before, for the load and for each group:
+`[{"label": "load" or the group name, "missing": [...]}, ...]`.
 """
 
 import asyncio
@@ -175,18 +179,29 @@ async def replay(
     names: list[str] | None = None,
     init_script: str = "",
     console: list[str] | None = None,
+    missing_by_group: list[list[str]] | None = None,
 ) -> tuple[list[Any], list[str], list[str]]:
     """Replays the fixture `name` and returns the records, the requested
     URLs that the fixture does not have, and the console errors and
     uncaught exceptions of the page. `observer` is called after each
     record with the label: `load`, or the name of the group from `names`
     (`group N` without names). `init_script` runs in all frames before their
-    scripts; every console message of every frame goes to `console`."""
+    scripts; every console message of every frame goes to `console`.
+    `missing_by_group` gets one list per record (after the load, then after
+    each group): the URLs that the fixture lacked since the record before."""
     directory = paths.js_fixture_dir(name)
     meta = read_meta(directory)
     replayer = Replayer(Fixture(directory))
     errors: list[str] = []
     records: list[Any] = []
+    reported = 0
+
+    def mark() -> None:
+        nonlocal reported
+        if missing_by_group is not None:
+            missing_by_group.append(sorted(set(replayer.missing[reported:])))
+        reported = len(replayer.missing)
+
     async with browser.session(
         meta.viewport, system_fonts, javascript=True, start_time=parse_captured(meta.captured)
     ) as (_, context, page):
@@ -217,11 +232,13 @@ async def replay(
         if setup:
             await page.evaluate(setup)
         records.append(await evaluate_record(page, record))
+        mark()
         if observer is not None:
             await observer("load", page)
         for number, steps in enumerate(groups, 1):
             await run_steps(page, steps, pause_ms)
             records.append(await evaluate_record(page, record))
+            mark()
             if observer is not None:
                 await observer(names[number - 1] if names else f"group {number}", page)
     return records, sorted(set(replayer.missing)), errors
@@ -240,12 +257,14 @@ def replay_command(
     pixels_out: Path | None = None,
     init_script: Path | None = None,
     console_out: Path | None = None,
+    missing_out: Path | None = None,
 ) -> int:
     """Runs `replay` and writes the records (JSON, indent 1) to `out` or
     stdout. Logs the missing URLs and the page's errors. With `pixels` and
     `pixels_out` it also writes the colors at the points; `screenshots`
     saves the screenshots; `init_script` and `console_out` are described in
-    the module comment."""
+    the module comment; `missing_out` gets the URLs that the fixture lacks
+    per record (`[{"label": "load", "missing": [...]}, ...]`)."""
     groups = read_groups(steps)
     names = read_group_names(steps)
     setup_text = setup.read_text(encoding="utf-8") if setup else ""
@@ -257,6 +276,7 @@ def replay_command(
         return 2
     init_text = init_script.read_text(encoding="utf-8") if init_script else ""
     console: list[str] | None = [] if console_out is not None else None
+    by_group: list[list[str]] | None = [] if missing_out is not None else None
     samples: dict[str, dict[str, list[int]]] = {}
     observer = None
     if pixels is not None or screenshots is not None:
@@ -286,6 +306,7 @@ def replay_command(
                     names,
                     init_text,
                     console,
+                    by_group,
                 ),
                 REPLAY_TIMEOUT_S,
             )
@@ -302,6 +323,13 @@ def replay_command(
         log.warning("%s: not in fixture: %s", name, url)
     for error in errors:
         log.warning("%s: %s", name, error)
+    if missing_out is not None and by_group is not None:
+        labels = ["load", *names]
+        rows = [
+            {"label": label, "missing": urls} for label, urls in zip(labels, by_group, strict=False)
+        ]
+        missing_out.parent.mkdir(parents=True, exist_ok=True)
+        missing_out.write_text(json.dumps(rows, indent=1) + "\n", encoding="utf-8")
     if pixels_out is not None:
         pixels_out.parent.mkdir(parents=True, exist_ok=True)
         pixels_out.write_text(json.dumps(samples, indent=1) + "\n", encoding="utf-8")

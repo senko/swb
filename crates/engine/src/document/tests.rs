@@ -129,7 +129,9 @@ fn fixture_page(dir: &Path) -> Option<(Url, String)> {
         serde_json::from_str(&std::fs::read_to_string(dir.join("fixture.json")).ok()?).ok()?;
     let manifest: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(dir.join("manifest.json")).ok()?).ok()?;
-    let url = fixture["url"].as_str()?;
+    // The manifest's URLs have no fragment; `fixture.json` has the one that
+    // was given to `capture`.
+    let url = fixture["url"].as_str()?.split('#').next()?;
     let entry = manifest["entries"]
         .as_array()?
         .iter()

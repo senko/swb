@@ -557,6 +557,16 @@ Before a fixture is committed, `swbtools substitute`
 placeholder and every font without a free license with DejaVu Sans, so
 the repository does not publish photos or commercial fonts.
 
+The OpenStreetMap page (`fixtures/pages/osm-zagreb`, JavaScript off) keeps
+the markup, style sheets and texts of www.openstreetmap.org. Its style
+sheets contain Bootstrap and Bootstrap Icons (MIT, notice in the first lines
+of the file), Leaflet (BSD-2-Clause) and MapLibre GL (BSD-3-Clause). The
+OpenStreetMap logo (`osm_logo.svg`) is by Ken Vermette and licensed under
+CC BY-SA 2.0 (https://creativecommons.org/licenses/by-sa/2.0/); the
+OpenStreetMap name and logo are marks of the OpenStreetMap Foundation. The
+fixture has no map data: that is ODbL data of the OpenStreetMap contributors
+and it is not in the repository.
+
 Fonts in the fixtures:
 
 - `ars-technica`: Source Sans 3 (© 2010–2021 Adobe, with Reserved Font
@@ -570,6 +580,10 @@ Fonts in the fixtures:
   `name` table with the copyright and license are not changed). License:
   the Bitstream Vera license with the DejaVu changes in the public
   domain, text in `fixtures/fonts/LICENSE-DejaVu.txt`.
+- `osm-zagreb`: the Bootstrap Icons font is replaced with DejaVu Sans
+  2.37, converted to WOFF2 in the same way as for `bbc`. License: the
+  Bitstream Vera license with the DejaVu changes in the public domain,
+  text in `fixtures/fonts/LICENSE-DejaVu.txt`.
 - `fixtures/fonts/`: the bundled test fonts, see `fixtures/fonts/README.md`.
 - `crates/text/tests/webfonts/`: a subset of DejaVu Sans as TrueType,
   WOFF and WOFF2 (glyphs removed, the `name` table kept), see the

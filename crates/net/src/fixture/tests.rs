@@ -318,9 +318,12 @@ fn manifest_order_does_not_depend_on_request_order() {
     assert_eq!(files_in(forward.path()), files_in(backward.path()));
 
     let entries = read_manifest(forward.path()).unwrap();
-    let keys: Vec<(String, String)> = entries.iter().map(Entry::key).collect();
+    let keys: Vec<EntryKey> = entries.iter().map(Entry::key).collect();
     assert!(keys.is_sorted());
-    assert_eq!(keys[0], ("https://a.test/".to_string(), "GET".to_string()));
+    assert_eq!(
+        keys[0],
+        ("https://a.test/".to_string(), "GET".to_string(), None)
+    );
 }
 
 #[test]
@@ -692,4 +695,216 @@ fn bad_replay_patterns_are_an_error() {
     )
     .unwrap();
     assert!(ReplayFetcher::load(dir.path()).is_err());
+}
+
+/// Answers every request with `answer:` and the request body.
+struct EchoFetcher;
+
+impl Fetcher for EchoFetcher {
+    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
+        let mut body = b"answer:".to_vec();
+        body.extend(request.body.as_deref().unwrap_or_default());
+        Ok(Response {
+            url: request.url.clone(),
+            status: 200,
+            headers: [("Content-Type", "text/plain")].into_iter().collect(),
+            body,
+            redirected: false,
+        })
+    }
+}
+
+const QUERY: &str = "https://a.test/query";
+
+fn post_body(body: &[u8]) -> Request {
+    let mut request = get(QUERY);
+    request.method = Method::Post;
+    request.body = Some(body.to_vec());
+    request
+}
+
+fn record_echo(dir: &Path, requests: &[Request]) {
+    let recorder = RecordingFetcher::new(EchoFetcher, dir).unwrap();
+    for request in requests {
+        recorder.fetch(request).unwrap();
+    }
+}
+
+fn manifest_text(dir: &Path) -> String {
+    fs::read_to_string(dir.join(MANIFEST_FILE)).unwrap()
+}
+
+#[test]
+fn request_body_hash_is_16_hex_digits_of_sha256() {
+    assert_eq!(request_body_hash(b"x=1"), "1f206b11c23e28cc");
+    assert_eq!(request_body_hash(b""), "e3b0c44298fc1c14");
+}
+
+#[test]
+fn posts_with_different_bodies_get_their_own_answers() {
+    let dir = TempDir::new();
+    record_echo(dir.path(), &[post_body(b"a=1"), post_body(b"b=2")]);
+    let manifest = manifest_text(dir.path());
+    assert_eq!(manifest.matches("\"request_body\"").count(), 2);
+    assert!(manifest.contains("\"request_body\": \"c22fea5d7428e5cf\""));
+    let replay = ReplayFetcher::load(dir.path()).unwrap();
+    assert_eq!(replay.len(), 2);
+    let body = |request: &Request| replay.fetch(request).map(|response| response.body);
+    assert_eq!(body(&post_body(b"a=1")).unwrap(), b"answer:a=1");
+    assert_eq!(body(&post_body(b"b=2")).unwrap(), b"answer:b=2");
+    // No entry without the field: another body has no answer.
+    assert!(body(&post_body(b"c=3")).is_err());
+    assert!(body(&get(QUERY)).is_err());
+}
+
+#[test]
+fn a_single_body_is_not_written_and_matches_any_body() {
+    let dir = TempDir::new();
+    record_echo(dir.path(), &[post_body(b"a=1")]);
+    assert!(!manifest_text(dir.path()).contains("request_body"));
+    let replay = ReplayFetcher::load(dir.path()).unwrap();
+    let response = replay.fetch(&post_body(b"other")).unwrap();
+    assert_eq!(response.body, b"answer:a=1");
+}
+
+#[test]
+fn entries_without_the_field_answer_when_no_hash_matches() {
+    let dir = TempDir::new();
+    record_echo(dir.path(), &[post_body(b"a=1"), post_body(b"b=2")]);
+    // Add an entry without the field by hand, as an older fixture has.
+    let path = dir.path().join(MANIFEST_FILE);
+    let mut value: serde_json::Value = serde_json::from_str(&manifest_text(dir.path())).unwrap();
+    let mut wildcard = value["entries"][0].clone();
+    wildcard.as_object_mut().unwrap().remove("request_body");
+    wildcard["status"] = 202.into();
+    value["entries"].as_array_mut().unwrap().insert(0, wildcard);
+    fs::write(&path, serde_json::to_string(&value).unwrap()).unwrap();
+    let replay = ReplayFetcher::load(dir.path()).unwrap();
+    let status = |body: &[u8]| replay.fetch(&post_body(body)).unwrap().status;
+    assert_eq!(status(b"a=1"), 200);
+    assert_eq!(status(b"b=2"), 200);
+    assert_eq!(status(b"c=3"), 202);
+    let mut no_body = post_body(b"");
+    no_body.body = None;
+    assert_eq!(replay.fetch(&no_body).unwrap().status, 202);
+}
+
+#[test]
+fn recording_keeps_the_field_when_it_rewrites_the_manifest() {
+    let dir = TempDir::new();
+    record_echo(dir.path(), &[post_body(b"a=1"), post_body(b"b=2")]);
+    // A second session records another URL, then one request again.
+    record_echo(dir.path(), &[get("https://a.test/other")]);
+    record_echo(dir.path(), &[post_body(b"a=1")]);
+    let manifest = manifest_text(dir.path());
+    assert_eq!(manifest.matches("\"request_body\"").count(), 2);
+    assert_eq!(manifest.matches("\"method\"").count(), 3);
+    let replay = ReplayFetcher::load(dir.path()).unwrap();
+    let response = replay.fetch(&post_body(b"b=2")).unwrap();
+    assert_eq!(response.body, b"answer:b=2");
+}
+
+#[test]
+fn a_new_post_keeps_an_entry_without_the_field() {
+    let dir = TempDir::new();
+    record_echo(dir.path(), &[post_body(b"a=1")]);
+    // Written without the field (a group of one). A later session records
+    // another body: the old entry stays and answers the other bodies.
+    record_echo(dir.path(), &[post_body(b"b=2")]);
+    let manifest = manifest_text(dir.path());
+    assert_eq!(manifest.matches("\"method\"").count(), 2);
+    assert_eq!(manifest.matches("\"request_body\"").count(), 1);
+    let replay = ReplayFetcher::load(dir.path()).unwrap();
+    let body = |request: &Request| replay.fetch(request).unwrap().body;
+    assert_eq!(body(&post_body(b"a=1")), b"answer:a=1");
+    assert_eq!(body(&post_body(b"b=2")), b"answer:b=2");
+    assert_eq!(body(&post_body(b"c=3")), b"answer:a=1");
+}
+
+/// Records `a=1` and `b=2` to [`QUERY`] and changes the manifest with
+/// `edit`.
+fn edited_post_fixture(edit: impl FnOnce(&mut serde_json::Value)) -> TempDir {
+    let dir = TempDir::new();
+    record_echo(dir.path(), &[post_body(b"a=1"), post_body(b"b=2")]);
+    let path = dir.path().join(MANIFEST_FILE);
+    let mut value: serde_json::Value = serde_json::from_str(&manifest_text(dir.path())).unwrap();
+    edit(&mut value);
+    fs::write(&path, serde_json::to_string(&value).unwrap()).unwrap();
+    dir
+}
+
+#[test]
+fn a_malformed_request_body_makes_the_manifest_invalid() {
+    let bad = [
+        serde_json::json!(5),
+        serde_json::json!(""),
+        serde_json::json!("C22FEA5D7428E5CF"),
+        serde_json::json!("c22fea5d7428e5c"),
+        serde_json::json!("c22fea5d7428e5cfa"),
+        serde_json::json!("c22fea5d7428e5cg"),
+    ];
+    for value in bad {
+        let dir = edited_post_fixture(|manifest| {
+            manifest["entries"][0]["request_body"] = value.clone();
+        });
+        assert!(
+            ReplayFetcher::load(dir.path()).is_err(),
+            "request_body {value} must be an error"
+        );
+    }
+    // `null` is the same as no field: the entry matches any body.
+    let dir = edited_post_fixture(|manifest| {
+        manifest["entries"][0]["request_body"] = serde_json::Value::Null;
+    });
+    let replay = ReplayFetcher::load(dir.path()).unwrap();
+    assert!(replay.fetch(&post_body(b"c=3")).is_ok());
+}
+
+#[test]
+fn an_empty_request_body_is_no_body() {
+    let dir = TempDir::new();
+    record_echo(dir.path(), &[post_body(b""), post_body(b"a=1")]);
+    // The empty body is written without a hash: it matches any body.
+    assert_eq!(
+        manifest_text(dir.path())
+            .matches("\"request_body\"")
+            .count(),
+        1
+    );
+    let replay = ReplayFetcher::load(dir.path()).unwrap();
+    let body = |request: &Request| replay.fetch(request).unwrap().body;
+    assert_eq!(body(&post_body(b"")), b"answer:");
+    assert_eq!(body(&post_body(b"a=1")), b"answer:a=1");
+    let mut no_body = post_body(b"");
+    no_body.body = None;
+    assert_eq!(body(&no_body), b"answer:");
+}
+
+#[test]
+fn a_pattern_prefers_the_hashed_entry_of_the_same_url() {
+    let dir = edited_post_fixture(|manifest| {
+        let mut wildcard = manifest["entries"][0].clone();
+        wildcard.as_object_mut().unwrap().remove("request_body");
+        wildcard["status"] = 202.into();
+        manifest["entries"].as_array_mut().unwrap().push(wildcard);
+    });
+    fs::write(
+        dir.path().join("fixture.json"),
+        r#"{"replay_patterns": ["https://a.test/*"]}"#,
+    )
+    .unwrap();
+    let missing = |body: &[u8]| {
+        let mut request = post_body(body);
+        request.url = Url::parse("https://a.test/zzz").unwrap();
+        request
+    };
+    // The entries are in a hash map: load several times, so that a choice
+    // that depends on the iteration order shows.
+    for _ in 0..16 {
+        let replay = ReplayFetcher::load(dir.path()).unwrap();
+        let status = |body: &[u8]| replay.fetch(&missing(body)).unwrap().status;
+        assert_eq!(status(b"a=1"), 200);
+        assert_eq!(status(b"b=2"), 200);
+        assert_eq!(status(b"c=3"), 202);
+    }
 }

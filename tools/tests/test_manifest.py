@@ -1,5 +1,7 @@
 """Fixture manifest writing: must match crates/net/src/fixture byte for byte."""
 
+import re
+
 import pytest
 
 from swbtools.manifest import (
@@ -11,6 +13,7 @@ from swbtools.manifest import (
     format_manifest,
     parse_manifest,
     read_manifest,
+    request_body_hash,
     stored_headers,
 )
 
@@ -84,10 +87,10 @@ def test_entries_sorted_by_url_then_method(tmp_path):
     fixture.save()
     keys = [entry.key for entry in read_manifest(tmp_path)]
     assert keys == [
-        ("https://a.test/", "GET"),
-        ("https://a.test/Z", "GET"),
-        ("https://a.test/form", "GET"),
-        ("https://a.test/form", "POST"),
+        ("https://a.test/", "GET", ""),
+        ("https://a.test/Z", "GET", ""),
+        ("https://a.test/form", "GET", ""),
+        ("https://a.test/form", "POST", ""),
     ]
 
 
@@ -186,3 +189,159 @@ def test_body_path_rejects_unsafe_paths(tmp_path):
 def test_unknown_version_is_rejected():
     with pytest.raises(ValueError):
         parse_manifest('{"version": 2, "entries": []}')
+
+
+# --- The request body hash (the Rust tests of `posts_with_different_bodies...`) -------
+
+QUERY = "https://a.test/query"
+TEXT = [("content-type", "text/plain")]
+
+
+def record_posts(fixture, *bodies):
+    for body in bodies:
+        fixture.record("POST", QUERY, 200, TEXT, b"answer:" + body, body)
+
+
+def test_request_body_hash_is_16_hex_digits_of_sha256():
+    assert request_body_hash(b"x=1") == "1f206b11c23e28cc"
+    assert request_body_hash(b"") == "e3b0c44298fc1c14"
+
+
+def test_posts_with_different_bodies_get_their_own_entries(tmp_path):
+    fixture = Fixture(tmp_path)
+    record_posts(fixture, b"a=1", b"b=2")
+    fixture.save()
+    text = (tmp_path / MANIFEST_FILE).read_text(encoding="utf-8")
+    assert text.count('"request_body"') == 2
+    # The field comes after `body`, as in the Rust format.
+    assert re.search(r'"body": "files/\w+\.txt",\n      "request_body": "c22fea5d7428e5cf"', text)
+    again = Fixture(tmp_path)
+    assert len(again.entries) == 2
+    for body in (b"a=1", b"b=2"):
+        entry = again.get(QUERY, "POST", body)
+        assert entry is not None and again.read_body(entry) == b"answer:" + body
+    # No entry without the field: another body, or none, has no answer.
+    assert again.get(QUERY, "POST", b"c=3") is None
+    assert again.get(QUERY, "POST") is None
+    assert again.lookup(QUERY, "POST", b"c=3") is None
+
+
+def test_a_single_body_is_not_written_and_matches_any_body(tmp_path):
+    fixture = Fixture(tmp_path)
+    record_posts(fixture, b"a=1")
+    fixture.save()
+    assert "request_body" not in (tmp_path / MANIFEST_FILE).read_text(encoding="utf-8")
+    again = Fixture(tmp_path)
+    assert again.get(QUERY, "POST", b"other") is not None
+    assert again.get(QUERY, "POST") is not None
+
+
+def test_entries_without_the_field_answer_when_no_hash_matches(tmp_path):
+    fixture = Fixture(tmp_path)
+    record_posts(fixture, b"a=1", b"b=2")
+    # An entry without the field, as an older fixture has.
+    wildcard = fixture.record("POST", QUERY, 202, TEXT, b"wild")
+    assert wildcard.request_body == ""
+    assert len(fixture.entries) == 3
+    assert fixture.get(QUERY, "POST", b"a=1").status == 200
+    assert fixture.get(QUERY, "POST", b"c=3").status == 202
+    assert fixture.get(QUERY, "POST").status == 202
+
+
+def test_a_new_post_keeps_the_entry_without_the_field(tmp_path):
+    fixture = Fixture(tmp_path)
+    record_posts(fixture, b"a=1")
+    fixture.save()
+    again = Fixture(tmp_path)
+    assert [key[2] for key in again.entries] == [""]
+    # A later session records another body: the old entry stays and answers
+    # the other bodies (as the Rust test `a_new_post_keeps_...`).
+    record_posts(again, b"b=2")
+    assert sorted(key[2] for key in again.entries) == ["", request_body_hash(b"b=2")]
+    again.save()
+    text = (tmp_path / MANIFEST_FILE).read_text(encoding="utf-8")
+    assert text.count('"request_body"') == 1
+    last = Fixture(tmp_path)
+    assert last.read_body(last.get(QUERY, "POST", b"a=1")) == b"answer:a=1"
+    assert last.read_body(last.get(QUERY, "POST", b"b=2")) == b"answer:b=2"
+    assert last.read_body(last.get(QUERY, "POST", b"c=3")) == b"answer:a=1"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "5",
+        '""',
+        '"C22FEA5D7428E5CF"',
+        '"c22fea5d7428e5c"',
+        '"c22fea5d7428e5cfa"',
+        '"c22fea5d7428e5cg"',
+    ],
+)
+def test_a_malformed_request_body_is_an_error(value):
+    text = (
+        '{"version": 1, "entries": [{"method": "POST", "url": "https://a.test/q", '
+        f'"status": 200, "headers": [], "body": "files/x.txt", "request_body": {value}}}]}}'
+    )
+    with pytest.raises(ValueError):
+        parse_manifest(text)
+
+
+def test_a_null_request_body_is_no_field():
+    text = (
+        '{"version": 1, "entries": [{"method": "POST", "url": "https://a.test/q", '
+        '"status": 200, "headers": [], "body": "files/x.txt", "request_body": null}]}'
+    )
+    assert parse_manifest(text)[0].request_body == ""
+
+
+def test_an_empty_request_body_is_no_body(tmp_path):
+    fixture = Fixture(tmp_path)
+    record_posts(fixture, b"", b"a=1")
+    fixture.save()
+    text = (tmp_path / MANIFEST_FILE).read_text(encoding="utf-8")
+    assert text.count('"request_body"') == 1
+    again = Fixture(tmp_path)
+    assert again.read_body(again.get(QUERY, "POST", b"")) == b"answer:"
+    assert again.read_body(again.get(QUERY, "POST")) == b"answer:"
+    assert again.read_body(again.get(QUERY, "POST", b"a=1")) == b"answer:a=1"
+
+
+def test_a_pattern_prefers_the_hashed_entry_of_the_same_url(tmp_path):
+    fixture = Fixture(tmp_path)
+    record_posts(fixture, b"a=1", b"b=2")
+    fixture.record("POST", QUERY, 202, TEXT, b"wild")
+    fixture.save()
+    (tmp_path / "fixture.json").write_text('{"replay_patterns": ["https://a.test/*"]}')
+    again = Fixture(tmp_path)
+    missing = "https://a.test/zzz"
+    assert again.lookup(missing, "POST", b"a=1").status == 200
+    assert again.lookup(missing, "POST", b"b=2").status == 200
+    assert again.lookup(missing, "POST", b"c=3").status == 202
+
+
+def test_the_field_survives_a_rewrite(tmp_path):
+    fixture = Fixture(tmp_path)
+    record_posts(fixture, b"a=1", b"b=2")
+    fixture.save()
+    again = Fixture(tmp_path)
+    again.record("GET", "https://a.test/other", 200, TEXT, b"x")
+    again.save()
+    after = (tmp_path / MANIFEST_FILE).read_text(encoding="utf-8")
+    assert after.count('"request_body"') == 2
+    assert after.count('"method"') == 3
+    assert Fixture(tmp_path).get(QUERY, "POST", b"b=2") is not None
+
+
+def test_replay_patterns_respect_the_request_body(tmp_path):
+    fixture = Fixture(tmp_path)
+    for version, body in (("1", b"a=1"), ("2", b"b=2")):
+        fixture.record(
+            "POST", f"https://a.test/v{version}/q", 200, TEXT, b"v" + version.encode(), body
+        )
+    fixture.save()
+    (tmp_path / "fixture.json").write_text('{"replay_patterns": ["https://a.test/*/q"]}')
+    again = Fixture(tmp_path)
+    # Each URL has one entry (no field written), so both match any body.
+    entry = again.lookup("https://a.test/v9/q", "POST", b"zzz")
+    assert entry is not None and again.read_body(entry) == b"v2"

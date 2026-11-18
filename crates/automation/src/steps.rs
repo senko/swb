@@ -12,7 +12,9 @@
 //! `[dx, dy]` at the pointer position; `wait` takes milliseconds of page
 //! time; `focus` takes a selector; `eval` takes an expression; `record`
 //! takes an expression and prints its answer line to standard output, as
-//! `--eval` does; `viewport` takes `[width, height]`
+//! `--eval` does; `screenshot` takes a file name and writes a PNG of the
+//! viewport (and logs `screenshot FILE` at level `info`, so that a log
+//! shows which messages came before it); `viewport` takes `[width, height]`
 //! (`page.setViewport`); `colorScheme` takes `"light"` or `"dark"`
 //! (`prefers-color-scheme`); `back` and `forward` take `true`
 //! (`page.back`, `page.forward`: the history of the tab). A point step may
@@ -216,6 +218,7 @@ fn run_step(page: &mut Page, step: &Value) -> Result<(), String> {
             let source = argument.as_str().ok_or("record needs an expression")?;
             record(page, source)?;
         }
+        "screenshot" => screenshot(page, argument)?,
         "viewport" => {
             let size = argument
                 .as_array()
@@ -231,6 +234,19 @@ fn run_step(page: &mut Page, step: &Value) -> Result<(), String> {
         "back" | "forward" => history_step(page, kind, argument)?,
         other => return Err(format!("unknown step {other}")),
     }
+    Ok(())
+}
+
+/// The `screenshot` step: writes the viewport as a PNG file.
+fn screenshot(page: &mut Page, argument: &Value) -> Result<(), String> {
+    let path = argument.as_str().ok_or("screenshot needs a file name")?;
+    let pixmap = page
+        .screenshot(false)
+        .map_err(|e| format!("screenshot: {e}"))?;
+    pixmap
+        .save_png(path)
+        .map_err(|e| format!("screenshot: cannot write {path}: {e}"))?;
+    log::info!("screenshot {path}");
     Ok(())
 }
 

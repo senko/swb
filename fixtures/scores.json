@@ -29,6 +29,12 @@
     "relative": 1.0,
     "size": 1.0
   },
+  "osm-zagreb": {
+    "geometry": 1.0,
+    "pixels": 0.9992,
+    "relative": 1.0,
+    "size": 1.0
+  },
   "senko-net": {
     "geometry": 1.0,
     "pixels": 0.9989,

@@ -4,6 +4,47 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-18: M12 feature 1: diagnosis and tools (OpenStreetMap)
+
+- Recording: the site's sidebar calls are `POST`s with the page's CSRF
+  token, which the server checks against the session cookie of the same
+  visit, so the steps cannot be added to an old capture. New `capture --js
+  URL NAME --steps FILE`: one live visit records the load and the 60 step
+  groups of items 3 to 12 (403 responses, all `POST`s answered 200), with
+  a cap on responses (`--max-responses`, 1000). Three live runs; the
+  fixes between them: selectors that matched hidden duplicates, an
+  Overpass query repeated within a minute (429), and the route moving the
+  map for the groups after it. `capture` now keeps the URL fragment.
+- The two "Query features" `POST`s go to one URL with different bodies.
+  The manifest has a new optional field `request_body` (a hash of the
+  body), written only for such groups; Rust and Python read it the same
+  way (the review found a malformed value, an empty body and a tie in the
+  replay-pattern fallback treated differently, now fixed and tested on
+  both sides). A recorded response no longer removes the entry without a
+  hash of the same URL.
+- Chromium's replay: the 60 groups give equal records in two runs; items
+  1 to 12 work. JS off (`fixtures/pages/osm-zagreb`): geometry 1.0000,
+  pixels 0.9992.
+- swb (report `docs/osm-diagnosis.md`): only `new Worker` stops the page.
+  With a `Worker` stub the first view equals Chromium's and all 60 groups
+  run in one `swb --headless` run (new `screenshot` step), 5 to 10 s. The
+  records equal Chromium's except a Bootstrap tooltip (`Attr` is not a
+  `Node` in swb) and one hover highlight (no mouse events when the content
+  under a still pointer changes). The Transport Map is a vector map: its
+  click breaks the layer panel, as in Chromium without WebGL. The page
+  parses no XML (the API answers JSON) and awaits no worker answer.
+- Owner decisions: five raster maps in item 4, with the Transport Map
+  failing as in Chromium without WebGL; dedicated workers and XML
+  documents leave M12; the exit test compares pixels only with the layer
+  panel closed. M12 now has four features and no ADR.
+- Budget on an idle machine: 3 x 0.142 s + 0.012 s = 0.44 s (0.73 s under
+  a load of 16 from another program: the task time follows the load).
+  swb reaches `load` in 0.21 s. GUI trace `osm-map`: pointer move to frame
+  p90 13 ms. Probe files for workers (16 cases), XML (10) and the small
+  gaps (10).
+
+Next: step 3, feature 1: the small gaps and the `Worker` stand-in.
+
 ## 2026-11-17: M12 plan: OpenStreetMap
 
 - The owner chose the next target: the OpenStreetMap map of Zagreb's

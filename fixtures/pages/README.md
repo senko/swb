@@ -15,6 +15,7 @@ swb binaries. Each snapshot keeps the license of its source:
 | `bbc` | https://www.bbc.com/ | Content of the BBC; BBC terms of use. Photos are replaced by placeholders and commercial fonts by DejaVu Sans (`just substitute`). |
 | `craigslist-posting` | https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH | Content of craigslist and of the user who posted it; craigslist terms of use. Photos are replaced by placeholders (`just substitute`). |
 | `github-swb` | https://github.com/senko/swb (the page with JavaScript off, captured 2026-10-22) | Content of the repository's owner (the project owner); GitHub's markup and style sheets (Primer, MIT License) and GitHub's terms of use. The avatar is a placeholder (`just substitute`). |
+| `osm-zagreb` | https://www.openstreetmap.org/ (the page with JavaScript off, captured 2026-11-17) | Markup, style sheets and texts of the OpenStreetMap website (source: openstreetmap-website, GPL-2.0); the Bootstrap and Bootstrap Icons style sheets (MIT), the Leaflet style sheet (BSD-2-Clause) and the MapLibre GL style sheet (BSD-3-Clause); the OpenStreetMap logo, CC BY-SA 2.0, by Ken Vermette (the license is from the OpenStreetMap Foundation's logo page, not from the fixture: the copyright page of the site is not in it). No map data and no tiles: the map needs JavaScript. The icon font is replaced by DejaVu Sans and the tracking pixel by a placeholder (`just substitute`). |
 
 The `reference/` files (Chromium's box dumps and screenshots) are derived
 from these snapshots.

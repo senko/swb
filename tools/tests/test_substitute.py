@@ -50,7 +50,7 @@ def make_fixture(directory: Path, responses: dict[str, tuple[str, bytes]]) -> Fi
 
 def bodies(directory: Path) -> dict[str, bytes]:
     fixture = Fixture(directory)
-    return {url: fixture.read_body(entry) for (url, _), entry in fixture.entries.items()}
+    return {url: fixture.read_body(entry) for (url, _, _), entry in fixture.entries.items()}
 
 
 def test_images_keep_size_and_format_and_lose_their_pixels(tmp_path: Path) -> None:

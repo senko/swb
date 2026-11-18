@@ -9,8 +9,8 @@ use std::sync::{Mutex, PoisonError};
 use log::debug;
 
 use super::{
-    Entry, FILES_DIR, MANIFEST_FILE, STORED_HEADERS, body_file_name, entry_url, fixture_error,
-    read_manifest, write_atomic, write_manifest,
+    Entry, EntryKey, FILES_DIR, MANIFEST_FILE, STORED_HEADERS, body_file_name, entry_url,
+    fixture_error, read_manifest, request_hash, write_atomic, write_manifest,
 };
 use crate::builtin;
 use crate::cookies::CookieJar;
@@ -37,7 +37,7 @@ pub struct RecordingFetcher<F: Fetcher> {
     inner: F,
     dir: PathBuf,
     /// Keyed by (url, method), so iteration gives the file order.
-    entries: Mutex<BTreeMap<(String, String), Entry>>,
+    entries: Mutex<BTreeMap<EntryKey, Entry>>,
 }
 
 impl<F: Fetcher> RecordingFetcher<F> {
@@ -94,6 +94,7 @@ impl<F: Fetcher> RecordingFetcher<F> {
             status: response.status,
             headers,
             body: format!("{FILES_DIR}/{file_name}"),
+            request_body: request_hash(request),
         };
         debug!("record {} {} -> {}", entry.method, entry.url, entry.body);
         let mut entries = self.entries.lock().unwrap_or_else(PoisonError::into_inner);

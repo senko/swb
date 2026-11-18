@@ -1,0 +1,133 @@
+{
+ "viewport": [
+  400,
+  300
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "image-data",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(() => { const a = new ImageData(2, 3); const b = new ImageData(new Uint8ClampedArray(8), 2); const c = new ImageData(new Uint8ClampedArray(16), 2, 2, {colorSpace: 'display-p3'}); return {a: [a.width, a.height, a.data.length, a.colorSpace, a.data.constructor.name, a.data[0]], b: [b.width, b.height, b.data.length], c: [c.colorSpace], zero: Q(() => new ImageData(0, 1)), neg: Q(() => new ImageData(1, -1)), len: Q(() => new ImageData(new Uint8ClampedArray(7), 2)), len2: Q(() => new ImageData(new Uint8ClampedArray(8), 2, 3)), bad: Q(() => new ImageData(new Uint8Array(8), 2)), noarg: Q(() => new ImageData()), call: Q(() => ImageData(1, 1)), inst: a instanceof ImageData, tag: Object.prototype.toString.call(a), names: Object.getOwnPropertyNames(ImageData.prototype).sort().join(), clone: (() => { const x = structuredClone(a); return [x instanceof ImageData, x.width, x.height, x.data.length]; })(), frozen: (() => { a.data[0] = 300; a.data[1] = -5; a.data[2] = 1.5; return [...a.data.slice(0, 3)]; })()}; })()"
+    }
+   ]
+  },
+  {
+   "name": "canvas-2d-context",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(() => { const c = document.createElement('canvas'); const out = {size: [c.width, c.height], fn: typeof c.getContext, names: Object.getOwnPropertyNames(HTMLCanvasElement.prototype).sort().join()}; const x = c.getContext('2d', {willReadFrequently: true}); out.ctx = x && x.constructor.name; out.same = c.getContext('2d') === x; out.canvas = x && x.canvas === c; out.none = Q(() => c.getContext('nope')); out.noarg = Q(() => c.getContext()); if (x) { x.fillStyle = 'rgb(255,0,0)'; x.fillRect(0, 0, 2, 2); out.pixel = [...x.getImageData(0, 0, 1, 1).data]; out.outside = [...x.getImageData(5, 5, 1, 1).data]; out.imageData = x.getImageData(0, 0, 3, 2).constructor.name; out.measure = typeof x.measureText('abc').width; out.dataUrl = c.toDataURL().slice(0, 22); x.clearRect(0, 0, 2, 2); out.cleared = [...x.getImageData(0, 0, 1, 1).data]; x.fillStyle = '#336699'; x.fillRect(1, 1, 1, 1); out.pixel2 = [...x.getImageData(1, 1, 1, 1).data]; c.width = 4; out.afterResize = [c.width, c.height, [...x.getImageData(1, 1, 1, 1).data]]; } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "offscreen-canvas-and-image-bitmap",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { const out = {off: typeof OffscreenCanvas, cib: typeof createImageBitmap, bitmap: typeof ImageBitmap}; if (typeof OffscreenCanvas === 'function') { const o = new OffscreenCanvas(3, 2); const x = o.getContext('2d'); x.fillStyle = 'rgb(0,255,0)'; x.fillRect(0, 0, 3, 2); out.pixel = [...x.getImageData(1, 1, 1, 1).data]; out.size = [o.width, o.height]; out.ctor = x.constructor.name; } if (typeof createImageBitmap === 'function') { const b = await createImageBitmap(new ImageData(2, 2)); out.fromImageData = [b.width, b.height, b.constructor.name]; b.close(); out.closed = [b.width, b.height]; const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), (c) => c.charCodeAt(0)); const b2 = await createImageBitmap(new Blob([png], {type: 'image/png'})); out.fromBlob = [b2.width, b2.height]; out.bad = await createImageBitmap(new Blob(['nope'], {type: 'image/png'})).then(() => 'ok', E); } return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "attr-is-a-node",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(() => { const el = document.createElement('div'); el.setAttribute('Data-X', 'v1'); el.id = 'i'; const a = el.attributes[0]; return {name: a.name, nodeName: a.nodeName, nodeValue: a.nodeValue, value: a.value, nodeType: a.nodeType, local: a.localName, owner: a.ownerElement === el, specified: a.specified, text: a.textContent, isNode: a instanceof Node, parent: a.parentNode, ns: a.namespaceURI, doc: a.ownerDocument === document, proto: Object.getPrototypeOf(Attr.prototype).constructor.name}; })()"
+    },
+    {
+     "js": "(() => { const el = document.createElement('div'); el.setAttribute('Data-X', 'v1'); el.id = 'i'; const all = [].concat(...el.attributes); return {len: all.length, names: all.map((x) => x.nodeName).join(), values: all.map((x) => x.nodeValue).join(), named: el.attributes.getNamedItem('id').nodeName, item: el.attributes.item(1).nodeName, byIndex: el.attributes[1].nodeValue}; })()"
+    },
+    {
+     "js": "(() => { const el = document.createElement('div'); el.setAttribute('Data-X', 'v1'); const a = el.attributes[0]; return {clone: Q(() => a.cloneNode().nodeName), same: Q(() => a.isEqualNode(el.attributes[0])), setValue: Q(() => { a.nodeValue = 'v2'; return el.getAttribute('data-x'); }), tc: Q(() => { a.textContent = 'v3'; return a.value; }), names: Object.getOwnPropertyNames(Attr.prototype).sort().join()}; })()"
+    }
+   ]
+  },
+  {
+   "name": "bootstrap-sanitize-html",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(() => { const allow = {'*': ['class', 'dir', 'id', 'lang', 'role', /^aria-[\\w-]*$/i], a: ['target', 'href', 'title', 'rel'], div: [], span: [], b: [], img: ['src', 'alt']}; const uri = new Set(['background', 'cite', 'href', 'itemtype', 'longdesc', 'poster', 'src', 'xlink:href']); const safe = /^(?!javascript:)(?:[a-z0-9+.-]+:|[^&:/?#]*(?:[/?#]|$))/i; const okAttr = (t, e) => { const i = t.nodeName.toLowerCase(); return e.includes(i) ? !uri.has(i) || Boolean(safe.test(t.nodeValue)) : e.filter((x) => x instanceof RegExp).some((x) => x.test(i)); }; const clean = (html) => { const doc = new DOMParser().parseFromString(html, 'text/html'); const els = [].concat(...doc.body.querySelectorAll('*')); for (const t of els) { const i = t.nodeName.toLowerCase(); if (!Object.keys(allow).includes(i)) { t.remove(); continue; } const attrs = [].concat(...t.attributes), ok = [].concat(allow['*'] || [], allow[i] || []); for (const e of attrs) okAttr(e, ok) || t.removeAttribute(e.nodeName); } return doc.body.innerHTML; }; return [clean('<div class=\"tooltip\" role=\"tooltip\"><div class=\"tooltip-arrow\"></div><div class=\"tooltip-inner\"></div></div>'), clean('<div onclick=\"x()\" aria-label=\"l\" data-a=\"1\"><script>1</script><a href=\"javascript:x()\" title=\"t\">k</a>' + '<a href=\"/ok\" target=\"_x\">m</a><img src=\"a.png\" onerror=\"y()\"></div>')]; })()"
+    }
+   ]
+  },
+  {
+   "name": "gif-without-color-table",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { const out = {}; const load = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res(['load', i.naturalWidth, i.naturalHeight, i.complete]); i.onerror = () => res(['error', i.naturalWidth, i.naturalHeight, i.complete]); i.src = src; }); out.leaflet = await load('data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='); out.global = await load('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'); out.junk = await load('data:image/gif;base64,R0lGODlhAQAB'); const i = new Image(); i.src = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='; out.decode = await i.decode().then(() => 'ok', E); return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "webgl-detection",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(() => { const c = document.createElement('canvas'); const out = {webgl: typeof WebGLRenderingContext, webgl2: typeof WebGL2RenderingContext, fn: typeof c.getContext}; if (typeof c.getContext === 'function') { const g = c.getContext('webgl2') || c.getContext('webgl'); out.context = g ? g.constructor.name : null; } out.lost = typeof WebGLContextEvent; return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "structured-clone-function",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { const out = {}; const b = new ArrayBuffer(4); const c = structuredClone({b, m: new Map([[1, 2]]), d: new Date(5), r: /x/g, e: new RangeError('r'), big: 5n}, {transfer: [b]}); out.after = b.byteLength; out.b = c.b.byteLength; out.m = [...c.m]; out.d = c.d.getTime(); out.r = String(c.r); out.e = [c.e.name, c.e.message, c.e instanceof RangeError]; out.big = String(c.big); out.fn = Q(() => structuredClone(() => 1)); out.cyc = (() => { const a = {}; a.a = a; return structuredClone(a).a !== undefined; })(); out.mc = typeof MessageChannel; return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "events-after-a-click-replaces-the-content-under-the-pointer",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:20px;width:200px}a{display:block;height:40px;background:#edc}</style><div id=box><a href=#x id=first>first</a></div><script>\nwindow.__log = []; for (const t of ['mouseover', 'mouseout', 'mouseenter', 'mouseleave']) document.addEventListener(t, (e) => __log.push(t + ':' + (e.target.textContent || e.target.tagName).slice(0, 8)), true);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\ndocument.getElementById('first').addEventListener('click', (e) => { e.preventDefault(); __log.push('click'); setTimeout(() => { document.getElementById('box').innerHTML = '<a href=#y>second</a><a href=#z>third</a>'; __log.push('replaced'); }, 50); });\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(600); return window.__log; })()"
+    },
+    {
+     "js": "[document.querySelector('#box a:hover') && document.querySelector('#box a:hover').textContent]"
+    }
+   ],
+   "steps": [
+    {
+     "click": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 600
+    }
+   ]
+  },
+  {
+   "name": "events-after-the-content-under-the-pointer-is-replaced",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:20px;width:200px}a{display:block;height:40px;background:#edc}</style><div id=box><a href=#x id=first>first</a></div><script>\nwindow.__log = []; for (const t of ['mouseover', 'mouseout', 'mouseenter', 'mouseleave']) document.addEventListener(t, (e) => __log.push(t + ':' + (e.target.textContent || e.target.tagName).slice(0, 8)), true);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nsetTimeout(() => { document.getElementById('box').innerHTML = '<a href=#y>second</a>'; __log.push('replaced'); }, 400);\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(600); return window.__log; })()"
+    },
+    {
+     "js": "[document.querySelector('#box a:hover') && document.querySelector('#box a:hover').textContent]"
+    }
+   ],
+   "steps": [
+    {
+     "hover": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 800
+    }
+   ]
+  }
+ ]
+}

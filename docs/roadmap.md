@@ -5534,10 +5534,21 @@ M12. The features that call web services (search, "Where is this?",
 directions, "Query features", the object pages) are in M12, tested with
 answers recorded once from the live services. The rules of M9 apply.
 
-Fixtures: `fixtures/js/osm-zagreb` (captured 2026-11-17, local only: 40
-responses, 24 tiles of zoom 16; `capture` lost the URL fragment, which was
-added to `fixture.json` by hand) and `fixtures/pages/osm-zagreb` (JS off,
-feature 1). The tile usage policy of tile.openstreetmap.org forbids bulk
+Owner decisions after the diagnosis (2026-11-18, `docs/osm-diagnosis.md`
+section 6): item 4 has five raster maps; the Transport Map is a vector map,
+and swb gets `getContext` returning null for WebGL so that its group fails
+as in Chromium without WebGL. Dedicated workers (planned ADR 0043) and XML
+documents (planned ADR 0044) leave M12: the page needs neither. The exit
+test compares records in every group and pixels only with the layer panel
+closed (the thumbnails need WebGL).
+
+Fixtures: `fixtures/js/osm-zagreb` (local only; captured again on
+2026-11-17 with `capture --js --steps`: the load and the 60 step groups of
+the list below in one live visit, 403 responses, 30 MB, 17 hosts; the two
+entries of the node page come from an earlier run of the same day) and
+`fixtures/pages/osm-zagreb` (JS off). `tools/osm_zagreb_records.py stub`
+makes `fixtures/js/osm-zagreb-stub`, a copy with a `Worker` stub, for the
+diagnosis. The tile usage policy of tile.openstreetmap.org forbids bulk
 downloads: the tools record the tiles of each interaction once, and tests
 and tools never fetch from the live servers.
 
@@ -5556,11 +5567,13 @@ Chromium (replay, jitless): script 93 ms, task 138 ms. Budget for the
 `load` event: three times the jitless task time plus the JS-off pipeline,
 about 0.43 s (measured again in feature 1, on an idle machine).
 
-Known gaps (first analysis): dedicated workers; `ImageData`; XML
-documents (`DOMParser` with `text/xml`, `responseXML`: jQuery's
-`parseXML` and the site's data layer read the XML of the OSM API, for the
-"Map Data" overlay and the geometry of the object pages); the URL fragment
-in `swbtools capture`.
+Gaps (diagnosis, `docs/osm-diagnosis.md` section 4): `Worker` (the page
+makes one at load and awaits no answer); `Attr` is not a `Node` (Bootstrap's
+tooltip throws); `ImageData`; `getContext` (null for WebGL); the GIF without
+a color table; no mouse events when the content under a still pointer
+changes; SVG `<use>` of a `<symbol>`; the scroll of a text field after a
+script sets its value. The first analysis also named XML documents: this
+OSM version asks its API for JSON and parses no XML.
 
 Steps:
 
@@ -5578,41 +5591,64 @@ Steps:
    - A generated `gui-latency` trace of map drags and wheel zooms.
 
    The diagnosis may change the order and the scope of the features below.
-2. ADRs before the code: dedicated workers (ADR 0043) and XML documents
-   (ADR 0044). The orchestrator reads each ADR before the code.
+
+   Done (2026-11-18): `capture` keeps the fragment of the URL that the
+   user gave. `capture --js URL NAME --steps FILE [--max-responses N]`
+   records a page and its step groups in one live visit (the site's
+   sidebar `POST`s need the session cookie and CSRF token of that visit;
+   after N responses, 1000 by default, the capture fails new requests).
+   The manifest has an optional `request_body` field (the first 16 hex
+   digits of the SHA-256 of the request body; `crates/net/src/fixture/mod.rs`,
+   "Matching"), written only for two or more entries with the same method
+   and URL: the two Overpass `POST`s of "Query features". `replay
+   --missing-out` lists the URLs that a fixture lacks, per group. `swb
+   --steps` has a `screenshot` step. `tools/osm_zagreb_records.py`: the 60
+   step groups of items 3 to 12, Chromium's records (two equal runs), the
+   stub fixture and the runner of the groups in swb. Probe files
+   `web-workers.json` (16 cases), `web-xml.json` (10), `web-osm-gaps.json`
+   (10); the GUI trace `osm-map`. JS off: geometry 1.0000, pixels 0.9992.
+   Report: `docs/osm-diagnosis.md`. Results: only `Worker` stops the page;
+   with a stub, the first view equals Chromium's (1.0000, 0.9977), and the
+   records of all 60 groups equal Chromium's except a Bootstrap tooltip
+   (`Attr` is not a `Node`) and one hover highlight (mouse events after a
+   layout change). The Transport Map is a vector map (WebGL), and its
+   click breaks the layer panel as in Chromium without WebGL. Budget (idle
+   machine): 3 x 0.142 s + 0.012 s = 0.44 s; swb reaches `load` in 0.21 s
+   with the stub. GUI `osm-map`: pointer move to frame p90 13 ms.
+2. ADRs: none. Dedicated workers (ADR 0043) and XML documents (ADR 0044)
+   moved to the backlog (owner decision of 2026-11-18): the page awaits no
+   worker answer and parses no XML.
 3. Features, in this order. Each feature ends with a review and a commit,
    with the checks of M9: JavaScript off by default; the other targets
    keep their scores with JavaScript on and off; a change of a JS-off
    fixture is reported with its scores, which must not get worse; probe
    cases with Chromium's values; hostile cases.
-   1. Dedicated workers (`implementer-hard`, ADR 0043): `Worker` from
-      same-origin and `blob:` URLs; the worker's global scope (`self`,
-      `postMessage`, `onmessage`, timers, `fetch`, `importScripts`,
-      `TextDecoder`, `console`); structured clone and the transfer of
-      `ArrayBuffer`s; `terminate`; errors. Scope: what MapLibre's worker
-      pool and its worker code need; module workers only if the diagnosis
-      finds one. A busy worker must not stop the page (the ADR decides: a
-      thread per worker, or slices on the page's thread). Hostile cases:
-      many workers, a worker that never returns, a flood of messages,
-      workers that create workers.
-   2. Small gaps: `ImageData`, the GIF without a color table, the
-      `TypeError` after the zoom click, and the other gaps that the
-      diagnosis lists for items 1 to 6.
-   3. The map (items 3 to 6): drag, wheel, double click, the zoom buttons
-      and the keys; the hash; the tiles of the new view; the layer panel
-      with the six raster maps and the overlays; the map key; the share
-      panel. GUI: pointer move to frame p90 at most 50 ms during a drag
-      (the trace of feature 1).
-   4. XML documents (`implementer-hard`, ADR 0044): `DOMParser` with the
-      XML types, `XMLDocument`, `responseXML`, namespaces, Chromium's
-      `parsererror` document, and `XMLSerializer` if the site needs it. No
-      external entities; the expansion of internal entities is bounded
-      (hostile cases: entity expansion, deep nesting, a large document).
-   5. The sidebar (items 7 to 12): search, "Where is this?", directions,
-      "Query features", the object pages with their geometry, History and
-      Export; the navigation through `pushState` and back and forward.
-   6. JS off (item 13), if feature 1 finds differences. Then the exit
-      measurement and the end-of-milestone maintenance.
+   1. Small gaps and a `Worker` stand-in (`implementer`): `Attr` as a
+      `Node`; `ImageData`; a `Worker` constructor that accepts
+      `postMessage` and runs no script (with a `warn!`), so that the
+      original fixture works without the stub; `HTMLCanvasElement.getContext`
+      returning null for `webgl`, `webgl2` and `experimental-webgl` (the
+      other context types as the probe cases decide, until Canvas 2D
+      exists); the GIF without a color table; the scroll of a text field
+      after a script sets `value`. Probe cases of `web-osm-gaps.json`.
+   2. Pointer events after layout and SVG `<use>` (`implementer`): when a
+      layout or DOM change moves another element under a still pointer,
+      the boundary events (`pointerover`, `mouseover`, `mouseenter`,
+      `mouseout`, `mouseleave`) and the `:hover` update, as Chromium
+      sends them (probe cases `events-after-*`; the cost on the other
+      targets is measured); `<use href="#id">` of a `<symbol>` (the
+      direction icons).
+   3. The exit test (`implementer`): `crates/automation/tests/osm_zagreb.rs`
+      runs the 60 groups and compares the records with Chromium's (from the
+      Transport Map group on, with Chromium without WebGL: a `replay`
+      option for Chromium flags makes these records reproducible), the
+      pixels of the groups with the layer panel closed, the URLs that the
+      fixture lacks and the console. Fix what the test finds in the map,
+      the layer panel and the sidebar (items 3 to 12).
+   4. JS off (item 13: nothing to do, geometry 1.0000) and the exit
+      measurement (orchestrator): the budget and the load time on an idle
+      machine; `gui-latency` with the trace `osm-map` and a check that the
+      drags move the map; then the end-of-milestone maintenance.
 
    What "works" means (owner decisions of 2026-11-17), on the
    `osm-zagreb` fixture with JavaScript on, logged out, 1280 x 800:
@@ -5627,10 +5663,13 @@ Steps:
    3. The map pans by drag and zooms by wheel, double click, the + and -
       buttons and the keys; the URL hash follows the view; the tiles of
       the new view load.
-   4. The layer panel opens; the six raster maps (Standard, CyclOSM, Cycle
-      Map, Transport Map, Tracestrack Topo, Humanitarian) switch; the
-      overlays "Map Notes", "Map Data" and "Public GPS Traces" show at the
-      zooms where Chromium shows them.
+   4. The layer panel opens; the five raster maps (Standard, CyclOSM,
+      Cycle Map, Tracestrack Topo, Humanitarian) switch; the overlays "Map
+      Notes", "Map Data" and "Public GPS Traces" show at the zooms where
+      Chromium shows them. The Transport Map (a vector map) fails as in
+      Chromium without WebGL, and the panel then behaves as there; the
+      thumbnails of the panel stay empty, as there (owner decision of
+      2026-11-18).
    5. The map key and the share panel (link, short link, HTML, the marker
       option) open with Chromium's content.
    6. The welcome box closes.
@@ -5650,11 +5689,15 @@ Steps:
        reference, at scores like the other targets'.
    14. The `load` event within the budget.
 
-   Not in M12: the vector maps (WebGL; backlog), login and editing (the iD
-   editor, new notes and comments), "Show my location" (geolocation),
-   downloads (the `.osm` file of Export, the image export), the language
-   change, the pages behind the header links (not in the fixture; they
-   only navigate), print.
+   Not in M12: the vector maps (WebGL; backlog), the Transport Map and the
+   thumbnails of the layer panel (WebGL), dedicated workers that run
+   scripts and XML documents (the page needs neither; the probe files
+   keep Chromium's cases), Canvas 2D, `OffscreenCanvas` and
+   `createImageBitmap`, login and editing (the iD editor, new notes and
+   comments), "Show my location" (geolocation), downloads (the `.osm`
+   file of Export, the image export), the language change, the pages
+   behind the header links (not in the fixture; they only navigate),
+   print.
 
 ## Pending decisions
 
@@ -5663,6 +5706,48 @@ Steps:
   sizing; sticky offsets; two float helpers), Skia data and Servo
   (`collapsed_margin.rs`, MPL-2.0); kept with attribution for now
   (ADR 0021).
+
+## Backlog from M12
+
+- Tools (feature 1): `just capture` does not quote its URL argument: a URL
+  with `&` breaks in the shell.
+- Replay (feature 1): the Matomo requests of the OSM page (10 per replay,
+  time-based URLs) are always missing and add console errors in both
+  browsers; a replay rule that answers `matomo.php` with 204 would remove
+  the noise.
+- Replay (feature 1): served responses have no cache headers, so a page
+  fetches a URL again on every visit; in a live capture this cost requests
+  (`reuse_get` serves a repeated `GET` from its first response).
+- Capture (feature 1): the Overpass service answers a repeated query
+  within a minute with 429; a step file must not repeat a query.
+- Chromium's replay (feature 1): the layer-panel thumbnails race with the
+  zoom animation (5 tiles of group 28 are missing).
+- Automation (feature 1): `swb --steps` takes CSS selectors only; the step
+  files use Playwright's `:visible` and `>> nth=N`, which
+  `osm_zagreb_records.py swb` translates with a mark attribute. A failing
+  step ends the run, so a later group cannot run (`--skip` is the
+  work-around).
+- `swbtools gui-latency` (feature 1): no screenshot or state check during
+  a trace, so it cannot show that a drag moved the map; 8 to 10 of the 11
+  wheel notches of `osm-map` request no frame at once (Leaflet's own
+  debounce).
+- `.gitignore` (feature 1): `/fixtures/js/` does not match a symbolic link,
+  so a worktree with `fixtures/js` linked lists it in `git status`.
+- `js-survey` (feature 1) prints the 15 most used members only; the full
+  list is in `out/js-survey/NAME/survey.json`.
+- Fixture format (feature 1): `natural_cmp` (Rust) and `natural_key`
+  (Python) treat `01` and `1` as equal, so the replay-pattern fallback
+  picks between two such URLs by map order (Rust) or file order (Python).
+  When a URL matches several replay patterns, Rust uses only the first
+  pattern and Python tries the next one when the first has no entries.
+  No test checks that the two readers choose the same entry from one
+  shared manifest.
+- `tools/osm_zagreb_records.py` (feature 1) repeats `write_json` and
+  `differences` of `tools/github_swb_records.py` (end-of-milestone
+  maintenance).
+- `fixtures/pages/osm-zagreb` (feature 1) keeps the site's anonymous
+  `csrf-token` meta value (useless without the session cookie, which the
+  fixture does not store).
 
 ## Backlog from M11
 

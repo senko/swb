@@ -220,8 +220,8 @@ def test_capture_answers_a_preflight_locally_and_records_no_options(tmp_path, tw
     # because the response got the reflected origin.
     assert not [line for line in seen if line.startswith("OPTIONS")]
     assert "GET /done?DATA" in seen
-    assert all(method == "GET" for _, method in fixture.entries)
-    assert (f"{second}/data", "GET") in fixture.entries
+    assert all(method == "GET" for _, method, _ in fixture.entries)
+    assert (f"{second}/data", "GET", "") in fixture.entries
 
 
 # --- Replay pattern --------------------------------------------------------------
