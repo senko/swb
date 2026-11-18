@@ -415,11 +415,15 @@ impl Page {
     /// page's document sees the move (its events end at the `iframe`), each
     /// frame on the route gets its hover state, and the frames that the
     /// pointer left lose theirs. Returns true if a repaint is needed.
-    pub(super) fn move_in_frames(&mut self, route: &Route, point: Point) -> bool {
+    ///
+    /// With `moved` false the pointer did not move: the content under it
+    /// changed (`Page::refresh_hover`). The boundary events follow as for a
+    /// move, but there is no `pointermove` or `mousemove` and no drag.
+    pub(super) fn move_in_frames(&mut self, route: &Route, point: Point, moved: bool) -> bool {
         // The frames that the pointer left get their events before the documents
         // above them (measured, case `input-leave-order`).
         let mut changed = self.leave_frames_off_route(route);
-        changed |= self.move_top(point, route.in_frame() || route.over_frame);
+        changed |= self.move_top(point, route.in_frame() || route.over_frame, moved);
         // A frame's scripts see the pointer as the page's do; only the innermost
         // document gets the moves.
         let last = route.steps.len().saturating_sub(1);
@@ -427,7 +431,7 @@ impl Page {
             let generation = self.in_frame(step.frame, |p| {
                 let generation = p.dom_generation();
                 if p.script_input() {
-                    p.scripted_move(step.point, index != last);
+                    p.scripted_pointer(step.point, index != last, moved);
                 }
                 generation != p.dom_generation()
             });
@@ -469,7 +473,12 @@ impl Page {
                 if !restyle {
                     return false;
                 }
-                let element = node.and_then(|n| p.element_of(n));
+                // A point outside every box is on the canvas of the root
+                // element, which is hovered (measured: `html:hover`; the
+                // events' target is the root element too).
+                let element = node
+                    .and_then(|n| p.element_of(n))
+                    .or_else(|| p.root_element());
                 p.update_states(|s| s.hover = element)
             };
             changed |= self.in_frame(step.frame, hover).unwrap_or(false);

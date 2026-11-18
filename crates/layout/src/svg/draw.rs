@@ -37,10 +37,12 @@ use swb_style::{
     StrokeLinejoin, SvgPaint, Visibility,
 };
 
-use super::clip::{ClipEnv, ClipRegion, MAX_CLIP_SHAPES, resolve};
+use super::clip::{ClipEnv, ClipRegion, MAX_CLIP_SHAPES, rect_region, resolve};
 use super::path::{self, SvgPath};
-use super::{Geometry, Group, Node, Shape, SvgContent, resolve_point, view_box_transform};
-use crate::geom::{Matrix, Point, Rect, Size};
+use super::{
+    Geometry, Group, Node, Shape, SvgContent, SymbolView, resolve_point, view_box_transform,
+};
+use crate::geom::{Matrix, Point, Rect, Size, clamp_length};
 use crate::positioned::style_transform;
 
 /// The stroke of a shape, in user units.
@@ -122,7 +124,7 @@ pub enum SvgDrawItem {
 
 /// The basis of percentages: the width and height of the SVG viewport and
 /// its normalized diagonal.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub(super) struct Viewport {
     pub(super) width: f32,
     pub(super) height: f32,
@@ -160,6 +162,13 @@ struct Resolved {
     empty_offset: Option<Matrix>,
     /// For a shape.
     geometry: Option<Arc<ShapeGeometry>>,
+    /// The basis of the percentages of the node and the reference box of
+    /// its `transform`: those of the nearest viewport around it.
+    viewport: Viewport,
+    reference: Rect,
+    /// For the instance of a `symbol`: the matrix of the space around the
+    /// viewport and the viewport rectangle in it.
+    view_rect: Option<(Matrix, Rect)>,
 }
 
 impl Resolved {
@@ -171,6 +180,9 @@ impl Resolved {
             stroke_bbox: None,
             empty_offset: None,
             geometry: None,
+            viewport: Viewport::default(),
+            reference: Rect::default(),
+            view_rect: None,
         }
     }
 }
@@ -186,10 +198,14 @@ struct Open {
     outer: Matrix,
     /// The translation of the `use` element inside, once it is known.
     offset: Option<Matrix>,
+    /// For the instance of a `symbol`: the viewport and reference box
+    /// around it, which apply again after it.
+    outer_space: Option<(Viewport, Rect)>,
 }
 
 /// The viewport, the matrix of the user space of the `<svg>` and the
 /// reference box of `transform`.
+#[derive(Clone, Copy)]
 struct Space {
     base: Matrix,
     viewport: Viewport,
@@ -222,23 +238,39 @@ impl SvgContent {
         let mut out: Vec<Resolved> = Vec::with_capacity(self.nodes.len());
         let mut open: Vec<Open> = Vec::new();
         let mut parent = space.base;
+        // The viewport that applies at the node: the `<svg>` element's, or
+        // that of the innermost symbol instance.
+        let mut cur = *space;
         for node in &self.nodes {
             match node {
                 Node::BeginGroup(group) => {
-                    let own = group_transform(group, space);
+                    let (own, view) = group_transform(group, &cur);
                     let total = parent.multiply(&own);
-                    open.push(Open {
+                    let mut frame = Open {
                         index: out.len(),
                         acc: None,
                         stroke_acc: None,
                         outer: parent,
                         offset: None,
-                    });
+                        outer_space: None,
+                    };
                     out.push(Resolved {
                         own,
                         total,
+                        viewport: cur.viewport,
+                        reference: cur.reference,
+                        view_rect: view.as_ref().map(|v| (parent.multiply(&v.space), v.rect)),
                         ..Resolved::none()
                     });
+                    if let Some(SymbolSpace {
+                        viewport: inner, ..
+                    }) = view
+                    {
+                        frame.outer_space = Some((cur.viewport, cur.reference));
+                        cur.viewport = inner;
+                        cur.reference = Rect::new(0.0, 0.0, inner.width, inner.height);
+                    }
+                    open.push(frame);
                     parent = total;
                 }
                 Node::EndGroup => {
@@ -247,14 +279,18 @@ impl SvgContent {
                         continue;
                     };
                     parent = frame.outer;
+                    if let Some((viewport, reference)) = frame.outer_space {
+                        cur.viewport = viewport;
+                        cur.reference = reference;
+                    }
                     close_group(&mut out, &mut open, &frame, self);
                 }
                 Node::Shape(shape) => {
-                    let own = own_transform(&Matrix::IDENTITY, &shape.style, space.reference);
+                    let own = own_transform(&Matrix::IDENTITY, &shape.style, cur.reference);
                     let total = parent.multiply(&own);
-                    let geometry = shape_geometry(&shape.geometry, space.viewport);
+                    let geometry = shape_geometry(&shape.geometry, cur.viewport);
                     let contribution = geometry.contributes.then(|| own.map_rect(&geometry.bbox));
-                    let stroke_bbox = stroke_box(&shape.style, space.viewport, geometry.bbox);
+                    let stroke_bbox = stroke_box(&shape.style, cur.viewport, geometry.bbox);
                     let stroke_contribution =
                         geometry.contributes.then(|| own.map_rect(&stroke_bbox));
                     if let Some(top) = open.last_mut() {
@@ -267,6 +303,8 @@ impl SvgContent {
                         bbox: Some(geometry.bbox),
                         stroke_bbox: Some(stroke_bbox),
                         geometry: Some(Arc::new(geometry)),
+                        viewport: cur.viewport,
+                        reference: cur.reference,
                         ..Resolved::none()
                     });
                 }
@@ -288,19 +326,25 @@ impl SvgContent {
             shapes_left: &mut shapes_left,
             warned: &mut warned,
         };
-        // Whether each open group pushed a layer and a clip, and the
-        // opacity that applied to the paints before it.
-        let mut stack: Vec<(bool, bool, f32)> = Vec::new();
+        // Whether each open group pushed a layer, how many clips it pushed,
+        // and the opacity that applied to the paints before it.
+        let mut stack: Vec<(bool, usize, f32)> = Vec::new();
         // The opacity of the groups without a layer, which multiplies the
         // alpha of each paint.
         let mut folded = 1.0_f32;
         for (node, r) in self.nodes.iter().zip(&resolved) {
+            env.viewport = r.viewport;
+            env.reference = r.reference;
             match node {
                 Node::BeginGroup(group) => {
-                    let clipped = push_clip(group.clip.as_deref(), r, &mut env, out);
+                    let mut clips = usize::from(push_clip(group.clip.as_deref(), r, &mut env, out));
+                    if let Some(region) = view_clip(group, r) {
+                        out.push(SvgDrawItem::PushClip(region));
+                        clips += 1;
+                    }
                     let opacity = group.style.as_ref().map_or(1.0, |s| s.opacity);
                     let layer = group.layer && opacity < 1.0;
-                    stack.push((layer, clipped, folded));
+                    stack.push((layer, clips, folded));
                     if layer {
                         out.push(SvgDrawItem::PushOpacity(opacity));
                     } else if opacity < 1.0 {
@@ -308,32 +352,28 @@ impl SvgContent {
                     }
                 }
                 Node::EndGroup => {
-                    if let Some((layer, clipped, outer_folded)) = stack.pop() {
+                    if let Some((layer, clips, outer_folded)) = stack.pop() {
                         folded = outer_folded;
                         if layer {
                             out.push(SvgDrawItem::PopOpacity);
                         }
-                        if clipped {
-                            out.push(SvgDrawItem::PopClip);
-                        }
+                        out.extend((0..clips).map(|_| SvgDrawItem::PopClip));
                     }
                 }
                 Node::Shape(shape) => {
                     let clipped = push_clip(shape.clip.as_deref(), r, &mut env, out);
-                    draw_shape(shape, r, (space.viewport, folded), out);
+                    draw_shape(shape, r, folded, out);
                     if clipped {
                         out.push(SvgDrawItem::PopClip);
                     }
                 }
             }
         }
-        while let Some((layer, clipped, _)) = stack.pop() {
+        while let Some((layer, clips, _)) = stack.pop() {
             if layer {
                 out.push(SvgDrawItem::PopOpacity);
             }
-            if clipped {
-                out.push(SvgDrawItem::PopClip);
-            }
+            out.extend((0..clips).map(|_| SvgDrawItem::PopClip));
         }
     }
 
@@ -465,19 +505,93 @@ fn union(a: Option<Rect>, b: Option<Rect>) -> Option<Rect> {
     }
 }
 
+/// The viewport of a symbol instance, from [`symbol_transform`].
+struct SymbolSpace {
+    /// The matrix of the space of the viewport, in the space around the
+    /// group: the `transform` of the symbol, then the translation by its
+    /// `x` and `y`.
+    space: Matrix,
+    /// The viewport rectangle at the origin of that space.
+    rect: Rect,
+    /// The viewport that the content sees.
+    viewport: Viewport,
+}
+
 /// The matrix of a group's own `transform`, or the translation of a
-/// `use` element.
-fn group_transform(group: &Group, space: &Space) -> Matrix {
+/// `use` element, or the `transform`, position and `viewBox` transform of
+/// a symbol instance; for the last, also its [`SymbolSpace`].
+fn group_transform(group: &Group, space: &Space) -> (Matrix, Option<SymbolSpace>) {
     if let Some((x, y)) = &group.offset {
-        return Matrix::translate(
+        let m = Matrix::translate(
             x.resolve(space.viewport.width),
             y.resolve(space.viewport.height),
         );
+        return (m, None);
     }
-    match &group.style {
+    if let Some(view) = &group.view {
+        let transform = group
+            .style
+            .as_ref()
+            .map(|style| own_transform(&Matrix::IDENTITY, style, space.reference));
+        return symbol_transform(view, transform.unwrap_or(Matrix::IDENTITY), space);
+    }
+    let m = match &group.style {
         Some(style) => own_transform(&Matrix::IDENTITY, style, space.reference),
         None => Matrix::IDENTITY,
-    }
+    };
+    (m, None)
+}
+
+/// The viewport of a symbol instance: its rectangle at the origin of the
+/// space that the `transform` of the symbol and its `x` and `y` make, the
+/// `viewBox` transform into it, and the viewport that the content sees:
+/// the `viewBox` size, else the viewport size (SVG 2 §8.2, §8.9). Chromium
+/// applies the `transform` of the symbol and shifts the viewport by `x` and
+/// `y` (measured, `tools/probes/svg-symbol.json`, cases `sym-xy-*`,
+/// `sym-transform-*`).
+fn symbol_transform(
+    view: &SymbolView,
+    transform: Matrix,
+    space: &Space,
+) -> (Matrix, Option<SymbolSpace>) {
+    let width = clamp_length(view.width.resolve(space.viewport.width));
+    let height = clamp_length(view.height.resolve(space.viewport.height));
+    let rect = Rect::new(0.0, 0.0, width, height);
+    let shift = Matrix::translate(
+        view.x.resolve(space.viewport.width),
+        view.y.resolve(space.viewport.height),
+    );
+    let placed = transform.multiply(&shift);
+    let (m, inner) = match view.view_box {
+        Some(vb) if width > 0.0 && height > 0.0 => (
+            view_box_transform(vb, view.preserve_aspect_ratio, Size::new(width, height)),
+            (vb.width, vb.height),
+        ),
+        _ => (Matrix::IDENTITY, (width, height)),
+    };
+    let viewport = Viewport {
+        width: inner.0,
+        height: inner.1,
+        diagonal: f32::midpoint(inner.0.powi(2), inner.1.powi(2)).sqrt(),
+    };
+    (
+        placed.multiply(&m),
+        Some(SymbolSpace {
+            space: placed,
+            rect,
+            viewport,
+        }),
+    )
+}
+
+/// The clip to the viewport of a symbol instance: the viewport rectangle if
+/// the content is clipped; an empty one hides the content whatever the
+/// `overflow` (a size of zero disables rendering, SVG 2 §5.6).
+fn view_clip(group: &Group, r: &Resolved) -> Option<ClipRegion> {
+    let view = group.view.as_ref()?;
+    let (matrix, rect) = r.view_rect.as_ref()?;
+    let empty = !(rect.width > 0.0 && rect.height > 0.0);
+    (view.clip || empty).then(|| rect_region(matrix, *rect))
 }
 
 /// Resolves the clip path of the node with `r` and pushes the command;
@@ -508,18 +622,14 @@ fn own_transform(outer: &Matrix, style: &ComputedStyle, reference: Rect) -> Matr
 /// The commands of one shape.
 ///
 /// `folded` is the opacity of the enclosing groups that have no layer.
-fn draw_shape(
-    shape: &Shape,
-    r: &Resolved,
-    (viewport, folded): (Viewport, f32),
-    out: &mut Vec<SvgDrawItem>,
-) {
+fn draw_shape(shape: &Shape, r: &Resolved, folded: f32, out: &mut Vec<SvgDrawItem>) {
+    let viewport = r.viewport;
     let style = &shape.style;
     let Some(path) = r.geometry.as_ref().and_then(|g| g.path.clone()) else {
         return;
     };
     let transform = r.total;
-    if let Some(node) = shape.node {
+    if let Some(node) = shape.node.or(shape.hit) {
         hit_shape(node, style, &path, transform, viewport, out);
     }
     if style.visibility != Visibility::Visible {

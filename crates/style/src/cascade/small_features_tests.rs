@@ -236,6 +236,52 @@ fn field_sizing_and_content_visibility_are_computed_not_inherited() {
 }
 
 #[test]
+fn appearance_none_and_its_prefixed_names_parse() {
+    use crate::values::Appearance as A;
+    let (doc, map) = render(
+        "<div id=a></div><div id=b></div><div id=c></div><div id=d></div><div id=e></div>\
+         <div id=f></div><div id=g></div><input id=h><input id=i type=file><button id=j></button>\
+         <input id=k>",
+        "#a { appearance: none } #b { -webkit-appearance: checkbox } #c { appearance: menulist-button } \
+         #d { -webkit-appearance: textfield } #e { appearance: foo } \
+         #f { appearance: none; appearance: push-button } #g { -moz-appearance: auto } \
+         #k { appearance: none }",
+    );
+    let appearance = |id| style(&doc, &map, id).appearance;
+    // The compat keywords compute to themselves; the initial value is `none`.
+    assert_eq!(appearance("a"), A::None);
+    assert_eq!(appearance("b"), A::Checkbox);
+    assert_eq!(appearance("c"), A::MenulistButton);
+    assert_eq!(appearance("d"), A::Textfield);
+    assert_eq!(appearance("e"), A::None);
+    // Invalid keywords of the old Chromium list and `-moz-appearance` drop.
+    assert_eq!(appearance("f"), A::None);
+    assert_eq!(appearance("g"), A::None);
+    // The user-agent style sheet gives `auto` to controls but not to file
+    // inputs.
+    assert_eq!(appearance("h"), A::Auto);
+    assert_eq!(appearance("i"), A::None);
+    assert_eq!(appearance("j"), A::Auto);
+    assert_eq!(appearance("k"), A::None);
+}
+
+#[test]
+fn z_index_applies_to_flex_and_grid_items() {
+    let (doc, map) = render(
+        "<div id=f><i id=fi></i></div><div id=g><i id=gi></i></div><div id=b><i id=bi></i></div>\
+         <div id=c><i id=ci></i></div>",
+        "#f { display: flex } #g { display: inline-grid } i { z-index: 1 } \
+         #bi { position: relative }",
+    );
+    let applies = |id| style(&doc, &map, id).z_index_applies();
+    assert!(applies("fi") && applies("gi"));
+    // A block container's child applies only if it is positioned.
+    assert!(applies("bi"));
+    assert!(!applies("ci"));
+    assert!(!applies("f") && !applies("g"));
+}
+
+#[test]
 fn layout_containment_does_not_apply_to_inline_boxes() {
     // `ct-containing-block` (`g`): a non-atomic inline.
     let (doc, map) = render(

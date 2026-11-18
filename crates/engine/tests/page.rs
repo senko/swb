@@ -647,6 +647,40 @@ fn grid_items_paint_and_hit_in_order_modified_document_order() {
 }
 
 #[test]
+fn static_flex_and_grid_items_with_a_z_index_paint_and_hit_above_the_later_item() {
+    // `z-index` applies to flex and grid items that are not positioned
+    // (measured in Chromium 148, `tools/probes/svg-symbol.json`, cases
+    // `grid-item-*`, `flex-item-*`): the first item with `z-index: 0` is
+    // painted over the later item of the same cell; with `auto`, under.
+    for (container, item) in [
+        ("display:grid", "grid-area:1/1;width:100px;height:50px"),
+        (
+            "display:flex",
+            "margin-right:-100px;flex:none;width:100px;height:50px",
+        ),
+    ] {
+        for (z, expected) in [("0", "first.html"), ("auto", "second.html")] {
+            let html = format!(
+                "<!DOCTYPE html><body style='margin:0'><div style='{container}'>\
+                 <a href='first.html' style='{item};z-index:{z};background:rgb(1,2,3)'>first</a>\
+                 <a href='second.html' style='{item};background:rgb(4,5,6)'>second</a></div>"
+            );
+            let list = display_list(&html, "dl-item-z");
+            let (first, second) = (rects_of(&list, MARK)[0], rects_of(&list, MARK2)[0]);
+            assert_eq!(first > second, z == "0", "{container} z-index:{z}");
+            let site = Site::new("hit-item-z");
+            let mut page = local_page();
+            load(&mut page, site.page("page.html", &html));
+            assert_eq!(
+                link_at(&mut page, 10.0, 25.0).as_deref(),
+                Some(expected),
+                "{container} z-index:{z}"
+            );
+        }
+    }
+}
+
+#[test]
 fn floats_paint_between_block_backgrounds_and_inline_content() {
     // CSS 2.2 Appendix E: block backgrounds, then floats, then inline
     // content. The float comes first in tree order; the paragraph's

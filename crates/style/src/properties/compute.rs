@@ -258,6 +258,7 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::CounterSet(v) => s.counter_set = v.clone(),
         V::Contain(v) => s.contain = *v,
         V::ContainerType(v) => s.container_type = *v,
+        V::Appearance(v) => s.appearance = *v,
         V::FieldSizing(v) => s.field_sizing = *v,
         V::ContentVisibility(v) => s.content_visibility = *v,
         V::ContainerName(v) => s.container_name.clone_from(v),

@@ -129,6 +129,9 @@ impl Page {
                 let scrolled = self.wheel_in_frames(&route, dx, dy);
                 // Other content is under the pointer now.
                 self.update_hover(false);
+                if scrolled {
+                    self.note_hover_stale();
+                }
                 return scrolled;
             }
         }

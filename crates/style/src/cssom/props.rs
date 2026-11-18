@@ -229,6 +229,7 @@ const SHORTHAND_ONLY: &[(&str, Ser)] = &[
 const ALIASES: &[(&str, &str)] = &[
     ("word-wrap", "overflow-wrap"),
     ("font-width", "font-stretch"),
+    ("-webkit-appearance", "appearance"),
     ("-webkit-box-sizing", "box-sizing"),
     ("-moz-box-sizing", "box-sizing"),
     ("-webkit-user-select", "user-select"),

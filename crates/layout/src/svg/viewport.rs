@@ -62,6 +62,28 @@ pub(crate) fn view_box(e: &ElementData) -> Option<Rect> {
     (finite && r.width > 0.0 && r.height > 0.0).then_some(r)
 }
 
+/// True if `e` has a `viewBox` of four numbers with a width or height of
+/// zero (and none negative): SVG 2 §8.2 disables rendering of the element,
+/// as Chromium does for a `symbol` (measured).
+pub(crate) fn view_box_disables_rendering(e: &ElementData) -> bool {
+    let Some(text) = e.attr("viewBox") else {
+        return false;
+    };
+    let numbers: Vec<f64> = text
+        .split(|c: char| c.is_ascii_whitespace() || c == ',')
+        .filter(|part| !part.is_empty())
+        .map(str::parse)
+        .collect::<Result<_, _>>()
+        .unwrap_or_default();
+    let [_, _, width, height] = numbers[..] else {
+        return false;
+    };
+    numbers.iter().all(|v| v.is_finite())
+        && width >= 0.0
+        && height >= 0.0
+        && (width == 0.0 || height == 0.0)
+}
+
 /// The `preserveAspectRatio` of `e`; the default for a missing or invalid
 /// attribute.
 pub(crate) fn preserve_aspect_ratio(e: &ElementData) -> PreserveAspectRatio {

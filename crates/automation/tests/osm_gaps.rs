@@ -97,34 +97,6 @@ const SWB_VALUES: &[(&str, usize, &str, &str, &str)] = &[
         "[0, 0]",
         "swb keeps no scrollLeft for a text field (it reads 0)",
     ),
-    (
-        "events-after-a-click-replaces-the-content-under-the-pointer",
-        0,
-        "",
-        r#"["mouseover:first", "mouseenter:body{mar", "mouseenter:first\nwi", "mouseenter:first", "mouseenter:first", "click", "replaced"]"#,
-        "M12 feature 3: swb sends no mouse events after the content under a stationary pointer changes",
-    ),
-    (
-        "events-after-a-click-replaces-the-content-under-the-pointer",
-        1,
-        "",
-        "[null]",
-        "M12 feature 3: no :hover update after the content under a stationary pointer changes",
-    ),
-    (
-        "events-after-the-content-under-the-pointer-is-replaced",
-        0,
-        "",
-        r#"["mouseover:first", "mouseenter:body{mar", "mouseenter:first\nwi", "mouseenter:first", "mouseenter:first", "replaced"]"#,
-        "M12 feature 3: swb sends no mouse events after the content under a stationary pointer changes",
-    ),
-    (
-        "events-after-the-content-under-the-pointer-is-replaced",
-        1,
-        "",
-        "[null]",
-        "M12 feature 3: no :hover update after the content under a stationary pointer changes",
-    ),
 ];
 
 /// The expected value of a query: Chromium's, with the departures of

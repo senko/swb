@@ -211,6 +211,9 @@ impl Page {
         // scripts.
         self.input.resized |= resized;
         self.request_frame();
+        if resized {
+            self.note_hover_stale();
+        }
     }
 
     /// Changes `prefers-color-scheme` (light by default). The styles are

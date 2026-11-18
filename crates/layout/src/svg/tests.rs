@@ -749,13 +749,14 @@ fn pointer_events_decide_what_a_shape_reports_for_hit_testing() {
         ),
         [(rule, None)]
     );
-    // A copy that a `use` draws is not an element of the page.
+    // A copy that a `use` draws is not an element of the page: it reports
+    // the `use` element (a hit command exists; see the test of instances).
     assert_eq!(
         hits(
             "<svg width=10 height=10><defs><rect id=r width=5 height=5 /></defs>\
              <use href='#r' /></svg>"
         ),
-        nothing
+        [(rule, None)]
     );
 }
 
@@ -821,4 +822,258 @@ fn groups_are_limited_per_document() {
     let content = build_with(&html, &mut budget);
     assert_eq!(shapes(&content), 3);
     assert!(budget.groups.warned);
+}
+
+/// The fill commands and the clip commands in order, as text.
+fn fills_and_clips(items: &[SvgDrawItem]) -> Vec<String> {
+    items
+        .iter()
+        .filter_map(|i| match i {
+            SvgDrawItem::Fill { transform, .. } => Some(format!("fill {transform:?}")),
+            SvgDrawItem::PushClip(ClipRegion::Rect(r)) => {
+                Some(format!("clip {} {} {} {}", r.x, r.y, r.width, r.height))
+            }
+            SvgDrawItem::PushClip(ClipRegion::Path(_)) => Some("clip path".to_owned()),
+            SvgDrawItem::PopClip => Some("pop".to_owned()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn count(items: &[SvgDrawItem], prefix: &str) -> usize {
+    fills_and_clips(items)
+        .iter()
+        .filter(|c| c.starts_with(prefix))
+        .count()
+}
+
+const SYMBOL: &str =
+    "<symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol>";
+
+#[test]
+fn a_symbol_draws_only_through_use_as_a_viewport() {
+    // Unused: nothing. Used: the viewBox transform into the viewport of
+    // the `use` (meet, centered), clipped to it, inside the translation.
+    let unused = draw(&format!("<svg width=100 height=100>{SYMBOL}</svg>"));
+    assert_eq!(fills_and_clips(&unused), Vec::<String>::new());
+    let items = draw(&format!(
+        "<svg width=100 height=100>{SYMBOL}<use href='#s' x=20 y=10 width=40 height=20 /></svg>"
+    ));
+    let got = fills_and_clips(&items);
+    assert_eq!(got.len(), 3, "{got:?}");
+    assert_eq!(got[0], "clip 20 10 40 20");
+    // Scale 2, the 20 x 20 content centered in 40 x 20: x 20 + 10 = 30.
+    assert_eq!(
+        got[1],
+        format!(
+            "fill {:?}",
+            Matrix::translate(20.0, 10.0).multiply(&Matrix::new(2.0, 0.0, 0.0, 2.0, 10.0, 0.0))
+        )
+    );
+    assert_eq!(got[2], "pop");
+}
+
+#[test]
+fn a_symbol_instance_takes_its_size_from_the_use_the_symbol_or_the_viewport() {
+    let clip = |symbol: &str, usage: &str| {
+        let items = draw(&format!(
+            "<svg width=100 height=100><symbol id=s {symbol}><rect width=1 height=1 /></symbol>\
+             <use href='#s' {usage} /></svg>"
+        ));
+        fills_and_clips(&items)
+            .into_iter()
+            .next()
+            .unwrap_or_default()
+    };
+    assert_eq!(clip("", ""), "clip 0 0 100 100");
+    assert_eq!(clip("width=40 height=30", ""), "clip 0 0 40 30");
+    assert_eq!(clip("width=40", ""), "clip 0 0 40 100");
+    assert_eq!(clip("width=40 height=30", "width=20"), "clip 0 0 20 30");
+    assert_eq!(clip("", "width=50% height=10%"), "clip 0 0 50 10");
+    // A size of zero disables the instance, whatever its `overflow`.
+    assert_eq!(clip("overflow=visible", "width=0"), "clip 0 0 0 0");
+}
+
+/// The commands of the symbol `s` (with `symbol` as its attributes) used by
+/// `usage`, in a 100 x 100 `<svg>`.
+fn symbol_items(symbol: &str, usage: &str) -> Vec<String> {
+    fills_and_clips(&draw(&format!(
+        "<svg width=100 height=100><symbol id=s viewBox='0 0 10 10' {symbol}>\
+         <rect width=1 height=1 /></symbol><use href='#s' {usage} /></svg>"
+    )))
+}
+
+#[test]
+fn a_symbol_instance_is_placed_by_its_x_y_and_transform() {
+    // Measured in Chromium 148 (`tools/probes/svg-symbol.json`, cases
+    // `sym-xy*` and `sym-transform*`): `x` and `y` shift the viewport and
+    // add to those of the `use`; the `transform` of the symbol applies
+    // outside the shift.
+    let clip = |symbol: &str, usage: &str| symbol_items(symbol, usage)[0].clone();
+    assert_eq!(clip("x=30 y=20", "width=40 height=40"), "clip 30 20 40 40");
+    assert_eq!(
+        clip("x=30 y=5", "width=40 height=40 x=10 y=5"),
+        "clip 40 10 40 40"
+    );
+    assert_eq!(
+        clip("x=10% y=20%", "width=40 height=40"),
+        "clip 10 20 40 40"
+    );
+    assert_eq!(clip("x=auto y=foo", "width=40 height=40"), "clip 0 0 40 40");
+    assert_eq!(
+        clip("transform='translate(20 20)'", "width=40 height=40"),
+        "clip 20 20 40 40"
+    );
+    assert_eq!(
+        clip("transform='scale(0.5)' x=20 y=20", "width=40 height=40"),
+        "clip 10 10 20 20"
+    );
+}
+
+#[test]
+fn a_symbol_instance_with_a_bad_size_or_an_empty_view_box_draws_nothing() {
+    // Measured in Chromium 148 (cases `use-width-*`, `sym-width-*`, `vb-zero-*`).
+    // A zero-size viewport clips everything away: no fill is drawn.
+    let nothing = |symbol: &str, usage: &str| {
+        let items = symbol_items(symbol, usage);
+        !items.iter().any(|i| i.starts_with("fill")) || items.iter().any(|i| i == "clip 0 0 0 0")
+    };
+    for bad in ["auto", "-5", "foo", ""] {
+        assert!(
+            nothing("", &format!("width='{bad}' height=40")),
+            "use width={bad}"
+        );
+        assert!(
+            nothing("", &format!("width=40 height='{bad}'")),
+            "use height={bad}"
+        );
+    }
+    assert!(nothing("width=30 height=30", "width=-5"));
+    assert!(nothing("width=-5 height=-5", ""));
+    // An invalid or `auto` size of the symbol counts as missing.
+    assert_eq!(
+        symbol_items("width=auto height=foo", "")[0],
+        "clip 0 0 100 100"
+    );
+    assert_eq!(
+        symbol_items("width=foo height=foo", "width=30 height=30")[0],
+        "clip 0 0 30 30"
+    );
+    // A `viewBox` with a zero width or height: no instance at all.
+    for vb in ["0 0 0 10", "0 0 10 0", "0,0,0,0"] {
+        let items = fills_and_clips(&draw(&format!(
+            "<svg width=100 height=100><symbol id=s viewBox='{vb}'><rect width=1 height=1 />\
+             </symbol><use href='#s' width=40 height=40 /></svg>"
+        )));
+        assert!(items.is_empty(), "viewBox {vb}: {items:?}");
+    }
+}
+
+#[test]
+fn a_symbol_clips_unless_its_overflow_is_visible_or_auto() {
+    let clips = |overflow: &str| {
+        let items = draw(&format!(
+            "<svg width=100 height=100><symbol id=s {overflow}><rect width=1 height=1 /></symbol>\
+             <use href='#s' width=10 height=10 /></svg>"
+        ));
+        count(&items, "clip")
+    };
+    assert_eq!(clips(""), 1);
+    assert_eq!(clips("overflow=hidden"), 1);
+    assert_eq!(clips("overflow=scroll"), 1);
+    assert_eq!(clips("overflow=visible"), 0);
+    assert_eq!(clips("overflow=auto"), 0);
+    assert_eq!(clips("style='overflow:visible'"), 0);
+}
+
+#[test]
+fn symbol_content_inherits_from_the_use_and_the_symbol() {
+    let items = draw(
+        "<svg width=100 height=100 fill=red><symbol id=s viewBox='0 0 10 10'>\
+         <rect width=1 height=1 /></symbol>\
+         <symbol id=t fill=blue><rect width=1 height=1 /></symbol>\
+         <use href='#s' fill=green width=10 height=10 />\
+         <use href='#t' fill=green width=10 height=10 /></svg>",
+    );
+    let colors: Vec<Rgba> = items
+        .iter()
+        .filter_map(|i| match i {
+            SvgDrawItem::Fill { color, .. } => Some(*color),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(colors, vec![Rgba::rgb(0, 128, 0), Rgba::rgb(0, 0, 255)]);
+}
+
+#[test]
+fn percentages_in_a_symbol_refer_to_its_view_box_or_viewport() {
+    let width_of = |symbol: &str| {
+        let items = draw(&format!(
+            "<svg width=100 height=100><symbol id=s {symbol}><rect width=50% height=50% />\
+             </symbol><use href='#s' width=40 height=40 /></svg>"
+        ));
+        items
+            .iter()
+            .find_map(|i| match i {
+                SvgDrawItem::Fill {
+                    path, transform, ..
+                } => Some(transform.map_rect(&path.bounds()).width),
+                _ => None,
+            })
+            .unwrap_or(-1.0)
+    };
+    // 50% of the viewBox (10 units) at the scale 2; 50% of the viewport.
+    assert_eq!(width_of("viewBox='0 0 20 20'"), 20.0);
+    assert_eq!(width_of(""), 20.0);
+}
+
+#[test]
+fn symbols_nest_and_cycles_and_chains_are_bounded() {
+    // A symbol that uses itself, and a cycle of two: no copy of the cycle.
+    let items = draw(
+        "<svg width=100 height=100><symbol id=a><rect width=1 height=1 /><use href='#a' /></symbol>\
+         <symbol id=b><use href='#c' /></symbol><symbol id=c><use href='#b' /></symbol>\
+         <use href='#a' /><use href='#b' /></svg>",
+    );
+    assert_eq!(count(&items, "fill"), 1);
+    // Symbols in symbols are nested viewports.
+    let items = draw(
+        "<svg width=100 height=100><symbol id=i viewBox='0 0 10 10'><rect width=10 height=10 />\
+         </symbol><symbol id=o viewBox='0 0 20 20'><use href='#i' x=10 y=10 width=10 height=10 />\
+         </symbol><use href='#o' width=40 height=40 /></svg>",
+    );
+    assert_eq!(count(&items, "clip"), 2);
+    // A chain longer than the limit of the style crate ends.
+    let mut html = String::from("<svg width=100 height=100>");
+    for i in 0..40 {
+        write!(html, "<symbol id=s{i}><use href='#s{}' /></symbol>", i + 1).expect("write");
+    }
+    html.push_str("<symbol id=s40><rect width=1 height=1 /></symbol><use href='#s0' /></svg>");
+    let items = draw(&html);
+    assert!(count(&items, "fill") <= 1);
+}
+
+#[test]
+fn the_shapes_of_an_instance_report_the_use_element_for_hit_testing() {
+    let hits = |html: &str| -> Vec<NodeId> {
+        draw_all(html)
+            .iter()
+            .filter_map(|i| match i {
+                SvgDrawItem::Hit(h) => Some(h.node),
+                _ => None,
+            })
+            .collect()
+    };
+    let one = hits(&format!(
+        "<svg width=100 height=100>{SYMBOL}<use id=u href='#s' width=40 height=40 /></svg>"
+    ));
+    assert_eq!(one.len(), 1);
+    // The `use` in the group draws its own copy (reported by `inner`); the
+    // copy of the group has another copy in it, reported by `outer`.
+    let nested = hits(
+        "<svg width=100 height=100><symbol id=i><rect width=1 height=1 /></symbol>\
+         <g id=g><use id=inner href='#i' /></g><use id=outer href='#g' /></svg>",
+    );
+    assert_eq!(nested.len(), 2);
+    assert_ne!(nested[0], nested[1]);
 }

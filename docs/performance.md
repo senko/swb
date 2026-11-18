@@ -939,6 +939,33 @@ page; `compare --all` geometry 1.0 on every page; the JS-off snapshot was
 identical to its base at each feature of M11; the hostile set 524 of 525
 (the known failure `nest-div-100000`).
 
+## Hover update after the content under the pointer changes (M12 feature 3a)
+
+Release builds of fa0c8c9 (base) and of the feature, GUI at 1280 x 900 on
+Xvfb, JavaScript on, the fixtures; load average 0.4 to 4.8 before the runs.
+The rendering update now hit-tests once if a task, a scroll, a resize or a
+network completion could change what is under the pointer
+(`Page::refresh_hover`), and sends the boundary events and the `:hover`
+update as Chromium does (measured: also after each wheel step of a burst).
+
+| Measure | Base | Feature (separate runs) |
+|---|---|---|
+| GitHub owner trace, move to frame p90 | 35, 32, 36 ms | 37, 35, 37 ms |
+| GitHub owner trace, wheel to frame p90 | 16.4, 15.7, 15.9 ms | 25.7, 26.1, 27.9 ms |
+| GitHub owner trace, press to frame p90 | 27, 31, 32 ms | 31, 35, 54 ms |
+| GitHub owner trace, release to frame p90 | 89, 91, 91 ms | 112, 93, 107 ms |
+| Ars Technica owner trace, move / wheel to frame p90 | 51 / 51 ms | 48 / 50 ms |
+| OSM map trace, move / wheel to frame p90 | 16.6 / 37.5 ms | 16.0 / 38.9 ms |
+| OSM `idle-10s`, CPU in the idle period | 0.0 % | 0.0 % |
+| `perf --js` hover change p90 (GitHub, Ars Technica, Wikipedia) | 17.5, 11.1, 14.6 ms | 17.2, 11.2, 14.3 ms |
+
+The wheel notches of the GitHub trace now cause 59 more targeted restyles
+(46 ms) and 25 more layouts (187 ms in total) in the trace: after a scroll
+step another element is under the pointer, so `:hover` moves and the page
+restyles. Chromium does this at each frame of a wheel burst; the wheel to
+frame p90 stays at half of the M11 target (50 ms). Snapshot (JavaScript off)
+and `compare --all --js`: identical to the base.
+
 ## Script runtime of a document
 
 The engine creates a `swb_web::ScriptRuntime` for each document that

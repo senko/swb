@@ -1,0 +1,79 @@
+{
+  "cases": [
+    {
+      "name": "appearance-computed-default",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "JSON.stringify(Object.fromEntries('d i b s o og t c r g co f sb im2 se n da h sp a p m im fs l de su if tb u'.split(' ').map(id => [id, getComputedStyle(document.getElementById(id)).appearance])))",
+          "value": "{\"d\":\"none\",\"i\":\"auto\",\"b\":\"auto\",\"s\":\"auto\",\"o\":\"none\",\"og\":\"none\",\"t\":\"auto\",\"c\":\"auto\",\"r\":\"auto\",\"g\":\"auto\",\"co\":\"auto\",\"f\":\"none\",\"sb\":\"auto\",\"im2\":\"none\",\"se\":\"auto\",\"n\":\"auto\",\"da\":\"auto\",\"h\":\"none\",\"sp\":\"none\",\"a\":\"none\",\"p\":\"auto\",\"m\":\"auto\",\"im\":\"none\",\"fs\":\"none\",\"l\":\"none\",\"de\":\"none\",\"su\":\"none\",\"if\":\"none\",\"tb\":\"none\",\"u\":\"none\"}"
+        }
+      ]
+    },
+    {
+      "name": "appearance-computed-set",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "JSON.stringify(Object.fromEntries('none auto button checkbox radio menulist menulist-button textfield searchfield textarea listbox meter progress-bar slider-vertical media-sliderthumb media-volume-slider media-volume-sliderthumb media-controls-background inherit initial unset revert revert-layer'.split(' ').map(v => [v, ['d','i','sp'].map(id => { const e = document.getElementById(id); e.style.cssText = 'appearance:' + v; return getComputedStyle(e).appearance + '/' + e.style.appearance; }).join()])))",
+          "value": "{\"none\":\"none/none,none/none,none/none\",\"auto\":\"auto/auto,auto/auto,auto/auto\",\"button\":\"button/button,button/button,button/button\",\"checkbox\":\"checkbox/checkbox,checkbox/checkbox,checkbox/checkbox\",\"radio\":\"radio/radio,radio/radio,radio/radio\",\"menulist\":\"menulist/menulist,menulist/menulist,menulist/menulist\",\"menulist-button\":\"menulist-button/menulist-button,menulist-button/menulist-button,menulist-button/menulist-button\",\"textfield\":\"textfield/textfield,textfield/textfield,textfield/textfield\",\"searchfield\":\"searchfield/searchfield,searchfield/searchfield,searchfield/searchfield\",\"textarea\":\"textarea/textarea,textarea/textarea,textarea/textarea\",\"listbox\":\"listbox/listbox,listbox/listbox,listbox/listbox\",\"meter\":\"meter/meter,meter/meter,meter/meter\",\"progress-bar\":\"progress-bar/progress-bar,progress-bar/progress-bar,progress-bar/progress-bar\",\"slider-vertical\":\"slider-vertical/slider-vertical,slider-vertical/slider-vertical,slider-vertical/slider-vertical\",\"media-sliderthumb\":\"none/,auto/,none/\",\"media-volume-slider\":\"none/,auto/,none/\",\"media-volume-sliderthumb\":\"none/,auto/,none/\",\"media-controls-background\":\"none/,auto/,none/\",\"inherit\":\"none/inherit,none/inherit,none/inherit\",\"initial\":\"none/initial,none/initial,none/initial\",\"unset\":\"none/unset,none/unset,none/unset\",\"revert\":\"none/revert,auto/revert,none/revert\",\"revert-layer\":\"none/revert-layer,auto/revert-layer,none/revert-layer\"}"
+        }
+      ]
+    },
+    {
+      "name": "appearance-supports",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "JSON.stringify(Object.fromEntries('none auto button checkbox radio menulist menulist-button textfield searchfield textarea listbox meter progress-bar push-button square-button slider-horizontal slider-vertical media-slider media-sliderthumb media-volume-slider media-volume-sliderthumb media-controls-background media-controls-dark-bar-background media-controls-light-bar-background media-enter-fullscreen-button media-exit-fullscreen-button media-mute-button media-overlay-play-button media-play-button media-return-to-realtime-button media-toggle-closed-captions-button media-fullscreen-volume-slider media-fullscreen-volume-slider-thumb media-time-remaining-display media-current-time-display capslock-indicator caret inner-spin-button listitem menulist-text menulist-textfield scrollbarbutton-up scrollbargripper-horizontal searchfield-cancel-button searchfield-decoration sliderthumb-horizontal sliderthumb-vertical slider-vertical-x square-button-x button-bevel default-button checkbox-container push-button-x inherit initial unset revert revert-layer foo auto-none none-auto'.split(' ').map(v => [v, [CSS.supports('appearance', v), CSS.supports('-webkit-appearance', v), CSS.supports('-moz-appearance', v)].join()])))",
+          "value": "{\"none\":\"true,true,false\",\"auto\":\"true,true,false\",\"button\":\"true,true,false\",\"checkbox\":\"true,true,false\",\"radio\":\"true,true,false\",\"menulist\":\"true,true,false\",\"menulist-button\":\"true,true,false\",\"textfield\":\"true,true,false\",\"searchfield\":\"true,true,false\",\"textarea\":\"true,true,false\",\"listbox\":\"true,true,false\",\"meter\":\"true,true,false\",\"progress-bar\":\"true,true,false\",\"push-button\":\"false,false,false\",\"square-button\":\"false,false,false\",\"slider-horizontal\":\"false,false,false\",\"slider-vertical\":\"true,true,false\",\"media-slider\":\"false,false,false\",\"media-sliderthumb\":\"false,false,false\",\"media-volume-slider\":\"false,false,false\",\"media-volume-sliderthumb\":\"false,false,false\",\"media-controls-background\":\"false,false,false\",\"media-controls-dark-bar-background\":\"false,false,false\",\"media-controls-light-bar-background\":\"false,false,false\",\"media-enter-fullscreen-button\":\"false,false,false\",\"media-exit-fullscreen-button\":\"false,false,false\",\"media-mute-button\":\"false,false,false\",\"media-overlay-play-button\":\"false,false,false\",\"media-play-button\":\"false,false,false\",\"media-return-to-realtime-button\":\"false,false,false\",\"media-toggle-closed-captions-button\":\"false,false,false\",\"media-fullscreen-volume-slider\":\"false,false,false\",\"media-fullscreen-volume-slider-thumb\":\"false,false,false\",\"media-time-remaining-display\":\"false,false,false\",\"media-current-time-display\":\"false,false,false\",\"capslock-indicator\":\"false,false,false\",\"caret\":\"false,false,false\",\"inner-spin-button\":\"false,false,false\",\"listitem\":\"false,false,false\",\"menulist-text\":\"false,false,false\",\"menulist-textfield\":\"false,false,false\",\"scrollbarbutton-up\":\"false,false,false\",\"scrollbargripper-horizontal\":\"false,false,false\",\"searchfield-cancel-button\":\"false,false,false\",\"searchfield-decoration\":\"false,false,false\",\"sliderthumb-horizontal\":\"false,false,false\",\"sliderthumb-vertical\":\"false,false,false\",\"slider-vertical-x\":\"false,false,false\",\"square-button-x\":\"false,false,false\",\"button-bevel\":\"false,false,false\",\"default-button\":\"false,false,false\",\"checkbox-container\":\"false,false,false\",\"push-button-x\":\"false,false,false\",\"inherit\":\"true,true,false\",\"initial\":\"true,true,false\",\"unset\":\"true,true,false\",\"revert\":\"true,true,false\",\"revert-layer\":\"true,true,false\",\"foo\":\"false,false,false\",\"auto-none\":\"false,false,false\",\"none-auto\":\"false,false,false\"}"
+        }
+      ]
+    },
+    {
+      "name": "appearance-cssom",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "JSON.stringify((() => { const d = document.getElementById('d'), i = document.getElementById('i'); const out = {}; d.style.webkitAppearance = 'none'; out.a = [d.style.appearance, d.style.webkitAppearance, d.style.getPropertyValue('-webkit-appearance'), d.style.cssText, getComputedStyle(d).webkitAppearance, getComputedStyle(d).getPropertyValue('-webkit-appearance')]; d.style.cssText = ''; d.style.setProperty('-webkit-appearance', 'checkbox'); out.b = [d.style.appearance, d.style.getPropertyValue('appearance'), d.style.cssText, getComputedStyle(d).appearance]; d.style.cssText = '-webkit-appearance: button'; out.c = [d.style.appearance, d.style.length, d.style[0], d.style.cssText]; d.style.cssText = 'appearance: none; appearance: push-button'; out.d = [d.style.appearance, getComputedStyle(d).appearance]; d.style.cssText = '-moz-appearance: none'; out.e = [d.style.appearance, d.style.length, d.style.cssText]; out.f = ('webkitAppearance' in d.style) + ',' + ('MozAppearance' in d.style) + ',' + ('mozAppearance' in d.style); out.g = [getComputedStyle(i).getPropertyValue('appearance'), getComputedStyle(i).getPropertyValue('-webkit-appearance'), Array.prototype.indexOf.call(getComputedStyle(i), 'appearance') >= 0, Array.prototype.indexOf.call(getComputedStyle(i), '-webkit-appearance')]; return out; })())",
+          "value": "{\"a\":[\"none\",\"none\",\"none\",\"appearance: none;\",\"none\",\"none\"],\"b\":[\"checkbox\",\"checkbox\",\"appearance: checkbox;\",\"checkbox\"],\"c\":[\"button\",1,\"appearance\",\"appearance: button;\"],\"d\":[\"none\",\"none\"],\"e\":[\"\",0,\"\"],\"f\":\"true,false,false\",\"g\":[\"auto\",\"auto\",true,-1]}"
+        }
+      ]
+    },
+    {
+      "name": "appearance-sheets",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "JSON.stringify(Object.fromEntries('a b c d e f g h'.split(' ').map(id => [id, getComputedStyle(document.getElementById(id)).appearance])))",
+          "value": "{\"a\":\"none\",\"b\":\"checkbox\",\"c\":\"auto\",\"d\":\"menulist\",\"e\":\"auto\",\"f\":\"none\",\"g\":\"auto\",\"h\":\"textfield\"}"
+        },
+        {
+          "kind": "js",
+          "label": "JSON.stringify([document.styleSheets[0].cssRules[1].style.appearance, document.styleSheets[0].cssRules[1].style.length, document.styleSheets[0].cssRules[1].cssText, document.styleSheets[0].cssRules[6].cssText])",
+          "value": "[\"checkbox\",1,\"#b { appearance: checkbox; }\",\"#g { }\"]"
+        }
+      ]
+    }
+  ]
+}

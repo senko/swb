@@ -39,7 +39,9 @@
 //! - A select is as wide as its widest option (indented by four spaces in
 //!   an `optgroup`, measured with the select's font, rounded up) plus 4 px
 //!   of padding on the left and 16 px on the right (the arrow), and one
-//!   line plus 1 px above and below high.
+//!   line plus 1 px above and below high. With `appearance: none` there is
+//!   no such padding and no arrow: the box is the CSS padding around one
+//!   line.
 //! - Checkboxes and radio buttons are 13 × 13 px; their baseline is the
 //!   bottom of the border box.
 //!
@@ -51,8 +53,8 @@ use std::sync::Arc;
 
 use swb_dom::NodeId;
 use swb_style::{
-    BackgroundBox, BorderStyle, BoxSizing, ComputedStyle, Display, FieldSizing, PseudoKind, Rgba,
-    WhiteSpace,
+    Appearance, BackgroundBox, BorderStyle, BoxSizing, ComputedStyle, Display, FieldSizing,
+    PseudoKind, Rgba, WhiteSpace,
 };
 
 use crate::LayoutContext;
@@ -194,6 +196,17 @@ const SCROLLBAR_WIDTH: f32 = 15.0;
 /// top and bottom.
 const SELECT_PADDING: (f32, f32, f32, f32) = (4.0, 16.0, 1.0, 1.0);
 
+/// The space around the label of the select with `style`: none with
+/// `appearance: none`, where only the CSS padding counts (measured in
+/// Chromium 148, `tools/probes/svg-symbol.json`, cases `select-*`).
+fn select_padding(style: &ComputedStyle) -> (f32, f32, f32, f32) {
+    if style.appearance == Appearance::None {
+        (0.0, 0.0, 0.0, 0.0)
+    } else {
+        SELECT_PADDING
+    }
+}
+
 /// At most this many options count for the width of a select (the engine
 /// sends at most this many labels).
 pub const MAX_SELECT_OPTIONS: usize = 10_000;
@@ -321,14 +334,13 @@ pub(crate) fn content_sizes(
             max: width,
         };
     }
+    let pad = select_padding(style);
     let width = match (&control.control.kind, &control.contents) {
         (ControlKind::TextField { size }, _) => text_field_width(ctx, style, *size),
         (ControlKind::TextArea { cols, .. }, _) => text_area_width(ctx, style, *cols),
         (ControlKind::Checkbox | ControlKind::Radio, _) => checkbox_content_size(style, true),
         (ControlKind::Select, _) => {
-            options_width(ctx, style, &control.control.options, true)
-                + SELECT_PADDING.0
-                + SELECT_PADDING.1
+            options_width(ctx, style, &control.control.options, true) + pad.0 + pad.1
         }
         (ControlKind::Button, ControlContents::Text { ifc, style }) => {
             inline::content_sizes(ctx, ifc, style).max
@@ -373,6 +385,7 @@ fn fitted_width(ctx: &mut LayoutContext<'_>, style: &ComputedStyle, control: &Co
     } else {
         control.control.content_fit.unwrap_or(0.0)
     };
+    let pad = select_padding(style);
     match control.control.kind {
         ControlKind::TextField { .. } => text.max(1.0) + buttons,
         ControlKind::TextArea { .. } => text.max(1.0),
@@ -382,8 +395,8 @@ fn fitted_width(ctx: &mut LayoutContext<'_>, style: &ComputedStyle, control: &Co
                 style,
                 std::slice::from_ref(&control.control.text),
                 false,
-            ) + SELECT_PADDING.0
-                + SELECT_PADDING.1
+            ) + pad.0
+                + pad.1
         }
         _ => 0.0,
     }
@@ -436,8 +449,9 @@ pub(crate) fn layout(
     let edges = BoxEdges::resolve(style, cb.width);
     let edge_sum = edges.sum();
     let kind = control.control.kind;
+    let pad = select_padding(style);
     let text_width = match kind {
-        ControlKind::Select => (content_width - SELECT_PADDING.0 - SELECT_PADDING.1).max(0.0),
+        ControlKind::Select => (content_width - pad.0 - pad.1).max(0.0),
         _ => content_width,
     };
     let container = layout_container(ctx, base, control, content_width, content_height, cb);
@@ -462,7 +476,7 @@ pub(crate) fn layout(
     let (x, y) = if is_container {
         (0.0, 0.0)
     } else {
-        content_position(kind, height, inner.height)
+        content_position(style, kind, height, inner.height)
     };
     let scroll = scroll_offset(&control.control, &inner, content_width, height);
     let dx = x - scroll.x;
@@ -511,6 +525,7 @@ fn intrinsic_height(
     inner_height: f32,
     fit: Option<(bool, usize)>,
 ) -> f32 {
+    let pad = select_padding(style);
     match (kind, fit) {
         // With `field-sizing: content` the lines of the text count (also an
         // empty last line); a select without text has no line.
@@ -521,8 +536,8 @@ fn intrinsic_height(
             clamp_length(rows as f32 * line_height(ctx, style))
         }
         (ControlKind::Checkbox | ControlKind::Radio, _) => checkbox_content_size(style, false),
-        (ControlKind::Select, Some((true, _))) => SELECT_PADDING.2 + SELECT_PADDING.3,
-        (ControlKind::Select, _) => inner_height + SELECT_PADDING.2 + SELECT_PADDING.3,
+        (ControlKind::Select, Some((true, _))) => pad.2 + pad.3,
+        (ControlKind::Select, _) => inner_height + pad.2 + pad.3,
         _ => inner_height,
     }
 }
@@ -530,13 +545,16 @@ fn intrinsic_height(
 /// Where content `inner_height` px high goes in a content box `height` px
 /// high, before scrolling: text areas start at the top, other controls
 /// center their content vertically.
-fn content_position(kind: ControlKind, height: f32, inner_height: f32) -> (f32, f32) {
+fn content_position(
+    style: &ComputedStyle,
+    kind: ControlKind,
+    height: f32,
+    inner_height: f32,
+) -> (f32, f32) {
+    let pad = select_padding(style);
     match kind {
         ControlKind::TextArea { .. } => (0.0, 0.0),
-        ControlKind::Select => (
-            SELECT_PADDING.0,
-            SELECT_PADDING.2 + (height - SELECT_PADDING.2 - SELECT_PADDING.3 - inner_height) / 2.0,
-        ),
+        ControlKind::Select => (pad.0, pad.2 + (height - pad.2 - pad.3 - inner_height) / 2.0),
         _ => (0.0, (height - inner_height) / 2.0),
     }
 }
@@ -904,6 +922,10 @@ fn options_width(
 /// author styles the border or the background). swb compares the computed
 /// values: border styles and widths, background color and image, radius.
 fn has_native_look(kind: ControlKind, style: &ComputedStyle) -> bool {
+    // `appearance: none` takes the native look away from every control.
+    if style.appearance == Appearance::None {
+        return false;
+    }
     let (border_style, border_width, backgrounds): (BorderStyle, f32, &[Rgba]) = match kind {
         ControlKind::Checkbox | ControlKind::Radio => return true,
         ControlKind::TextField { .. } => (BorderStyle::Inset, 2.0, &FIELD_BACKGROUNDS),

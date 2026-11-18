@@ -290,8 +290,34 @@ while the copy is styled, so only styled elements count: a `display: none`
 subtree of the target costs nothing (hostile case
 `inline-svg-use-hidden-subtree`). Layout builds two groups for a `use` (the
 element, with its `transform`, `opacity` and `clip-path`, and the
-translation) and the copy inside. Targets: `g`, `a`, the shapes and `use`;
-`symbol` and nested `svg` draw nothing yet (backlog).
+translation) and the copy inside. Targets: `g`, `a`, the shapes, `use` and
+`symbol`; nested `svg` draws nothing yet (backlog).
+
+A `use` of a `symbol` (M12 feature 3b; SVG 2 §5.6, measured in Chromium 148,
+`tools/probes/svg-symbol.json`) adds a third group inside the translation:
+the instance of the symbol, a new viewport. Its size is the `width` and
+`height` of the `use`, else those of the `symbol`, else 100 % of the
+viewport around (each axis on its own); a size of zero draws nothing, and
+so does a `viewBox` with a zero width or height. An attribute of the `use`
+that is not a non-negative length (`auto`, `-5`, `foo`, empty) counts as a
+size of zero, whatever the symbol says; on the symbol, a negative size is
+zero and an invalid one (`auto` too) counts as missing. The `x` and `y` of
+the symbol (default 0) shift the viewport and add to those of the `use`.
+The `viewBox` and `preserveAspectRatio` of the symbol give the matrix of the
+group; the content is clipped to the viewport unless the `overflow` of the
+symbol is `visible` or `auto` (the user-agent rule is now
+`svg:not(:root), symbol { overflow: hidden }`; a rotated viewport clips with
+a path, which takes a clip layer from the document's budget, and the clip
+is dropped without one). The `opacity` and `transform` of the symbol apply (a layer, as
+for a group; the transform is outside the shift by `x` and `y` and the
+viewport clip: measured, cases `sym-xy-*` and `sym-transform-*`); its
+`clip-path` does not (not measured). Percentages and
+`transform` references inside the instance refer to the `viewBox` size, else
+to the viewport size. The symbol's own presentation attributes apply to its
+content through the instance style, as for any copy. An unused `symbol`
+draws nothing. The shapes in a copy report the outermost `use` element for
+hit testing (Chromium: `elementFromPoint` gives the `use`); before, a copy
+had no hit region.
 
 Limits: the instance trees of one document hold at most 20,000 elements
 (`MAX_INSTANCE_ELEMENTS`; a `use` of a group of `use` elements grows

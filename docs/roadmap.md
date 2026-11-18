@@ -5672,6 +5672,69 @@ Steps:
       hover first; the groups 29, 31, 36, 37 and 48 to 60; the cost on the
       other targets is measured);
       `<use href="#id">` of a `<symbol>` (the direction icons).
+
+      Done (2026-11-18), in three parts:
+      - Hover after layout: the first step of each rendering update
+        (`Page::refresh_hover`) hit-tests the still pointer again if a task
+        changed the DOM or the styles, or a scroll, a resize or a network
+        completion happened since the last test. It updates `:hover`, the
+        hovered link and the cursor, and sends the boundary events of a
+        move (`pointerout`, `pointerleave`, `pointerover`, `pointerenter`,
+        then the mouse events) without `pointermove` and `mousemove`, also
+        through frames. Measured in Chromium
+        (`tools/probes/events-after-layout.json`, 11 cases): the events
+        come after the change, before the second animation frame; a
+        removed element gives `over` on `html` with the removed element as
+        `relatedTarget`; a held button does not stop them; a script scroll
+        and a wheel scroll also move `:hover`. The GitHub wheel-to-frame
+        p90 went from 16 to 26–28 ms (target 50): after a scroll step the
+        hover moves and the page restyles, as in Chromium.
+      - SVG `<use>` of a `<symbol>`: the instance is a new viewport (its
+        size from the `use`, else the symbol, else 100 %; `viewBox`,
+        `preserveAspectRatio`, the clip of `overflow`); a hit on a copy
+        gives the outermost `use`. The pins of the directions form were
+        painted under the inputs: their container is a grid item with
+        `z-index: 0`, and now a flex or grid item with an integer
+        `z-index` forms a stacking context (CSS Flexbox, CSS Grid). New
+        property `appearance` (with the `-webkit-` alias): with `none` a
+        select has no native padding and no arrow (Bootstrap's
+        `.form-select` had two chevrons). Group 55: 696
+        differing pixels in the panel instead of 14,574 (left: SVG
+        gradients, `box-shadow`, the blur filter).
+      - Network completions in virtual time: in Chromium, a request that a
+        click handler starts completes after one animation frame in every
+        run (`tools/probes/network-frames.json`; from a timer or the
+        parser after 0 or 1 frame). In virtual time, after `load`, swb
+        holds the completion of a request started during an input event
+        until the next rendering update (ADR 0028, "Clocks"). Without it,
+        Turbo's three steps after a click on a "Query features" link ran
+        before any layout, and the hover circle of groups 48 to 60 was
+        missing.
+
+      Results: the records of all 60 groups equal those of Chromium
+      without WebGL in every field; against Chromium with WebGL only
+      `elements` differs (the layer thumbnails, from group 29 on).
+      `compare --all` with JavaScript on and off and the JS-off snapshot
+      are unchanged. Tests: `crates/automation/tests/events_after_layout.rs`
+      and `network_frames.rs` (probe cases with Chromium's values),
+      `crates/engine/tests/hover_refresh.rs` and `held_completions.rs`,
+      unit tests in `layout` and `style`, the probe file
+      `tools/probes/svg-symbol.json`, nine hostile cases.
+
+      Review: no panic or hang; the hostile cases and ten re-entrancy
+      cases (handlers that remove the hovered node or its frame, navigate,
+      scroll, open a dialog) pass. Fixed after it: `appearance` as in
+      Chromium 148 (`tools/probes/appearance.json`,
+      `crates/engine/tests/appearance.rs`): the initial value is `none`,
+      the user-agent style sheet gives `auto` to the controls (not to file,
+      image and hidden inputs), the compat keywords compute to themselves,
+      Chromium's keyword set, `-webkit-appearance` in the CSSOM, no
+      `-moz-appearance`, and the name in the `getComputedStyle` list; on a
+      `symbol`, `transform`,
+      `x` and `y` apply, and a `use` size that is `auto`, negative or not
+      a length and a `viewBox` with a zero size draw nothing (34 more
+      pixel cases); a change under the pointer during a press in a frame
+      is seen after the release.
    4. The exit test (`implementer`): `crates/automation/tests/osm_zagreb.rs`
       runs the 60 groups and compares the records with Chromium's (from the
       Transport Map group on, with Chromium without WebGL: a `replay`
@@ -5807,6 +5870,37 @@ Steps:
 - Images (feature 2): a GIF without a color table inside an SVG image
   (decoded by `usvg`, not by `swb_paint::image::decode`) still fails. No
   engine test loads Leaflet's `emptyImageUrl` as a tile.
+- Inline SVG (feature 3): no paint servers: `fill="url(#id)"` with
+  `linearGradient` or `radialGradient` (stops, `gradientUnits`,
+  `gradientTransform`, `spreadMethod`); about 400 lines (the OSM pins'
+  gloss). No filters (`feGaussianBlur`, the pins' shadows on the map).
+- Inline SVG (feature 3): a nested `<svg>`, and the `refX`, `refY` and
+  `clip-path` of a `symbol`, are ignored (not measured); percentages in
+  the `transform-origin` of a symbol are not measured. A `use` of a
+  symbol with `width=0`: Chromium's box dump gives the content box
+  untransformed at (0,0), swb a zero box.
+- Controls (feature 3): a select with `appearance: auto` and an author
+  `line-height` is 36 px high in swb, 29 px in Chromium (which ignores
+  the `line-height`); a button with `appearance: none` and the default
+  `2px outset` border: Chromium draws rgb(84,84,84), swb rgb(118,118,118);
+  the size of a checkbox or radio with `appearance: none` is not
+  measured; the text of an input with padding is clipped about 2 px
+  later than in Chromium (OSM group 55). The hover catch-up after a press
+  that started in a frame is not measured in Chromium. `getComputedStyle`
+  lists 241 names, Chromium 456.
+- Virtual time (feature 3): the first animation frame is due at page
+  time 0 and the waits for `load` run no frames, so a request that a
+  `load` handler starts races with that frame (thread timing; the
+  `DEPARTURES` row of `network_frames.rs`; ADR 0028 "Clocks"). Hold the
+  requests that the `load` handler starts too. The frame after an input
+  event runs on the 60 Hz grid, up to 16.7 ms after the input; Chromium
+  runs one right after it (only rAF time stamps show it). When all
+  requests of the input events have completed, virtual time can jump one
+  frame while other requests are in flight.
+- Engine (feature 3): `is_idle` does not count pending `fetch()` calls, so
+  `wait_until_idle` can return while one runs; `fetch()` calls past the
+  six-per-host limit start from completion handlers, so their order of
+  completion depends on thread timing.
 
 ## Backlog from M11
 

@@ -108,6 +108,15 @@
    ],
    "steps": [
     {
+     "hover": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
      "click": [
       60,
       40
@@ -120,7 +129,7 @@
   },
   {
    "name": "events-after-the-content-under-the-pointer-is-replaced",
-   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:20px;width:200px}a{display:block;height:40px;background:#edc}</style><div id=box><a href=#x id=first>first</a></div><script>\nwindow.__log = []; for (const t of ['mouseover', 'mouseout', 'mouseenter', 'mouseleave']) document.addEventListener(t, (e) => __log.push(t + ':' + (e.target.textContent || e.target.tagName).slice(0, 8)), true);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nsetTimeout(() => { document.getElementById('box').innerHTML = '<a href=#y>second</a>'; __log.push('replaced'); }, 400);\n</script>",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:20px;width:200px}a{display:block;height:40px;background:#edc}</style><div id=box><a href=#x id=first>first</a></div><script>\nwindow.__log = []; for (const t of ['mouseover', 'mouseout', 'mouseenter', 'mouseleave']) document.addEventListener(t, (e) => __log.push(t + ':' + (e.target.textContent || e.target.tagName).slice(0, 8)), true);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nwindow.go = () => { document.getElementById('box').innerHTML = '<a href=#y>second</a>'; __log.push('replaced'); };\n</script>",
    "measure": [
     {
      "js": "(async () => { await wait(600); return window.__log; })()"
@@ -135,6 +144,12 @@
       60,
       40
      ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "setTimeout(go, 50)"
     },
     {
      "wait": 800

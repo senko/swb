@@ -87,6 +87,11 @@ pub(super) struct InputState {
     pub(super) frame_due: Option<f64>,
     /// The page time of the last frame.
     pub(super) last_frame: Option<f64>,
+    /// Something that can change what is under the pointer changed (a task
+    /// changed the DOM, a scroll, a resize, a network completion) since the
+    /// last hit test of the rendering update: the next frame hit-tests and
+    /// fires the boundary events (`Page::refresh_hover`).
+    pub(super) hover_stale: bool,
     /// The page time at which the next idle period can start (the end of
     /// the last one; `idle.rs`).
     pub(super) idle_next: f64,
@@ -280,7 +285,7 @@ impl Page {
             return self.move_in_pressed_frame(&press, point);
         }
         let route = self.route_for_pointer(point);
-        self.move_in_frames(&route, point)
+        self.move_in_frames(&route, point, true)
     }
 
     /// The pointer moved to `point` as the page's own document sees it
@@ -288,14 +293,14 @@ impl Page {
     /// the document's events stop at the element): the events of scripts,
     /// and the drag selection of a press that started in the document.
     /// Returns true if a repaint is needed.
-    pub(super) fn move_top(&mut self, point: Point, in_frame: bool) -> bool {
+    pub(super) fn move_top(&mut self, point: Point, in_frame: bool, moved: bool) -> bool {
         let generation = self.dom_generation();
         if self.script_input() {
-            self.scripted_move(point, in_frame);
+            self.scripted_pointer(point, in_frame, moved);
         }
         // Listeners may have changed the page.
         let changed = generation != self.dom_generation();
-        changed | self.drag_press(point)
+        changed | (moved && self.drag_press(point))
     }
 
     /// The count of selection replacements if the document has a selection
@@ -345,9 +350,12 @@ impl Page {
 
     /// Updates the hovered link and the cursor for the pointer position,
     /// and with `restyle` also the hovered elements (`:hover`) of the
-    /// documents under it. After a scroll, `:hover` waits for the next
-    /// mouse movement, as in Chromium: otherwise each scroll step could
-    /// restyle the page. Returns true if a repaint is needed.
+    /// documents under it. After a scroll the caller passes `restyle`
+    /// false: the next frame updates `:hover` and sends the boundary events
+    /// (`Page::refresh_hover`; Chromium does the same, measured in the probe
+    /// `tools/probes/events-after-layout.json`), so that a burst of scroll
+    /// steps restyles the page once per frame. Returns true if a repaint is
+    /// needed.
     pub(super) fn update_hover(&mut self, restyle: bool) -> bool {
         if self.active_frame != FrameId::TOP {
             return self.update_hover_in_document(restyle);
@@ -373,7 +381,10 @@ impl Page {
         let mut changed = link != self.input.hovered_link;
         self.input.hovered_link = link;
         if restyle {
-            let hover = hit.as_ref().and_then(|h| self.element_of(h.node));
+            let hover = hit
+                .as_ref()
+                .and_then(|h| self.element_of(h.node))
+                .or_else(|| self.root_element());
             changed |= self.update_states(|s| s.hover = hover);
         }
         // After the restyle: a `:hover` rule can change the cursor.
@@ -603,6 +614,9 @@ impl Page {
         if button == MouseButton::Primary
             && let Some(press) = self.input.press_frame.take()
         {
+            // The updates during the press kept the hover state (they
+            // consumed the stale flag): the next one catches up.
+            self.note_hover_stale();
             return self.release_in_frame(&press, point);
         }
         // A press of the page's own document that ends over a frame: the

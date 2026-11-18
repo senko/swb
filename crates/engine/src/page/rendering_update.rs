@@ -69,6 +69,68 @@ impl Page {
         }
     }
 
+    /// Notes that something that can change what is under the pointer
+    /// changed (a DOM change, a scroll, a resize, a network completion): the
+    /// next frame hit-tests once and updates the hover state
+    /// (`Page::refresh_hover`). Nothing if the pointer is not in the page, or
+    /// without a rendering update (no scripts). Not for a frame document's
+    /// page state: the top-level page asks.
+    pub(super) fn note_hover_stale(&mut self) {
+        if self.input.pointer.is_some()
+            && self.active_frame == FrameId::TOP
+            && self.runs_rendering_updates()
+        {
+            self.input.hover_stale = true;
+            self.request_frame();
+        }
+    }
+
+    /// The hover step of the rendering update: after the content under a
+    /// still pointer changed, the element under it is found again; the
+    /// hover state (`:hover`, the hovered link, the cursor) follows, and
+    /// scripts get the boundary events (`pointerout`, `pointerleave`,
+    /// `pointerover`, `pointerenter`, then the same `mouse` events) with
+    /// the targets and related targets of a real move, but no `pointermove`
+    /// and `mousemove`. Measured in Chromium 148 (probe
+    /// `tools/probes/events-after-layout.json`, three equal runs): a change
+    /// by a script, a click handler, a class, an inserted or hidden
+    /// overlay, a removed element, a script scroll and a wheel scroll all
+    /// give the events after the change task and before the second
+    /// animation frame, also while a button is held; an update that finds
+    /// the same element gives nothing. The events come before the `scroll`
+    /// event of the same change and (in most runs) before the animation
+    /// frame callbacks; here they are the first step of the update. A page
+    /// that changes the content again in a handler gets the next update one
+    /// frame later (at most one hit test per update). Returns true if the
+    /// page changed or needs a repaint.
+    fn refresh_hover(&mut self) -> bool {
+        if !std::mem::take(&mut self.input.hover_stale) {
+            return false;
+        }
+        let Some(pointer) = self.input.pointer else {
+            return false;
+        };
+        // The press of a frame keeps the hover state of the documents.
+        if self.input.press_frame.is_some() {
+            return false;
+        }
+        let route = self.route_for_pointer(pointer);
+        let mut changed = self.move_in_frames(&route, pointer, false);
+        // The element that the press activated left the document: the
+        // element under the pointer is active now (measured: `:active`
+        // follows the replacement while a button is held; it stays on the
+        // pressed element if that is still there).
+        let active_gone = self.input.press.is_some()
+            && self
+                .doc
+                .as_deref()
+                .is_some_and(|d| d.states.active.is_none_or(|n| !d.dom.is_connected(n)));
+        if active_gone {
+            changed |= self.update_states(|s| s.active = s.hover);
+        }
+        changed
+    }
+
     /// Notes that something may have scrolled (`element`: the scroll
     /// container that the caller scrolled, if it is one): the frame fires
     /// `scroll` events for what did, in the order it scrolled (CSSOM View
@@ -81,6 +143,8 @@ impl Page {
             .as_deref_mut()
             .map(|d| std::mem::take(&mut d.scrolled))
             .unwrap_or_default();
+        // The content under the pointer moved.
+        self.note_hover_stale();
         if !self.agents.enabled {
             return;
         }
@@ -201,6 +265,7 @@ impl Page {
         self.input.frame_due = None;
         // The time the frame was due, so that a late pump keeps the grid.
         self.input.last_frame = Some(due);
+        let mut ran = self.refresh_hover();
         let documents = self.documents_with_realms();
         // A frame's viewport comes from its parent's layout: a size that a
         // change in the parent gave it shows in this update, if the frame's
@@ -208,7 +273,6 @@ impl Page {
         if self.documents_watch_viewports(&documents) {
             self.update_layout();
         }
-        let mut ran = false;
         if std::mem::take(&mut self.input.resized) {
             self.dispatch_event(DispatchTarget::Window, &TrustedEvent::new("resize"));
             ran = true;
@@ -239,6 +303,8 @@ impl Page {
             }
             self.input.observed = self.observed_state();
         }
+        // The completions that waited for this update (`completions.rs`).
+        ran |= self.release_held_completions();
         ran
     }
 

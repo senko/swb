@@ -279,6 +279,43 @@ fn the_caret_and_the_selection_are_painted() {
     );
 }
 
+/// `appearance: none` takes the native padding (4 px left, 16 px right,
+/// 1 px above and below) and the arrow of a select away, so that only the
+/// CSS padding counts (measured in Chromium 148,
+/// `tools/probes/svg-symbol.json`, cases `select-*`; Bootstrap's
+/// `.form-select` draws its own chevron).
+#[test]
+fn a_select_with_appearance_none_has_only_its_css_padding_and_no_arrow() {
+    let size = |style: &str| {
+        let (mut page, _) = open(&format!(
+            "{BODY}<select id=s style='{style}'><option>Valhalla</option></select>"
+        ));
+        let r = rect(&mut page, "s");
+        let arrows = {
+            let list = common::display_list(&mut page);
+            list.items
+                .iter()
+                .filter(|i| matches!(i, DisplayItem::Polyline { .. }))
+                .count()
+        };
+        (r.width, r.height, arrows)
+    };
+    let native = size("");
+    let none = size("appearance: none");
+    let prefixed = size("-webkit-appearance: none");
+    // The label is the same: the native select is 20 px wider and 2 px
+    // taller and has an arrow.
+    assert_eq!(native.2, 1);
+    assert_eq!(none.2, 0);
+    assert_eq!(prefixed, none);
+    assert_eq!(native.0 - none.0, 20.0);
+    assert_eq!(native.1 - none.1, 2.0);
+    // The CSS padding counts.
+    let padded = size("appearance: none; padding: 3px 5px");
+    assert_eq!(padded.0, none.0 + 10.0);
+    assert_eq!(padded.1, none.1 + 6.0);
+}
+
 /// Loads `html` as `https://site.test/` into an 800×600 page with
 /// JavaScript on.
 fn open_with_scripts(html: &str) -> Page {

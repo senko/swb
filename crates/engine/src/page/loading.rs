@@ -63,7 +63,12 @@ impl Page {
         while !self.lent
             && let Some(completion) = self.loader.try_recv()
         {
-            changed |= self.handle_completion(completion);
+            changed |= self.accept_completion(completion);
+        }
+        changed |= self.release_held_if_no_updates();
+        if changed {
+            // A loaded image or style sheet can move the content.
+            self.note_hover_stale();
         }
         changed
     }
@@ -347,6 +352,9 @@ impl Page {
         // (for example images that a restyle of it started).
         self.loader.cancel_all();
         self.document_request = None;
+        // Completions that waited for a rendering update belong to the old
+        // document.
+        self.held = super::completions::HeldCompletions::default();
         // The old document goes first, with its script runtime and its
         // frames: its web fonts leave the font context.
         self.script = None;

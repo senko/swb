@@ -9,19 +9,19 @@ use crate::font_settings::{FontFeatureSettings, FontVariationSettings};
 
 use crate::properties::inert::InertStyle;
 use crate::values::{
-    Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
-    BackgroundSize, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, ClipPath, Color,
-    ColorId, CompositeOperator, Contain, ContainIntrinsic, ContainerName, ContainerType, Content,
-    ContentVisibility, CornerRadius, CounterList, Cursor, Direction, Display, EmptyCells,
-    FieldSizing, FillRule, Filter, FlexBasis, FlexDirection, FlexWrap, Float, FontFamily,
-    FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily, GridAutoFlow, GridLine,
-    GridTemplateAreas, Hyphens, Image, LengthPercentage, LengthPercentageOrAuto, LineHeight,
-    ListStylePosition, ListStyleType, MaskClip, MaskImage, MaskMode, MaxSize, ObjectFit,
-    OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents, Position, PositionComponent,
-    Rgba, ScrollbarWidth, ShapeRendering, Size, StrokeLinecap, StrokeLinejoin, SvgPaint,
-    TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform,
-    TrackBreadth, TrackList, TrackSize, UnicodeBidi, UserSelect, VerticalAlign, Visibility,
-    WhiteSpace, WordBreak, ZIndex,
+    Alignment, Appearance, AspectRatio, BackgroundAttachment, BackgroundBox,
+    BackgroundRepeatKeyword, BackgroundSize, BorderCollapse, BorderStyle, BoxSizing, CaptionSide,
+    Clear, ClipPath, Color, ColorId, CompositeOperator, Contain, ContainIntrinsic, ContainerName,
+    ContainerType, Content, ContentVisibility, CornerRadius, CounterList, Cursor, Direction,
+    Display, EmptyCells, FieldSizing, FillRule, Filter, FlexBasis, FlexDirection, FlexWrap, Float,
+    FontFamily, FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily, GridAutoFlow,
+    GridLine, GridTemplateAreas, Hyphens, Image, LengthPercentage, LengthPercentageOrAuto,
+    LineHeight, ListStylePosition, ListStyleType, MaskClip, MaskImage, MaskMode, MaxSize,
+    ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents, Position,
+    PositionComponent, Rgba, ScrollbarWidth, ShapeRendering, Size, StrokeLinecap, StrokeLinejoin,
+    SvgPaint, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow,
+    TextTransform, TrackBreadth, TrackList, TrackSize, UnicodeBidi, UserSelect, VerticalAlign,
+    Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 use crate::values::{ClipRect, TransformFunction, TransformOrigin};
 
@@ -136,6 +136,12 @@ pub struct ComputedStyle {
     pub bottom: LengthPercentageOrAuto,
     pub left: LengthPercentageOrAuto,
     pub z_index: ZIndex,
+    /// True if the element is a flex or grid item (a child of a flex or
+    /// grid container's box). `z-index` applies to such an item although
+    /// it is not positioned (CSS Flexbox 1 §4.3, CSS Grid 2 §6.4; measured
+    /// in Chromium 148, `tools/probes/svg-symbol.json`, cases `grid-item-*`
+    /// and `flex-item-*`). Not a CSS property.
+    pub flex_or_grid_item: bool,
     /// The transform functions in order; empty for `none`.
     pub transform: Arc<[TransformFunction]>,
     pub transform_origin: TransformOrigin,
@@ -247,6 +253,8 @@ pub struct ComputedStyle {
     /// `container-type` (not inherited; ADR 0038).
     pub container_type: ContainerType,
     pub field_sizing: FieldSizing,
+    /// `appearance`: `none` removes the native look of form controls.
+    pub appearance: Appearance,
     pub content_visibility: ContentVisibility,
     /// `container-name` (not inherited).
     pub container_name: ContainerName,
@@ -293,6 +301,12 @@ impl ComputedStyle {
             color: Rgba::WHITE,
             ..ComputedStyle::new_initial()
         })
+    }
+
+    /// True if `z-index` applies to the element: it is positioned, or it is
+    /// a flex or grid item (CSS Positioned Layout 3, `z-index`).
+    pub fn z_index_applies(&self) -> bool {
+        self.position != Position::Static || self.flex_or_grid_item
     }
 
     #[allow(clippy::too_many_lines)] // One line per property.
@@ -363,6 +377,7 @@ impl ComputedStyle {
             bottom: LengthPercentageOrAuto::Auto,
             left: LengthPercentageOrAuto::Auto,
             z_index: ZIndex::Auto,
+            flex_or_grid_item: false,
             transform: Arc::from([]),
             transform_origin: TransformOrigin::default(),
             clip: None,
@@ -468,6 +483,7 @@ impl ComputedStyle {
             contain: Contain::NONE,
             container_type: ContainerType::Normal,
             field_sizing: FieldSizing::Fixed,
+            appearance: Appearance::None,
             content_visibility: ContentVisibility::Visible,
             container_name: None,
             contain_intrinsic_width: ContainIntrinsic::NONE,

@@ -504,11 +504,15 @@ its promise block and run the loop themselves; `wait_until_loaded` runs
 due tasks while the page loads. The page owns a `PageClock` (real or
 virtual time, an optional fixed start from `--now`); in virtual time only
 the blocking loops move it, to the next task, when nothing runs and no
-request is pending. A runtime that reached the heap limit is dropped after
-its task; the DOM stays, and the parse goes on to the end without scripts. A
-page may run scripts only if its configuration says that the thread that
-runs it has a big enough stack (`PageConfig::scripts_allowed`); otherwise
-`set_javascript` keeps JavaScript off.
+request is pending. In virtual time the completion of a request that an
+input handler started (after the `load` event) waits for the next rendering
+update, as it does in Chromium (`page/completions.rs`, ADR 0028 section 7
+"Clocks"); the clock may jump to that frame while the completion waits. A
+runtime that reached the heap limit is dropped after its task; the DOM
+stays, and the parse goes on to the end without scripts. A page may run
+scripts only if its configuration says that the thread that runs it has a
+big enough stack (`PageConfig::scripts_allowed`); otherwise `set_javascript`
+keeps JavaScript off.
 
 Parsing: with JavaScript off, `parse_html*` parses to the end without a
 journal, and the document state walks the new document once. With

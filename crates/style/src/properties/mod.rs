@@ -226,6 +226,7 @@ fn longhand_alias(name: &str) -> Option<LonghandId> {
         "word-wrap" => L::OverflowWrap,
         "font-width" => L::FontStretch,
         "-webkit-box-sizing" | "-moz-box-sizing" => L::BoxSizing,
+        "-webkit-appearance" => L::Appearance,
         "-webkit-user-select" | "-moz-user-select" | "-ms-user-select" => L::UserSelect,
         "-webkit-hyphens" | "-ms-hyphens" | "-moz-hyphens" => L::Hyphens,
         "-webkit-flex-direction" => L::FlexDirection,

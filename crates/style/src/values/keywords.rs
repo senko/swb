@@ -650,6 +650,33 @@ keyword_enum! {
 }
 
 keyword_enum! {
+    /// The `appearance` property (CSS UI 4), also as `-webkit-appearance`.
+    /// The initial value is `none`; the user-agent style sheet gives `auto`
+    /// to the controls. `none` takes the native look and the native padding
+    /// away from form controls. The other keywords, the compat values too,
+    /// compute to themselves (as in Chromium) and have the native look of
+    /// the control: swb has one look per kind of control. The keyword set
+    /// is Chromium's (`tools/probes/appearance.json`).
+    Appearance {
+        None = "none",
+        Auto = "auto",
+        Button = "button",
+        Checkbox = "checkbox",
+        Radio = "radio",
+        Menulist = "menulist",
+        MenulistButton = "menulist-button",
+        Textfield = "textfield",
+        Searchfield = "searchfield",
+        Textarea = "textarea",
+        Listbox = "listbox",
+        Meter = "meter",
+        ProgressBar = "progress-bar",
+        SliderVertical = "slider-vertical",
+    }
+    default None
+}
+
+keyword_enum! {
     /// The `field-sizing` property (CSS Sizing 4): `content` sizes text
     /// fields, text areas and selects by their content (M10 7b, ADR 0038).
     FieldSizing {

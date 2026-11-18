@@ -2088,6 +2088,47 @@ works the same way), so a test does not wait for real timers and its
 results do not depend on the speed of the machine. The start time can
 be fixed (`--now`, as in the `swb-js` shell).
 
+*Network completions in virtual time (M12 feature 3c; implementation
+note, no new decision).* In real time a response comes some milliseconds
+after its request, so a rendering update can run between them. In virtual
+time the loader answers in the same virtual millisecond. Measured in
+Chromium 148 (`tools/probes/network-frames.json`: `fetch()`,
+`XMLHttpRequest`, an inserted image and an inserted script, each started
+in a click handler, a timer, the parser and the `load` event, and in
+chains of 8; three runs, `crates/automation/tests/data/network-frames.json`):
+a request that a click handler starts completes after 5.6 to 10.4 ms, and
+exactly one animation frame runs between the request and the completion,
+in every run (all four kinds). A request that a timer, the parser or the
+`load` event starts completes after 1.2 to 5.9 ms; a frame falls between
+in 7 of 24 single requests and in 11 of 96 requests of the chains (the
+chance that a 60 Hz frame falls into a 2 to 5 ms window), and the count
+differs between runs at the same position. So in virtual time, once the
+`load` event has fired, the completion of a request that was started while
+an input event was dispatched (a pointer, mouse or key event, with the
+microtasks of its listeners) waits for the next rendering update; the
+update releases it after its steps, and the held completions are handled in
+the order of their requests. The requests of a dispatch have the ids from
+`Loader::next_request_id` before it up to the value after it, so no list of
+requests is kept. Requests of timers, the parser, the `load` event and
+animation frame callbacks, and those that a completion starts, are not
+held, so a chain of fetches costs one frame in all. A held completion is
+pending work: the idle wait does not end, and once every request of the
+input dispatches has completed, virtual time may jump to the next frame
+(until then the loops wait for the completions as for any request, so a
+run does not depend on which thread answered first; another request in
+flight does not stop the jump, which is at most one frame). Real time, the GUI and pages without rendering
+updates are unchanged; the hold ends if the scripts are stopped. Result
+for openstreetmap.org: the hover circle of the three-step sidebar change
+after the click on a relation link now appears as in Chromium (the 60
+step groups equal Chromium's records without WebGL). Not deterministic
+in one place: a request that the `load` handler starts, with the first
+animation frame still due at page time 0, sees that frame before its
+completion when the loader's thread answers after the pump's frame step
+(two runs of the test under load gave 1 frame, the later runs 0; the
+request is not held, so its completion is handled when it arrives). This
+is a known departure from the determinism of virtual time (roadmap
+backlog: hold the requests of the `load` handler too).
+
 ### 8. Scripts and the HTML parser
 
 **Parser-inserted scripts** (HTML §4.12.1.1, "prepare the script

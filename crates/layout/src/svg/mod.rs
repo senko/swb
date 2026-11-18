@@ -17,10 +17,19 @@
 //! `line`, `polyline` and `polygon`, and `use` with a reference to one of
 //! these (a copy of the referenced element inside two groups: the `use`
 //! element and its `x`/`y` translation; the copy's styles come from
-//! `StyleMap::use_instance`). `defs`, `clipPath` and the elements that
-//! only they refer to draw nothing themselves. Every other element draws
-//! nothing, with its subtree: `title`, `desc`, `style`, `metadata`,
-//! `symbol`, nested `svg`, `text`, `foreignObject` and unknown elements.
+//! `StyleMap::use_instance`). A `use` of a `symbol` draws the symbol's
+//! content in a new viewport ([`SymbolView`], SVG 2 §5.6: its size is the
+//! `width` and `height` of the `use`, else of the `symbol`, else 100 %; the
+//! `x`, `y` and `transform` of the symbol place it; the
+//! `viewBox` and `preserveAspectRatio` of the symbol; a clip to the viewport
+//! unless `overflow` is `visible` or `auto`; a size of zero, a negative or
+//! invalid `use` size, and a `viewBox` of zero width or height draw nothing;
+//! percentages inside refer to the `viewBox`, else to the viewport). The
+//! shapes of a copy report the outermost `use` element for hit testing.
+//! `defs`, `clipPath` and the elements that only they refer to draw nothing
+//! themselves. Every other element draws nothing, with its subtree: `title`,
+//! `desc`, `style`, `metadata`, an unused `symbol`, nested `svg`, `text`,
+//! `foreignObject` and unknown elements.
 //!
 //! `clip-path: url(#id)` (`clip.rs`) refers to a `clipPath` element of
 //! the document, also in another `<svg>`. The references are resolved when
@@ -55,7 +64,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use swb_dom::{Document, ElementData, NodeId, ns};
-use swb_style::{ComputedStyle, Display, InstanceId, LengthPercentage, StyleMap};
+use swb_style::{ComputedStyle, Display, InstanceId, LengthPercentage, Overflow, StyleMap};
 
 pub(crate) use clip::ClipDef;
 pub use clip::{ClipPath, ClipRegion, ClipShape};
@@ -136,6 +145,33 @@ struct Group {
     clip: Option<Arc<ClipDef>>,
     /// The `x` and `y` of a `use` element: the translation group.
     offset: Option<(LengthPercentage, LengthPercentage)>,
+    /// For the instance of a `symbol`: the viewport it establishes.
+    view: Option<SymbolView>,
+}
+
+/// The viewport of the instance of a `symbol` (SVG 2 §5.6, "The `symbol`
+/// element"; <https://svgwg.org/svg2-draft/struct.html#SymbolElement>): a
+/// new viewport at the origin of its group (the translation by the `x` and
+/// `y` of the `use` element is the group around it), with the `viewBox` and
+/// `preserveAspectRatio` of the symbol.
+#[derive(Debug, PartialEq)]
+struct SymbolView {
+    /// The size of the viewport: the `width` and `height` of the `use`
+    /// element, else those of the `symbol`, else `100%` (of the viewport
+    /// around).
+    width: LengthPercentage,
+    height: LengthPercentage,
+    /// The `x` and `y` of the symbol: the viewport's offset (0 if missing
+    /// or invalid).
+    x: LengthPercentage,
+    y: LengthPercentage,
+    /// The `viewBox` of the symbol, if valid.
+    view_box: Option<crate::geom::Rect>,
+    preserve_aspect_ratio: PreserveAspectRatio,
+    /// True if the content is clipped to the viewport: `overflow` other
+    /// than `visible` and `auto` (the user-agent style sheet gives `symbol`
+    /// `overflow: hidden`).
+    clip: bool,
 }
 
 /// A shape element.
@@ -152,6 +188,10 @@ struct Shape {
     node: Option<NodeId>,
     /// The clip path.
     clip: Option<Arc<ClipDef>>,
+    /// In the copy that a `use` draws: the outermost `use` element, which
+    /// hit testing reports for the shape (in Chromium, the `use` is the
+    /// target of events in its instance). `None` outside a copy.
+    hit: Option<NodeId>,
 }
 
 /// The geometry of a shape, with lengths that can be percentages of the
@@ -357,6 +397,7 @@ pub(crate) fn build(
         scope: None,
         copy: false,
         rotated: false,
+        hit: None,
     };
     builder.children(node, 0);
     content
@@ -376,6 +417,8 @@ struct Builder<'a> {
     /// True if an element on the way down has a `transform` that rotates
     /// or skews (a clip rectangle is then not axis-aligned).
     rotated: bool,
+    /// The outermost `use` element of the copy being built, if any.
+    hit: Option<NodeId>,
 }
 
 impl Builder<'_> {
@@ -441,6 +484,7 @@ impl Builder<'_> {
             node: self.dom_node(node),
             clip,
             offset: None,
+            view: None,
         })));
         self.children(node, depth + 1);
         self.rotated = rotated;
@@ -493,6 +537,7 @@ impl Builder<'_> {
             node: self.dom_node(node),
             clip,
             offset: None,
+            view: None,
         })));
         self.nodes.push(Node::BeginGroup(Box::new(Group {
             style: None,
@@ -500,21 +545,104 @@ impl Builder<'_> {
             node: None,
             clip: None,
             offset: Some(offset),
+            view: None,
         })));
         if let Some(instance) = self.styles.use_instance(self.scope, node) {
             let target = self.styles.instance_target(instance);
-            let saved = (self.scope, self.copy);
+            let saved = (self.scope, self.copy, self.hit);
+            self.hit = self.hit.or(self.dom_node(node));
             self.scope = Some(instance);
             self.copy = true;
             if let Some(target) = target {
-                self.element(target, depth + 2);
+                self.instance(target, e, depth + 2);
             }
-            (self.scope, self.copy) = saved;
+            (self.scope, self.copy, self.hit) = saved;
         }
         self.nodes.push(Node::EndGroup);
         self.rotated = rotated;
         let empty = self.nodes.len() == start + 3;
         self.end_group(start, style, self.dom_node(node).is_some(), empty);
+    }
+
+    /// The copy that a `use` draws: the element `target`; for a `symbol`,
+    /// the new viewport that the `use` element `e` makes of it.
+    fn instance(&mut self, target: NodeId, e: &ElementData, depth: usize) {
+        let is_symbol = self
+            .doc
+            .element(target)
+            .is_some_and(|t| t.name.ns == ns!(svg) && &**t.local_name() == "symbol");
+        if is_symbol {
+            self.symbol(target, e, depth);
+        } else {
+            self.element(target, depth);
+        }
+    }
+
+    /// The instance of the `symbol` element `target`, drawn by the `use`
+    /// element `use_element`: a group with a viewport, around the content
+    /// of the symbol. The `symbol` itself draws nothing; only an instance
+    /// does.
+    fn symbol(&mut self, target: NodeId, use_element: &ElementData, depth: usize) {
+        let (doc, styles) = (self.doc, self.styles);
+        let Some(symbol) = doc.element(target) else {
+            return;
+        };
+        let Some(style) = styles.style_in(self.scope, target) else {
+            return;
+        };
+        if style.display == Display::None || self.too_deep(depth) || !self.budget.take_group() {
+            return;
+        }
+        // A `viewBox` with a zero width or height draws nothing (SVG 2 §8.2).
+        if viewport::view_box_disables_rendering(symbol) {
+            return;
+        }
+        let zero = LengthPercentage::Px(0.0);
+        // Chromium (measured, `tools/probes/svg-symbol.json`): an attribute
+        // of the `use` element that is not a non-negative length (`auto`,
+        // `-5`, `foo`, empty) draws nothing, whatever the symbol says; on
+        // the symbol, a negative one draws nothing and an invalid one
+        // (`auto` too) counts as missing.
+        let size = |name: &str| {
+            if use_element.attr(name).is_some() {
+                return match attribute_length(use_element, name, style.font_size) {
+                    Some(v) if !is_negative(&v) => v,
+                    _ => zero.clone(),
+                };
+            }
+            match attribute_length(symbol, name, style.font_size) {
+                Some(v) if is_negative(&v) => zero.clone(),
+                Some(v) => v,
+                None => LengthPercentage::Percent(1.0),
+            }
+        };
+        let offset = |name: &str| {
+            attribute_length(symbol, name, style.font_size).unwrap_or_else(|| zero.clone())
+        };
+        // A rotated viewport clips with a path, which takes a layer.
+        let clip = !matches!(style.overflow_x, Overflow::Visible | Overflow::Auto)
+            && (!self.rotated || self.budget.take_clip_layer());
+        let view = SymbolView {
+            width: size("width"),
+            height: size("height"),
+            x: offset("x"),
+            y: offset("y"),
+            view_box: viewport::view_box(symbol),
+            preserve_aspect_ratio: viewport::preserve_aspect_ratio(symbol),
+            clip,
+        };
+        let start = self.nodes.len();
+        self.nodes.push(Node::BeginGroup(Box::new(Group {
+            style: Some(Arc::clone(style)),
+            layer: false,
+            node: None,
+            clip: None,
+            offset: None,
+            view: Some(view),
+        })));
+        self.children(target, depth + 1);
+        let empty = self.nodes.len() == start + 1;
+        self.end_group(start, style, false, empty);
     }
 
     /// True if the nodes from `from` to the end of the group are one shape
@@ -550,6 +678,7 @@ impl Builder<'_> {
             geometry,
             node: self.dom_node(node),
             clip,
+            hit: self.hit,
         })));
     }
 

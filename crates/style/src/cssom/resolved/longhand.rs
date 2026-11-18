@@ -803,6 +803,7 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
         "counter-set" => counters(&s.counter_set),
         "contain" => contain(s),
         "container-type" => s.container_type.as_str().to_owned(),
+        "appearance" => s.appearance.as_str().to_owned(),
         "field-sizing" => s.field_sizing.as_str().to_owned(),
         "content-visibility" => if s.contents_hidden {
             "hidden"

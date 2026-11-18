@@ -195,8 +195,14 @@ impl Page {
             interface: EventInterface::User(Box::new(event)),
             legacy_target_override: false,
         };
-        self.dispatch_event(DispatchTarget::Node(target), &trusted)
-            .unwrap_or(true)
+        // The requests that the listeners start get their completions
+        // after a rendering update (`completions.rs`).
+        let first = self.next_request_id();
+        let proceed = self
+            .dispatch_event(DispatchTarget::Node(target), &trusted)
+            .unwrap_or(true);
+        self.note_input_requests(first);
+        proceed
     }
 
     // ----- Mouse and pointer events -----
@@ -418,14 +424,30 @@ impl Page {
     /// a press that started in the parent, the move that crosses the edge of
     /// the `iframe` fires it once).
     pub(super) fn scripted_move(&mut self, point: Point, in_frame: bool) {
+        self.scripted_pointer(point, in_frame, true);
+    }
+
+    /// [`Page::scripted_move`], or with `moved` false the update of a
+    /// pointer that did not move while the content under it changed: the
+    /// boundary events if the element under it changed, and no
+    /// `pointermove` and `mousemove` (measured in Chromium 148, probe
+    /// `tools/probes/events-after-layout.json`). The events are trusted.
+    pub(super) fn scripted_pointer(&mut self, point: Point, in_frame: bool, moved: bool) {
         let Some(new) = self.target_at(point) else {
             return;
         };
-        let old = self.input.over.filter(|&n| self.is_connected(n));
+        // The element that the pointer was over stays the related target
+        // when it left the document: the new target gets `pointerover` and
+        // `pointerenter` for its whole chain, and the old one gets nothing
+        // (measured in Chromium 148, `layout-events-element-removed`).
+        let old = self.input.over;
         let previous = self.input.last_point.replace(point);
         self.input.over = Some(new);
         if old != Some(new) {
             self.boundary_events(old, new, point);
+        }
+        if !moved {
+            return;
         }
         // Over a frame only the move that crosses its edge during a press of
         // this document fires them (measured, case `input-press-in-parent`).

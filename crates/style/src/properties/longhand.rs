@@ -27,15 +27,15 @@ use crate::parse::{
     parse_number,
 };
 use crate::values::{
-    Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
-    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Contain, ContainerName,
-    ContainerType, ContentVisibility, CounterList, Cursor, Direction, Display, EmptyCells,
-    FieldSizing, FillRule, FlexDirection, FlexWrap, Float, FontFamily, FontSizeKeyword, FontStyle,
-    FontVariantCaps, GenericFamily, Hyphens, Length, ListStylePosition, ListStyleType, ObjectFit,
-    OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents, Position, ScrollbarWidth,
-    ShapeRendering, SpecifiedLengthPercentage as Lp, StrokeLinecap, StrokeLinejoin, TableLayout,
-    TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi,
-    UserSelect, VerticalAlignKeyword, Visibility, WhiteSpace, WordBreak, ZIndex,
+    Alignment, Appearance, AspectRatio, BackgroundAttachment, BackgroundBox,
+    BackgroundRepeatKeyword, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Contain,
+    ContainerName, ContainerType, ContentVisibility, CounterList, Cursor, Direction, Display,
+    EmptyCells, FieldSizing, FillRule, FlexDirection, FlexWrap, Float, FontFamily, FontSizeKeyword,
+    FontStyle, FontVariantCaps, GenericFamily, Hyphens, Length, ListStylePosition, ListStyleType,
+    ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents, Position,
+    ScrollbarWidth, ShapeRendering, SpecifiedLengthPercentage as Lp, StrokeLinecap, StrokeLinejoin,
+    TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform,
+    UnicodeBidi, UserSelect, VerticalAlignKeyword, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 
 /// True for the properties where the quirks mode unitless length quirk
@@ -268,6 +268,7 @@ pub(crate) fn parse_longhand(
             L::ScrollbarWidth => V::ScrollbarWidth(keyword(p, ScrollbarWidth::from_ident)?),
             L::Overlay => V::Overlay(keyword(p, Overlay::from_ident)?),
             L::ContainerType => V::ContainerType(keyword(p, ContainerType::from_ident)?),
+            L::Appearance => V::Appearance(keyword(p, Appearance::from_ident)?),
             L::FieldSizing => V::FieldSizing(keyword(p, FieldSizing::from_ident)?),
             L::ContentVisibility => {
                 V::ContentVisibility(keyword(p, ContentVisibility::from_ident)?)

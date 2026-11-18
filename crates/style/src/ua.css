@@ -287,7 +287,7 @@ thead, tbody, tfoot, tr { border-color: inherit; }
 /* 15.3.10 Form controls
  *
  * First the specification's rules, without the properties that swb does
- * not support (`appearance`, `text-shadow`, `overflow-clip-margin`,
+ * not support (`text-shadow`, `overflow-clip-margin`,
  * `field-sizing`) and without `align-content`: Chromium 148 does not set
  * it on form controls (the computed value is `normal`).
  */
@@ -370,6 +370,14 @@ input:is([type=hidden i], [type=image i], [type=file i]) {
   cursor: default;
 }
 input[type=image i] { cursor: pointer; }
+
+/* The initial `appearance` is `none`. Chromium 148 gives `auto` to these
+ * (measured: `tools/probes/appearance.json`; the file, image and hidden
+ * inputs and the options keep `none`). */
+input:not([type=file i], [type=image i], [type=hidden i]), button, select, textarea, progress,
+meter {
+  appearance: auto;
+}
 
 /* swb: Chromium's `ButtonBorder` is black, but its native look draws the
    border gray. swb draws the native look with the computed border color,
@@ -465,7 +473,7 @@ iframe, embed, object { overflow: clip !important; }
    around the origin of its user space. swb has no @namespace, so the
    second rule also matches the HTML content of a foreignObject (which
    swb does not render). */
-svg:not(:root) { overflow: hidden; }
+svg:not(:root), symbol { overflow: hidden; }
 svg * { transform-origin: 0 0; }
 
 iframe { border: 2px inset; }

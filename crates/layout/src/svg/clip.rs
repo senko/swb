@@ -51,9 +51,9 @@ use swb_style::{
 };
 
 use super::draw::{Viewport, shape_geometry};
-use super::path::SvgPath;
+use super::path::{PathSegment, SvgPath};
 use super::{Builder, Geometry, MAX_CLIP_DEPTH, attribute_length, rotates};
-use crate::geom::{Matrix, Rect};
+use crate::geom::{Matrix, Point, Rect};
 use crate::positioned::style_transform;
 use crate::shape::{ShapeGeometry, shape_geometry as basic_shape_geometry};
 
@@ -501,6 +501,40 @@ fn both(
         shapes: vec![inner],
         outer: Some(a),
     }))
+}
+
+/// The region of the rectangle `rect` in the space with matrix `matrix`
+/// (to the content box): a clip rectangle if the matrix keeps the axes, else
+/// a path. An empty rectangle hides everything.
+pub(super) fn rect_region(matrix: &Matrix, rect: Rect) -> ClipRegion {
+    // (Written so that a NaN size is empty too.)
+    let drawable = rect.width > 0.0 && rect.height > 0.0 && matrix.is_finite();
+    if !drawable {
+        return ClipRegion::Rect(Rect::default());
+    }
+    if axis_aligned(matrix) {
+        return ClipRegion::Rect(matrix.map_rect(&rect));
+    }
+    let corner = |x: f32, y: f32| Point::new(x, y);
+    let path = SvgPath::from_segments(&[
+        PathSegment::MoveTo(corner(rect.x, rect.y)),
+        PathSegment::LineTo(corner(rect.right(), rect.y)),
+        PathSegment::LineTo(corner(rect.right(), rect.bottom())),
+        PathSegment::LineTo(corner(rect.x, rect.bottom())),
+        PathSegment::Close,
+    ]);
+    match path {
+        Some(path) => ClipRegion::Path(Arc::new(ClipPath {
+            shapes: vec![ClipShape {
+                path: Arc::new(path),
+                transform: *matrix,
+                rule: FillRule::NonZero,
+                clip: None,
+            }],
+            outer: None,
+        })),
+        None => ClipRegion::Rect(Rect::default()),
+    }
 }
 
 /// The region of `shapes` (their union) inside `outer`.

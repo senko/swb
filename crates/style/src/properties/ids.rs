@@ -21,16 +21,16 @@ use crate::ComputedStyle;
 use crate::font_settings::{FontFeatureSettings, FontVariationSettings};
 use crate::parse::image::SpecifiedImage;
 use crate::values::{
-    Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
-    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color, CompositeOperator, Contain,
-    ContainerName, ContainerType, ContentVisibility, CounterList, Cursor, Direction, Display,
-    EmptyCells, FieldSizing, FillRule, FlexDirection, FlexWrap, Float, FontFamily, FontStyle,
-    FontVariantCaps, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens, ListStylePosition,
-    ListStyleType, MaskClip, MaskMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay,
-    PointerEvents, Position, ScrollbarWidth, ShapeRendering, SpecifiedLengthPercentage as Lp,
-    SpecifiedTrackList, SpecifiedTrackSize, StrokeLinecap, StrokeLinejoin, SvgPaint, TableLayout,
-    TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, UnicodeBidi, UserSelect,
-    Visibility, WhiteSpace, WordBreak, ZIndex,
+    Alignment, Appearance, AspectRatio, BackgroundAttachment, BackgroundBox,
+    BackgroundRepeatKeyword, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color,
+    CompositeOperator, Contain, ContainerName, ContainerType, ContentVisibility, CounterList,
+    Cursor, Direction, Display, EmptyCells, FieldSizing, FillRule, FlexDirection, FlexWrap, Float,
+    FontFamily, FontStyle, FontVariantCaps, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens,
+    ListStylePosition, ListStyleType, MaskClip, MaskMode, ObjectFit, OutlineStyle, Overflow,
+    OverflowWrap, Overlay, PointerEvents, Position, ScrollbarWidth, ShapeRendering,
+    SpecifiedLengthPercentage as Lp, SpecifiedTrackList, SpecifiedTrackSize, StrokeLinecap,
+    StrokeLinejoin, SvgPaint, TableLayout, TextDecorationLine, TextDecorationStyle, TextOverflow,
+    TextTransform, UnicodeBidi, UserSelect, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 
 macro_rules! longhands {
@@ -271,6 +271,7 @@ longhands! {
     CounterSet "counter-set" reset counter_set: CounterList;
     Contain "contain" reset contain: Contain;
     ContainerType "container-type" reset container_type: ContainerType;
+    Appearance "appearance" reset appearance: Appearance;
     FieldSizing "field-sizing" reset field_sizing: FieldSizing;
     ContentVisibility "content-visibility" reset content_visibility: ContentVisibility;
     ContainerName "container-name" reset container_name: ContainerName;

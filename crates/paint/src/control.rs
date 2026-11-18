@@ -12,12 +12,12 @@
 //! - radio buttons: a circle with a gray border, or with an accent border
 //!   and an accent dot.
 //!
-//! A select always gets its arrow.
+//! A select gets its arrow, unless it has `appearance: none`.
 
 use std::sync::Arc;
 
 use swb_layout::{ControlContent, ControlKind, Point, Rect};
-use swb_style::{BorderStyle, ComputedStyle, Rgba};
+use swb_style::{Appearance, BorderStyle, ComputedStyle, Rgba};
 
 use crate::display_list::DisplayItem;
 
@@ -56,7 +56,7 @@ pub(crate) fn native_look(
             ControlKind::Radio => radio(&mut items, control, rect),
         }
     }
-    if control.kind == ControlKind::Select {
+    if control.kind == ControlKind::Select && style.appearance != Appearance::None {
         arrow(&mut items, style, rect);
     }
     items
@@ -225,7 +225,9 @@ mod tests {
 
     #[test]
     fn styled_select_keeps_its_arrow() {
-        let style = ComputedStyle::initial();
+        // The user-agent style sheet gives a select `appearance: auto`.
+        let mut style = (*ComputedStyle::initial()).clone();
+        style.appearance = Appearance::Auto;
         let r = Rect::new(0.0, 0.0, 30.0, 19.0);
         let mut select = control(ControlKind::Select, false);
         select.native = false;

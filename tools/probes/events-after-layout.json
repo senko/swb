@@ -1,0 +1,497 @@
+{
+ "javascript": true,
+ "viewport": [
+  800,
+  600
+ ],
+ "cases": [
+  {
+   "name": "layout-events-replaced-by-timer",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:20px;width:200px}a{display:block;height:40px;background:#edc}</style><div id=box><a href=#x id=first>first</a></div><script>\nwindow.__log = [];\nconst L = (s) => __log.push(s);\nconst nm = (n) => n ? (n.nodeType === 9 ? '#document' : n.id || n.tagName.toLowerCase()) : 'null';\nfor (const t of ['pointerover','pointerenter','pointerout','pointerleave','mouseover','mouseenter','mouseout','mouseleave','pointermove','mousemove','pointerdown','mousedown','pointerup','mouseup','click','scroll']) document.addEventListener(t, (e) => L(t + ':' + nm(e.target) + (e.relatedTarget ? '<' + nm(e.relatedTarget) : '') + (e.isTrusted ? '' : '!')), true);\nconst marks = (tag) => { L(tag); queueMicrotask(() => L(tag + ':micro')); requestAnimationFrame(() => requestAnimationFrame(() => L(tag + ':raf2'))); setTimeout(() => L(tag + ':t100'), 100); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst hov = () => [...document.querySelectorAll(':hover')].map(nm).join('>') + ' active=' + [...document.querySelectorAll(':active')].map(nm).join('>');\nconst change = () => { box.innerHTML = '<a href=#y id=second>second</a><a href=#z id=third>third</a>'; marks('changed'); };\n\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(300); return window.__log; })()"
+    },
+    {
+     "js": "hov()"
+    }
+   ],
+   "steps": [
+    {
+     "hover": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "L('hovered')"
+    },
+    {
+     "eval": "setTimeout(change, 50)"
+    },
+    {
+     "wait": 600
+    }
+   ]
+  },
+  {
+   "name": "layout-events-replaced-by-click-handler",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:20px;width:200px}a{display:block;height:40px;background:#edc}</style><div id=box><a href=#x id=first>first</a></div><script>\nwindow.__log = [];\nconst L = (s) => __log.push(s);\nconst nm = (n) => n ? (n.nodeType === 9 ? '#document' : n.id || n.tagName.toLowerCase()) : 'null';\nfor (const t of ['pointerover','pointerenter','pointerout','pointerleave','mouseover','mouseenter','mouseout','mouseleave','pointermove','mousemove','pointerdown','mousedown','pointerup','mouseup','click','scroll']) document.addEventListener(t, (e) => L(t + ':' + nm(e.target) + (e.relatedTarget ? '<' + nm(e.relatedTarget) : '') + (e.isTrusted ? '' : '!')), true);\nconst marks = (tag) => { L(tag); queueMicrotask(() => L(tag + ':micro')); requestAnimationFrame(() => requestAnimationFrame(() => L(tag + ':raf2'))); setTimeout(() => L(tag + ':t100'), 100); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst hov = () => [...document.querySelectorAll(':hover')].map(nm).join('>') + ' active=' + [...document.querySelectorAll(':active')].map(nm).join('>');\nconst change = () => { box.innerHTML = '<a href=#y id=second>second</a><a href=#z id=third>third</a>'; marks('changed'); };\nfirst.addEventListener('click', (e) => { e.preventDefault(); L('click-handler'); setTimeout(change, 50); });\n\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(300); return window.__log; })()"
+    },
+    {
+     "js": "hov()"
+    }
+   ],
+   "steps": [
+    {
+     "hover": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "L('hovered')"
+    },
+    {
+     "click": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 600
+    }
+   ]
+  },
+  {
+   "name": "layout-events-replaced-in-click-handler",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:20px;width:200px}a{display:block;height:40px;background:#edc}</style><div id=box><a href=#x id=first>first</a></div><script>\nwindow.__log = [];\nconst L = (s) => __log.push(s);\nconst nm = (n) => n ? (n.nodeType === 9 ? '#document' : n.id || n.tagName.toLowerCase()) : 'null';\nfor (const t of ['pointerover','pointerenter','pointerout','pointerleave','mouseover','mouseenter','mouseout','mouseleave','pointermove','mousemove','pointerdown','mousedown','pointerup','mouseup','click','scroll']) document.addEventListener(t, (e) => L(t + ':' + nm(e.target) + (e.relatedTarget ? '<' + nm(e.relatedTarget) : '') + (e.isTrusted ? '' : '!')), true);\nconst marks = (tag) => { L(tag); queueMicrotask(() => L(tag + ':micro')); requestAnimationFrame(() => requestAnimationFrame(() => L(tag + ':raf2'))); setTimeout(() => L(tag + ':t100'), 100); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst hov = () => [...document.querySelectorAll(':hover')].map(nm).join('>') + ' active=' + [...document.querySelectorAll(':active')].map(nm).join('>');\nconst change = () => { box.innerHTML = '<a href=#y id=second>second</a><a href=#z id=third>third</a>'; marks('changed'); };\nfirst.addEventListener('click', (e) => { e.preventDefault(); L('click-handler'); change(); });\n\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(300); return window.__log; })()"
+    },
+    {
+     "js": "hov()"
+    }
+   ],
+   "steps": [
+    {
+     "hover": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "L('hovered')"
+    },
+    {
+     "click": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 600
+    }
+   ]
+  },
+  {
+   "name": "layout-events-element-removed",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:20px;width:200px}a{display:block;height:40px;background:#edc}</style><div id=box><a href=#x id=first>first</a></div><script>\nwindow.__log = [];\nconst L = (s) => __log.push(s);\nconst nm = (n) => n ? (n.nodeType === 9 ? '#document' : n.id || n.tagName.toLowerCase()) : 'null';\nfor (const t of ['pointerover','pointerenter','pointerout','pointerleave','mouseover','mouseenter','mouseout','mouseleave','pointermove','mousemove','pointerdown','mousedown','pointerup','mouseup','click','scroll']) document.addEventListener(t, (e) => L(t + ':' + nm(e.target) + (e.relatedTarget ? '<' + nm(e.relatedTarget) : '') + (e.isTrusted ? '' : '!')), true);\nconst marks = (tag) => { L(tag); queueMicrotask(() => L(tag + ':micro')); requestAnimationFrame(() => requestAnimationFrame(() => L(tag + ':raf2'))); setTimeout(() => L(tag + ':t100'), 100); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst hov = () => [...document.querySelectorAll(':hover')].map(nm).join('>') + ' active=' + [...document.querySelectorAll(':active')].map(nm).join('>');\nconst change = () => { first.remove(); marks('changed'); };\n\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(300); return window.__log; })()"
+    },
+    {
+     "js": "hov()"
+    }
+   ],
+   "steps": [
+    {
+     "hover": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "L('hovered')"
+    },
+    {
+     "eval": "setTimeout(change, 50)"
+    },
+    {
+     "wait": 600
+    }
+   ]
+  },
+  {
+   "name": "layout-events-class-moves-element-away",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:20px;width:200px}a{display:block;height:40px;background:#edc}.flex{display:flex;flex-direction:column}.rev{flex-direction:column-reverse}</style><div id=box class=flex><a id=a href=#a>a</a><a id=b href=#b>b</a></div><script>\nwindow.__log = [];\nconst L = (s) => __log.push(s);\nconst nm = (n) => n ? (n.nodeType === 9 ? '#document' : n.id || n.tagName.toLowerCase()) : 'null';\nfor (const t of ['pointerover','pointerenter','pointerout','pointerleave','mouseover','mouseenter','mouseout','mouseleave','pointermove','mousemove','pointerdown','mousedown','pointerup','mouseup','click','scroll']) document.addEventListener(t, (e) => L(t + ':' + nm(e.target) + (e.relatedTarget ? '<' + nm(e.relatedTarget) : '') + (e.isTrusted ? '' : '!')), true);\nconst marks = (tag) => { L(tag); queueMicrotask(() => L(tag + ':micro')); requestAnimationFrame(() => requestAnimationFrame(() => L(tag + ':raf2'))); setTimeout(() => L(tag + ':t100'), 100); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst hov = () => [...document.querySelectorAll(':hover')].map(nm).join('>') + ' active=' + [...document.querySelectorAll(':active')].map(nm).join('>');\nconst change = () => { box.classList.add('rev'); marks('changed'); };\n\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(300); return window.__log; })()"
+    },
+    {
+     "js": "hov()"
+    }
+   ],
+   "steps": [
+    {
+     "hover": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "L('hovered')"
+    },
+    {
+     "eval": "setTimeout(change, 50)"
+    },
+    {
+     "wait": 600
+    }
+   ]
+  },
+  {
+   "name": "layout-events-overlay-inserted-and-hidden",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:20px;width:200px}a{display:block;height:40px;background:#edc}</style><div id=box><a href=#x id=first>first</a></div><script>\nwindow.__log = [];\nconst L = (s) => __log.push(s);\nconst nm = (n) => n ? (n.nodeType === 9 ? '#document' : n.id || n.tagName.toLowerCase()) : 'null';\nfor (const t of ['pointerover','pointerenter','pointerout','pointerleave','mouseover','mouseenter','mouseout','mouseleave','pointermove','mousemove','pointerdown','mousedown','pointerup','mouseup','click','scroll']) document.addEventListener(t, (e) => L(t + ':' + nm(e.target) + (e.relatedTarget ? '<' + nm(e.relatedTarget) : '') + (e.isTrusted ? '' : '!')), true);\nconst marks = (tag) => { L(tag); queueMicrotask(() => L(tag + ':micro')); requestAnimationFrame(() => requestAnimationFrame(() => L(tag + ':raf2'))); setTimeout(() => L(tag + ':t100'), 100); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst hov = () => [...document.querySelectorAll(':hover')].map(nm).join('>') + ' active=' + [...document.querySelectorAll(':active')].map(nm).join('>');\nconst change = () => { const o = document.createElement('div'); o.id = 'ov'; o.style.cssText = 'position:absolute;left:0;top:0;width:400px;height:400px;background:#cde'; document.body.appendChild(o); marks('inserted'); setTimeout(() => { o.style.display = 'none'; marks('hidden'); }, 300); };\n\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(300); return window.__log; })()"
+    },
+    {
+     "js": "hov()"
+    }
+   ],
+   "steps": [
+    {
+     "hover": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "L('hovered')"
+    },
+    {
+     "eval": "setTimeout(change, 50)"
+    },
+    {
+     "wait": 900
+    }
+   ]
+  },
+  {
+   "name": "layout-events-script-scroll",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:0;width:200px}a{display:block;height:40px;background:#edc}</style><div id=box><a id=r0 href=#r0>r0</a><a id=r1 href=#r1>r1</a><a id=r2 href=#r2>r2</a><a id=r3 href=#r3>r3</a><a id=r4 href=#r4>r4</a><a id=r5 href=#r5>r5</a><a id=r6 href=#r6>r6</a><a id=r7 href=#r7>r7</a><a id=r8 href=#r8>r8</a><a id=r9 href=#r9>r9</a><a id=r10 href=#r10>r10</a><a id=r11 href=#r11>r11</a><a id=r12 href=#r12>r12</a><a id=r13 href=#r13>r13</a><a id=r14 href=#r14>r14</a><a id=r15 href=#r15>r15</a><a id=r16 href=#r16>r16</a><a id=r17 href=#r17>r17</a><a id=r18 href=#r18>r18</a><a id=r19 href=#r19>r19</a></div><script>\nwindow.__log = [];\nconst L = (s) => __log.push(s);\nconst nm = (n) => n ? (n.nodeType === 9 ? '#document' : n.id || n.tagName.toLowerCase()) : 'null';\nfor (const t of ['pointerover','pointerenter','pointerout','pointerleave','mouseover','mouseenter','mouseout','mouseleave','pointermove','mousemove','pointerdown','mousedown','pointerup','mouseup','click','scroll']) document.addEventListener(t, (e) => L(t + ':' + nm(e.target) + (e.relatedTarget ? '<' + nm(e.relatedTarget) : '') + (e.isTrusted ? '' : '!')), true);\nconst marks = (tag) => { L(tag); queueMicrotask(() => L(tag + ':micro')); requestAnimationFrame(() => requestAnimationFrame(() => L(tag + ':raf2'))); setTimeout(() => L(tag + ':t100'), 100); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst hov = () => [...document.querySelectorAll(':hover')].map(nm).join('>') + ' active=' + [...document.querySelectorAll(':active')].map(nm).join('>');\nconst change = () => { scrollTo(0, 80); marks('changed'); };\n\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(300); return window.__log; })()"
+    },
+    {
+     "js": "hov()"
+    }
+   ],
+   "steps": [
+    {
+     "hover": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "L('hovered')"
+    },
+    {
+     "eval": "setTimeout(change, 50)"
+    },
+    {
+     "wait": 600
+    }
+   ]
+  },
+  {
+   "name": "layout-events-wheel-scroll",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:0;width:200px}a{display:block;height:40px;background:#edc}</style><div id=box><a id=r0 href=#r0>r0</a><a id=r1 href=#r1>r1</a><a id=r2 href=#r2>r2</a><a id=r3 href=#r3>r3</a><a id=r4 href=#r4>r4</a><a id=r5 href=#r5>r5</a><a id=r6 href=#r6>r6</a><a id=r7 href=#r7>r7</a><a id=r8 href=#r8>r8</a><a id=r9 href=#r9>r9</a><a id=r10 href=#r10>r10</a><a id=r11 href=#r11>r11</a><a id=r12 href=#r12>r12</a><a id=r13 href=#r13>r13</a><a id=r14 href=#r14>r14</a><a id=r15 href=#r15>r15</a><a id=r16 href=#r16>r16</a><a id=r17 href=#r17>r17</a><a id=r18 href=#r18>r18</a><a id=r19 href=#r19>r19</a></div><script>\nwindow.__log = [];\nconst L = (s) => __log.push(s);\nconst nm = (n) => n ? (n.nodeType === 9 ? '#document' : n.id || n.tagName.toLowerCase()) : 'null';\nfor (const t of ['pointerover','pointerenter','pointerout','pointerleave','mouseover','mouseenter','mouseout','mouseleave','pointermove','mousemove','pointerdown','mousedown','pointerup','mouseup','click','scroll']) document.addEventListener(t, (e) => L(t + ':' + nm(e.target) + (e.relatedTarget ? '<' + nm(e.relatedTarget) : '') + (e.isTrusted ? '' : '!')), true);\nconst marks = (tag) => { L(tag); queueMicrotask(() => L(tag + ':micro')); requestAnimationFrame(() => requestAnimationFrame(() => L(tag + ':raf2'))); setTimeout(() => L(tag + ':t100'), 100); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst hov = () => [...document.querySelectorAll(':hover')].map(nm).join('>') + ' active=' + [...document.querySelectorAll(':active')].map(nm).join('>');\n\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(300); return window.__log; })()"
+    },
+    {
+     "js": "hov()"
+    }
+   ],
+   "steps": [
+    {
+     "hover": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "L('hovered')"
+    },
+    {
+     "wheel": [
+      0,
+      80
+     ]
+    },
+    {
+     "eval": "L('after-wheel-step')"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "L('end')"
+    }
+   ]
+  },
+  {
+   "name": "layout-events-while-pressed",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:20px;width:200px}a{display:block;height:40px;background:#edc}</style><div id=box><a href=#x id=first>first</a></div><script>\nwindow.__log = [];\nconst L = (s) => __log.push(s);\nconst nm = (n) => n ? (n.nodeType === 9 ? '#document' : n.id || n.tagName.toLowerCase()) : 'null';\nfor (const t of ['pointerover','pointerenter','pointerout','pointerleave','mouseover','mouseenter','mouseout','mouseleave','pointermove','mousemove','pointerdown','mousedown','pointerup','mouseup','click','scroll']) document.addEventListener(t, (e) => L(t + ':' + nm(e.target) + (e.relatedTarget ? '<' + nm(e.relatedTarget) : '') + (e.isTrusted ? '' : '!')), true);\nconst marks = (tag) => { L(tag); queueMicrotask(() => L(tag + ':micro')); requestAnimationFrame(() => requestAnimationFrame(() => L(tag + ':raf2'))); setTimeout(() => L(tag + ':t100'), 100); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst hov = () => [...document.querySelectorAll(':hover')].map(nm).join('>') + ' active=' + [...document.querySelectorAll(':active')].map(nm).join('>');\nconst change = () => { box.innerHTML = '<a href=#y id=second>second</a><a href=#z id=third>third</a>'; marks('changed'); };\n\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(300); return window.__log; })()"
+    },
+    {
+     "js": "hov()"
+    }
+   ],
+   "steps": [
+    {
+     "hover": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "L('hovered')"
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "eval": "L('down-done')"
+    },
+    {
+     "eval": "setTimeout(change, 50)"
+    },
+    {
+     "wait": 400
+    },
+    {
+     "eval": "L('before-up:' + hov())"
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    }
+   ]
+  },
+  {
+   "name": "layout-events-changed-in-animation-frame",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:20px;width:200px}a{display:block;height:40px;background:#edc}</style><div id=box><a href=#x id=first>first</a></div><script>\nwindow.__log = [];\nconst L = (s) => __log.push(s);\nconst nm = (n) => n ? (n.nodeType === 9 ? '#document' : n.id || n.tagName.toLowerCase()) : 'null';\nfor (const t of ['pointerover','pointerenter','pointerout','pointerleave','mouseover','mouseenter','mouseout','mouseleave','pointermove','mousemove','pointerdown','mousedown','pointerup','mouseup','click','scroll']) document.addEventListener(t, (e) => L(t + ':' + nm(e.target) + (e.relatedTarget ? '<' + nm(e.relatedTarget) : '') + (e.isTrusted ? '' : '!')), true);\nconst marks = (tag) => { L(tag); queueMicrotask(() => L(tag + ':micro')); requestAnimationFrame(() => requestAnimationFrame(() => L(tag + ':raf2'))); setTimeout(() => L(tag + ':t100'), 100); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst hov = () => [...document.querySelectorAll(':hover')].map(nm).join('>') + ' active=' + [...document.querySelectorAll(':active')].map(nm).join('>');\nconst change = () => { requestAnimationFrame(() => { L('in-raf'); box.innerHTML = '<a href=#y id=second>second</a>'; marks('changed'); }); };\n\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(300); return window.__log; })()"
+    },
+    {
+     "js": "hov()"
+    }
+   ],
+   "steps": [
+    {
+     "hover": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "L('hovered')"
+    },
+    {
+     "eval": "setTimeout(change, 50)"
+    },
+    {
+     "wait": 600
+    }
+   ]
+  },
+  {
+   "name": "layout-events-no-change-no-events",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:20px;width:200px}a{display:block;height:40px;background:#edc}</style><div id=box><a href=#x id=first>first</a></div><script>\nwindow.__log = [];\nconst L = (s) => __log.push(s);\nconst nm = (n) => n ? (n.nodeType === 9 ? '#document' : n.id || n.tagName.toLowerCase()) : 'null';\nfor (const t of ['pointerover','pointerenter','pointerout','pointerleave','mouseover','mouseenter','mouseout','mouseleave','pointermove','mousemove','pointerdown','mousedown','pointerup','mouseup','click','scroll']) document.addEventListener(t, (e) => L(t + ':' + nm(e.target) + (e.relatedTarget ? '<' + nm(e.relatedTarget) : '') + (e.isTrusted ? '' : '!')), true);\nconst marks = (tag) => { L(tag); queueMicrotask(() => L(tag + ':micro')); requestAnimationFrame(() => requestAnimationFrame(() => L(tag + ':raf2'))); setTimeout(() => L(tag + ':t100'), 100); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst hov = () => [...document.querySelectorAll(':hover')].map(nm).join('>') + ' active=' + [...document.querySelectorAll(':active')].map(nm).join('>');\nconst change = () => { box.style.background = '#fed'; first.style.color = 'red'; marks('changed'); };\n\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(300); return window.__log; })()"
+    },
+    {
+     "js": "hov()"
+    }
+   ],
+   "steps": [
+    {
+     "hover": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "L('hovered')"
+    },
+    {
+     "eval": "setTimeout(change, 50)"
+    },
+    {
+     "wait": 600
+    }
+   ]
+  },
+  {
+   "name": "layout-events-wheel-burst",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:0;width:200px}a{display:block;height:40px;background:#edc}</style><div id=box><a id=r0 href=#r0>r0</a><a id=r1 href=#r1>r1</a><a id=r2 href=#r2>r2</a><a id=r3 href=#r3>r3</a><a id=r4 href=#r4>r4</a><a id=r5 href=#r5>r5</a><a id=r6 href=#r6>r6</a><a id=r7 href=#r7>r7</a><a id=r8 href=#r8>r8</a><a id=r9 href=#r9>r9</a><a id=r10 href=#r10>r10</a><a id=r11 href=#r11>r11</a><a id=r12 href=#r12>r12</a><a id=r13 href=#r13>r13</a><a id=r14 href=#r14>r14</a><a id=r15 href=#r15>r15</a><a id=r16 href=#r16>r16</a><a id=r17 href=#r17>r17</a><a id=r18 href=#r18>r18</a><a id=r19 href=#r19>r19</a></div><script>\nwindow.__log = [];\nconst L = (s) => __log.push(s);\nconst nm = (n) => n ? (n.nodeType === 9 ? '#document' : n.id || n.tagName.toLowerCase()) : 'null';\nfor (const t of ['pointerover','pointerenter','pointerout','pointerleave','mouseover','mouseenter','mouseout','mouseleave','pointermove','mousemove','pointerdown','mousedown','pointerup','mouseup','click','scroll']) document.addEventListener(t, (e) => L(t + ':' + nm(e.target) + (e.relatedTarget ? '<' + nm(e.relatedTarget) : '') + (e.isTrusted ? '' : '!')), true);\nconst marks = (tag) => { L(tag); queueMicrotask(() => L(tag + ':micro')); requestAnimationFrame(() => requestAnimationFrame(() => L(tag + ':raf2'))); setTimeout(() => L(tag + ':t100'), 100); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst hov = () => [...document.querySelectorAll(':hover')].map(nm).join('>') + ' active=' + [...document.querySelectorAll(':active')].map(nm).join('>');\n\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(300); return window.__log; })()"
+    },
+    {
+     "js": "hov()"
+    }
+   ],
+   "steps": [
+    {
+     "hover": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "L('hovered')"
+    },
+    {
+     "wheel": [
+      0,
+      40
+     ]
+    },
+    {
+     "wait": 30
+    },
+    {
+     "wheel": [
+      0,
+      40
+     ]
+    },
+    {
+     "wait": 30
+    },
+    {
+     "wheel": [
+      0,
+      40
+     ]
+    },
+    {
+     "eval": "L('after-wheels')"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "L('end')"
+    }
+   ]
+  },
+  {
+   "name": "layout-events-while-pressed-moved",
+   "html": "<!DOCTYPE html><style>body{margin:0}#box{position:absolute;left:20px;top:20px;width:200px}a{display:block;height:40px;background:#edc}.flex{display:flex;flex-direction:column}.rev{flex-direction:column-reverse}a:active{background:#f00}</style><div id=box class=flex><a id=a href=#a>a</a><a id=b href=#b>b</a></div><script>\nwindow.__log = [];\nconst L = (s) => __log.push(s);\nconst nm = (n) => n ? (n.nodeType === 9 ? '#document' : n.id || n.tagName.toLowerCase()) : 'null';\nfor (const t of ['pointerover','pointerenter','pointerout','pointerleave','mouseover','mouseenter','mouseout','mouseleave','pointermove','mousemove','pointerdown','mousedown','pointerup','mouseup','click','scroll']) document.addEventListener(t, (e) => L(t + ':' + nm(e.target) + (e.relatedTarget ? '<' + nm(e.relatedTarget) : '') + (e.isTrusted ? '' : '!')), true);\nconst marks = (tag) => { L(tag); queueMicrotask(() => L(tag + ':micro')); requestAnimationFrame(() => requestAnimationFrame(() => L(tag + ':raf2'))); setTimeout(() => L(tag + ':t100'), 100); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst hov = () => [...document.querySelectorAll(':hover')].map(nm).join('>') + ' active=' + [...document.querySelectorAll(':active')].map(nm).join('>');\nconst change = () => { box.classList.add('rev'); marks('changed'); };\n\n</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(300); return window.__log; })()"
+    },
+    {
+     "js": "hov()"
+    }
+   ],
+   "steps": [
+    {
+     "hover": [
+      60,
+      40
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "L('hovered')"
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "eval": "L('down-done')"
+    },
+    {
+     "eval": "setTimeout(change, 50)"
+    },
+    {
+     "wait": 400
+    },
+    {
+     "eval": "L('before-up:' + hov())"
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    }
+   ]
+  }
+ ]
+}

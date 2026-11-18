@@ -130,8 +130,13 @@ enum PaintKind {
 
 fn paint_kind(b: &BoxFragment) -> PaintKind {
     let style = &b.style;
-    // A transformed box counts as positioned (CSS Transforms 1 §3).
-    if style.position != Position::Static || has_transform(b) {
+    // A transformed box counts as positioned (CSS Transforms 1 §3). So
+    // does a flex or grid item with an integer `z-index`: it paints in
+    // z-index order although it is static.
+    if style.position != Position::Static
+        || has_transform(b)
+        || (style.flex_or_grid_item && style.z_index != ZIndex::Auto)
+    {
         PaintKind::Positioned
     } else if style.is_floating() {
         PaintKind::Float
@@ -368,15 +373,16 @@ impl Builder<'_> {
         let origin = self.scroll.origin_of(b, origin);
         let style = &b.style;
         let positioned = style.position != Position::Static;
-        // Only positioned and transformed boxes come here (`walk`).
-        debug_assert!(positioned || has_transform(b));
+        // Only positioned and transformed boxes, and flex and grid items
+        // with a `z-index`, come here (`walk`).
+        debug_assert!(positioned || has_transform(b) || style.z_index_applies());
         // A positioned or transformed box is painted after the normal-flow
         // content of the enclosing stacking context, in z-index order
         // (`auto` as 0; a transformed box counts as positioned, CSS
         // Transforms 1 §3). It forms a stacking context if it has an
         // integer z-index, a transform, or fixed or sticky positioning.
         let z = match style.z_index {
-            ZIndex::Integer(z) if positioned => z,
+            ZIndex::Integer(z) if style.z_index_applies() => z,
             _ => 0,
         };
         let context = forms_stacking_context(b);

@@ -630,6 +630,11 @@ impl Page {
     /// own (ADR 0031 section 2): a change of its URL is in the document, and
     /// the page only scrolls for a fragment.
     fn act_on_frame_requests(&mut self, id: FrameId) {
+        // A task that reached the document under the pointer may have
+        // changed what is under it.
+        if self.input.hover_frames.contains(&id) {
+            self.note_hover_stale();
+        }
         let Some(doc) = self.doc_of_mut(id) else {
             return;
         };
@@ -736,6 +741,8 @@ impl Page {
         let generation = doc.dom.generation();
         if std::mem::replace(&mut self.input.frames_seen_generation, generation) != generation {
             self.note_frame_viewports_may_change();
+            // The content under the pointer may have changed.
+            self.note_hover_stale();
         }
         self.apply_state_changes(requests.state_changes);
         if let Some(node) = requests.scroll_into_view {
@@ -974,7 +981,11 @@ impl Page {
     /// time. A frame that only runs animation frame callbacks does not
     /// count: a page with a `requestAnimationFrame` loop can be idle.
     pub fn is_idle(&mut self, quiet: Duration) -> bool {
-        if self.is_loading() || !self.traversals.is_empty() || self.frames_busy() {
+        if self.is_loading()
+            || !self.traversals.is_empty()
+            || self.frames_busy()
+            || self.has_held_requests()
+        {
             return false;
         }
         let horizon = self.clock.now() + quiet.as_secs_f64() * 1000.0;
@@ -1020,13 +1031,22 @@ impl Page {
             }
             let next = self.next_task_time();
             let loading = self.is_loading() || self.has_pending_api_fetches() || self.frames_busy();
-            if self.clock.is_virtual() && !loading {
+            // A completion that waits for a rendering update (`completions.rs`)
+            // is pending work that only the next frame ends: time may jump.
+            let held = self.held_completions_ready();
+            if self.clock.is_virtual() && (!loading || held) {
                 // Nothing runs and nothing is pending: time jumps.
-                let Some(target) = next.into_iter().chain(end).reduce(f64::min) else {
-                    return done(self);
-                };
-                self.clock.advance_to(target);
-                continue;
+                let target = next.into_iter().chain(end).reduce(f64::min);
+                match target {
+                    // A frame that is due but did not run (a frame document
+                    // is active) cannot end the wait by a jump: do not
+                    // block for it.
+                    Some(target) if !held || target > self.clock.now() => {
+                        self.clock.advance_to(target);
+                        continue;
+                    }
+                    _ => return done(self),
+                }
             }
             if !loading && next.is_none() && end.is_none() {
                 // Nothing can happen any more.
@@ -1040,7 +1060,7 @@ impl Page {
             }
             let wait = until.saturating_duration_since(Instant::now());
             if let Some(completion) = self.loader.recv_timeout(wait) {
-                self.handle_completion(completion);
+                self.accept_completion(completion);
             }
         }
     }

@@ -36,6 +36,7 @@
 //! ADR 0031).
 
 mod agents;
+mod completions;
 mod events;
 mod forms;
 mod frame_commit;
@@ -430,6 +431,9 @@ pub struct Page {
     /// True after a frame was destroyed: it may have been the last one that
     /// delayed the `load` event, which the next turn then checks.
     frame_destroyed: bool,
+    /// Completions that wait for a rendering update in virtual time
+    /// (`completions.rs`).
+    held: completions::HeldCompletions,
     /// The frame whose document `doc` holds: [`FrameId::TOP`], except while
     /// [`Page::in_frame`] runs the input code of a frame (ADR 0031 section
     /// 8).
@@ -523,6 +527,7 @@ impl Page {
             made_in_task: std::collections::HashSet::new(),
             frame_navigations: Vec::new(),
             frame_destroyed: false,
+            held: completions::HeldCompletions::default(),
             active_frame: FrameId::TOP,
             frame_inputs: std::collections::HashMap::new(),
             deferred_navigations: Vec::new(),

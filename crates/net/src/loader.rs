@@ -283,6 +283,13 @@ impl Loader {
         }
     }
 
+    /// The id that the next started request gets. Ids grow with each
+    /// request, so the requests that started between two calls are those
+    /// with an id from the first result up to, not including, the second.
+    pub fn next_request_id(&self) -> RequestId {
+        self.next_id.load(Ordering::Relaxed)
+    }
+
     /// A new client number; never [`NO_CLIENT`] and never one returned
     /// before.
     pub fn new_client(&self) -> ClientId {

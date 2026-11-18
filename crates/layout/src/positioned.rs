@@ -249,7 +249,8 @@ pub fn clip_property_area(fragment: &BoxFragment, border_rect: Rect) -> Option<R
 /// True if the box forms a stacking context in paint (CSS 2.2 Appendix E,
 /// CSS Transforms 1 §3, CSS Masking 1): a transform, fixed or sticky
 /// positioning, a positioned box with an integer `z-index`, opacity below
-/// 1, layout or paint containment (`contain`, `content-visibility`;
+/// 1 (a flex or grid item with an integer `z-index` counts as positioned
+/// here; measured in Chromium 148), layout or paint containment (`contain`, `content-visibility`;
 /// measured in Chromium 148, `ct-stacking-and-clip`), a `filter` other than `none` (also `url()` and the identity
 /// functions, measured in Chromium), a mask, or a `clip-path` that is a
 /// basic shape or a geometry box
@@ -261,7 +262,7 @@ pub fn forms_stacking_context(fragment: &BoxFragment) -> bool {
     let style = &fragment.style;
     has_transform(fragment)
         || matches!(style.position, Position::Fixed | Position::Sticky)
-        || (style.position != Position::Static && style.z_index != swb_style::ZIndex::Auto)
+        || (style.z_index_applies() && style.z_index != swb_style::ZIndex::Auto)
         || style.opacity < 1.0
         || style.has_layout_containment()
         || style.has_paint_containment()

@@ -260,6 +260,70 @@ def inline_svg_dense_clip() -> Page:
 
 
 @case(
+    "inline SVG: 100,000 <use> of a symbol of 5 shapes with a viewBox, past the limit of 20,000 "
+    "elements in the instances of use elements (M12 feature 3b)",
+    expect_log="elements in the instances",
+)
+def inline_svg_many_symbol_uses() -> Page:
+    symbol = "<symbol id=s viewBox='0 0 10 10'>" + "<rect width=5 height=5 />" * 5 + "</symbol>"
+    uses = "<use href='#s' x=1 width=10 height=10 />" * 100_000
+    return Page(doc(f"<svg width=200 height=200>{symbol}{uses}</svg>"))
+
+
+@case(
+    "inline SVG: a chain of 200 symbols that each use the next (past the use depth of 16), a "
+    "symbol that uses itself, and a cycle of two symbols (M12 feature 3b)"
+)
+def inline_svg_symbol_chains() -> Page:
+    chain = "".join(
+        f"<symbol id=c{i} viewBox='0 0 10 10'><use href='#c{i + 1}' width=9 height=9 /></symbol>"
+        for i in range(200)
+    )
+    chain += "<symbol id=c200 viewBox='0 0 10 10'><rect width=5 height=5 /></symbol>"
+    cycles = (
+        "<symbol id=a><rect width=5 height=5 /><use href='#a' /></symbol>"
+        "<symbol id=b><use href='#d' /></symbol><symbol id=d><use href='#b' /></symbol>"
+        "<use href='#a' width=50 height=50 /><use href='#b' />"
+        "<use href='#c0' width=100 height=100 />"
+    )
+    return Page(doc(f"<svg width=200 height=200>{chain}{cycles}</svg>"))
+
+
+@case(
+    "inline SVG: 20,000 <use> of a symbol with a rotation, each clipped to its viewport by a "
+    "path, past the limit of 256 clip paths that need a layer (M12 feature 3b)",
+    expect_log="clip paths that need a layer",
+)
+def inline_svg_rotated_symbol_clips() -> Page:
+    symbol = "<symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol>"
+    uses = "<use href='#s' width=1000 height=700 transform='rotate(7)' />" * 20_000
+    return Page(doc(f"<svg width=1280 height=800>{symbol}{uses}</svg>"))
+
+
+@case(
+    "inline SVG: symbols with huge and tiny sizes, view boxes and percentages in nested "
+    "viewports (M12 feature 3b)"
+)
+def inline_svg_huge_symbols() -> Page:
+    symbols = "".join(
+        f"<symbol id=s{i} viewBox='{vb}' width='{w}' height='{h}' preserveAspectRatio='{par}'>"
+        "<rect width='50%' height='1e38' stroke=red stroke-width=1e38 />"
+        "<use href='#s0' x=1e38 y=-1e38 width='1e30%' height=1e-30 /></symbol>"
+        for i, (vb, w, h, par) in enumerate(
+            [
+                ("0 0 1e38 1e38", "1e38", "1e-38", "xMinYMax slice"),
+                ("-1e38 -1e38 1e-30 1e-30", "100%", "1e30%", "none"),
+                ("0 0 1 1", "-5", "0", "xMidYMid meet"),
+                ("1e38 1e38 1e38 1e38", "1e38", "1e38", "xMaxYMax slice"),
+            ]
+        )
+    )
+    uses = "".join(f"<use href='#s{i}' width=1e38 height=1e-38 />" for i in range(4))
+    uses += "".join(f"<use href='#s{i}' />" for i in range(4))
+    return Page(doc(f"<svg width=200 height=200 viewBox='0 0 1e-30 1e38'>{symbols}{uses}</svg>"))
+
+
+@case(
     "inline SVG: a clip path of 40 paths of 3,000 overlapping curves, used by 300 elements "
     "(12,000 fills, and 12,000 point tests per hit test): the cost of counting the segments is "
     "charged also for fills that do not fit (ADR 0023)",

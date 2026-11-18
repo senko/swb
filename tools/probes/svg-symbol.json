@@ -1,0 +1,951 @@
+{
+ "viewport": [400,300],
+ "cases": [
+  {
+   "name": "symbol-meet",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol><use href='#s' x=20 y=10 width=40 height=20 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[25,20], [35,20], [55,20], [45,29], [45,31], [45,9]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-use-no-size",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol><use href='#s' x=10 y=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,50], [15,50], [95,95], [50,5]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-own-size",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s width=40 height=40 viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol><use href='#s' x=10 y=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[15,15], [49,49], [51,51], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-own-size-partial",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s width=40 viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol><use href='#s' x=10 y=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[15,15], [49,49], [51,51], [95,95], [15,95]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-use-size-over-own",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s width=40 height=40 viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol><use href='#s' x=10 y=10 width=20 height=20 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[15,15], [29,29], [31,31], [49,49]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-no-viewbox",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s><rect width=100 height=100 fill=red /></symbol><use href='#s' x=10 y=10 width=30 height=30 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [20,20], [39,39], [45,45]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-no-viewbox-no-size",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s><rect x=-5 y=-5 width=200 height=200 fill=red /></symbol><use href='#s' x=10 y=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,15], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-overflow-visible",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s overflow=visible><rect width=100 height=100 fill=red /></symbol><use href='#s' x=10 y=10 width=30 height=30 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [20,20], [45,45]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-overflow-visible-viewbox",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s overflow=visible viewBox='0 0 10 5'><rect width=10 height=5 fill=red /><rect y=5 width=10 height=5 fill=blue /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,5], [20,15], [20,25], [20,35], [20,45]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-par-meet",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 5'><rect width=10 height=5 fill=red /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,5], [20,15], [20,35]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-par-min",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 5' preserveAspectRatio='xMinYMin'><rect width=10 height=5 fill=red /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,5], [20,15], [20,25]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-par-slice",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 5' preserveAspectRatio='xMidYMid slice'><rect width=10 height=5 fill=red /><rect x=-5 y=-5 width=5 height=15 fill=blue /></symbol><use href='#s' x=20 y=20 width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[10,30], [25,30], [40,30], [70,30], [40,15], [40,65]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-par-none",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 5' preserveAspectRatio='none'><rect width=10 height=5 fill=red /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,5], [20,35], [45,20]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-inherit",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 /></symbol><use href='#s' fill='green' x=0 y=0 width=20 height=20 /><symbol id=t viewBox='0 0 10 10' fill='blue'><rect width=10 height=10 /></symbol><use href='#t' fill='green' x=30 y=0 width=20 height=20 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[10,10], [40,10]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-stroke-attrs",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 10' fill='none' stroke='currentColor' stroke-width='4'><path d='M0 5H10' /></symbol><use href='#s' color='red' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,20], [20,10], [20,30], [20,35]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-nested-use",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=i viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol><symbol id=o viewBox='0 0 20 20'><use href='#i' x=10 y=10 width=10 height=10 /></symbol><use href='#o' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[10,10], [30,30], [39,39], [41,41]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-nested-use-no-size",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=i viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol><symbol id=o viewBox='0 0 20 20'><use href='#i' x=10 y=10 /></symbol><use href='#o' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[10,10], [30,30], [39,39], [41,41]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-self-use",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=5 height=10 fill=red /><use href='#s' x=5 /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,20], [30,20]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-unused-draws-nothing",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-use-zero-size",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol><use href='#s' width=0 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,5], [5,5], [20,20]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-use-percent",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol><use href='#s' x=10% y=10% width=50% height=50% /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,15], [55,55], [65,65]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-viewbox-offset",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='5 5 10 10'><rect x=5 y=5 width=10 height=10 fill=red /><rect width=5 height=5 fill=blue /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [20,20], [39,39]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-opacity",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 10' opacity=0.5><rect width=10 height=10 fill=red /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,20]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-transform-on-use",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol><use href='#s' width=20 height=20 transform='translate(30 30)' /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[10,10], [40,40], [55,55]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-in-other-svg",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=h width=0 height=0 style='position:absolute'><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol></svg><svg id=a><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,20], [60,60]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-display-none-svg",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=h style='display:none'><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol></svg><svg id=a><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,20], [60,60]]
+    }
+   ]
+  },
+  {
+   "name": "var-in-color-attr",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} :root{--c:rgb(0,128,0)} svg{color:red}</style><svg id=a><use href='#r' color='var(--c)' /><defs><rect id=r width=50 height=50 fill=currentColor /></defs></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,20]]
+    }
+   ]
+  },
+  {
+   "name": "var-in-fill-attr",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} :root{--c:rgb(0,128,0)}</style><svg id=a><rect width=50 height=50 fill='var(--c)' /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,20]]
+    }
+   ]
+  },
+  {
+   "name": "var-in-color-attr-g",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} :root{--c:rgb(0,128,0)} svg{color:red}</style><svg id=a><g color='var(--c)'><rect width=50 height=50 fill=currentColor /></g></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,20]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-hit",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect id=r width=10 height=10 fill=red /></symbol><use id=u href='#s' x=20 y=20 width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[30,30]]
+    },
+    {
+     "js": "[document.elementFromPoint(30,30).id, document.elementFromPoint(10,10).id, document.elementFromPoint(65,65).id]"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "pin-start-var",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} :root{--marker-green:rgb(0,128,0)} svg#a{width:25px;height:40px}</style><svg width=\"0\" height=\"0\" style=\"position:absolute;right:0\" aria-hidden=\"true\">\n  <defs>\n    <linearGradient id=\"fill\" x1=\"0\" x2=\"0\" y1=\"0\" y2=\"40\" gradientUnits=\"userSpaceOnUse\">\n      <stop offset=\"0\" stop-color=\"#aaa6\" />\n      <stop offset=\"1\" stop-color=\"#2224\" />\n    </linearGradient>\n    <linearGradient id=\"stroke\" x1=\"0\" x2=\"0\" y1=\"0\" y2=\"20\" gradientUnits=\"userSpaceOnUse\">\n      <stop offset=\"0\" stop-color=\"#6666\" />\n      <stop offset=\"1\" stop-color=\"#4448\" />\n    </linearGradient>\n    <clipPath id=\"pin-clip\">\n      <path id=\"pin-path\" d=\"M12.5 40 2.94 21.6448C1.47 18.8224 0 16 0 12.5a12.5 12.5 0 0 1 25 0c0 3.5-1.47 6.3224-2.94 9.1448z\" />\n    </clipPath>\n    <filter id=\"pin-shadow-blur\" x=\"-50%\" y=\"-50%\" width=\"200%\" height=\"200%\"><feGaussianBlur stdDeviation=\"4 2\" /></filter>\n    <ellipse id=\"pin-shadow\" cx=\"12.5\" cy=\"40\" rx=\"12.5\" ry=\"3\" fill-opacity=\"0.3\" filter=\"url(#pin-shadow-blur)\"></ellipse>\n\n\n      <path id=\"dot-path\" stroke-linecap=\"round\" fill=\"#fff\" d=\"M11.5 10a1 1 0 0 0 2 5 1 1 0 0 0-2-5\" />\n      <g id=\"pin-dot\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#dot-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#dot-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#dot-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#dot-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n      <path id=\"exclam-path\" stroke-linecap=\"round\" fill=\"none\" d=\"M12.5 6.25V14.15m0 5.6v0\" />\n      <g id=\"pin-exclam\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#exclam-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#exclam-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#exclam-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#exclam-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n      <path id=\"tick-path\" stroke-linecap=\"round\" stroke-linejoin=\"round\" fill=\"none\" d=\"M7.157 14.649Q8.9 16 11.22 18.761 14.7 11.7 17.843 8.239\" />\n      <g id=\"pin-tick\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#tick-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#tick-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#tick-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#tick-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n      <path id=\"plus-path\" stroke-linecap=\"round\" d=\"M5.75 13h13.5m-6.75-6.75v13.5\" />\n      <g id=\"pin-plus\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#plus-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#plus-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#plus-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#plus-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n      <path id=\"start-path\" stroke-linejoin=\"round\" fill=\"#fff\" d=\"M5.5 13h7v7l5-12z\" />\n      <g id=\"pin-start\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#start-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#start-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#start-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#start-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n      <path id=\"destination-path\" stroke-linecap=\"round\" stroke-linejoin=\"round\" fill=\"#fff\" d=\"M10 21 7 9c5-3 6 2 11 0l1 4c-5 2-6-3-11 0\" />\n      <g id=\"pin-destination\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#destination-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#destination-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#destination-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#destination-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n  </defs>\n</svg><svg id=a viewBox='0 0 25 40'><use href='#pin-start' color='var(--marker-green)' /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[12,5], [12,12], [12,30], [3,12], [22,12], [1,39], [12,38], [8,15], [14,12], [12,18]]
+    }
+   ]
+  },
+  {
+   "name": "pin-start-plain",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} :root{--marker-green:rgb(0,128,0)} svg#a{width:25px;height:40px}</style><svg width=\"0\" height=\"0\" style=\"position:absolute;right:0\" aria-hidden=\"true\">\n  <defs>\n    <linearGradient id=\"fill\" x1=\"0\" x2=\"0\" y1=\"0\" y2=\"40\" gradientUnits=\"userSpaceOnUse\">\n      <stop offset=\"0\" stop-color=\"#aaa6\" />\n      <stop offset=\"1\" stop-color=\"#2224\" />\n    </linearGradient>\n    <linearGradient id=\"stroke\" x1=\"0\" x2=\"0\" y1=\"0\" y2=\"20\" gradientUnits=\"userSpaceOnUse\">\n      <stop offset=\"0\" stop-color=\"#6666\" />\n      <stop offset=\"1\" stop-color=\"#4448\" />\n    </linearGradient>\n    <clipPath id=\"pin-clip\">\n      <path id=\"pin-path\" d=\"M12.5 40 2.94 21.6448C1.47 18.8224 0 16 0 12.5a12.5 12.5 0 0 1 25 0c0 3.5-1.47 6.3224-2.94 9.1448z\" />\n    </clipPath>\n    <filter id=\"pin-shadow-blur\" x=\"-50%\" y=\"-50%\" width=\"200%\" height=\"200%\"><feGaussianBlur stdDeviation=\"4 2\" /></filter>\n    <ellipse id=\"pin-shadow\" cx=\"12.5\" cy=\"40\" rx=\"12.5\" ry=\"3\" fill-opacity=\"0.3\" filter=\"url(#pin-shadow-blur)\"></ellipse>\n\n\n      <path id=\"dot-path\" stroke-linecap=\"round\" fill=\"#fff\" d=\"M11.5 10a1 1 0 0 0 2 5 1 1 0 0 0-2-5\" />\n      <g id=\"pin-dot\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#dot-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#dot-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#dot-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#dot-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n      <path id=\"exclam-path\" stroke-linecap=\"round\" fill=\"none\" d=\"M12.5 6.25V14.15m0 5.6v0\" />\n      <g id=\"pin-exclam\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#exclam-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#exclam-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#exclam-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#exclam-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n      <path id=\"tick-path\" stroke-linecap=\"round\" stroke-linejoin=\"round\" fill=\"none\" d=\"M7.157 14.649Q8.9 16 11.22 18.761 14.7 11.7 17.843 8.239\" />\n      <g id=\"pin-tick\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#tick-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#tick-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#tick-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#tick-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n      <path id=\"plus-path\" stroke-linecap=\"round\" d=\"M5.75 13h13.5m-6.75-6.75v13.5\" />\n      <g id=\"pin-plus\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#plus-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#plus-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#plus-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#plus-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n      <path id=\"start-path\" stroke-linejoin=\"round\" fill=\"#fff\" d=\"M5.5 13h7v7l5-12z\" />\n      <g id=\"pin-start\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#start-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#start-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#start-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#start-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n      <path id=\"destination-path\" stroke-linecap=\"round\" stroke-linejoin=\"round\" fill=\"#fff\" d=\"M10 21 7 9c5-3 6 2 11 0l1 4c-5 2-6-3-11 0\" />\n      <g id=\"pin-destination\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#destination-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#destination-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#destination-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#destination-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n  </defs>\n</svg><svg id=a viewBox='0 0 25 40'><use href='#pin-start' color='rgb(0,128,0)' /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[12,5], [12,12], [12,30], [3,12], [22,12], [1,39], [12,38], [8,15], [14,12], [12,18]]
+    }
+   ]
+  },
+  {
+   "name": "pin-dot",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} :root{--marker-green:rgb(0,128,0)} svg#a{width:25px;height:40px}</style><svg width=\"0\" height=\"0\" style=\"position:absolute;right:0\" aria-hidden=\"true\">\n  <defs>\n    <linearGradient id=\"fill\" x1=\"0\" x2=\"0\" y1=\"0\" y2=\"40\" gradientUnits=\"userSpaceOnUse\">\n      <stop offset=\"0\" stop-color=\"#aaa6\" />\n      <stop offset=\"1\" stop-color=\"#2224\" />\n    </linearGradient>\n    <linearGradient id=\"stroke\" x1=\"0\" x2=\"0\" y1=\"0\" y2=\"20\" gradientUnits=\"userSpaceOnUse\">\n      <stop offset=\"0\" stop-color=\"#6666\" />\n      <stop offset=\"1\" stop-color=\"#4448\" />\n    </linearGradient>\n    <clipPath id=\"pin-clip\">\n      <path id=\"pin-path\" d=\"M12.5 40 2.94 21.6448C1.47 18.8224 0 16 0 12.5a12.5 12.5 0 0 1 25 0c0 3.5-1.47 6.3224-2.94 9.1448z\" />\n    </clipPath>\n    <filter id=\"pin-shadow-blur\" x=\"-50%\" y=\"-50%\" width=\"200%\" height=\"200%\"><feGaussianBlur stdDeviation=\"4 2\" /></filter>\n    <ellipse id=\"pin-shadow\" cx=\"12.5\" cy=\"40\" rx=\"12.5\" ry=\"3\" fill-opacity=\"0.3\" filter=\"url(#pin-shadow-blur)\"></ellipse>\n\n\n      <path id=\"dot-path\" stroke-linecap=\"round\" fill=\"#fff\" d=\"M11.5 10a1 1 0 0 0 2 5 1 1 0 0 0-2-5\" />\n      <g id=\"pin-dot\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#dot-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#dot-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#dot-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#dot-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n      <path id=\"exclam-path\" stroke-linecap=\"round\" fill=\"none\" d=\"M12.5 6.25V14.15m0 5.6v0\" />\n      <g id=\"pin-exclam\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#exclam-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#exclam-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#exclam-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#exclam-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n      <path id=\"tick-path\" stroke-linecap=\"round\" stroke-linejoin=\"round\" fill=\"none\" d=\"M7.157 14.649Q8.9 16 11.22 18.761 14.7 11.7 17.843 8.239\" />\n      <g id=\"pin-tick\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#tick-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#tick-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#tick-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#tick-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n      <path id=\"plus-path\" stroke-linecap=\"round\" d=\"M5.75 13h13.5m-6.75-6.75v13.5\" />\n      <g id=\"pin-plus\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#plus-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#plus-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#plus-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#plus-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n      <path id=\"start-path\" stroke-linejoin=\"round\" fill=\"#fff\" d=\"M5.5 13h7v7l5-12z\" />\n      <g id=\"pin-start\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#start-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#start-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#start-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#start-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n      <path id=\"destination-path\" stroke-linecap=\"round\" stroke-linejoin=\"round\" fill=\"#fff\" d=\"M10 21 7 9c5-3 6 2 11 0l1 4c-5 2-6-3-11 0\" />\n      <g id=\"pin-destination\" clip-path=\"url(#pin-clip)\">\n        <use href=\"#pin-path\" fill=\"currentColor\" />\n        <use href=\"#pin-path\" fill=\"url(#fill)\" />\n        <g stroke=\"#fff\" opacity=\"0.122\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"4.4\" />\n          <use href=\"#destination-path\" stroke-width=\"7.2\" />\n        </g>\n        <g stroke=\"currentColor\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#destination-path\" stroke-width=\"5\" />\n        </g>\n        <g stroke=\"url(#stroke)\">\n          <use href=\"#pin-path\" fill=\"none\" stroke-width=\"2.2\" />\n          <use href=\"#destination-path\" stroke-width=\"5\" />\n        </g>\n        <use href=\"#destination-path\" stroke=\"#fff\" stroke-width=\"2.8\" />\n      </g>\n  </defs>\n</svg><svg id=a viewBox='0 0 25 40'><use href='#pin-dot' color='rgb(200,0,0)' /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[12,5], [12,12], [12,30], [3,12]]
+    }
+   ]
+  },
+  {
+   "name": "grid-item-z0",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #a{display:grid;width:100px;height:40px} #i{grid-area:1/1;z-index:0} #r{width:30px;height:30px;background:red} #o{grid-area:1/1;background:#00f;width:100px;height:40px}</style><div id=a><div id=i><div id=r></div></div><div id=o></div></div>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [50,20], [95,35]]
+    }
+   ]
+  },
+  {
+   "name": "grid-item-z-auto",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #a{display:grid;width:100px;height:40px} #i{grid-area:1/1;z-index:auto} #r{width:30px;height:30px;background:red} #o{grid-area:1/1;background:#00f;width:100px;height:40px}</style><div id=a><div id=i><div id=r></div></div><div id=o></div></div>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [50,20], [95,35]]
+    }
+   ]
+  },
+  {
+   "name": "grid-item-z-neg",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #a{display:grid;width:100px;height:40px} #i{grid-area:1/1;z-index:-1} #r{width:30px;height:30px;background:red} #o{grid-area:1/1;background:#00f;width:100px;height:40px}</style><div id=a><div id=i><div id=r></div></div><div id=o></div></div>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [50,20], [95,35]]
+    }
+   ]
+  },
+  {
+   "name": "flex-item-z0",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #a{display:flex;width:100px;height:40px} #i{margin-right:-30px;flex:none;z-index:0} #r{width:30px;height:30px;background:red} #o{margin-right:-30px;flex:none;background:#00f;width:100px;height:40px}</style><div id=a><div id=i><div id=r></div></div><div id=o></div></div>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [50,20], [95,35]]
+    }
+   ]
+  },
+  {
+   "name": "flex-item-z-auto",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #a{display:flex;width:100px;height:40px} #i{margin-right:-30px;flex:none;z-index:auto} #r{width:30px;height:30px;background:red} #o{margin-right:-30px;flex:none;background:#00f;width:100px;height:40px}</style><div id=a><div id=i><div id=r></div></div><div id=o></div></div>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [50,20], [95,35]]
+    }
+   ]
+  },
+  {
+   "name": "block-item-z0",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #a{display:block;width:100px;height:40px} #i{;z-index:0} #r{width:30px;height:30px;background:red} #o{;background:#00f;width:100px;height:40px}</style><div id=a><div id=i><div id=r></div></div><div id=o></div></div>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [50,20], [95,35]]
+    }
+   ]
+  },
+  {
+   "name": "select-appearance-none",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} select{display:block;width:200px;padding:.25rem .5rem;font-size:1rem;line-height:1.5;appearance:none;-webkit-appearance:none;background-color:#fff;background-repeat:no-repeat;background-position:right .75rem center;background-size:16px 12px;border:1px solid #888;border-radius:6px;padding-right:2.25rem;font-family:Arial;color:#000} </style><select id=a><option>OSRM</option><option>Valhalla</option></select><select id=b><option>X</option></select>",
+   "measure": [
+    {
+     "boxes": "#a, #b"
+    },
+    {
+     "rects": "#a"
+    },
+    {
+     "pixels": "#a",
+     "points": [[185,17], [189,20], [193,17], [8,12], [100,8]]
+    }
+   ]
+  },
+  {
+   "name": "select-appearance-none-nowidth",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} select{display:block;padding:.25rem .5rem;font-size:1rem;line-height:1.5;appearance:none;-webkit-appearance:none;background-color:#fff;background-repeat:no-repeat;background-position:right .75rem center;background-size:16px 12px;border:1px solid #888;border-radius:6px;padding-right:2.25rem;font-family:Arial;color:#000} </style><select id=a><option>OSRM</option><option>Valhalla</option></select><select id=b><option>X</option></select>",
+   "measure": [
+    {
+     "boxes": "#a, #b"
+    },
+    {
+     "rects": "#a"
+    },
+    {
+     "pixels": "#a",
+     "points": [[185,17], [189,20], [193,17], [8,12], [100,8]]
+    }
+   ]
+  },
+  {
+   "name": "select-appearance-auto-styled",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} select{display:block;width:200px;padding:.25rem .5rem;font-size:1rem;line-height:1.5;background-color:#fff;background-repeat:no-repeat;background-position:right .75rem center;background-size:16px 12px;border:1px solid #888;border-radius:6px;padding-right:2.25rem;font-family:Arial;color:#000} </style><select id=a><option>OSRM</option><option>Valhalla</option></select><select id=b><option>X</option></select>",
+   "measure": [
+    {
+     "boxes": "#a, #b"
+    },
+    {
+     "rects": "#a"
+    },
+    {
+     "pixels": "#a",
+     "points": [[185,17], [189,20], [193,17], [8,12], [100,8]]
+    }
+   ]
+  },
+  {
+   "name": "select-plain",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} select{font-family:Arial} </style><select id=a><option>OSRM</option><option>Valhalla</option></select><select id=b><option>X</option></select>",
+   "measure": [
+    {
+     "boxes": "#a, #b"
+    },
+    {
+     "rects": "#a"
+    },
+    {
+     "pixels": "#a",
+     "points": [[185,17], [189,20], [193,17], [8,12], [100,8]]
+    }
+   ]
+  },
+  {
+   "name": "select-appearance-none-plain",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} select{font-family:Arial;appearance:none} </style><select id=a><option>OSRM</option><option>Valhalla</option></select><select id=b><option>X</option></select>",
+   "measure": [
+    {
+     "boxes": "#a, #b"
+    },
+    {
+     "rects": "#a"
+    },
+    {
+     "pixels": "#a",
+     "points": [[185,17], [189,20], [193,17], [8,12], [100,8]]
+    }
+   ]
+  },
+  {
+   "name": "select-webkit-appearance-none",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} select{font-family:Arial;-webkit-appearance:none} </style><select id=a><option>OSRM</option><option>Valhalla</option></select><select id=b><option>X</option></select>",
+   "measure": [
+    {
+     "boxes": "#a, #b"
+    },
+    {
+     "rects": "#a"
+    },
+    {
+     "pixels": "#a",
+     "points": [[185,17], [189,20], [193,17], [8,12], [100,8]]
+    }
+   ]
+  },
+  {
+   "name": "appearance-none-button-checkbox",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #a{appearance:none;width:13px;height:13px;border:1px solid #f00;background:#00f;margin:0} #b{appearance:none;margin:0;display:block} #c{appearance:none;margin:0;display:block;width:40px;height:20px}</style><input type=checkbox id=a><button id=b>OK</button><input id=c>",
+   "measure": [
+    {
+     "boxes": "#a, #b, #c"
+    },
+    {
+     "pixels": "#a",
+     "points": [[0,0], [6,6], [12,12]]
+    },
+    {
+     "pixels": "#b",
+     "points": [[0,0], [1,1], [3,8]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-overflow-auto",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s overflow=auto><rect width=100 height=100 fill=red /></symbol><use href='#s' x=10 y=10 width=30 height=30 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,20], [45,45]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-overflow-scroll",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s overflow=scroll><rect width=100 height=100 fill=red /></symbol><use href='#s' x=10 y=10 width=30 height=30 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,20], [45,45]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-overflow-clip",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s overflow=clip><rect width=100 height=100 fill=red /></symbol><use href='#s' x=10 y=10 width=30 height=30 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,20], [45,45]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-overflow-hidden",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s overflow=hidden><rect width=100 height=100 fill=red /></symbol><use href='#s' x=10 y=10 width=30 height=30 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,20], [45,45]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-overflow-css-visible",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s style='overflow:visible'><rect width=100 height=100 fill=red /></symbol><use href='#s' x=10 y=10 width=30 height=30 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[20,20], [45,45]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-percent-in-viewbox",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 20 20'><rect width=50% height=50% fill=red /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[10,10], [39,39], [30,30], [45,45]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-percent-no-viewbox",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s><rect width=50% height=50% fill=red /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[10,10], [19,19], [21,21], [30,30]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-clip-path-on-use",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><clipPath id=c><rect width=20 height=20 /></clipPath><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /></symbol><use href='#s' width=40 height=40 clip-path='url(#c)' /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[10,10], [30,30]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-rotated-use",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px} </style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=100 height=100 fill=red /></symbol><use href='#s' x=20 y=20 width=20 height=20 transform='rotate(45 30 30)' /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[30,30], [30,15], [30,50], [22,22], [38,22], [45,30]]
+    }
+   ]
+  },
+  {
+   "name": "symbol-use-box",
+   "html": "<!DOCTYPE html><style>body{margin:0} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=5 height=5 /></symbol><use id=u href='#s' x=20 y=10 width=40 height=40 /><use id=u2 href='#s' width=0 height=10 /></svg>",
+   "measure": [
+    {
+     "boxes": "#a, #u, #u2"
+    }
+   ]
+  },
+  {
+   "name": "sym-xy",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' x=30 y=30><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-xy-use",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' x=30 y=30><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 x=10 y=5 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-xy-pct",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' x=10% y=20%><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-xy-clip",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' x=30 y=30><rect width=20 height=20 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-xy-own-size",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' x=30 y=30 width=20 height=20><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-xy-neg",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' x=-10 y=-10><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 x=40 y=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-xy-invalid",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' x=auto y=foo><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-transform",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' transform='translate(20 20)'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-transform-scale",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' transform='scale(0.5)'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 x=20 y=20 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-transform-clip",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' transform='translate(20 20)'><rect width=20 height=20 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-transform-xy",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' transform='scale(0.5)' x=20 y=20><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-transform-rotate",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' transform='rotate(30)'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 x=30 y=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-transform-css",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' style='transform:translate(15px,25px)'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-transform-origin",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' style='transform:rotate(20deg);transform-origin:0 0'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 x=30 y=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "use-width-auto",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width='auto' height='auto' x=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "use-width-auto-only",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width='auto' height=40 x=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "use-height-auto-only",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height='auto' x=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "use-width-neg",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width='-5' height=40 x=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "use-height-neg",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height='-5' x=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "use-width-neg-sym-size",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' width=30 height=30><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width='-5' x=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "use-width-zero",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=0 height=40 x=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "use-width-garbage",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width='foo' height=40 x=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "use-width-empty",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width='' height=40 x=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-width-auto",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' width=auto height=auto><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' x=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-width-neg",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' width=-5 height=-5><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' x=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-width-garbage",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' width=foo height=foo><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' x=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-width-empty",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' width='' height=''><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' x=10 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-width-garbage-use-size",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' width=foo height=foo><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' x=10 width=30 height=30 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "use-width-auto-sym-size",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' width=30 height=30><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' x=10 width=auto /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "sym-xy-garbage-neg-pct",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 10' x=-50% y=1em><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "vb-zero-w",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 0 10'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "vb-zero-h",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 10 0'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "vb-zero-both",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 0 0'><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  },
+  {
+   "name": "vb-zero-w-visible",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} svg{display:block;width:100px;height:100px}</style><svg id=a><symbol id=s viewBox='0 0 0 10' overflow=visible><rect width=10 height=10 fill=red /><rect x=2 y=2 width=3 height=3 fill=blue /></symbol><use href='#s' width=40 height=40 /></svg>",
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5,5], [15,5], [25,5], [35,5], [45,5], [55,5], [65,5], [75,5], [85,5], [95,5], [5,15], [15,15], [25,15], [35,15], [45,15], [55,15], [65,15], [75,15], [85,15], [95,15], [5,25], [15,25], [25,25], [35,25], [45,25], [55,25], [65,25], [75,25], [85,25], [95,25], [5,35], [15,35], [25,35], [35,35], [45,35], [55,35], [65,35], [75,35], [85,35], [95,35], [5,45], [15,45], [25,45], [35,45], [45,45], [55,45], [65,45], [75,45], [85,45], [95,45], [5,55], [15,55], [25,55], [35,55], [45,55], [55,55], [65,55], [75,55], [85,55], [95,55], [5,65], [15,65], [25,65], [35,65], [45,65], [55,65], [65,65], [75,65], [85,65], [95,65], [5,75], [15,75], [25,75], [35,75], [45,75], [55,75], [65,75], [75,75], [85,75], [95,75], [5,85], [15,85], [25,85], [35,85], [45,85], [55,85], [65,85], [75,85], [85,85], [95,85], [5,95], [15,95], [25,95], [35,95], [45,95], [55,95], [65,95], [75,95], [85,95], [95,95]]
+    }
+   ]
+  }
+ ]
+}

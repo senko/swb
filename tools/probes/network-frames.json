@@ -1,0 +1,449 @@
+{
+ "javascript": true,
+ "viewport": [
+  800,
+  600
+ ],
+ "cases": [
+  {
+   "name": "fetch-click",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\nb.addEventListener('click', () => doFetch('fetch-click'));\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 300
+    },
+    {
+     "click": "#b"
+    },
+    {
+     "wait": 800
+    }
+   ]
+  },
+  {
+   "name": "fetch-timer",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\nsetTimeout(() => doFetch('fetch-timer'), 310);\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 1000
+    }
+   ]
+  },
+  {
+   "name": "fetch-chain-timer",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\nsetTimeout(() => chain(doFetch, 8, 'fetch-chain'), 310);\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 2000
+    }
+   ]
+  },
+  {
+   "name": "xhr-click",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\nb.addEventListener('click', () => doXhr('xhr-click'));\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 300
+    },
+    {
+     "click": "#b"
+    },
+    {
+     "wait": 800
+    }
+   ]
+  },
+  {
+   "name": "xhr-timer",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\nsetTimeout(() => doXhr('xhr-timer'), 310);\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 1000
+    }
+   ]
+  },
+  {
+   "name": "xhr-chain-timer",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\nsetTimeout(() => chain(doXhr, 8, 'xhr-chain'), 310);\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 2000
+    }
+   ]
+  },
+  {
+   "name": "img-click",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\nb.addEventListener('click', () => doImg('img-click'));\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 300
+    },
+    {
+     "click": "#b"
+    },
+    {
+     "wait": 800
+    }
+   ]
+  },
+  {
+   "name": "img-timer",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\nsetTimeout(() => doImg('img-timer'), 310);\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 1000
+    }
+   ]
+  },
+  {
+   "name": "img-chain-timer",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\nsetTimeout(() => chain(doImg, 8, 'img-chain'), 310);\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 2000
+    }
+   ]
+  },
+  {
+   "name": "script-click",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\nb.addEventListener('click', () => doScript('script-click'));\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 300
+    },
+    {
+     "click": "#b"
+    },
+    {
+     "wait": 800
+    }
+   ]
+  },
+  {
+   "name": "script-timer",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\nsetTimeout(() => doScript('script-timer'), 310);\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 1000
+    }
+   ]
+  },
+  {
+   "name": "script-chain-timer",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\nsetTimeout(() => chain(doScript, 8, 'script-chain'), 310);\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 2000
+    }
+   ]
+  },
+  {
+   "name": "fetch-parse",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\ndoFetch('fetch-parse');\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 500
+    }
+   ]
+  },
+  {
+   "name": "fetch-load",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\naddEventListener('load', () => doFetch('fetch-load'));\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 500
+    }
+   ]
+  },
+  {
+   "name": "xhr-parse",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\ndoXhr('xhr-parse');\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 500
+    }
+   ]
+  },
+  {
+   "name": "script-parse",
+   "html": "<!DOCTYPE html><style>body{margin:0}#b{width:100px;height:40px}</style><button id=b>go</button><script>\nlet frames = 0; (function tick() { frames++; requestAnimationFrame(tick); })();\nconst R = []; let S;\nconst start = () => { S = { f: frames, t: performance.now() }; };\nconst done = (tag) => { R.push([tag, frames - S.f, Math.round((performance.now() - S.t) * 10) / 10]); };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst doFetch = (tag, next) => { start(); fetch('x.txt').then((r) => r.text()).then(() => { done(tag); if (next) next(); }); };\nconst doXhr = (tag, next) => { start(); const x = new XMLHttpRequest(); x.open('GET', 'x.txt'); x.onload = () => { done(tag); if (next) next(); }; x.send(); };\nlet imgN = 0;\nconst doImg = (tag, next) => { start(); const i = new Image(); i.onload = () => { done(tag); if (next) next(); }; i.src = 'x.svg?' + (imgN++); document.body.appendChild(i); };\nlet scrN = 0;\nconst doScript = (tag, next) => { start(); window.__cb = () => { done(tag); if (next) next(); }; const s = document.createElement('script'); s.src = 'x.js?' + (scrN++); document.body.appendChild(s); };\nconst chain = (fn, n, tag) => { let i = 0; const step = () => { if (i < n) { i++; fn(tag + i, step); } }; step(); };\ndoScript('script-parse');\n</script>",
+   "resources": {
+    "x.txt": {
+     "text": "hello"
+    },
+    "x.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "x.js": {
+     "text": "window.__cb && window.__cb();"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { await wait(1500); return R; })()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 500
+    }
+   ]
+  }
+ ]
+}

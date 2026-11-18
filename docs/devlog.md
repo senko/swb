@@ -4,6 +4,40 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-18: M12 feature 3: hover after layout, SVG symbols, completions after a frame
+
+- swb updated `:hover` only when the pointer moved. Chromium hit-tests a
+  still pointer again in the next frame after the content under it
+  changes, also after a scroll, and sends the boundary events without
+  `mousemove`. `Page::refresh_hover` is now the first step of each
+  rendering update and runs only after a change that can move the hit
+  result. Bootstrap's tooltip after a panel closes now shows (groups 29,
+  31, 36, 37). Cost: the GitHub wheel-to-frame p90 went from 16 to
+  26–28 ms (target 50), because the hover now follows the scroll.
+- The hover circle of groups 48 to 60 was still missing. Its cause was
+  timing, not hover. Turbo changes the sidebar in three steps around a
+  `fetch`. In Chromium a frame runs between the request and the response,
+  and its layout moves another link under the pointer. In virtual time
+  the replayed response arrived at once. Chromium measurement: a request
+  that a click starts completes after exactly one frame in every run,
+  while one from a timer or the parser gets 0 or 1. swb now holds the
+  completion of a request started during an input event until the next
+  rendering update (virtual time, after `load`).
+- The directions panel: the step icons are `<use>` of a `<symbol>`,
+  which drew nothing; a symbol instance is now a viewport. The pins
+  already drew, but under the inputs: their container is a grid item
+  with `z-index: 0`, and swb applied `z-index` only to positioned boxes.
+  The "OSRM" select had two chevrons because swb had no `appearance`
+  property. The gloss of the pins needs SVG gradients (backlog).
+- Results: the records of all 60 groups equal Chromium without WebGL in
+  every field. The other targets keep their scores, and the JS-off
+  snapshot is identical.
+- Review: no panic or hang. It found that `appearance` did not match
+  Chromium (initial value, compat keywords, the CSSOM alias, the name
+  list) and that `transform`, `x` and `y` on a symbol and some invalid
+  sizes drew differently. Fixed and measured with two probe files.
+- Next: feature 4, the exit test `osm_zagreb.rs`.
+
 ## 2026-11-18: M12 feature 2: small gaps and a `Worker` stand-in
 
 - The OSM page now runs without the stub: `Worker` exists and accepts
