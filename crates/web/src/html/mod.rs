@@ -38,6 +38,7 @@
 //! describes in prose.
 
 pub(crate) mod activation;
+mod canvas;
 mod classes;
 pub(crate) mod dialog;
 pub(crate) mod element;

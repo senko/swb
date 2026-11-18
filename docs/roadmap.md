@@ -5546,9 +5546,10 @@ Fixtures: `fixtures/js/osm-zagreb` (local only; captured again on
 2026-11-17 with `capture --js --steps`: the load and the 60 step groups of
 the list below in one live visit, 403 responses, 30 MB, 17 hosts; the two
 entries of the node page come from an earlier run of the same day) and
-`fixtures/pages/osm-zagreb` (JS off). `tools/osm_zagreb_records.py stub`
-makes `fixtures/js/osm-zagreb-stub`, a copy with a `Worker` stub, for the
-diagnosis. The tile usage policy of tile.openstreetmap.org forbids bulk
+`fixtures/pages/osm-zagreb` (JS off). For the diagnosis,
+`tools/osm_zagreb_records.py stub` made `fixtures/js/osm-zagreb-stub`, a
+copy with a `Worker` stub; feature 2 removed the command (the `Worker`
+stand-in replaces the stub). The tile usage policy of tile.openstreetmap.org forbids bulk
 downloads: the tools record the tiles of each interaction once, and tests
 and tools never fetch from the live servers.
 
@@ -5622,8 +5623,9 @@ Steps:
    with the checks of M9: JavaScript off by default; the other targets
    keep their scores with JavaScript on and off; a change of a JS-off
    fixture is reported with its scores, which must not get worse; probe
-   cases with Chromium's values; hostile cases.
-   1. Small gaps and a `Worker` stand-in (`implementer`): `Attr` as a
+   cases with Chromium's values; hostile cases. The commits number the
+   features from 2 on (feature 1 is the diagnosis).
+   2. Small gaps and a `Worker` stand-in (`implementer`): `Attr` as a
       `Node`; `ImageData`; a `Worker` constructor that accepts
       `postMessage` and runs no script (with a `warn!`), so that the
       original fixture works without the stub; `HTMLCanvasElement.getContext`
@@ -5631,21 +5633,53 @@ Steps:
       other context types as the probe cases decide, until Canvas 2D
       exists); the GIF without a color table; the scroll of a text field
       after a script sets `value`. Probe cases of `web-osm-gaps.json`.
-   2. Pointer events after layout and SVG `<use>` (`implementer`): when a
+
+      Done (2026-11-18): `Attr` is a `Node` (no arena node: the `Node`
+      members of an `Attr` are in `crates/web/src/dom/attr_node.rs`, which
+      `glue::run` calls when a `Node` member gets an `Attr`); `ImageData`
+      (both constructors, `colorSpace`, `pixelFormat`, structured clone;
+      Chromium's size errors, and a check against the script heap before
+      the pixels are allocated); a `Worker` that checks its arguments as
+      Chromium, serializes `postMessage` with its transfer list and drops
+      the message, runs nothing and logs a `warn!` once per document (no
+      `SharedWorker`); `HTMLCanvasElement.getContext` returns null for
+      every id, and for the WebGL ids first fires
+      `webglcontextcreationerror` (MapLibre puts the event's type in its
+      error message, which OSM parses as JSON: without the event OSM did
+      not fetch `/panes/webgl_error` as Chromium without WebGL does); the
+      GIF without a color table decodes (opaque black pixels, as in
+      Chromium; a frame without pixel data is transparent); a focused
+      text field scrolls to its caret only after a user action, not after
+      a script sets `value`. Results on the original fixture (no stub):
+      geometry 1.0000, pixels 0.9977; the records of the 60 groups equal
+      those of Chromium without WebGL except `outlines` and `elements` in
+      groups 48 to 60 (the hover highlight) and `elements` in groups 29,
+      31, 36 and 37 (after the click on a panel's close button `:hover`
+      stays on the button; Chromium moves it to the element under the
+      pointer and shows its tooltip): both are the next feature. Tests:
+      `crates/automation/tests/osm_gaps.rs` (14 probe cases with
+      Chromium's values), `crates/web/tests/osm_gaps_limits.rs`, three
+      hostile cases. The other targets keep their scores and consoles; the
+      JS-off snapshot is identical; GitHub no longer logs that it has no
+      `Worker` (as Chromium).
+   3. Pointer events after layout and SVG `<use>` (`implementer`): when a
       layout or DOM change moves another element under a still pointer,
       the boundary events (`pointerover`, `mouseover`, `mouseenter`,
       `mouseout`, `mouseleave`) and the `:hover` update, as Chromium
-      sends them (probe cases `events-after-*`; the cost on the other
-      targets is measured); `<use href="#id">` of a `<symbol>` (the
-      direction icons).
-   3. The exit test (`implementer`): `crates/automation/tests/osm_zagreb.rs`
+      sends them (probe cases `events-after-*`, of which
+      `events-after-a-click-replaces-the-content-under-the-pointer` gave
+      no events in one of three Chromium runs and needs a wait for the
+      hover first; the groups 29, 31, 36, 37 and 48 to 60; the cost on the
+      other targets is measured);
+      `<use href="#id">` of a `<symbol>` (the direction icons).
+   4. The exit test (`implementer`): `crates/automation/tests/osm_zagreb.rs`
       runs the 60 groups and compares the records with Chromium's (from the
       Transport Map group on, with Chromium without WebGL: a `replay`
       option for Chromium flags makes these records reproducible), the
       pixels of the groups with the layer panel closed, the URLs that the
       fixture lacks and the console. Fix what the test finds in the map,
       the layer panel and the sidebar (items 3 to 12).
-   4. JS off (item 13: nothing to do, geometry 1.0000) and the exit
+   5. JS off (item 13: nothing to do, geometry 1.0000) and the exit
       measurement (orchestrator): the budget and the load time on an idle
       machine; `gui-latency` with the trace `osm-map` and a check that the
       drags move the map; then the end-of-milestone maintenance.
@@ -5748,6 +5782,31 @@ Steps:
 - `fixtures/pages/osm-zagreb` (feature 1) keeps the site's anonymous
   `csrf-token` meta value (useless without the session cookie, which the
   fixture does not store).
+- `Attr` (feature 2): `addEventListener` and `dispatchEvent` on an `Attr`
+  throw "Illegal invocation" (Chromium accepts them: `Attr` is an
+  `EventTarget`); `attr.childNodes` is a new list on each read (the spec
+  says `[SameObject]`); `MutationObserver.observe(attr)` is a `TypeError`.
+  `document.importNode(attr)`, `adoptNode(attr)`, `el.append(attr)`,
+  `Range.setStart(attr, 0)` and `createTreeWalker(attr)` throw a
+  `TypeError`; Chromium accepts an `Attr` there (only the `Node` members
+  take one in swb).
+- `Worker` stand-in (feature 2): a `MessagePort` in the transfer list of
+  `postMessage` is not neutered (the message is dropped, so nothing
+  reads it).
+- `ImageData` (feature 2): the `rgba-float16` pixel format (needs
+  `Float16Array`) throws `NotSupportedError`; a first argument that is an
+  object but no `Uint8ClampedArray` is a `TypeError` (Chromium takes the
+  numeric constructor and converts the object). No `WebGLContextEvent`
+  interface: `webglcontextcreationerror` is a plain `Event` without
+  `statusMessage`.
+- Text fields (feature 2): `scrollLeft`, `scrollTop` and `scrollWidth` of
+  a text field read 0 (the layout keeps the offset in
+  `ControlState::scroll`); `setSelectionRange` does not scroll; a script
+  `focus()` on a field with a value scrolls its text at the next layout,
+  not at once (the pixels are the same).
+- Images (feature 2): a GIF without a color table inside an SVG image
+  (decoded by `usvg`, not by `swb_paint::image::decode`) still fails. No
+  engine test loads Leaflet's `emptyImageUrl` as a tile.
 
 ## Backlog from M11
 

@@ -1,0 +1,899 @@
+{
+ "image-data": [
+  {
+   "a": [
+    2,
+    3,
+    24,
+    "srgb",
+    "Uint8ClampedArray",
+    0
+   ],
+   "b": [
+    2,
+    1,
+    8
+   ],
+   "c": [
+    "display-p3"
+   ],
+   "zero": "IndexSizeError: Failed to construct 'ImageData': The source width is zero or not a number.",
+   "neg": "IndexSizeError: Failed to construct 'ImageData': The requested image size exceeds the supported range.",
+   "len": "InvalidStateError: Failed to construct 'ImageData': The input data length is not a multiple of 4.",
+   "len2": "IndexSizeError: Failed to construct 'ImageData': The input data length is not equal to (4 * width * height).",
+   "bad": "IndexSizeError: Failed to construct 'ImageData': The source width is zero or not a number.",
+   "noarg": "TypeError: Failed to construct 'ImageData': 2 arguments required, but only 0 present.",
+   "call": "TypeError: Failed to construct 'ImageData': Please use the 'new' operator, this DOM object constructor cannot be called as a function.",
+   "inst": true,
+   "tag": "[object ImageData]",
+   "names": "colorSpace,constructor,data,height,pixelFormat,width",
+   "clone": [
+    true,
+    2,
+    3,
+    24
+   ],
+   "frozen": [
+    255,
+    0,
+    2
+   ]
+  },
+  {
+   "a": "IndexSizeError: Failed to construct 'ImageData': The requested image size exceeds the supported range.",
+   "b": "IndexSizeError: Failed to construct 'ImageData': The requested image size exceeds the supported range.",
+   "c": "IndexSizeError: Failed to construct 'ImageData': The requested image size exceeds the supported range.",
+   "d": "IndexSizeError: Failed to construct 'ImageData': The requested image size exceeds the supported range.",
+   "e": "IndexSizeError: Failed to construct 'ImageData': The source width is zero or not a number.",
+   "f": "IndexSizeError: Failed to construct 'ImageData': The source height is zero or not a number.",
+   "g": "IndexSizeError: Failed to construct 'ImageData': The source width is zero or not a number.",
+   "h": 1,
+   "i": 3,
+   "j": "TypeError: Failed to construct 'ImageData': Failed to read the 'colorSpace' property from 'ImageDataSettings': The provided value 'nope' is not a valid enum value of type PredefinedColorSpace.",
+   "k": "IndexSizeError: Failed to construct 'ImageData': The input data length is not equal to (4 * width * height).",
+   "l": "InvalidStateError: Failed to construct 'ImageData': The input data has zero elements.",
+   "m": "IndexSizeError: Failed to construct 'ImageData': The source width is zero or not a number.",
+   "n": "IndexSizeError: Failed to construct 'ImageData': The source height is zero or not a number.",
+   "o": "TypeError: Failed to construct 'ImageData': The provided value is not of type 'ImageDataSettings'.",
+   "p": 4,
+   "q": "display-p3",
+   "r": "srgb",
+   "s": 2
+  },
+  {
+   "same": true,
+   "dataSet": "object",
+   "widthSet": 2,
+   "getter": [
+    "function",
+    null,
+    true,
+    true
+   ],
+   "illegal": "TypeError: Illegal invocation",
+   "len": 2,
+   "name": "ImageData",
+   "sameArr": true,
+   "mod": "IndexSizeError: Failed to construct 'ImageData': The input data length is not a multiple of (4 * width).",
+   "pf": [
+    "rgba-unorm8",
+    "rgba-unorm8",
+    "TypeError: Failed to construct 'ImageData': Failed to read the 'pixelFormat' property from 'ImageDataSettings': The provided value 'x' is not a valid enum value of type ImageDataPixelFormat."
+   ],
+   "cloneSame": [
+    true,
+    "srgb",
+    "[object ImageData]"
+   ],
+   "tr": [
+    0,
+    4
+   ],
+   "msg": "TypeError: Illegal invocation",
+   "newTarget": true
+  }
+ ],
+ "canvas-2d-context": [
+  {
+   "size": [
+    300,
+    150
+   ],
+   "fn": "function",
+   "names": "captureStream,constructor,getContext,height,toBlob,toDataURL,transferControlToOffscreen,width",
+   "ctx": "CanvasRenderingContext2D",
+   "same": true,
+   "canvas": true,
+   "none": null,
+   "noarg": "TypeError: Failed to execute 'getContext' on 'HTMLCanvasElement': 1 argument required, but only 0 present.",
+   "pixel": [
+    255,
+    0,
+    0,
+    255
+   ],
+   "outside": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "imageData": "ImageData",
+   "measure": "number",
+   "dataUrl": "data:image/png;base64,",
+   "cleared": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "pixel2": [
+    51,
+    102,
+    153,
+    255
+   ],
+   "afterResize": [
+    4,
+    150,
+    [
+     0,
+     0,
+     0,
+     0
+    ]
+   ]
+  }
+ ],
+ "offscreen-canvas-and-image-bitmap": [
+  {
+   "off": "function",
+   "cib": "function",
+   "bitmap": "function",
+   "pixel": [
+    0,
+    255,
+    0,
+    255
+   ],
+   "size": [
+    3,
+    2
+   ],
+   "ctor": "OffscreenCanvasRenderingContext2D",
+   "fromImageData": [
+    2,
+    2,
+    "ImageBitmap"
+   ],
+   "closed": [
+    0,
+    0
+   ],
+   "fromBlob": [
+    1,
+    1
+   ],
+   "bad": "InvalidStateError: The source image could not be decoded."
+  }
+ ],
+ "attr-is-a-node": [
+  {
+   "name": "data-x",
+   "nodeName": "data-x",
+   "nodeValue": "v1",
+   "value": "v1",
+   "nodeType": 2,
+   "local": "data-x",
+   "owner": true,
+   "specified": true,
+   "text": "v1",
+   "isNode": true,
+   "parent": null,
+   "ns": null,
+   "doc": true,
+   "proto": "Node"
+  },
+  {
+   "len": 2,
+   "names": "data-x,id",
+   "values": "v1,i",
+   "named": "id",
+   "item": "id",
+   "byIndex": "i"
+  },
+  {
+   "clone": "data-x",
+   "same": true,
+   "setValue": "v2",
+   "tc": "v3",
+   "names": "constructor,localName,name,namespaceURI,ownerElement,prefix,specified,value"
+  },
+  {
+   "conn": false,
+   "root": true,
+   "kids": [
+    false,
+    0,
+    null,
+    null,
+    null,
+    null
+   ],
+   "parentEl": null,
+   "base": "string",
+   "lookup": [
+    "http://www.w3.org/1999/xhtml",
+    null,
+    false
+   ],
+   "append": "HierarchyRequestError: Failed to execute 'appendChild' on 'Node': This node type does not support this method.",
+   "insert": "HierarchyRequestError: Failed to execute 'insertBefore' on 'Node': This node type does not support this method.",
+   "remove": "NotFoundError: Failed to execute 'removeChild' on 'Node': This node type does not support this method.",
+   "replace": "HierarchyRequestError: Failed to execute 'replaceChild' on 'Node': This node type does not support this method.",
+   "cmp": [
+    0,
+    true,
+    false,
+    true,
+    false,
+    false
+   ],
+   "norm": null,
+   "detached": [
+    "x",
+    "9",
+    null,
+    true,
+    "9",
+    "9",
+    true,
+    false,
+    false,
+    null
+   ],
+   "consts": [
+    2,
+    2,
+    2
+   ],
+   "nodeValueNull": [
+    "",
+    ""
+   ],
+   "tcNull": "",
+   "tagName": [
+    "undefined",
+    "undefined",
+    "undefined"
+   ],
+   "str": "[object Attr]",
+   "tag": "[object Attr]",
+   "json": "[]"
+  },
+  {
+   "eq": true,
+   "eqv": false,
+   "x": [
+    "xlink:href",
+    "#q",
+    "http://www.w3.org/1999/xlink",
+    "xlink",
+    "href",
+    "xlink:href"
+   ],
+   "xc": [
+    "xlink",
+    "http://www.w3.org/1999/xlink",
+    null
+   ],
+   "lookup": [
+    null,
+    null,
+    "http://www.w3.org/2000/svg"
+   ],
+   "elIsEqual": false,
+   "elContains": false,
+   "elCmp": 20,
+   "elAppend": "HierarchyRequestError: Failed to execute 'appendChild' on 'Node': Nodes of type 'a' may not be inserted inside nodes of type 'DIV'.",
+   "elSame": false,
+   "docAdopt": [
+    true,
+    false
+   ]
+  }
+ ],
+ "bootstrap-sanitize-html": [
+  [
+   "<div class=\"tooltip\" role=\"tooltip\"><div class=\"tooltip-arrow\"></div><div class=\"tooltip-inner\"></div></div>",
+   "<div aria-label=\"l\"><a title=\"t\">k</a><a href=\"/ok\" target=\"_x\">m</a><img src=\"a.png\"></div>"
+  ]
+ ],
+ "gif-without-color-table": [
+  {
+   "leaflet": [
+    "load",
+    1,
+    1,
+    true
+   ],
+   "global": [
+    "load",
+    1,
+    1,
+    true
+   ],
+   "junk": [
+    "error",
+    0,
+    0,
+    true
+   ],
+   "decode": "ok"
+  }
+ ],
+ "webgl-detection": [
+  {
+   "webgl": "function",
+   "webgl2": "function",
+   "fn": "function",
+   "context": "WebGL2RenderingContext",
+   "lost": "function"
+  }
+ ],
+ "structured-clone-function": [
+  {
+   "after": 0,
+   "b": 4,
+   "m": [
+    [
+     1,
+     2
+    ]
+   ],
+   "d": 5,
+   "r": "/x/g",
+   "e": [
+    "RangeError",
+    "r",
+    true
+   ],
+   "big": "5",
+   "fn": "DataCloneError: Failed to execute 'structuredClone' on 'Window': () => 1 could not be cloned.",
+   "cyc": true,
+   "mc": "function"
+  }
+ ],
+ "events-after-a-click-replaces-the-content-under-the-pointer": [
+  [
+   "mouseover:first",
+   "mouseenter:body{mar",
+   "mouseenter:first\nwi",
+   "mouseenter:first",
+   "mouseenter:first",
+   "click",
+   "replaced",
+   "mouseover:second",
+   "mouseenter:body{mar",
+   "mouseenter:secondth",
+   "mouseenter:secondth",
+   "mouseenter:second"
+  ],
+  [
+   "second"
+  ]
+ ],
+ "events-after-the-content-under-the-pointer-is-replaced": [
+  [
+   "mouseover:first",
+   "mouseenter:body{mar",
+   "mouseenter:first\nwi",
+   "mouseenter:first",
+   "mouseenter:first",
+   "replaced",
+   "mouseover:second",
+   "mouseenter:body{mar",
+   "mouseenter:second\nw",
+   "mouseenter:second",
+   "mouseenter:second"
+  ],
+  [
+   "second"
+  ]
+ ],
+ "worker-stand-in": [
+  {
+   "type": "function",
+   "shared": "function",
+   "len": 1,
+   "name": "Worker",
+   "protoNames": "constructor,onerror,onmessage,postMessage,terminate",
+   "ctorNames": "length,name,prototype",
+   "parent": true,
+   "isET": true,
+   "tag": "[object Worker]",
+   "handlers": [
+    null,
+    null,
+    null
+   ],
+   "ownProps": "",
+   "enumerable": "addEventListener,dispatchEvent,onerror,onmessage,postMessage,removeEventListener,terminate",
+   "pm": [
+    "function",
+    1
+   ],
+   "term": [
+    "function",
+    0
+   ],
+   "fnHandler": [
+    "function",
+    null
+   ],
+   "des": "get,set,enumerable,configurable",
+   "global": [
+    "undefined",
+    "undefined",
+    "function",
+    "function",
+    "undefined",
+    "undefined"
+   ],
+   "listenerOk": 1
+  },
+  {
+   "noNew": "TypeError: Failed to construct 'Worker': Please use the 'new' operator, this DOM object constructor cannot be called as a function.",
+   "noArgs": "TypeError: Failed to construct 'Worker': 1 argument required, but only 0 present.",
+   "undef": {},
+   "nul": true,
+   "empty": true,
+   "badUrl": "SyntaxError: Failed to construct 'Worker': 'http://[' is not a valid URL.",
+   "badUrl2": "SyntaxError: Failed to construct 'Worker': 'http://' is not a valid URL.",
+   "cross": "SecurityError: Failed to construct 'Worker': Script at 'http://example.com/w.js' cannot be accessed from origin 'URL'.",
+   "crossHttps": "SecurityError: Failed to construct 'Worker': Script at 'https://example.com/w.js' cannot be accessed from origin 'URL'.",
+   "js": "SecurityError: Failed to construct 'Worker': Script at 'javascript:1' cannot be accessed from origin 'URL'.",
+   "about": "SecurityError: Failed to construct 'Worker': Script at 'about:blank' cannot be accessed from origin 'URL'.",
+   "data": true,
+   "file": "SecurityError: Failed to construct 'Worker': Script at 'file:///w.js' cannot be accessed from origin 'URL'.",
+   "ftp": "SecurityError: Failed to construct 'Worker': Script at 'ftp://x/w.js' cannot be accessed from origin 'URL'.",
+   "blob": true,
+   "blobBad": "SecurityError: Failed to construct 'Worker': Script at 'blob:http://example.com/1234' cannot be accessed from origin 'URL'.",
+   "obj": true,
+   "sym": "TypeError: Failed to construct 'Worker': Cannot convert a Symbol value to a string",
+   "rel": true,
+   "hash": true,
+   "long": true,
+   "optType": true,
+   "optBad": "TypeError: Failed to construct 'Worker': Failed to read the 'type' property from 'WorkerOptions': The provided value 'x' is not a valid enum value of type WorkerType.",
+   "optCred": "TypeError: Failed to construct 'Worker': Failed to read the 'credentials' property from 'WorkerOptions': The provided value 'x' is not a valid enum value of type RequestCredentials.",
+   "optName": true,
+   "optNull": true,
+   "optNum": "TypeError: Failed to construct 'Worker': The provided value is not of type 'WorkerOptions'.",
+   "optGetter": "credentials,name,type",
+   "extra": "TypeError: Failed to construct 'Worker': The provided value is not of type 'WorkerOptions'.",
+   "newTarget": true,
+   "sub": true
+  },
+  {
+   "ret": null,
+   "retT": null,
+   "fn": "DataCloneError: Failed to execute 'postMessage' on 'Worker': () => 1 could not be cloned.",
+   "fnNested": "DataCloneError: Failed to execute 'postMessage' on 'Worker': function f() {} could not be cloned.",
+   "sym": "DataCloneError: Failed to execute 'postMessage' on 'Worker': Symbol() could not be cloned.",
+   "none": "TypeError: Failed to execute 'postMessage' on 'Worker': 1 argument required, but only 0 present.",
+   "buf": 0,
+   "bufOpt": 0,
+   "notTransferred": 8,
+   "dup": "DataCloneError: Failed to execute 'postMessage' on 'Worker': ArrayBuffer at index 1 is a duplicate of an earlier ArrayBuffer.",
+   "dupLeft": 4,
+   "detachedAgain": "DataCloneError: Failed to execute 'postMessage' on 'Worker': ArrayBuffer at index 0 is already detached.",
+   "noTransferable": "DataCloneError: Failed to execute 'postMessage' on 'Worker': Value at index 0 does not have a transferable type.",
+   "notList": "TypeError: Failed to execute 'postMessage' on 'Worker': Overload resolution failed.",
+   "strList": "TypeError: Failed to execute 'postMessage' on 'Worker': Overload resolution failed.",
+   "nullList": null,
+   "undefList": null,
+   "emptyOpt": null,
+   "badOpt": "TypeError: Failed to execute 'postMessage' on 'Worker': Failed to read the 'transfer' property from 'StructuredSerializeOptions': The provided value cannot be converted to a sequence.",
+   "port": null,
+   "cyc": null,
+   "big": null,
+   "dom": "DataCloneError: Failed to execute 'postMessage' on 'Worker': HTMLBodyElement object could not be cloned.",
+   "win": "DataCloneError: Failed to execute 'postMessage' on 'Worker': #<Window> could not be cloned.",
+   "err": null,
+   "after": null,
+   "terminated": null,
+   "illegal": "TypeError: Illegal invocation",
+   "illegalT": "TypeError: Illegal invocation",
+   "illegalH": "TypeError: Illegal invocation"
+  }
+ ],
+ "input-scroll-after-script-value": [
+  [
+   [
+    "a",
+    0,
+    46,
+    46,
+    true
+   ],
+   [
+    "b",
+    0,
+    46,
+    46,
+    true
+   ],
+   [
+    "c",
+    0,
+    46,
+    46,
+    true
+   ],
+   [
+    "d",
+    0,
+    0,
+    0,
+    false
+   ],
+   [
+    "e",
+    0,
+    46,
+    46,
+    true
+   ]
+  ],
+  [
+   [
+    0,
+    92
+   ],
+   [
+    789,
+    92,
+    92
+   ],
+   [
+    0
+   ],
+   0
+  ],
+  [
+   [
+    0,
+    46,
+    46
+   ],
+   [
+    0
+   ],
+   [
+    0,
+    92
+   ],
+   [
+    0
+   ],
+   [
+    0,
+    46
+   ],
+   0
+  ],
+  [
+   [
+    110,
+    110,
+    110
+   ],
+   [
+    21,
+    21,
+    21
+   ],
+   [
+    255,
+    255,
+    255
+   ],
+   [
+    255,
+    255,
+    255
+   ],
+   [
+    255,
+    255,
+    255
+   ],
+   [
+    255,
+    255,
+    255
+   ]
+  ],
+  [
+   [
+    237,
+    237,
+    237
+   ],
+   [
+    221,
+    221,
+    221
+   ],
+   [
+    53,
+    53,
+    53
+   ],
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    20,
+    20,
+    20
+   ],
+   [
+    255,
+    255,
+    255
+   ],
+   [
+    255,
+    255,
+    255
+   ]
+  ],
+  [
+   [
+    237,
+    237,
+    237
+   ],
+   [
+    221,
+    221,
+    221
+   ],
+   [
+    53,
+    53,
+    53
+   ],
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    20,
+    20,
+    20
+   ],
+   [
+    255,
+    255,
+    255
+   ],
+   [
+    255,
+    255,
+    255
+   ]
+  ],
+  [
+   [
+    237,
+    237,
+    237
+   ],
+   [
+    221,
+    221,
+    221
+   ],
+   [
+    53,
+    53,
+    53
+   ],
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    20,
+    20,
+    20
+   ],
+   [
+    255,
+    255,
+    255
+   ],
+   [
+    255,
+    255,
+    255
+   ]
+  ]
+ ],
+ "gif-without-color-table-pixels": [
+  [
+   [
+    "a",
+    true,
+    4,
+    4
+   ],
+   [
+    "b",
+    true,
+    4,
+    4
+   ],
+   [
+    "c",
+    true,
+    1,
+    1
+   ]
+  ],
+  [
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    0
+   ]
+  ],
+  [
+   [
+    255,
+    0,
+    255
+   ],
+   [
+    255,
+    0,
+    255
+   ]
+  ]
+ ],
+ "input-scroll-typed-then-set": [
+  [
+   [
+    "a",
+    0,
+    36,
+    36,
+    false
+   ],
+   [
+    "b",
+    251,
+    36,
+    36,
+    true
+   ]
+  ],
+  [
+   [
+    "a",
+    0,
+    92
+   ],
+   [
+    "b",
+    251,
+    47
+   ]
+  ],
+  [
+   0,
+   251
+  ],
+  [
+   [
+    237,
+    237,
+    237
+   ],
+   [
+    221,
+    221,
+    221
+   ],
+   [
+    53,
+    53,
+    53
+   ],
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    20,
+    20,
+    20
+   ],
+   [
+    255,
+    255,
+    255
+   ],
+   [
+    255,
+    255,
+    255
+   ]
+  ],
+  [
+   [
+    255,
+    255,
+    255
+   ],
+   [
+    235,
+    235,
+    235
+   ],
+   [
+    209,
+    209,
+    209
+   ],
+   [
+    255,
+    255,
+    255
+   ],
+   [
+    255,
+    255,
+    255
+   ],
+   [
+    255,
+    255,
+    255
+   ],
+   [
+    247,
+    247,
+    247
+   ]
+  ]
+ ]
+}

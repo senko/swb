@@ -60,6 +60,7 @@ FinalizationRegistry:dwc
 JSON:dwc
 console:dwc
 Promise:dwc
+ImageData:dwc
 Screen:dwc
 CSSStyleDeclaration:dwc
 MediaList:dwc
@@ -474,6 +475,7 @@ PerformanceMark:dwc
 PerformanceMeasure:dwc
 Crypto:dwc
 DOMException:dwc
+Worker:dwc
 XMLHttpRequestEventTarget:dwc
 XMLHttpRequestUpload:dwc
 XMLHttpRequest:dwc

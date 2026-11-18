@@ -684,6 +684,8 @@ impl DocumentState {
                 state.scroll = c.scroll;
             }
         });
+        // The layout showed the caret that the user moved.
+        forms.reveal_focus = false;
     }
 
     /// Brings the display list up to date.

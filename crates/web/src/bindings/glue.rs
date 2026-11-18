@@ -28,6 +28,11 @@ pub fn run(
 ) -> VmResult<NativeReturn> {
     let entered = crate::state::enter_call(rt, call)?;
     let result = body(rt);
+    let result = match result {
+        // `Attr` inherits from `Node` without being a node of the arena.
+        Err(Exception::AttrNode) => crate::dom::attr_node::node_member(rt, call, context),
+        other => other,
+    };
     // A change that the call made may have queued mutation records: the
     // mutation observer microtask takes its place in the job queue now.
     if crate::mutation_observer::needs_attention(rt) || entered != crate::state::NO_SWITCH {
@@ -132,7 +137,14 @@ pub fn this_node(rt: &Runtime, call: &NativeCall, class: ClassId) -> Result<Node
         Ok(data) => data,
         Err(error) => return Err(refused(rt, call, error)),
     };
-    node_of(data).ok_or_else(|| VmError::type_error("Illegal invocation").into())
+    node_of(data).ok_or_else(|| {
+        if rt.implements(call.this(), crate::generated::ATTR) {
+            // An `Attr` is a `Node` whose data is not an arena node.
+            Exception::AttrNode
+        } else {
+            VmError::type_error("Illegal invocation").into()
+        }
+    })
 }
 
 /// The brand check of `this` for a member of another interface.

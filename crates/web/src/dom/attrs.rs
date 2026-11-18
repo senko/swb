@@ -9,8 +9,9 @@
 //! `Attr` objects that scripts have seen, by element and name, so that
 //! `el.getAttributeNode('a') === el.attributes[0]`. An attribute that is
 //! removed leaves its object behind, detached, with the last value.
-//! Departure: `Attr` is not a `Node` (it extends `EventTarget`; ADR 0028
-//! section 3 keeps attributes out of the arena).
+//! `Attr` inherits from `Node` (as in the DOM standard) without being a
+//! node of the arena (ADR 0028 section 3 keeps attributes out of it): the
+//! members of `Node` that an `Attr` has are in [`super::attr_node`].
 //!
 //! All documents of swb are HTML documents, so a name that a script gives
 //! to an element of the HTML namespace is lowercased (DOM "get an
@@ -308,8 +309,10 @@ pub(crate) fn remove_attribute(
     if let Some(old) = &old {
         let key = (element, name.ns.clone(), name.local.clone());
         if let Some(object) = state_mut(rt)?.doc.attr_objects.remove(&key) {
+            let document = dom(rt)?.node_document(element);
             let data = attr_data_mut(rt, object)?;
             data.owner = None;
+            data.document_node = document;
             data.value.clone_from(old);
         }
         // The steps run without `throw`: only a stop is an error.
@@ -332,6 +335,9 @@ pub(super) struct AttrData {
     pub(super) name: QualName,
     /// The value while there is no owner.
     pub(super) value: String,
+    /// The node document of an `Attr` without an owner: the `Document`
+    /// that made it (`ownerDocument`). With an owner it is the owner's.
+    pub(super) document_node: NodeId,
 }
 
 impl GenericData for AttrData {
@@ -372,7 +378,7 @@ fn attr_data_mut(rt: &mut Runtime, object: Gc<Object>) -> VmResult<&mut AttrData
 }
 
 /// The data of the `Attr` that a call received as an argument or `this`.
-fn data_of(rt: &Runtime, this: Platform) -> b::Result<&AttrData> {
+pub(super) fn data_of(rt: &Runtime, this: Platform) -> b::Result<&AttrData> {
     match this.data {
         HostData::Generic(handle) => Ok(rt
             .heap()
@@ -406,6 +412,7 @@ pub(super) fn new_attr(
         owner,
         name,
         value,
+        document_node: NodeId::DOCUMENT,
     })?;
     rt.new_host_object(realm, g::ATTR, data)
 }
@@ -704,7 +711,11 @@ pub(super) fn new_named_node_map(
 
 /// `Document.createAttribute`: a detached `Attr` with a lowercased local
 /// name.
-pub(super) fn create_attribute(cx: &mut Cx<'_>, local: &str) -> b::Result<Gc<Object>> {
+pub(super) fn create_attribute(
+    cx: &mut Cx<'_>,
+    this: NodeId,
+    local: &str,
+) -> b::Result<Gc<Object>> {
     if !is_valid_attribute_name(local) {
         return Err(Exception::dom(
             "InvalidCharacterError",
@@ -712,13 +723,31 @@ pub(super) fn create_attribute(cx: &mut Cx<'_>, local: &str) -> b::Result<Gc<Obj
         ));
     }
     let name = QualName::new(None, ns!(), LocalName::from(local.to_ascii_lowercase()));
+    new_detached(cx, this, name)
+}
+
+/// A new `Attr` without an owner whose node document is `document`.
+fn new_detached(cx: &mut Cx<'_>, document: NodeId, name: QualName) -> b::Result<Gc<Object>> {
     let realm = cx.realm();
-    Ok(new_attr(cx.rt, realm, None, name, String::new())?)
+    let object = new_attr(cx.rt, realm, None, name, String::new())?;
+    set_document_node(cx.rt, object, document)?;
+    Ok(object)
+}
+
+/// Sets the node document of an `Attr` without an owner.
+pub(super) fn set_document_node(
+    rt: &mut Runtime,
+    attr: Gc<Object>,
+    document: NodeId,
+) -> VmResult<()> {
+    attr_data_mut(rt, attr)?.document_node = document;
+    Ok(())
 }
 
 /// `Document.createAttributeNS`.
 pub(super) fn create_attribute_ns(
     cx: &mut Cx<'_>,
+    this: NodeId,
     namespace: Option<String>,
     qualified: &str,
 ) -> b::Result<Gc<Object>> {
@@ -728,8 +757,7 @@ pub(super) fn create_attribute_ns(
         Namespace::from(parts.namespace.unwrap_or_default()),
         LocalName::from(parts.local),
     );
-    let realm = cx.realm();
-    Ok(new_attr(cx.rt, realm, None, name, String::new())?)
+    new_detached(cx, this, name)
 }
 
 // ----- Attr -----

@@ -42,6 +42,12 @@ pub enum Exception {
     /// an object: the `SecurityError` of the hooks (`window_proxy.rs`), with
     /// no context.
     Blocked(swb_js::Gc<swb_js::Object>),
+    /// A member of `Node` found an `Attr` as `this` or as a node argument:
+    /// `Attr` inherits from `Node` but is no node of the arena.
+    /// [`super::glue::run`] hands the call to
+    /// [`crate::dom::attr_node::node_member`]; the exception never leaves
+    /// it.
+    AttrNode,
 }
 
 impl From<VmError> for Exception {
@@ -99,6 +105,9 @@ impl Exception {
             Exception::NotOfType(ty) => {
                 Exception::Type(format!("Failed to convert value to '{ty}'.").into())
             }
+            // An `Attr` where a dictionary member or an attribute takes a
+            // `Node` is refused (Chromium; measured in `StaticRangeInit`).
+            Exception::AttrNode => Exception::Type("Failed to convert value to 'Node'.".into()),
             other => other,
         }
     }
@@ -210,6 +219,10 @@ pub fn throw_with_prefix(
         }
         Exception::Js(error) => error,
         Exception::Blocked(object) => crate::window_proxy::blocked(rt, object),
+        // Only a native that [`super::glue::run`] does not wrap gets here.
+        Exception::AttrNode => {
+            VmError::type_error(format!("{prefix}The provided value is not of type 'Node'."))
+        }
     }
 }
 

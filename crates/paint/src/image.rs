@@ -155,6 +155,24 @@ pub fn decode_in_document(
 /// The size is checked from the image header before the pixels are
 /// decoded, so a small file that declares a huge image costs no memory.
 pub fn decode(data: &[u8]) -> Result<DecodedImage, ImageError> {
+    let Some((patched, no_pixel_data)) = gif_with_color_table(data) else {
+        return decode_raster(data);
+    };
+    // A frame without pixel data (Leaflet's `emptyImageUrl`) is a
+    // transparent image of the size of the screen in Chromium; other data
+    // that the decoder refuses stays an error (a broken image).
+    decode_raster(&patched).or_else(|error| {
+        if !no_pixel_data {
+            return Err(error);
+        }
+        let (_, width, height) = check_raster(&patched)?;
+        let pixmap = Pixmap::new(width.max(1), height.max(1)).ok_or(error)?;
+        Ok(DecodedImage::new(ImageKind::Raster(pixmap)))
+    })
+}
+
+/// [`decode`] for data that the decoder accepts as it is.
+fn decode_raster(data: &[u8]) -> Result<DecodedImage, ImageError> {
     let (_, decoder) = raster_decoder(data)?;
     let decoded = image::DynamicImage::from_decoder(decoder).map_err(|e| decode_error(&e))?;
     let rgba = decoded.into_rgba8();
@@ -168,6 +186,69 @@ pub fn decode(data: &[u8]) -> Result<DecodedImage, ImageError> {
         None => Pixmap::new(1, 1).ok_or(ImageError::TooLarge(w, h))?,
     };
     Ok(DecodedImage::new(ImageKind::Raster(pixmap)))
+}
+
+/// The size of the color table that [`gif_with_color_table`] adds: 256
+/// entries of 3 bytes.
+const GIF_BLACK_TABLE: usize = 256 * 3;
+
+/// A copy of a GIF whose first frame has no color table, with an all-black
+/// global color table, and whether that frame has no pixel data (its first
+/// data sub-block is the block terminator); `None` for any other data.
+/// GIF 89a section 18 and
+/// 20 (<https://www.w3.org/Graphics/GIF/spec-gif89a.txt>) give a frame its
+/// local table or else the global one, and the decoder of the `image`
+/// crate fails when there is neither ("no color table available for
+/// current frame"). Chromium draws such a frame (Leaflet's
+/// `emptyImageUrl` is one): its pixels are opaque black (measured, probe
+/// `gif-without-color-table-pixels`), and a frame without pixel data is
+/// transparent. The copy only makes the decoder accept the data; the
+/// header checks of [`raster_decoder`] see the same size.
+fn gif_with_color_table(data: &[u8]) -> Option<(Vec<u8>, bool)> {
+    const GLOBAL_TABLE: u8 = 0x80;
+    if !(data.starts_with(b"GIF87a") || data.starts_with(b"GIF89a")) {
+        return None;
+    }
+    // Logical screen descriptor: width, height, packed flags, background
+    // color index, pixel aspect ratio.
+    let flags = *data.get(10)?;
+    if flags & GLOBAL_TABLE != 0 {
+        return None;
+    }
+    // Skip the extensions in front of the first image descriptor.
+    let mut at = 13;
+    loop {
+        match *data.get(at)? {
+            0x21 => {
+                at += 2;
+                loop {
+                    let size = usize::from(*data.get(at)?);
+                    at += 1 + size;
+                    if size == 0 {
+                        break;
+                    }
+                }
+            }
+            0x2C => break,
+            _ => return None,
+        }
+    }
+    // Image descriptor: separator, left, top, width, height, packed flags.
+    let frame_flags = *data.get(at + 9)?;
+    if frame_flags & GLOBAL_TABLE != 0 {
+        return None;
+    }
+    // Table based image data: the LZW minimum code size, then the data
+    // sub-blocks; a first block of size 0 ends the data at once.
+    let no_pixel_data = data.get(at + 11) == Some(&0);
+    let mut patched = Vec::with_capacity(data.len() + GIF_BLACK_TABLE);
+    patched.extend_from_slice(data.get(..10)?);
+    // A global table of 2^(7 + 1) entries.
+    patched.push(flags | GLOBAL_TABLE | 0x07);
+    patched.extend_from_slice(data.get(11..13)?);
+    patched.resize(patched.len() + GIF_BLACK_TABLE, 0);
+    patched.extend_from_slice(data.get(13..)?);
+    Some((patched, no_pixel_data))
 }
 
 /// The width and height that the header of raster image data declares, if
@@ -306,6 +387,69 @@ pub(crate) mod tests {
         ] {
             assert!(!is_supported_image_type(t), "{t}");
         }
+    }
+
+    /// A GIF of `width` x `height` with `frame` as the rest of the data
+    /// after the 13-byte header (no global color table).
+    fn gif_without_table(width: u16, height: u16, frame: &[u8]) -> Vec<u8> {
+        let mut out = b"GIF89a".to_vec();
+        out.extend_from_slice(&width.to_le_bytes());
+        out.extend_from_slice(&height.to_le_bytes());
+        out.extend_from_slice(&[0, 0, 0]);
+        out.extend_from_slice(frame);
+        out
+    }
+
+    #[test]
+    fn decodes_a_gif_without_color_table() {
+        // Leaflet's `emptyImageUrl`: one frame, no table, no pixel data.
+        let leaflet = b"\x2c\0\0\0\0\x01\0\x01\0\0\x02\0\x3b";
+        let image = decode(&gif_without_table(1, 1, leaflet)).unwrap();
+        assert_eq!(image.natural_size(), NaturalSize::fixed(1.0, 1.0));
+        assert_eq!(image.raster().unwrap().pixel(0, 0).unwrap().alpha(), 0);
+        // 2 x 1 with pixel data (indexes 0 and 1; LZW with minimum code
+        // size 2: clear, 0, 1, end): Chromium draws opaque black.
+        let frame = b"\x2c\0\0\0\0\x02\0\x01\0\0\x02\x02\x44\x0a\0\x3b";
+        let image = decode(&gif_without_table(2, 1, frame)).unwrap();
+        let pixmap = image.raster().unwrap();
+        for x in 0..2 {
+            let px = pixmap.pixel(x, 0).unwrap();
+            assert_eq!(
+                (px.red(), px.green(), px.blue(), px.alpha()),
+                (0, 0, 0, 255)
+            );
+        }
+    }
+
+    #[test]
+    fn a_broken_gif_without_color_table_stays_an_error() {
+        // Pixel data that is not valid LZW (a code above the table) and a
+        // file cut after the image descriptor: broken images, not
+        // transparent ones.
+        let corrupt = b"\x2c\0\0\0\0\x02\0\x01\0\0\x02\x02\xff\xff\0\x3b";
+        assert!(decode(&gif_without_table(2, 1, corrupt)).is_err());
+        let truncated = b"\x2c\0\0\0\0\x02\0\x01\0\0";
+        assert!(decode(&gif_without_table(2, 1, truncated)).is_err());
+    }
+
+    #[test]
+    fn a_huge_gif_without_color_table_is_refused() {
+        // A 65535 x 65535 screen and a frame with no data: no allocation.
+        let frame = b"\x2c\0\0\0\0\xff\xff\xff\xff\0\x02\0\x3b";
+        let result = decode(&gif_without_table(65535, 65535, frame));
+        assert!(matches!(result, Err(ImageError::TooLarge(65535, 65535))));
+    }
+
+    #[test]
+    fn a_gif_with_a_table_is_not_changed() {
+        let mut with_global = gif_without_table(1, 1, b"\x3b");
+        with_global[10] = 0x80;
+        assert!(gif_with_color_table(&with_global).is_none());
+        let with_local = gif_without_table(1, 1, b"\x2c\0\0\0\0\x01\0\x01\0\x80");
+        assert!(gif_with_color_table(&with_local).is_none());
+        assert!(gif_with_color_table(b"GIF89a").is_none());
+        assert!(gif_with_color_table(b"GIF89a\x01\0\x01\0\0\0\0\x21").is_none());
+        assert!(gif_with_color_table(b"not a gif at all").is_none());
     }
 
     #[test]

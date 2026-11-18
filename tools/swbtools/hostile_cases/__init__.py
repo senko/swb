@@ -47,6 +47,7 @@ MODULES = (
     "small_features",
     "inline_alignment",
     "style_invalidation",
+    "osm_gaps",
 )
 for _module in MODULES:
     importlib.import_module(f"{__name__}.{_module}")

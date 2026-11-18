@@ -33,11 +33,11 @@
 // the members of InnerHTML and
 // insertAdjacentHTML come from the DOM Parsing specification and sit on
 // Element (Chromium: Element has them, DocumentFragment does not);
-// ProcessingInstruction has only `target`. Two departures: Attr extends EventTarget, not Node (swb keeps
-// attributes in their element, not as nodes of the arena), and the
+// ProcessingInstruction has only `target`. One departure: the
 // `[Unscopable]` attributes of the ParentNode and ChildNode methods are
-// left out (the generator has no @@unscopables yet). The order of the
-// members is the specification's.
+// left out (the generator has no @@unscopables yet). Attr extends Node since
+// M12 feature 2, with swb's attributes still kept in their element (see
+// `[SwbNotANode]` below). The order of the members is the specification's.
 
 [Exposed=*]
 interface Event {
@@ -436,8 +436,12 @@ interface NamedNodeMap {
   [CEReactions] Attr removeNamedItemNS(DOMString? namespace, DOMString localName);
 };
 
-[Exposed=Window]
-interface Attr : EventTarget {
+// M12 feature 2: `Attr : Node`. `[SwbNotANode]`: the wrappers of an Attr do not
+// carry an arena node, so the generator treats the interface as a platform
+// object (`this: Platform`, arguments of type Attr by `convert::platform`);
+// the members of Node that an Attr has are in crates/web/src/dom/attr_node.rs.
+[Exposed=Window, SwbNotANode]
+interface Attr : Node {
   readonly attribute DOMString? namespaceURI;
   readonly attribute DOMString? prefix;
   readonly attribute DOMString localName;
@@ -493,8 +497,8 @@ interface Comment : CharacterData {
 };
 
 // Feature 9a of M8 (2026-10-29): mutation observers (DOM 4.3). Chromium 148
-// has the same members; `observe` takes any Node, and Attr is not a Node in
-// swb (see above), so it is refused there.
+// has the same members; `observe` takes any Node, and an Attr is no node of
+// swb's arena (see `[SwbNotANode]` above), so it is refused there.
 callback MutationCallback = undefined (sequence<MutationRecord> mutations, MutationObserver observer);
 
 [Exposed=Window]

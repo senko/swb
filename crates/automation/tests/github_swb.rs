@@ -260,12 +260,13 @@ const INTERACTION_RECTANGLES: &[&str] =
     &["activeRect", "bodyTail", "dialogs", "inputs", "popovers"];
 
 /// The prefix of the URLs of the page's worker chunks. Chromium requests
-/// them (its `Worker` exists, the chunk is not in the fixture); swb has no
-/// `Worker` (backlog), the page logs [`NO_WORKERS`] and requests nothing.
+/// them (its `Worker` exists, the chunk is not in the fixture); swb's
+/// `Worker` is a stand-in that fetches and runs nothing (M12 feature 2), so
+/// the page takes its worker path, gets no answer and requests nothing.
 const WORKER_CHUNKS: &str = "https://github.com/assets-cdn/worker/";
 
-/// The page's warning when `Worker` does not exist (a departure: Chromium
-/// logs no such message).
+/// The page's warning when `Worker` does not exist. Since M12 feature 2 swb
+/// has a `Worker` and the page no longer logs it (as in Chromium).
 const NO_WORKERS: &str = "Web workers are not available.";
 
 /// The record `window.__i()` of the page.
@@ -412,8 +413,9 @@ fn interaction_state(name: &str, got: &Value) -> Vec<String> {
 /// - Chromium places the overlays with CSS anchor positioning (`position:
 ///   fixed`, `z-index: 100`), swb with the page's script (`position:
 ///   absolute`). The boxes are equal at scroll 0, where the test opens them.
-/// - swb has no `Worker`: the page logs [`NO_WORKERS`] once, and Chromium
-///   requests a worker chunk that swb does not ([`WORKER_CHUNKS`]).
+/// - swb's `Worker` runs no script: Chromium requests a worker chunk that
+///   swb does not ([`WORKER_CHUNKS`]). (Before M12 feature 2 swb had no
+///   `Worker` and the page logged [`NO_WORKERS`] once.)
 #[test]
 fn github_interactions_match_chromium() {
     let Some(dir) = fixture("github-swb") else {
@@ -468,8 +470,10 @@ fn github_interactions_match_chromium() {
         assert!(problems.is_empty(), "{}", problems.join("\n"));
 
         // The console: the page's errors (the rejections of the requests
-        // that the fixture lacks) are Chromium's, in number; the warning
-        // about workers is the only other message.
+        // that the fixture lacks) are Chromium's, in number; the page does
+        // not warn about missing workers (swb has the stand-in), and
+        // the only other message is the warning of the stand-in, which is
+        // not on the page's console.
         let chromium: Vec<String> =
             serde_json::from_str(include_str!("data/github-swb-interactions-errors.json")).unwrap();
         let messages: Vec<String> = page
@@ -481,7 +485,7 @@ fn github_interactions_match_chromium() {
         let (workers, errors): (Vec<_>, Vec<_>) = messages
             .iter()
             .partition(|text| text.starts_with(NO_WORKERS));
-        assert_eq!(workers.len(), 1, "{messages:?}");
+        assert_eq!(workers.len(), 0, "{messages:?}");
         let errors: Vec<&str> = errors
             .iter()
             .map(|text| {

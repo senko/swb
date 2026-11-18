@@ -201,14 +201,21 @@ impl Page {
             .flatten()
             .any(|n| forms.get(n).is_some());
         if involves_control {
+            // The focused field shows its caret (HTML `focus()` and a click
+            // scroll the text to it).
+            doc.forms.value_mut().reveal_focus = true;
             doc.invalidate_layout();
         }
         involves_control
     }
 
-    /// Drops the layout of the current document.
+    /// Drops the layout of the current document after the user changed a
+    /// control (the text, the caret, the selection): the next layout
+    /// scrolls the text of the focused field to its caret
+    /// ([`Forms::reveal_focus`]).
     fn invalidate_layout(&mut self) {
         if let Some(doc) = self.doc.as_deref_mut() {
+            doc.forms.value_mut().reveal_focus = true;
             doc.invalidate_layout();
         }
     }

@@ -318,6 +318,14 @@ impl Runtime {
         Ok(())
     }
 
+    /// True if an `ArrayBuffer` of `bytes` bytes fits under the heap limit
+    /// (it can collect, as [`Runtime::create_array_buffer`] does). A host
+    /// that sizes a buffer by a script's number asks before it allocates
+    /// the bytes.
+    pub fn array_buffer_fits(&mut self, bytes: usize) -> bool {
+        self.heap.reserve_buffer(bytes, &self.vm)
+    }
+
     /// A new `ArrayBuffer` that owns `bytes`, resizable up to
     /// `max_byte_length` if given.
     pub fn create_array_buffer(

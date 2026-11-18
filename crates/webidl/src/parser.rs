@@ -46,6 +46,7 @@ const BUFFER_TYPES: &[&str] = &[
     "BufferSource",
     "AllowSharedBufferSource",
     "Uint8Array",
+    "Uint8ClampedArray",
     "Float32Array",
     "Float64Array",
 ];

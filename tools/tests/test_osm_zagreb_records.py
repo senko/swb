@@ -1,15 +1,11 @@
-"""`tools/osm_zagreb_records.py` (M12 feature 1b): the `Worker` stub fixture,
-the step list of the swb runner, and the comparison of swb's records with
-Chromium's. No Chromium and no swb binary: the steps and the log are data."""
+"""`tools/osm_zagreb_records.py` (M12): the step list of the swb runner and the
+comparison of swb's records with Chromium's. No Chromium and no swb binary:
+the steps and the log are data."""
 
 import importlib.util
 import json
 import sys
 from pathlib import Path
-
-import pytest
-
-from swbtools.manifest import Fixture
 
 SCRIPT = Path(__file__).resolve().parents[1] / "osm_zagreb_records.py"
 spec = importlib.util.spec_from_file_location("osm_zagreb_records", SCRIPT)
@@ -17,59 +13,6 @@ assert spec is not None and spec.loader is not None
 records = importlib.util.module_from_spec(spec)
 sys.modules["osm_zagreb_records"] = records
 spec.loader.exec_module(records)
-
-APP = "https://www.openstreetmap.org/assets/application-0123abcd.js"
-
-
-def make_fixture(path: Path, extra_application: bool = False) -> None:
-    fixture = Fixture(path)
-    fixture.record(
-        "GET", "https://www.openstreetmap.org/", 200, [("content-type", "text/html")], b"<p>x"
-    )
-    fixture.record("GET", APP, 200, [("content-type", "text/javascript")], b"console.log(1);\n")
-    if extra_application:
-        fixture.record("GET", APP.replace("0123", "4567"), 200, [], b"x")
-    fixture.save()
-    (path / "fixture.json").write_text(
-        '{"url": "https://www.openstreetmap.org/"}', encoding="utf-8"
-    )
-
-
-def test_the_stub_fixture_prepends_the_worker_stub_to_the_application_script(tmp_path):
-    source, target = tmp_path / "osm", tmp_path / "osm-stub"
-    make_fixture(source)
-    assert records.make_stub(source, target) == APP
-    stub = Fixture(target)
-    body = stub.read_body(stub.get(APP)).decode()
-    assert body.startswith("if (typeof window.Worker === 'undefined')")
-    assert body.endswith("console.log(1);\n")
-    # The other entries are the same files; the source is not changed.
-    page = stub.get("https://www.openstreetmap.org/")
-    assert stub.read_body(page) == b"<p>x"
-    original = Fixture(source)
-    assert original.read_body(original.get(APP)) == b"console.log(1);\n"
-    assert (target / "fixture.json").is_file()
-    # The old body file of the script is not in the copy.
-    assert not [p for p in stub.unused_files()]
-
-
-def test_the_stub_can_be_made_again(tmp_path):
-    source, target = tmp_path / "osm", tmp_path / "osm-stub"
-    make_fixture(source)
-    records.make_stub(source, target)
-    records.make_stub(source, target)
-    stub = Fixture(target)
-    body = stub.read_body(stub.get(APP)).decode()
-    assert body.count("window.Worker = class Worker") == 1
-
-
-def test_the_stub_needs_exactly_one_application_script(tmp_path):
-    source = tmp_path / "osm"
-    make_fixture(source, extra_application=True)
-    with pytest.raises(SystemExit):
-        records.make_stub(source, tmp_path / "osm-stub")
-    with pytest.raises(SystemExit):
-        records.make_stub(source, source)
 
 
 def test_a_playwright_selector_becomes_a_marked_click():

@@ -6,7 +6,6 @@ OpenStreetMap target of M12 (`fixtures/js/osm-zagreb`; docs/testing.md,
     uv run --project tools python tools/osm_zagreb_records.py records [--out DIR]
     uv run --project tools python tools/osm_zagreb_records.py summary [--out DIR]
     uv run --project tools python tools/osm_zagreb_records.py merge-node --from FIXTURE_DIR
-    uv run --project tools python tools/osm_zagreb_records.py stub
     uv run --project tools python tools/osm_zagreb_records.py swb [--fixture NAME] \\
         [--groups N] [--skip N...] [--out DIR]
 
@@ -29,13 +28,9 @@ network), checks that the two runs agree, and writes `osm-zagreb-chromium.json`
 (the URLs that the fixture lacks, per group), `osm-zagreb-console.txt` and
 the screenshots (`shots/`) into DIR. `summary` prints a table of the records.
 
-`stub` (M12 feature 1b) makes `fixtures/js/osm-zagreb-stub`: a copy of the
-fixture whose `application-*.js` starts with a `Worker` stub (a class that
-does nothing, only if `window.Worker` is missing), so that MapLibre's worker
-pool does not stop the main script in swb. `swb` runs the step groups in swb
-on a fixture (default `osm-zagreb-stub`): one `swb --headless` run with the
-steps of all groups, a `record` step and a `screenshot` step after the load
-and after each group. It compares each record with Chromium's
+`swb` runs the step groups in swb on a fixture (default `osm-zagreb`):
+one `swb --headless` run with the steps of all groups, a `record` step and a
+`screenshot` step after the load and after each group. It compares each record with Chromium's
 (`osm-zagreb-chromium.json` in DIR) and writes `swb-records.json` (the
 records), `swb-diff.json` (the differing fields per record), `swb-times.json`
 (wall time per record), `swb-log.txt` (stderr), `swb-groups.json` (the log
@@ -46,7 +41,6 @@ import argparse
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import threading
@@ -435,63 +429,6 @@ def summary(out: Path) -> None:
         )
 
 
-STUB_FIXTURE = "osm-zagreb-stub"
-APPLICATION_JS = re.compile(r"/assets/application-[0-9a-f]+\.js$")
-# What the stub does: nothing. MapLibre's worker pool makes its workers
-# while the main script runs; the stub lets that script go on. Only if the
-# browser has no `Worker`.
-WORKER_STUB = """if (typeof window.Worker === 'undefined') {
-  window.Worker = class Worker {
-    constructor(url, options) {
-      this.onmessage = null;
-      this.onerror = null;
-      this.onmessageerror = null;
-    }
-    postMessage() {}
-    terminate() {}
-    addEventListener() {}
-    removeEventListener() {}
-    dispatchEvent() { return true; }
-  };
-}
-"""
-
-
-def link_or_copy(source: str, target: str) -> str:
-    """Copies a file as a hard link if the file system allows it."""
-    try:
-        os.link(source, target)
-    except OSError:
-        shutil.copy2(source, target)
-    return target
-
-
-def make_stub(source: Path, target: Path) -> str:
-    """Makes the fixture `target`: a copy of the fixture `source` whose
-    `application-*.js` body starts with `WORKER_STUB` (a new body file; the
-    manifest entry points to it). Returns the URL of that entry."""
-    from swbtools.manifest import Fixture, body_path
-
-    if source.resolve() == target.resolve():
-        sys.exit("the stub fixture must differ from its source")
-    if target.exists():
-        shutil.rmtree(target)
-    shutil.copytree(source, target, copy_function=link_or_copy)
-    fixture = Fixture(target)
-    found = [
-        e for e in fixture.entries.values() if e.method == "GET" and APPLICATION_JS.search(e.url)
-    ]
-    if len(found) != 1:
-        sys.exit(f"expected one application-*.js entry in {source}, found {len(found)}")
-    old = found[0]
-    body = WORKER_STUB.encode("utf-8") + fixture.read_body(old)
-    new = fixture.record("GET", old.url, old.status, old.headers, body)
-    if new.body != old.body:
-        body_path(target, old.body).unlink()
-    fixture.save()
-    return old.url
-
-
 # One `swb` run: the pause after each step (the pause of `replay`, in page
 # time), the cap of the whole run, and the log levels (the `screenshot` step
 # logs at `info` so that the log has a mark per group).
@@ -697,22 +634,16 @@ def labelled(names: list[str], key: str, values: list[Any]) -> list[dict[str, An
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    commands = ["steps", "records", "summary", "merge-node", "stub", "swb"]
+    commands = ["steps", "records", "summary", "merge-node", "swb"]
     parser.add_argument("command", choices=commands)
     parser.add_argument("--out", type=Path, default=ROOT / "out" / "osm-zagreb")
-    parser.add_argument("--fixture", default=STUB_FIXTURE, help="swb: the fixture to run")
+    parser.add_argument("--fixture", default=FIXTURE, help="swb: the fixture to run")
     parser.add_argument("--groups", type=int, help="swb: run only the first N groups")
     parser.add_argument("--skip", type=int, nargs="*", help="swb: group numbers to leave out")
     parser.add_argument("--chromium", type=Path, help="swb: Chromium's records")
     parser.add_argument("--binary", type=Path, help="swb: the swb binary")
     parser.add_argument("--from", dest="source", type=Path, help="merge-node: a fixture directory")
     args = parser.parse_args()
-    if args.command == "stub":
-        from swbtools import paths
-
-        url = make_stub(paths.js_fixture_dir(FIXTURE), paths.js_fixture_dir(STUB_FIXTURE))
-        print(f"{STUB_FIXTURE}: stub added to {url}")
-        return
     if args.command == "swb":
         from swbtools import swb as swb_tools
 

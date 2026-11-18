@@ -32,6 +32,7 @@ const INTERFACE_ATTRS: &[&str] = &[
     "SecureContext",
     "LegacyWindowAlias",
     "SwbLateMembers",
+    "SwbNotANode",
 ];
 const ATTRIBUTE_ATTRS: &[&str] = &[
     "CEReactions",
@@ -362,10 +363,18 @@ impl Model {
     }
 
     /// Whether the interface `name` is `Node` or inherits from it (its
-    /// wrappers carry a node).
+    /// wrappers carry a node). An interface with `[SwbNotANode]` (`Attr`)
+    /// inherits from `Node` in the prototype chain, but its wrappers carry
+    /// no node, and neither do those of the interfaces that inherit from it.
     pub(crate) fn is_node(&self, name: &str) -> bool {
         let mut current = Some(name.to_owned());
         while let Some(name) = current {
+            if self
+                .iface(&name)
+                .is_some_and(|i| i.ext_attrs.has("SwbNotANode"))
+            {
+                return false;
+            }
             if name == "Node" {
                 return true;
             }

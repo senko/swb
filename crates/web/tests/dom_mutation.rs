@@ -19,20 +19,12 @@ use common::{Departure, answer, expected, load, on_big_stack, probe_failures};
 
 /// The values where swb departs from Chromium on purpose: (case, query
 /// index, swb's value, why).
-const SWB_VALUES: &[Departure] = &[
-    (
-        "m090",
-        0,
-        r#"",,,false,true""#,
-        "Attr extends EventTarget, not Node (attributes are not nodes of the arena, ADR 0028 section 3)",
-    ),
-    (
-        "m451",
-        0,
-        r#""1|q:c=z@urn:q""#,
-        "setAttribute('Q:C') finds the attribute with the qualified name q:c in any namespace and changes it (DOM standard); Chromium adds a second one",
-    ),
-];
+const SWB_VALUES: &[Departure] = &[(
+    "m451",
+    0,
+    r#""1|q:c=z@urn:q""#,
+    "setAttribute('Q:C') finds the attribute with the qualified name q:c in any namespace and changes it (DOM standard); Chromium adds a second one",
+)];
 
 /// Runs every probe case with and without the GC stress mode.
 #[test]

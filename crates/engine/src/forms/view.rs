@@ -82,7 +82,13 @@ impl Forms {
                     | InputType::Password => Some(0.0),
                     _ => None,
                 };
-                text_view(e, state, &mut control, focus == Some(node));
+                text_view(
+                    e,
+                    state,
+                    &mut control,
+                    focus == Some(node),
+                    self.reveal_focus,
+                );
             }
             ControlType::TextArea => {
                 control.kind = ControlKind::TextArea {
@@ -90,7 +96,13 @@ impl Forms {
                     rows: positive_attr(e, "rows", 2),
                 };
                 control.content_fit = Some(0.0);
-                text_view(e, state, &mut control, focus == Some(node));
+                text_view(
+                    e,
+                    state,
+                    &mut control,
+                    focus == Some(node),
+                    self.reveal_focus,
+                );
                 // A text area keeps its scroll position without the focus.
                 control.scroll = state.scroll;
             }
@@ -121,8 +133,16 @@ fn button_label(e: &ElementData, ty: InputType) -> String {
 }
 
 /// Fills the text, placeholder, caret and scroll of a text control. Only
-/// a focused control that can be edited has a caret.
-fn text_view(e: &ElementData, state: &ControlState, control: &mut Control, focused: bool) {
+/// a focused control that can be edited has a caret. `reveal`: layout
+/// scrolls the text so that the caret is visible ([`Forms::reveal_focus`]);
+/// without it the text keeps its scroll offset.
+fn text_view(
+    e: &ElementData,
+    state: &ControlState,
+    control: &mut Control,
+    focused: bool,
+    reveal: bool,
+) {
     let password = state.ty == ControlType::Input(InputType::Password);
     let value = state.edit.text();
     if value.is_empty() {
@@ -153,7 +173,9 @@ fn text_view(e: &ElementData, state: &ControlState, control: &mut Control, focus
         control.caret = Some(cursor);
     }
     control.scroll = state.scroll;
-    control.focus = Some(cursor);
+    if reveal {
+        control.focus = Some(cursor);
+    }
 }
 
 /// Fills the label and the option labels of a select. Options in an

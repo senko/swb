@@ -4,6 +4,43 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-18: M12 feature 2: small gaps and a `Worker` stand-in
+
+- The OSM page now runs without the stub: `Worker` exists and accepts
+  messages but runs no script (a `warn!` once per document); `postMessage`
+  still serializes its message and detaches the transfer list, so the
+  errors are Chromium's. No `SharedWorker`: Craigslist keeps its legacy
+  path. GitHub no longer logs that it has no `Worker`, as in Chromium; the
+  other targets keep their scores and consoles.
+- `Attr` is a `Node` without being a node of the arena: the generated glue
+  of a `Node` member raises an internal exception for an `Attr`, and
+  `glue::run` answers the member in `dom/attr_node.rs`. A new `NodeData`
+  variant would have touched every exhaustive match in the DOM, style,
+  layout and the serializers. Bootstrap's tooltips now show.
+- `getContext` returns null for every id. Null alone was not enough for
+  OSM: MapLibre builds its error message from the type of the
+  `webglcontextcreationerror` event, and OSM parses that message as JSON.
+  swb fires the event first, and OSM then behaves as in Chromium without
+  WebGL.
+- `ImageData` with Chromium's size errors; swb asks the script heap
+  before it allocates the pixels. The GIF without a color table decodes
+  (Chromium draws its pixels black; Leaflet's empty frame is transparent).
+  A focused text field scrolls to its caret only after a user action: a
+  script that sets `value` keeps the scroll, as in Chromium.
+- Results: geometry 1.0000, pixels 0.9977 on the original fixture; the 60
+  groups equal Chromium without WebGL except the hover after a layout
+  change (groups 29, 31, 36, 37 and 48 to 60), which is the next feature.
+  New tests: `osm_gaps.rs` (14 probe cases), `osm_gaps_limits.rs`, three
+  hostile cases.
+- Review: no blocking bug. Fixed: the argument count of the `Node`
+  operations of an `Attr`, `compareDocumentPosition` of attributes on two
+  elements, `ImageData` read a redefinable `length` property, and a GIF
+  without a color table with broken data decoded as transparent instead of
+  failing. The rest is in the backlog.
+- The roadmap numbers the remaining M12 features 2 to 5, as the commits
+  do. Next: feature 3, pointer events after a layout change and SVG
+  `<use>`.
+
 ## 2026-11-18: M12 feature 1: diagnosis and tools (OpenStreetMap)
 
 - Recording: the site's sidebar calls are `POST`s with the page's CSRF

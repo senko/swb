@@ -27,7 +27,7 @@
 //! properties stay), `Date`, `RegExp` (without `lastIndex`), `Map`, `Set`,
 //! `ArrayBuffer` (also resizable), typed arrays and `DataView` (sharing
 //! their buffer), errors (name, message, `stack`, `cause`) and
-//! `DOMException`. Everything else is a `DataCloneError`. `transfer` moves
+//! `DOMException`, `ImageData`. Everything else is a `DataCloneError`. `transfer` moves
 //! `ArrayBuffer`s.
 
 use std::collections::HashMap;
@@ -118,6 +118,14 @@ enum Item {
     /// A `MessagePort` that the transfer list holds: its index in
     /// [`Serialized::ports`].
     Port(u32),
+    /// An `ImageData`: a copy of its pixels (the clone's `data` is a new
+    /// array, as in Chromium; measured, probe case `image-data`).
+    ImageData {
+        width: u32,
+        height: u32,
+        display_p3: bool,
+        bytes: Vec<u8>,
+    },
 }
 
 /// The error constructors whose prototype a cloned error gets.
@@ -457,8 +465,20 @@ impl Serializer {
     /// The item of a platform object: a `DOMException` clones, a
     /// `MessagePort` of the transfer list transfers (HTML
     /// `StructuredSerializeInternal`), the other platform objects do not.
-    fn host_item(&self, rt: &Runtime, object: Gc<Object>) -> b::Result<Item> {
+    fn host_item(&mut self, rt: &mut Runtime, object: Gc<Object>) -> b::Result<Item> {
         let value = Value::Object(object);
+        if let Some(pixels) = crate::image_data::pixels_of(rt, object)? {
+            if pixels.bytes.is_empty() {
+                return Err(detached());
+            }
+            self.add_bytes(pixels.bytes.len())?;
+            return Ok(Item::ImageData {
+                width: pixels.width,
+                height: pixels.height,
+                display_p3: pixels.display_p3,
+                bytes: pixels.bytes,
+            });
+        }
         if rt.implements(value, g::MESSAGE_PORT) {
             return match self.ports.iter().position(|(port, _)| *port == object) {
                 Some(index) => Ok(Item::Port(index as u32)),
@@ -802,6 +822,12 @@ fn shell(
         Item::DomException { name, message } => {
             dom_exception::create(rt, realm, g::DOM_EXCEPTION, name, message)?
         }
+        Item::ImageData {
+            width,
+            height,
+            display_p3,
+            bytes,
+        } => crate::image_data::create(rt, realm, *width, *height, *display_p3, bytes.clone())?,
     })
 }
 

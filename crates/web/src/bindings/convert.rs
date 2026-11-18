@@ -276,6 +276,7 @@ pub fn buffer(rt: &mut Runtime, value: Value, name: &'static str) -> Result<Gc<O
             swb_js::Slots::View { element, .. } => match name {
                 "ArrayBufferView" | "BufferSource" | "AllowSharedBufferSource" => true,
                 "Uint8Array" => element == Some("Uint8"),
+                "Uint8ClampedArray" => element == Some("Uint8Clamped"),
                 "Float32Array" => element == Some("Float32"),
                 "Float64Array" => element == Some("Float64"),
                 _ => false,
@@ -333,6 +334,11 @@ pub fn node_ref(
         && let Some(node) = super::NodeRef::of(object, data)
     {
         return Ok(node);
+    }
+    // An `Attr` is a `Node` that is no node of the arena: the member
+    // decides (`crate::dom::attr_node`).
+    if class == crate::generated::NODE && rt.implements(value, crate::generated::ATTR) {
+        return Err(Exception::AttrNode);
     }
     Err(Exception::NotOfType(name.into()))
 }

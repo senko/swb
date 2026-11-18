@@ -337,6 +337,12 @@ pub(crate) struct Forms {
     option_select: HashMap<NodeId, NodeId>,
     /// The last stamp of [`Forms::next_stamp`].
     stamp: u64,
+    /// True from a change that the user made to the caret or the selection
+    /// of a text field (typing, a key, a click, the focus) until the next
+    /// layout: that layout scrolls the text so that the caret is visible.
+    /// A script that sets the `value` does not scroll the text of a field
+    /// (Chromium; probe case `input-scroll-typed-then-set`).
+    pub(crate) reveal_focus: bool,
 }
 
 impl Forms {
@@ -400,6 +406,7 @@ impl Forms {
     /// last one in tree order stays checked.
     pub(crate) fn rebuild(old: &Forms, doc: &Document, seeds: &Seeds) -> Forms {
         let mut forms = Forms::new_with(doc, old.stamp);
+        forms.reveal_focus = old.reveal_focus;
         if old.controls.is_empty() {
             return forms;
         }

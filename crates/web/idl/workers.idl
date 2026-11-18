@@ -1,0 +1,42 @@
+// Source: HTML Living Standard, https://html.spec.whatwg.org/multipage/
+// workers.html#dedicated-workers-and-the-worker-interface (and the
+// `AbstractWorker` mixin of section 10.2.2), copied on 2026-11-18
+// (M12 feature 2).
+//
+// Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
+// licensed under the Creative Commons Attribution 4.0 International
+// License; "to the extent portions of it are incorporated into source
+// code, such portions in the source code are licensed under the BSD
+// 3-Clause License instead" (WHATWG IPR Policy 7.1.1). See
+// THIRD_PARTY_NOTICES.md for the license text.
+//
+// swb cut this file to `Worker` and `WorkerOptions`: the stand-in of M12
+// feature 2 (crates/web/src/workers.rs) takes messages and runs no script.
+// Departures from the standard that Chromium 148 shares (measured in
+// tools/probes/web-osm-gaps.json, case `worker-stand-in`): `Worker` has no
+// `onmessageerror`, and the constructor takes a `USVString` where the
+// standard says `(TrustedScriptURL or USVString)` (swb has no Trusted Types).
+// `SharedWorker` and the worker global scopes are not in swb.
+
+enum WorkerType { "classic", "module" };
+
+dictionary WorkerOptions {
+  WorkerType type = "classic";
+  RequestCredentials credentials = "same-origin"; // credentials is only used if type is "module"
+  DOMString name = "";
+};
+
+[Exposed=Window]
+interface Worker : EventTarget {
+  constructor(USVString scriptURL, optional WorkerOptions options = {});
+
+  undefined terminate();
+
+  undefined postMessage(any message, sequence<object> transfer);
+  undefined postMessage(any message, optional StructuredSerializeOptions options = {});
+
+  // AbstractWorker
+  attribute EventHandler onerror;
+
+  attribute EventHandler onmessage;
+};

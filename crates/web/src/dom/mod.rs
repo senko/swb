@@ -16,6 +16,7 @@
 #[macro_use]
 mod macros;
 pub(crate) mod adopt;
+pub(crate) mod attr_node;
 pub(crate) mod attrs;
 mod character_data;
 mod document;

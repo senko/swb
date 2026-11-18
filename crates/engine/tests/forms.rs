@@ -279,6 +279,47 @@ fn the_caret_and_the_selection_are_painted() {
     );
 }
 
+/// Loads `html` as `https://site.test/` into an 800×600 page with
+/// JavaScript on.
+fn open_with_scripts(html: &str) -> Page {
+    let mut site = TestSite::default();
+    site.pages.insert(ORIGIN.to_owned(), html.to_owned());
+    let fetcher: Arc<dyn Fetcher> = Arc::new(site);
+    let mut page = common::new_page(fetcher, 2, Size::new(800.0, 600.0));
+    page.set_javascript(true);
+    page.navigate(Url::parse(ORIGIN).unwrap());
+    common::finish_loading(&mut page, TIMEOUT);
+    page
+}
+
+/// A script that sets the `value` of a field does not scroll its text to
+/// the caret (Chromium keeps the offset; probe case
+/// `input-scroll-typed-then-set`), also while the field has the focus; a
+/// change by the user does (OpenStreetMap's directions form: the geocoder
+/// sets a long value in the field that the user typed in).
+#[test]
+fn a_script_value_does_not_scroll_the_text() {
+    let mut page = open_with_scripts(&format!(
+        "{BODY}<input id=t size=5><input id=u size=5>\
+         <script>t.value = 'a long text that does not fit'; \
+         window.longer = () => {{ t.value = 'a long text that does not fit, longer'; }};</script>"
+    ));
+    // Set while the field has no focus: the start shows.
+    assert_eq!(control_scroll(&mut page), 0.0);
+    // The user focuses the field and moves the caret to the end: the text
+    // scrolls to it.
+    click(&mut page, "t");
+    key(&mut page, &Key::End);
+    let at_end = control_scroll(&mut page);
+    assert!(at_end > 50.0, "{at_end}");
+    // The script sets a longer value in the focused field: the offset stays.
+    page.evaluate("longer()", swb_engine::JsonForm::Strict);
+    assert_eq!(control_scroll(&mut page), at_end);
+    // The user types: the text scrolls to the caret again.
+    type_keys(&mut page, "xyz");
+    assert!(control_scroll(&mut page) > at_end);
+}
+
 #[test]
 fn long_text_scrolls_to_keep_the_caret_visible() {
     let (mut page, _) = open(&format!("{BODY}<input id=t size=5>"));

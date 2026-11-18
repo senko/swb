@@ -11,6 +11,12 @@
    "measure": [
     {
      "js": "(() => { const a = new ImageData(2, 3); const b = new ImageData(new Uint8ClampedArray(8), 2); const c = new ImageData(new Uint8ClampedArray(16), 2, 2, {colorSpace: 'display-p3'}); return {a: [a.width, a.height, a.data.length, a.colorSpace, a.data.constructor.name, a.data[0]], b: [b.width, b.height, b.data.length], c: [c.colorSpace], zero: Q(() => new ImageData(0, 1)), neg: Q(() => new ImageData(1, -1)), len: Q(() => new ImageData(new Uint8ClampedArray(7), 2)), len2: Q(() => new ImageData(new Uint8ClampedArray(8), 2, 3)), bad: Q(() => new ImageData(new Uint8Array(8), 2)), noarg: Q(() => new ImageData()), call: Q(() => ImageData(1, 1)), inst: a instanceof ImageData, tag: Object.prototype.toString.call(a), names: Object.getOwnPropertyNames(ImageData.prototype).sort().join(), clone: (() => { const x = structuredClone(a); return [x instanceof ImageData, x.width, x.height, x.data.length]; })(), frozen: (() => { a.data[0] = 300; a.data[1] = -5; a.data[2] = 1.5; return [...a.data.slice(0, 3)]; })()}; })()"
+    },
+    {
+     "js": "({a: Q(() => new ImageData(50000, 50000)), b: Q(() => new ImageData(1e6, 1e6)), c: Q(() => new ImageData(2**31, 1)), d: Q(() => new ImageData(2**30, 1)), e: Q(() => new ImageData(2**32, 1)), f: Q(() => new ImageData(1, 2**32)), g: Q(() => new ImageData(NaN, 1)), h: Q(() => new ImageData(1.5, 2.9).width), i: Q(() => new ImageData('3', '2').width), j: Q(() => new ImageData(1, 1, {colorSpace: 'nope'})), k: Q(() => new ImageData(new Uint8ClampedArray(4), 1, 2.5).height), l: Q(() => new ImageData(new Uint8ClampedArray(0), 1)), m: Q(() => new ImageData(new Uint8ClampedArray(4), 0)), n: Q(() => new ImageData(new Uint8ClampedArray(4), 1, 0)), o: Q(() => new ImageData(new Uint8ClampedArray(4), 1, 1, 5).colorSpace), p: Q(() => new ImageData(new Uint8ClampedArray(new ArrayBuffer(8), 4, 4), 1).data.byteOffset), q: Q(() => new ImageData(2, 2, {colorSpace: 'display-p3'}).colorSpace), r: Q(() => new ImageData(2, 2, {colorSpace: undefined}).colorSpace), s: Q(() => new ImageData(new Uint8ClampedArray(8), 1, 2, {colorSpace: 'srgb'}).height)})"
+    },
+    {
+     "js": "(() => { const a = new ImageData(2, 2); const d = Object.getOwnPropertyDescriptor(ImageData.prototype, 'data'); const w = Object.getOwnPropertyDescriptor(ImageData.prototype, 'width'); return {same: a.data === a.data, dataSet: Q(() => { a.data = 1; return typeof a.data; }), widthSet: Q(() => { a.width = 9; return a.width; }), getter: [typeof d.get, d.set, d.enumerable, d.configurable], illegal: Q(() => d.get.call({})), len: ImageData.length, name: ImageData.name, sameArr: (() => { const arr = new Uint8ClampedArray(8); return new ImageData(arr, 1).data === arr; })(), mod: Q(() => new ImageData(new Uint8ClampedArray(12), 2)), pf: [a.pixelFormat, Q(() => new ImageData(1, 1, {pixelFormat: 'rgba-unorm8'}).pixelFormat), Q(() => new ImageData(1, 1, {pixelFormat: 'x'}))], cloneSame: (() => { const x = structuredClone(a); return [x.data !== a.data, x.colorSpace, Object.prototype.toString.call(x)]; })(), tr: (() => { const b = new ImageData(1, 1); const x = structuredClone(b, {transfer: [b.data.buffer]}); return [b.data.length, x.data.length]; })(), msg: Q(() => ImageData.prototype.width), newTarget: Q(() => Reflect.construct(ImageData, [1, 1], Object).constructor === Object)}; })()"
     }
    ]
   },
@@ -44,6 +50,12 @@
     },
     {
      "js": "(() => { const el = document.createElement('div'); el.setAttribute('Data-X', 'v1'); const a = el.attributes[0]; return {clone: Q(() => a.cloneNode().nodeName), same: Q(() => a.isEqualNode(el.attributes[0])), setValue: Q(() => { a.nodeValue = 'v2'; return el.getAttribute('data-x'); }), tc: Q(() => { a.textContent = 'v3'; return a.value; }), names: Object.getOwnPropertyNames(Attr.prototype).sort().join()}; })()"
+    },
+    {
+     "js": "(() => { const el = document.createElement('div'); el.setAttribute('a', '1'); const a = el.attributes[0]; const d = document.createAttribute('x'); d.value = '9'; const kid = document.createElement('b'); return {conn: a.isConnected, root: a.getRootNode() === a, kids: [a.hasChildNodes(), a.childNodes.length, a.firstChild, a.lastChild, a.previousSibling, a.nextSibling], parentEl: a.parentElement, base: typeof a.baseURI, lookup: [a.lookupNamespaceURI(null), a.lookupPrefix('x'), a.isDefaultNamespace(null)], append: Q(() => a.appendChild(kid)), insert: Q(() => a.insertBefore(kid, null)), remove: Q(() => a.removeChild(kid)), replace: Q(() => a.replaceChild(kid, kid)), cmp: [a.compareDocumentPosition(a), a.contains(a), a.contains(el), a.isSameNode(a), a.isSameNode(null), a.isEqualNode(null)], norm: a.normalize(), detached: [d.nodeName, d.nodeValue, d.ownerElement, d.ownerDocument === document, d.cloneNode().value, d.cloneNode(true).value, d.isEqualNode(d.cloneNode()), d.isEqualNode(a), d.isConnected, d.parentNode], consts: [Node.ATTRIBUTE_NODE, a.ATTRIBUTE_NODE, a.DOCUMENT_POSITION_PRECEDING], nodeValueNull: Q(() => { a.nodeValue = null; return [a.value, el.getAttribute('a')]; }), tcNull: Q(() => { d.textContent = null; return d.value; }), tagName: [typeof a.tagName, typeof a.id, typeof a.children], str: String(a), tag: Object.prototype.toString.call(a), json: JSON.stringify(Object.keys(a))}; })()"
+    },
+    {
+     "js": "(() => { const el = document.createElement('div'); el.setAttribute('a', '1'); const a = el.attributes[0]; const o = document.createElement('p'); o.setAttribute('a', '1'); const b = o.attributes[0]; const c = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); c.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#q'); const x = c.attributes[0]; return {eq: a.isEqualNode(b), eqv: (() => { b.value = '2'; return a.isEqualNode(b); })(), x: [x.nodeName, x.nodeValue, x.namespaceURI, x.prefix, x.localName, x.name], xc: [x.cloneNode().prefix, x.cloneNode().namespaceURI, x.cloneNode().ownerElement], lookup: [x.lookupNamespaceURI('xlink'), x.lookupPrefix('http://www.w3.org/1999/xlink'), x.lookupNamespaceURI(null)], elIsEqual: Q(() => el.isEqualNode(a)), elContains: Q(() => el.contains(a)), elCmp: Q(() => el.compareDocumentPosition(a)), elAppend: Q(() => el.appendChild(a)), elSame: Q(() => el.isSameNode(a)), docAdopt: Q(() => { const d2 = document.implementation.createHTMLDocument(''); const y = d2.createAttribute('z'); return [y.ownerDocument === d2, y.ownerDocument === document]; })}; })()"
     }
    ]
   },
@@ -126,6 +138,312 @@
     },
     {
      "wait": 800
+    }
+   ]
+  },
+  {
+   "name": "worker-stand-in",
+   "html": "<!DOCTYPE html><p id=a>x</p><script>\nconst E = (e) => e.name + ': ' + e.message;\nconst Q = (f) => { try { return f(); } catch (e) { return E(e); } };\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nconst OSM = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<osm version=\"0.6\" generator=\"test\">\\n <bounds minlat=\"1\" minlon=\"2\" maxlat=\"3\" maxlon=\"4\"/>\\n <node id=\"1\" lat=\"45.8\" lon=\"15.9\" visible=\"true\" version=\"3\" user=\"A&amp;B\"/>\\n <node id=\"2\" lat=\"45.9\" lon=\"15.8\"><tag k=\"name\" v=\"Trg &quot;bana&quot; Jela\\u010di\\u0107a\"/></node>\\n <way id=\"10\"><nd ref=\"1\"/><nd ref=\"2\"/><tag k=\"highway\" v=\"residential\"/></way>\\n <relation id=\"20\"><member type=\"way\" ref=\"10\" role=\"outer\"/><tag k=\"type\" v=\"multipolygon\"/></relation>\\n</osm>';\nconst P = (s, t = 'text/xml') => new DOMParser().parseFromString(s, t);\n</script><script>const S = (m) => String(m).replace(/http:\\/\\/127\\.0\\.0\\.1:\\d+\\/?[^' ]*/g, 'URL'); const QS = (f) => { try { return f(); } catch (e) { return e.name + ': ' + S(e.message); } };</script>",
+   "measure": [
+    {
+     "js": " (() => { const w = new Worker('w.js'); const names = (o) => Object.getOwnPropertyNames(o).sort().join(); return {type: typeof Worker, shared: typeof SharedWorker, len: Worker.length, name: Worker.name, protoNames: names(Worker.prototype), ctorNames: names(Worker), parent: Object.getPrototypeOf(Worker.prototype) === EventTarget.prototype, isET: w instanceof EventTarget, tag: Object.prototype.toString.call(w), handlers: [w.onmessage, w.onmessageerror, w.onerror], ownProps: names(w), enumerable: (() => { const k = []; for (const x in w) k.push(x); return k.filter((x) => x !== 'when').sort().join(); })(), pm: [typeof w.postMessage, w.postMessage.length], term: [typeof w.terminate, w.terminate.length], fnHandler: (() => { w.onmessage = () => 1; const t = typeof w.onmessage; w.onmessage = 5; return [t, w.onmessage]; })(), des: Object.getOwnPropertyDescriptor(Worker.prototype, 'onmessage') && Object.keys(Object.getOwnPropertyDescriptor(Worker.prototype, 'onmessage')).join(), global: [typeof WorkerGlobalScope, typeof DedicatedWorkerGlobalScope, typeof MessagePort, typeof MessageChannel, typeof WorkerNavigator, typeof WorkerLocation], listenerOk: (() => { let n = 0; w.addEventListener('message', () => n++); w.dispatchEvent(new MessageEvent('message', {data: 1})); return n; })()}; })()"
+    },
+    {
+     "js": " ({noNew: QS(() => Worker('w.js')), noArgs: QS(() => new Worker()), undef: QS(() => new Worker(undefined)), nul: QS(() => new Worker(null) instanceof Worker), empty: QS(() => new Worker('') instanceof Worker), badUrl: QS(() => new Worker('http://[')), badUrl2: QS(() => new Worker('http://')), cross: QS(() => new Worker('http://example.com/w.js')), crossHttps: QS(() => new Worker('https://example.com/w.js')), js: QS(() => new Worker('javascript:1')), about: QS(() => new Worker('about:blank')), data: QS(() => new Worker('data:text/javascript,1') instanceof Worker), file: QS(() => new Worker('file:///w.js')), ftp: QS(() => new Worker('ftp://x/w.js')), blob: QS(() => new Worker(URL.createObjectURL(new Blob(['1'], {type: 'text/javascript'}))) instanceof Worker), blobBad: QS(() => new Worker('blob:http://example.com/1234')), obj: QS(() => new Worker({toString() { return 'w.js'; }}) instanceof Worker), sym: QS(() => new Worker(Symbol())), rel: QS(() => new Worker('../w.js') instanceof Worker), hash: QS(() => new Worker('w.js#x') instanceof Worker), long: QS(() => new Worker('w.js?' + 'a'.repeat(100000)) instanceof Worker), optType: QS(() => new Worker('w.js', {type: 'module'}) instanceof Worker), optBad: QS(() => new Worker('w.js', {type: 'x'})), optCred: QS(() => new Worker('w.js', {credentials: 'x'})), optName: QS(() => new Worker('w.js', {name: 'n'}) instanceof Worker), optNull: QS(() => new Worker('w.js', null) instanceof Worker), optNum: QS(() => new Worker('w.js', 5)), optGetter: QS(() => { let log = []; new Worker('w.js', {get type() { log.push('type'); return 'classic'; }, get name() { log.push('name'); return 'n'; }, get credentials() { log.push('credentials'); return 'omit'; }}); return log.join(); }), extra: QS(() => new Worker('w.js', 'x', 'y') instanceof Worker), newTarget: QS(() => Reflect.construct(Worker, ['w.js'], Object).constructor === Object), sub: QS(() => { class W extends Worker {} return new W('w.js') instanceof W; })})"
+    },
+    {
+     "js": " (() => { const w = new Worker('w.js'); const b = new ArrayBuffer(8); const b2 = new ArrayBuffer(8); const c = new ArrayBuffer(8); const big = {a: []}; for (let i = 0; i < 1000; i++) big.a.push({i, s: 'x'.repeat(10)}); return {ret: w.postMessage(1), retT: w.terminate(), fn: QS(() => w.postMessage(() => 1)), fnNested: QS(() => w.postMessage({a: [function f() {}]})), sym: QS(() => w.postMessage(Symbol())), none: QS(() => w.postMessage()), buf: (() => { w.postMessage(b, [b]); return b.byteLength; })(), bufOpt: (() => { w.postMessage(b2, {transfer: [b2]}); return b2.byteLength; })(), notTransferred: (() => { w.postMessage(c); return c.byteLength; })(), dup: QS(() => { const x = new ArrayBuffer(4); w.postMessage(1, [x, x]); }), dupLeft: (() => { const x = new ArrayBuffer(4); try { w.postMessage(1, [x, x]); } catch (e) {} return x.byteLength; })(), detachedAgain: QS(() => w.postMessage(b, [b])), noTransferable: QS(() => w.postMessage(1, [{}])), notList: QS(() => w.postMessage(1, 2)), strList: QS(() => w.postMessage(1, 'x')), nullList: QS(() => w.postMessage(1, null)), undefList: QS(() => w.postMessage(1, undefined)), emptyOpt: QS(() => w.postMessage(1, {})), badOpt: QS(() => w.postMessage(1, {transfer: 5})), port: (() => { const mc = new MessageChannel(); w.postMessage(1, [mc.port1]); return QS(() => mc.port1.postMessage(1)); })(), cyc: QS(() => { const a = {}; a.a = a; return w.postMessage(a); }), big: QS(() => w.postMessage(big)), dom: QS(() => w.postMessage(document.body)), win: QS(() => w.postMessage(window)), err: QS(() => w.postMessage(new Error('x'))), after: QS(() => w.postMessage(2)), terminated: QS(() => w.terminate()), illegal: QS(() => Worker.prototype.postMessage.call({}, 1)), illegalT: QS(() => Worker.prototype.terminate.call({})), illegalH: QS(() => Object.getOwnPropertyDescriptor(Worker.prototype, 'onmessage').get.call({}))}; })()"
+    }
+   ],
+   "resources": {
+    "w.js": {
+     "text": "onmessage = (e) => postMessage(e.data);",
+     "content_type": "text/javascript"
+    }
+   }
+  },
+  {
+   "name": "input-scroll-after-script-value",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff;font:16px monospace}input,textarea{display:block;box-sizing:border-box;width:100px;height:28px;margin:4px;padding:2px;border:1px solid #999;font:16px monospace;background:#fff;color:#000}</style><input id=a><input id=b><input id=c><input id=d value=short><input id=e><script>const LONG = 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJ';a.value = LONG;b.focus(); b.value = LONG;c.value = LONG; c.focus();e.focus(); e.value = LONG; e.blur();</script>",
+   "measure": [
+    {
+     "js": "['a', 'b', 'c', 'd', 'e'].map((id) => { const i = document.getElementById(id); return [id, i.scrollLeft, i.selectionStart, i.selectionEnd, i.scrollWidth > i.clientWidth]; })"
+    },
+    {
+     "js": "(async () => { const i = document.getElementById('a'); i.value = LONG + LONG; const r = [i.scrollLeft, i.selectionStart]; i.focus(); const r2 = [i.scrollLeft, i.selectionStart, i.selectionEnd]; i.blur(); const r3 = [i.scrollLeft]; i.value = 'x'; return [r, r2, r3, i.scrollLeft]; })()"
+    },
+    {
+     "js": "(async () => { const f = document.getElementById('d'); f.focus(); f.value = LONG; const r = [f.scrollLeft, f.selectionStart, f.selectionEnd]; await new Promise((r) => setTimeout(r, 100)); const r2 = [f.scrollLeft]; f.value = LONG + LONG; const r3 = [f.scrollLeft, f.selectionStart]; f.setSelectionRange(0, 0); const r4 = [f.scrollLeft]; f.value = LONG; const r5 = [f.scrollLeft, f.selectionStart]; f.blur(); return [r, r2, r3, r4, r5, f.scrollLeft]; })()"
+    },
+    {
+     "pixels": "#a",
+     "points": [
+      [
+       6,
+       14
+      ],
+      [
+       8,
+       12
+      ],
+      [
+       10,
+       14
+      ],
+      [
+       14,
+       14
+      ],
+      [
+       20,
+       14
+      ],
+      [
+       50,
+       14
+      ]
+     ]
+    },
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       6,
+       14
+      ],
+      [
+       8,
+       12
+      ],
+      [
+       10,
+       14
+      ],
+      [
+       14,
+       14
+      ],
+      [
+       20,
+       14
+      ],
+      [
+       50,
+       14
+      ],
+      [
+       90,
+       14
+      ]
+     ]
+    },
+    {
+     "pixels": "#c",
+     "points": [
+      [
+       6,
+       14
+      ],
+      [
+       8,
+       12
+      ],
+      [
+       10,
+       14
+      ],
+      [
+       14,
+       14
+      ],
+      [
+       20,
+       14
+      ],
+      [
+       50,
+       14
+      ],
+      [
+       90,
+       14
+      ]
+     ]
+    },
+    {
+     "pixels": "#e",
+     "points": [
+      [
+       6,
+       14
+      ],
+      [
+       8,
+       12
+      ],
+      [
+       10,
+       14
+      ],
+      [
+       14,
+       14
+      ],
+      [
+       20,
+       14
+      ],
+      [
+       50,
+       14
+      ],
+      [
+       90,
+       14
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "gif-without-color-table-pixels",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#f0f}img{display:block;width:40px;height:40px;image-rendering:pixelated}</style><img id=a src='data:image/gif;base64,R0lGODlhBAAEAAAAACwAAAAABAAEAAACBkQ0hpo3BQA7'><img id=b src='data:image/gif;base64,R0lGODlhBAAEAIEAAP8AAAD/AAAA/////ywAAAAABAAEAAACBkQ0hpo3BQA7'><img id=c src='data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='><script>const imgs = [...document.images]; window.__done = Promise.all(imgs.map((i) => i.complete ? 0 : new Promise((r) => { i.onload = i.onerror = r; })));</script>",
+   "measure": [
+    {
+     "js": "(async () => { await window.__done; return [...document.images].map((i) => [i.id, i.complete, i.naturalWidth, i.naturalHeight]); })()"
+    },
+    {
+     "pixels": "#a",
+     "points": [
+      [
+       5,
+       5
+      ],
+      [
+       15,
+       5
+      ],
+      [
+       25,
+       5
+      ],
+      [
+       35,
+       5
+      ],
+      [
+       5,
+       35
+      ]
+     ]
+    },
+    {
+     "pixels": "#c",
+     "points": [
+      [
+       5,
+       5
+      ],
+      [
+       35,
+       35
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "input-scroll-typed-then-set",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff;font:16px monospace}input{display:block;box-sizing:border-box;width:100px;height:28px;margin:4px;padding:2px;border:1px solid #999;font:16px monospace;background:#fff;color:#000;outline:none}</style><input id=a><input id=b><script>window.LONG = 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJ';</script>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "type": "0123456789abcdefghijklmnopqrstuvwxyz"
+    },
+    {
+     "click": "#b"
+    },
+    {
+     "type": "0123456789abcdefghijklmnopqrstuvwxyz"
+    }
+   ],
+   "measure": [
+    {
+     "js": "['a', 'b'].map((id) => { const i = document.getElementById(id); return [id, i.scrollLeft, i.selectionStart, i.selectionEnd, i === document.activeElement]; })"
+    },
+    {
+     "js": "(() => { const a = document.getElementById('a'), b = document.getElementById('b'); a.value = LONG + LONG; b.value = LONG + 'x'; return [['a', a.scrollLeft, a.selectionStart], ['b', b.scrollLeft, b.selectionStart]]; })()"
+    },
+    {
+     "js": "(async () => { await new Promise((r) => setTimeout(r, 100)); const a = document.getElementById('a'), b = document.getElementById('b'); return [a.scrollLeft, b.scrollLeft]; })()"
+    },
+    {
+     "pixels": "#a",
+     "points": [
+      [
+       6,
+       14
+      ],
+      [
+       8,
+       12
+      ],
+      [
+       10,
+       14
+      ],
+      [
+       14,
+       14
+      ],
+      [
+       20,
+       14
+      ],
+      [
+       50,
+       14
+      ],
+      [
+       90,
+       14
+      ]
+     ]
+    },
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       6,
+       14
+      ],
+      [
+       8,
+       12
+      ],
+      [
+       10,
+       14
+      ],
+      [
+       14,
+       14
+      ],
+      [
+       20,
+       14
+      ],
+      [
+       50,
+       14
+      ],
+      [
+       90,
+       14
+      ]
+     ]
     }
    ]
   }

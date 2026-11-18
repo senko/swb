@@ -480,19 +480,19 @@ impl g::document::DocumentImpl for WebState {
 
     fn create_attribute(
         cx: &mut Cx<'_>,
-        _this: NodeId,
+        this: NodeId,
         local_name: String,
     ) -> b::Result<swb_js::Gc<swb_js::Object>> {
-        attrs::create_attribute(cx, &local_name)
+        attrs::create_attribute(cx, this, &local_name)
     }
 
     fn create_attribute_ns(
         cx: &mut Cx<'_>,
-        _this: NodeId,
+        this: NodeId,
         namespace: Option<String>,
         qualified_name: String,
     ) -> b::Result<swb_js::Gc<swb_js::Object>> {
-        attrs::create_attribute_ns(cx, namespace, &qualified_name)
+        attrs::create_attribute_ns(cx, this, namespace, &qualified_name)
     }
 
     fn create_event(

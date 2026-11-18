@@ -68,7 +68,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | NodeIterator tests     | `crates/web/tests/node_iterator.rs` (M9 feature 15a, ADR 0028 "Feature 15a": every case of `tools/probes/web-node-iterator.json` (41 cases, 104 queries) with Chromium's values in `node_iterator/cases.rs` (`swbtools web-cases`, `tools/swbtools/web_cases.py`; three equal runs of `swbtools probe --json`, then `just fmt`): the objects and descriptors of `NodeFilter` and `NodeIterator`, the arguments and conversions, each `SHOW_*` mask over documents, elements, fragments, detached subtrees and templates, `nextNode` and `previousNode` in many orders, the filter's results, `this`, errors and re-entry, the pre-removing steps for each way a node leaves (`remove`, `removeChild`, `replaceChild`, `replaceWith`, `innerHTML`, `outerHTML`, `textContent`, `innerText`, `replaceChildren`, `normalize`, moves with `appendChild`, `insertBefore`, `before`, `after`, `append`, `adoptNode`, a fragment's children) on a fixed tree, and on every tree of up to five nodes (every node, pointer before and after), roots that move to other documents, the parser's moves (adoption agency, foster parenting), DOMPurify's loops; `SWB_VALUES` lists the 6 departures with reasons; tests of the collector (an iterator with no other reference to its root, a moved reference across collections), 1,000,000 iterators made and dropped, 100,000 live iterators); `crates/engine/tests/frames/node_iterator.rs` (the 15 cases of `tools/probes/web-node-iterator-frames.json` with the values in `tests/data/web-node-iterator-frames.json`: realms of the iterator, its wrappers and its errors, filters of another realm, a removal in a frame, roots and nodes that move between documents, a frame that leaves the tree or navigates, a filter that removes its own frame, and (the fix round) a reference or a candidate that moves to a frame, a parser document or a `createHTMLDocument` document (3 equal runs: the reference stays the reference, `nextNode` returns it in its new document), a filter that moves the root to another document (the accepted node is the reference, the walk goes on in the new document) and a root that moves while the reference is outside its tree; `DEPARTURES` lists one row); unit tests in `crates/dom/src/iterator/tests.rs` (the rule of the steps, the index against the scan of the pointers, moves between arenas, pointers that leave for another arena and come back, a candidate in another arena, work counting, a removal far from the pointers that does not walk their ancestors, the entries of dead iterators, a chain of 200,000 levels); `crates/web/tests/node_iterator.rs` also holds Chromium's values for a filter that catches the error of its own nested call (`NESTED_CATCH_CHROMIUM`: Chromium's walk ends there; a longer form of the page crashes its renderer); hostile cases `node-iterator-*` (8) | no |
 | JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); `Date`: `builtins_date.rs`, `date_hostile.rs` (see "Date tests"); `Intl`: `builtins_intl.rs` (see "Intl tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py`, `test_js_time_zone_names.py` and `test_js_intl_data.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
-| Automation API tests   | `crates/automation/tests/headless.rs`; the engine's input as DOM events against Chromium's values: `crates/automation/tests/real_input.rs` (cases of `tools/probes/web-input-real.json`), the simple dialogs, `print()` and `navigator.clipboard`: `crates/automation/tests/window_dialogs.rs` (cases of `tools/probes/web-window-dialogs.json`, M8 feature 11c2, ADR 0028 section 13), forms from scripts: `crates/automation/tests/forms_script.rs` (cases of `tools/probes/web-forms-script.json` and `web-forms-selection.json`), the small DOM gaps of M9 feature 1: `crates/automation/tests/small_gaps.rs` (cases of `tools/probes/web-small-gaps.json`), and the Ars Technica features: `crates/automation/tests/ars_technica.rs` (local fixture; with M9 feature 2 also its `document.write` requests), and the BBC features: `crates/automation/tests/bbc.rs` (local fixture; M9 feature 8; the links of the side menu: `bbc_menu_*`), the nesting of links, buttons and labels: `crates/automation/tests/nested_activation.rs` (see its row); Python client: `tools/tests/test_automation.py` | no |
+| Automation API tests   | `crates/automation/tests/headless.rs`; the engine's input as DOM events against Chromium's values: `crates/automation/tests/real_input.rs` (cases of `tools/probes/web-input-real.json`), the simple dialogs, `print()` and `navigator.clipboard`: `crates/automation/tests/window_dialogs.rs` (cases of `tools/probes/web-window-dialogs.json`, M8 feature 11c2, ADR 0028 section 13), forms from scripts: `crates/automation/tests/forms_script.rs` (cases of `tools/probes/web-forms-script.json` and `web-forms-selection.json`), the small DOM gaps of M9 feature 1: `crates/automation/tests/small_gaps.rs` (cases of `tools/probes/web-small-gaps.json`), the gaps of openstreetmap.org (M12 feature 2): `crates/automation/tests/osm_gaps.rs` (cases of `tools/probes/web-osm-gaps.json`; the hostile cases in `crates/web/tests/osm_gaps_limits.rs`), and the Ars Technica features: `crates/automation/tests/ars_technica.rs` (local fixture; with M9 feature 2 also its `document.write` requests), and the BBC features: `crates/automation/tests/bbc.rs` (local fixture; M9 feature 8; the links of the side menu: `bbc_menu_*`), the nesting of links, buttons and labels: `crates/automation/tests/nested_activation.rs` (see its row); Python client: `tools/tests/test_automation.py` | no |
 | Web API binding tests  | `crates/web/tests/bindings.rs` (the glue of the test IDL), `crates/web/tests/lazy_interfaces.rs` (the glue of the browser's IDL), unit tests in `crates/web/src/bindings/`; the generator: unit tests in `crates/webidl/src/`, the freshness test `crates/webidl/tests/freshness.rs` (see "Web API bindings") | no |
 | DOM change tests       | `crates/engine/tests/dom_changes.rs` (the change API of the engine, `Page::change_dom`: inserted and removed style sheets, attribute and text changes, removed elements, changed image sources; the parse in steps with JavaScript on renders as the parse without pauses) | no |
 | BBC link tests         | `crates/engine/tests/bbc_links.rs` (target 5: links that wrap blocks, the logo link with an inline SVG, chevron links, links in the open `details` menu, the `:hover` rules of the BBC style sheet) | no |
@@ -597,16 +597,15 @@ expression `window.__o()`), the Chromium records of the replay (`records`, two
 runs that must agree, the screenshots, the console and the URLs that the
 fixture lacks per group) and a table of them (`summary`).
 
-Feature 1b of M12 added two commands (the report is `docs/osm-diagnosis.md`):
+Feature 1b of M12 added the `swb` command (the report is
+`docs/osm-diagnosis.md`). It had a second command, `stub`, that made a copy of
+the fixture with a `Worker` stub to look past `new Worker`; feature 2 of M12
+gave swb a `Worker` stand-in and removed `stub` (the local fixture
+`osm-zagreb-stub` is no longer needed):
 
-- `stub` makes `fixtures/js/osm-zagreb-stub` (local only): a copy of the
-  fixture (hard links) whose `application-*.js` body starts with a `Worker`
-  stub, a class that does nothing, defined only if `window.Worker` is missing
-  (a new body file; the manifest entry points to it). swb stops at `new
-  Worker` in that script, so the stub is how to look past it until swb has
-  workers. Run it again after a new capture.
 - `swb [--fixture NAME] [--groups N] [--skip N...] [--out DIR] [--chromium
-  FILE]` runs the step groups in swb: one `swb --headless --js` run (the
+  FILE] [--binary FILE]` (default fixture `osm-zagreb`) runs the step groups
+  in swb: one `swb --headless --js` run (the
   options of `compare --js`: `--now` from the capture time, `--virtual-time`,
   `--settle-ms 1500`) with the steps of all groups, a `record` step and a
   `screenshot` step after the load and after each group, and a pause of 300
@@ -1424,8 +1423,9 @@ Case files that other people should reuse go in `tools/probes/`
 `tools/tests/test_probe.py` runs the example file.
 
 The probe files of the M12 diagnosis (feature 1b; each ran three times in
-Chromium 148 with equal output; the swb implementation does not exist yet, so
-every case differs under `--with-swb` except one of `web-osm-gaps.json`):
+Chromium 148 with equal output; the swb implementation did not exist then, so
+every case differed under `--with-swb` except one of `web-osm-gaps.json`;
+`web-workers.json` and `web-xml.json` are for features that left M12):
 `web-workers.json` (16 cases: dedicated workers from a same-origin file and
 a `blob:` URL, structured clone both ways, a transferred `ArrayBuffer`,
 `importScripts`, `fetch` and `XMLHttpRequest` in the worker, timers,
@@ -1437,7 +1437,27 @@ API's XML, namespaces, the `parsererror` document, `responseXML`,
 `web-osm-gaps.json` (10 cases: `ImageData`, Canvas 2D, `OffscreenCanvas`
 and `createImageBitmap`, `Attr` as a node, Bootstrap's `sanitizeHtml`, a GIF
 without a color table, WebGL detection, `structuredClone`, and the mouse
-events after the content under a stationary pointer changes).
+events after the content under a stationary pointer changes). Feature 2 of
+M12 added to it: the sizes and errors of `ImageData`; more members of `Attr`
+as a node (the `Node` members, `isEqualNode`, namespace lookups,
+`compareDocumentPosition`, an `Attr` as the argument of `Node` methods); the
+case `worker-stand-in` (`Worker`: the prototype, the checks of the
+constructor, `postMessage` with a transfer list; it has `resources`, so the
+page has an `http:` origin); `gif-without-color-table-pixels` (what Chromium
+draws: opaque black, and a transparent frame without pixel data) and the cases
+`input-scroll-after-script-value` and `input-scroll-typed-then-set` (the
+`scrollLeft` and the pixels of a text field after a script sets its value).
+`crates/automation/tests/osm_gaps.rs` runs the `js` queries of the 14 cases
+against Chromium's values (`data/web-osm-gaps.json`, from `swbtools probe
+--json`; three runs were equal except one case,
+`events-after-a-click-replaces-the-content-under-the-pointer`, in which
+Chromium sends the mouse events after the replacement in most runs and in
+one of three sent none: its value is the one of the runs with events). The
+departures (Canvas 2D, WebGL, `OffscreenCanvas`, `SharedWorker`, the two
+`events-after-*` cases for M12 feature 3, `scrollLeft` of a text field) are
+rows of `SWB_VALUES` with their reasons. `crates/web/tests/osm_gaps_limits.rs`
+holds the hostile cases (huge `ImageData`, 10,000 workers that get messages, an
+element with 20,000 attributes) and the event of a failed WebGL context.
 
 ## Hostile-page set
 
@@ -1671,6 +1691,14 @@ mark of the resident set; for runs shorter than a few polls it is the
 `ru_maxrss` of the child, which includes the runner's own memory (about
 50 to 90 MiB too high). A run of the whole set takes about 30 s on a release
 build.
+
+M12 feature 2 added three cases (`hostile_cases/osm_gaps.py`):
+`image-data-huge-sizes` (sizes past the limit of `ImageData` and 500 failed
+allocations of 1 GB), `workers-10000-with-large-messages` (10,000 `Worker`
+stand-ins that each get 300 objects and a transferred buffer) and
+`gif-without-color-table-large-screen` (GIFs of 65,535 x 65,535 and 16,000 x
+16,000 pixels without a color table and without pixel data: refused from the
+header; one of 4,000 x 4,000: decoded).
 
 The limits depend on the machine, so the set is not part of `just check`.
 Implementers run `just hostile` after a change to layout, style, paint or

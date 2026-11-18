@@ -124,6 +124,7 @@ mod frames;
 mod host;
 mod html;
 mod idle_callbacks;
+mod image_data;
 mod image_events;
 mod intersection_observer;
 mod location;
@@ -155,6 +156,7 @@ mod tree_walker;
 mod url_api;
 mod window;
 mod window_proxy;
+mod workers;
 mod xhr;
 
 pub use clock::{ClockMode, PageClock};

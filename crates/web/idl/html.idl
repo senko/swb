@@ -1101,6 +1101,11 @@ interface HTMLCanvasElement : HTMLElement {
   [HTMLConstructor] constructor();
   [CEReactions, Reflect, ReflectDefault=300] attribute unsigned long width;
   [CEReactions, Reflect, ReflectDefault=150] attribute unsigned long height;
+
+  // M12 feature 2: swb has no rendering contexts, so this returns null for
+  // every context id (the standard's RenderingContext? type has no
+  // member in swb); see crates/web/src/html/canvas.rs.
+  object? getContext(DOMString contextId, optional any options = null);
 };
 
 [Exposed=Window]
