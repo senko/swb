@@ -1,10 +1,16 @@
 # swb
 
+[![CI](https://github.com/senko/swb/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/senko/swb/actions/workflows/ci.yml?query=branch%3Amain)
+
 An experimental web browser, written from scratch in Rust.
 
-This is an experiment: an AI agent (Claude) designs, writes and maintains all
-of the code. The project owner sets the goals and checks the results. See
+An AI agent (Claude) designs, writes and maintains all of the code. The
+project owner sets the goals and checks the results. See
 [docs/ground-rules.md](docs/ground-rules.md).
+
+![swb with the GitHub page of this repository](docs/images/screenshot.png)
+
+*swb shows the GitHub page of this repository, with JavaScript on.*
 
 swb uses general-purpose libraries (HTTP, TLS, HTML tokenizing, image
 decoding, WOFF and WOFF2 decoding, font shaping, 2D rasterization,
@@ -12,44 +18,10 @@ windowing). The browser parts (CSS, style, layout, painting, page loading,
 the JavaScript engine, the DOM and the other web APIs, user interface) are
 written in this repository.
 
-## Status
+## Quick start
 
-Early development. JavaScript is off by default.
-
-- Rendering: tables, floats, flexbox, grid, absolute, fixed and sticky
-  positioning, 2D transforms, masks, filters and `backdrop-filter`, scroll
-  containers, `aspect-ratio`, web fonts (WOFF2, variable fonts), inline SVG
-  and SVG images, responsive and lazy images, video posters, CSS counters,
-  cascade layers (`@layer`), container queries, `@property`, the top layer
-  (popovers and dialogs), quirks mode, and `iframe` documents (also with
-  JavaScript off).
-- Interaction: links, scrolling, back/forward, the address bar, hover
-  effects, keyboard focus (Tab), text selection with copy, forms (GET and
-  POST), cookies, and `details` menus. A hover change or a click restyles
-  only the elements that it can affect, and the window draws a frame only
-  when its pixels can change.
-- JavaScript (turn it on with the toolbar's JS button, Ctrl+Shift+J or
-  `--js`): a JavaScript engine of its own (`crates/js*`; 41,842 tests of
-  its test262 subset pass), the DOM and many web APIs (events, scripts in
-  the parser and `document.write`, the CSS object model, `fetch` and
-  `XMLHttpRequest`, storage, observers, `Intl` for English), module
-  scripts with static and dynamic imports and import maps, custom
-  elements, shadow DOM, popovers and dialogs, `Range` and `Selection`,
-  `TreeWalker`, and frames, with one script runtime per origin and
-  `postMessage` between them. Not done: workers, `window.open` and tabs,
-  media playback, CSS anchor positioning.
-- Seven target pages match Chromium: senko.net, Hacker News, a Wikipedia
-  article, a Craigslist posting, the Ars Technica and BBC front pages,
-  and the front page of this repository on GitHub. Hacker News,
-  Wikipedia, Craigslist, Ars Technica, BBC and GitHub also work with
-  JavaScript on, with the interactions that
-  [docs/targets.md](docs/targets.md) lists (menus, dialogs, consent
-  banners, carousels, the map of the Craigslist posting, GitHub's header
-  menus, Code popover, branch selector and file finder).
-
-See [docs/roadmap.md](docs/roadmap.md) and [docs/targets.md](docs/targets.md).
-
-## Build and run
+swb is developed and tested on Linux (Wayland or X11). Other platforms
+are not tested.
 
 Requirements (Debian/Ubuntu package names):
 
@@ -58,41 +30,91 @@ Requirements (Debian/Ubuntu package names):
 - `libfontconfig-dev`, `libxkbcommon-dev`, `libwayland-dev`, `pkg-config`.
 - A C compiler, `make` and `sh` (`build-essential`): the build compiles
   jemalloc, the memory allocator of the binaries, from source (ADR 0029).
-- [`just`](https://github.com/casey/just) (optional, for the commands below).
+- [`just`](https://github.com/casey/just) (optional).
 
 ```sh
-just run https://senko.net/        # open a window
-just check                         # format, lint, test, license check
+git clone https://github.com/senko/swb.git
+cd swb
+just run https://senko.net/                    # build (release) and open a window
+just run --js https://github.com/senko/swb     # the same, with JavaScript on
 ```
 
-Keys: Ctrl+L focuses the address bar, Alt+Left/Right go back/forward
-(Backspace goes back when no editable text field has the focus), F5 or Ctrl+R
-reloads, Escape stops loading, Ctrl+Q or Ctrl+W quits. Tab and Shift+Tab
-move the focus between links and form controls, Enter follows the focused
-link, Ctrl+A selects all text and Ctrl+C copies the selection. In text
-fields and the address bar, Ctrl+X cuts and Ctrl+V pastes. Mouse
-back/forward buttons work. Ctrl+Shift+J or the toolbar's JS button turns
-JavaScript on or off for the next page that loads (reload to apply it to
-the current one); `just run --js URL` starts with it on. JavaScript needs a
-stack limit of at least 8 MiB (`ulimit -s`); below it, the button is gray
-and JavaScript stays off.
+Without `just`: `cargo run --release -p swb -- https://senko.net/`. The
+binary is `target/release/swb`.
+
+## Use
+
+The toolbar has back, forward and reload buttons, the JavaScript toggle
+(**JS**) and the address bar. In the address bar, an address without a
+scheme gets `https://`, and an absolute path opens a local file. On the
+command line, a relative file path also works.
+
+| Key                                  | Action |
+|--------------------------------------|--------|
+| Ctrl+L                               | Focus the address bar |
+| Alt+Left, Alt+Right, mouse back and forward buttons | Back, forward |
+| Backspace                            | Back (when no text field has the focus) |
+| F5, Ctrl+R                           | Reload |
+| Escape                               | Stop loading |
+| Tab, Shift+Tab                       | Move the focus between links and form controls |
+| Enter                                | Follow the focused link |
+| Ctrl+A, Ctrl+C                       | Select all text, copy the selection |
+| Ctrl+X, Ctrl+V                       | Cut, paste (in text fields and the address bar) |
+| Ctrl+Shift+J                         | Turn JavaScript on or off |
+| Ctrl+Q, Ctrl+W                       | Quit |
+
+JavaScript is off by default. The JS button and Ctrl+Shift+J apply to the
+next page that loads; reload to apply the change to the current page.
+`--js` starts with JavaScript on. JavaScript needs a stack limit of at
+least 8 MiB (`ulimit -s`). Below it, the button is gray and JavaScript
+stays off.
 
 Headless mode (for tests and scripts):
 
 ```sh
 swb --headless --screenshot page.png https://senko.net/
-swb --headless --dump-layout https://senko.net/
+swb --headless --full-page --screenshot page.png https://senko.net/
 swb --headless --with-chrome --screenshot window.png https://senko.net/
-swb --headless --bench 20 https://senko.net/   # time each pipeline stage
+swb --headless --dump-layout https://senko.net/
 swb --headless --js --eval 'document.title' https://senko.net/
+swb --headless --bench 20 https://senko.net/   # time each pipeline stage
 ```
 
 Remote control: `swb --headless --remote-port 0` starts a WebSocket server
 on 127.0.0.1 that tests and tools use to drive the browser (also with a
 window: `swb --remote-port 9222`). See [docs/automation.md](docs/automation.md).
 
-See `swb --help` for all options, and [docs/testing.md](docs/testing.md)
-for the comparison tooling.
+See `swb --help` for all options.
+
+## Status
+
+Early development.
+
+- Eight [target pages](docs/targets.md) match Chromium:
+  senko.net, Hacker News, a Wikipedia article, a Craigslist posting, the
+  Ars Technica and BBC front pages, the GitHub page of this repository,
+  and an OpenStreetMap map. All of them except senko.net also work with
+  JavaScript on, with the interactions that the targets list names.
+- swb has its own JavaScript engine (`crates/js*`); 41,842 tests of its
+  [test262](https://github.com/tc39/test262) subset pass.
+- Not done: running scripts in workers (`Worker` exists but runs no
+  script), `window.open` and tabs, media playback, WebGL, CSS anchor
+  positioning.
+
+The [roadmap](docs/roadmap.md) lists the milestones, what each one
+includes, and the backlog. The [development log](docs/devlog.md) has the
+latest changes.
+
+## Development
+
+```sh
+just check    # format check, clippy, all tests, license check
+just --list   # all commands
+```
+
+[docs/testing.md](docs/testing.md) describes the tests and the tools that
+compare swb with Chromium. [CLAUDE.md](CLAUDE.md) has the instructions and
+the workflow of the AI agents that write the code.
 
 ## Documentation
 
