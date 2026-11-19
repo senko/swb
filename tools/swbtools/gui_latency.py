@@ -11,6 +11,12 @@ of input, the time from the input to the end of that batch and to the
 first frame after it, with the frames per second, the CPU of the process
 during the trace and when idle, and the style and layout runs.
 
+With `urls`, the tool also reads the page URL (automation `page.info`)
+before the trace, `URL_DELAY_S` after each release and after the trace:
+for a map, the URL fragment shows whether a drag moved the view. The reads
+go through the GUI's event loop and can change the timing, so the latency
+numbers of such a run are not comparable with a run without them.
+
 Every process that the tool starts is stopped by its PID, also after an
 error.
 """
@@ -25,7 +31,7 @@ import signal
 import subprocess
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -51,6 +57,16 @@ counts both as wheel events (so a notch scrolls twice on X11)."""
 
 CLOCK_TICKS = os.sysconf("SC_CLK_TCK")
 
+URL_DELAY_S = 0.4
+"""With `urls`, the URL is read this long after a release (before the
+events that come later; an event whose time passed meanwhile is sent at
+once). A release within this time after another moves the pending read to
+after itself: the read then has the later release's label."""
+
+URL_TIMEOUT_S = 10.0
+"""A URL read that gets no answer in this time stops the run (the GUI is
+stuck); the tool then stops Xvfb and swb as after any error."""
+
 
 def monotonic() -> float:
     """The time of `CLOCK_MONOTONIC` in seconds: the clock of the frame log."""
@@ -73,6 +89,7 @@ class Options:
     swb_path: Path | None = None
     label: str = ""
     log_file: Path | None = None
+    urls: bool = False
 
 
 # ----- Processes -----
@@ -283,18 +300,40 @@ class Injected:
     clamped_moves: int = 0
     start: float = 0.0
     end: float = 0.0
+    urls: list[dict] = field(default_factory=list)
+    """The URL reads: `{"after": "start" | "release N" | "end", "at_s": S,
+    "url": U}`, `at_s` in seconds since the start of the trace."""
+
+    def read_url(self, read: Callable[[], str], after: str) -> None:
+        """Reads the URL now and keeps it with `after`."""
+        url = read()
+        self.urls.append({"after": after, "at_s": round(monotonic() - self.start, 3), "url": url})
 
 
-def play(display: XDisplay, trace: Trace, window: tuple[int, int]) -> Injected:
+def play(
+    display: XDisplay,
+    trace: Trace,
+    window: tuple[int, int],
+    read_url: Callable[[], str] | None = None,
+) -> Injected:
     """Sends the events of a trace at their times. Moves are clamped into the
     window; a move to the place where the pointer is gives no X event and
     is skipped (counted). The time of each event is taken just before it
-    is sent."""
+    is sent. With `read_url`, reads the URL `URL_DELAY_S` after each
+    release (see `Injected.urls`)."""
     injected = Injected()
     width, height = window
     pointer = (0, 0)
     injected.start = monotonic()
+    releases = 0
+    due: float | None = None
     for event in trace.events:
+        if read_url is not None and due is not None and injected.start + event.t >= due:
+            wait = due - monotonic()
+            if wait > 0:
+                time.sleep(wait)
+            injected.read_url(read_url, f"release {releases}")
+            due = None
         wait = injected.start + event.t - monotonic()
         if wait > 0:
             time.sleep(wait)
@@ -316,6 +355,14 @@ def play(display: XDisplay, trace: Trace, window: tuple[int, int]) -> Injected:
         else:
             injected.times[event.kind].append(monotonic())
             display.button(event.button, event.kind == "press")
+            if event.kind == "release":
+                releases += 1
+                due = monotonic() + URL_DELAY_S
+    if read_url is not None and due is not None:
+        wait = due - monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        injected.read_url(read_url, f"release {releases}")
     wait = injected.start + trace.duration - monotonic()
     if wait > 0:
         time.sleep(wait)
@@ -400,21 +447,34 @@ def run(options: Options) -> dict:
     with private_session(binary, options) as (gui, collector, display, window, address):
         width, height = options.window
         display.move_resize(window, 0, 0, width, height)
-        with automation.Browser(address) as browser:
+        with contextlib.ExitStack() as connection:
+            browser = connection.enter_context(automation.Browser(address))
             if not browser.wait_for_load(int(options.load_timeout_s * 1000)):
                 raise RuntimeError("the page did not load in time")
-        # The pointer goes to the corner of the window (its events are not
-        # part of the trace), then the page settles.
-        display.motion(0, 0)
-        time.sleep(options.settle_s)
-        if not collector.frames:
-            log.warning("the GUI drew no frame before the trace starts")
-        batches_before = len(collector.batches)
-        baseline = dict(collector.logged)
-        cpu_start = process_cpu_s(gui.pid)
-        injected = play(display, options.trace, (width, height))
-        cpu_end = process_cpu_s(gui.pid)
-        waited = drain(collector, injected, baseline, options.drain_timeout_s)
+
+            def page_url() -> str:
+                return str(browser.info(timeout_s=URL_TIMEOUT_S)["url"])
+
+            read_url = page_url if options.urls else None
+            if read_url is None:
+                # Without URL reads the connection ends before the trace.
+                connection.close()
+            # The pointer goes to the corner of the window (its events are
+            # not part of the trace), then the page settles.
+            display.motion(0, 0)
+            time.sleep(options.settle_s)
+            if not collector.frames:
+                log.warning("the GUI drew no frame before the trace starts")
+            start_url = read_url() if read_url is not None else None
+            batches_before = len(collector.batches)
+            baseline = dict(collector.logged)
+            cpu_start = process_cpu_s(gui.pid)
+            injected = play(display, options.trace, (width, height), read_url)
+            cpu_end = process_cpu_s(gui.pid)
+            waited = drain(collector, injected, baseline, options.drain_timeout_s)
+            if read_url is not None:
+                injected.read_url(read_url, "end")
+                injected.urls.insert(0, {"after": "start", "at_s": 0.0, "url": start_url})
         idle_start = monotonic()
         cpu_idle_start = process_cpu_s(gui.pid)
         time.sleep(options.idle_s)
@@ -439,6 +499,8 @@ def run(options: Options) -> dict:
         },
     )
     report["restyles"] = restyle_paths(restyles, injected.start, injected.end)
+    if options.urls:
+        report["urls"] = injected.urls
     return report
 
 
@@ -585,6 +647,9 @@ def markdown(report: dict) -> str:
             f"\nCount mismatch ({kind}): the tool sent {counts['injected']} events, the frame "
             f"log has {counts['logged']} (expected {counts['expected']})."
         )
+    if report.get("urls"):
+        lines += ["", "| URL read after | At (s) | URL |", "|---|---|---|"]
+        lines += [f"| {u['after']} | {u['at_s']} | {u['url']} |" for u in report["urls"]]
     return "\n".join(lines)
 
 

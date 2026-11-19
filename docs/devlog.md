@@ -4,6 +4,29 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-19: M12 feature 5: exit measurement and the cost of blend groups
+
+- The exit items are met: swb reaches `load` in 0.20 s against a budget
+  of 0.40 s (Chromium's jitless task 0.129 s); JavaScript off scores
+  1.0000 / 0.9993.
+- `gui-latency --urls` reads the page URL during a GUI trace. In the
+  `osm-map` trace each drag moves the map by exactly the drag vector. The
+  wheel notches, run as steps, give Chromium's zoom and center. A first
+  Chromium run disagreed only because `replay` pauses 600 ms between
+  steps, which turned the burst into separate notches.
+- The measurement found a regression from feature 4: Leaflet's CSS gives
+  each tile `mix-blend-mode: plus-lighter`. Once swb honoured it, each tile
+  became a layer and the tile pane an isolating layer, and a frame took
+  17.9 ms instead of 9.5 ms. Two fast paths fix it: a blend group of one
+  image draws the image directly with the blend operator, and a layer of
+  opacity 1 is composited by rows. A frame now takes 8.8 ms. The feature
+  3 build was the baseline that showed the regression; the M11 latency
+  targets alone would not have, since 38 ms is under the 50 ms goal.
+- Review: the fast paths match the layer path in 20 more cases. Fixed: a
+  mostly translucent layer drawn by runs was slower than one draw (it now
+  falls back), a URL read without an answer hung the tool (10 s timeout).
+- Next: the end-of-milestone maintenance.
+
 ## 2026-11-19: M12 feature 4: the OpenStreetMap exit test, blend modes and rounded borders
 
 - `crates/automation/tests/osm_zagreb.rs` runs the load and the 60 step

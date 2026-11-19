@@ -494,12 +494,15 @@ fn opacity_group_is_composited() {
     assert_eq!(rgb(&p, 50, 50), (255, 255, 255));
 }
 
+/// The mode and the colors at the middle of each stripe (see
+/// [`chromium_blend_cases`]).
+type BlendCase = (swb_style::MixBlendMode, [(u8, u8, u8); 3]);
+
 /// The blend modes against Chromium 148 (probe cases `box-*` of
 /// `tools/probes/mix-blend-mode.json`): a box (120, 200, 90) over three
 /// stripes of backdrop (233, 236, 239), (200, 60, 40) and (60, 120, 200),
 /// each 30 px high; the colors at the middle of each stripe.
-#[test]
-fn blend_modes_match_chromium() {
+fn chromium_blend_cases() -> [BlendCase; 17] {
     use swb_style::MixBlendMode as M;
     #[rustfmt::skip]
     let cases = [
@@ -521,6 +524,13 @@ fn blend_modes_match_chromium() {
         (M::Luminosity, [(161, 164, 167), (255, 128, 110), (113, 173, 253)]),
         (M::PlusLighter, [(255, 255, 255), (255, 255, 130), (180, 255, 255)]),
     ];
+    cases
+}
+
+#[test]
+fn blend_modes_match_chromium() {
+    use swb_style::MixBlendMode as M;
+    let cases = chromium_blend_cases();
     let stripe = |y: f32, (r, g, b): (u8, u8, u8)| DisplayItem::Rect {
         rect: Rect::new(0.0, y, 60.0, 30.0),
         radii: [(0.0, 0.0); 4],
@@ -872,6 +882,7 @@ fn rasterizer<'a>(
         depth: 0,
         frames: FrameNesting::default(),
         sticky: StickyCache::default(),
+        image_blend: None,
     }
 }
 
@@ -1486,6 +1497,7 @@ fn opaque_layers_are_opaque_for_luminance() {
 }
 
 mod backdrop;
+mod blend_image;
 mod frame;
 mod gradient;
 mod svg;

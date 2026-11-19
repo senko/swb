@@ -89,12 +89,14 @@ class Browser:
             _stop(process)
             raise
 
-    def call(self, method: str, **params: Any) -> Any:
+    def call(self, method: str, *, timeout_s: float | None = None, **params: Any) -> Any:
         """Calls a method and returns its result. Raises AutomationError if
-        the server answers with an error."""
+        the server answers with an error, and TimeoutError if no answer
+        comes within `timeout_s` seconds (no limit by default; after a
+        timeout the connection is not usable)."""
         request_id = next(self._ids)
         self._connection.send(json.dumps({"id": request_id, "method": method, "params": params}))
-        response = json.loads(self._connection.recv())
+        response = json.loads(self._connection.recv(timeout=timeout_s))
         if response.get("id") != request_id:
             raise RuntimeError(f"expected the response to request {request_id}: {response}")
         if "error" in response:
@@ -110,9 +112,10 @@ class Browser:
         """Waits until the page is loaded. Returns False on timeout."""
         return bool(self.call("page.waitForLoad", timeoutMs=timeout_ms)["loaded"])
 
-    def info(self) -> dict[str, Any]:
-        """The page state: URL, title, load state, scroll position, ..."""
-        return self.call("page.info")
+    def info(self, timeout_s: float | None = None) -> dict[str, Any]:
+        """The page state: URL, title, load state, scroll position, ...
+        (`timeout_s`: see `call`)."""
+        return self.call("page.info", timeout_s=timeout_s)
 
     def set_javascript(self, enabled: bool) -> None:
         """Sets the JavaScript setting. It applies to the next document: a

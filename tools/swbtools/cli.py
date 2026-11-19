@@ -140,6 +140,7 @@ def cmd_gui_latency(args: argparse.Namespace) -> int:
         swb_path=args.swb,
         label=args.url or f"{directory.parent.name}/{args.name}",  # type: ignore[union-attr]
         log_file=args.log,
+        urls=args.urls,
     )
     return gui_latency(options, args.json)
 
@@ -466,6 +467,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         metavar="FILE",
         help="write the GUI's stderr (the frame log and the pipeline log) to FILE",
+    )
+    p.add_argument(
+        "--urls",
+        action="store_true",
+        help="also read the page URL before the trace, 0.4 s after each release and after "
+        "the trace (the reads can change the timing: use a separate run)",
     )
     p.set_defaults(func=cmd_gui_latency)
 

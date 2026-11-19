@@ -966,6 +966,93 @@ restyles. Chromium does this at each frame of a wheel burst; the wheel to
 frame p90 stays at half of the M11 target (50 ms). Snapshot (JavaScript off)
 and `compare --all --js`: identical to the base.
 
+## Blend groups of one image and layers of opacity 1 (M12 feature 5a)
+
+Release builds of 2b72f26 (base, feature 4) and of the change; the GUI trace
+`osm-map` (`gui-latency osm-zagreb --js --trace osm-map`) at 1280 x 900 on
+Xvfb; load average 1.5 to 4.7. Leaflet's `mix-blend-mode: plus-lighter` makes
+each of the 24 tiles a blend group in its own layer, and the pane around them
+an isolating layer (ADR 0043). Measured in the base: the 24 layer pops took
+6.0 ms of the 17.8 ms median frame; with the pane's isolating layer left out,
+the frame took 6.7 ms.
+
+Two paths in the rasterizer cut this:
+
+- A blend group that holds one image (`blend_image_group`) draws the image
+  with the operator and the opacity straight onto the surface, without a
+  layer. The layer starts transparent, so the blend sees the same source
+  pixels, and a clip is a whole-pixel rectangle (mask coverage 0 or 1).
+  The result differs by at most 2 levels per channel (6 for the
+  non-separable modes): the layer rounded the image to 8 bits first.
+- A layer of opacity 1 and source-over (`composite::source_over`)
+  copies its opaque pixels, skips its empty ones and blends only the runs of
+  translucent pixels, which is exactly what a full draw gives (the unit test
+  compares the bytes); a layer with many runs, or with more than a quarter
+  of its pixels translucent, draws as a whole (the review measured a
+  1280 x 800 layer at alpha 128: 5.2 ms by runs, 3.4 ms as a whole).
+
+| Measure (`osm-map`) | Base (2b72f26) | Change (3 runs) | 3dabe44 (2 runs) |
+|---|---|---|---|
+| Render median | 17.8 ms | 8.8, 8.9, 8.9 ms | 9.5, 9.4 ms |
+| Move to frame median / p90 | 29.2 / 37.2 ms | 11.0 / 11.4, 11.1 / 12.7, 11.2 / 11.6 ms | 11.8 / 12.5, 11.7 / 12.2 ms |
+| Frames per second | 23 | 27.5, 27.2, 27.5 | 27.5, 26.9 |
+
+The review measured the change again: render median 8.7 and 8.8 ms, move
+to frame p90 11.3 and 11.5 ms (load 2.3 to 3.8). The GitHub owner trace
+(move p90 40.5 ms, wheel p90 30 ms, press max 34 ms, release p90 95 ms)
+and the Ars Technica owner trace (move p90 44.5 ms, wheel p90 37 ms) stay
+within the M11 targets.
+
+## M12 exit (feature 5)
+
+Release build of 2b72f26 with feature 5, the fixture `osm-zagreb`
+(`fixtures/js`, JavaScript on, the page clock at the capture time), load
+average 0.5 to 4 (other sessions' headless Chromium ran during the later
+GUI runs).
+
+**Budget (item 14).** `js-survey osm-zagreb --runs 3` (Chromium, idle):
+jitless task 0.129 s (script 86 ms), JIT task 0.142 s; `perf osm-zagreb`
+(JavaScript off, 10 runs): 11.6 ms. Budget = 3 x 0.129 + 0.012 = 0.40 s
+(feature 1: 0.44 s). swb to `load` (release, replay, `--virtual-time`, the
+original fixture without a `Worker` stub, 7 runs with process start):
+0.195 to 0.213 s (median 0.201) with `--settle-ms 0`, median 0.202 s with
+`--settle-ms 1500`. Met with a margin of 2.
+
+**Drags and the wheel in the GUI (item 3).** `gui-latency osm-zagreb --js
+--trace osm-map --urls` read the URL after each of the five drags: each
+moved the view by the drag vector within the 5 decimals of the URL (at
+most 0.4 px), for example `#map=16/45.81308/15.97721` to
+`16/45.81308/15.98365` after a drag of 300 px to the left. The wheel part
+(three notches in, three out, a burst of five in) ended at
+`#map=15/45.81314/15.97172`. The same notches as steps (`wheel` of 96 px,
+the pixels that the GUI gives a notch on X11) in swb headless and in
+Chromium's replay give the same URLs after each notch (zoom 16, 18, 19,
+19, 17, 15, 13, then 15 after the burst) when the events have about the
+same spacing (the burst: 30 ms apart in swb's virtual time, 44 to 51 ms in
+Chromium with `--pause-ms 0`); with `replay`'s default pause of 600 ms between steps, Chromium
+zooms at each burst notch and ends at 19 (Leaflet ignores a wheel zoom
+while its zoom animation of 250 ms runs).
+
+**GUI latency, `osm-map`** (separate runs without `--urls`):
+
+| Measure | Feature 1 (stub fixture) | Feature 4 (2b72f26) | Feature 5 |
+|---|---|---|---|
+| Render median | not logged | 17.9 ms | 8.7 to 8.9 ms (load 1.5 to 3.8); 9.9 to 10.2 ms (load 4) |
+| Move to frame p90 | 13 ms | 37.6 to 38.0 ms | 11.3 to 12.7 ms; 14.3 to 21.5 ms (load 4) |
+| Frames per second | 27.4 | 22.4 to 23.4 | 27.2 to 27.5; 26.2 to 26.7 (load 4) |
+| CPU in the trace / idle after it | 31.9 % / 0 % | 40.7 to 42.0 % / 0 % | 30.2 to 31.0 % / 0 %; 34.5 to 37.3 % (load 4) |
+
+The wheel notches: 8 or 9 of the 11 request no frame at once (Leaflet's
+`wheelDebounceTime`); the others reach their frame in 33 to 60 ms, after
+Leaflet's debounce timer.
+
+**Rendering (items 1 to 13).** The exit test `osm_zagreb.rs` passes with
+one departure (the "+" glyph of the zoom button, icon-font rasterization).
+JavaScript off (item 13): geometry 1.0000, pixels 0.9993; JavaScript on:
+geometry 1.0000, pixels 0.9982. `compare --all` and `compare --all --js`
+are unchanged by feature 5, and the hostile set passes except the known
+`nest-div-100000`.
+
 ## Script runtime of a document
 
 The engine creates a `swb_web::ScriptRuntime` for each document that

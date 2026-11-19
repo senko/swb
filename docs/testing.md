@@ -128,7 +128,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just update-scores`         | `compare --all --update-scores`        | Also writes the scores to `fixtures/scores.json`. |
 | `just layout-refs [NAME...]` | `layout-refs [NAME...]`                | Writes `tests/layout/NAME.boxes.json` with Chromium. |
 | `just perf [NAME...]`        | `perf [NAME...] [--runs N] [--js]`     | Times swb's pipeline stages and the interaction (hover, scroll) per fixture; with `--js` the fixtures of `fixtures/js/` with JavaScript on ([performance.md](performance.md)). |
-| `just tools gui-latency NAME` | `gui-latency NAME [--js] [--trace T] [--window WxH] [--json] [--log FILE]` | Plays an input trace into the GUI on a private Xvfb and reports the input latency (see "GUI input latency"). Also `--url URL` for a live page. |
+| `just tools gui-latency NAME` | `gui-latency NAME [--js] [--trace T] [--window WxH] [--json] [--log FILE] [--urls]` | Plays an input trace into the GUI on a private Xvfb and reports the input latency (see "GUI input latency"). Also `--url URL` for a live page. |
 | `just tools measure [NAME...]` | `measure [NAME...]`                  | Measures the Chromium behaviour that some of swb's data comes from (see "Measure Chromium behaviour"). `font-size-sweep` runs only when named. |
 | `just probe FILE...`         | `probe FILE... [--case NAME]... [--with-swb] [--tolerance PX] [--json]` | Asks Chromium (and with `--with-swb`, swb) about the cases of JSON files: boxes, line fragments, computed styles, JS values, ink and the colors at points (`pixels`); cases with `"javascript": true` run their scripts (see "Probe Chromium behaviour"). |
 | `just hostile [NAME...]`     | `hostile [NAME...] [--swb PATH] [--list] [--keep]` | Runs swb on the hostile-page set and checks time and memory limits (see "Hostile-page set"). `just` builds swb first. |
@@ -1086,6 +1086,19 @@ the style and layout runs and their total time during the trace and after
 it (from the pipeline log); the time that the GUI needed after the trace
 to count all events (`drain`, at most 60 s, or until it stalls for 10 s).
 
+`--urls` (M12 feature 5) also reads the page URL through the automation
+server (`page.info`) before the trace, 0.4 s after a release (before the
+events that come later; a release within that time after another moves the
+read to after itself) and after the trace, and adds a table of the reads
+to the report (`urls` in the JSON). A read without an answer in 10 s ends
+the run with an error (the tool stops Xvfb and swb). For a map whose URL fragment
+holds the view (OpenStreetMap's `#map=Z/LAT/LON`), it shows whether each
+drag moved the map, and by how much. The reads go through the GUI's event
+loop, so a run with `--urls` checks behaviour; measure the latency in a
+separate run without it. Tests: `tools/tests/test_gui_latency.py` (on
+senko-net) and `test_gui_latency_play.py` (the order of the reads, with a
+fake display).
+
 Traces are JSON files in `tools/traces/` (`--trace NAME`, or a path):
 
 ```json
@@ -1573,8 +1586,17 @@ with `blend_modes_match_chromium` and
 raster tests, `a_blend_mode_makes_a_group...` in `crates/engine/tests/page.rs`
 and `crates/engine/tests/blend_mode.rs` (the cases of part 4d: transforms,
 `backdrop-filter`, frames and SVG, with Chromium's pixels; hostile cases
-`blend-in-4000-rounded-clips` and `blend-in-500-nested-rounded-clips`);
-`tools/probes/textarea-resizer.json` (36 cases:
+`blend-in-4000-rounded-clips` and `blend-in-500-nested-rounded-clips`).
+The two fast paths of M12 feature 5a have unit tests:
+`crates/paint/src/raster/tests/blend_image.rs` (a blend group of one image
+drawn directly against the layer path, pixel by pixel within the rounding
+of ADR 0043: the 17 modes with opaque and translucent images, fractional
+positions at scales 1 and 1.5, opacity, a clip through the image,
+translation and scale, an isolating group, and Chromium's `box-*` values
+with an image as the box) and `crates/paint/src/raster/composite.rs` (a
+layer of opacity 1 composited by rows gives the same bytes as a full draw;
+layers with many runs or mostly translucent pixels and layers outside the
+surface fall back to the full draw); `tools/probes/textarea-resizer.json` (36 cases:
 the 18 x 18 corner of a text area and of scroll containers with `resize`, in
 `both`, `vertical`, `horizontal`, `block`, `inline` and `none`, disabled,
 read-only, `overflow` values, right-to-left, small and tiny boxes, other form

@@ -5822,6 +5822,31 @@ Steps:
       machine; `gui-latency` with the trace `osm-map` and a check that the
       drags move the map; then the end-of-milestone maintenance.
 
+      Done (2026-11-19), the exit measurement (`docs/performance.md`, "M12
+      exit (feature 5)"): budget 3 x 0.129 + 0.012 = 0.40 s, swb reaches
+      `load` in 0.20 s on the original fixture (item 14). `gui-latency
+      --urls` reads the page URL after each release: each drag of
+      `osm-map` moves the view by the drag vector (at most 0.4 px off);
+      the wheel notches as steps give Chromium's URLs at the same spacing
+      (item 3). JS off: geometry 1.0000, pixels 0.9993 (item 13). The
+      measurement found a regression of feature 4: Leaflet gives each
+      tile `mix-blend-mode: plus-lighter`, so each tile was a layer and
+      the tile pane an isolating layer, and a frame of `osm-map` took
+      17.9 ms instead of 9.5 ms (move to frame p90 38 ms instead of 13
+      ms). Part 5a: a blend group of one image draws the image directly
+      with the blend operator (equal to the layer path within the 8-bit
+      rounding of the layer: 2 levels, 6 for non-separable modes), and a
+      layer of opacity 1 is composited by rows (opaque pixels copied,
+      empty ones skipped, translucent runs blended; byte-exact; a layer
+      with many runs or more than a quarter translucent pixels draws as
+      a whole). Render median 8.7 to 8.9 ms, move to frame p90 11.3 to
+      12.7 ms. Review: no difference beyond the rounding in 20 more
+      raster cases (scales 1.5 and 2, masks, rounded clips, 30,000 px
+      images); fixed after it: the translucent-share fallback (a layer of
+      alpha 128 composited by runs was 1.5 times slower than one draw), a
+      10 s timeout on the URL reads, and the rule for two releases within
+      0.4 s.
+
    What "works" means (owner decisions of 2026-11-17), on the
    `osm-zagreb` fixture with JavaScript on, logged out, 1280 x 800:
 
@@ -5896,10 +5921,14 @@ Steps:
   zoom animation (5 tiles of group 28 are missing).
 - Automation (feature 1): a failing step ends the run, so a later group
   cannot run (`--skip` is the work-around).
-- `swbtools gui-latency` (feature 1): no screenshot or state check during
-  a trace, so it cannot show that a drag moved the map; 8 to 10 of the 11
-  wheel notches of `osm-map` request no frame at once (Leaflet's own
-  debounce).
+- `swbtools gui-latency` (feature 1): no screenshot during a trace (feature
+  5 added the URL reads of `--urls`); 8 to 10 of the 11 wheel notches of
+  `osm-map` request no frame at once (Leaflet's own debounce).
+- Raster (feature 5): the isolating layer of the OSM tile pane still costs
+  about 2 ms of the 8.8 ms frame (a 1280 x 800 layer is allocated and
+  cleared in each frame; a layer buffer kept across frames would remove
+  it); a blend group of one item that is not an image (a rectangle, a
+  text run) could draw directly as an image does.
 - `.gitignore` (feature 1): `/fixtures/js/` does not match a symbolic link,
   so a worktree with `fixtures/js` linked lists it in `git status`.
 - `js-survey` (feature 1) prints the 15 most used members only; the full

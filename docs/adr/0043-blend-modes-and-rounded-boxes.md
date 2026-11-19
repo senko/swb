@@ -92,3 +92,11 @@ named below).
   fonts (the "+" of the zoom button differs by 13 levels).
 - A blend group that does not fit into the layer budget draws directly,
   without the blend.
+- Cost of blend groups (M12 feature 5a): a blend group that holds one image
+  draws it directly with the blend operator and the group's opacity, without
+  a layer (the layer starts transparent, so the blend sees the same source;
+  the clips are whole-pixel rectangles). A layer of opacity 1 with
+  source-over composites by rows: opaque pixels are copied, empty ones
+  skipped, translucent runs blended by tiny-skia. Groups with anything else
+  take the layer path. The tiles of the OSM map went from 17.8 to 8.8 ms per
+  frame (`docs/performance.md`).

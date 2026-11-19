@@ -208,6 +208,14 @@ impl Rasterizer<'_> {
         }
     }
 
+    /// True if a layer that is no backdrop root (the rounded `overflow`
+    /// clip of an ancestor) is open above the backdrop root: a blend group
+    /// then goes through [`Rasterizer::blend_through_clip_layers`].
+    pub(super) fn has_clip_layer_above_root(&self) -> bool {
+        self.backdrop_root(0)
+            .is_some_and(|(_, above)| above.iter().any(|l| !l.direct && l.pixmap.is_some()))
+    }
+
     /// Composites the layer of a `mix-blend-mode` group (`group` at
     /// `origin` on the target) that is drawn into the layer of a rounded
     /// `overflow` clip: the clip layer is no isolated group in Chromium,

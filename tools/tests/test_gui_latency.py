@@ -55,3 +55,23 @@ def test_a_short_trace_on_senko_net():
     assert events["press"]["no_frame"] == 0
     assert report["frames"]["in_trace"] >= 1
     assert "| move | 11 |" in gui_latency.markdown(report)
+
+
+def test_the_urls_are_read_after_each_release():
+    options = gui_latency.Options(
+        trace=short_trace(),
+        fixture=paths.fixture_dir("senko-net"),
+        swb_path=RELEASE,
+        settle_s=0.5,
+        idle_s=0.5,
+        load_timeout_s=30.0,
+        drain_timeout_s=15.0,
+        label="pages/senko-net",
+        urls=True,
+    )
+    report = gui_latency.run(options)
+    assert [u["after"] for u in report["urls"]] == ["start", "release 1", "end"]
+    assert all(u["url"] == "https://senko.net/" for u in report["urls"]), report["urls"]
+    # The read waits URL_DELAY_S after the release at 0.65 s.
+    assert report["urls"][1]["at_s"] >= 0.65 + gui_latency.URL_DELAY_S
+    assert "| release 1 |" in gui_latency.markdown(report)
