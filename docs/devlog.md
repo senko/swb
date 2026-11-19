@@ -4,6 +4,28 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-19: README and CI
+
+- The README starts with a CI badge, a screenshot and the quick start;
+  the status section is short and points to the targets, the roadmap and
+  this log.
+- CI on `main` had failed since 2026-10-22, each time at the first
+  failing test binary, so later failures stayed hidden. A run like
+  CI (a clean worktree without `fixtures/js/`, `--no-fail-fast`) and runs
+  of the frame tests on one CPU core found two causes:
+  - `restyle_oracle.rs`: the JS-fixture test asserted that the oracle
+    ran, also when no fixture loaded. It now skips without fixtures; the
+    page-fixture test fails if one of its fixtures is missing.
+  - Seven `msg-*` cases of `tools/probes/web-frames.json` posted messages
+    to a frame and then navigated it to `peer.html`, which the test
+    server answered at once from another thread. When that thread won,
+    swb committed the navigation before the message tasks (HTML allows
+    both orders: different task sources). `peer.html` now has a delay of
+    100 ms in these cases; Chromium's values with the delay are
+    unchanged (three equal runs), and 6 runs on one core pass.
+- Casablanca (`builtins_date.rs`) had failed on CI before; the skip for
+  newer tzdata already fixed it.
+
 ## 2026-11-19: M12 maintenance; end of M12
 
 - Two read-only reviews found 39 clean-ups and no bug or dead code; 34

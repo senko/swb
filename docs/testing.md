@@ -1256,7 +1256,13 @@ temporary directory, loaded by navigation.
   cannot contain `/` (no subdirectories). A case with
   resources loads from `http://127.0.0.1:PORT/case-N/case-N.html` in
   Chromium and in swb (`--with-swb`), so a case can order the arrival of
-  scripts and style sheets (`tools/probes/web-scripts.json`). Responses
+  scripts and style sheets (`tools/probes/web-scripts.json`). A case that
+  posts messages to a frame and then navigates it needs a delay on the
+  new document (100 ms in the `msg-*` cases of `web-frames.json`): the
+  test servers of the Rust tests answer at once from another thread, and
+  without the delay swb can commit the navigation before the message
+  tasks run, which Chromium never does (a race that fails on a loaded
+  machine). Responses
   have `Cache-Control: no-store`. Chromium's HTTP/1 connection limit and
   its resource scheduler can delay low-priority requests (async scripts,
   images) behind others, and its preload scanner fetches later scripts

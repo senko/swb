@@ -79,13 +79,22 @@ fn run_fixture(name: &str, javascript: bool) -> Option<(String, RestylePaths)> {
     Some((format!("{name} (js {javascript})"), paths))
 }
 
+/// Checks that each fixture that loaded took the targeted path. Without
+/// any fixture (the JS fixtures are not in the repository, so CI has none)
+/// there is nothing to check.
 fn check(runs: Vec<Option<(String, RestylePaths)>>) {
+    let mut loaded = 0;
     for (name, paths) in runs.into_iter().flatten() {
         eprintln!("{name}: {paths:?}");
         assert!(
             paths.targeted + paths.nothing > 0,
             "{name}: no targeted restyle"
         );
+        loaded += 1;
+    }
+    if loaded == 0 {
+        eprintln!("skipped: no fixture");
+        return;
     }
     assert!(swb_engine::restyle_checks() > 0);
 }
@@ -104,6 +113,11 @@ fn targeted_restyles_equal_full_restyles_on_page_fixtures() {
             "wikipedia-web-browser",
         ]
         .map(|name| move || run_fixture(name, false)),
+    );
+    // The page fixtures are in the repository: none may be missing.
+    assert!(
+        runs.iter().all(Option::is_some),
+        "a page fixture is missing"
     );
     check(runs);
 }
