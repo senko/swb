@@ -128,7 +128,7 @@ fn opacity_folds_into_one_paint_and_groups_two() {
     let kinds: Vec<String> = items
         .iter()
         .map(|i| match i {
-            SvgDrawItem::PushOpacity(o) => format!("push {o}"),
+            SvgDrawItem::PushOpacity(o, _) => format!("push {o}"),
             SvgDrawItem::PopOpacity => "pop".to_owned(),
             SvgDrawItem::Fill { color, .. } => format!("fill {}", color.a),
             SvgDrawItem::Stroke { color, .. } => format!("stroke {}", color.a),
@@ -153,6 +153,32 @@ fn opacity_folds_into_one_paint_and_groups_two() {
             "pop"
         ]
     );
+}
+
+#[test]
+fn a_blend_mode_makes_a_group_of_a_shape_and_of_a_group() {
+    let html = "<svg width=10 height=10>\
+         <rect width=5 height=5 style='mix-blend-mode: difference' />\
+         <g style='mix-blend-mode: multiply'><rect width=5 height=5 /></g></svg>";
+    let items = draw(html);
+    let pushes: Vec<(f32, swb_style::MixBlendMode)> = items
+        .iter()
+        .filter_map(|i| match i {
+            SvgDrawItem::PushOpacity(o, b) => Some((*o, *b)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        pushes,
+        [
+            (1.0, swb_style::MixBlendMode::Difference),
+            (1.0, swb_style::MixBlendMode::Multiply)
+        ]
+    );
+    let (content, _) = svg_content(html);
+    assert!(content.has_blend());
+    let (plain, _) = svg_content("<svg width=10 height=10><rect width=5 height=5 /></svg>");
+    assert!(!plain.has_blend());
 }
 
 #[test]
@@ -358,7 +384,7 @@ fn opacity_layers_are_limited_per_document() {
     content.draw(Size::new(10.0, 10.0), &mut out);
     let pushes = out
         .iter()
-        .filter(|i| matches!(i, SvgDrawItem::PushOpacity(_)))
+        .filter(|i| matches!(i, SvgDrawItem::PushOpacity(..)))
         .count();
     let pops = out
         .iter()

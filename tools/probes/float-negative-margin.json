@@ -1,0 +1,590 @@
+{
+ "viewport": [600,300],
+ "cases": [
+  {
+   "name": "flex-item-float-before",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #f, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-after",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><span id=l>Set custom dimensions</span><div class=f id=f></div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #f, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-between",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p>Set <div class=f id=f></div><span id=l>custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #f, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-ml-24-w16-mr0",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f style='margin-left:-24px;width:16px;margin-right:0px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #f, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-ml-24-w16-mr4",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f style='margin-left:-24px;width:16px;margin-right:4px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #f, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-ml-24-w24-mr0",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f style='margin-left:-24px;width:24px;margin-right:0px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #f, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-ml-24-w30-mr0",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f style='margin-left:-24px;width:30px;margin-right:0px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #f, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-ml-10-w16-mr0",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f style='margin-left:-10px;width:16px;margin-right:0px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #f, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-ml-100-w16-mr0",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f style='margin-left:-100px;width:16px;margin-right:0px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #f, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-ml-24-w16-mr10",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f style='margin-left:-24px;width:16px;margin-right:10px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #f, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-ml0-w16-mr0",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f style='margin-left:0px;width:16px;margin-right:0px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #f, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-ml-24-w0-mr0",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f style='margin-left:-24px;width:0px;margin-right:0px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #f, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-two-floats",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f></div><div class=f style='margin-left:-24px;width:16px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-only",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f></div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-only-wide",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f style='margin-left:-24px;width:60px'></div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-right",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div id=p style='padding-right:24px;background:#eee'><div class=f style='float:right;margin-left:0;margin-right:-24px;width:16px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-right-after",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div id=p style='padding-right:24px;background:#eee'><span id=l>Set custom dimensions</span><div class=f style='float:right;margin-left:0;margin-right:-24px;width:16px'></div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-two-lines-float-before",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f></div>Set custom<br>dimensions and more text here</div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-two-lines-float-second",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p>Set custom<br><div class=f id=f></div>dimensions and more text here</div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-two-lines-float-second-short",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p>Set custom text here<br><div class=f id=f></div>dimensions</div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-then-block",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f></div><div id=l>Set custom dimensions</div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "inline-block-float-before",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div id=t style='display:inline-block'><div class=p id=p><div class=f id=f></div><span id=l>Set custom dimensions</span></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "float-container-float-before",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div id=t style='float:left'><div class=p id=p><div class=f id=f></div><span id=l>Set custom dimensions</span></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "float-container-float-after",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div id=t style='float:left'><div class=p id=p><span id=l>Set custom dimensions</span><div class=f id=f></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "abs-container-float-before",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div style='position:relative'><div id=t style='position:absolute;left:0;top:0'><div class=p id=p><div class=f id=f></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "grid-item-float-before",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div style='display:inline-grid;grid-template-columns:auto'><div id=t><div class=p id=p><div class=f id=f></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "grid-item-float-after",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div style='display:inline-grid;grid-template-columns:auto'><div id=t><div class=p id=p><span id=l>Set custom dimensions</span><div class=f id=f></div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "grid-fr-float-before",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div style='display:grid;grid-template-columns:max-content 1fr;width:400px'><div id=t><div class=p id=p><div class=f id=f></div><span id=l>Set custom dimensions</span></div></div><div>x</div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "table-cell-float-before",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><table style='border-collapse:collapse'><tr><td id=t style='padding:0'><div class=p id=p><div class=f id=f></div><span id=l>Set custom dimensions</span></div></td></tr></table>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "table-cell-float-after",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><table style='border-collapse:collapse'><tr><td id=t style='padding:0'><div class=p id=p><span id=l>Set custom dimensions</span><div class=f id=f></div></div></td></tr></table>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "nested-inline-block-flex-float",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div id=t style='display:inline-block'><div class=row style='width:auto'><div class=it><div class=p id=p><div class=f id=f></div><span id=l>Set custom dimensions</span></div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "nested-float-in-inline-block-in-flex",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><span style='display:inline-block' id=ib><div class=f id=f></div><span id=l>Set custom dimensions</span></span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #ib"
+    }
+   ]
+  },
+  {
+   "name": "min-content-float-before",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div style='width:0'><div id=t style='float:left'><div class=p id=p><div class=f id=f></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "min-content-float-after",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div style='width:0'><div id=t style='float:left'><div class=p id=p><span id=l>Set custom dimensions</span><div class=f id=f></div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "min-content-float-wide",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div style='width:0'><div id=t style='float:left'><div class=p id=p><div class=f style='margin-left:-24px;width:80px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "min-content-float-neg",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div style='width:0'><div id=t style='float:left'><div class=p id=p><div class=f style='margin-left:-24px;width:16px'></div>ab</div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "min-content-float-neg-nowrap",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div style='width:0'><div id=t style='float:left'><div class=p id=p><div class=f style='margin-left:-24px;width:16px'></div><span style='white-space:nowrap'>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-shrink-float-before",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row style='width:100px'><div class=it id=t style='flex:0 1 auto'><div class=p id=p><div class=f id=f></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-neg-margin-no-padding",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div id=p style='background:#eee'><div class=f style='margin-left:-24px;width:16px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-padding-border",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p style='border-left:3px solid #000;padding-left:30px;margin-left:5px'><div class=f style='margin-left:-30px;width:16px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-clear",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f style='clear:both'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-wide-short-text",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f style='width:100px;margin-left:-24px'></div><span id=l>ab</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-small-negative-long-text",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f style='width:40px;margin-left:-24px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-pos-then-neg-float",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f style='margin-left:0;width:20px'></div><div class=f style='margin-left:-24px;width:16px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-neg-then-pos-float",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f style='margin-left:-24px;width:16px'></div><div class=f style='margin-left:0;width:20px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-neg-left-pos-right-float",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f style='margin-left:-24px;width:16px'></div><div class=f style='float:right;margin-left:0;width:10px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-neg-left-neg-right-float",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div id=p style='padding:0 24px;background:#eee'><div class=f style='margin-left:-24px;width:16px'></div><div class=f style='float:right;margin-left:0;margin-right:-24px;width:16px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "min-content-float-wider",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div style='width:0'><div id=t style='float:left'><div class=p id=p><div class=f style='margin-left:-24px;width:120px'></div><span id=l>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "min-content-float-wider-after",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div style='width:0'><div id=t style='float:left'><div class=p id=p><span id=l>Set custom dimensions</span><div class=f style='margin-left:-24px;width:120px'></div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-then-flow-root",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f></div><div id=l style='display:flow-root'>Set custom dimensions</div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-then-inline-block",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f></div><div id=l style='display:inline-block'>Set custom dimensions</div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-then-table",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f></div><table id=l><tr><td>Set custom dimensions</td></tr></table></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-in-span",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><span id=s><div class=f id=f></div>Set custom dimensions</span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #s"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-in-child-block",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div id=c><div class=f id=f></div><span id=l>Set custom dimensions</span></div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #c"
+    }
+   ]
+  },
+  {
+   "name": "flex-item-float-in-child-block-with-text",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div id=c><div class=f id=f></div><span id=l>Set custom dimensions</span></div><div id=d>a long second line of text</div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #c"
+    }
+   ]
+  },
+  {
+   "name": "box-neg-float-before",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f></div><span id=l style='display:inline-block;width:100px;height:10px'></span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "box-neg-float-after",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><span id=l style='display:inline-block;width:100px;height:10px'></span><div class=f id=f></div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "box-pos-then-neg-float",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f style='margin-left:0;width:20px'></div><div class=f style='margin-left:-24px;width:16px'></div><span id=l style='display:inline-block;width:100px;height:10px'></span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "box-neg-then-pos-float",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f style='margin-left:-24px;width:16px'></div><div class=f style='margin-left:0;width:20px'></div><span id=l style='display:inline-block;width:100px;height:10px'></span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "box-neg-left-pos-right-float",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f style='margin-left:-24px;width:16px'></div><div class=f style='float:right;margin-left:0;width:10px'></div><span id=l style='display:inline-block;width:100px;height:10px'></span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "box-two-lines-float-second",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><span id=l style='display:inline-block;width:100px;height:10px'></span><br><div class=f id=f></div><span style='display:inline-block;width:60px'></span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p"
+    }
+   ]
+  },
+  {
+   "name": "box-float-block-level-child",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div id=c><div class=f id=f></div><span id=l style='display:inline-block;width:100px;height:10px'></span></div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #c"
+    }
+   ]
+  },
+  {
+   "name": "box-float-then-flow-root",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div class=row><div class=it id=t style=''><div class=p id=p><div class=f id=f></div><div id=l style='display:flow-root;width:100px'></div></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "box-min-content-neg-float",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div style='width:0'><div id=t style='float:left'><div class=p id=p><div class=f id=f></div><span id=l style='display:inline-block;width:100px;height:10px'></span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  },
+  {
+   "name": "box-min-content-wide-float",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial} .p{padding-left:24px;background:#eee} .f{float:left;margin-left:-24px;width:16px;height:16px;margin-top:4px;margin-bottom:0;margin-right:0;background:#c00} .row{display:flex;width:400px;background:#ddd} .it{flex:0 0 auto;background:#ccc}</style><div style='width:0'><div id=t style='float:left'><div class=p id=p><div class=f style='margin-left:-24px;width:150px'></div><span id=l style='display:inline-block;width:100px;height:10px'></span></div></div></div>",
+   "measure": [
+    {
+     "boxes": "#t, #p, #l"
+    }
+   ]
+  }
+ ]
+}

@@ -813,7 +813,8 @@ runtime (ADR 0028 section 15).
   layer (anti-aliased edges, per-strip budgets, at most 8 deep).
 - The content of scroll containers is translated by their offsets in
   the display list; `paint/src/scroll_indicator.rs` draws the GUI's
-  overlay scroll indicators (not in headless screenshots).
+  overlay scroll indicators (not in headless screenshots) and the resize
+  handle of text areas (in screenshots too).
 - The display list contains the selection highlight (a rectangle behind
   the selected glyphs, then the glyphs again in the selection color) and
   outlines; `outline-style: auto` is Chromium's two-ring focus ring.

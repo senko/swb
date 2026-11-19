@@ -5537,8 +5537,8 @@ answers recorded once from the live services. The rules of M9 apply.
 Owner decisions after the diagnosis (2026-11-18, `docs/osm-diagnosis.md`
 section 6): item 4 has five raster maps; the Transport Map is a vector map,
 and swb gets `getContext` returning null for WebGL so that its group fails
-as in Chromium without WebGL. Dedicated workers (planned ADR 0043) and XML
-documents (planned ADR 0044) leave M12: the page needs neither. The exit
+as in Chromium without WebGL. Dedicated workers and XML documents (two
+planned ADRs, not written) leave M12: the page needs neither. The exit
 test compares records in every group and pixels only with the layer panel
 closed (the thumbnails need WebGL).
 
@@ -5616,9 +5616,11 @@ Steps:
    click breaks the layer panel as in Chromium without WebGL. Budget (idle
    machine): 3 x 0.142 s + 0.012 s = 0.44 s; swb reaches `load` in 0.21 s
    with the stub. GUI `osm-map`: pointer move to frame p90 13 ms.
-2. ADRs: none. Dedicated workers (ADR 0043) and XML documents (ADR 0044)
-   moved to the backlog (owner decision of 2026-11-18): the page awaits no
-   worker answer and parses no XML.
+2. ADRs: none planned. Dedicated workers and XML documents (the ADRs
+   planned for them were not written) moved to the backlog (owner decision
+   of 2026-11-18): the page awaits no worker answer and parses no XML.
+   Feature 4 added ADR 0043 (blend modes, rounded boxes and resize
+   handles).
 3. Features, in this order. Each feature ends with a review and a commit,
    with the checks of M9: JavaScript off by default; the other targets
    keep their scores with JavaScript on and off; a change of a JS-off
@@ -5741,7 +5743,80 @@ Steps:
       option for Chromium flags makes these records reproducible), the
       pixels of the groups with the layer panel closed, the URLs that the
       fixture lacks and the console. Fix what the test finds in the map,
-      the layer panel and the sidebar (items 3 to 12).
+      the layer panel and the sidebar (items 3 to 12). Changed during the
+      feature: the reference is Chromium without WebGL in all groups (with
+      WebGL the thumbnails differ from group 29 on), and the pixel points
+      include the groups with the layer panel open (none in a thumbnail).
+
+      Done (2026-11-19), in three parts:
+      - The test: `swbtools replay --chromium-arg=ARG` adds a flag to
+        Chromium's launch; `tools/osm_zagreb_records.py records` runs
+        Chromium three times with `--disable-3d-apis` and fails when the
+        runs differ. `swb --steps` takes Playwright's trailing `:visible`
+        and `>> nth=N` (also `nth=-1` and in the `focus` step; other forms
+        give a "not supported" error). The test loads the fixture once at
+        1280 x 800 with the page clock at the capture time, runs the
+        groups and compares after the load and after each group: the
+        record (`window.__o()`, every field, with the rectangles of the
+        visible elements of the panels, the sidebar and the map controls
+        within 0.1 px and the numbers of the outline paths within 1 px),
+        pixel points chosen from Chromium's screenshots alone (flat in a
+        7 x 7 square in all three runs, about 43 per group, none in a
+        thumbnail except the core pixel of an icon glyph), the URLs that
+        the fixture lacks per group (Matomo masked) and the console
+        messages by count. A second test runs the steps without the
+        Transport Map group: in Chromium without WebGL its click leaves
+        the map without tiles for every later group, so this sequence
+        checks search, "Where is this?", the queries, the object pages,
+        directions, History (its changeset list loads from the fixture:
+        item 12) and Export on a map with tiles. Each difference is a
+        departure with its cause in `osm-zagreb-departures.json` or
+        `osm-zagreb-nt-departures.json`; a departure that no longer
+        applies fails the test. Both tests take about 5 s (dev profile).
+      - The first version passed at once because it chose its points where
+        swb already equalled Chromium and its records had no rectangles;
+        the review found three swb bugs that it missed. With the
+        rectangles and Chromium-only points, the test without departures
+        reports about 620 problems per sequence.
+      - Fixes, each with a probe file and tests with Chromium's numbers
+        (ADR 0043): a float adds its margin box, but at least 0, to the
+        min-content and max-content width of a line (the label of a
+        checkbox in a flex `.col-auto` wrapped;
+        `float-negative-margin.json`, 65 cases); a border side with a
+        width and a transparent color keeps its part of the corner, and
+        the join of two sides is the straight line through the outer and
+        the inner corner (Bootstrap's spinner is a "C";
+        `border-radius-sides.json`); rounded boxes snap to device pixels;
+        a box with rounded and square corners paints its sides one by
+        one, and a rounded box with four opaque solid borders keeps its
+        background inside the border (the pagination;
+        `border-radius-pagination.json`); `mix-blend-mode` (17 values; a
+        stacking context is an isolated group, a rounded `overflow` clip
+        is not; the "(i)" icons of the layer list use `difference`;
+        `mix-blend-mode.json`); the `resize` property and the resize
+        handle of text areas and scroll containers
+        (`textarea-resizer.json`, 8 pixel points in the exit test).
+
+      Results: the only departure is G, the "+" glyph of the zoom button
+      (icon-font rasterization, 13 levels; 2 points of the full sequence
+      and 3 of the second). JS on pixels
+      0.9977 -> 0.9982, JS off 0.9992 -> 0.9993; Wikipedia (JS off
+      0.9936 -> 0.9941) and Craigslist (JS on) rise a little, the other
+      scores are unchanged. JS-off snapshot: all layouts equal, 26
+      screenshots differ (rounded boxes with borders, text areas).
+
+      Review (of the fixes of part 4c): the hostile set and eleven stress
+      pages (10,000 blended boxes, nested rounded clips, 10,000 text
+      areas, borders of 1e9 px) pass without a panic, under 4 s and
+      1.1 GB each. Fixed after it (part 4d, measured in Chromium, 14 more
+      cases in `mix-blend-mode.json`, `crates/engine/tests/blend_mode.rs`):
+      a blend on a box with a rotate or scale transform (the blend group
+      now encloses the transform layer), a blend together with a
+      `backdrop-filter` (the filtered backdrop comes before the group; a
+      parent with `backdrop-filter` isolates), a frame document is an
+      isolated group, `mix-blend-mode` on SVG elements; a raster test for
+      the blend through a rounded clip layer; two hostile cases. The
+      review also found an older `background-clip` bug (backlog).
    5. JS off (item 13: nothing to do, geometry 1.0000) and the exit
       measurement (orchestrator): the budget and the load time on an idle
       machine; `gui-latency` with the trace `osm-map` and a check that the
@@ -5819,11 +5894,8 @@ Steps:
   within a minute with 429; a step file must not repeat a query.
 - Chromium's replay (feature 1): the layer-panel thumbnails race with the
   zoom animation (5 tiles of group 28 are missing).
-- Automation (feature 1): `swb --steps` takes CSS selectors only; the step
-  files use Playwright's `:visible` and `>> nth=N`, which
-  `osm_zagreb_records.py swb` translates with a mark attribute. A failing
-  step ends the run, so a later group cannot run (`--skip` is the
-  work-around).
+- Automation (feature 1): a failing step ends the run, so a later group
+  cannot run (`--skip` is the work-around).
 - `swbtools gui-latency` (feature 1): no screenshot or state check during
   a trace, so it cannot show that a drag moved the map; 8 to 10 of the 11
   wheel notches of `osm-map` request no frame at once (Leaflet's own
@@ -5887,7 +5959,7 @@ Steps:
   measured; the text of an input with padding is clipped about 2 px
   later than in Chromium (OSM group 55). The hover catch-up after a press
   that started in a frame is not measured in Chromium. `getComputedStyle`
-  lists 241 names, Chromium 456.
+  lists 243 names (with `mix-blend-mode` and `resize`), Chromium 456.
 - Virtual time (feature 3): the first animation frame is due at page
   time 0 and the waits for `load` run no frames, so a request that a
   `load` handler starts races with that frame (thread timing; the
@@ -5901,6 +5973,39 @@ Steps:
   `wait_until_idle` can return while one runs; `fetch()` calls past the
   six-per-host limit start from completion handlers, so their order of
   completion depends on thread timing.
+- Compositing (feature 4): no `isolation` property, so a page cannot
+  isolate a blend group on request (`getComputedStyle` gives "" for it,
+  Chromium "auto"); a blend group that does not fit into the layer budget
+  draws without its blend mode.
+- Backgrounds (feature 4 review, older than M12): with `background-clip:
+  padding-box` or `content-box` and a `border-radius`, the background
+  takes the outer radii, not the radii of its clip box (a 6 px border
+  with a 14 px radius: the pixel (9,9) is white in swb, the background
+  color in Chromium). A 1 x 1 box with a border and a radius differs
+  (Chromium (119,123,126), swb (76,76,76)).
+- Sizing (feature 4): `width: min-content`, `max-content` and
+  `fit-content` are not supported.
+- Borders (feature 4): on rounded boxes, `dashed` and `dotted` sides are
+  strokes along the straight side and do not follow the corners, and
+  `double` with unequal sides is solid (`border-radius-styles.json`); the
+  anti-aliasing of a rounded ring differs by up to 25 levels at curve
+  pixels; `inset` and `groove` shades differ by up to 38 levels on
+  rounded boxes.
+- Controls (feature 4): swb decides the native look of a control from
+  computed values, Chromium from the author's declarations (a text area
+  with `border: 1px solid #888` keeps its native corners in swb, Chromium
+  draws square ones); `color-scheme: dark` does not darken a native text
+  area; the resize handle does not resize, and at a device scale factor
+  other than 1 it is made of whole CSS pixels; the selection highlight of
+  a text area at a line end is narrower than Chromium's.
+- Text (feature 4): icon-font glyphs rasterize differently: the vertical
+  stroke of Bootstrap Icons' `bi-plus-lg` at 20 px covers its two columns
+  0.55 and 0.62 in swb, 0.65 and 0.65 in Chromium (departure G of
+  `osm_zagreb.rs`).
+- Exit test (feature 4): `osm_zagreb_records.py records` runs the three
+  Chromium runs one after the other (about 6 min each); the records have
+  few rectangles of the pagination and of `dt` and `dd` on the object
+  pages.
 
 ## Backlog from M11
 
@@ -6768,8 +6873,7 @@ Steps:
   corners and a second budget check); `will-change: transform`,
   `perspective` and (for absolute boxes) `position` make a containing
   block in Chromium 148, inert in swb; `will-change: filter` on an inline
-  box or the root element is not measured; `mix-blend-mode` (also as a
-  backdrop root); opacity together
+  box or the root element is not measured; opacity together
   with a mask, `clip-path` or `filter` on the same box uses one group;
   `will-change: transform` is inert; no pixel points for Ars Technica's
   sign-in overlay. The blur costs 3 ns per pixel and pass (scalar code):

@@ -465,6 +465,31 @@ fn rasterize_strip(
     r.budget.skipped
 }
 
+/// The tiny-skia operator of a `mix-blend-mode` (`plus-lighter` is `Plus`).
+fn blend_mode(mode: swb_style::MixBlendMode) -> tiny_skia::BlendMode {
+    use swb_style::MixBlendMode as M;
+    use tiny_skia::BlendMode as B;
+    match mode {
+        M::Normal => B::SourceOver,
+        M::Multiply => B::Multiply,
+        M::Screen => B::Screen,
+        M::Overlay => B::Overlay,
+        M::Darken => B::Darken,
+        M::Lighten => B::Lighten,
+        M::ColorDodge => B::ColorDodge,
+        M::ColorBurn => B::ColorBurn,
+        M::HardLight => B::HardLight,
+        M::SoftLight => B::SoftLight,
+        M::Difference => B::Difference,
+        M::Exclusion => B::Exclusion,
+        M::Hue => B::Hue,
+        M::Saturation => B::Saturation,
+        M::Color => B::Color,
+        M::Luminosity => B::Luminosity,
+        M::PlusLighter => B::Plus,
+    }
+}
+
 /// The layer of an open opacity or mask group.
 struct Layer {
     /// The pixels; `None` if the group draws nothing visible (opacity 0,
@@ -489,6 +514,9 @@ struct Layer {
 enum LayerKind {
     /// An opacity group (also the temporary layer of a mask layer).
     Opacity,
+    /// An opacity group that blends with the surface below it when it
+    /// ends (`mix-blend-mode`, CSS Compositing and Blending 1 §3.2).
+    Blend(swb_style::MixBlendMode),
     /// The group is multiplied by the mask layers.
     Mask(Arc<[MaskLayer]>),
     /// The group is multiplied by the coverage of a clip path.
@@ -929,6 +957,7 @@ impl Rasterizer<'_> {
             }
             DisplayItem::PushOpacity {
                 opacity,
+                blend,
                 bounds,
                 fixed_bounds,
                 escapes_clips,
@@ -936,7 +965,10 @@ impl Rasterizer<'_> {
                 opacity: *opacity,
                 bounds: *bounds,
                 fixed_bounds: *fixed_bounds,
-                kind: LayerKind::Opacity,
+                kind: match blend {
+                    swb_style::MixBlendMode::Normal => LayerKind::Opacity,
+                    mode => LayerKind::Blend(*mode),
+                },
                 escapes_clips: *escapes_clips,
             }),
             DisplayItem::PushFilter {
@@ -1213,7 +1245,7 @@ impl Rasterizer<'_> {
         };
         let is_mask = matches!(kind, LayerKind::Mask(_));
         let area = area.filter(|_| !is_mask || self.mask_work_fits(work));
-        let plain = matches!(kind, LayerKind::Opacity);
+        let plain = matches!(kind, LayerKind::Opacity | LayerKind::Blend(_));
         let fallback = matches!(&kind, LayerKind::SvgClip(c) if c.rect_fallback);
         let layer = match area {
             Some(a) if opacity > 0.0 => {
@@ -1269,7 +1301,7 @@ impl Rasterizer<'_> {
             return;
         };
         let visible = match &layer.kind {
-            LayerKind::Opacity | LayerKind::Filter(_) => true,
+            LayerKind::Opacity | LayerKind::Blend(_) | LayerKind::Filter(_) => true,
             LayerKind::Mask(layers) => self.apply_mask(&mut pixmap, layer.origin, layers, images),
             LayerKind::SvgClip(c) => {
                 match self.apply_svg_clip(&mut pixmap, layer.origin, &c.clip, &c.transform) {
@@ -1287,8 +1319,18 @@ impl Rasterizer<'_> {
         };
         let x = layer.origin.0 - parent.x as i32;
         let y = layer.origin.1 - parent.y as i32;
+        let blend_mode = match layer.kind {
+            LayerKind::Blend(mode) => blend_mode(mode),
+            _ => tiny_skia::BlendMode::SourceOver,
+        };
+        if matches!(layer.kind, LayerKind::Blend(_))
+            && self.blend_through_clip_layers(&pixmap, layer.origin, (layer.opacity, blend_mode))
+        {
+            return;
+        }
         let paint = PixmapPaint {
             opacity: layer.opacity,
+            blend_mode,
             ..PixmapPaint::default()
         };
         if let Some(mut surface) = self.surface_mut() {
@@ -1322,6 +1364,9 @@ impl Rasterizer<'_> {
         }
         let device = self.to_device(rect);
         if has_radius(radii) {
+            // Like Chromium, the box is snapped to device pixels also with
+            // rounded corners; only the corners are anti-aliased.
+            let device = snap(device);
             let radii = scale_radii(radii, self.params.scale);
             let Some(path) = rounded_rect_path(device, &radii) else {
                 return;

@@ -184,6 +184,7 @@ fn the_groups_of_the_parent_apply_to_the_frame() {
     let items = vec![
         DisplayItem::PushOpacity {
             opacity: 0.5,
+            blend: swb_style::MixBlendMode::Normal,
             bounds: Rect::new(10.0, 10.0, 50.0, 50.0),
             fixed_bounds: None,
             escapes_clips: false,

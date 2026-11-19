@@ -27,7 +27,7 @@ use super::items::{
 use crate::group_bounds::finish_groups;
 use crate::mask::{self, MaskBoxes, MaskLayer};
 use crate::rope::ItemRope;
-use crate::scroll_indicator::element_scroll_indicators;
+use crate::scroll_indicator::{element_scroll_indicators, resize_handle};
 use crate::{background, control, media};
 
 /// Builds the display list for the whole document, with the selection
@@ -45,6 +45,7 @@ pub fn build_display_list(
         contexts: Vec::new(),
         tree_order: positioned_tree_order(tree.roots()),
         backdrop_roots: backdrop_roots(tree),
+        blend_contexts: blend_contexts(tree),
         clips: Vec::new(),
         absolute_clips: 0,
         fixed_clips: 0,
@@ -144,6 +145,7 @@ fn paint_kind(b: &BoxFragment) -> PaintKind {
         PaintKind::Inline
     } else if style.display.is_inline_level()
         || style.opacity < 1.0
+        || style.has_blend_mode()
         || style.has_layout_containment()
         || style.has_paint_containment()
         || style.has_filter_effect()
@@ -226,6 +228,52 @@ fn backdrop_roots(tree: &FragmentTree) -> HashSet<*const BoxFragment> {
     roots
 }
 
+/// The boxes that form a stacking context (other than the root of a tree)
+/// that has a box with a `mix-blend-mode` in it, by address. A stacking
+/// context is an isolated group (CSS Compositing and Blending 1 §3.2,
+/// measured in Chromium 148): the blend sees only what the context
+/// painted before the box, so such a context paints into a layer. The
+/// recursion depth is bounded by the box tree depth (see `swb_layout`'s
+/// `box_tree.rs`).
+fn blend_contexts(tree: &FragmentTree) -> HashSet<*const BoxFragment> {
+    /// Returns true if `b` or a box below it, outside the stacking contexts
+    /// below `b`, has a `mix-blend-mode`: it blends in the context above.
+    fn visit(b: &BoxFragment, is_root: bool, found: &mut HashSet<*const BoxFragment>) -> bool {
+        // An element of an inline `<svg>` blends in the context of the
+        // `<svg>` box (or in the box's own context).
+        let mut below = matches!(&b.content, BoxContent::Svg(svg) if svg.has_blend());
+        for child in b.children.iter() {
+            if let Fragment::Box(cb) = child {
+                below |= visit(cb, false, found);
+            }
+        }
+        if is_root || forms_stacking_context(b) {
+            if below && !is_root {
+                found.insert(std::ptr::from_ref(b));
+            }
+            b.style.has_blend_mode()
+        } else {
+            below || b.style.has_blend_mode()
+        }
+    }
+    let mut found = HashSet::new();
+    for root in tree.roots() {
+        visit(root, true, &mut found);
+    }
+    found
+}
+
+/// True if the group of the `mix-blend-mode` of `b` must enclose its
+/// transform groups: the transform of `groups` is not a translation, so
+/// the rasterizer draws the box into a transparent layer, and a blend
+/// inside it would see nothing to blend with.
+fn blends_outside_transform(b: &BoxFragment, groups: &[GroupTransform]) -> bool {
+    b.style.has_blend_mode()
+        && groups
+            .iter()
+            .any(|g| matches!(g, GroupTransform::Matrix(m) if !m.is_translation()))
+}
+
 /// An open clip (overflow or `clip` property).
 struct OpenClip {
     /// The clip rectangle (for overflow, the padding box).
@@ -257,6 +305,9 @@ struct Builder<'a> {
     /// The backdrop roots with a `backdrop-filter` below them (see
     /// [`backdrop_roots`]).
     backdrop_roots: HashSet<*const BoxFragment>,
+    /// The stacking contexts with a `mix-blend-mode` box in them (see
+    /// [`blend_contexts`]).
+    blend_contexts: HashSet<*const BoxFragment>,
     /// The clips (overflow and `clip` property) of the boxes that are being
     /// painted, outermost first.
     clips: Vec<OpenClip>,
@@ -329,6 +380,59 @@ impl BackgroundAreas {
         }
     }
 
+    /// The area and corner radii that the background color fills. A rounded
+    /// box whose four borders are solid and opaque keeps the color out of
+    /// the border area (Chromium shrinks the background so that its
+    /// anti-aliased edge does not show around the border): the padding box
+    /// with the inner radii.
+    fn color_area(
+        &self,
+        style: &ComputedStyle,
+        clip: BackgroundBox,
+        radii: Radii,
+    ) -> (Rect, Radii) {
+        let border = self.border;
+        let padding = self.padding;
+        let opaque = |kind: BorderStyle, color: Rgba| kind == BorderStyle::Solid && color.a == 255;
+        let borders_hide_the_edge = clip == BackgroundBox::BorderBox
+            && radii.iter().any(|&(h, v)| h > 0.0 && v > 0.0)
+            && padding.x > border.x
+            && padding.y > border.y
+            && padding.right() < border.right()
+            && padding.bottom() < border.bottom()
+            && opaque(
+                style.border_top_style,
+                style.border_top_color.resolve(style.color),
+            )
+            && opaque(
+                style.border_right_style,
+                style.border_right_color.resolve(style.color),
+            )
+            && opaque(
+                style.border_bottom_style,
+                style.border_bottom_color.resolve(style.color),
+            )
+            && opaque(
+                style.border_left_style,
+                style.border_left_color.resolve(style.color),
+            );
+        if !borders_hide_the_edge {
+            return (self.painting_area(clip), radii);
+        }
+        let (top, right) = (padding.y - border.y, border.right() - padding.right());
+        let (bottom, left) = (border.bottom() - padding.bottom(), padding.x - border.x);
+        let inner = [
+            ((radii[0].0 - left).max(0.0), (radii[0].1 - top).max(0.0)),
+            ((radii[1].0 - right).max(0.0), (radii[1].1 - top).max(0.0)),
+            (
+                (radii[2].0 - right).max(0.0),
+                (radii[2].1 - bottom).max(0.0),
+            ),
+            ((radii[3].0 - left).max(0.0), (radii[3].1 - bottom).max(0.0)),
+        ];
+        (padding, inner)
+    }
+
     fn painting_area(&self, clip: BackgroundBox) -> Rect {
         match self.painting {
             PaintingArea::Own => self.area(clip),
@@ -339,8 +443,12 @@ impl BackgroundAreas {
 
 /// What [`Builder::open_group`] started for a box.
 struct Group {
-    /// The index of the `PushOpacity` item, if the box has opacity < 1.
+    /// The index of the `PushOpacity` item, if the box has opacity < 1 or
+    /// a `mix-blend-mode`.
     opacity_item: Option<usize>,
+    /// True if the opacity group starts outside the box's transform
+    /// groups: [`Builder::box_contents`] ends it.
+    hoisted: bool,
     /// The index of the `PushMask` item, if the box is masked.
     mask_item: Option<usize>,
     /// The item that ends the clip of the `clip-path` of the box (a basic
@@ -484,8 +592,11 @@ impl Builder<'_> {
     ) {
         let rect = b.border_rect.translate(origin);
         let groups = ancestry.group_transforms(b, rect);
+        // A blend must apply to the transformed box: its group encloses the
+        // transform layer, which is transparent around the box.
+        let early = blends_outside_transform(b, &groups).then(|| self.push_opacity(b));
         let transforms = self.open_transforms(&groups);
-        let group = self.open_group(b, origin, stacking_context);
+        let group = self.open_group(b, origin, stacking_context, early);
         let is_root = group.outer_depth == 0;
         // The clips of a stacking context root belong to the context: its
         // positioned descendants repeat them.
@@ -534,6 +645,7 @@ impl Builder<'_> {
             self.list
                 .extend(element_scroll_indicators(b, rect, self.offsets));
         }
+        self.list.extend(resize_handle(b, rect));
         self.outline(b, origin);
         self.close_backdrop(backdrop_root);
         if clip_property {
@@ -541,6 +653,9 @@ impl Builder<'_> {
         }
         self.close_group(&group, b, origin, positioned);
         self.close_transforms(transforms);
+        if group.hoisted {
+            self.list.push(DisplayItem::PopOpacity);
+        }
     }
 
     /// Starts the transform groups `groups` of a box (see
@@ -651,7 +766,7 @@ impl Builder<'_> {
         decorations: &[Decoration],
         ancestry: &Ancestry,
     ) {
-        let group = self.open_group(b, origin, false);
+        let group = self.open_group(b, origin, false, None);
         let backdrop_root = self.open_backdrop(b, origin, &group);
         self.paint_box(b, origin, false);
         let negative_z_at = self.list.len();
@@ -712,6 +827,7 @@ impl Builder<'_> {
                 self.list
                     .extend(element_scroll_indicators(b, rect, self.offsets));
             }
+            self.list.extend(resize_handle(b, rect));
             self.outline(b, origin);
         }
     }
@@ -736,7 +852,15 @@ impl Builder<'_> {
     /// and the stacking context of a box, as needed. `origin` is the
     /// parent's border-box origin. The effects apply in the order of CSS
     /// Masking 1 §3: the clip first, then the mask, then the opacity.
-    fn open_group(&mut self, b: &BoxFragment, origin: Point, stacking_context: bool) -> Group {
+    /// `early` is the opacity group that [`Builder::box_contents`] started
+    /// outside the box's transform (see [`blends_outside_transform`]).
+    fn open_group(
+        &mut self,
+        b: &BoxFragment,
+        origin: Point,
+        stacking_context: bool,
+        early: Option<usize>,
+    ) -> Group {
         let opacity = b.style.opacity;
         let outer_depth = self.contexts.len();
         // The opacity of a box with a `backdrop-filter` applies to the
@@ -745,21 +869,25 @@ impl Builder<'_> {
         // with it), so the backdrop item comes before the opacity group.
         // With a mask, a clip path or a filter on the box, they apply to
         // both, and the opacity group holds both (departure).
-        let backdrop_done = opacity < 1.0
+        //
+        // The same holds for a `mix-blend-mode` and for the layer that
+        // isolates a stacking context with blended boxes (measured in
+        // Chromium 148: the filtered backdrop, then the box, then the
+        // blend; a parent's filtered backdrop is outside the isolated
+        // group). The group of a blend that sits outside the transform
+        // (`early`) holds the backdrop item (departure).
+        let isolated = self.blend_contexts.contains(&std::ptr::from_ref(b));
+        let grouped = opacity < 1.0 || b.style.has_blend_mode() || isolated;
+        let backdrop_done = grouped
+            && early.is_none()
             && opacity > 0.0
             && !b.style.has_mask()
             && !b.style.clip_path.is_shape()
             && !b.style.has_filter()
             && self.backdrop_item(b, origin, (0, opacity), outer_depth == 0);
-        let opacity_item = (opacity < 1.0).then(|| {
-            self.list.push(DisplayItem::PushOpacity {
-                opacity: opacity.max(0.0),
-                bounds: Rect::default(),
-                fixed_bounds: None,
-                escapes_clips: false,
-            });
-            self.list.len() - 1
-        });
+        // A `mix-blend-mode` makes the same group, which blends when it
+        // ends (CSS Compositing and Blending 1 §3.2).
+        let opacity_item = early.or_else(|| grouped.then(|| self.push_opacity(b)));
         // The layers are computed when the group ends.
         let mask_item = b.style.has_mask().then(|| {
             self.list.push(DisplayItem::PushMask {
@@ -802,6 +930,7 @@ impl Builder<'_> {
             + u8::from(filter);
         Group {
             opacity_item,
+            hoisted: early.is_some(),
             mask_item,
             clip_pop,
             filter,
@@ -831,6 +960,7 @@ impl Builder<'_> {
         if root {
             self.list.push(DisplayItem::PushOpacity {
                 opacity: 1.0,
+                blend: swb_style::MixBlendMode::Normal,
                 bounds: Rect::default(),
                 fixed_bounds: None,
                 escapes_clips: false,
@@ -954,9 +1084,22 @@ impl Builder<'_> {
             }
             self.list.push(DisplayItem::PopMask);
         }
-        if group.opacity_item.is_some() {
+        if group.opacity_item.is_some() && !group.hoisted {
             self.list.push(DisplayItem::PopOpacity);
         }
+    }
+
+    /// Starts the opacity group of a box (with its `mix-blend-mode`) and
+    /// returns the index of its item.
+    fn push_opacity(&mut self, b: &BoxFragment) -> usize {
+        self.list.push(DisplayItem::PushOpacity {
+            opacity: b.style.opacity.max(0.0),
+            blend: b.style.mix_blend_mode,
+            bounds: Rect::default(),
+            fixed_bounds: None,
+            escapes_clips: false,
+        });
+        self.list.len() - 1
     }
 
     /// The box's own hit region, background, border and replaced content.
@@ -1231,14 +1374,13 @@ impl Builder<'_> {
             .copied()
             .unwrap_or(BackgroundBox::BorderBox);
         if !color.is_transparent() {
-            self.list.push(DisplayItem::Rect {
-                rect: areas.painting_area(color_clip),
-                radii: match areas.painting {
-                    PaintingArea::Own => radii,
-                    PaintingArea::Canvas(_) | PaintingArea::Cell(_) => [(0.0, 0.0); 4],
-                },
-                color,
-            });
+            let (rect, radii) = match areas.painting {
+                PaintingArea::Own => areas.color_area(style, color_clip, radii),
+                PaintingArea::Canvas(_) | PaintingArea::Cell(_) => {
+                    (areas.painting_area(color_clip), [(0.0, 0.0); 4])
+                }
+            };
+            self.list.push(DisplayItem::Rect { rect, radii, color });
         }
         // Layers are painted bottom (last) to top (first).
         for (i, image) in style.background_image.iter().enumerate().rev() {

@@ -1,0 +1,120 @@
+{
+ "viewport": [200,100],
+ "cases": [
+  {
+   "name": "pagination-25.8-24.8-16",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial;background:#fff} ul{display:flex;list-style:none;padding:0;margin:20px 0 0 16px} .l{position:relative;display:block;padding:6px 0;text-align:center;box-sizing:border-box;height:31px;border:1px solid #dee2e6;background:#fff;color:#0d6efd;text-decoration:none} li:not(:first-child) .l{margin-left:-1px} li:first-child .l{border-top-left-radius:6px;border-bottom-left-radius:6px} li:last-child .l{border-top-right-radius:6px;border-bottom-right-radius:6px} .l.active{z-index:3;color:#fff;background:#7092ff;border-color:#7092ff} ul{margin-left:16px} #a{width:25.8px} #b{width:24.8px}</style><ul><li><a class=l id=a>1</a></li><li><a class='l active' id=b>12</a></li></ul>",
+   "measure": [
+    {
+     "boxes": "#a, #b"
+    },
+    {
+     "pixels": "#a",
+     "points": [
+      [20,-1], [21,-1], [22,-1], [23,-1], [24,-1], [25,-1], [26,-1], [27,-1], [28,-1], [29,-1],
+      [30,-1], [31,-1], [20,0], [21,0], [22,0], [23,0], [24,0], [25,0], [26,0], [27,0], [28,0],
+      [29,0], [30,0], [31,0], [20,1], [21,1], [22,1], [23,1], [24,1], [25,1], [26,1], [27,1], [28,1],
+      [29,1], [30,1], [31,1], [20,2], [21,2], [22,2], [23,2], [24,2], [25,2], [26,2], [27,2], [28,2],
+      [29,2], [30,2], [31,2], [20,29], [21,29], [22,29], [23,29], [24,29], [25,29], [26,29], [27,29],
+      [28,29], [29,29], [30,29], [31,29], [20,30], [21,30], [22,30], [23,30], [24,30], [25,30],
+      [26,30], [27,30], [28,30], [29,30], [30,30], [31,30], [20,31], [21,31], [22,31], [23,31],
+      [24,31], [25,31], [26,31], [27,31], [28,31], [29,31], [30,31], [31,31], [20,32], [21,32],
+      [22,32], [23,32], [24,32], [25,32], [26,32], [27,32], [28,32], [29,32], [30,32], [31,32]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "pagination-25.8-24.8-16.3",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial;background:#fff} ul{display:flex;list-style:none;padding:0;margin:20px 0 0 16px} .l{position:relative;display:block;padding:6px 0;text-align:center;box-sizing:border-box;height:31px;border:1px solid #dee2e6;background:#fff;color:#0d6efd;text-decoration:none} li:not(:first-child) .l{margin-left:-1px} li:first-child .l{border-top-left-radius:6px;border-bottom-left-radius:6px} li:last-child .l{border-top-right-radius:6px;border-bottom-right-radius:6px} .l.active{z-index:3;color:#fff;background:#7092ff;border-color:#7092ff} ul{margin-left:16.3px} #a{width:25.8px} #b{width:24.8px}</style><ul><li><a class=l id=a>1</a></li><li><a class='l active' id=b>12</a></li></ul>",
+   "measure": [
+    {
+     "boxes": "#a, #b"
+    },
+    {
+     "pixels": "#a",
+     "points": [
+      [20,-1], [21,-1], [22,-1], [23,-1], [24,-1], [25,-1], [26,-1], [27,-1], [28,-1], [29,-1],
+      [30,-1], [31,-1], [20,0], [21,0], [22,0], [23,0], [24,0], [25,0], [26,0], [27,0], [28,0],
+      [29,0], [30,0], [31,0], [20,1], [21,1], [22,1], [23,1], [24,1], [25,1], [26,1], [27,1], [28,1],
+      [29,1], [30,1], [31,1], [20,2], [21,2], [22,2], [23,2], [24,2], [25,2], [26,2], [27,2], [28,2],
+      [29,2], [30,2], [31,2], [20,29], [21,29], [22,29], [23,29], [24,29], [25,29], [26,29], [27,29],
+      [28,29], [29,29], [30,29], [31,29], [20,30], [21,30], [22,30], [23,30], [24,30], [25,30],
+      [26,30], [27,30], [28,30], [29,30], [30,30], [31,30], [20,31], [21,31], [22,31], [23,31],
+      [24,31], [25,31], [26,31], [27,31], [28,31], [29,31], [30,31], [31,31], [20,32], [21,32],
+      [22,32], [23,32], [24,32], [25,32], [26,32], [27,32], [28,32], [29,32], [30,32], [31,32]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "pagination-26-25-16",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial;background:#fff} ul{display:flex;list-style:none;padding:0;margin:20px 0 0 16px} .l{position:relative;display:block;padding:6px 0;text-align:center;box-sizing:border-box;height:31px;border:1px solid #dee2e6;background:#fff;color:#0d6efd;text-decoration:none} li:not(:first-child) .l{margin-left:-1px} li:first-child .l{border-top-left-radius:6px;border-bottom-left-radius:6px} li:last-child .l{border-top-right-radius:6px;border-bottom-right-radius:6px} .l.active{z-index:3;color:#fff;background:#7092ff;border-color:#7092ff} ul{margin-left:16px} #a{width:26px} #b{width:25px}</style><ul><li><a class=l id=a>1</a></li><li><a class='l active' id=b>12</a></li></ul>",
+   "measure": [
+    {
+     "boxes": "#a, #b"
+    },
+    {
+     "pixels": "#a",
+     "points": [
+      [20,-1], [21,-1], [22,-1], [23,-1], [24,-1], [25,-1], [26,-1], [27,-1], [28,-1], [29,-1],
+      [30,-1], [31,-1], [20,0], [21,0], [22,0], [23,0], [24,0], [25,0], [26,0], [27,0], [28,0],
+      [29,0], [30,0], [31,0], [20,1], [21,1], [22,1], [23,1], [24,1], [25,1], [26,1], [27,1], [28,1],
+      [29,1], [30,1], [31,1], [20,2], [21,2], [22,2], [23,2], [24,2], [25,2], [26,2], [27,2], [28,2],
+      [29,2], [30,2], [31,2], [20,29], [21,29], [22,29], [23,29], [24,29], [25,29], [26,29], [27,29],
+      [28,29], [29,29], [30,29], [31,29], [20,30], [21,30], [22,30], [23,30], [24,30], [25,30],
+      [26,30], [27,30], [28,30], [29,30], [30,30], [31,30], [20,31], [21,31], [22,31], [23,31],
+      [24,31], [25,31], [26,31], [27,31], [28,31], [29,31], [30,31], [31,31], [20,32], [21,32],
+      [22,32], [23,32], [24,32], [25,32], [26,32], [27,32], [28,32], [29,32], [30,32], [31,32]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "pagination-25.5-24.5-16.25",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial;background:#fff} ul{display:flex;list-style:none;padding:0;margin:20px 0 0 16px} .l{position:relative;display:block;padding:6px 0;text-align:center;box-sizing:border-box;height:31px;border:1px solid #dee2e6;background:#fff;color:#0d6efd;text-decoration:none} li:not(:first-child) .l{margin-left:-1px} li:first-child .l{border-top-left-radius:6px;border-bottom-left-radius:6px} li:last-child .l{border-top-right-radius:6px;border-bottom-right-radius:6px} .l.active{z-index:3;color:#fff;background:#7092ff;border-color:#7092ff} ul{margin-left:16.25px} #a{width:25.5px} #b{width:24.5px}</style><ul><li><a class=l id=a>1</a></li><li><a class='l active' id=b>12</a></li></ul>",
+   "measure": [
+    {
+     "boxes": "#a, #b"
+    },
+    {
+     "pixels": "#a",
+     "points": [
+      [20,-1], [21,-1], [22,-1], [23,-1], [24,-1], [25,-1], [26,-1], [27,-1], [28,-1], [29,-1],
+      [30,-1], [31,-1], [20,0], [21,0], [22,0], [23,0], [24,0], [25,0], [26,0], [27,0], [28,0],
+      [29,0], [30,0], [31,0], [20,1], [21,1], [22,1], [23,1], [24,1], [25,1], [26,1], [27,1], [28,1],
+      [29,1], [30,1], [31,1], [20,2], [21,2], [22,2], [23,2], [24,2], [25,2], [26,2], [27,2], [28,2],
+      [29,2], [30,2], [31,2], [20,29], [21,29], [22,29], [23,29], [24,29], [25,29], [26,29], [27,29],
+      [28,29], [29,29], [30,29], [31,29], [20,30], [21,30], [22,30], [23,30], [24,30], [25,30],
+      [26,30], [27,30], [28,30], [29,30], [30,30], [31,30], [20,31], [21,31], [22,31], [23,31],
+      [24,31], [25,31], [26,31], [27,31], [28,31], [29,31], [30,31], [31,31], [20,32], [21,32],
+      [22,32], [23,32], [24,32], [25,32], [26,32], [27,32], [28,32], [29,32], [30,32], [31,32]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "pagination-25.8-24.8-16.6",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial;background:#fff} ul{display:flex;list-style:none;padding:0;margin:20px 0 0 16px} .l{position:relative;display:block;padding:6px 0;text-align:center;box-sizing:border-box;height:31px;border:1px solid #dee2e6;background:#fff;color:#0d6efd;text-decoration:none} li:not(:first-child) .l{margin-left:-1px} li:first-child .l{border-top-left-radius:6px;border-bottom-left-radius:6px} li:last-child .l{border-top-right-radius:6px;border-bottom-right-radius:6px} .l.active{z-index:3;color:#fff;background:#7092ff;border-color:#7092ff} ul{margin-left:16.6px} #a{width:25.8px} #b{width:24.8px}</style><ul><li><a class=l id=a>1</a></li><li><a class='l active' id=b>12</a></li></ul>",
+   "measure": [
+    {
+     "boxes": "#a, #b"
+    },
+    {
+     "pixels": "#a",
+     "points": [
+      [20,-1], [21,-1], [22,-1], [23,-1], [24,-1], [25,-1], [26,-1], [27,-1], [28,-1], [29,-1],
+      [30,-1], [31,-1], [20,0], [21,0], [22,0], [23,0], [24,0], [25,0], [26,0], [27,0], [28,0],
+      [29,0], [30,0], [31,0], [20,1], [21,1], [22,1], [23,1], [24,1], [25,1], [26,1], [27,1], [28,1],
+      [29,1], [30,1], [31,1], [20,2], [21,2], [22,2], [23,2], [24,2], [25,2], [26,2], [27,2], [28,2],
+      [29,2], [30,2], [31,2], [20,29], [21,29], [22,29], [23,29], [24,29], [25,29], [26,29], [27,29],
+      [28,29], [29,29], [30,29], [31,29], [20,30], [21,30], [22,30], [23,30], [24,30], [25,30],
+      [26,30], [27,30], [28,30], [29,30], [30,30], [31,30], [20,31], [21,31], [22,31], [23,31],
+      [24,31], [25,31], [26,31], [27,31], [28,31], [29,31], [30,31], [31,31], [20,32], [21,32],
+      [22,32], [23,32], [24,32], [25,32], [26,32], [27,32], [28,32], [29,32], [30,32], [31,32]
+     ]
+    }
+   ]
+  }
+ ]
+}

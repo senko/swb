@@ -13,23 +13,29 @@ use super::{
 
 /// The geometry of a border box in device px.
 struct BorderGeometry {
-    /// The outer edge, snapped to pixels if there are no rounded corners.
+    /// The outer edge, snapped to pixels (also with rounded corners, as in
+    /// Chromium).
     outer: Rect,
     /// Widths: top, right, bottom, left.
     widths: [f32; 4],
     /// Outer corner radii.
     radii: Radii,
     has_radius: bool,
+    /// True if the sides of the same color are filled one by one, so that
+    /// the anti-aliased diagonal between two of them shows as in Chromium
+    /// (see [`Rasterizer::border`]).
+    seams: bool,
 }
 
 impl BorderGeometry {
     fn new(outer: Rect, widths: [f32; 4], radii: Radii) -> Self {
         let has_radius = has_radius(&radii);
         BorderGeometry {
-            outer: if has_radius { outer } else { snap(outer) },
+            outer: snap(outer),
             widths,
             radii,
             has_radius,
+            seams: false,
         }
     }
 
@@ -74,14 +80,16 @@ impl BorderGeometry {
 /// rounded corners the sides are trapezoids. With rounded corners the
 /// sides are extended to the center of the box, so that together they
 /// cover the whole rounded ring, including the curved corner areas inside
-/// the inner rectangle. A corner next to a side that is not painted
-/// (`painted[i]` is false) belongs entirely to the painted side, so its
-/// tapering end is drawn as in browsers.
+/// the inner rectangle. A corner next to a side that has no width
+/// (`occupied[i]` is false) belongs entirely to the other side, so its
+/// tapering end is drawn as in browsers. A side with a width and a
+/// transparent color is occupied: the corner is split at the diagonal
+/// and the transparent side keeps its half (CSS Backgrounds 3 §5.2).
 fn side_polygons(
     outer: Rect,
     inner: Rect,
     to_center: bool,
-    painted: [bool; 4],
+    occupied: [bool; 4],
 ) -> [Vec<(f32, f32)>; 4] {
     let outer_corners = [
         (outer.x, outer.y),
@@ -111,16 +119,17 @@ fn side_polygons(
         f32::midpoint(inner.y, inner.bottom()),
     );
     // The point where `side` ends at `corner` (`side` or `side + 1`): the
-    // inner corner, or, if the other side at that corner is not painted,
-    // the point of the outer edge level with the center.
+    // miter line (through the outer and the inner corner) extended to the
+    // middle of the box, or, if the other side at that corner has no
+    // width, the point of the outer edge level with the center.
     let corner_end = |side: usize, corner: usize| {
         let other = if corner == side {
             (side + 3) % 4
         } else {
             (side + 1) % 4
         };
-        if painted[other] {
-            inner_corners[corner]
+        if occupied[other] {
+            miter_end(outer_corners[corner], inner_corners[corner], side, center)
         } else if side.is_multiple_of(2) {
             // Top and bottom sides extend along the left/right edge.
             (outer_corners[corner].0, center.1)
@@ -131,14 +140,82 @@ fn side_polygons(
     };
     [0, 1, 2, 3].map(|side| {
         let (start, end) = (side, (side + 1) % 4);
-        vec![
-            outer_corners[start],
-            outer_corners[end],
-            corner_end(side, end),
-            center,
-            corner_end(side, start),
-        ]
+        let mut polygon = vec![outer_corners[start], outer_corners[end]];
+        if occupied[(side + 3) % 4] && occupied[(side + 1) % 4] {
+            // Both ends follow their miter lines; the lines can cross
+            // before the middle of the box, and the side ends there.
+            if let Some(apex) = miter_apex(&outer_corners, &inner_corners, side) {
+                polygon.push(apex);
+                return polygon;
+            }
+        }
+        polygon.extend([corner_end(side, end), center, corner_end(side, start)]);
+        polygon
     })
+}
+
+/// The point where the miter line through `outer` and `inner` (corners of
+/// the border box) reaches the middle of the box: `center.1` for a top or
+/// bottom `side`, `center.0` for a left or right one. The line is the join
+/// of two sides at a corner (CSS Backgrounds 3 §5.2: its angle follows the
+/// ratio of the two border widths); with rounded corners it goes on beyond
+/// the inner corner.
+fn miter_end(outer: (f32, f32), inner: (f32, f32), side: usize, center: (f32, f32)) -> (f32, f32) {
+    let (d, mid) = if side.is_multiple_of(2) {
+        (outer.1, center.1)
+    } else {
+        (outer.0, center.0)
+    };
+    let step = if side.is_multiple_of(2) {
+        inner.1 - outer.1
+    } else {
+        inner.0 - outer.0
+    };
+    // A degenerate miter (zero width on the depth axis) stays on the edge.
+    if step.abs() < 1e-6 {
+        return inner;
+    }
+    let t = (mid - d) / step;
+    (
+        outer.0 + t * (inner.0 - outer.0),
+        outer.1 + t * (inner.1 - outer.1),
+    )
+}
+
+/// The point where the miter lines at both ends of `side` cross, if they
+/// cross before the middle of the box (a box taller than wide for a top
+/// side).
+fn miter_apex(outer: &[(f32, f32); 4], inner: &[(f32, f32); 4], side: usize) -> Option<(f32, f32)> {
+    let (start, end) = (side, (side + 1) % 4);
+    // Lateral coordinate l along the side, depth d across it.
+    let horizontal = side.is_multiple_of(2);
+    let ld = |p: (f32, f32)| if horizontal { (p.0, p.1) } else { (p.1, p.0) };
+    let from_ld = |(l, d): (f32, f32)| if horizontal { (l, d) } else { (d, l) };
+    let slope = |c: usize| {
+        let (ol, od) = ld(outer[c]);
+        let (il, id) = ld(inner[c]);
+        ((id - od).abs() > 1e-6).then(|| (il - ol) / (id - od))
+    };
+    let (ks, ke) = (slope(start)?, slope(end)?);
+    let (ls, d0) = ld(outer[start]);
+    let (le, _) = ld(outer[end]);
+    if (ks - ke).abs() < 1e-6 {
+        return None;
+    }
+    // l = ls + ks * (d - d0) = le + ke * (d - d0)
+    let dd = (le - ls) / (ks - ke);
+    // The depth that the lines reach while they are still on the same
+    // side of each other: the crossing must lie between the edge and the
+    // middle (`d` has the sign of the step to the inside).
+    let (_, inner_d) = ld(inner[start]);
+    let inward = (inner_d - d0).signum();
+    let center_d = {
+        let (_, a) = ld(inner[start]);
+        let (_, b) = ld(inner[(start + 2) % 4]);
+        f32::midpoint(a, b)
+    };
+    let reaches = dd * inward > 0.0 && dd * inward < (center_d - d0) * inward;
+    reaches.then(|| from_ld((ls + ks * dd, d0 + dd)))
 }
 
 /// Appends a closed polygon to a path.
@@ -163,7 +240,7 @@ impl Rasterizer<'_> {
         radii: &Radii,
     ) {
         let s = self.params.scale;
-        let geometry = BorderGeometry::new(
+        let mut geometry = BorderGeometry::new(
             self.to_device(rect),
             widths.map(|w| w.max(0.0) * s),
             scale_radii(radii, s),
@@ -176,7 +253,15 @@ impl Rasterizer<'_> {
         let uniform = (0..4)
             .filter(|&i| has_width(i))
             .all(|i| colors[i] == colors[first] && styles[i] == styles[first]);
-        if uniform && matches!(styles[first], BorderStyle::Solid | BorderStyle::Double) {
+        // A box with rounded and square corners paints its sides one by
+        // one in Chromium: the diagonal between two sides, anti-aliased
+        // twice, covers 0.75 of its pixels here, 0.79 in Chromium (a corner
+        // pixel of a square corner of a link of a pagination, for example).
+        let mixed = geometry.has_radius && radii.iter().any(|&(h, v)| h <= 0.0 || v <= 0.0);
+        if uniform && styles[first] == BorderStyle::Solid && mixed {
+            geometry.seams = true;
+            self.border_sides(&geometry, colors, styles);
+        } else if uniform && matches!(styles[first], BorderStyle::Solid | BorderStyle::Double) {
             self.uniform_border(&geometry, colors[first], styles[first]);
         } else {
             self.border_sides(&geometry, colors, styles);
@@ -227,6 +312,13 @@ impl Rasterizer<'_> {
         let mut whole = [None; 4];
         let mut outer_half = [None; 4];
         let mut inner_half = [None; 4];
+        // Dashed and dotted sides are strokes (they do not follow rounded
+        // corners), so they do not split the corners of the polygons.
+        let occupied: [bool; 4] = std::array::from_fn(|i| {
+            geometry.widths[i] > 0.0
+                && !styles[i].has_no_width()
+                && !matches!(styles[i], BorderStyle::Dashed | BorderStyle::Dotted)
+        });
         for side in 0..4 {
             let (color, style) = (colors[side], styles[side]);
             if geometry.widths[side] <= 0.0 || color.is_transparent() || style.has_no_width() {
@@ -247,9 +339,9 @@ impl Rasterizer<'_> {
                 _ => whole[side] = Some(shade(color, style, side)),
             }
         }
-        self.fill_sides(geometry, (0.0, 1.0), whole);
-        self.fill_sides(geometry, (0.0, 0.5), outer_half);
-        self.fill_sides(geometry, (0.5, 1.0), inner_half);
+        self.fill_sides(geometry, (0.0, 1.0), whole, occupied);
+        self.fill_sides(geometry, (0.0, 0.5), outer_half, occupied);
+        self.fill_sides(geometry, (0.5, 1.0), inner_half, occupied);
     }
 
     /// Fills the band `from..to` (fractions of the border width, 0 is the
@@ -261,14 +353,14 @@ impl Rasterizer<'_> {
         geometry: &BorderGeometry,
         band: (f32, f32),
         colors: [Option<Rgba>; 4],
+        occupied: [bool; 4],
     ) {
         if colors.iter().all(Option::is_none) {
             return;
         }
         let (outer, _) = geometry.edge(band.0);
         let (inner, _) = geometry.edge(band.1);
-        let painted = colors.map(|c| c.is_some());
-        let polygons = side_polygons(outer, inner, geometry.has_radius, painted);
+        let polygons = side_polygons(outer, inner, geometry.has_radius, occupied);
         // Sides of the same color are filled as one path, so that there is
         // no anti-aliasing seam on the diagonal between them.
         let mut by_color: Vec<(Rgba, PathBuilder)> = Vec::new();
@@ -278,7 +370,7 @@ impl Rasterizer<'_> {
             };
             let index = by_color
                 .iter()
-                .position(|(c, _)| *c == color)
+                .position(|(c, _)| *c == color && !geometry.seams)
                 .unwrap_or_else(|| {
                     by_color.push((color, PathBuilder::new()));
                     by_color.len() - 1

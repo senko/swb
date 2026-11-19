@@ -66,8 +66,9 @@ pub(crate) fn paint(
     let viewport = Rect::new(0.0, 0.0, content.width, content.height);
     for item in items {
         let next = match item {
-            SvgDrawItem::PushOpacity(opacity) => DisplayItem::PushOpacity {
+            SvgDrawItem::PushOpacity(opacity, blend) => DisplayItem::PushOpacity {
                 opacity: opacity.max(0.0),
+                blend,
                 bounds: Rect::default(),
                 fixed_bounds: None,
                 escapes_clips: false,

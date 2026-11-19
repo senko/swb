@@ -1131,6 +1131,21 @@ impl Page {
         doc.element_box(node, fonts)
     }
 
+    /// True if the element is visible as Playwright defines it: a box with
+    /// a non-empty bounding box and `visibility` other than `hidden` (or
+    /// `collapse`).
+    pub fn is_visible(&mut self, node: NodeId) -> bool {
+        let Some(rect) = self.element_box(node) else {
+            return false;
+        };
+        rect.width > 0.0
+            && rect.height > 0.0
+            && self
+                .styles()
+                .and_then(|styles| styles.get(node))
+                .is_some_and(|style| style.visibility == swb_style::Visibility::Visible)
+    }
+
     /// The font context.
     pub fn fonts(&mut self) -> &mut FontContext {
         &mut self.fonts

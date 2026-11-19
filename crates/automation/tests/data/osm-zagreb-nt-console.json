@@ -1,0 +1,30 @@
+[
+ {
+  "type": "error",
+  "url": "https://matomo.openstreetmap.org/matomo.js",
+  "text": "There was an error setting cookie `_pk_ses.1.cf09`. Please check domain and path.",
+  "min": 8,
+  "max": 8
+ },
+ {
+  "type": "error",
+  "url": "https://matomo.openstreetmap.org/matomo.php",
+  "text": "Failed to load resource: net::ERR_FAILED",
+  "min": 8,
+  "max": 8
+ },
+ {
+  "type": "error",
+  "url": "https://www.openstreetmap.org/panes/webgl_error",
+  "text": "Failed to load resource: net::ERR_FAILED",
+  "min": 8,
+  "max": 8
+ },
+ {
+  "type": "exception",
+  "url": "",
+  "text": "Failed to fetch",
+  "min": 8,
+  "max": 8
+ }
+]

@@ -1,0 +1,708 @@
+[
+ {
+  "name": "welcome close",
+  "steps": [
+   {
+    "click": ".welcome .btn-close"
+   },
+   {
+    "wait": 500
+   }
+  ]
+ },
+ {
+  "name": "drag",
+  "steps": [
+   {
+    "hover": [800, 450]
+   },
+   {
+    "mousedown": "left"
+   },
+   {
+    "hover": [780, 445]
+   },
+   {
+    "hover": [750, 440]
+   },
+   {
+    "hover": [720, 435]
+   },
+   {
+    "wait": 300
+   },
+   {
+    "mouseup": "left"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "wheel in",
+  "steps": [
+   {
+    "hover": [800, 450]
+   },
+   {
+    "wheel": [0, -60]
+   },
+   {
+    "wait": 2000
+   }
+  ]
+ },
+ {
+  "name": "wheel out",
+  "steps": [
+   {
+    "wheel": [0, 60]
+   },
+   {
+    "wait": 2000
+   }
+  ]
+ },
+ {
+  "name": "double click",
+  "steps": [
+   {
+    "dblclick": [800, 450]
+   },
+   {
+    "wait": 2000
+   }
+  ]
+ },
+ {
+  "name": "zoom out button",
+  "steps": [
+   {
+    "click": ".control-button.dash-lg"
+   },
+   {
+    "wait": 2000
+   }
+  ]
+ },
+ {
+  "name": "zoom in button",
+  "steps": [
+   {
+    "click": ".control-button.plus-lg"
+   },
+   {
+    "wait": 2000
+   }
+  ]
+ },
+ {
+  "name": "key minus",
+  "steps": [
+   {
+    "focus": "#map"
+   },
+   {
+    "key": "-"
+   },
+   {
+    "wait": 2000
+   }
+  ]
+ },
+ {
+  "name": "key plus",
+  "steps": [
+   {
+    "key": "+"
+   },
+   {
+    "wait": 2000
+   }
+  ]
+ },
+ {
+  "name": "key minus again",
+  "steps": [
+   {
+    "key": "-"
+   },
+   {
+    "wait": 2000
+   }
+  ]
+ },
+ {
+  "name": "key arrow right",
+  "steps": [
+   {
+    "key": "ArrowRight"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "layers open",
+  "steps": [
+   {
+    "click": ".control-button >> nth=3"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "layer cyclosm",
+  "steps": [
+   {
+    "click": "label[for='map-ui-layer-cyclosm']"
+   },
+   {
+    "wait": 3500
+   }
+  ]
+ },
+ {
+  "name": "layer cycle map",
+  "steps": [
+   {
+    "click": "label[for='map-ui-layer-cyclemap']"
+   },
+   {
+    "wait": 3500
+   }
+  ]
+ },
+ {
+  "name": "layer tracestrack topo",
+  "steps": [
+   {
+    "click": "label[for='map-ui-layer-tracestracktopo']"
+   },
+   {
+    "wait": 3500
+   }
+  ]
+ },
+ {
+  "name": "layer humanitarian",
+  "steps": [
+   {
+    "click": "label[for='map-ui-layer-hot']"
+   },
+   {
+    "wait": 3500
+   }
+  ]
+ },
+ {
+  "name": "layer standard",
+  "steps": [
+   {
+    "click": "label[for='map-ui-layer-mapnik']"
+   },
+   {
+    "wait": 3500
+   }
+  ]
+ },
+ {
+  "name": "overlay map notes",
+  "steps": [
+   {
+    "click": "#label-layers-notes"
+   },
+   {
+    "wait": 3500
+   }
+  ]
+ },
+ {
+  "name": "overlay map data",
+  "steps": [
+   {
+    "click": "#label-layers-data"
+   },
+   {
+    "wait": 4000
+   }
+  ]
+ },
+ {
+  "name": "overlay public gps traces",
+  "steps": [
+   {
+    "click": "#label-layers-gps"
+   },
+   {
+    "wait": 3500
+   }
+  ]
+ },
+ {
+  "name": "overlays off",
+  "steps": [
+   {
+    "click": "#label-layers-notes"
+   },
+   {
+    "click": "#label-layers-data"
+   },
+   {
+    "click": "#label-layers-gps"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "zoom in to 17",
+  "steps": [
+   {
+    "click": ".control-button.plus-lg"
+   },
+   {
+    "wait": 2500
+   }
+  ]
+ },
+ {
+  "name": "zoom in to 18",
+  "steps": [
+   {
+    "click": ".control-button.plus-lg"
+   },
+   {
+    "wait": 2500
+   }
+  ]
+ },
+ {
+  "name": "overlay map data at 18",
+  "steps": [
+   {
+    "click": "#label-layers-data"
+   },
+   {
+    "wait": 5000
+   }
+  ]
+ },
+ {
+  "name": "overlay map data off",
+  "steps": [
+   {
+    "click": "#label-layers-data"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "zoom out to 17",
+  "steps": [
+   {
+    "click": ".control-button.dash-lg"
+   },
+   {
+    "wait": 2000
+   }
+  ]
+ },
+ {
+  "name": "zoom out to 16",
+  "steps": [
+   {
+    "click": ".control-button.dash-lg"
+   },
+   {
+    "wait": 2000
+   }
+  ]
+ },
+ {
+  "name": "layers close",
+  "steps": [
+   {
+    "click": "#map-ui .btn-close.rounded-5"
+   },
+   {
+    "wait": 800
+   }
+  ]
+ },
+ {
+  "name": "legend open",
+  "steps": [
+   {
+    "click": ".control-button >> nth=4"
+   },
+   {
+    "wait": 2500
+   }
+  ]
+ },
+ {
+  "name": "legend close",
+  "steps": [
+   {
+    "click": "#map-ui .btn-close.rounded-5"
+   },
+   {
+    "wait": 800
+   }
+  ]
+ },
+ {
+  "name": "share open",
+  "steps": [
+   {
+    "click": ".control-button >> nth=5"
+   },
+   {
+    "wait": 2500
+   }
+  ]
+ },
+ {
+  "name": "share short link",
+  "steps": [
+   {
+    "click": "#short_link"
+   },
+   {
+    "wait": 500
+   }
+  ]
+ },
+ {
+  "name": "share html",
+  "steps": [
+   {
+    "click": "#embed_link"
+   },
+   {
+    "wait": 500
+   }
+  ]
+ },
+ {
+  "name": "share marker",
+  "steps": [
+   {
+    "click": "#link_marker"
+   },
+   {
+    "wait": 500
+   }
+  ]
+ },
+ {
+  "name": "share close",
+  "steps": [
+   {
+    "click": "#map-ui .btn-close.rounded-5"
+   },
+   {
+    "wait": 800
+   }
+  ]
+ },
+ {
+  "name": "reset view search",
+  "steps": [
+   {
+    "eval": "location.hash = '#map=16/45.81308/15.97721'"
+   },
+   {
+    "wait": 2500
+   }
+  ]
+ },
+ {
+  "name": "search",
+  "steps": [
+   {
+    "click": "input#query:visible"
+   },
+   {
+    "type": "Trg bana Jelačića"
+   },
+   {
+    "key": "Enter"
+   },
+   {
+    "wait": 4000
+   }
+  ]
+ },
+ {
+  "name": "search result",
+  "steps": [
+   {
+    "click": "li.search_results_entry a.set_position >> nth=0"
+   },
+   {
+    "wait": 4000
+   }
+  ]
+ },
+ {
+  "name": "search close",
+  "steps": [
+   {
+    "eval": "([...document.querySelectorAll('#sidebar .btn-close')].find((b) => b.getBoundingClientRect().width > 0 && !b.classList.contains('invisible')) || {click() {}}).click()"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "reset view where is this",
+  "steps": [
+   {
+    "eval": "location.hash = '#map=16/45.81308/15.97721'"
+   },
+   {
+    "wait": 2500
+   }
+  ]
+ },
+ {
+  "name": "where is this",
+  "steps": [
+   {
+    "click": "button.describe_location:visible"
+   },
+   {
+    "wait": 4000
+   }
+  ]
+ },
+ {
+  "name": "where is this result",
+  "steps": [
+   {
+    "click": "li.search_results_entry a[data-id] >> nth=0"
+   },
+   {
+    "wait": 5000
+   }
+  ]
+ },
+ {
+  "name": "where is this close",
+  "steps": [
+   {
+    "eval": "([...document.querySelectorAll('#sidebar .btn-close')].find((b) => b.getBoundingClientRect().width > 0 && !b.classList.contains('invisible')) || {click() {}}).click()"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "reset view query",
+  "steps": [
+   {
+    "eval": "location.hash = '#map=16/45.81269/15.97861'"
+   },
+   {
+    "wait": 2500
+   }
+  ]
+ },
+ {
+  "name": "query open",
+  "steps": [
+   {
+    "click": ".control-button >> nth=7"
+   },
+   {
+    "wait": 2000
+   }
+  ]
+ },
+ {
+  "name": "query click",
+  "steps": [
+   {
+    "click": [760, 430]
+   },
+   {
+    "wait": 10000
+   }
+  ]
+ },
+ {
+  "name": "object relation",
+  "steps": [
+   {
+    "click": "#sidebar_content a[href^='/relation/'] >> nth=0"
+   },
+   {
+    "wait": 5000
+   }
+  ]
+ },
+ {
+  "name": "object way",
+  "steps": [
+   {
+    "click": "#sidebar_content details a[href^='/way/'] >> nth=0"
+   },
+   {
+    "wait": 5000
+   }
+  ]
+ },
+ {
+  "name": "object node",
+  "steps": [
+   {
+    "back": true
+   },
+   {
+    "wait": 3000
+   },
+   {
+    "back": true
+   },
+   {
+    "wait": 5000
+   },
+   {
+    "click": "#sidebar_content a[href^='/node/'] >> nth=0"
+   },
+   {
+    "wait": 5000
+   }
+  ]
+ },
+ {
+  "name": "object close",
+  "steps": [
+   {
+    "eval": "([...document.querySelectorAll('#sidebar .btn-close')].find((b) => b.getBoundingClientRect().width > 0 && !b.classList.contains('invisible')) || {click() {}}).click()"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "reset view directions",
+  "steps": [
+   {
+    "eval": "location.hash = '#map=16/45.81308/15.97721'"
+   },
+   {
+    "wait": 2500
+   }
+  ]
+ },
+ {
+  "name": "directions open",
+  "steps": [
+   {
+    "click": ".switch_link:visible"
+   },
+   {
+    "wait": 2000
+   }
+  ]
+ },
+ {
+  "name": "directions fill",
+  "steps": [
+   {
+    "click": "#route_from:visible"
+   },
+   {
+    "type": "Trg bana Jelačića"
+   },
+   {
+    "click": "#route_to:visible"
+   },
+   {
+    "type": "Glavni kolodvor"
+   },
+   {
+    "wait": 1000
+   }
+  ]
+ },
+ {
+  "name": "directions go",
+  "steps": [
+   {
+    "key": "Enter"
+   },
+   {
+    "wait": 7000
+   }
+  ]
+ },
+ {
+  "name": "directions close",
+  "steps": [
+   {
+    "eval": "([...document.querySelectorAll('#sidebar .btn-close')].find((b) => b.getBoundingClientRect().width > 0 && !b.classList.contains('invisible')) || {click() {}}).click()"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "history",
+  "steps": [
+   {
+    "click": "header a[href*='/history']:visible"
+   },
+   {
+    "wait": 5000
+   }
+  ]
+ },
+ {
+  "name": "export",
+  "steps": [
+   {
+    "click": "header a[href*='/export']:visible"
+   },
+   {
+    "wait": 3000
+   }
+  ]
+ },
+ {
+  "name": "back to history",
+  "steps": [
+   {
+    "back": true
+   },
+   {
+    "wait": 4000
+   }
+  ]
+ },
+ {
+  "name": "forward to export",
+  "steps": [
+   {
+    "forward": true
+   },
+   {
+    "wait": 3000
+   }
+  ]
+ }
+]

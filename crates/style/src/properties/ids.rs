@@ -26,11 +26,12 @@ use crate::values::{
     CompositeOperator, Contain, ContainerName, ContainerType, ContentVisibility, CounterList,
     Cursor, Direction, Display, EmptyCells, FieldSizing, FillRule, FlexDirection, FlexWrap, Float,
     FontFamily, FontStyle, FontVariantCaps, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens,
-    ListStylePosition, ListStyleType, MaskClip, MaskMode, ObjectFit, OutlineStyle, Overflow,
-    OverflowWrap, Overlay, PointerEvents, Position, ScrollbarWidth, ShapeRendering,
-    SpecifiedLengthPercentage as Lp, SpecifiedTrackList, SpecifiedTrackSize, StrokeLinecap,
-    StrokeLinejoin, SvgPaint, TableLayout, TextDecorationLine, TextDecorationStyle, TextOverflow,
-    TextTransform, UnicodeBidi, UserSelect, Visibility, WhiteSpace, WordBreak, ZIndex,
+    ListStylePosition, ListStyleType, MaskClip, MaskMode, MixBlendMode, ObjectFit, OutlineStyle,
+    Overflow, OverflowWrap, Overlay, PointerEvents, Position, Resize, ScrollbarWidth,
+    ShapeRendering, SpecifiedLengthPercentage as Lp, SpecifiedTrackList, SpecifiedTrackSize,
+    StrokeLinecap, StrokeLinejoin, SvgPaint, TableLayout, TextDecorationLine, TextDecorationStyle,
+    TextOverflow, TextTransform, UnicodeBidi, UserSelect, Visibility, WhiteSpace, WordBreak,
+    ZIndex,
 };
 
 macro_rules! longhands {
@@ -278,6 +279,8 @@ longhands! {
     ContainIntrinsicWidth "contain-intrinsic-width" reset contain_intrinsic_width: SpecifiedContainIntrinsic;
     ContainIntrinsicHeight "contain-intrinsic-height" reset contain_intrinsic_height: SpecifiedContainIntrinsic;
     ObjectFit "object-fit" reset object_fit: ObjectFit;
+    MixBlendMode "mix-blend-mode" reset mix_blend_mode: MixBlendMode;
+    Resize "resize" reset resize: Resize;
     ScrollbarWidth "scrollbar-width" reset scrollbar_width: ScrollbarWidth;
     Overlay "overlay" reset overlay: Overlay;
     ObjectPosition "object-position" reset object_position: [SpecifiedPosition; 2];

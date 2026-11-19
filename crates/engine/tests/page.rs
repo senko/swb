@@ -795,6 +795,45 @@ fn inline_boxes_with_opacity_or_a_mask_paint_in_a_group() {
 }
 
 #[test]
+fn a_blend_mode_makes_a_group_and_a_stacking_context_around_it_isolates() {
+    // CSS Compositing and Blending 1 §3.2: `mix-blend-mode` makes a group
+    // that blends when it ends; a stacking context is an isolated group,
+    // so the context of a blended box (here `z-index: 1`) is a layer too
+    // (Chromium: the blended box does not see the page behind its parent).
+    use swb_style::MixBlendMode;
+    let list = display_list(
+        "<!DOCTYPE html><body style='margin:0'>\
+         <div style='position:absolute;z-index:1;width:50px;height:50px'>\
+         <div style='mix-blend-mode:difference;background:rgb(1,2,3);height:10px'></div></div>\
+         <div style='mix-blend-mode:multiply;height:10px;background:rgb(4,5,6)'></div>\
+         <div style='position:relative;height:10px;background:rgb(7,8,9)'>\
+         <div style='mix-blend-mode:screen;height:5px'></div></div>",
+        "dl-blend-groups",
+    );
+    let groups: Vec<(f32, MixBlendMode)> = list
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            DisplayItem::PushOpacity { opacity, blend, .. } => Some((*opacity, *blend)),
+            _ => None,
+        })
+        .collect();
+    // The `position: relative` box without a `z-index` is no context: its
+    // `screen` child blends in the root context without an isolating layer.
+    let mut expected = vec![
+        (1.0, MixBlendMode::Multiply),
+        (1.0, MixBlendMode::Screen),
+        (1.0, MixBlendMode::Normal),
+        (1.0, MixBlendMode::Difference),
+    ];
+    let key = |g: &(f32, MixBlendMode)| g.1.as_str();
+    let mut groups = groups;
+    groups.sort_by_key(key);
+    expected.sort_by_key(key);
+    assert_eq!(groups, expected);
+}
+
+#[test]
 fn positioned_boxes_in_floats_and_inline_boxes_keep_tree_order() {
     // Positioned descendants of a float, an inline-block and an inline box
     // belong to the enclosing stacking context: with equal z-index they

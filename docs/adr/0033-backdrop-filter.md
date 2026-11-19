@@ -184,7 +184,8 @@ model.
   with `blur(20px)` would work on 3 times its pixels) and a second budget
   check, so it is not done for a rare function (backlog; the two rows are
   in `SWB_PIXELS`).
-- `mix-blend-mode` is not a property in swb, so it is no backdrop root.
+- `mix-blend-mode` is a backdrop root since M12 feature 4c (swb has the
+  property, see ADR 0043).
 - The layer of a rounded `overflow` clip is no root (as in Chromium), but a
   clip layer's pixels are drawn without the rounded mask into the backdrop
   (the corners).

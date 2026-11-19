@@ -49,7 +49,8 @@
 //! below 1 is composited as a layer. Layers cost memory and time in
 //! proportion to their area, so a document has at most [`MAX_LAYERS`] of
 //! them. Past the limit, the opacity multiplies the alpha of each paint
-//! inside instead, which differs where shapes overlap. A group that holds
+//! inside instead, which differs where shapes overlap. An element with a
+//! `mix-blend-mode` is a layer too, and has no blend past the limit. A group that holds
 //! one shape with one paint needs no layer (the result is the same) and
 //! does not count. Clips that need a layer have their own limit,
 //! [`MAX_CLIP_LAYERS`].
@@ -501,7 +502,9 @@ impl Builder<'_> {
             return;
         }
         self.nodes.push(Node::EndGroup);
-        if !empty && style.opacity < 1.0 && !self.single_paint(start + 1) {
+        let needs_layer =
+            style.has_blend_mode() || (style.opacity < 1.0 && !self.single_paint(start + 1));
+        if !empty && needs_layer {
             let layer = self.budget.take_layer();
             if let Some(Node::BeginGroup(group)) = self.nodes.get_mut(start) {
                 group.layer = layer;
@@ -667,7 +670,8 @@ impl Builder<'_> {
             return;
         };
         self.budget.shapes.left -= 1;
-        let layered = !(style.opacity < 1.0 && has_two_paints(style)) || self.budget.take_layer();
+        let needs_layer = (style.opacity < 1.0 && has_two_paints(style)) || style.has_blend_mode();
+        let layered = !needs_layer || self.budget.take_layer();
         let rotated = self.rotated;
         self.rotated |= rotates(style);
         let clip = self.clip_for(style);

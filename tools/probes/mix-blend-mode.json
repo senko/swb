@@ -1,0 +1,483 @@
+{
+ "viewport": [200,150],
+ "cases": [
+  {
+   "name": "box-normal",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:normal}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-multiply",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:multiply}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-screen",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:screen}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-overlay",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:overlay}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-darken",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:darken}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-lighten",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:lighten}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-color-dodge",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:color-dodge}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-color-burn",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:color-burn}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-hard-light",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:hard-light}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-soft-light",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:soft-light}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-difference",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:difference}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-exclusion",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:exclusion}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-hue",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:hue}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-saturation",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:saturation}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-color",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:color}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-luminosity",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:luminosity}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "box-plus-lighter",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:plus-lighter}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "group-with-children",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:multiply;background:none} #y{position:absolute;left:0;top:0;width:60px;height:45px;background:rgb(120,200,90)} #z{position:absolute;left:0;top:30px;width:60px;height:30px;background:rgb(250,230,10)}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x><div id=y></div><div id=z></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "opacity-half-difference",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:difference;opacity:.5}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "opacity-half-multiply",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:multiply;opacity:.5}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "parent-opacity-isolates",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#p{position:absolute;left:0;top:0;width:60px;height:90px;opacity:.99} #x{mix-blend-mode:difference}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=p><div id=x></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "parent-filter-isolates",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#p{position:absolute;left:0;top:0;width:60px;height:90px;filter:blur(0)} #x{mix-blend-mode:difference}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=p><div id=x></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "parent-z-index-isolates",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#p{position:absolute;left:0;top:0;width:60px;height:90px;z-index:1} #x{mix-blend-mode:difference}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=p><div id=x></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "parent-transform-isolates",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#p{position:absolute;left:0;top:0;width:60px;height:90px;transform:translate(0,0)} #x{mix-blend-mode:difference}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=p><div id=x></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "nested-blends",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#p{position:absolute;left:0;top:0;width:60px;height:90px;mix-blend-mode:multiply} #x{mix-blend-mode:difference}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=p><div id=x></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "static-element-over-positioned",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{position:static;mix-blend-mode:difference;height:90px;width:60px;margin-top:-90px;background:rgb(120,200,90)}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "z-index-order-under-blend",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{mix-blend-mode:difference;z-index:1} #u{position:absolute;left:0;top:0;width:60px;height:30px;background:rgb(10,200,10);z-index:2}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=x></div><div id=u></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "in-rounded-overflow-clip",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#p{position:absolute;left:0;top:0;width:60px;height:90px;overflow:hidden;border-radius:12px} #x{mix-blend-mode:difference}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=p><div id=x></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75], [2,2], [1,45], [6,6], [58,88]]
+    }
+   ]
+  },
+  {
+   "name": "in-rounded-clip-with-content",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#p{position:absolute;left:0;top:0;width:60px;height:90px;overflow:hidden;border-radius:12px;background:rgba(250,250,0,.5)} #x{mix-blend-mode:difference;left:10px;top:10px;width:40px;height:70px}</style><div id=bg style=''><i id=a></i><i id=b></i><i id=c></i><div id=p><div id=x></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75], [2,2], [5,45], [30,5], [58,88]]
+    }
+   ]
+  },
+  {
+   "name": "inline-element",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(233,236,239);font:40px Arial} #x{mix-blend-mode:difference;color:#fff;font-weight:bold}</style><div style='height:60px;line-height:60px'><span id=x>III</span></div>",
+   "measure": [
+    {
+     "pixels": "#x",
+     "points": [
+      [1,30], [3,30], [5,30], [7,30], [9,30], [11,30], [13,30], [15,30], [17,30], [19,30], [21,30],
+      [23,30], [25,30], [27,30], [29,30], [31,30], [33,30], [35,30], [37,30], [39,30], [41,30],
+      [43,30], [45,30], [47,30], [49,30], [51,30], [53,30], [55,30], [57,30], [59,30]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "info-icon",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #w{position:relative;width:60px;height:40px;background:rgb(233,236,239)} a{position:absolute;right:0;top:0;padding:4px;color:#fff;text-decoration:none;line-height:1;z-index:3;mix-blend-mode:difference;font:bold 30px Arial}</style><div id=w><a id=l>I</a></div>",
+   "measure": [
+    {
+     "pixels": "#l",
+     "points": [
+      [4,4], [6,4], [8,4], [10,4], [12,4], [14,4], [16,4], [4,8], [6,8], [8,8], [10,8], [12,8],
+      [14,8], [16,8], [4,12], [6,12], [8,12], [10,12], [12,12], [14,12], [16,12], [4,16], [6,16],
+      [8,16], [10,16], [12,16], [14,16], [16,16], [4,20], [6,20], [8,20], [10,20], [12,20], [14,20],
+      [16,20], [4,24], [6,24], [8,24], [10,24], [12,24], [14,24], [16,24], [4,28], [6,28], [8,28],
+      [10,28], [12,28], [14,28], [16,28], [4,32], [6,32], [8,32], [10,32], [12,32], [14,32], [16,32]
+     ]
+    },
+    {
+     "boxes": "#l"
+    }
+   ]
+  },
+  {
+   "name": "computed-value",
+   "html": "<!DOCTYPE html><div id=a style='mix-blend-mode:Difference'></div><div id=b style='mix-blend-mode:bogus'></div><div id=c style='mix-blend-mode:plus-lighter'></div><div id=d><div id=e style='mix-blend-mode:multiply'></div><div id=f></div></div>",
+   "measure": [
+    {
+     "style": "#a, #b, #c, #e, #f",
+     "props": [
+      "mix-blend-mode"
+     ]
+    },
+    {
+     "js": "[CSS.supports('mix-blend-mode','multiply'), CSS.supports('mix-blend-mode','x'), CSS.supports('mix-blend-mode','plus-lighter'), CSS.supports('mix-blend-mode','normal multiply')].join()"
+    }
+   ]
+  },
+  {
+   "name": "own-backdrop-filter",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{background:rgba(120,200,90,.5);backdrop-filter:blur(2px)} #x{mix-blend-mode:difference}</style><div id=bg><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "rounded-clip-in-isolating-parent",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#o{position:absolute;left:0;top:0;width:60px;height:90px;transform:translateZ(0)} #p{position:absolute;left:0;top:0;width:60px;height:90px;overflow:hidden;border-radius:12px;background:rgb(40,40,200)} #x{mix-blend-mode:difference}</style><div id=bg><i id=a></i><i id=b></i><i id=c></i><div id=o><div id=p><div id=x></div></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75], [2,2]]
+    }
+   ]
+  },
+  {
+   "name": "in-iframe",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#f{position:absolute;left:0;top:0;width:60px;height:90px;border:0} #x{mix-blend-mode:difference}</style><div id=bg><i id=a></i><i id=b></i><i id=c></i><iframe id=f srcdoc=\"<style>body{margin:0;height:90px}#x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90);mix-blend-mode:difference}</style><div id=x></div>\"></iframe></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "in-svg",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#v{position:absolute;left:0;top:0} #x{mix-blend-mode:difference}</style><div id=bg><i id=a></i><i id=b></i><i id=c></i><svg id=v width=60 height=90><rect id=r width=60 height=90 fill='rgb(120,200,90)' style='mix-blend-mode:difference'/></svg></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "parent-backdrop-filter-isolates",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#p{position:absolute;left:0;top:0;width:60px;height:90px;backdrop-filter:blur(1px)} #x{mix-blend-mode:difference}</style><div id=bg><i id=a></i><i id=b></i><i id=c></i><div id=p><div id=x></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "own-backdrop-filter-brightness",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{background:rgba(120,200,90,.5);backdrop-filter:blur(2px) brightness(.5)} #x{mix-blend-mode:difference}</style><div id=bg><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "own-rotate",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#x{transform:rotate(10deg)} #x{mix-blend-mode:difference}</style><div id=bg><i id=a></i><i id=b></i><i id=c></i><div id=x></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75], [8,40], [52,40]]
+    }
+   ]
+  },
+  {
+   "name": "own-rotate-in-rect-clip",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#p{position:absolute;left:0;top:0;width:60px;height:90px;overflow:hidden} #x{transform:rotate(10deg)} #x{mix-blend-mode:difference}</style><div id=bg><i id=a></i><i id=b></i><i id=c></i><div id=p><div id=x></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75], [8,40], [52,40]]
+    }
+   ]
+  },
+  {
+   "name": "own-rotate-in-rounded-clip",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#p{position:absolute;left:0;top:0;width:60px;height:90px;overflow:hidden;border-radius:12px}#x{transform:rotate(10deg)} #x{mix-blend-mode:difference}</style><div id=bg><i id=a></i><i id=b></i><i id=c></i><div id=p><div id=x></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75], [8,40], [52,40]]
+    }
+   ]
+  },
+  {
+   "name": "own-scale-in-rounded-clip",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#p{position:absolute;left:0;top:0;width:60px;height:90px;overflow:hidden;border-radius:12px}#x{transform:scale(.8)} #x{mix-blend-mode:difference}</style><div id=bg><i id=a></i><i id=b></i><i id=c></i><div id=p><div id=x></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75], [8,40], [52,40]]
+    }
+   ]
+  },
+  {
+   "name": "parent-rotate",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#p{position:absolute;left:0;top:0;width:60px;height:90px;transform:rotate(10deg)} #x{mix-blend-mode:difference}</style><div id=bg><i id=a></i><i id=b></i><i id=c></i><div id=p><div id=x></div></div></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75], [8,40], [52,40]]
+    }
+   ]
+  },
+  {
+   "name": "in-svg-group",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#v{position:absolute;left:0;top:0} #x{mix-blend-mode:difference}</style><div id=bg><i id=a></i><i id=b></i><i id=c></i><svg id=v width=60 height=90><g style='mix-blend-mode:difference'><rect id=r width=60 height=90 fill='rgb(120,200,90)'/></g></svg></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "in-svg-in-z-index",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#v{position:absolute;left:0;top:0;z-index:1} #x{mix-blend-mode:difference}</style><div id=bg><i id=a></i><i id=b></i><i id=c></i><svg id=v width=60 height=90><g style='mix-blend-mode:difference'><rect id=r width=60 height=90 fill='rgb(120,200,90)'/></g></svg></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  },
+  {
+   "name": "in-svg-opacity",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} #bg{position:relative;width:60px;height:90px} #bg i{display:block;height:30px} #a{background:rgb(233,236,239)} #b{background:rgb(200,60,40)} #c{background:rgb(60,120,200)} #x{position:absolute;left:0;top:0;width:60px;height:90px;background:rgb(120,200,90)}#v{position:absolute;left:0;top:0} #x{mix-blend-mode:difference}</style><div id=bg><i id=a></i><i id=b></i><i id=c></i><svg id=v width=60 height=90><rect id=r width=60 height=90 fill='rgb(120,200,90)' style='mix-blend-mode:difference;opacity:.5'/></svg></div>",
+   "measure": [
+    {
+     "pixels": "#bg",
+     "points": [[30,15], [30,45], [30,75]]
+    }
+   ]
+  }
+ ]
+}

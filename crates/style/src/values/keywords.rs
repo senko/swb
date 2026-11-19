@@ -580,6 +580,45 @@ keyword_enum! {
 }
 
 keyword_enum! {
+    /// The `resize` property (CSS Basic UI 4 §6.1). swb draws the resize
+    /// handle of a box with any value but `none`, and does not resize.
+    Resize {
+        None = "none",
+        Both = "both",
+        Horizontal = "horizontal",
+        Vertical = "vertical",
+        Block = "block",
+        Inline = "inline",
+    }
+    default None
+}
+
+keyword_enum! {
+    /// The `mix-blend-mode` property (CSS Compositing and Blending 1
+    /// §3.2). `plus-lighter` is the `Plus` operator.
+    MixBlendMode {
+        Normal = "normal",
+        Multiply = "multiply",
+        Screen = "screen",
+        Overlay = "overlay",
+        Darken = "darken",
+        Lighten = "lighten",
+        ColorDodge = "color-dodge",
+        ColorBurn = "color-burn",
+        HardLight = "hard-light",
+        SoftLight = "soft-light",
+        Difference = "difference",
+        Exclusion = "exclusion",
+        Hue = "hue",
+        Saturation = "saturation",
+        Color = "color",
+        Luminosity = "luminosity",
+        PlusLighter = "plus-lighter",
+    }
+    default Normal
+}
+
+keyword_enum! {
     /// The `pointer-events` property. The values other than `auto` and
     /// `none` are for SVG shapes (SVG 2 §16.4); on HTML content they
     /// behave as `auto`. HTML boxes and text with `none` have no hit

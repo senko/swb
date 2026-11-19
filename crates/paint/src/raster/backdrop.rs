@@ -208,6 +208,72 @@ impl Rasterizer<'_> {
         }
     }
 
+    /// Composites the layer of a `mix-blend-mode` group (`group` at
+    /// `origin` on the target) that is drawn into the layer of a rounded
+    /// `overflow` clip: the clip layer is no isolated group in Chromium,
+    /// so the group blends with the backdrop root's pixels with the clip
+    /// layers drawn over them, and the result replaces the clip layer's
+    /// pixels under the group (the clip layer then composites over the
+    /// root with the same pixels). Returns false if no such layer is
+    /// open: the group blends with its surface as it is.
+    pub(super) fn blend_through_clip_layers(
+        &mut self,
+        group: &Pixmap,
+        origin: (i32, i32),
+        (opacity, mode): (f32, tiny_skia::BlendMode),
+    ) -> bool {
+        let Some((root, above)) = self.backdrop_root(0) else {
+            return false;
+        };
+        if !above.iter().any(|l| !l.direct && l.pixmap.is_some()) {
+            return false;
+        }
+        let bounds = Rect::new(
+            origin.0 as f32,
+            origin.1 as f32,
+            group.width() as f32,
+            group.height() as f32,
+        );
+        let Some(area) = bounds.intersection(&root.rect) else {
+            return true;
+        };
+        let Some(mut tmp) = Pixmap::new(area.width as u32, area.height as u32) else {
+            return true;
+        };
+        self.read_backdrop(0, area, &mut tmp);
+        let paint = PixmapPaint {
+            opacity,
+            blend_mode: mode,
+            ..PixmapPaint::default()
+        };
+        tmp.draw_pixmap(
+            origin.0 - area.x as i32,
+            origin.1 - area.y as i32,
+            group.as_ref(),
+            &paint,
+            Transform::identity(),
+            None,
+        );
+        let Some(surface) = self.surface_rect() else {
+            return true;
+        };
+        let replace = PixmapPaint {
+            blend_mode: tiny_skia::BlendMode::Source,
+            ..PixmapPaint::default()
+        };
+        if let Some(mut surface_pixels) = self.surface_mut() {
+            surface_pixels.draw_pixmap(
+                (area.x - surface.x) as i32,
+                (area.y - surface.y) as i32,
+                tmp.as_ref(),
+                &replace,
+                Transform::identity(),
+                None,
+            );
+        }
+        true
+    }
+
     /// Draws `pixmap` (whole device px at `at`) over the current surface
     /// with the opacity `alpha`, inside the box `device` (rounded by
     /// `radii`), the part in `output`, inside the clips.

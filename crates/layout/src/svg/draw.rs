@@ -33,8 +33,8 @@ use std::sync::Arc;
 
 use swb_dom::NodeId;
 use swb_style::{
-    ComputedStyle, FillRule, LengthPercentage, PointerEvents, Rgba, ShapeRendering, StrokeLinecap,
-    StrokeLinejoin, SvgPaint, Visibility,
+    ComputedStyle, FillRule, LengthPercentage, MixBlendMode, PointerEvents, Rgba, ShapeRendering,
+    StrokeLinecap, StrokeLinejoin, SvgPaint, Visibility,
 };
 
 use super::clip::{ClipEnv, ClipRegion, MAX_CLIP_SHAPES, rect_region, resolve};
@@ -82,8 +82,9 @@ pub struct HitShape {
 /// One drawing command of SVG content.
 #[derive(Clone, Debug, PartialEq)]
 pub enum SvgDrawItem {
-    /// Start a group that is composited with the opacity.
-    PushOpacity(f32),
+    /// Start a group that is composited with the opacity and the blend
+    /// mode (`mix-blend-mode`).
+    PushOpacity(f32, MixBlendMode),
     /// End the innermost opacity group.
     PopOpacity,
     /// Start clipping to a region.
@@ -213,6 +214,17 @@ struct Space {
 }
 
 impl SvgContent {
+    /// True if an element of the content has a `mix-blend-mode`: the
+    /// element blends with what the `<svg>` element's stacking context
+    /// painted below it.
+    pub fn has_blend(&self) -> bool {
+        self.nodes.iter().any(|node| match node {
+            Node::BeginGroup(group) => group.style.as_ref().is_some_and(|s| s.has_blend_mode()),
+            Node::Shape(shape) => shape.style.has_blend_mode(),
+            Node::EndGroup => false,
+        })
+    }
+
     fn space(&self, size: Size) -> Space {
         let (base, reference) = match self.view_box {
             Some(vb) => (
@@ -343,10 +355,14 @@ impl SvgContent {
                         clips += 1;
                     }
                     let opacity = group.style.as_ref().map_or(1.0, |s| s.opacity);
-                    let layer = group.layer && opacity < 1.0;
+                    let blend = group
+                        .style
+                        .as_ref()
+                        .map_or(MixBlendMode::Normal, |s| s.mix_blend_mode);
+                    let layer = group.layer && (opacity < 1.0 || blend != MixBlendMode::Normal);
                     stack.push((layer, clips, folded));
                     if layer {
-                        out.push(SvgDrawItem::PushOpacity(opacity));
+                        out.push(SvgDrawItem::PushOpacity(opacity, blend));
                     } else if opacity < 1.0 {
                         folded *= opacity.max(0.0);
                     }
@@ -657,11 +673,14 @@ fn draw_shape(shape: &Shape, r: &Resolved, folded: f32, out: &mut Vec<SvgDrawIte
     let opacity = style.opacity;
     // With one paint, the opacity multiplies its alpha; with two, the
     // shape is a group.
-    let layer = opacity < 1.0 && shape.layered && fill.is_some() && stroke.is_some();
+    // A shape with a `mix-blend-mode` is a group too.
+    let blend = style.mix_blend_mode;
+    let two = opacity < 1.0 && fill.is_some() && stroke.is_some();
+    let layer = shape.layered && (two || blend != MixBlendMode::Normal);
     let paint_opacity = if layer { folded } else { opacity * folded };
     let fold = |c: Rgba| with_alpha(c, paint_opacity);
     if layer {
-        out.push(SvgDrawItem::PushOpacity(opacity));
+        out.push(SvgDrawItem::PushOpacity(opacity, blend));
     }
     if let Some(color) = fill.map(fold) {
         out.push(SvgDrawItem::Fill {

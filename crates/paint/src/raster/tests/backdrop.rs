@@ -121,6 +121,7 @@ fn a_layer_is_a_backdrop_root() {
         left_half(),
         DisplayItem::PushOpacity {
             opacity: 1.0,
+            blend: swb_style::MixBlendMode::Normal,
             bounds: rect,
             fixed_bounds: None,
             escapes_clips: false,
@@ -142,6 +143,7 @@ fn the_layers_of_the_box_itself_are_skipped() {
         left_half(),
         DisplayItem::PushOpacity {
             opacity: 0.5,
+            blend: swb_style::MixBlendMode::Normal,
             bounds: rect,
             fixed_bounds: None,
             escapes_clips: false,

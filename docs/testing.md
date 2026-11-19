@@ -55,6 +55,8 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Small CSS feature tests | `crates/engine/tests/css_small_features.rs` (M10 7b, ADR 0038 "7b"): every case of `tools/probes/css-small-features.json` (196 cases, 155 of 7b and 41 of its review fixes: `@property` (syntaxes, rule validity, the CSSOM, inheritance, `var()`, `em`, dependency cycles with `font-size` (`ap-font-size-*`), registered colors with `currentcolor`), `color-mix()` (spaces, percentages, `calc()` percentages and the departures of the forms (`cm-form-*`), the shorthands (`cm-shorthand-*`), `transparent`, `currentcolor` in 20 properties, inheritance, serialization of `getComputedStyle` and `element.style`, `CSS.supports`), `field-sizing` (inputs of all types, text areas, selects, `min-width`, `size`, scripts), `content-visibility` (`hidden` boxes and interaction, `auto` on and off the screen, computed values, `details`, `hidden=until-found`, inline boxes and `display: contents` with `hidden`), `contain: layout`, `paint`, `content`, `strict` (formatting context, containing block, stacking, clip, baseline)) and four cases of `tools/probes/github-css.json` (`at-property`, `field-sizing`, `color-mix`, `content-visibility-and-text-wrap`), with Chromium's answers in `tests/data/css-small-features.json` and `css-small-site.json` (three equal runs of `swbtools probe --json`; the `cv-auto-*` cases wait 300 ms for the relevance frame; the site case with `content-visibility: auto` in a JS-off page has two states in Chromium, its rows are from one run); `DEPARTURES` (16 rows: 8-bit `<color>` for `oklch()`, `lab()` and `color()` values, `*` values with white space and comments, `calc()` in `<angle>` and `<time>`, the enumeration order of custom properties, `at-rule()` in `CSS.supports`, the `scrollHeight` of skipped contents, `rlh`/`lh` units, `none` components, powerless hues and out-of-gamut colors in `color-mix()`, the text of `calc()` percentages) and `LATER` (43 rows: `CSS.registerProperty`, properties without computed values (`caret-color`, `box-shadow`, `text-shadow`, ...), `text-wrap`, `checkVisibility`, `::details-content` computed style, the skipping of off-screen `content-visibility: auto`, list boxes, mixes inside mixes with `currentcolor`) list the rows that differ; the comparison of serialized colors allows a relative difference of 0.2% in the numbers (Lab, Lch and Oklab conversions, 8-bit inputs); unit tests in `crates/css/src/parser.rs` (`@property`), `crates/style/src/registered.rs` (syntaxes, rule validity, the registry), `crates/style/src/values/color_mix.rs` (mixing, serialization, the table), `crates/style/src/parse/color.rs`, `crates/style/src/cascade/small_features_tests.rs` (registered properties in the cascade, mixes, the computed values, containment helpers), `crates/style/src/custom.rs` (sparse maps of registered properties), `crates/style/src/font_cycle.rs` (cycles) and `crates/layout/src/small_features_tests.rs` (containment boxes, stacking contexts, skipped contents, the sizes of fields); `top_layer.rs` runs the case `top-layer-not-rendered-content-visibility`; hostile cases `property-rules-10000`, `registered-property-10000-rules-50000-declarers`, `registered-property-100000-users`, `content-visibility-120000-boxes`, `color-mix-chain-1000-custom-properties`, `color-mix-nested-1000-deep`, `color-mix-200000-distinct-colors`, `field-sizing-20000-controls` and `contain-layout-50000-nested` (`tools/swbtools/hostile_cases/small_features.py`) | no |
 | Inline alignment tests | `crates/engine/tests/inline_alignment.rs` (M10 8a): every case of `tools/probes/inline-alignment.json` (115 cases, 400 boxes; 45 from the review, among them floats, absolute boxes, negative margins, `pre`, `pre-wrap`, `break-spaces`, `keep-all`, `line-break: anywhere`, CJK text and every `unicode-bidi` value): `vertical-align: top` and `bottom` (`va-*`: atomic inlines and inline boxes, the tallest box and the side where the rest of the line stays, ties, nesting inside shifted and inside line-relative boxes, margins, padding and borders, `position: relative`, other alignments on the line, boxes across lines, quirks mode, a table cell, GitHub's file name cell) and the soft wrap opportunities around atomic inlines (`wrap-*`: the parent's `white-space` at their edges, the start of a box with `unicode-bidi` after an atomic inline, GitHub's language list), with Chromium's boxes in `tests/data/inline-alignment.json` (three equal runs of `swbtools probe --json`); the layout test `vertical-align-top-bottom` is no longer a known failure; unit tests in `crates/layout/src/inline/mod.rs` (`tallest_top_or_bottom_box_decides_the_line_box`, `line_relative_boxes_in_shifted_and_aligned_boxes`, `the_parent_white_space_decides_around_atomic_inlines`); hostile cases `vertical-align-top-bottom-nested-10000`, `vertical-align-top-bottom-one-line-50000`, `vertical-align-lines-and-inline-items-20000` | no |
 | GitHub first view test | `crates/automation/tests/github_swb.rs` (M10 8b; skips without `fixtures/js/github-swb`): the first view of github.com/senko/swb with JavaScript on at 1280 x 800, the page clock at the capture time. One record of the page (`data/github-swb.js`, `window.__s()`: rectangles and texts of the header, the repository header, the branch bar, the latest-commit line, the 21 file rows and the sidebar; the state of the 4 `react-partial` islands and the `react-app` by element and React fiber counts) against Chromium's record in `data/github-swb-chromium.json` (rectangles within 1 px, texts exact), 42 pixel points (`data/github-swb-pixel-points.json` and `-pixels.json`), the console (no swb error or warning that Chromium's page lacks; Chromium's network line for the 404 of `payloads.json` in `data/github-swb-console.json` is no page message) and the 8 `fetch` requests in order. The command for the Chromium data is in the header of the file (`swbtools replay github-swb --steps data/github-swb-steps.json --setup data/github-swb.js --record 'window.__s()' --pixels ... --pixels-out ... --console-out ... --out ...`, three equal runs). `github.rs` keeps the platform checks and the 23 relative times | no |
+| OSM Zagreb exit test | `crates/automation/tests/osm_zagreb.rs` (M12 feature 4; skips without `fixtures/js/osm-zagreb`): two tests with their own load, the 60 step groups of the OpenStreetMap map of Zagreb and the same without the group `layer transport map` (the map then keeps its tiles), with JavaScript on at 1280 x 800, the page clock at the capture time, a pause of 300 ms after each step. Chromium without WebGL is the reference (`--chromium-arg=--disable-3d-apis`). After the load and each group: every field of the record `window.__o()` (`data/osm-zagreb-chromium.json`, `-nt-chromium.json`), including the rectangles of the visible elements of the panels, the sidebar and the controls (within 0.1 px) and the numbers of the outline paths (within 1 px); the colors at about 40 pixel points per group, chosen from Chromium's screenshots alone (`-pixel-points.json`, `-pixels.json`); the URLs that the fixture lacks per group (`-missing.json`; the Matomo query is masked); the console (`-console.json`, counts per message: a range over the three runs). `-departures.json` lists the accepted differences, each with its cause; a departure that no longer applies fails the test. The module comment and `tools/osm_zagreb_records.py` have the commands for the data. | no |
+| Step selector tests | `crates/automation/tests/step_selectors.rs` (M12 feature 4): Playwright's `:visible`, `>> nth=N` and `nth=-1` in the pointer steps and `focus` (hidden, `display: none`, empty box, `opacity: 0`, `display: contents`, `visibility: collapse`, a closed `details`), the error for an unsupported form; unit tests of the parser in `crates/automation/src/steps.rs` | no |
 | GitHub interaction tests | `crates/automation/tests/github_swb.rs` (M10 9c; skips without `fixtures/js/github-swb`): `github_interactions_match_chromium` (items 3 to 7 of the M10 list: one load and 26 step groups of `data/github-swb-interactions-steps.json`: the five header menus (open, one switch, Escape), the Code popover (open, GitHub CLI tab, HTTPS tab, Escape), the branch selector (open, type, clear, Tags tab, Escape), "Go to file" (click, type, Escape, a blank click, the key `t`, Escape) and the "..." button of the commit line; after each group the record `window.__i()` of `data/github-swb-interactions.js` (URL, scroll, the focused element with rectangle, `:focus-visible` and ring, expanded buttons, popovers and dialogs, element counts, tail of `body`, visible menu links, inputs) against `data/github-swb-interactions-chromium.json` (rectangles within 1 px); 17 pixel points inside the open overlays (`-pixel-points.json`, `-pixels.json`); the console (the page's errors equal Chromium's `-errors.json`, plus the one warning `Web workers are not available` that swb alone logs) and the URLs that the fixture lacks (`-missing.json`, without the worker chunk that only Chromium requests)); `github_tab_order_matches_chromium` (item 10: 70 Tab and 5 Shift+Tab presses, `data/github-swb-tab-steps.json`, the record `window.__t()` of `data/github-swb-tab.js`: element, rectangle, `:focus-visible`, ring and scroll, rectangles relative to the header because the header's error heading appears at a different stop in each run of both browsers; all 76 records equal `data/github-swb-tab-chromium.json`); `github_navigation_matches_chromium` (item 8: 13 loads with one click each, `data/github-swb-nav-steps.json`; the set of URLs that the fixture lacks and the URL after the click equal `data/github-swb-nav-chromium.json`). The Chromium data: `uv run --project tools python tools/github_swb_records.py steps|interactions|tab|nav` (three Chromium runs each; the data file is written only if the runs are equal). Departures: the listbox of "Go to file" is 15 px narrower in Chromium (scrollbar), `box-shadow` is not painted (the pixel points avoid the rings), anchor positioning (the overlays are `position: absolute` in swb), no `Worker` (backlog) | no |
 | Pending style sheet test | `crates/engine/tests/pending_sheets.rs` (M10 9c; `tools/probes/web-pending-sheets.json`, Chromium 148 values in the test): a `link` that a script adds and that is still loading does not stop rendering (geometry, `getComputedStyle`, Tab order, `focus()`, `IntersectionObserver`) and applies when it arrives; only the parser's `link` elements block rendering (`DocumentState::stylesheets_settled`) | no |
 | Popover interaction tests | `crates/automation/tests/popover_input.rs` (M10 6c, ADR 0037 sections 3 to 6): the cases of `tools/probes/web-top-layer.json` that have input `steps` and belong to popovers (light dismiss with every button, hints, invokers and their controls, Escape, close watcher groups, focus, the Tab order, `xo-popovers-no-activation` with a cross-origin frame) with Chromium's values in `tests/data/web-top-layer-steps.json` (three equal runs; the file is written with the `jq` command in the test's header; the generators `out/m10-f6c/gen_probes_6c.py` (76 cases: 68 old ones, 144 in all) and, for the review fixes, `gen_probes_6c_fix.py` (24 cases `xo-act-*`: which inputs give a user activation, in a cross-origin frame without one, and the state after a navigation, a reload and `document.open()`) append cases and leave the old ones byte-identical); `inputs_that_activate_with_scripts_off` runs the 18 input cases on a page without scripts; the page gets one user activation before the steps (`Page::note_user_activation`); the `noscript-*` cases run with JavaScript off (Chromium ran them with a CSP that blocks scripts); the logs are compared with the `toggle` events merged and moved to the end (`canon`); `DEPARTURES` lists 3 rows; unit tests in `crates/dom/src/top_layer/tests/interaction.rs` (groups, light dismiss, hints, focus steps and restoration), `crates/engine/src/focus.rs` (the Tab order with popovers, including hostile invokers: the walk ends), `crates/engine/src/document/top_layer.rs` (activation state); `github.rs`: the click on the "..." button hides the tooltip; hostile cases `popover-nested-auto-10000` (with a click outside and Escape), `invoker-chain-10000-js-off`, `close-watchers-100000-without-activation` | no |
@@ -118,7 +120,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just substitute NAME...`    | `substitute NAME... [--check]`         | Replaces photos with placeholders and non-free fonts with free ones in a fixture (see "Substitute copyrighted content"). |
 | `just reference [NAME...]`   | `reference NAME... \| --all`           | Writes Chromium's `reference/boxes.json` and `reference/screenshot.png`. |
 | `just tools reference --js NAME...` | `reference --js NAME... \| --all` | Writes Chromium's output with JavaScript on for `fixtures/js/NAME` into `out/js-reference/NAME/` (local only; see "Compare with JavaScript on"). |
-| `just tools replay NAME --steps FILE --record EXPR` | `replay NAME --steps FILE --record EXPR [--setup FILE] [--out FILE] [--pause-ms MS] [--screenshots DIR] [--pixels FILE --pixels-out FILE] [--init-script FILE] [--console-out FILE] [--missing-out FILE]` | Replays `fixtures/js/NAME` in Chromium as `reference --js` does, runs the step groups of FILE and writes the value of EXPR after the load and after each group as a JSON list; with `--screenshots` also a screenshot of the viewport after each, with `--pixels` the colors at named points after the named groups (see "Automation tests"); `--init-script` runs a script in every frame before the page's scripts, `--console-out` writes the console of all frames, one line per message, and `--missing-out` the URLs that the fixture lacked per record (`[{"label": "load" or the group name, "missing": [...]}, ...]`). |
+| `just tools replay NAME --steps FILE --record EXPR` | `replay NAME --steps FILE --record EXPR [--setup FILE] [--out FILE] [--pause-ms MS] [--screenshots DIR] [--pixels FILE --pixels-out FILE] [--init-script FILE] [--console-out FILE] [--missing-out FILE] [--chromium-arg=ARG]...` | Replays `fixtures/js/NAME` in Chromium as `reference --js` does, runs the step groups of FILE and writes the value of EXPR after the load and after each group as a JSON list; with `--screenshots` also a screenshot of the viewport after each, with `--pixels` the colors at named points after the named groups (see "Automation tests"); `--init-script` runs a script in every frame before the page's scripts, `--console-out` writes the console of all frames, one line per message, and `--missing-out` the URLs that the fixture lacked per record (`[{"label": "load" or the group name, "missing": [...]}, ...]`); `--chromium-arg=FLAG` (repeatable) adds a flag to Chromium's launch, for example `--chromium-arg=--disable-3d-apis` (no WebGL); an uncaught exception is a line `exception  :0  MESSAGE` in the `--console-out` file. |
 | `just compare [NAME...]`     | `compare NAME... \| --all`             | Runs swb on fixtures and compares with the references. `just` builds swb first. |
 | `just compare NAME --full-page`    | `compare NAME --full-page`       | Also compares the full-page screenshots and lists the differing regions (see "Compare swb with Chromium"). |
 | `just compare NAME --click SEL` | `compare NAME --click SELECTOR` | Compares the page after clicking the first element of SELECTOR in both browsers (repeatable). |
@@ -593,10 +595,42 @@ loads tiles: replay then has the answers for the steps.
 - `--steps` needs `--js` and does not go with `--with-swb`.
 
 `tools/osm_zagreb_records.py` (M12) is the example: the step groups for the
-OpenStreetMap map of Zagreb (`steps` writes the steps file and the record
-expression `window.__o()`), the Chromium records of the replay (`records`, two
-runs that must agree, the screenshots, the console and the URLs that the
-fixture lacks per group) and a table of them (`summary`).
+OpenStreetMap map of Zagreb (`steps` writes the steps files and the record
+expression `window.__o()` into `crates/automation/tests/data`) and the data of
+the exit test `crates/automation/tests/osm_zagreb.rs`. There are two
+sequences (`--sequence`): `full` (the files `osm-zagreb-*`) and
+`no-transport` (`osm-zagreb-nt-*`: without the group `layer transport map`,
+which breaks the tile layer in Chromium without WebGL). The commands, in
+order, per sequence:
+
+1. `steps`: the steps files and `osm-zagreb.js`.
+2. `records`: three Chromium replays without WebGL
+   (`--chromium-arg=--disable-3d-apis`) with a screenshot after the load and
+   each group; writes the records (with the rectangles of the visible
+   elements of the items 3 to 12), the URLs that the fixture lacks per group
+   (Matomo query masked) and the console messages and uncaught exceptions of
+   the page (per message the smallest and the largest number of times in a
+   run). Exits with status 1 if the runs differ in a record or in the missing
+   URLs. The runs, logs and screenshots go to `--work/SEQUENCE`. A run takes
+   about 5 minutes (real time: the waits of the steps).
+3. `points`: the pixel points and the colors at them, from the screenshots
+   of the three runs and the records, never from swb: per group the fixed
+   parts of the page, points inside the rectangles of the record, flat points
+   next to a color edge in the map and the sidebar, and a coarse grid; each
+   point is one color in a 7 x 7 square in all three runs and lies in no
+   thumbnail of the layer list (the thumbnails need WebGL). Exception: the
+   "ink" points, the core pixel of a glyph (the "(i)" icons, the map
+   controls, the close buttons, the corner of the share textarea; see
+   `INK_RECTS`), which may lie over a thumbnail: a glyph has no flat square,
+   and its core pixel does not depend on the content behind it.
+4. `swb` and `pixel-diff` (below): the departures of swb. `swb` runs the
+   steps in swb and compares the records; `pixel-diff` lists the pixel points
+   where swb's screenshots differ from Chromium's colors. The departures file
+   of the test (`osm-zagreb-departures.json`, `-nt-departures.json`) gets one
+   entry per cause.
+
+`summary` prints a table of the records. After a change of the steps or of
+the record expression, run all of `steps`, `records` and `points` again.
 
 Feature 1b of M12 added the `swb` command (the report is
 `docs/osm-diagnosis.md`). It had a second command, `stub`, that made a copy of
@@ -604,25 +638,31 @@ the fixture with a `Worker` stub to look past `new Worker`; feature 2 of M12
 gave swb a `Worker` stand-in and removed `stub` (the local fixture
 `osm-zagreb-stub` is no longer needed):
 
-- `swb [--fixture NAME] [--groups N] [--skip N...] [--out DIR] [--chromium
-  FILE] [--binary FILE]` (default fixture `osm-zagreb`) runs the step groups
+- `swb [--sequence S] [--fixture NAME] [--groups N] [--skip N...] [--work DIR]
+  [--chromium FILE] [--binary FILE]` (default fixture `osm-zagreb`) runs the step groups
   in swb: one `swb --headless --js` run (the
   options of `compare --js`: `--now` from the capture time, `--virtual-time`,
   `--settle-ms 1500`) with the steps of all groups, a `record` step and a
   `screenshot` step after the load and after each group, and a pause of 300
-  ms after each step (the pause of `replay`). A selector with Playwright's
-  `:visible` or `>> nth=N` becomes an `eval` that marks the match with an
-  attribute, the step on the mark (the click still goes through the pointer
-  and the hit test) and an `eval` that removes the mark, because swb's
-  selectors are CSS. The tool compares each record with Chromium's (default
-  `DIR/osm-zagreb-chromium.json`) and writes `swb-records.json`,
+  ms after each step (the pause of `replay`). The step runner takes
+  Playwright's `:visible` (a non-empty bounding box and `visibility` not
+  `hidden`) and `>> nth=N` (M12 feature 4), so the step file runs as it is.
+  The tool compares each record with Chromium's (default
+  `crates/automation/tests/data/osm-zagreb-chromium.json`, or `--chromium`) and writes `swb-records.json`,
   `swb-diff.json` (the differing fields per record, objects opened to two
   levels), `swb-times.json` (wall time per record), `swb-groups.json` (the
-  log lines of each group), `swb-log.txt` and `swb-shots/` into DIR. A step
+  log lines of each group), `swb-log.txt` and `swb-shots/` into
+  `DIR/SEQUENCE` (`--work`, default `out/osm-zagreb`). A step
   that fails ends the run (swb stops at the first failing step); `--skip`
   leaves out the steps of groups (they still get a record), to look past a
   group that breaks the page. `--groups N` runs the first N groups. The whole
   run of the 60 groups takes 5 to 10 s.
+- `pixel-diff [--sequence S] [--out DIR] [--work DIR]` (M12 feature 4) lists
+  the pixel points of the test (`osm-zagreb-pixel-points.json`) where the
+  screenshots of the `swb` run differ from Chromium's colors
+  (`osm-zagreb-pixels.json`) by more than 12 in a channel (the tolerance of
+  the test), per group, and writes `pixel-diff.json` into the work directory.
+  It is the input for the departures file of the test.
 
 ### Survey the scripts of a page
 
@@ -1253,7 +1293,8 @@ temporary directory, loaded by navigation.
   (`swb --headless --js --steps=JSON`; a swb without `--steps` prints `not
   supported`). Each step is an object with one key:
   `{"click": "#a"}`, `dblclick`, `rightclick`, `middleclick` and `hover`
-  take a CSS selector (the center of the first match) or `[x, y]` in
+  take a CSS selector (the center of the first match; the Playwright forms
+  `:visible` and `>> nth=N` are below) or `[x, y]` in
   viewport coordinates, and may have `"modifiers": ["Shift", "Control",
   "Alt", "Meta"]`; `mousedown` and `mouseup` take `"left"`, `"middle"` or
   `"right"` at the pointer position; `{"type": "abc"}` types text (a
@@ -1261,7 +1302,8 @@ temporary directory, loaded by navigation.
   as Playwright does); `{"key": "Shift+Tab"}` presses a key (`Enter`,
   `Tab`, `Space`, `ArrowDown`, `a`, ...); `{"wheel": [dx, dy]}` turns the
   wheel at the pointer position; `{"wait": 100}` runs the event loop for
-  100 ms; `{"focus": "#a"}` calls `focus()` in the page; `{"eval":
+  100 ms; `{"focus": "#a"}` calls `focus()` on the element that the selector names
+  (the forms below; a selector without a match is an error); `{"eval":
   "expression"}` runs a script; `{"record": "expression"}` evaluates the
   expression as `--eval` does and prints its answer line (`{"value": V}` or
   `{"error": "..."}`, the form of "The `--eval` contract" below) to standard
@@ -1288,7 +1330,19 @@ temporary directory, loaded by navigation.
   `frame_locator`); the selector is looked up in that frame, and the click
   goes to the point in the page's viewport (Playwright's `bounding_box` of an
   element in a frame is in the main frame's viewport). A click by
-  coordinates reaches a frame without it. A click moves the pointer first (also
+  coordinates reaches a frame without it. Selector forms (M12 feature 4;
+  `click`, `dblclick`, `rightclick`, `middleclick`, `hover` and `focus`;
+  Playwright's, so that one steps file runs in both browsers): a CSS selector
+  may end with `:visible` (keeps the matches that have a non-empty bounding
+  box and `visibility` other than `hidden`; `opacity: 0` and a `display:
+  contents` parent do not hide, and the content of a closed `details` has
+  its open layout box, as in Chromium's `getBoundingClientRect`), then with
+  `>> nth=N` (the N-th match, counted from 0, of what comes before; `nth=-1`
+  is the last match; after `:visible` it counts the visible matches). The
+  selector is `S`, `S:visible`, `S >> nth=N` or `S:visible >> nth=N`. Any other
+  use of `>>` (a chain `a >> b`, other `nth` values) or of `:visible` (before
+  the end of the selector) is an error that says the form is not supported;
+  `>>` and `:visible` inside a quoted attribute value are CSS. A click moves the pointer first (also
   when it is there), as Playwright does. swb runs the tasks that are due
   after each step (a `javascript:` link, a `setTimeout(0)`), as Chromium runs
   them while Playwright waits for its next call. A failed step ends the
@@ -1490,6 +1544,46 @@ no extra frame for a page with nothing pending, real time (no hold) and the
 idle wait. Hostile cases `fetch-chain-10000-from-click`,
 `fetch-10000-at-once-from-click` and `fetch-in-every-frame`, run in virtual
 time with a replayed fixture (`tools/swbtools/hostile_cases/osm_gaps.py`).
+M12 feature 4c (the bugs that the exit test found; every probe file ran in
+Chromium and then with `--with-swb`):
+`tools/probes/float-negative-margin.json` (65 cases: the min-content and
+max-content contributions of floats with negative margins, before and after
+the text, in flex items, grid items, inline blocks, floats, table cells and
+nested; all equal under `--with-swb`) and the unit tests in
+`crates/layout/src/intrinsic.rs`; `tools/probes/border-radius-sides.json` (26
+cases of pixel grids: borders with unequal colors, widths and a transparent
+side on circles, ellipses and rounded rectangles, and rounded boxes at
+fractional positions; swb differs by anti-aliasing at the curve (up to 25
+levels, flagged by `--with-swb`) but not in the join lines),
+`tools/probes/border-radius-styles.json` (5 cases that stay different: `dashed`
+and `dotted` sides do not follow rounded corners and `double` is solid on a
+border with unequal sides) and `tools/probes/border-radius-pagination.json`
+(the join of two links of a pagination: the square corner pixel is covered
+0.79 in Chromium and 0.75 in swb, the background stays inside the border) with
+`crates/paint/src/raster/tests/mod.rs` and
+`crates/engine/tests/rounded_border.rs`; `tools/probes/mix-blend-mode.json` (46
+cases: the 17 modes over three backdrops, groups with children, opacity,
+isolation by stacking contexts (also a parent with `backdrop-filter`, and
+frame documents), nested blends, rounded overflow clips, rotated and scaled
+boxes, a blend with a `backdrop-filter` on the same box, SVG elements, an
+inline box, the "(i)" icon, the computed value; 3 differ under `--with-swb`:
+`box-hue` by 5 levels, the glyph edges of `inline-element` and `info-icon`)
+with `blend_modes_match_chromium` and
+`a_blend_group_in_a_clip_layer_blends_with_the_pixels_below_the_clip` in the
+raster tests, `a_blend_mode_makes_a_group...` in `crates/engine/tests/page.rs`
+and `crates/engine/tests/blend_mode.rs` (the cases of part 4d: transforms,
+`backdrop-filter`, frames and SVG, with Chromium's pixels; hostile cases
+`blend-in-4000-rounded-clips` and `blend-in-500-nested-rounded-clips`);
+`tools/probes/textarea-resizer.json` (36 cases:
+the 18 x 18 corner of a text area and of scroll containers with `resize`, in
+`both`, `vertical`, `horizontal`, `block`, `inline` and `none`, disabled,
+read-only, `overflow` values, right-to-left, small and tiny boxes, other form
+controls) with `crates/engine/tests/resize_handle.rs`. The "+" of the
+zoom-in button (departure G of the OSM test) is the rasterization of an icon
+font glyph: the probe cases that measured it (the glyph of `bi-plus-lg` at
+every subpixel offset of its box, 23 pixels over 8 levels at each offset)
+needed the local fonts of `fixtures/js/osm-zagreb` and are not in the
+repository.
 
 ## Hostile-page set
 

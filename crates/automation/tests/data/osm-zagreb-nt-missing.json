@@ -1,0 +1,242 @@
+[
+ {
+  "label": "load",
+  "missing": ["https://matomo.openstreetmap.org/matomo.php"]
+ },
+ {
+  "label": "welcome close",
+  "missing": []
+ },
+ {
+  "label": "drag",
+  "missing": []
+ },
+ {
+  "label": "wheel in",
+  "missing": []
+ },
+ {
+  "label": "wheel out",
+  "missing": []
+ },
+ {
+  "label": "double click",
+  "missing": []
+ },
+ {
+  "label": "zoom out button",
+  "missing": []
+ },
+ {
+  "label": "zoom in button",
+  "missing": []
+ },
+ {
+  "label": "key minus",
+  "missing": []
+ },
+ {
+  "label": "key plus",
+  "missing": []
+ },
+ {
+  "label": "key minus again",
+  "missing": []
+ },
+ {
+  "label": "key arrow right",
+  "missing": []
+ },
+ {
+  "label": "layers open",
+  "missing": ["https://www.openstreetmap.org/panes/webgl_error"]
+ },
+ {
+  "label": "layer cyclosm",
+  "missing": ["https://matomo.openstreetmap.org/matomo.php"]
+ },
+ {
+  "label": "layer cycle map",
+  "missing": ["https://matomo.openstreetmap.org/matomo.php"]
+ },
+ {
+  "label": "layer tracestrack topo",
+  "missing": ["https://matomo.openstreetmap.org/matomo.php"]
+ },
+ {
+  "label": "layer humanitarian",
+  "missing": ["https://matomo.openstreetmap.org/matomo.php"]
+ },
+ {
+  "label": "layer standard",
+  "missing": ["https://matomo.openstreetmap.org/matomo.php"]
+ },
+ {
+  "label": "overlay map notes",
+  "missing": []
+ },
+ {
+  "label": "overlay map data",
+  "missing": []
+ },
+ {
+  "label": "overlay public gps traces",
+  "missing": []
+ },
+ {
+  "label": "overlays off",
+  "missing": []
+ },
+ {
+  "label": "zoom in to 17",
+  "missing": []
+ },
+ {
+  "label": "zoom in to 18",
+  "missing": []
+ },
+ {
+  "label": "overlay map data at 18",
+  "missing": []
+ },
+ {
+  "label": "overlay map data off",
+  "missing": []
+ },
+ {
+  "label": "zoom out to 17",
+  "missing": []
+ },
+ {
+  "label": "zoom out to 16",
+  "missing": []
+ },
+ {
+  "label": "layers close",
+  "missing": []
+ },
+ {
+  "label": "legend open",
+  "missing": []
+ },
+ {
+  "label": "legend close",
+  "missing": []
+ },
+ {
+  "label": "share open",
+  "missing": []
+ },
+ {
+  "label": "share short link",
+  "missing": ["https://matomo.openstreetmap.org/matomo.php"]
+ },
+ {
+  "label": "share html",
+  "missing": []
+ },
+ {
+  "label": "share marker",
+  "missing": []
+ },
+ {
+  "label": "share close",
+  "missing": []
+ },
+ {
+  "label": "reset view search",
+  "missing": []
+ },
+ {
+  "label": "search",
+  "missing": []
+ },
+ {
+  "label": "search result",
+  "missing": []
+ },
+ {
+  "label": "search close",
+  "missing": []
+ },
+ {
+  "label": "reset view where is this",
+  "missing": []
+ },
+ {
+  "label": "where is this",
+  "missing": []
+ },
+ {
+  "label": "where is this result",
+  "missing": []
+ },
+ {
+  "label": "where is this close",
+  "missing": []
+ },
+ {
+  "label": "reset view query",
+  "missing": []
+ },
+ {
+  "label": "query open",
+  "missing": []
+ },
+ {
+  "label": "query click",
+  "missing": []
+ },
+ {
+  "label": "object relation",
+  "missing": []
+ },
+ {
+  "label": "object way",
+  "missing": []
+ },
+ {
+  "label": "object node",
+  "missing": []
+ },
+ {
+  "label": "object close",
+  "missing": []
+ },
+ {
+  "label": "reset view directions",
+  "missing": []
+ },
+ {
+  "label": "directions open",
+  "missing": []
+ },
+ {
+  "label": "directions fill",
+  "missing": []
+ },
+ {
+  "label": "directions go",
+  "missing": []
+ },
+ {
+  "label": "directions close",
+  "missing": []
+ },
+ {
+  "label": "history",
+  "missing": []
+ },
+ {
+  "label": "export",
+  "missing": []
+ },
+ {
+  "label": "back to history",
+  "missing": []
+ },
+ {
+  "label": "forward to export",
+  "missing": []
+ }
+]

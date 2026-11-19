@@ -32,10 +32,11 @@ use crate::values::{
     ContainerName, ContainerType, ContentVisibility, CounterList, Cursor, Direction, Display,
     EmptyCells, FieldSizing, FillRule, FlexDirection, FlexWrap, Float, FontFamily, FontSizeKeyword,
     FontStyle, FontVariantCaps, GenericFamily, Hyphens, Length, ListStylePosition, ListStyleType,
-    ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents, Position,
-    ScrollbarWidth, ShapeRendering, SpecifiedLengthPercentage as Lp, StrokeLinecap, StrokeLinejoin,
-    TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform,
-    UnicodeBidi, UserSelect, VerticalAlignKeyword, Visibility, WhiteSpace, WordBreak, ZIndex,
+    MixBlendMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents,
+    Position, Resize, ScrollbarWidth, ShapeRendering, SpecifiedLengthPercentage as Lp,
+    StrokeLinecap, StrokeLinejoin, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle,
+    TextOverflow, TextTransform, UnicodeBidi, UserSelect, VerticalAlignKeyword, Visibility,
+    WhiteSpace, WordBreak, ZIndex,
 };
 
 /// True for the properties where the quirks mode unitless length quirk
@@ -265,6 +266,8 @@ pub(crate) fn parse_longhand(
                 V::ContainIntrinsicHeight(parse_contain_intrinsic(p, quirky)?)
             }
             L::ObjectFit => V::ObjectFit(keyword(p, ObjectFit::from_ident)?),
+            L::Resize => V::Resize(keyword(p, Resize::from_ident)?),
+            L::MixBlendMode => V::MixBlendMode(keyword(p, MixBlendMode::from_ident)?),
             L::ScrollbarWidth => V::ScrollbarWidth(keyword(p, ScrollbarWidth::from_ident)?),
             L::Overlay => V::Overlay(keyword(p, Overlay::from_ident)?),
             L::ContainerType => V::ContainerType(keyword(p, ContainerType::from_ident)?),

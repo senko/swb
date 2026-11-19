@@ -1,0 +1,65 @@
+[
+ {
+  "type": "error",
+  "url": "https://matomo.openstreetmap.org/matomo.js",
+  "text": "There was an error setting cookie `_pk_ses.1.cf09`. Please check domain and path.",
+  "min": 5,
+  "max": 5
+ },
+ {
+  "type": "error",
+  "url": "https://matomo.openstreetmap.org/matomo.php",
+  "text": "Failed to load resource: net::ERR_FAILED",
+  "min": 5,
+  "max": 5
+ },
+ {
+  "type": "error",
+  "url": "https://www.openstreetmap.org/history?bbox=15.970988273620607%2C45.80750380796183%2C15.990943908691408%2C45.81864604976407&list=1",
+  "text": "Failed to load resource: net::ERR_FAILED",
+  "min": 2,
+  "max": 2
+ },
+ {
+  "type": "error",
+  "url": "https://www.openstreetmap.org/panes/webgl_error",
+  "text": "Failed to load resource: net::ERR_FAILED",
+  "min": 8,
+  "max": 8
+ },
+ {
+  "type": "exception",
+  "url": "",
+  "text": "Cannot read properties of undefined (reading '_actualCanvas')",
+  "min": 17,
+  "max": 17
+ },
+ {
+  "type": "exception",
+  "url": "",
+  "text": "Cannot read properties of undefined (reading 'remove')",
+  "min": 1,
+  "max": 1
+ },
+ {
+  "type": "exception",
+  "url": "",
+  "text": "Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.",
+  "min": 2,
+  "max": 2
+ },
+ {
+  "type": "exception",
+  "url": "",
+  "text": "Failed to fetch",
+  "min": 10,
+  "max": 10
+ },
+ {
+  "type": "exception",
+  "url": "",
+  "text": "{\"requestedAttributes\":{\"antialias\":false,\"preserveDrawingBuffer\":false,\"powerPreference\":\"high-performance\",\"failIfMajorPerformanceCaveat\":false,\"desynchronized\":false,\"alpha\":true,\"depth\":true,\"stencil\":true,\"premultipliedAlpha\":true},\"statusMessage\":\"disabled by enterprise policy or commandline switch\",\"type\":\"webglcontextcreationerror\",\"message\":\"Failed to initialize WebGL\"}",
+  "min": 1,
+  "max": 1
+ }
+]

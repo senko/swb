@@ -243,6 +243,7 @@ def cmd_replay(args: argparse.Namespace) -> int:
         args.init_script,
         args.console_out,
         args.missing_out,
+        args.chromium_arg,
     )
 
 
@@ -675,6 +676,14 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="FILE",
         help="write the URLs that the fixture lacks per record here: "
         '[{"label": "load" or the group name, "missing": [url, ...]}, ...]',
+    )
+    p.add_argument(
+        "--chromium-arg",
+        action="append",
+        default=[],
+        metavar="ARG",
+        help="add a flag to Chromium's launch (repeatable; write --chromium-arg=--flag for a "
+        "flag that starts with --)",
     )
     p.add_argument("--system-fonts", action="store_true", help=fonts_help)
     p.set_defaults(func=cmd_replay)

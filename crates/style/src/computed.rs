@@ -17,11 +17,11 @@ use crate::values::{
     FontFamily, FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily, GridAutoFlow,
     GridLine, GridTemplateAreas, Hyphens, Image, LengthPercentage, LengthPercentageOrAuto,
     LineHeight, ListStylePosition, ListStyleType, MaskClip, MaskImage, MaskMode, MaxSize,
-    ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents, Position,
-    PositionComponent, Rgba, ScrollbarWidth, ShapeRendering, Size, StrokeLinecap, StrokeLinejoin,
-    SvgPaint, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow,
-    TextTransform, TrackBreadth, TrackList, TrackSize, UnicodeBidi, UserSelect, VerticalAlign,
-    Visibility, WhiteSpace, WordBreak, ZIndex,
+    MixBlendMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents,
+    Position, PositionComponent, Resize, Rgba, ScrollbarWidth, ShapeRendering, Size, StrokeLinecap,
+    StrokeLinejoin, SvgPaint, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle,
+    TextOverflow, TextTransform, TrackBreadth, TrackList, TrackSize, UnicodeBidi, UserSelect,
+    VerticalAlign, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 use crate::values::{ClipRect, TransformFunction, TransformOrigin};
 
@@ -263,6 +263,12 @@ pub struct ComputedStyle {
     /// `contain-intrinsic-height`.
     pub contain_intrinsic_height: ContainIntrinsic,
     pub object_fit: ObjectFit,
+    /// `mix-blend-mode` (not inherited): the element and its descendants
+    /// are a stacking context and blend with what is painted below.
+    pub mix_blend_mode: MixBlendMode,
+    /// `resize` (not inherited): a box with a value other than `none` and
+    /// a scrollbar-less overflow (or a text area) shows a resize handle.
+    pub resize: Resize,
     /// `scrollbar-width` (not inherited).
     pub scrollbar_width: ScrollbarWidth,
     /// `overlay` (not inherited).
@@ -489,6 +495,8 @@ impl ComputedStyle {
             contain_intrinsic_width: ContainIntrinsic::NONE,
             contain_intrinsic_height: ContainIntrinsic::NONE,
             object_fit: ObjectFit::Fill,
+            mix_blend_mode: MixBlendMode::Normal,
+            resize: Resize::None,
             scrollbar_width: ScrollbarWidth::Auto,
             overlay: Overlay::None,
             object_position: [PositionComponent::CENTER, PositionComponent::CENTER],
@@ -573,6 +581,13 @@ impl ComputedStyle {
     /// True if the box is absolutely positioned (`absolute` or `fixed`).
     pub fn is_absolutely_positioned(&self) -> bool {
         self.position.is_absolutely_positioned()
+    }
+
+    /// True if `mix-blend-mode` is not `normal`: the element is a stacking
+    /// context and its group blends with the backdrop (CSS Compositing and
+    /// Blending 1 §3.2, measured in Chromium 148).
+    pub fn has_blend_mode(&self) -> bool {
+        self.mix_blend_mode != MixBlendMode::Normal
     }
 
     /// True if the element is masked: a `mask-image` layer is not `none`
@@ -763,11 +778,11 @@ impl ComputedStyle {
     /// the element. Measured in Chromium 148: `opacity` below 1, a `filter`
     /// (any, also an identity or a missing `url()`), a mask, a `clip-path`
     /// shape, a `backdrop-filter`, and `will-change` with one of these
-    /// properties. (`mix-blend-mode` also makes a root in Chromium; swb
-    /// does not have the property.) The root element is the root of the
-    /// page.
+    /// properties, and a `mix-blend-mode` other than `normal`. The root
+    /// element is the root of the page.
     pub fn is_backdrop_root(&self) -> bool {
         self.opacity < 1.0
+            || self.has_blend_mode()
             || self.has_filter()
             || self.has_backdrop_filter()
             || self.has_mask()

@@ -6,15 +6,17 @@
 //!
 //! A step is an object with one key (and `modifiers` for the point steps):
 //! `click`, `dblclick`, `rightclick`, `middleclick` and `hover` take a CSS
-//! selector (the center of the first match) or `[x, y]`; `mousedown` and
+//! selector (the center of the first match; see [`split_selector`] for the
+//! Playwright forms `:visible` and `>> nth=N`) or `[x, y]`; `mousedown` and
 //! `mouseup` take a button name at the pointer position; `type` takes
 //! text; `key` a key name with modifiers (`Shift+Tab`); `wheel` takes
 //! `[dx, dy]` at the pointer position; `wait` takes milliseconds of page
-//! time; `focus` takes a selector; `eval` takes an expression; `record`
-//! takes an expression and prints its answer line to standard output, as
-//! `--eval` does; `screenshot` takes a file name and writes a PNG of the
-//! viewport (and logs `screenshot FILE` at level `info`, so that a log
-//! shows which messages came before it); `viewport` takes `[width, height]`
+//! time; `focus` takes a selector (the forms of the pointer steps); `eval`
+//! takes an expression; `record` takes an expression and prints its answer
+//! line to standard output, as `--eval` does; `screenshot` takes a file
+//! name and writes a PNG of the viewport (and logs `screenshot FILE` at
+//! level `info`, so that a log shows which messages came before it);
+//! `viewport` takes `[width, height]`
 //! (`page.setViewport`); `colorScheme` takes `"light"` or `"dark"`
 //! (`prefers-color-scheme`); `back` and `forward` take `true`
 //! (`page.back`, `page.forward`: the history of the tab). A point step may
@@ -27,6 +29,7 @@ use std::io::Write;
 use std::time::Duration;
 
 use serde_json::{Value, json};
+use swb_dom::NodeId;
 use swb_engine::{Evaluation, FrameId, JsonForm, Page};
 
 use crate::methods::{Outcome, execute};
@@ -87,6 +90,137 @@ pub fn resolve_frame(page: &mut Page, path: &str) -> Result<FrameId, String> {
     Ok(frame)
 }
 
+/// Which match of a selector a step takes.
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum Nth {
+    /// The N-th match, counted from 0 (`>> nth=N`).
+    First(usize),
+    /// The last match (`>> nth=-1`).
+    Last,
+}
+
+/// A step selector split into its parts: the CSS selector, whether
+/// Playwright's `:visible` ended it, and the match of `>> nth=N`.
+#[derive(Debug, PartialEq)]
+struct SelectorForm<'a> {
+    css: &'a str,
+    visible: bool,
+    nth: Option<Nth>,
+}
+
+/// The byte position of the last `needle` in `text` outside quoted strings
+/// (`'..'` and `".."`, with a backslash escape).
+fn rfind_unquoted(text: &str, needle: &str) -> Option<usize> {
+    let mut found = None;
+    let mut quote = None;
+    let mut escaped = false;
+    for (at, ch) in text.char_indices() {
+        match quote {
+            Some(open) => {
+                if escaped {
+                    escaped = false;
+                } else if ch == '\\' {
+                    escaped = true;
+                } else if ch == open {
+                    quote = None;
+                }
+            }
+            None if ch == '\'' || ch == '"' => quote = Some(ch),
+            None if text[at..].starts_with(needle) => found = Some(at),
+            None => {}
+        }
+    }
+    found
+}
+
+/// The error for a selector form that the steps do not take.
+fn unsupported(selector: &str, form: &str) -> String {
+    format!(
+        "the selector {selector:?} uses {form}, which is not supported (a step takes a CSS \
+         selector, a trailing `:visible` and a trailing `>> nth=N` or `>> nth=-1`)"
+    )
+}
+
+/// Splits `S`, `S:visible`, `S >> nth=N` and `S:visible >> nth=N`
+/// (Playwright's selector engines: `:visible` keeps the elements with a
+/// non-empty bounding box and `visibility` other than `hidden`; `nth=N`
+/// picks the N-th match, counted from 0, of what comes before it, and
+/// `nth=-1` the last). Other uses of `>>` and `:visible` (a chain, a
+/// `:visible` inside the selector) are an error, not a CSS selector.
+fn split_selector(selector: &str) -> Result<SelectorForm<'_>, String> {
+    let mut css = selector.trim();
+    let mut nth = None;
+    if let Some(at) = rfind_unquoted(css, ">>")
+        && let Some(n) = css[at + 2..].trim().strip_prefix("nth=")
+    {
+        nth = Some(match n {
+            "-1" => Nth::Last,
+            _ => Nth::First(
+                n.parse()
+                    .ok()
+                    .filter(|_| n.bytes().all(|b| b.is_ascii_digit()))
+                    .ok_or_else(|| unsupported(selector, &format!("`nth={n}`")))?,
+            ),
+        });
+        css = css[..at].trim_end();
+    }
+    let visible = css.strip_suffix(":visible");
+    let css = visible.unwrap_or(css);
+    if rfind_unquoted(css, ">>").is_some() {
+        return Err(unsupported(selector, "`>>` (a chain of selector engines)"));
+    }
+    if rfind_unquoted(css, ":visible").is_some() {
+        return Err(unsupported(selector, "`:visible` before the end"));
+    }
+    Ok(SelectorForm {
+        css,
+        visible: visible.is_some(),
+        nth,
+    })
+}
+
+/// The match that a step selector names: its position among all matches of
+/// the CSS part (in document order) and its node index (`None` if
+/// nothing matches). The plain selector takes the first match; the
+/// `:visible` and `>> nth=N` forms pick as Playwright does (`nth` counts
+/// the visible matches if `:visible` is there).
+fn find(
+    page: &mut Page,
+    selector: &str,
+    frame: Option<u64>,
+) -> Result<Option<(usize, u64)>, String> {
+    let form = split_selector(selector)?;
+    let mut query = json!({ "selector": form.css });
+    if let Some(id) = frame {
+        query["frameId"] = json!(id);
+    }
+    let found = call(page, "dom.querySelectorAll", query)?;
+    let ids = found
+        .get("nodeIds")
+        .and_then(Value::as_array)
+        .map(|ids| ids.iter().filter_map(Value::as_u64))
+        .into_iter()
+        .flatten()
+        .enumerate()
+        .collect::<Vec<_>>();
+    let frame_id = frame.map_or(FrameId::TOP, FrameId::from_u64);
+    let matches: Vec<(usize, u64)> = ids
+        .into_iter()
+        .filter(|&(_, id)| {
+            !form.visible || {
+                let node = usize::try_from(id).ok().and_then(NodeId::from_index);
+                node.and_then(|n| page.with_frame(frame_id, |p| p.is_visible(n)))
+                    .unwrap_or(false)
+            }
+        })
+        .collect();
+    Ok(match form.nth {
+        None => matches.first().copied(),
+        Some(Nth::First(n)) => matches.get(n).copied(),
+        Some(Nth::Last) => matches.last().copied(),
+    })
+}
+
 /// The parameters that name a point: `[x, y]`, or the first match of a
 /// selector as a node; in the frame of `frame` (a frame path) if given.
 fn target(page: &mut Page, argument: &Value, frame: Option<&str>) -> Result<Value, String> {
@@ -98,13 +232,8 @@ fn target(page: &mut Page, argument: &Value, frame: Option<&str>) -> Result<Valu
         json!({ "x": x, "y": y })
     } else {
         let selector = argument.as_str().ok_or("a selector or [x, y]")?;
-        let mut query = json!({ "selector": selector });
-        if let Some(id) = frame_id {
-            query["frameId"] = json!(id);
-        }
-        let found = call(page, "dom.querySelector", query)?;
-        match found.get("nodeId").and_then(Value::as_u64) {
-            Some(id) => json!({ "nodeId": id }),
+        match find(page, selector, frame_id)? {
+            Some((_, id)) => json!({ "nodeId": id }),
             None => return Err(format!("no element matches {selector}")),
         }
     };
@@ -204,11 +333,7 @@ fn run_step(page: &mut Page, step: &Value) -> Result<(), String> {
         }
         "focus" => {
             let selector = argument.as_str().ok_or("focus needs a selector")?;
-            let source = format!(
-                "document.querySelector({}).focus()",
-                Value::String(selector.to_owned())
-            );
-            page.evaluate(&source, JsonForm::Strict);
+            focus(page, selector)?;
         }
         "eval" => {
             let source = argument.as_str().ok_or("eval needs an expression")?;
@@ -234,6 +359,21 @@ fn run_step(page: &mut Page, step: &Value) -> Result<(), String> {
         "back" | "forward" => history_step(page, kind, argument)?,
         other => return Err(format!("unknown step {other}")),
     }
+    Ok(())
+}
+
+/// The `focus` step: calls `focus()` on the element that the selector names
+/// (the forms of the pointer steps).
+fn focus(page: &mut Page, selector: &str) -> Result<(), String> {
+    let css = split_selector(selector)?.css;
+    let Some((position, _)) = find(page, selector, None)? else {
+        return Err(format!("no element matches {selector}"));
+    };
+    let source = format!(
+        "document.querySelectorAll({})[{position}].focus()",
+        Value::String(css.to_owned())
+    );
+    page.evaluate(&source, JsonForm::Strict);
     Ok(())
 }
 
@@ -310,6 +450,51 @@ fn split_key(spec: &str) -> (Vec<&str>, &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn selectors_split_into_css_visible_and_nth() {
+        let form = |css, visible, nth| Ok(SelectorForm { css, visible, nth });
+        assert_eq!(split_selector("a.b"), form("a.b", false, None));
+        assert_eq!(split_selector("a:visible"), form("a", true, None));
+        assert_eq!(
+            split_selector("a >> nth=2"),
+            form("a", false, Some(Nth::First(2)))
+        );
+        assert_eq!(
+            split_selector("li a.x:visible >> nth=0"),
+            form("li a.x", true, Some(Nth::First(0)))
+        );
+        assert_eq!(
+            split_selector("a >> nth=-1"),
+            form("a", false, Some(Nth::Last))
+        );
+        // `>>` and `:visible` inside a quoted attribute value are CSS.
+        assert_eq!(
+            split_selector("a[title='x >> nth=1']"),
+            form("a[title='x >> nth=1']", false, None)
+        );
+        assert_eq!(
+            split_selector("a[title=\"y:visible\"]:visible"),
+            form("a[title=\"y:visible\"]", true, None)
+        );
+    }
+
+    #[test]
+    fn unsupported_forms_say_so() {
+        for selector in [
+            "a >> b",
+            "a >> nth=1 >> nth=0",
+            "a:visible b",
+            "a:visible, b",
+            "a >> nth=-2",
+            "a >> nth=+1",
+            "a >> nth= 1",
+            "a >> nth=x",
+        ] {
+            let error = split_selector(selector).unwrap_err();
+            assert!(error.contains("not supported"), "{selector}: {error}");
+        }
+    }
 
     #[test]
     fn keys_split_into_modifiers_and_key() {

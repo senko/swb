@@ -31,7 +31,7 @@
   },
   "osm-zagreb": {
     "geometry": 1.0,
-    "pixels": 0.9992,
+    "pixels": 0.9993,
     "relative": 1.0,
     "size": 1.0
   },
@@ -43,7 +43,7 @@
   },
   "wikipedia-web-browser": {
     "geometry": 0.9977,
-    "pixels": 0.9936,
+    "pixels": 0.9941,
     "relative": 0.9977,
     "size": 0.9977
   }

@@ -13,7 +13,11 @@
 //!   around it. Fixed and sticky boxes use the frame's scroll offset.
 //! - A `backdrop-filter` in the frame reads the surface below (measured:
 //!   a transparent frame shows the inverted content of its parent), so the
-//!   frame needs no layer of its own.
+//!   frame needs no layer of its own, unless it has a `mix-blend-mode`.
+//! - The document of a frame is an isolated group (measured in Chromium
+//!   148: a blended box in a frame does not blend with the embedding page).
+//!   A frame whose list has a blend group draws into a layer; a
+//!   `backdrop-filter` in such a frame reads the layer (departure).
 //! - A frame whose item count does not fit into [`MAX_FRAME_ITEMS`] draws
 //!   nothing, with one warning per rasterization.
 
@@ -22,8 +26,8 @@ use swb_layout::{Point, Rect};
 use swb_style::Rgba;
 use swb_text::FontContext;
 
-use super::{ImageSource, Rasterizer, snap};
-use crate::display_list::{DisplayList, outset};
+use super::{ImageSource, LayerKind, NewLayer, Rasterizer, snap};
+use crate::display_list::{DisplayItem, DisplayList, outset};
 
 /// What the rasterizer needs of a frame's document.
 pub struct FrameContent<'a> {
@@ -117,6 +121,13 @@ impl Rasterizer<'_> {
         else {
             return;
         };
+        let isolate = content.list.items.iter().any(|item| {
+            matches!(item, DisplayItem::PushOpacity { blend, .. }
+                if *blend != swb_style::MixBlendMode::Normal)
+        });
+        if isolate {
+            self.push_layer(NewLayer::new(rect, LayerKind::Opacity));
+        }
         let (open_clips, open_layers) = (self.clips.len(), self.layers.len());
         // The corner of the content box, on the device pixel of the clip,
         // in the coordinates that `params` maps to device px.
@@ -161,6 +172,9 @@ impl Rasterizer<'_> {
         self.fixed_origin = outer.fixed_origin;
         self.viewport_clip = outer.viewport_clip;
         self.sticky = outer.sticky;
+        if isolate {
+            self.pop_layer(images);
+        }
     }
 }
 

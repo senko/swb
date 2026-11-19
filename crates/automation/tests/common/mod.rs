@@ -68,6 +68,22 @@ impl Recording {
         self.urls.lock().unwrap().clone()
     }
 
+    /// The number of requests so far that the fixture lacked (each repeat
+    /// counts); [`Recording::missing_since`] takes it as `from`.
+    pub(crate) fn missing_count(&self) -> usize {
+        self.missing.lock().unwrap().len()
+    }
+
+    /// The URLs of the requests that the fixture lacked after the first
+    /// `from` of them, sorted, each once (what `swbtools replay
+    /// --missing-out` lists for a group).
+    pub(crate) fn missing_since(&self, from: usize) -> Vec<String> {
+        let mut urls = self.missing.lock().unwrap()[from..].to_vec();
+        urls.sort();
+        urls.dedup();
+        urls
+    }
+
     /// The URLs requested so far that the fixture lacks, sorted, each once
     /// (the set that `swbtools replay` logs as "not in fixture").
     pub(crate) fn missing(&self) -> Vec<String> {
@@ -365,6 +381,21 @@ pub(crate) fn pixel_differences(
     expected: &Value,
     tolerance: i32,
 ) -> Vec<String> {
+    pixel_mismatches(group, page, points, expected, tolerance)
+        .into_iter()
+        .map(|(_, message)| message)
+        .collect()
+}
+
+/// [`pixel_differences`] with the name of each point that differs next to
+/// its message.
+pub(crate) fn pixel_mismatches(
+    group: &str,
+    page: &mut Page,
+    points: &[Point],
+    expected: &Value,
+    tolerance: i32,
+) -> Vec<(String, String)> {
     let shot = page.screenshot(false).unwrap();
     points
         .iter()
@@ -381,7 +412,11 @@ pub(crate) fn pixel_differences(
                 .iter()
                 .zip(&want)
                 .any(|(g, w)| (g - w).abs() > tolerance);
-            off.then(|| format!("{group}: {name} ({x}, {y}): swb {got:?} != Chromium {want:?}"))
+            off.then(|| {
+                let message =
+                    format!("{group}: {name} ({x}, {y}): swb {got:?} != Chromium {want:?}");
+                (name.clone(), message)
+            })
         })
         .collect()
 }

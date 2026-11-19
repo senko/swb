@@ -29,7 +29,8 @@ that no image is committed.
 before the page's own scripts (Playwright's `add_init_script`: the page, its
 frames and the documents that a navigation makes), for a wrapper of an API that
 the page calls during the load. `--console-out FILE` writes the console of
-all frames, every type, one line each (`type  url:line  text`), so that the
+all frames, every type, one line each (`type  url:line  text`; an uncaught
+exception is a line `exception  :0  message`), so that the
 output of the wrapper is readable; the file also has the messages up to a step that
 fails, and is empty for an empty console. The setup script of `--setup` still runs
 after the load.
@@ -37,6 +38,10 @@ after the load.
 `--missing-out FILE` (M12) writes the URLs that the fixture lacked since the
 record before, for the load and for each group:
 `[{"label": "load" or the group name, "missing": [...]}, ...]`.
+
+`--chromium-arg ARG` (M12, repeatable) adds a flag to Chromium's launch, for
+example `--chromium-arg=--disable-3d-apis` (a Chromium without WebGL; use the
+`=` form for a value that starts with `--`).
 """
 
 import asyncio
@@ -44,7 +49,7 @@ import io
 import json
 import logging
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -180,6 +185,7 @@ async def replay(
     init_script: str = "",
     console: list[str] | None = None,
     missing_by_group: list[list[str]] | None = None,
+    chromium_args: Sequence[str] = (),
 ) -> tuple[list[Any], list[str], list[str]]:
     """Replays the fixture `name` and returns the records, the requested
     URLs that the fixture does not have, and the console errors and
@@ -188,7 +194,8 @@ async def replay(
     (`group N` without names). `init_script` runs in all frames before their
     scripts; every console message of every frame goes to `console`.
     `missing_by_group` gets one list per record (after the load, then after
-    each group): the URLs that the fixture lacked since the record before."""
+    each group): the URLs that the fixture lacked since the record before.
+    `chromium_args` are added to Chromium's command line."""
     directory = paths.js_fixture_dir(name)
     meta = read_meta(directory)
     replayer = Replayer(Fixture(directory))
@@ -203,7 +210,11 @@ async def replay(
         reported = len(replayer.missing)
 
     async with browser.session(
-        meta.viewport, system_fonts, javascript=True, start_time=parse_captured(meta.captured)
+        meta.viewport,
+        system_fonts,
+        javascript=True,
+        extra_args=chromium_args,
+        start_time=parse_captured(meta.captured),
     ) as (_, context, page):
         await replayer.attach(context, page)
         if init_script:
@@ -228,6 +239,15 @@ async def replay(
             ),
         )
         page.on("pageerror", lambda error: errors.append(f"exception: {error}"))
+        if console is not None:
+            # An uncaught exception is no console message in Playwright; the
+            # file has it as a line of type `exception` (no URL).
+            page.on(
+                "pageerror",
+                lambda error: console.append(
+                    "exception  :0  " + str(error).replace("\\", "\\\\").replace("\n", "\\n")
+                ),
+            )
         await load_settled_js(page, meta.url)
         if setup:
             await page.evaluate(setup)
@@ -258,13 +278,15 @@ def replay_command(
     init_script: Path | None = None,
     console_out: Path | None = None,
     missing_out: Path | None = None,
+    chromium_args: Sequence[str] = (),
 ) -> int:
     """Runs `replay` and writes the records (JSON, indent 1) to `out` or
     stdout. Logs the missing URLs and the page's errors. With `pixels` and
     `pixels_out` it also writes the colors at the points; `screenshots`
     saves the screenshots; `init_script` and `console_out` are described in
     the module comment; `missing_out` gets the URLs that the fixture lacks
-    per record (`[{"label": "load", "missing": [...]}, ...]`)."""
+    per record (`[{"label": "load", "missing": [...]}, ...]`); `chromium_args`
+    are flags for Chromium's launch (`--chromium-arg`)."""
     groups = read_groups(steps)
     names = read_group_names(steps)
     setup_text = setup.read_text(encoding="utf-8") if setup else ""
@@ -307,6 +329,7 @@ def replay_command(
                     init_text,
                     console,
                     by_group,
+                    chromium_args,
                 ),
                 REPLAY_TIMEOUT_S,
             )

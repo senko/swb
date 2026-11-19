@@ -1,10 +1,11 @@
-"""`ImageData`, the `Worker` stand-in, a GIF without a color table (M12 feature 2) and the
-hover update after the content under the pointer changes (M12 feature 3a)."""
+"""`ImageData`, the `Worker` stand-in, a GIF without a color table (M12 feature 2), the hover update
+after the content under the pointer changes (M12 feature 3a) and blend groups in rounded clips
+(M12 feature 4d)."""
 
 import base64
 import json
 
-from swbtools.hostile_cases.core import REPLAY_URL, Page, case, doc, steps_args
+from swbtools.hostile_cases.core import REPLAY_URL, Page, case, doc, nest, steps_args
 
 JS = ("--js", "--settle-ms", "500")
 
@@ -227,3 +228,40 @@ def fetch_in_every_frame() -> Page:
         "setTimeout(() => console.warn('frames ok ' + (done === started)), 8500);</script>"
     )
     return replay_text_page(doc(BUTTON + script))
+
+
+@case(
+    "4,000 overlapping boxes of 200 x 200 px in the viewport, each with a rounded `overflow` "
+    "clip (a clip layer) that holds a `mix-blend-mode: difference` box: every blend group "
+    "blends through its clip layer (`blend_through_clip_layers`) within the layer budget (M12 "
+    "feature 4d)",
+    time_limit_s=10,
+    rss_limit_mib=2048,
+)
+def blend_in_4000_rounded_clips() -> Page:
+    css = (
+        ".p{position:absolute;overflow:hidden;border-radius:12px;width:200px;height:200px;"
+        "background:#4a4}.b{height:200px;background:#e80;mix-blend-mode:difference}"
+    )
+    boxes = "".join(
+        f"<div class=p style='left:{(i * 37) % 1000}px;top:{(i * 53) % 600}px'>"
+        "<div class=b></div></div>"
+        for i in range(4_000)
+    )
+    return Page(doc(boxes, css))
+
+
+@case(
+    "500 nested rounded `overflow` clips (a layer each) with a `mix-blend-mode` box in the "
+    "innermost one: the layer budget ends the nesting without a panic, and the clips that fit "
+    "blend (M12 feature 4d)",
+    time_limit_s=10,
+    rss_limit_mib=2048,
+)
+def blend_in_500_nested_rounded_clips() -> Page:
+    css = (
+        ".c{overflow:hidden;border-radius:20px;padding:1px;background:rgba(0,0,200,.05)}"
+        ".b{mix-blend-mode:difference;background:#e80;height:200px}"
+    )
+    inner = nest("<div class=c>", "</div>", 500, "<div class=b></div>")
+    return Page(doc(inner, css))

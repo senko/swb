@@ -4,6 +4,50 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-19: M12 feature 4: the OpenStreetMap exit test, blend modes and rounded borders
+
+- `crates/automation/tests/osm_zagreb.rs` runs the load and the 60 step
+  groups in one page and compares them with Chromium without WebGL in
+  all groups: with WebGL the layer thumbnails differ from group 29 on,
+  not only from the Transport Map group. `swbtools replay
+  --chromium-arg=ARG` passes the flag. `swb --steps` takes Playwright's
+  `:visible` and `>> nth=N`, so the step file needs no translation.
+- The first version passed at once and could not fail: it chose its pixel
+  points where swb already equalled Chromium, and its records had no
+  rectangles. The review found three swb bugs that it missed. The test
+  now compares the rectangles of the visible elements (0.1 px), the
+  outline paths (1 px), the console by counts, and pixel points chosen
+  from Chromium's screenshots alone. Without its departures list it
+  reported about 620 problems per sequence.
+- In Chromium without WebGL, the Transport Map click leaves the map
+  without tiles for all later groups. A second test runs the steps
+  without that group, so search, query, directions, the object pages,
+  History and Export are checked on a map with tiles. History's changeset
+  list loads in this sequence, so the live request that the owner
+  approved for it was not needed.
+- Fixes, each measured in Chromium first: a float with a negative margin
+  box no longer makes a line's intrinsic width smaller (checkbox labels
+  wrapped); a transparent border side keeps its corner and the join of
+  two sides stays straight (Bootstrap's spinner is a "C"); rounded boxes
+  snap to device pixels; partly rounded borders paint side by side and
+  the background stays inside opaque borders (the pagination);
+  `mix-blend-mode` (the "(i)" icons use `difference`); the `resize`
+  property and the text area's resize handle. ADR 0043. A rounded
+  `overflow` clip, which swb draws as a layer, must not isolate a blend:
+  without that rule the icons stayed white.
+- One departure is left: the "+" glyph of the zoom button (icon-font
+  rasterization, 13 levels). JS on pixels 0.9977 -> 0.9982, JS off
+  0.9992 -> 0.9993; the other targets keep or raise their scores.
+- Review: no panic or runaway cost on stress pages. It found four cases
+  where the new blend did not match Chromium: a box with a rotate or
+  scale transform (the blend group sat inside the transparent transform
+  layer), a blend together with `backdrop-filter`, a blended box in an
+  iframe (a frame document is an isolated group), and SVG elements. Fixed
+  and measured, with a test for the rounded-clip rule and two hostile
+  cases.
+- Next: feature 5, JS off and the exit measurement, then the
+  end-of-milestone maintenance.
+
 ## 2026-11-18: M12 feature 3: hover after layout, SVG symbols, completions after a frame
 
 - swb updated `:hover` only when the pointer moved. Chromium hit-tests a

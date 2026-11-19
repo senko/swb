@@ -265,6 +265,8 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::ContainIntrinsicWidth(v) => s.contain_intrinsic_width = v.compute(cx),
         V::ContainIntrinsicHeight(v) => s.contain_intrinsic_height = v.compute(cx),
         V::ObjectFit(v) => s.object_fit = *v,
+        V::Resize(v) => s.resize = *v,
+        V::MixBlendMode(v) => s.mix_blend_mode = *v,
         V::ScrollbarWidth(v) => s.scrollbar_width = *v,
         V::Overlay(v) => s.overlay = *v,
         V::ObjectPosition([x, y]) => s.object_position = [x.compute(cx), y.compute(cx)],

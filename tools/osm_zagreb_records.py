@@ -1,40 +1,72 @@
-"""The step groups, the record expression and the Chromium records for the
+"""The step groups, the record expression and the Chromium data for the
 OpenStreetMap target of M12 (`fixtures/js/osm-zagreb`; docs/testing.md,
-"Capture with step groups"). Run from the repository root:
+"Capture with step groups"; the test is
+`crates/automation/tests/osm_zagreb.rs`). Run from the repository root:
 
     uv run --project tools python tools/osm_zagreb_records.py steps [--out DIR]
-    uv run --project tools python tools/osm_zagreb_records.py records [--out DIR]
-    uv run --project tools python tools/osm_zagreb_records.py summary [--out DIR]
+    uv run --project tools python tools/osm_zagreb_records.py records [--sequence S] \\
+        [--out DIR] [--work DIR]
+    uv run --project tools python tools/osm_zagreb_records.py points [--sequence S] \\
+        [--out DIR] [--work DIR]
+    uv run --project tools python tools/osm_zagreb_records.py summary [--sequence S] [--out DIR]
     uv run --project tools python tools/osm_zagreb_records.py merge-node --from FIXTURE_DIR
-    uv run --project tools python tools/osm_zagreb_records.py swb [--fixture NAME] \\
-        [--groups N] [--skip N...] [--out DIR]
+    uv run --project tools python tools/osm_zagreb_records.py swb [--sequence S] [--fixture NAME] \\
+        [--groups N] [--skip N...] [--out DIR] [--chromium FILE] [--binary FILE]
+    uv run --project tools python tools/osm_zagreb_records.py pixel-diff [--sequence S] \\
+        [--out DIR] [--work DIR]
 
-`steps` writes `osm-zagreb-steps.json` (the step groups) and
-`osm-zagreb-record.js` (the setup script that defines `window.__o()`, the
-record expression) into DIR (default `out/osm-zagreb`). The live capture of
-the fixture, with the groups run against the real site (one run; the tile
+There are two sequences of step groups (`--sequence`): `full` (the files
+`osm-zagreb-*`: the 60 groups) and `no-transport` (the files `osm-zagreb-nt-*`:
+the same without the group `layer transport map`). The Transport Map needs
+WebGL: in Chromium without WebGL its click breaks the layer, so that the map
+has no tiles from that group on. The second sequence keeps the tiles for the
+groups after it. Each sequence has its own files and its own work directory
+(`WORK/full`, `WORK/no-transport`).
+
+`steps` writes the data of the test into DIR (default
+`crates/automation/tests/data`): `osm-zagreb-steps.json` and
+`osm-zagreb-nt-steps.json` (the step groups) and `osm-zagreb.js` (the setup
+script that defines `window.__o()`, the record expression). The live capture
+of the fixture, with the groups run against the real site (one run; the tile
 usage policy of tile.openstreetmap.org forbids bulk downloads):
 
     uv run --project tools swbtools capture --js --force --max-responses 1000 \\
-        --steps DIR/osm-zagreb-steps.json \\
+        --steps crates/automation/tests/data/osm-zagreb-steps.json \\
         'https://www.openstreetmap.org/?mlat=45.813114&mlon=15.976390#map=16/45.81308/15.97721' \\
         osm-zagreb
 
 `merge-node` adds the two responses of one node page from an earlier
 recording (the last live run could not open a node, see `merge_node`).
-`records` runs `swbtools replay osm-zagreb` twice with those files (no
-network), checks that the two runs agree, and writes `osm-zagreb-chromium.json`
-(the record after the load and after each group), `osm-zagreb-missing.json`
-(the URLs that the fixture lacks, per group), `osm-zagreb-console.txt` and
-the screenshots (`shots/`) into DIR. `summary` prints a table of the records.
+`records` runs `swbtools replay osm-zagreb` three times with those files (no
+network) in Chromium without WebGL (`--chromium-arg=--disable-3d-apis`, the
+owner decision of 2026-11-18: the Transport Map and the thumbnails of the
+layer panel stay empty), saves the screenshots of each run (`WORK/S/shots0`,
+`shots1`, `shots2`), and writes into DIR `osm-zagreb-chromium.json` (the
+record after the load and after each group, with the rectangles of item 1),
+`osm-zagreb-missing.json` (the URLs that the fixture lacks, per group, with
+the Matomo URLs masked) and `osm-zagreb-console.json` (the console messages of
+the page at level error and warning and the uncaught exceptions, with the
+number of times that each appeared in a run: a range, if the runs differ). It
+exits with status 1 if the three runs differ in a record or in the missing
+URLs; the console counts may differ (they become a range).
+`points` chooses the pixel points from the screenshots of the three
+Chromium runs and the records (never from swb): see `choose_points`. It
+writes `osm-zagreb-pixel-points.json` and the colors at the points,
+`osm-zagreb-pixels.json`. Order of the commands: `steps`, `records`, `points`
+(a change of the steps or of the record expression needs all three again).
+`summary` prints a table of the records.
 
 `swb` runs the step groups in swb on a fixture (default `osm-zagreb`):
 one `swb --headless` run with the steps of all groups, a `record` step and a
 `screenshot` step after the load and after each group. It compares each record with Chromium's
-(`osm-zagreb-chromium.json` in DIR) and writes `swb-records.json` (the
-records), `swb-diff.json` (the differing fields per record), `swb-times.json`
-(wall time per record), `swb-log.txt` (stderr), `swb-groups.json` (the log
-lines of each group) and `swb-shots/` into DIR.
+(`osm-zagreb-chromium.json` in the data directory, or `--chromium FILE`) and
+writes `swb-records.json` (the records), `swb-diff.json` (the differing
+fields per record), `swb-times.json` (wall time per record), `swb-log.txt`
+(stderr), `swb-groups.json` (the log lines of each group) and `swb-shots/`
+into `--out` (default `out/osm-zagreb/S`). `pixel-diff` then lists the pixel
+points where swb's screenshots differ from Chromium's colors (by more than
+the tolerance of the test) and writes `pixel-diff.json` next to them: the
+input for the departures file of the test.
 """
 
 import argparse
@@ -48,10 +80,35 @@ import time
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = "osm-zagreb"
 URL = "https://www.openstreetmap.org/?mlat=45.813114&mlon=15.976390#map=16/45.81308/15.97721"
-RUNS = 2
+RUNS = 3
+DATA = ROOT / "crates" / "automation" / "tests" / "data"
+WORK = ROOT / "out" / "osm-zagreb"
+# Chromium without WebGL (owner decision of 2026-11-18).
+CHROMIUM_ARGS = ["--chromium-arg=--disable-3d-apis"]
+# The URLs of the page's analytics: the query has the time and a random
+# number, so the URLs differ in every run. The data keep the path.
+MATOMO = "https://matomo.openstreetmap.org/matomo.php"
+
+# The sequences: name, the prefix of the data files, the groups left out.
+SEQUENCES = {
+    "full": ("osm-zagreb", ()),
+    "no-transport": ("osm-zagreb-nt", ("layer transport map",)),
+}
+
+
+def data_file(out: Path, sequence: str, name: str) -> Path:
+    """The data file `name` ("steps", "chromium", ...) of a sequence."""
+    return out / f"{SEQUENCES[sequence][0]}-{name}.json"
+
+
+def work_dir(work: Path, sequence: str) -> Path:
+    return work / sequence
+
 
 # The controls of the map (`.control-button`, in this order).
 ZOOM_IN = ".control-button.plus-lg"
@@ -99,7 +156,7 @@ def overlay(name: str, label: str, wait_ms: int = 3500) -> dict[str, Any]:
     return group(f"overlay {name}", {"click": f"#label-layers-{label}"}, wait(wait_ms))
 
 
-def step_groups() -> list[dict[str, Any]]:
+def all_step_groups() -> list[dict[str, Any]]:
     """One group per user action; the order matters: each group starts from
     the state that the one before leaves (the map at zoom 16, the sidebars
     closed)."""
@@ -243,6 +300,330 @@ def step_groups() -> list[dict[str, Any]]:
     ]
 
 
+# The pixel check. After the load and after every group the test reads the
+# colors at points that `points` chose from the screenshots of the three
+# Chromium runs and the records alone (see `choose_points`).
+SIZE = (1280, 800)
+MAP_AREA = (362, 112, 1226, 744)
+SIDEBAR_AREA = (4, 104, 346, 776)
+# Points that exist in every group (fixed parts of the page): name and x, y.
+FIXED_POINTS = {
+    "header": (700, 8),
+    "header-gap": (600, 44),
+    "search-box": (140, 90),
+    "search-button": (268, 70),
+    "directions-button": (312, 70),
+    "zoom-out": (1244, 112),
+    "locate": (1244, 150),
+    "layers": (1244, 200),
+    "share": (1244, 300),
+    "notes": (1244, 330),
+    "help": (1244, 380),
+    "scale": (88, 787),
+}
+# Points of one group that the scan does not find: the white dot of the
+# marker, the icons of the directions steps, the stroke of the route (read
+# off Chromium's screenshots).
+EXTRA_POINTS = {
+    "load": {"marker-dot": (603, 402)},
+    "directions go": {
+        "step-icon-1": (25, 294),
+        "step-icon-2": (24, 324),
+        "step-icon-3": (25, 354),
+        "step-icon-4": (26, 384),
+        "step-icon-8": (24, 504),
+        "step-icon-10": (25, 606),
+        "route-1": (704, 372),
+        "route-2": (846, 466),
+    },
+    # The spinner of the History pane ("Changesets": a ring of 32 px at
+    # (159, 167) with a transparent right border): the white gap at its right.
+    "history": {"spinner-gap": (188, 183)},
+    "back to history": {"spinner-gap": (188, 183)},
+}
+# Points of a drawing that has no square of one color (the resize handle of
+# the share panel's text area: two strokes of 1 px at its bottom right, each
+# pixel black with alpha 0.6 over white = 102): the color must be the same in
+# all runs, flat or not (read off Chromium's screenshots, item D of part 4c).
+EXACT_POINTS = {
+    group: {
+        "resizer-top": (1261, 292),
+        "resizer-middle": (1258, 295),
+        "resizer-short-top": (1261, 296),
+        "resizer-short-bottom": (1260, 297),
+    }
+    for group in ("share html", "share marker")
+}
+# The thumbnails of the layer list need WebGL: no point inside one of them
+# (the `.base-layers > div` rectangles of the record), with a margin in px.
+THUMBNAILS = ".base-layers > div"
+THUMBNAIL_MARGIN = 3
+FLAT_RADIUS = 3
+"""A point is chosen only where the (2 radius + 1) square around it is one
+color in all runs."""
+# Points per group and kind: the rectangles of each area of the record (the
+# first of the candidates of the rectangles, evenly over the list), the map
+# and the sidebar near a color edge (a flat point within 10 px of a color that
+# differs by more than 60), and a coarse grid.
+RECT_PER_AREA = 3
+EDGE_PER_AREA = 5
+INK_COUNT = 8
+GRID_STRIDE = 40
+GRID_COUNT = 8
+EDGE_SPREAD = 24
+EDGE_CONTRAST = 60
+EDGE_REACH = 10
+RECT_SPREAD = 8
+# The rectangles whose glyph or drawing gets an "ink" point: the pixel of the
+# largest contrast to the rectangle's main color, with a neighbor of the same
+# color (a stroke of 2 px or more: its core has the glyph's own color on any
+# background), equal in all runs. The value is the search region: `all` the
+# rectangle, or its `corner` of 14 x 14 px (the resize grabber of a textarea).
+# A glyph has no 7 x 7 square of one color, so a flat point cannot see it. An
+# ink point may lie in a thumbnail of the layer list (the "(i)" button is
+# drawn over it; the core pixel of the glyph does not depend on what is
+# behind it).
+INK_RECTS = {
+    ".layer-info-toggle i": "all",
+    ".control-button": "all",
+    "#sidebar .btn-close": "all",
+    "#map-ui .btn-close": "all",
+    "#nav-tabContent textarea": "corner",
+}
+INK_CONTRAST = 100
+CORNER = 14
+
+
+def slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def windowed(pixels: Any, radius: int, reduce: Any) -> Any:
+    """`reduce` (`numpy.maximum` or `numpy.minimum`) over the square of
+    (2 radius + 1) px around every pixel of the (height, width, channels)
+    array; the edge pixels repeat."""
+    padded = np.pad(pixels, ((radius, radius), (radius, radius), (0, 0)), mode="edge")
+    height, width = pixels.shape[:2]
+    rows = padded[0:height]
+    for shift in range(1, 2 * radius + 1):
+        rows = reduce(rows, padded[shift : shift + height])
+    out = rows[:, 0:width]
+    for shift in range(1, 2 * radius + 1):
+        out = reduce(out, rows[:, shift : shift + width])
+    return out
+
+
+def flat_mask(pixels: Any, radius: int = FLAT_RADIUS) -> Any:
+    """True where the square around the pixel has one color."""
+    high, low = windowed(pixels, radius, np.maximum), windowed(pixels, radius, np.minimum)
+    return (high == low).all(axis=2)
+
+
+def edge_mask(pixels: Any) -> Any:
+    """True where a pixel within `EDGE_REACH` differs from the others of the
+    square by more than `EDGE_CONTRAST` in some channel."""
+    high, low = windowed(pixels, EDGE_REACH, np.maximum), windowed(pixels, EDGE_REACH, np.minimum)
+    return (high.astype("int16") - low.astype("int16") > EDGE_CONTRAST).any(axis=2)
+
+
+def stable_flat(shots: list[Any]) -> Any:
+    """The mask of the pixels that are flat in every shot and have the same
+    color in all of them."""
+    mask = np.ones(shots[0].shape[:2], dtype=bool)
+    for shot in shots:
+        mask &= flat_mask(shot)
+        mask &= (shot == shots[0]).all(axis=2)
+    return mask
+
+
+def inside(x: int, y: int, boxes: list[tuple[int, int, int, int]]) -> bool:
+    return any(a <= x < c and b <= y < d for a, b, c, d in boxes)
+
+
+def thumbnail_boxes(record: dict[str, Any]) -> list[tuple[int, int, int, int]]:
+    """The thumbnails of the layer list in a record, as (left, top, right,
+    bottom) with the margin."""
+    boxes = []
+    for selector, _, x, y, w, h in record["rects"]["panel"]:
+        if selector == THUMBNAILS:
+            m = THUMBNAIL_MARGIN
+            boxes.append((int(x) - m, int(y) - m, int(x + w) + m + 1, int(y + h) + m + 1))
+    return boxes
+
+
+def rect_candidates(entry: list[Any]) -> list[tuple[int, int]]:
+    """Points inside a rectangle of the record: the center, then the four
+    corners inset by 5 px (only for a rectangle of 14 px or more)."""
+    _, _, x, y, w, h = entry
+    points = [(int(x + w / 2), int(y + h / 2))]
+    if w >= 14 and h >= 14:
+        left, top, right, bottom = int(x) + 5, int(y) + 5, int(x + w) - 6, int(y + h) - 6
+        points += [(left, top), (right, top), (left, bottom), (right, bottom)]
+    return points
+
+
+def ink_point(shots: list[Any], entry: list[Any], region: str) -> tuple[int, int] | None:
+    """The "ink" point of a rectangle of the record (see `INK_RECTS`), or
+    None if no pixel has a contrast of `INK_CONTRAST` or more to the main
+    color of the region, a neighbor of the same color and the same color in
+    all shots."""
+    _, _, x, y, w, h = entry
+    height, width = shots[0].shape[:2]
+    left, top = max(int(x), 1), max(int(y), 1)
+    right, bottom = min(int(x + w), width - 1), min(int(y + h), height - 1)
+    if region == "corner":
+        left, top = max(left, right - CORNER), max(top, bottom - CORNER)
+    if right - left < 3 or bottom - top < 3:
+        return None
+    area = shots[0][top:bottom, left:right].astype("int16")
+    same = np.ones(area.shape[:2], dtype=bool)
+    for shot in shots[1:]:
+        same &= (shot[top:bottom, left:right] == shots[0][top:bottom, left:right]).all(axis=2)
+    colors, counts = np.unique(area.reshape(-1, 3), axis=0, return_counts=True)
+    contrast = np.abs(area - colors[counts.argmax()]).max(axis=2)
+    stroke = np.zeros(area.shape[:2], dtype=bool)
+    across = (area[:, :-1] == area[:, 1:]).all(axis=2)
+    stroke[:, :-1] |= across
+    stroke[:, 1:] |= across
+    down = (area[:-1] == area[1:]).all(axis=2)
+    stroke[:-1] |= down
+    stroke[1:] |= down
+    score = np.where(same & stroke, contrast, 0)
+    row, column = np.unravel_index(score.argmax(), score.shape)
+    if score[row, column] < INK_CONTRAST:
+        return None
+    return left + int(column), top + int(row)
+
+
+def thin(found: list[Any], count: int) -> list[Any]:
+    """Up to `count` items of the list, evenly over it."""
+    if len(found) <= count:
+        return list(found)
+    return [found[i * len(found) // count] for i in range(count)]
+
+
+def spread(found: list[tuple[int, int]], distance: int) -> list[tuple[int, int]]:
+    """The points, in the order given, each at least `distance` px (in x or
+    y) from those taken before."""
+    taken: list[tuple[int, int]] = []
+    for x, y in found:
+        if all(abs(x - a) >= distance or abs(y - b) >= distance for a, b in taken):
+            taken.append((x, y))
+    return taken
+
+
+def scan(mask: Any, area: tuple[int, int, int, int], stride: int) -> list[tuple[int, int]]:
+    """The points of `area` (scan order, `stride` apart) where `mask` is
+    true."""
+    return [
+        (x, y)
+        for y in range(area[1], area[3], stride)
+        for x in range(area[0], area[2], stride)
+        if mask[y, x]
+    ]
+
+
+def choose_group(
+    label: str, shots: list[Any], record: dict[str, Any]
+) -> dict[str, tuple[int, int]]:
+    """The points of one group, from its three screenshots (arrays) and its
+    record. Every point is a flat color, equal in the three shots, and outside
+    the thumbnails. The kinds, in order:
+
+    - `fixed`: the fixed parts of the page, and the extras of the group;
+    - `rect-AREA-N`: points inside the rectangles of the record (for the
+      layer panel, the share panel, the sidebar pages, the map controls);
+    - `edge-AREA-N`: flat points near a color edge in the map and the sidebar;
+    - `grid-N`: a coarse grid over the whole viewport.
+    """
+    flat = stable_flat(shots)
+    height, width = flat.shape
+    avoid = thumbnail_boxes(record)
+
+    def ok(x: int, y: int) -> bool:
+        edge = FLAT_RADIUS
+        inner = edge <= x < width - edge and edge <= y < height - edge
+        return inner and bool(flat[y, x]) and not inside(x, y, avoid)
+
+    chosen: dict[str, tuple[int, int]] = {}
+    taken: list[tuple[int, int]] = []
+
+    def far(x: int, y: int, distance: int) -> bool:
+        return all(abs(x - a) >= distance or abs(y - b) >= distance for a, b in taken)
+
+    def take(name: str, at: tuple[int, int]) -> None:
+        chosen[name] = at
+        taken.append(at)
+
+    for key, at in {**FIXED_POINTS, **EXTRA_POINTS.get(label, {})}.items():
+        if ok(*at):
+            take(f"{key}-1", at)
+    for area, entries in record["rects"].items():
+        found = [
+            at
+            for entry in entries
+            for at in [next((p for p in rect_candidates(entry) if ok(*p) and far(*p, 1)), None)]
+            if at is not None
+        ]
+        for number, at in enumerate(thin(spread(found, RECT_SPREAD), RECT_PER_AREA), 1):
+            take(f"rect-{area}-{number}", at)
+    inks = [
+        at
+        for entries in record["rects"].values()
+        for entry in entries
+        if entry[0] in INK_RECTS
+        for at in [ink_point(shots, entry, INK_RECTS[entry[0]])]
+        if at is not None and far(*at, 1)
+    ]
+    for number, at in enumerate(thin(spread(inks, 1), INK_COUNT), 1):
+        take(f"ink-{number}", at)
+    near_edge = flat & edge_mask(shots[0])
+    for key, area in (("map", MAP_AREA), ("side", SIDEBAR_AREA)):
+        found = [p for p in scan(near_edge, area, 2) if ok(*p) and far(*p, RECT_SPREAD)]
+        for number, at in enumerate(thin(spread(found, EDGE_SPREAD), EDGE_PER_AREA), 1):
+            take(f"edge-{key}-{number}", at)
+    grid_area = (GRID_STRIDE // 2, GRID_STRIDE // 2, width, height)
+    grid = [p for p in scan(flat, grid_area, GRID_STRIDE) if ok(*p) and far(*p, RECT_SPREAD)]
+    for number, at in enumerate(thin(grid, GRID_COUNT), 1):
+        take(f"grid-{number}", at)
+    for key, (x, y) in EXACT_POINTS.get(label, {}).items():
+        if all(np.array_equal(shots[0][y, x], shot[y, x]) for shot in shots):
+            take(f"{key}-1", (x, y))
+    return chosen
+
+
+def screenshot_name(number: int, label: str) -> str:
+    return f"{number:03d}-{slug(label)}.png"
+
+
+def choose_points(
+    shot_dirs: list[Path], records: list[dict[str, Any]], labels: list[str]
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The `--pixels`-style spec and the colors at its points, from the
+    screenshots of the Chromium runs (`shot_dirs`, one per run) and the
+    records. The spec is `{"groups", "group_points", "points"}` (a group
+    claims the points whose names start with `NNN-`, its number), the colors
+    `{label: {name: [r, g, b]}}`."""
+    from PIL import Image
+
+    points: dict[str, list[int]] = {}
+    colors: dict[str, dict[str, list[int]]] = {}
+    claims: dict[str, list[str]] = {}
+    for number, label in enumerate(labels):
+        shots = []
+        for directory in shot_dirs:
+            with Image.open(directory / screenshot_name(number, label)) as image:
+                shots.append(np.asarray(image.convert("RGB")))
+        chosen = choose_group(label, shots, records[number])
+        prefix = f"{number:03d}-"
+        claims[label] = [prefix]
+        points.update({f"{prefix}{key}": list(at) for key, at in chosen.items()})
+        colors[label] = {
+            f"{prefix}{key}": [int(c) for c in shots[0][y, x]] for key, (x, y) in chosen.items()
+        }
+    return {"groups": labels, "group_points": claims, "points": points}, colors
+
+
 # The record expression. `window.__o()` returns the JSON text of what each
 # item needs: the URL and hash, the view from the hash, the loaded tile
 # images in the viewport, the base layer and the overlays that are checked,
@@ -260,6 +641,46 @@ window.__o = () => {
   const titles = (root) => (root
     ? [...root.querySelectorAll('h1, h2, h3')].filter(visible).map((h) => text(h, 80))
     : []);
+  // The rectangles of the visible elements that the items of M12 depend on:
+  // per area a list of [selector, index among the visible matches, left, top,
+  // width, height] in CSS px, rounded to 0.01 (at most 40 matches a selector).
+  const areas = {
+    header: ['header', 'header a', 'header .btn', 'header img'],
+    map: [
+      '#map', '.control-button', '.leaflet-control-scale', '.leaflet-control-scale > div',
+      '.leaflet-control-attribution', '.leaflet-marker-pane > *', '.leaflet-popup',
+    ],
+    sidebar: [
+      '#sidebar', '#sidebar form', '#sidebar input', '#sidebar select', '#sidebar label',
+      '#sidebar button, #sidebar .btn', '#sidebar .btn-close', '#sidebar_content',
+      '#sidebar_content h2, #sidebar_content h3, #sidebar_content h4, #sidebar_content h5',
+      '#sidebar_content p', '#sidebar_content details', '#sidebar_content summary',
+      '#sidebar_content table', '#sidebar_content tr', '#sidebar_content td',
+      '#sidebar_content ul', '#sidebar_content li', '#sidebar_content nav',
+      '#sidebar_content .pagination > *', '#sidebar_content img', '#sidebar_content dt',
+      '#sidebar_content dd',
+    ],
+    panel: [
+      '#map-ui', '#map-ui h2', '#map-ui h4', '#map-ui .btn-close', '.base-layers > div',
+      '.base-layers label', '.base-layers .badge', '.layer-info-toggle', '.layer-info-toggle i',
+      '.overlay-layers p', '.overlay-layers .form-check', '.overlay-layers label',
+      '.overlay-layers input', '.legend-ui table', '.legend-ui tr', '.legend-ui img',
+      '.share-link form', '.share-link .form-check', '.share-link label', '.share-link input',
+      '#nav-tab', '#nav-tab a', '#nav-tab > span', '#nav-tabContent textarea',
+      '#nav-tabContent p', '.share-geo-uri a', '#export-image .row', '#export-image label',
+      '#export-image select', '#export-image .col-auto', '#export-image .form-check',
+      '#export-image input', '#export-image p',
+    ],
+  };
+  const round = (v) => Math.round(v * 100) / 100;
+  const rects = Object.fromEntries(Object.entries(areas).map(([area, selectors]) => [
+    area,
+    selectors.flatMap((selector) => [...document.querySelectorAll(selector)]
+      .filter(visible).slice(0, 40).map((e, i) => {
+        const r = e.getBoundingClientRect();
+        return [selector, i, round(r.left), round(r.top), round(r.width), round(r.height)];
+      })),
+  ]));
   const view = location.hash.match(/^#map=(\d+)\/(-?[\d.]+)\/(-?[\d.]+)/);
   const tiles = [...document.querySelectorAll('#map .leaflet-tile-pane img.leaflet-tile')];
   const inViewport = (e) => {
@@ -304,7 +725,7 @@ window.__o = () => {
     },
     outlines: {
       paths: paths.length,
-      pathLength: paths.reduce((n, p) => n + (p.getAttribute('d') || '').length, 0),
+      d: paths.map((p) => p.getAttribute('d') || ''),
       strokes: [...new Set(paths.map((p) => p.getAttribute('stroke')))].sort(),
     },
     markers: markers.length,
@@ -319,6 +740,7 @@ window.__o = () => {
     scale: text(document.querySelector('.leaflet-control-scale')),
     attribution: text(document.querySelector('.leaflet-control-attribution'), 200),
     elements: document.getElementsByTagName('*').length,
+    rects,
   });
 };
 """
@@ -351,28 +773,61 @@ def merge_node(source: Path) -> None:
     print(f"{len(NODE_URLS)} entries merged from {source}")
 
 
+def format_json(value: Any, level: int = 0) -> str:
+    """JSON text with one space of indent per level. A list of numbers,
+    strings and other scalars that fits on one line of 160 columns takes one
+    line (rectangles, points, colors); other lists and objects take a line
+    for each item."""
+    pad = " " * (level + 1)
+    if isinstance(value, dict):
+        if not value:
+            return "{}"
+        items = [
+            f"{pad}{json.dumps(key, ensure_ascii=False)}: {format_json(item, level + 1)}"
+            for key, item in value.items()
+        ]
+        return "{\n" + ",\n".join(items) + "\n" + " " * level + "}"
+    if isinstance(value, list):
+        if not value:
+            return "[]"
+        flat = json.dumps(value, ensure_ascii=False)
+        if not any(isinstance(item, (dict, list)) for item in value) and len(flat) <= 160:
+            return flat
+        items = [pad + format_json(item, level + 1) for item in value]
+        return "[\n" + ",\n".join(items) + "\n" + " " * level + "]"
+    return json.dumps(value, ensure_ascii=False)
+
+
 def write_json(path: Path, value: Any) -> None:
-    path.write_text(json.dumps(value, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    path.write_text(format_json(value) + "\n", encoding="utf-8")
+
+
+def step_groups(sequence: str = "full") -> list[dict[str, Any]]:
+    """The groups of a sequence (`all_step_groups` without the groups that the
+    sequence leaves out)."""
+    skipped = SEQUENCES[sequence][1]
+    return [g for g in all_step_groups() if g["name"] not in skipped]
 
 
 def write_steps(out: Path) -> None:
     out.mkdir(parents=True, exist_ok=True)
-    write_json(out / "osm-zagreb-steps.json", step_groups())
-    (out / "osm-zagreb-record.js").write_text(RECORD_JS.lstrip(), encoding="utf-8")
-    print(f"{len(step_groups())} groups written to {out}")
+    for sequence in SEQUENCES:
+        write_json(data_file(out, sequence, "steps"), step_groups(sequence))
+    (out / "osm-zagreb.js").write_text(RECORD_JS.lstrip(), encoding="utf-8")
+    print(f"{len(all_step_groups())} groups written to {out} ({len(SEQUENCES)} sequences)")
 
 
-def replay_once(out: Path, run: int, extra: list[str]) -> list[Any]:
+def replay_once(out: Path, work: Path, sequence: str, run: int, extra: list[str]) -> list[Any]:
     """One run of `swbtools replay osm-zagreb`; returns its records."""
-    records = out / f"run{run}.json"
-    cmd = ["uv", "run", "--project", "tools", "swbtools", "replay", FIXTURE]
-    cmd += ["--steps", str(out / "osm-zagreb-steps.json")]
-    cmd += ["--setup", str(out / "osm-zagreb-record.js"), "--record", "window.__o()"]
+    records = work / f"run{run}.json"
+    cmd = ["uv", "run", "--project", "tools", "swbtools", "replay", FIXTURE, *CHROMIUM_ARGS]
+    cmd += ["--steps", str(data_file(out, sequence, "steps"))]
+    cmd += ["--setup", str(out / "osm-zagreb.js"), "--record", "window.__o()"]
     cmd += ["--out", str(records)]
     result = subprocess.run(cmd + extra, cwd=ROOT, capture_output=True, text=True, check=False)
-    (out / f"run{run}.log").write_text(result.stderr, encoding="utf-8")
+    (work / f"run{run}.log").write_text(result.stderr, encoding="utf-8")
     if result.returncode != 0:
-        sys.exit(f"replay failed (see {out / f'run{run}.log'}):\n{result.stderr[-2000:]}")
+        sys.exit(f"replay failed (see {work / f'run{run}.log'}):\n{result.stderr[-2000:]}")
     return json.loads(records.read_text(encoding="utf-8"))
 
 
@@ -384,32 +839,116 @@ def differences(first: list[Any], second: list[Any]) -> list[str]:
     return found
 
 
-def write_records(out: Path) -> None:
+def mask_missing(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The rows of `--missing-out` with each Matomo URL cut to its path (so
+    that it is equal in every run), the URLs of a row sorted, without
+    repeats."""
+    return [
+        {
+            "label": row["label"],
+            "missing": sorted({MATOMO if u.startswith(MATOMO) else u for u in row["missing"]}),
+        }
+        for row in rows
+    ]
+
+
+CONSOLE_LINE = re.compile(r"^(?P<type>\S+)  (?P<url>.*?):(?P<line>\d+)  (?P<text>.*)$")
+
+
+def page_console(text: str) -> list[dict[str, str]]:
+    """The messages of a `--console-out` file at level error and warning and
+    the uncaught exceptions, as `{"type", "url", "text"}`, in file order. A
+    Matomo URL is cut to its path."""
+    found = []
+    for line in text.splitlines():
+        parts = CONSOLE_LINE.match(line)
+        if parts is None or parts["type"] not in ("error", "warning", "exception"):
+            continue
+        url, message = parts["url"], parts["text"]
+        found.append(
+            {
+                "type": parts["type"],
+                "url": MATOMO if url.startswith(MATOMO) else url,
+                "text": message,
+            }
+        )
+    return found
+
+
+def console_counts(runs: list[list[dict[str, str]]]) -> list[dict[str, Any]]:
+    """The console messages of the runs as `{"type", "url", "text", "min",
+    "max"}`: how many times a message (type, URL and text) appeared in a run,
+    the smallest and the largest number over the runs (0 if a run lacks it).
+    Sorted by type, URL and text: the order of an exception and of a network
+    log line differs from run to run."""
+    keys = sorted({(m["type"], m["url"], m["text"]) for run in runs for m in run})
+    found = []
+    for key in keys:
+        counts = [sum(1 for m in run if (m["type"], m["url"], m["text"]) == key) for run in runs]
+        found.append(
+            {
+                "type": key[0],
+                "url": key[1],
+                "text": key[2],
+                "min": min(counts),
+                "max": max(counts),
+            }
+        )
+    return found
+
+
+def write_records(out: Path, work: Path, sequence: str) -> None:
+    """Three runs of Chromium: the records, the missing URLs, the console and
+    the screenshots. Exits with status 1 if the runs differ in the records or
+    the missing URLs."""
     write_steps(out)
-    runs = []
+    work = work_dir(work, sequence)
+    work.mkdir(parents=True, exist_ok=True)
+    runs, missing, console = [], [], []
     for run in range(RUNS):
-        extra = ["--missing-out", str(out / f"run{run}-missing.json")]
-        if run == 0:
-            extra += ["--screenshots", str(out / "shots")]
-            extra += ["--console-out", str(out / "osm-zagreb-console.txt")]
-        runs.append(replay_once(out, run, extra))
-    diff = differences(runs[0], runs[1])
-    write_json(out / "osm-zagreb-chromium.json", runs[0])
-    (out / "run0-missing.json").replace(out / "osm-zagreb-missing.json")
-    print(f"{len(runs[0])} records; the two runs differ in {len(diff)} fields")
-    for line in diff:
+        extra = ["--missing-out", str(work / f"run{run}-missing.json")]
+        extra += ["--console-out", str(work / f"run{run}-console.txt")]
+        extra += ["--screenshots", str(work / f"shots{run}")]
+        runs.append(replay_once(out, work, sequence, run, extra))
+        found = json.loads((work / f"run{run}-missing.json").read_text(encoding="utf-8"))
+        missing.append(mask_missing(found))
+        console.append(page_console((work / f"run{run}-console.txt").read_text(encoding="utf-8")))
+    diff = [d for other in runs[1:] for d in differences(runs[0], other)]
+    write_json(data_file(out, sequence, "chromium"), runs[0])
+    write_json(data_file(out, sequence, "missing"), missing[0])
+    write_json(data_file(out, sequence, "console"), console_counts(console))
+    print(f"{len(runs[0])} records; the runs differ in {len(diff)} fields")
+    for line in dict.fromkeys(diff):
         print("  " + line)
+    same_missing = all(v == missing[0] for v in missing)
+    print("missing URLs: " + ("equal in all runs" if same_missing else "DIFFER between runs"))
+    ranges = [m for m in console_counts(console) if m["min"] != m["max"]]
+    print(f"console: {len(ranges)} messages with a count that differs between the runs")
+    if diff or not same_missing:
+        sys.exit(1)
+
+
+def write_points(out: Path, work: Path, sequence: str) -> None:
+    """Writes the pixel points and the colors at them (`osm-zagreb-pixel-points.json`
+    and `osm-zagreb-pixels.json`) from the three runs of `records`."""
+    work = work_dir(work, sequence)
+    records = json.loads(data_file(out, sequence, "chromium").read_text(encoding="utf-8"))
+    labels = ["load", *(g["name"] for g in step_groups(sequence))]
+    shot_dirs = [work / f"shots{run}" for run in range(RUNS)]
+    spec, colors = choose_points(shot_dirs, records, labels)
+    write_json(data_file(out, sequence, "pixel-points"), spec)
+    write_json(data_file(out, sequence, "pixels"), colors)
+    print(f"{len(spec['points'])} points in {len(labels)} groups written to {out}")
 
 
 def short(value: Any) -> str:
     return "" if value is None else str(value)
 
 
-def summary(out: Path) -> None:
-    records = json.loads((out / "osm-zagreb-chromium.json").read_text(encoding="utf-8"))
-    steps = json.loads((out / "osm-zagreb-steps.json").read_text(encoding="utf-8"))
-    missing = json.loads((out / "osm-zagreb-missing.json").read_text(encoding="utf-8"))
-    names = ["load", *(g["name"] for g in steps)]
+def summary(out: Path, sequence: str) -> None:
+    records = json.loads(data_file(out, sequence, "chromium").read_text(encoding="utf-8"))
+    missing = json.loads(data_file(out, sequence, "missing").read_text(encoding="utf-8"))
+    names = ["load", *(g["name"] for g in step_groups(sequence))]
     print(
         "| # | group | hash | tiles | base+overlays | right pane | left sidebar | rows | paths"
         " | missing |"
@@ -420,7 +959,7 @@ def summary(out: Path) -> None:
         right = " / ".join(rec["mapUi"]["titles"]) if rec["mapUi"]["open"] else ""
         rows = rec["counts"]
         row = f"{rows['searchResults']}s {rows['routeSteps']}r {rows['li']}li"
-        absent = [u for u in miss["missing"] if "matomo" not in u]
+        absent = [u for u in miss["missing"] if u != MATOMO]
         print(
             f"| {number} | {name} | {rec['hash'].removeprefix('#map=')} "
             f"| {rec['tiles']['loaded']}/{rec['tiles']['shown']} "
@@ -436,40 +975,6 @@ PAUSE_MS = 300
 SWB_TIMEOUT_S = 1800
 SWB_LOG_FILTER = "warn,swb_automation::steps=info"
 SCREENSHOT_LINE = re.compile(r"screenshot \S*?(\d{3})-[^/\s]*\.png")
-
-
-PICK = "data-swb-pick"
-PLAYWRIGHT_SELECTOR = re.compile(r"(?P<css>.*?)(?P<visible>:visible)?(?: >> nth=(?P<nth>\d+))?")
-POINTER_STEPS = ("click", "dblclick", "rightclick", "middleclick", "hover", "focus")
-
-
-def css_steps(step: dict[str, Any]) -> list[dict[str, Any]]:
-    """The steps that do what one step does in swb. swb's selectors are CSS;
-    the step file uses Playwright's `:visible` and `>> nth=N`. Such a step
-    becomes: an `eval` that marks the match with an attribute, the step on
-    that attribute (the click still goes through the pointer and the hit
-    test), and an `eval` that removes the mark."""
-    for kind in POINTER_STEPS:
-        selector = step.get(kind)
-        if not isinstance(selector, str):
-            continue
-        parts = PLAYWRIGHT_SELECTOR.fullmatch(selector)
-        if parts is None or not (parts["visible"] or parts["nth"]):
-            return [step]
-        pick = (
-            f"(() => {{ let found = [...document.querySelectorAll({json.dumps(parts['css'])})];"
-            + (
-                " found = found.filter((e) => { const r = e.getBoundingClientRect();"
-                " return r.width > 0 && r.height > 0"
-                " && getComputedStyle(e).visibility !== 'hidden'; });"
-                if parts["visible"]
-                else ""
-            )
-            + f" found[{int(parts['nth'] or 0)}].setAttribute('{PICK}', ''); }})()"
-        )
-        unpick = f"document.querySelector('[{PICK}]').removeAttribute('{PICK}')"
-        return [{"eval": pick}, {kind: f"[{PICK}]"}, {"eval": unpick}]
-    return [step]
 
 
 def swb_steps(
@@ -489,8 +994,7 @@ def swb_steps(
     steps: list[dict[str, Any]] = [{"eval": RECORD_JS}, record, shot(0, "load")]
     for number, one in enumerate(groups, 1):
         for step in [] if number in skip else one["steps"]:
-            for plain in css_steps(step):
-                steps += [plain, {"wait": PAUSE_MS}]
+            steps += [step, {"wait": PAUSE_MS}]
         steps += [record, shot(number, one["name"])]
     return steps
 
@@ -595,6 +1099,7 @@ def run_swb_steps(
 
 
 def run_swb_groups(
+    sequence: str,
     fixture: str,
     groups_limit: int | None,
     out: Path,
@@ -605,7 +1110,7 @@ def run_swb_groups(
     """The `swb` command: one run of the groups, the comparison, the files."""
     from swbtools import paths
 
-    groups = step_groups()[:groups_limit]
+    groups = step_groups(sequence)[:groups_limit]
     out.mkdir(parents=True, exist_ok=True)
     shots = out / "swb-shots"
     shots.mkdir(exist_ok=True)
@@ -627,6 +1132,40 @@ def run_swb_groups(
         print(f"{took:7.2f} s  {name}: {', '.join(fields) or 'equal'}")
 
 
+# The largest difference of a color channel that the test accepts at a pixel
+# point (`PIXEL_TOLERANCE` in the test).
+PIXEL_TOLERANCE = 12
+
+
+def pixel_diff(out: Path, work: Path, sequence: str) -> None:
+    """The `pixel-diff` command: the points where swb's screenshots (`swb`
+    command) differ from Chromium's colors by more than the tolerance.
+    Writes `pixel-diff.json` into the work directory of the sequence."""
+    from PIL import Image
+
+    work = work_dir(work, sequence)
+    spec = json.loads(data_file(out, sequence, "pixel-points").read_text(encoding="utf-8"))
+    colors = json.loads(data_file(out, sequence, "pixels").read_text(encoding="utf-8"))
+    found: dict[str, list[dict[str, Any]]] = {}
+    for number, label in enumerate(spec["groups"]):
+        with Image.open(work / "swb-shots" / screenshot_name(number, label)) as image:
+            shot = np.asarray(image.convert("RGB"))
+        prefix = f"{number:03d}-"
+        rows = []
+        for name, (x, y) in spec["points"].items():
+            if not name.startswith(prefix):
+                continue
+            got = [int(c) for c in shot[y, x]]
+            want = colors[label][name]
+            if any(abs(g - w) > PIXEL_TOLERANCE for g, w in zip(got, want, strict=True)):
+                rows.append({"name": name, "at": [x, y], "swb": got, "chromium": want})
+        found[label] = rows
+        if rows:
+            print(f"{number:3d} {label}: {len(rows)} of {len(colors[label])} points differ")
+    write_json(work / "pixel-diff.json", found)
+    print(f"{sum(len(r) for r in found.values())} points differ; see {work / 'pixel-diff.json'}")
+
+
 def labelled(names: list[str], key: str, values: list[Any]) -> list[dict[str, Any]]:
     """`[{"name": N, KEY: V}, ...]` for the pairs of names and values."""
     return [{"name": n, key: v} for n, v in zip(names, values, strict=False)]
@@ -634,9 +1173,26 @@ def labelled(names: list[str], key: str, values: list[Any]) -> list[dict[str, An
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    commands = ["steps", "records", "summary", "merge-node", "swb"]
+    commands = ["steps", "records", "points", "summary", "merge-node", "swb", "pixel-diff"]
     parser.add_argument("command", choices=commands)
-    parser.add_argument("--out", type=Path, default=ROOT / "out" / "osm-zagreb")
+    parser.add_argument(
+        "--sequence",
+        choices=list(SEQUENCES),
+        default="full",
+        help="the sequence of step groups (default full)",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=DATA,
+        help="the data directory of the test (default crates/automation/tests/data)",
+    )
+    parser.add_argument(
+        "--work",
+        type=Path,
+        default=WORK,
+        help="records, points, swb, pixel-diff: runs, logs, screenshots (default out/osm-zagreb)",
+    )
     parser.add_argument("--fixture", default=FIXTURE, help="swb: the fixture to run")
     parser.add_argument("--groups", type=int, help="swb: run only the first N groups")
     parser.add_argument("--skip", type=int, nargs="*", help="swb: group numbers to leave out")
@@ -644,22 +1200,31 @@ def main() -> None:
     parser.add_argument("--binary", type=Path, help="swb: the swb binary")
     parser.add_argument("--from", dest="source", type=Path, help="merge-node: a fixture directory")
     args = parser.parse_args()
+    sequence, out = args.sequence, args.out
     if args.command == "swb":
         from swbtools import swb as swb_tools
 
         binary = swb_tools.find_swb(args.binary)
         if binary is None:
             sys.exit("no swb binary (build it, or pass --binary)")
-        chromium = args.chromium or args.out / "osm-zagreb-chromium.json"
+        chromium = args.chromium or data_file(out, sequence, "chromium")
         skip = frozenset(args.skip or [])
-        run_swb_groups(args.fixture, args.groups, args.out, chromium, binary, skip)
-        return
-    if args.command == "merge-node":
+        target = work_dir(args.work, sequence)
+        run_swb_groups(sequence, args.fixture, args.groups, target, chromium, binary, skip)
+    elif args.command == "merge-node":
         if args.source is None:
             sys.exit("merge-node needs --from DIR")
         merge_node(args.source)
-        return
-    {"steps": write_steps, "records": write_records, "summary": summary}[args.command](args.out)
+    elif args.command == "records":
+        write_records(out, args.work, sequence)
+    elif args.command == "points":
+        write_points(out, args.work, sequence)
+    elif args.command == "pixel-diff":
+        pixel_diff(out, args.work, sequence)
+    elif args.command == "summary":
+        summary(out, sequence)
+    else:
+        write_steps(out)
 
 
 if __name__ == "__main__":

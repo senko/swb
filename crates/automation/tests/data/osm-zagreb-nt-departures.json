@@ -1,0 +1,6 @@
+[
+ {
+  "cause": "G (backlog): the rasterization of an icon-font glyph differs: the vertical stroke of the '+' (`bi-plus-lg`, 20 px) covers two columns with 0.55 and 0.62 in swb and 0.65 and 0.65 in Chromium (also at every subpixel offset of the box; the probe cases are not in the repository); the ink point of the groups where it is chosen on that stroke differs by 13 (187 against 200)",
+  "points": ["013-ink-1", "014-ink-1", "015-ink-1"]
+ }
+]

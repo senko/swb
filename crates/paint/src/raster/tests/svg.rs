@@ -658,3 +658,105 @@ fn svg_fills_without_anti_aliasing_cover_the_pixels_with_centers_inside() {
     assert_eq!(count(false), (732, 0));
     assert!(count(true).1 > 20);
 }
+
+/// A group with a rounded `overflow` clip (its layer is no isolated group
+/// in Chromium) around a `Difference` group: the group blends with the
+/// pixels below the clip layer (`blend_through_clip_layers`). Chromium
+/// 148, probe cases `in-rounded-overflow-clip` and
+/// `rounded-clip-in-isolating-parent` of `tools/probes/mix-blend-mode.json`:
+/// three stripes (233,236,239), (200,60,40) and (60,120,200) of 30 px, a
+/// clip of 60 x 90 px with corners of 12 px, a box (120,200,90) in it.
+/// The clip here is a polygon with cut corners: the rasterizer treats
+/// every `PushSvgClip` layer alike.
+#[test]
+fn a_blend_group_in_a_clip_layer_blends_with_the_pixels_below_the_clip() {
+    use swb_style::MixBlendMode as M;
+    let area = Rect::new(0.0, 0.0, 60.0, 90.0);
+    let stripe = |y: f32, (r, g, b): (u8, u8, u8)| DisplayItem::Rect {
+        rect: Rect::new(0.0, y, 60.0, 30.0),
+        radii: [(0.0, 0.0); 4],
+        color: Rgba::rgb(r, g, b),
+    };
+    let rect = |color| DisplayItem::Rect {
+        rect: area,
+        radii: [(0.0, 0.0); 4],
+        color,
+    };
+    let group = |blend| DisplayItem::PushOpacity {
+        opacity: 1.0,
+        blend,
+        bounds: area,
+        fixed_bounds: None,
+        escapes_clips: false,
+    };
+    let cut = [
+        (0.0, 12.0),
+        (12.0, 0.0),
+        (48.0, 0.0),
+        (60.0, 12.0),
+        (60.0, 78.0),
+        (48.0, 90.0),
+        (12.0, 90.0),
+        (0.0, 78.0),
+    ];
+    let clip = swb_layout::svg::ClipPath {
+        shapes: vec![clip_shape(&cut, Matrix::IDENTITY, None)],
+        outer: None,
+    };
+    let push_clip = DisplayItem::PushSvgClip {
+        clip: Arc::new(clip),
+        transform: Matrix::IDENTITY,
+        bounds: area,
+        rect_fallback: true,
+        backdrop_root: false,
+    };
+    let stripes = [
+        stripe(0.0, (233, 236, 239)),
+        stripe(30.0, (200, 60, 40)),
+        stripe(60.0, (60, 120, 200)),
+    ];
+    let close = |got: (u8, u8, u8), want: (u8, u8, u8)| {
+        got.0.abs_diff(want.0) <= 2 && got.1.abs_diff(want.1) <= 2 && got.2.abs_diff(want.2) <= 2
+    };
+    // No isolating parent: the box blends with the stripes. The corner
+    // outside the clip keeps the first stripe.
+    let mut items = Vec::from(stripes.clone());
+    items.extend([
+        push_clip.clone(),
+        group(M::Difference),
+        rect(Rgba::rgb(120, 200, 90)),
+        DisplayItem::PopOpacity,
+        DisplayItem::PopSvgClip,
+    ]);
+    let p = render(items);
+    for (y, want) in [
+        (15, (113, 36, 149)),
+        (45, (80, 140, 50)),
+        (75, (60, 80, 110)),
+    ] {
+        assert!(close(rgb(&p, 30, y), want), "{:?} at {y}", rgb(&p, 30, y));
+    }
+    assert!(close(rgb(&p, 2, 2), (233, 236, 239)), "{:?}", rgb(&p, 2, 2));
+    // In an isolating parent (a group of opacity 1) with a clip that has a
+    // background (40,40,200): the box blends with that background.
+    let mut items = Vec::from(stripes);
+    items.extend([
+        group(M::Normal),
+        push_clip,
+        rect(Rgba::rgb(40, 40, 200)),
+        group(M::Difference),
+        rect(Rgba::rgb(120, 200, 90)),
+        DisplayItem::PopOpacity,
+        DisplayItem::PopSvgClip,
+        DisplayItem::PopOpacity,
+    ]);
+    let p = render(items);
+    for y in [15, 45, 75] {
+        assert!(
+            close(rgb(&p, 30, y), (80, 160, 110)),
+            "{:?}",
+            rgb(&p, 30, y)
+        );
+    }
+    assert!(close(rgb(&p, 2, 2), (233, 236, 239)), "{:?}", rgb(&p, 2, 2));
+}

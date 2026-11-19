@@ -565,6 +565,8 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
         "caption-side" => s.caption_side.as_str().to_owned(),
         "empty-cells" => s.empty_cells.as_str().to_owned(),
         "pointer-events" => s.pointer_events.as_str().to_owned(),
+        "resize" => s.resize.as_str().to_owned(),
+        "mix-blend-mode" => s.mix_blend_mode.as_str().to_owned(),
         "fill" => paint(&s.fill, s),
         "fill-rule" => s.fill_rule.as_str().to_owned(),
         "clip-rule" => s.clip_rule.as_str().to_owned(),

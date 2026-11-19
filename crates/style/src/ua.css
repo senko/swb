@@ -419,6 +419,7 @@ textarea {
   font-family: monospace;
   overflow-wrap: break-word;
   overflow: auto;
+  resize: both;
   cursor: text;
 }
 

@@ -92,11 +92,14 @@ pub enum DisplayItem {
     PushViewportClip,
     /// End the most recent clip.
     PopClip,
-    /// Start a group that is composited with `opacity`.
+    /// Start a group that is composited with `opacity` and the blend mode.
     PushOpacity {
         /// The group opacity, 0 to 1. A group with opacity 0 is not drawn,
         /// but its hit regions count.
         opacity: f32,
+        /// How the group blends with what is painted below it
+        /// (`mix-blend-mode`; `Normal` for an opacity group).
+        blend: swb_style::MixBlendMode,
         /// An area that contains everything the group draws, except
         /// content fixed to the viewport.
         bounds: Rect,

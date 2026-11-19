@@ -407,10 +407,13 @@ fn blocks_content_sizes(ctx: &mut LayoutContext<'_>, children: &[BlockLevelBox])
             }
         }
         if floating {
+            // A float's contribution is its margin box, at least 0
+            // (a negative margin does not shrink the line).
+            let contribution = child_sizes.max.max(0.0);
             if child_style(child).is_some_and(|s| s.float == swb_style::Float::Right) {
-                right += child_sizes.max;
+                right += contribution;
             } else {
-                left += child_sizes.max;
+                left += contribution;
             }
             sizes.max = sizes.max.max(left + right);
         } else {
@@ -623,5 +626,48 @@ mod tests {
         let clamped = "<div style='flex: 0 1 20px; overflow: hidden'>aaaaaaaaaaaa</div>".repeat(2);
         assert!(width("", &wide, 0) > 40.0);
         assert_eq!(width("", &clamped, 0), 40.0);
+    }
+
+    /// The width of the flex item `#t` (`flex: 0 0 auto`) whose block has
+    /// `padding-left: 24px`, a 100 px inline-block `#l` and `floats`.
+    fn item_width(floats_before: &str, floats_after: &str) -> f32 {
+        let html = format!(
+            "<style>.f {{ float: left; margin-left: -24px; width: 16px; height: 16px }}</style>\
+             <div style='display: flex; width: 400px'><div id=t style='flex: 0 0 auto'>\
+             <div style='padding-left: 24px'>{floats_before}\
+             <span id=l style='display: inline-block; width: 100px; height: 10px'></span>\
+             {floats_after}</div></div></div>"
+        );
+        let l = crate::test_support::layout_html(&crate::test_support::body(&html));
+        l.rect("t").width
+    }
+
+    #[test]
+    fn a_float_with_a_negative_margin_box_adds_nothing_to_the_line() {
+        // Chromium 148 (`tools/probes/float-negative-margin.json`, the
+        // `box-*` cases): each float adds its margin box, at least 0.
+        let neg = "<div class=f></div>";
+        let pos = "<div class=f style='margin-left: 0; width: 20px'></div>";
+        let right = "<div class=f style='float: right; margin-left: 0; width: 10px'></div>";
+        assert_eq!(item_width(neg, ""), 124.0);
+        assert_eq!(item_width("", neg), 124.0);
+        assert_eq!(item_width(&format!("{pos}{neg}"), ""), 144.0);
+        assert_eq!(item_width(&format!("{neg}{pos}"), ""), 144.0);
+        assert_eq!(item_width(&format!("{neg}{right}"), ""), 134.0);
+        // A margin box above 0 adds as it is.
+        let wide = "<div class=f style='width: 30px'></div>";
+        assert_eq!(item_width(wide, ""), 130.0);
+    }
+
+    #[test]
+    fn a_negative_float_margin_does_not_change_the_min_content_width() {
+        let html = "<style>.f { float: left; margin-left: -24px; width: 150px; height: 16px }</style>\
+             <div style='width: 0'><div id=t style='float: left'>\
+             <div style='padding-left: 24px'><div class=f></div>\
+             <span style='display: inline-block; width: 100px; height: 10px'></span>\
+             </div></div></div>";
+        let l = crate::test_support::layout_html(&crate::test_support::body(html));
+        // The margin box (126 px) is wider than the inline-block (100 px).
+        assert_eq!(l.rect("t").width, 150.0);
     }
 }

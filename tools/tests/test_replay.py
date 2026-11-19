@@ -400,3 +400,84 @@ def test_request_body_of_reads_the_bytes_of_a_paused_request():
     assert request_body_of({}) is None
     assert request_body_of({"postData": ""}) is None
     assert request_body_of({"postDataEntries": []}) is None
+
+
+@pytest.mark.usefixtures("chromium")
+def test_an_uncaught_exception_is_a_line_of_the_console_file(tmp_path, monkeypatch):
+    page = b"<!DOCTYPE html><script>setTimeout(() => { throw new Error('boom') }, 0)</script>"
+    root = tmp_path / "root"
+    fixture = root / "fixtures" / "js" / "page"
+    fixture.mkdir(parents=True)
+    recorded = Fixture(fixture)
+    recorded.record("GET", "https://fixture.test/", 200, [("content-type", "text/html")], page)
+    recorded.save()
+    write_meta(
+        fixture,
+        FixtureMeta("https://fixture.test/", "2031-05-06T07:08:09Z", (800, 600), "test", True),
+    )
+    monkeypatch.setenv("SWB_ROOT", str(root))
+    steps = write(tmp_path, [])
+    console = tmp_path / "console.txt"
+    status = replay_command(
+        "page", None, steps, "1", tmp_path / "r.json", 50, True, console_out=console
+    )
+    assert status == 0
+    assert "exception  :0  boom" in console.read_text().splitlines()
+
+
+def test_chromium_args_are_repeatable_and_reach_replay(tmp_path, monkeypatch):
+    args = build_parser().parse_args(
+        [
+            "replay",
+            "page",
+            "--steps",
+            "s.json",
+            "--record",
+            "1",
+            "--chromium-arg=--disable-3d-apis",
+            "--chromium-arg=--mute-audio",
+        ]
+    )
+    assert args.chromium_arg == ["--disable-3d-apis", "--mute-audio"]
+    plain = build_parser().parse_args(["replay", "page", "--steps", "s.json", "--record", "1"])
+    assert plain.chromium_arg == []
+
+    async def run(*args, **kwargs):
+        assert args[11] == ("--disable-3d-apis",)
+        return [], [], []
+
+    monkeypatch.setattr("swbtools.replay.replay", run)
+    steps = write(tmp_path, [])
+    status = replay_command(
+        "page", None, steps, "1", tmp_path / "r.json", 50, True,
+        chromium_args=("--disable-3d-apis",),
+    )  # fmt: skip
+    assert status == 0
+
+
+@pytest.mark.usefixtures("chromium")
+def test_a_chromium_arg_changes_the_browser(tmp_path, monkeypatch):
+    """`--disable-3d-apis` leaves the page without a WebGL context."""
+    page = (
+        b"<!DOCTYPE html><script>window.__s = () => JSON.stringify("
+        b"{webgl: !!document.createElement('canvas').getContext('webgl')})</script>"
+    )
+    root = tmp_path / "root"
+    fixture = root / "fixtures" / "js" / "page"
+    fixture.mkdir(parents=True)
+    recorded = Fixture(fixture)
+    recorded.record("GET", "https://fixture.test/", 200, [("content-type", "text/html")], page)
+    recorded.save()
+    write_meta(
+        fixture,
+        FixtureMeta("https://fixture.test/", "2031-05-06T07:08:09Z", (800, 600), "test", True),
+    )
+    monkeypatch.setenv("SWB_ROOT", str(root))
+    steps = write(tmp_path, [])
+    out = tmp_path / "r.json"
+    status = replay_command(
+        "page", None, steps, "window.__s()", out, 50, True,
+        chromium_args=("--disable-3d-apis",),
+    )  # fmt: skip
+    assert status == 0
+    assert json.loads(out.read_text()) == [{"webgl": False}]

@@ -1723,7 +1723,8 @@ mod tests {
         assert!(check("(-webkit-mask-image: none) or (mask-image: none)"));
         assert!(check("(backdrop-filter: blur(1px))"));
         assert!(!check("(-webkit-backdrop-filter: blur(1px))"));
-        assert!(check("not (mix-blend-mode: multiply)"));
+        assert!(check("(mix-blend-mode: multiply)"));
+        assert!(!check("(mix-blend-mode: banana)"));
     }
 
     #[test]
