@@ -194,6 +194,9 @@ def _parse_case(
     return Case(name, html, viewport, queries, files, zone, javascript, resources, steps)
 
 
+# The step kinds of `swb_automation::run_steps` that the probe tool also runs
+# in Chromium. `screenshot` is swb's only: the tool refuses it ("unknown
+# step 'screenshot'").
 STEP_KINDS = (
     "click",
     "dblclick",

@@ -48,7 +48,7 @@ def record_missing_command(swb: Path, fixture: Path, url: str) -> list[str]:
     return [str(swb), "--headless", "--record-missing", str(fixture), url]
 
 
-def _replay_options(swb: Path, fixture: Path, viewport: tuple[int, int]) -> list[str]:
+def replay_options(swb: Path, fixture: Path, viewport: tuple[int, int]) -> list[str]:
     """The start of a command line that serves all requests from the fixture
     and uses the test fonts and the viewport size. `compare` and `perf` use
     the same settings."""
@@ -77,7 +77,7 @@ def replay_command(
     writes a box dump and a first-viewport screenshot. `extra` are
     additional swb options, for example `--js`."""
     return [
-        *_replay_options(swb, fixture, viewport),
+        *replay_options(swb, fixture, viewport),
         "--dump-boxes",
         str(boxes),
         "--screenshot",
@@ -93,7 +93,7 @@ def full_page_command(
     """Command line that loads `url` from the fixture with the test fonts and
     writes a full-page screenshot."""
     return [
-        *_replay_options(swb, fixture, viewport),
+        *replay_options(swb, fixture, viewport),
         "--full-page",
         "--screenshot",
         str(screenshot),
@@ -194,7 +194,7 @@ def bench_command(
     prints the time of each pipeline stage and interaction stage as JSON
     (`--bench`). `extra` are additional swb options, for example the
     JavaScript options of a JavaScript fixture."""
-    return [*_replay_options(swb, fixture, viewport), *(extra or []), "--bench", str(runs), url]
+    return [*replay_options(swb, fixture, viewport), *(extra or []), "--bench", str(runs), url]
 
 
 def run(command: list[str], log_file: Path | None = None, stdout_file: Path | None = None) -> int:

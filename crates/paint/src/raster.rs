@@ -62,8 +62,8 @@
 use std::sync::Arc;
 
 use swb_dom::NodeId;
-use swb_layout::{GroupTransform, Matrix, Point, Rect, StickyCache};
-use swb_style::{BorderStyle, Rgba};
+use swb_layout::{GroupTransform, Matrix, Point, Rect, StickyCache, has_rounded_corner};
+use swb_style::{BorderStyle, MixBlendMode, Rgba};
 use swb_text::FontContext;
 use tiny_skia::{
     FillRule, FilterQuality, IntSize, Mask, Paint, Path, PathBuilder, Pattern, Pixmap, PixmapMut,
@@ -78,6 +78,7 @@ use crate::reduce::Reductions;
 use crate::svg::{FrameBudget, MAX_RENDER_PIXELS, VectorCache};
 
 mod backdrop;
+mod blend;
 mod border;
 mod composite;
 mod filter_layer;
@@ -87,6 +88,7 @@ mod masks;
 mod path;
 mod svg_clip;
 
+use blend::blend_mode;
 use filter_layer::FilterLayer;
 pub use frame::FrameContent;
 use gradient::{degenerate_color, gradient_line, gradient_shader, gradient_tile};
@@ -467,55 +469,6 @@ fn rasterize_strip(
     r.budget.skipped
 }
 
-/// The index of the image and of the closing `PopOpacity` of the group
-/// that starts at `range.start`, if the group draws exactly one image:
-/// hit items and clip pairs after the image draw nothing. `None` if the
-/// group holds anything else, or ends outside `range`.
-fn single_image_group(
-    items: &[DisplayItem],
-    range: std::ops::Range<usize>,
-) -> Option<(usize, usize)> {
-    let mut image = None;
-    let mut clips = 0usize;
-    for at in range.start + 1..range.end {
-        match items.get(at)? {
-            DisplayItem::HitRegion { .. } | DisplayItem::HitShape { .. } => {}
-            DisplayItem::Image { .. } if image.is_none() && clips == 0 => image = Some(at),
-            // A clip after the image cuts nothing that is drawn.
-            DisplayItem::PushClip(_) if image.is_some() => clips += 1,
-            DisplayItem::PopClip if clips > 0 => clips -= 1,
-            DisplayItem::PopOpacity if clips == 0 => return image.zip(Some(at)),
-            _ => return None,
-        }
-    }
-    None
-}
-
-/// The tiny-skia operator of a `mix-blend-mode` (`plus-lighter` is `Plus`).
-fn blend_mode(mode: swb_style::MixBlendMode) -> tiny_skia::BlendMode {
-    use swb_style::MixBlendMode as M;
-    use tiny_skia::BlendMode as B;
-    match mode {
-        M::Normal => B::SourceOver,
-        M::Multiply => B::Multiply,
-        M::Screen => B::Screen,
-        M::Overlay => B::Overlay,
-        M::Darken => B::Darken,
-        M::Lighten => B::Lighten,
-        M::ColorDodge => B::ColorDodge,
-        M::ColorBurn => B::ColorBurn,
-        M::HardLight => B::HardLight,
-        M::SoftLight => B::SoftLight,
-        M::Difference => B::Difference,
-        M::Exclusion => B::Exclusion,
-        M::Hue => B::Hue,
-        M::Saturation => B::Saturation,
-        M::Color => B::Color,
-        M::Luminosity => B::Luminosity,
-        M::PlusLighter => B::Plus,
-    }
-}
-
 /// The layer of an open opacity or mask group.
 struct Layer {
     /// The pixels; `None` if the group draws nothing visible (opacity 0,
@@ -542,7 +495,7 @@ enum LayerKind {
     Opacity,
     /// An opacity group that blends with the surface below it when it
     /// ends (`mix-blend-mode`, CSS Compositing and Blending 1 §3.2).
-    Blend(swb_style::MixBlendMode),
+    Blend(MixBlendMode),
     /// The group is multiplied by the mask layers.
     Mask(Arc<[MaskLayer]>),
     /// The group is multiplied by the coverage of a clip path.
@@ -1001,7 +954,7 @@ impl Rasterizer<'_> {
                 bounds: *bounds,
                 fixed_bounds: *fixed_bounds,
                 kind: match blend {
-                    swb_style::MixBlendMode::Normal => LayerKind::Opacity,
+                    MixBlendMode::Normal => LayerKind::Opacity,
                     mode => LayerKind::Blend(*mode),
                 },
                 escapes_clips: *escapes_clips,
@@ -1315,60 +1268,6 @@ impl Rasterizer<'_> {
         self.layers.push(layer);
     }
 
-    /// Draws the blend group that starts at `range.start` without a layer
-    /// if it holds one image: the image draws with the group's operator
-    /// and opacity straight onto the surface. Returns the index after the
-    /// group, or `None` if the group is not of this kind (the general path
-    /// draws it).
-    ///
-    /// The result equals the layer's: the layer starts transparent, so the
-    /// image's pixels (scaled by the opacity) are what the group blends
-    /// with the surface, and the clips are whole-pixel rectangles with a
-    /// mask of coverage 0 or 1, so the clip cuts the same pixels before or
-    /// after the blend. Only the layer's rounding of the image to 8 bits
-    /// before the blend is gone. A rounded `overflow` clip layer above the
-    /// backdrop root, and a group that holds fixed content, take the
-    /// general path.
-    fn blend_image_group(
-        &mut self,
-        items: &[DisplayItem],
-        range: std::ops::Range<usize>,
-        images: &dyn ImageSource,
-    ) -> Option<usize> {
-        let DisplayItem::PushOpacity {
-            opacity,
-            blend,
-            fixed_bounds: None,
-            escapes_clips: false,
-            ..
-        } = items.get(range.start)?
-        else {
-            return None;
-        };
-        if *blend == swb_style::MixBlendMode::Normal || opacity.is_nan() || *opacity <= 0.0 {
-            return None;
-        }
-        let (image_at, pop_at) = single_image_group(items, range)?;
-        if self.surface_rect().is_none() || self.has_clip_layer_above_root() {
-            return None;
-        }
-        let DisplayItem::Image {
-            image,
-            rect,
-            tile,
-            clip,
-        } = items.get(image_at)?
-        else {
-            return None;
-        };
-        self.image_blend = Some((blend_mode(*blend), opacity.min(1.0)));
-        if let Some(decoded) = images.image(image) {
-            self.decoded_image(decoded, images.vector_cache(), *rect, *tile, *clip);
-        }
-        self.image_blend = None;
-        Some(pop_at + 1)
-    }
-
     fn pop_layer(&mut self, images: &dyn ImageSource) {
         self.mask = None;
         let Some(mut layer) = self.layers.pop() else {
@@ -1457,7 +1356,7 @@ impl Rasterizer<'_> {
             return;
         }
         let device = self.to_device(rect);
-        if has_radius(radii) {
+        if has_rounded_corner(radii) {
             // Like Chromium, the box is snapped to device pixels also with
             // rounded corners; only the corners are anti-aliased.
             let device = snap(device);
@@ -1928,10 +1827,6 @@ fn subpixel_position(x: f32) -> (f32, u8) {
     } else {
         (floor, quarters as u8)
     }
-}
-
-fn has_radius(radii: &Radii) -> bool {
-    radii.iter().any(|(h, v)| *h > 0.0 || *v > 0.0)
 }
 
 fn scale_radii(radii: &Radii, s: f32) -> Radii {

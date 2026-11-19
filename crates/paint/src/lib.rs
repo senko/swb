@@ -30,6 +30,7 @@ mod media;
 mod path_cost;
 mod raster;
 mod reduce;
+mod resize_handle;
 mod rope;
 mod scroll_indicator;
 mod svg;

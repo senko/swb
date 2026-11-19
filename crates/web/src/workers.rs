@@ -63,9 +63,8 @@ impl g::worker::WorkerImpl for WebState {
             )));
         }
         let first = {
-            let made = &mut state_mut(cx.rt)?.doc.workers_made;
-            *made = made.saturating_add(1);
-            *made == 1
+            let warned = &mut state_mut(cx.rt)?.doc.warned_no_workers;
+            !std::mem::replace(warned, true)
         };
         if first {
             log::warn!(

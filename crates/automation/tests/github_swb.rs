@@ -88,7 +88,9 @@ mod common;
 use std::sync::Arc;
 use std::time::Duration;
 
-use common::{Recording, fixture, load_at_capture_with, on_page_thread, step_groups, value};
+use common::{
+    PIXEL_TOLERANCE, Recording, fixture, load_at_capture_with, on_page_thread, step_groups, value,
+};
 use serde_json::Value;
 use swb_automation::run_steps;
 use swb_engine::{ConsoleLevel, Page};
@@ -122,10 +124,6 @@ const RECTANGLES: &[&str] = &[
 
 /// The largest difference in px between two rectangle values.
 const TOLERANCE: i64 = 1;
-
-/// The largest difference of a color channel between swb's pixel and
-/// Chromium's. The points are in flat areas, on borders and on icons.
-const PIXEL_TOLERANCE: i32 = 12;
 
 /// The path of the request whose 404 Chromium logs.
 const PAYLOADS: &str = "https://github.com/_global-navigation/payloads.json";

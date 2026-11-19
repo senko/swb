@@ -318,9 +318,9 @@ pub(crate) struct DocState {
     pub(crate) printing: bool,
     /// The dialogs counted for the log (`dialogs.rs`).
     pub(crate) dialogs_logged: u32,
-    /// The `Worker` objects that scripts made (`workers.rs`; the first one
-    /// is logged as a warning).
-    pub(crate) workers_made: u32,
+    /// Whether the first `Worker` that a script made was logged as a
+    /// warning (`workers.rs`).
+    pub(crate) warned_no_workers: bool,
     /// The window's `Location` and `History` objects, made at the first
     /// access, and the deserialized `history.state` (`location.rs`).
     pub(crate) location: Option<Gc<Object>>,

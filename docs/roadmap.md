@@ -5523,7 +5523,7 @@ Features, in this order. Each ends with a review and a commit.
 Not in M11 (backlog): incremental layout, a raster cache for scrolling
 (tiles), image decoding on other threads, CSS transitions and animations.
 
-## M12: OpenStreetMap (Zagreb, Ban Jelačić Square)
+## M12: OpenStreetMap (Zagreb, Ban Jelačić Square) — done
 
 Owner decisions (2026-11-17, ground rules): the target is
 <https://www.openstreetmap.org/?mlat=45.813114&mlon=15.976390#map=16/45.81308/15.97721>
@@ -5847,6 +5847,26 @@ Steps:
       10 s timeout on the URL reads, and the rule for two releases within
       0.4 s.
 
+      Then the end-of-milestone maintenance. Done 2026-11-19: two
+      read-only reviews (scripts, engine, net, automation and tools;
+      style, layout, paint and docs) listed 39 items and no bug. One
+      implementer session applied 34: a shared harness for the probe-case
+      tests of `crates/automation/tests` (`tests/common`) and one
+      `PIXEL_TOLERANCE`; `swbtools.records` for what the OSM and GitHub
+      records tools shared; the six position constants of `attr_node.rs`
+      from `swb_dom::position`; shorter `run_step` and `check`; the
+      blend code in `raster/blend.rs`, the group code of the display list
+      builder in `builder/groups.rs`, the background areas in
+      `background.rs`, the resize handle in `resize_handle.rs`, the
+      border and blend raster tests in their own files; one
+      `has_rounded_corner` (the rasterizer now also treats a corner with
+      one zero radius as square, as the builder did and CSS Backgrounds 3
+      §5.5 says; no page of the set has one); architecture.md (blend
+      groups, `composite.rs`, the snapping of rounded boxes), ADR 0043
+      and a "historical record" line in `docs/osm-diagnosis.md`. The
+      JS-off snapshot is identical and `compare --all --js` gives the same
+      scores.
+
    What "works" means (owner decisions of 2026-11-17), on the
    `osm-zagreb` fixture with JavaScript on, logged out, 1280 x 800:
 
@@ -5924,6 +5944,19 @@ Steps:
 - `swbtools gui-latency` (feature 1): no screenshot during a trace (feature
   5 added the URL reads of `--urls`); 8 to 10 of the 11 wheel notches of
   `osm-map` request no frame at once (Leaflet's own debounce).
+- Maintenance (M12, not done): the split of `tools/osm_zagreb_records.py`
+  (1,231 lines: steps, points, the swb runner; its tests load it by path);
+  one tokenizer for `path_numbers` (`osm_zagreb.rs`) and `common::numbers`
+  (they differ in the sign rule); `run_swb_steps` of the OSM tool and
+  `swb.run` (the first streams timed output with a kill timer); a
+  `has_blend` flag on `DisplayList` for the frame layer (the item list is
+  public and built in 24 places, so a flag could go stale); one parse of
+  `viewBox` (svgtypes rejects a zero size, which must disable rendering);
+  the cases of `tools/probes/svg-symbol.json` that belong to other
+  features (select, flex and grid).
+- Tests (M12): `script_location::at_most_sixty_four_traversals_wait_and_reloads_are_one`
+  (engine) failed once in two full `just check` runs under load (the
+  requests came in another order) and passed alone.
 - Raster (feature 5): the isolating layer of the OSM tile pane still costs
   about 2 ms of the 8.8 ms frame (a 1280 x 800 layer is allocated and
   cleared in each frame; a layer buffer kept across frames would remove

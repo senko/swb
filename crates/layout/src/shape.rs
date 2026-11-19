@@ -18,6 +18,13 @@ use crate::svg::{PathSegment, SvgPath, ellipse_segments, path_from_data, rounded
 /// bottom-right, bottom-left.
 pub type CornerRadii = [(f32, f32); 4];
 
+/// True if a corner is rounded: a corner with a zero radius in either
+/// direction is square (CSS Backgrounds 3 §5.5,
+/// <https://drafts.csswg.org/css-backgrounds-3/#corner-shaping>).
+pub fn has_rounded_corner(radii: &CornerRadii) -> bool {
+    radii.iter().any(|&(h, v)| h > 0.0 && v > 0.0)
+}
+
 /// A shape placed in a reference box.
 #[derive(Debug)]
 pub enum ShapeGeometry {
@@ -125,7 +132,7 @@ fn rounded_rect(rect: Rect, radii: Option<&CornerRadii>) -> ShapeGeometry {
     if !(rect.width > 0.0 && rect.height > 0.0) {
         return ShapeGeometry::Empty;
     }
-    let Some(radii) = radii.filter(|r| r.iter().any(|&(h, v)| h > 0.0 && v > 0.0)) else {
+    let Some(radii) = radii.filter(|r| has_rounded_corner(r)) else {
         return ShapeGeometry::Rect(rect);
     };
     match rounded_path(rect, radii) {

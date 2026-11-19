@@ -23,7 +23,7 @@
 
 use swb_dom::NodeId;
 use swb_layout::{Point, Rect};
-use swb_style::Rgba;
+use swb_style::{MixBlendMode, Rgba};
 use swb_text::FontContext;
 
 use super::{ImageSource, LayerKind, NewLayer, Rasterizer, snap};
@@ -123,7 +123,7 @@ impl Rasterizer<'_> {
         };
         let isolate = content.list.items.iter().any(|item| {
             matches!(item, DisplayItem::PushOpacity { blend, .. }
-                if *blend != swb_style::MixBlendMode::Normal)
+                if *blend != MixBlendMode::Normal)
         });
         if isolate {
             self.push_layer(NewLayer::new(rect, LayerKind::Opacity));

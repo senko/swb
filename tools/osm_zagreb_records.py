@@ -82,7 +82,9 @@ from typing import Any
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[1]
+from swbtools.records import ROOT, load_json, run_replay, write_json
+from swbtools.replay import DEFAULT_PAUSE_MS
+
 FIXTURE = "osm-zagreb"
 URL = "https://www.openstreetmap.org/?mlat=45.813114&mlon=15.976390#map=16/45.81308/15.97721"
 RUNS = 3
@@ -773,35 +775,6 @@ def merge_node(source: Path) -> None:
     print(f"{len(NODE_URLS)} entries merged from {source}")
 
 
-def format_json(value: Any, level: int = 0) -> str:
-    """JSON text with one space of indent per level. A list of numbers,
-    strings and other scalars that fits on one line of 160 columns takes one
-    line (rectangles, points, colors); other lists and objects take a line
-    for each item."""
-    pad = " " * (level + 1)
-    if isinstance(value, dict):
-        if not value:
-            return "{}"
-        items = [
-            f"{pad}{json.dumps(key, ensure_ascii=False)}: {format_json(item, level + 1)}"
-            for key, item in value.items()
-        ]
-        return "{\n" + ",\n".join(items) + "\n" + " " * level + "}"
-    if isinstance(value, list):
-        if not value:
-            return "[]"
-        flat = json.dumps(value, ensure_ascii=False)
-        if not any(isinstance(item, (dict, list)) for item in value) and len(flat) <= 160:
-            return flat
-        items = [pad + format_json(item, level + 1) for item in value]
-        return "[\n" + ",\n".join(items) + "\n" + " " * level + "]"
-    return json.dumps(value, ensure_ascii=False)
-
-
-def write_json(path: Path, value: Any) -> None:
-    path.write_text(format_json(value) + "\n", encoding="utf-8")
-
-
 def step_groups(sequence: str = "full") -> list[dict[str, Any]]:
     """The groups of a sequence (`all_step_groups` without the groups that the
     sequence leaves out)."""
@@ -824,11 +797,8 @@ def replay_once(out: Path, work: Path, sequence: str, run: int, extra: list[str]
     cmd += ["--steps", str(data_file(out, sequence, "steps"))]
     cmd += ["--setup", str(out / "osm-zagreb.js"), "--record", "window.__o()"]
     cmd += ["--out", str(records)]
-    result = subprocess.run(cmd + extra, cwd=ROOT, capture_output=True, text=True, check=False)
-    (work / f"run{run}.log").write_text(result.stderr, encoding="utf-8")
-    if result.returncode != 0:
-        sys.exit(f"replay failed (see {work / f'run{run}.log'}):\n{result.stderr[-2000:]}")
-    return json.loads(records.read_text(encoding="utf-8"))
+    run_replay(cmd + extra, work / f"run{run}.log")
+    return load_json(records)
 
 
 def differences(first: list[Any], second: list[Any]) -> list[str]:
@@ -910,7 +880,7 @@ def write_records(out: Path, work: Path, sequence: str) -> None:
         extra += ["--console-out", str(work / f"run{run}-console.txt")]
         extra += ["--screenshots", str(work / f"shots{run}")]
         runs.append(replay_once(out, work, sequence, run, extra))
-        found = json.loads((work / f"run{run}-missing.json").read_text(encoding="utf-8"))
+        found = load_json(work / f"run{run}-missing.json")
         missing.append(mask_missing(found))
         console.append(page_console((work / f"run{run}-console.txt").read_text(encoding="utf-8")))
     diff = [d for other in runs[1:] for d in differences(runs[0], other)]
@@ -932,7 +902,7 @@ def write_points(out: Path, work: Path, sequence: str) -> None:
     """Writes the pixel points and the colors at them (`osm-zagreb-pixel-points.json`
     and `osm-zagreb-pixels.json`) from the three runs of `records`."""
     work = work_dir(work, sequence)
-    records = json.loads(data_file(out, sequence, "chromium").read_text(encoding="utf-8"))
+    records = load_json(data_file(out, sequence, "chromium"))
     labels = ["load", *(g["name"] for g in step_groups(sequence))]
     shot_dirs = [work / f"shots{run}" for run in range(RUNS)]
     spec, colors = choose_points(shot_dirs, records, labels)
@@ -946,8 +916,8 @@ def short(value: Any) -> str:
 
 
 def summary(out: Path, sequence: str) -> None:
-    records = json.loads(data_file(out, sequence, "chromium").read_text(encoding="utf-8"))
-    missing = json.loads(data_file(out, sequence, "missing").read_text(encoding="utf-8"))
+    records = load_json(data_file(out, sequence, "chromium"))
+    missing = load_json(data_file(out, sequence, "missing"))
     names = ["load", *(g["name"] for g in step_groups(sequence))]
     print(
         "| # | group | hash | tiles | base+overlays | right pane | left sidebar | rows | paths"
@@ -971,7 +941,6 @@ def summary(out: Path, sequence: str) -> None:
 # One `swb` run: the pause after each step (the pause of `replay`, in page
 # time), the cap of the whole run, and the log levels (the `screenshot` step
 # logs at `info` so that the log has a mark per group).
-PAUSE_MS = 300
 SWB_TIMEOUT_S = 1800
 SWB_LOG_FILTER = "warn,swb_automation::steps=info"
 SCREENSHOT_LINE = re.compile(r"screenshot \S*?(\d{3})-[^/\s]*\.png")
@@ -988,13 +957,12 @@ def swb_steps(
     record = {"record": "window.__o()"}
 
     def shot(number: int, name: str) -> dict[str, Any]:
-        safe = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-        return {"screenshot": str(shots / f"{number:03d}-{safe}.png")}
+        return {"screenshot": str(shots / screenshot_name(number, name))}
 
     steps: list[dict[str, Any]] = [{"eval": RECORD_JS}, record, shot(0, "load")]
     for number, one in enumerate(groups, 1):
         for step in [] if number in skip else one["steps"]:
-            steps += [step, {"wait": PAUSE_MS}]
+            steps += [step, {"wait": DEFAULT_PAUSE_MS}]
         steps += [record, shot(number, one["name"])]
     return steps
 
@@ -1053,17 +1021,12 @@ def swb_command(binary: Path, fixture: Path, steps: list[dict[str, Any]]) -> lis
     """The command line of one run (the options of `compare --js`)."""
     from swbtools.compare import swb_js_options
     from swbtools.pages import read_meta
+    from swbtools.swb import replay_options
 
     meta = read_meta(fixture)
     width, height = meta.viewport
     return [
-        str(binary),
-        "--headless",
-        "--replay",
-        str(fixture),
-        "--test-fonts",
-        "--size",
-        f"{width}x{height}",
+        *replay_options(binary, fixture, (width, height)),
         *swb_js_options(True, meta.captured),
         "--steps",
         json.dumps(steps),
@@ -1119,7 +1082,7 @@ def run_swb_groups(
     lines, status = run_swb_steps(command, out / "swb-log.txt")
     records, arrival = parse_answers(lines)
     names = ["load", *(g["name"] for g in groups)]
-    expected = json.loads(chromium.read_text(encoding="utf-8"))
+    expected = load_json(chromium)
     diffs = [field_differences(e, a) for e, a in zip(expected, records, strict=False)]
     seconds = [round(b - a, 3) for a, b in zip([0.0, *arrival], arrival, strict=False)]
     log_groups = split_log((out / "swb-log.txt").read_text(encoding="utf-8"))
@@ -1144,8 +1107,8 @@ def pixel_diff(out: Path, work: Path, sequence: str) -> None:
     from PIL import Image
 
     work = work_dir(work, sequence)
-    spec = json.loads(data_file(out, sequence, "pixel-points").read_text(encoding="utf-8"))
-    colors = json.loads(data_file(out, sequence, "pixels").read_text(encoding="utf-8"))
+    spec = load_json(data_file(out, sequence, "pixel-points"))
+    colors = load_json(data_file(out, sequence, "pixels"))
     found: dict[str, list[dict[str, Any]]] = {}
     for number, label in enumerate(spec["groups"]):
         with Image.open(work / "swb-shots" / screenshot_name(number, label)) as image:

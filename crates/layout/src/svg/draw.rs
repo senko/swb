@@ -40,7 +40,8 @@ use swb_style::{
 use super::clip::{ClipEnv, ClipRegion, MAX_CLIP_SHAPES, rect_region, resolve};
 use super::path::{self, SvgPath};
 use super::{
-    Geometry, Group, Node, Shape, SvgContent, SymbolView, resolve_point, view_box_transform,
+    Geometry, Group, GroupKind, Node, Shape, SvgContent, SymbolView, resolve_point,
+    view_box_transform,
 };
 use crate::geom::{Matrix, Point, Rect, Size, clamp_length};
 use crate::positioned::style_transform;
@@ -484,7 +485,7 @@ fn close_group(out: &mut [Resolved], open: &mut [Open], frame: &Open, content: &
         return;
     };
     // The translation group of a `use` tells the `use` where it is.
-    if group.offset.is_some() {
+    if matches!(group.kind, GroupKind::UseOffset(_)) {
         top.offset = Some(r.own);
     }
     if let Some(b) = r.bbox {
@@ -537,19 +538,22 @@ struct SymbolSpace {
 /// `use` element, or the `transform`, position and `viewBox` transform of
 /// a symbol instance; for the last, also its [`SymbolSpace`].
 fn group_transform(group: &Group, space: &Space) -> (Matrix, Option<SymbolSpace>) {
-    if let Some((x, y)) = &group.offset {
-        let m = Matrix::translate(
-            x.resolve(space.viewport.width),
-            y.resolve(space.viewport.height),
-        );
-        return (m, None);
-    }
-    if let Some(view) = &group.view {
-        let transform = group
-            .style
-            .as_ref()
-            .map(|style| own_transform(&Matrix::IDENTITY, style, space.reference));
-        return symbol_transform(view, transform.unwrap_or(Matrix::IDENTITY), space);
+    match &group.kind {
+        GroupKind::UseOffset((x, y)) => {
+            let m = Matrix::translate(
+                x.resolve(space.viewport.width),
+                y.resolve(space.viewport.height),
+            );
+            return (m, None);
+        }
+        GroupKind::Symbol(view) => {
+            let transform = group
+                .style
+                .as_ref()
+                .map(|style| own_transform(&Matrix::IDENTITY, style, space.reference));
+            return symbol_transform(view, transform.unwrap_or(Matrix::IDENTITY), space);
+        }
+        GroupKind::Plain => {}
     }
     let m = match &group.style {
         Some(style) => own_transform(&Matrix::IDENTITY, style, space.reference),
@@ -604,7 +608,9 @@ fn symbol_transform(
 /// the content is clipped; an empty one hides the content whatever the
 /// `overflow` (a size of zero disables rendering, SVG 2 §5.6).
 fn view_clip(group: &Group, r: &Resolved) -> Option<ClipRegion> {
-    let view = group.view.as_ref()?;
+    let GroupKind::Symbol(view) = &group.kind else {
+        return None;
+    };
     let (matrix, rect) = r.view_rect.as_ref()?;
     let empty = !(rect.width > 0.0 && rect.height > 0.0);
     (view.clip || empty).then(|| rect_region(matrix, *rect))
@@ -672,8 +678,7 @@ fn draw_shape(shape: &Shape, r: &Resolved, folded: f32, out: &mut Vec<SvgDrawIte
     );
     let opacity = style.opacity;
     // With one paint, the opacity multiplies its alpha; with two, the
-    // shape is a group.
-    // A shape with a `mix-blend-mode` is a group too.
+    // shape is a group. A shape with a `mix-blend-mode` is a group too.
     let blend = style.mix_blend_mode;
     let two = opacity < 1.0 && fill.is_some() && stroke.is_some();
     let layer = shape.layered && (two || blend != MixBlendMode::Normal);

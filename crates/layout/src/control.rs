@@ -192,16 +192,41 @@ const CHECKBOX_SIZE: f32 = 13.0;
 /// The width that Chromium reserves for the scroll bar of a text area.
 const SCROLLBAR_WIDTH: f32 = 15.0;
 
-/// The space around the label of a select: left, right (with the arrow),
-/// top and bottom.
-const SELECT_PADDING: (f32, f32, f32, f32) = (4.0, 16.0, 1.0, 1.0);
+/// The space around the label of a select.
+#[derive(Clone, Copy)]
+struct SelectPadding {
+    left: f32,
+    /// Includes the arrow.
+    right: f32,
+    top: f32,
+    bottom: f32,
+}
+
+impl SelectPadding {
+    fn vertical(self) -> f32 {
+        self.top + self.bottom
+    }
+}
+
+/// The space around the label of a select with `appearance: auto`.
+const SELECT_PADDING: SelectPadding = SelectPadding {
+    left: 4.0,
+    right: 16.0,
+    top: 1.0,
+    bottom: 1.0,
+};
 
 /// The space around the label of the select with `style`: none with
 /// `appearance: none`, where only the CSS padding counts (measured in
 /// Chromium 148, `tools/probes/svg-symbol.json`, cases `select-*`).
-fn select_padding(style: &ComputedStyle) -> (f32, f32, f32, f32) {
+fn select_padding(style: &ComputedStyle) -> SelectPadding {
     if style.appearance == Appearance::None {
-        (0.0, 0.0, 0.0, 0.0)
+        SelectPadding {
+            left: 0.0,
+            right: 0.0,
+            top: 0.0,
+            bottom: 0.0,
+        }
     } else {
         SELECT_PADDING
     }
@@ -340,7 +365,7 @@ pub(crate) fn content_sizes(
         (ControlKind::TextArea { cols, .. }, _) => text_area_width(ctx, style, *cols),
         (ControlKind::Checkbox | ControlKind::Radio, _) => checkbox_content_size(style, true),
         (ControlKind::Select, _) => {
-            options_width(ctx, style, &control.control.options, true) + pad.0 + pad.1
+            options_width(ctx, style, &control.control.options, true) + pad.left + pad.right
         }
         (ControlKind::Button, ControlContents::Text { ifc, style }) => {
             inline::content_sizes(ctx, ifc, style).max
@@ -395,8 +420,8 @@ fn fitted_width(ctx: &mut LayoutContext<'_>, style: &ComputedStyle, control: &Co
                 style,
                 std::slice::from_ref(&control.control.text),
                 false,
-            ) + pad.0
-                + pad.1
+            ) + pad.left
+                + pad.right
         }
         _ => 0.0,
     }
@@ -451,7 +476,7 @@ pub(crate) fn layout(
     let kind = control.control.kind;
     let pad = select_padding(style);
     let text_width = match kind {
-        ControlKind::Select => (content_width - pad.0 - pad.1).max(0.0),
+        ControlKind::Select => (content_width - pad.left - pad.right).max(0.0),
         _ => content_width,
     };
     let container = layout_container(ctx, base, control, content_width, content_height, cb);
@@ -536,8 +561,8 @@ fn intrinsic_height(
             clamp_length(rows as f32 * line_height(ctx, style))
         }
         (ControlKind::Checkbox | ControlKind::Radio, _) => checkbox_content_size(style, false),
-        (ControlKind::Select, Some((true, _))) => pad.2 + pad.3,
-        (ControlKind::Select, _) => inner_height + pad.2 + pad.3,
+        (ControlKind::Select, Some((true, _))) => pad.vertical(),
+        (ControlKind::Select, _) => inner_height + pad.top + pad.bottom,
         _ => inner_height,
     }
 }
@@ -554,7 +579,10 @@ fn content_position(
     let pad = select_padding(style);
     match kind {
         ControlKind::TextArea { .. } => (0.0, 0.0),
-        ControlKind::Select => (pad.0, pad.2 + (height - pad.2 - pad.3 - inner_height) / 2.0),
+        ControlKind::Select => (
+            pad.left,
+            pad.top + (height - pad.top - pad.bottom - inner_height) / 2.0,
+        ),
         _ => (0.0, (height - inner_height) / 2.0),
     }
 }

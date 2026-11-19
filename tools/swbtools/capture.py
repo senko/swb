@@ -37,7 +37,8 @@ from swbtools.manifest import FILES_DIR, MANIFEST_FILE, Fixture
 from swbtools.pages import META_FILE, REFERENCE_DIR, FixtureMeta, read_meta, write_meta
 from swbtools.probe import run_steps
 from swbtools.probe_cases import ProbeError
-from swbtools.replay import DEFAULT_PAUSE_MS, read_group_names, read_groups
+from swbtools.replay import DEFAULT_PAUSE_MS
+from swbtools.replay import read_step_groups as read_named_groups
 from swbtools.routing import Recorder
 
 log = logging.getLogger(__name__)
@@ -53,8 +54,7 @@ class StepGroup:
 
 def read_step_groups(path: Path) -> list[StepGroup]:
     """Reads a steps file (the format of `replay --steps`)."""
-    names = read_group_names(path)
-    return [StepGroup(name, steps) for name, steps in zip(names, read_groups(path), strict=True)]
+    return [StepGroup(name, steps) for name, steps in read_named_groups(path)]
 
 
 JS_SCROLL_STEPS = 60

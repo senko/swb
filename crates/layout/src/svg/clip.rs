@@ -515,12 +515,11 @@ pub(super) fn rect_region(matrix: &Matrix, rect: Rect) -> ClipRegion {
     if axis_aligned(matrix) {
         return ClipRegion::Rect(matrix.map_rect(&rect));
     }
-    let corner = |x: f32, y: f32| Point::new(x, y);
     let path = SvgPath::from_segments(&[
-        PathSegment::MoveTo(corner(rect.x, rect.y)),
-        PathSegment::LineTo(corner(rect.right(), rect.y)),
-        PathSegment::LineTo(corner(rect.right(), rect.bottom())),
-        PathSegment::LineTo(corner(rect.x, rect.bottom())),
+        PathSegment::MoveTo(Point::new(rect.x, rect.y)),
+        PathSegment::LineTo(Point::new(rect.right(), rect.y)),
+        PathSegment::LineTo(Point::new(rect.right(), rect.bottom())),
+        PathSegment::LineTo(Point::new(rect.x, rect.bottom())),
         PathSegment::Close,
     ]);
     match path {

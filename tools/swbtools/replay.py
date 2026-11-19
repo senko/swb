@@ -76,29 +76,31 @@ REPLAY_TIMEOUT_S = 600
 answers would block the command (`page.evaluate` has no timeout)."""
 
 
-def read_groups(path: Path) -> list[tuple[dict[str, Any], ...]]:
+def read_step_groups(path: Path) -> list[tuple[str, tuple[dict[str, Any], ...]]]:
     """Reads a steps file: a JSON list of step groups. A group is a list of
     steps, or an object `{"name": ..., "steps": [...]}` (the name is for
-    people; a record is written for each group)."""
+    people; a record is written for each group). Returns the name of each
+    group (`group N` for a group without a name) and its steps."""
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, list):
         raise ProbeError(f"{path}: the steps file is a list of groups")
     groups = []
     for number, item in enumerate(data, 1):
         steps = item.get("steps") if isinstance(item, dict) else item
-        groups.append(parse_steps(steps, f"{path}, group {number}"))
+        name = item.get("name") if isinstance(item, dict) else None
+        name = name if isinstance(name, str) and name else f"group {number}"
+        groups.append((name, parse_steps(steps, f"{path}, group {number}")))
     return groups
 
 
+def read_groups(path: Path) -> list[tuple[dict[str, Any], ...]]:
+    """The steps of each group of a steps file (see `read_step_groups`)."""
+    return [steps for _, steps in read_step_groups(path)]
+
+
 def read_group_names(path: Path) -> list[str]:
-    """The names of the groups of a steps file (`group N` for a group
-    without a name), in order."""
-    data = json.loads(path.read_text(encoding="utf-8"))
-    names = []
-    for number, item in enumerate(data, 1):
-        name = item.get("name") if isinstance(item, dict) else None
-        names.append(name if isinstance(name, str) and name else f"group {number}")
-    return names
+    """The names of the groups of a steps file, in order."""
+    return [name for name, _ in read_step_groups(path)]
 
 
 Observer = Callable[[str, Page], Awaitable[None]]
@@ -287,8 +289,9 @@ def replay_command(
     the module comment; `missing_out` gets the URLs that the fixture lacks
     per record (`[{"label": "load", "missing": [...]}, ...]`); `chromium_args`
     are flags for Chromium's launch (`--chromium-arg`)."""
-    groups = read_groups(steps)
-    names = read_group_names(steps)
+    named = read_step_groups(steps)
+    groups = [group for _, group in named]
+    names = [name for name, _ in named]
     setup_text = setup.read_text(encoding="utf-8") if setup else ""
     if (pixels is None) != (pixels_out is None):
         log.error("--pixels and --pixels-out go together")

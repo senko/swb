@@ -77,17 +77,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use common::{Recording, fixture, load_at_capture_with, on_page_thread, step_groups, value};
+use common::{
+    PIXEL_TOLERANCE, Recording, fixture, load_at_capture_with, on_page_thread, step_groups, value,
+};
 use serde_json::{Value, json};
 use swb_automation::run_steps;
 use swb_engine::{ConsoleLevel, Page};
 use swb_net::ReplayFetcher;
-
-/// The largest difference of a color channel between swb's pixel and
-/// Chromium's. The points are flat in Chromium (one color in a 7 x 7 square,
-/// in all runs): the tolerance covers the rounding of blends, not the anti-
-/// aliasing of text.
-const PIXEL_TOLERANCE: i32 = 12;
 
 /// The largest difference, in CSS px, of a coordinate or a size in the
 /// `rects` of a record. Chromium and swb agree to the rounding of the record
@@ -531,6 +527,39 @@ fn missing_urls(fetcher: &Recording, seen: usize) -> Vec<String> {
         .collect()
 }
 
+/// The problem of a group with the URLs that the fixture lacked since the
+/// record before: they must be the URLs that it lacked in Chromium's run.
+fn missing_problems(
+    label: &str,
+    fetcher: &Recording,
+    seen: &mut usize,
+    want: &Value,
+) -> Option<String> {
+    let found = missing_urls(fetcher, *seen);
+    *seen = fetcher.missing_count();
+    let want_urls: Vec<String> = serde_json::from_value(want["missing"].clone()).unwrap();
+    assert_eq!(want["label"], label);
+    (found != want_urls).then(|| {
+        format!("{label}: URLs that the fixture lacks: swb {found:?} != Chromium {want_urls:?}")
+    })
+}
+
+/// The pixel differences of a group, without those that a departure
+/// accepts.
+fn pixel_problems(
+    label: &str,
+    page: &mut Page,
+    points: &[common::Point],
+    pixels: &Value,
+    departures: &mut Departures,
+) -> Vec<String> {
+    common::pixel_mismatches(label, page, points, pixels, PIXEL_TOLERANCE)
+        .into_iter()
+        .filter(|(name, _)| !departures.accepts_point(name))
+        .map(|(_, message)| message)
+        .collect()
+}
+
 fn check(sequence: &Sequence, dir: &std::path::Path) {
     let started = Instant::now();
     let expected: Vec<Value> = serde_json::from_str(sequence.chromium).unwrap();
@@ -572,30 +601,21 @@ fn check(sequence: &Sequence, dir: &std::path::Path) {
             &expected[number],
             &mut departures,
         ));
-        // The URLs that the fixture lacked since the record before.
-        let found = missing_urls(&fetcher, seen_missing);
-        seen_missing = fetcher.missing_count();
-        let want: Vec<String> = serde_json::from_value(missing[number]["missing"].clone()).unwrap();
-        assert_eq!(missing[number]["label"], label.as_str());
-        if found != want {
-            problems.push(format!(
-                "{label}: URLs that the fixture lacks: swb {found:?} != Chromium {want:?}"
-            ));
-        }
+        problems.extend(missing_problems(
+            label,
+            &fetcher,
+            &mut seen_missing,
+            &missing[number],
+        ));
         if let Some(at) = pixel_groups.iter().position(|g| g == label) {
-            let mismatches = common::pixel_mismatches(
+            let pixels = &pixels[label.as_str()];
+            problems.extend(pixel_problems(
                 label,
                 &mut page,
                 &points[at],
-                &pixels[label.as_str()],
-                PIXEL_TOLERANCE,
-            );
-            problems.extend(
-                mismatches
-                    .into_iter()
-                    .filter(|(name, _)| !departures.accepts_point(name))
-                    .map(|(_, message)| message),
-            );
+                pixels,
+                &mut departures,
+            ));
             sampled += 1;
         }
     }

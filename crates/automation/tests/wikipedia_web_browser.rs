@@ -133,7 +133,9 @@ mod common;
 
 use std::time::Duration;
 
-use common::{console_errors, fixture, load_at_capture, on_page_thread, step_groups, value};
+use common::{
+    PIXEL_TOLERANCE, console_errors, fixture, load_at_capture, on_page_thread, step_groups, value,
+};
 use serde_json::Value;
 use swb_automation::run_steps;
 use swb_engine::Page;
@@ -155,11 +157,6 @@ const RECTANGLES: &[&str] = &[
 /// size, the collapsible tables 5,700 px down the page are 3 px off
 /// (backlog in `docs/roadmap.md`).
 const TOLERANCE: i64 = 3;
-
-/// The largest difference of a color channel between swb's pixel and
-/// Chromium's. The points are in flat areas, in the edges of the wordmark
-/// (anti-aliased, equal within 6) and in gradients (within 3).
-const PIXEL_TOLERANCE: i32 = 12;
 
 #[test]
 fn numbers_in_rectangle_texts() {

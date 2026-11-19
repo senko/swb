@@ -509,6 +509,20 @@ pub enum Hit {
     },
 }
 
+impl DisplayItem {
+    /// A `PushOpacity` item with empty bounds (`group_bounds` fills them
+    /// in) and no content fixed to the viewport.
+    pub(crate) fn opacity_group(opacity: f32, blend: swb_style::MixBlendMode) -> DisplayItem {
+        DisplayItem::PushOpacity {
+            opacity,
+            blend,
+            bounds: Rect::default(),
+            fixed_bounds: None,
+            escapes_clips: false,
+        }
+    }
+}
+
 impl DisplayList {
     /// The node of the topmost hit region at `point` (document coordinates,
     /// CSS px) that is not clipped away, at the viewport scroll offset

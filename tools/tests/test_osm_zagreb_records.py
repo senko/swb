@@ -7,6 +7,8 @@ import json
 import sys
 from pathlib import Path
 
+from swbtools.records import format_json
+
 SCRIPT = Path(__file__).resolve().parents[1] / "osm_zagreb_records.py"
 spec = importlib.util.spec_from_file_location("osm_zagreb_records", SCRIPT)
 assert spec is not None and spec.loader is not None
@@ -29,9 +31,9 @@ def test_the_step_list_has_a_record_and_a_screenshot_after_every_group(tmp_path)
     # A pause follows each step of the groups.
     assert steps[3:9] == [
         {"click": ".a"},
-        {"wait": records.PAUSE_MS},
+        {"wait": records.DEFAULT_PAUSE_MS},
         {"wait": 10},
-        {"wait": records.PAUSE_MS},
+        {"wait": records.DEFAULT_PAUSE_MS},
         {"record": "window.__o()"},
         steps[8],
     ]
@@ -159,7 +161,7 @@ def test_the_sequences_differ_in_one_group():
 
 def test_json_puts_a_list_of_scalars_on_one_line():
     value = {"rects": [["a", 0, 1.5, 2, 3, 4], ["b", 1, 0, 0, 5, 6]], "color": [1, 2, 3], "e": []}
-    text = records.format_json(value)
+    text = format_json(value)
     assert json.loads(text) == value
     assert '["a", 0, 1.5, 2, 3, 4],' in text and '"color": [1, 2, 3],' in text
 

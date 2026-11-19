@@ -234,6 +234,12 @@ impl Entry {
             self.request_body.clone(),
         )
     }
+
+    /// The URL and method: the entries of one group differ in the request
+    /// body only.
+    pub(crate) fn group_key(&self) -> (String, String) {
+        (self.url.clone(), self.method.clone())
+    }
 }
 
 /// Returns the `request_body` value for a request body: the first 16
@@ -425,12 +431,10 @@ pub(crate) fn write_manifest<'a>(
     // A group of one entry needs no request body hash.
     let mut groups: HashMap<(String, String), usize> = HashMap::new();
     for entry in &entries {
-        *groups
-            .entry((entry.url.clone(), entry.method.clone()))
-            .or_default() += 1;
+        *groups.entry(entry.group_key()).or_default() += 1;
     }
     for entry in &mut entries {
-        if groups.get(&(entry.url.clone(), entry.method.clone())) == Some(&1) {
+        if groups.get(&entry.group_key()) == Some(&1) {
             entry.request_body = None;
         }
     }

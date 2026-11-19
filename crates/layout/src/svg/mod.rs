@@ -50,9 +50,9 @@
 //! proportion to their area, so a document has at most [`MAX_LAYERS`] of
 //! them. Past the limit, the opacity multiplies the alpha of each paint
 //! inside instead, which differs where shapes overlap. An element with a
-//! `mix-blend-mode` is a layer too, and has no blend past the limit. A group that holds
-//! one shape with one paint needs no layer (the result is the same) and
-//! does not count. Clips that need a layer have their own limit,
+//! `mix-blend-mode` is a layer too, and has no blend past the limit. A
+//! group that holds one shape with one paint needs no layer (the result
+//! is the same) and does not count. Clips that need a layer have their own limit,
 //! [`MAX_CLIP_LAYERS`].
 
 mod clip;
@@ -144,10 +144,19 @@ struct Group {
     node: Option<NodeId>,
     /// The clip path.
     clip: Option<Arc<ClipDef>>,
-    /// The `x` and `y` of a `use` element: the translation group.
-    offset: Option<(LengthPercentage, LengthPercentage)>,
-    /// For the instance of a `symbol`: the viewport it establishes.
-    view: Option<SymbolView>,
+    /// What the group does besides its style.
+    kind: GroupKind,
+}
+
+/// The special kinds of group: a group has at most one of them.
+#[derive(Debug, PartialEq)]
+enum GroupKind {
+    /// A plain group (`g`, `a`, the copy of an element that a `use` draws).
+    Plain,
+    /// The translation by the `x` and `y` of a `use` element.
+    UseOffset((LengthPercentage, LengthPercentage)),
+    /// The instance of a `symbol`: the viewport it establishes.
+    Symbol(SymbolView),
 }
 
 /// The viewport of the instance of a `symbol` (SVG 2 §5.6, "The `symbol`
@@ -484,8 +493,7 @@ impl Builder<'_> {
             layer: false,
             node: self.dom_node(node),
             clip,
-            offset: None,
-            view: None,
+            kind: GroupKind::Plain,
         })));
         self.children(node, depth + 1);
         self.rotated = rotated;
@@ -539,16 +547,14 @@ impl Builder<'_> {
             layer: false,
             node: self.dom_node(node),
             clip,
-            offset: None,
-            view: None,
+            kind: GroupKind::Plain,
         })));
         self.nodes.push(Node::BeginGroup(Box::new(Group {
             style: None,
             layer: false,
             node: None,
             clip: None,
-            offset: Some(offset),
-            view: None,
+            kind: GroupKind::UseOffset(offset),
         })));
         if let Some(instance) = self.styles.use_instance(self.scope, node) {
             let target = self.styles.instance_target(instance);
@@ -640,8 +646,7 @@ impl Builder<'_> {
             layer: false,
             node: None,
             clip: None,
-            offset: None,
-            view: Some(view),
+            kind: GroupKind::Symbol(view),
         })));
         self.children(target, depth + 1);
         let empty = self.nodes.len() == start + 1;

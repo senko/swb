@@ -66,13 +66,9 @@ pub(crate) fn paint(
     let viewport = Rect::new(0.0, 0.0, content.width, content.height);
     for item in items {
         let next = match item {
-            SvgDrawItem::PushOpacity(opacity, blend) => DisplayItem::PushOpacity {
-                opacity: opacity.max(0.0),
-                blend,
-                bounds: Rect::default(),
-                fixed_bounds: None,
-                escapes_clips: false,
-            },
+            SvgDrawItem::PushOpacity(opacity, blend) => {
+                DisplayItem::opacity_group(opacity.max(0.0), blend)
+            }
             SvgDrawItem::PopOpacity => DisplayItem::PopOpacity,
             // A clip rectangle that contains the content box clips nothing
             // that the content box clip does not (the usual icon: a

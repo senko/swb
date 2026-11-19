@@ -266,8 +266,9 @@ pub struct ComputedStyle {
     /// `mix-blend-mode` (not inherited): the element and its descendants
     /// are a stacking context and blend with what is painted below.
     pub mix_blend_mode: MixBlendMode,
-    /// `resize` (not inherited): a box with a value other than `none` and
-    /// a scrollbar-less overflow (or a text area) shows a resize handle.
+    /// `resize` (not inherited): a box with a value other than `none` that
+    /// is a scroll container (`overflow` other than `visible` and `clip`)
+    /// or a text area shows a resize handle (`paint/src/scroll_indicator.rs`).
     pub resize: Resize,
     /// `scrollbar-width` (not inherited).
     pub scrollbar_width: ScrollbarWidth,

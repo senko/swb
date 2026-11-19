@@ -4,6 +4,21 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-19: M12 maintenance; end of M12
+
+- Two read-only reviews found 39 clean-ups and no bug or dead code; 34
+  are applied. Most are duplicates that two parts of one feature made:
+  the probe-case harness of three automation tests, the helpers of the
+  OSM and GitHub records tools, the "rounded corner" test in five places
+  with two meanings. The largest paint files lost their blend, group,
+  background and resize-handle code to their own modules.
+- The rasterizer now treats a corner with one zero radius as square, as
+  the display list builder and the spec already did; no page of the set
+  has such a corner, and the snapshot is identical.
+- M12 is done: the OpenStreetMap target works with JavaScript on and off
+  (roadmap "What works means", items 1 to 14), with one pixel departure
+  in the exit test. Next: the owner chooses the next milestone.
+
 ## 2026-11-19: M12 feature 5: exit measurement and the cost of blend groups
 
 - The exit items are met: swb reaches `load` in 0.20 s against a budget

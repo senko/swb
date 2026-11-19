@@ -87,7 +87,9 @@ pub use replaced::{DEFAULT_OBJECT_SIZE, NaturalSize};
 pub use scroll::{
     NoScroll, ScrollOffsets, ScrollState, clamp_scroll_offset, scroll_range, scrolling_area,
 };
-pub use shape::{CornerRadii, ShapeGeometry, box_geometry, rounded_path, shape_geometry};
+pub use shape::{
+    CornerRadii, ShapeGeometry, box_geometry, has_rounded_corner, rounded_path, shape_geometry,
+};
 
 use block::ContainingBlock;
 use box_tree::{BuildContext, InlineFormattingContext};

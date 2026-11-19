@@ -1,12 +1,110 @@
-//! Background image positioning and tiling (CSS Backgrounds 3 §2.6–2.9):
+//! The areas of a box's background (`BackgroundAreas`: the painting area,
+//! the color area and its corner radii) and the positioning and tiling of
+//! background images (CSS Backgrounds 3 §2.6–2.9):
 //! <https://www.w3.org/TR/css-backgrounds-3/#background-position> to
 //! <https://www.w3.org/TR/css-backgrounds-3/#background-size>; and the
 //! same sizing and positioning for the image of a replaced element
 //! (`object-fit` and `object-position`, CSS Images 3 §5.5–5.6:
 //! <https://www.w3.org/TR/css-images-3/#the-object-fit>).
 
-use swb_layout::{NaturalSize, Rect};
-use swb_style::{BackgroundRepeatKeyword, BackgroundSize, Length, ObjectFit, PositionComponent};
+use swb_layout::{BoxFragment, NaturalSize, Point, Rect, has_rounded_corner};
+use swb_style::{
+    BackgroundBox, BackgroundRepeatKeyword, BackgroundSize, BorderStyle, ComputedStyle, Length,
+    ObjectFit, PositionComponent, Rgba,
+};
+
+use crate::display_list::Radii;
+
+/// The areas that a background uses, in document coordinates.
+pub(crate) struct BackgroundAreas {
+    pub(crate) border: Rect,
+    pub(crate) padding: Rect,
+    pub(crate) painting: PaintingArea,
+}
+
+/// Where the layers of a background are painted.
+#[derive(Clone, Copy)]
+pub(crate) enum PaintingArea {
+    /// The box's own area that `background-clip` selects.
+    Own,
+    /// The canvas, for the root background. A gradient fills all of it.
+    Canvas(Rect),
+    /// A table cell, for the background of a row, row group, column or
+    /// column group: the layers are positioned in the part's areas and
+    /// painted in the cell (CSS 2.2 §17.5.1).
+    Cell(Rect),
+}
+
+impl BackgroundAreas {
+    pub(crate) fn of(b: &BoxFragment, origin: Point) -> Self {
+        BackgroundAreas {
+            border: b.border_rect.translate(origin),
+            padding: b.padding_rect().translate(origin),
+            painting: PaintingArea::Own,
+        }
+    }
+
+    pub(crate) fn area(&self, which: BackgroundBox) -> Rect {
+        match which {
+            BackgroundBox::BorderBox => self.border,
+            // `content-box` is painted as `padding-box` (not supported yet).
+            _ => self.padding,
+        }
+    }
+
+    /// The area and corner radii that the background color fills. A rounded
+    /// box whose four borders are solid and opaque keeps the color out of
+    /// the border area (Chromium shrinks the background so that its
+    /// anti-aliased edge does not show around the border): the padding box
+    /// with the inner radii.
+    pub(crate) fn color_area(
+        &self,
+        style: &ComputedStyle,
+        clip: BackgroundBox,
+        radii: Radii,
+    ) -> (Rect, Radii) {
+        let border = self.border;
+        let padding = self.padding;
+        let opaque = |kind: BorderStyle, color: Rgba| kind == BorderStyle::Solid && color.a == 255;
+        let sides = [
+            (style.border_top_style, style.border_top_color),
+            (style.border_right_style, style.border_right_color),
+            (style.border_bottom_style, style.border_bottom_color),
+            (style.border_left_style, style.border_left_color),
+        ];
+        let borders_hide_the_edge = clip == BackgroundBox::BorderBox
+            && has_rounded_corner(&radii)
+            && padding.x > border.x
+            && padding.y > border.y
+            && padding.right() < border.right()
+            && padding.bottom() < border.bottom()
+            && sides
+                .iter()
+                .all(|&(kind, color)| opaque(kind, color.resolve(style.color)));
+        if !borders_hide_the_edge {
+            return (self.painting_area(clip), radii);
+        }
+        let (top, right) = (padding.y - border.y, border.right() - padding.right());
+        let (bottom, left) = (border.bottom() - padding.bottom(), padding.x - border.x);
+        let inner = [
+            ((radii[0].0 - left).max(0.0), (radii[0].1 - top).max(0.0)),
+            ((radii[1].0 - right).max(0.0), (radii[1].1 - top).max(0.0)),
+            (
+                (radii[2].0 - right).max(0.0),
+                (radii[2].1 - bottom).max(0.0),
+            ),
+            ((radii[3].0 - left).max(0.0), (radii[3].1 - bottom).max(0.0)),
+        ];
+        (padding, inner)
+    }
+
+    pub(crate) fn painting_area(&self, clip: BackgroundBox) -> Rect {
+        match self.painting {
+            PaintingArea::Own => self.area(clip),
+            PaintingArea::Canvas(area) | PaintingArea::Cell(area) => area,
+        }
+    }
+}
 
 /// The properties of one background layer that affect tiling.
 pub(crate) struct Layer<'a> {

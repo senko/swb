@@ -2,13 +2,13 @@
 //! polygons of its sides, and the drawing of solid, dashed and dotted sides
 //! with rounded corners (CSS Backgrounds 3 §5).
 
-use swb_layout::Rect;
+use swb_layout::{Rect, has_rounded_corner};
 use swb_style::{BorderStyle, Rgba};
 use tiny_skia::{Path, PathBuilder, Stroke, StrokeDash};
 
 use super::{
-    FillRule, Mask, Paint, Pixmap, PixmapPaint, Radii, Rasterizer, Transform, has_radius,
-    push_rounded_rect, scale_radii, shade, snap, snap_out, solid_paint,
+    FillRule, Mask, Paint, Pixmap, PixmapPaint, Radii, Rasterizer, Transform, push_rounded_rect,
+    scale_radii, shade, snap, snap_out, solid_paint,
 };
 
 /// The geometry of a border box in device px.
@@ -29,7 +29,7 @@ struct BorderGeometry {
 
 impl BorderGeometry {
     fn new(outer: Rect, widths: [f32; 4], radii: Radii) -> Self {
-        let has_radius = has_radius(&radii);
+        let has_radius = has_rounded_corner(&radii);
         BorderGeometry {
             outer: snap(outer),
             widths,
@@ -154,6 +154,12 @@ fn side_polygons(
     })
 }
 
+/// Maps a point to (lateral, depth) coordinates of a side: along the side
+/// and across it. The same call maps them back.
+fn lateral_depth(horizontal: bool, p: (f32, f32)) -> (f32, f32) {
+    if horizontal { p } else { (p.1, p.0) }
+}
+
 /// The point where the miter line through `outer` and `inner` (corners of
 /// the border box) reaches the middle of the box: `center.1` for a top or
 /// bottom `side`, `center.0` for a left or right one. The line is the join
@@ -161,16 +167,12 @@ fn side_polygons(
 /// ratio of the two border widths); with rounded corners it goes on beyond
 /// the inner corner.
 fn miter_end(outer: (f32, f32), inner: (f32, f32), side: usize, center: (f32, f32)) -> (f32, f32) {
-    let (d, mid) = if side.is_multiple_of(2) {
-        (outer.1, center.1)
-    } else {
-        (outer.0, center.0)
-    };
-    let step = if side.is_multiple_of(2) {
-        inner.1 - outer.1
-    } else {
-        inner.0 - outer.0
-    };
+    let horizontal = side.is_multiple_of(2);
+    let (d, mid) = (
+        lateral_depth(horizontal, outer).1,
+        lateral_depth(horizontal, center).1,
+    );
+    let step = lateral_depth(horizontal, inner).1 - d;
     // A degenerate miter (zero width on the depth axis) stays on the edge.
     if step.abs() < 1e-6 {
         return inner;
@@ -189,8 +191,7 @@ fn miter_apex(outer: &[(f32, f32); 4], inner: &[(f32, f32); 4], side: usize) -> 
     let (start, end) = (side, (side + 1) % 4);
     // Lateral coordinate l along the side, depth d across it.
     let horizontal = side.is_multiple_of(2);
-    let ld = |p: (f32, f32)| if horizontal { (p.0, p.1) } else { (p.1, p.0) };
-    let from_ld = |(l, d): (f32, f32)| if horizontal { (l, d) } else { (d, l) };
+    let ld = |p| lateral_depth(horizontal, p);
     let slope = |c: usize| {
         let (ol, od) = ld(outer[c]);
         let (il, id) = ld(inner[c]);
@@ -209,13 +210,9 @@ fn miter_apex(outer: &[(f32, f32); 4], inner: &[(f32, f32); 4], side: usize) -> 
     // middle (`d` has the sign of the step to the inside).
     let (_, inner_d) = ld(inner[start]);
     let inward = (inner_d - d0).signum();
-    let center_d = {
-        let (_, a) = ld(inner[start]);
-        let (_, b) = ld(inner[(start + 2) % 4]);
-        f32::midpoint(a, b)
-    };
+    let center_d = f32::midpoint(inner_d, ld(inner[(start + 2) % 4]).1);
     let reaches = dd * inward > 0.0 && dd * inward < (center_d - d0) * inward;
-    reaches.then(|| from_ld((ls + ks * dd, d0 + dd)))
+    reaches.then(|| lateral_depth(horizontal, (ls + ks * dd, d0 + dd)))
 }
 
 /// Appends a closed polygon to a path.
@@ -468,5 +465,19 @@ impl Rasterizer<'_> {
         };
         let paint = solid_paint(color, true);
         self.draw(rect, |p, t, m| p.stroke_path(&path, &paint, &stroke, t, m));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::miter_apex;
+
+    #[test]
+    fn parallel_miters_have_no_apex() {
+        let outer = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)];
+        // The inner corners are the outer ones moved by the same offset:
+        // the miter lines at both ends of a side are parallel.
+        let inner = outer.map(|(x, y)| (x + 1.0, y + 1.0));
+        assert_eq!(miter_apex(&outer, &inner, 0), None);
     }
 }

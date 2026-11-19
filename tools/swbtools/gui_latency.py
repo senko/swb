@@ -327,12 +327,18 @@ def play(
     injected.start = monotonic()
     releases = 0
     due: float | None = None
+
+    def read_url_at(when: float) -> None:
+        """Waits until `when`, then reads the URL (a release is due)."""
+        assert read_url is not None
+        wait = when - monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        injected.read_url(read_url, f"release {releases}")
+
     for event in trace.events:
         if read_url is not None and due is not None and injected.start + event.t >= due:
-            wait = due - monotonic()
-            if wait > 0:
-                time.sleep(wait)
-            injected.read_url(read_url, f"release {releases}")
+            read_url_at(due)
             due = None
         wait = injected.start + event.t - monotonic()
         if wait > 0:
@@ -359,10 +365,7 @@ def play(
                 releases += 1
                 due = monotonic() + URL_DELAY_S
     if read_url is not None and due is not None:
-        wait = due - monotonic()
-        if wait > 0:
-            time.sleep(wait)
-        injected.read_url(read_url, f"release {releases}")
+        read_url_at(due)
     wait = injected.start + trace.duration - monotonic()
     if wait > 0:
         time.sleep(wait)

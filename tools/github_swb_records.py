@@ -29,13 +29,13 @@ field that the test compares. They need Chromium (docs/testing.md).
 
 import json
 import re
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[1]
+from swbtools.records import ROOT, load_json, run_replay, write_json
+
 DATA = ROOT / "crates/automation/tests/data"
 RUNS = 3
 
@@ -122,7 +122,7 @@ def nav_groups() -> list[dict]:
 
 
 def write(path: Path, value: Any) -> None:
-    path.write_text(json.dumps(value, indent=1) + "\n", encoding="utf-8")
+    write_json(path, value, indent=1)
 
 
 def write_steps() -> None:
@@ -142,11 +142,9 @@ def replay(
     cmd += ["--steps", str(steps), "--record", record, "--out", str(out)]
     if setup is not None:
         cmd += ["--setup", str(setup)]
-    result = subprocess.run(cmd + extra, cwd=ROOT, capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        sys.exit(f"replay failed:\n{result.stderr[-2000:]}")
-    missing = sorted(set(re.findall(r"github-swb: not in fixture: (\S+)", result.stderr)))
-    errors = re.findall(r"github-swb: ((?:exception|console\.error): .*)", result.stderr)
+    stderr = run_replay(cmd + extra)
+    missing = sorted(set(re.findall(r"github-swb: not in fixture: (\S+)", stderr)))
+    errors = re.findall(r"github-swb: ((?:exception|console\.error): .*)", stderr)
     return missing, errors
 
 
@@ -160,10 +158,6 @@ def equal_runs(name: str, runs: list) -> object:
     return runs[0]
 
 
-def load(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
 def record_interactions(tmp: Path) -> None:
     steps = DATA / "github-swb-interactions-steps.json"
     setup = DATA / "github-swb-interactions.js"
@@ -173,8 +167,8 @@ def record_interactions(tmp: Path) -> None:
         out, pix = tmp / f"run{run}.json", tmp / f"pixels{run}.json"
         extra = ["--pixels", str(points), "--pixels-out", str(pix)]
         urls, problems = replay(steps, setup, "window.__i()", out, extra)
-        runs.append(load(out))
-        colors.append(load(pix))
+        runs.append(load_json(out))
+        colors.append(load_json(pix))
         missing.append(urls)
         errors.append(problems)
     write(DATA / "github-swb-interactions-chromium.json", equal_runs("records", runs))
@@ -190,14 +184,14 @@ def record_tab(tmp: Path) -> None:
     for run in range(RUNS):
         out = tmp / f"run{run}.json"
         replay(steps, setup, "window.__t()", out, [])
-        runs.append(load(out))
+        runs.append(load_json(out))
     write(DATA / "github-swb-tab-chromium.json", equal_runs("records", runs))
 
 
 def record_nav(tmp: Path, only: list[str]) -> None:
     """The cases in `only` (all without names); the others stay in the file."""
     path = DATA / "github-swb-nav-chromium.json"
-    result = load(path) if only and path.is_file() else {}
+    result = load_json(path) if only and path.is_file() else {}
     expr = "JSON.stringify({url: location.href})"
     for case in nav_groups():
         if only and case["name"] not in only:
@@ -209,7 +203,7 @@ def record_nav(tmp: Path, only: list[str]) -> None:
         for run in range(RUNS):
             out = tmp / f"run{run}.json"
             missing.append(replay(steps, None, expr, out, [])[0])
-            runs.append(load(out))
+            runs.append(load_json(out))
         result[case["name"]] = {
             "records": equal_runs(case["name"], runs),
             "missing": equal_runs(case["name"], missing),

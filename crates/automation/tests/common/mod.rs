@@ -17,6 +17,13 @@ use swb_engine::{
 };
 use swb_net::{CookieJar, Fetcher, Headers, NetError, ReplayFetcher, Request, Response};
 
+/// The largest difference of a color channel between swb's pixel and
+/// Chromium's in the pixel points of the page tests. The points are in
+/// flat areas (also on borders, icons, gradients, and anti-aliased wordmark
+/// edges within the tolerance); the tolerance covers the rounding of
+/// blends, not the anti-aliasing of text.
+pub(crate) const PIXEL_TOLERANCE: i32 = 12;
+
 /// The response of `status` with `body` for `request`, as `text/html`.
 pub(crate) fn html_response(request: &Request, status: u16, body: Vec<u8>) -> Response {
     let headers: Headers = [("content-type", "text/html")].into_iter().collect();
@@ -43,6 +50,93 @@ impl Fetcher for OnePage {
             html_response(request, 404, b"not found".to_vec())
         })
     }
+}
+
+/// A fetcher that serves one page at `url`, the `data:` URLs with a base64
+/// payload (`data:image/gif;base64,...`), and a 404 for the rest.
+pub(crate) struct DataUrls(pub(crate) OnePage);
+
+impl Fetcher for DataUrls {
+    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
+        let data = request
+            .url
+            .as_str()
+            .strip_prefix("data:")
+            .and_then(|rest| rest.split_once(";base64,"));
+        let Some((mime, payload)) = data else {
+            return self.0.fetch(request);
+        };
+        let body = data_encoding::BASE64.decode(payload.as_bytes()).unwrap();
+        let headers: Headers = [("content-type", mime)].into_iter().collect();
+        Ok(Response {
+            url: request.url.clone(),
+            status: 200,
+            headers,
+            body,
+            redirected: false,
+        })
+    }
+}
+
+/// A page with JavaScript on and test fonts, of `size`, that loads `url`
+/// from `fetcher` (30 s at most).
+pub(crate) fn open_script_page(fetcher: Arc<dyn Fetcher>, url: Url, size: Size) -> Page {
+    let config = PageConfig {
+        fetcher,
+        notify: Arc::new(|| {}),
+        network_threads: 2,
+        scripts_allowed: true,
+    };
+    let mut page = Page::new(config, FontContext::for_tests(), size, 1.0);
+    page.set_javascript(true);
+    page.navigate(url);
+    assert!(page.wait_until_loaded(Duration::from_secs(30)));
+    page
+}
+
+/// Runs the cases of the probe file `tools/probes/{name}.json` and compares
+/// the values of their `js` queries with the file
+/// `tests/data/{name}.json` (Chromium's values). `open` makes the page of a
+/// case; `want` gives the expected value of a query (case, index, Chromium's
+/// value), where a test applies its departures. Returns the failures.
+pub(crate) fn run_probe_file(
+    name: &str,
+    open: impl Fn(&Value) -> Page,
+    want: impl Fn(&str, usize, &Value) -> Value,
+) -> Vec<String> {
+    let read = |path: PathBuf| -> Value {
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+    };
+    let probe = read(repo_root().join(format!("tools/probes/{name}.json")));
+    let data = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("tests/data/{name}.json"));
+    let expected = read(data);
+    let cases = probe["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), expected.as_object().unwrap().len());
+    let mut failures = Vec::new();
+    for case in cases {
+        let name = case["name"].as_str().unwrap();
+        let mut page = open(case);
+        let steps = case["steps"].as_array().cloned().unwrap_or_default();
+        if let Err(error) = swb_automation::run_steps(&mut page, &steps) {
+            failures.push(format!("{name}: {error}"));
+            continue;
+        }
+        for (index, query) in case["measure"].as_array().unwrap().iter().enumerate() {
+            let Some(source) = query["js"].as_str() else {
+                continue;
+            };
+            let want = want(name, index, &expected[name][index]);
+            let got = value(&mut page, source);
+            if got != want {
+                failures.push(format!(
+                    "{name} #{index}: {source}
+  expected: {want}
+  actual:   {got}"
+                ));
+            }
+        }
+    }
+    failures
 }
 
 /// A fetcher that records the URLs of its requests, in order, and answers
@@ -135,7 +229,7 @@ pub(crate) fn on_page_thread(f: impl FnOnce() + Send + 'static) {
 }
 
 /// The fixture's `fixture.json`.
-pub(crate) fn fixture_meta(dir: &Path) -> Value {
+fn fixture_meta(dir: &Path) -> Value {
     serde_json::from_str(&std::fs::read_to_string(dir.join("fixture.json")).unwrap()).unwrap()
 }
 
@@ -148,11 +242,7 @@ pub(crate) fn replay_page(dir: &Path, javascript: bool) -> (Page, Url) {
 
 /// [`replay_page`] with `fetcher` (a wrapper of the fixture's
 /// [`ReplayFetcher`], for a test that records the requests).
-pub(crate) fn replay_page_with(
-    dir: &Path,
-    javascript: bool,
-    fetcher: Arc<dyn Fetcher>,
-) -> (Page, Url) {
+fn replay_page_with(dir: &Path, javascript: bool, fetcher: Arc<dyn Fetcher>) -> (Page, Url) {
     let url = Url::parse(fixture_meta(dir)["url"].as_str().unwrap()).unwrap();
     let config = PageConfig {
         fetcher,

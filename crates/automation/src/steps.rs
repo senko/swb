@@ -289,48 +289,11 @@ fn run_step(page: &mut Page, step: &Value) -> Result<(), String> {
             params["modifiers"] = modifiers;
             point_step(page, kind, params)?;
         }
-        "mousedown" | "mouseup" => {
-            let at = page.pointer_position().unwrap_or_default();
-            let params = json!({ "x": at.x, "y": at.y, "button": argument });
-            let method = if kind == "mousedown" {
-                "input.mouseDown"
-            } else {
-                "input.mouseUp"
-            };
-            call(page, method, params)?;
-        }
-        "type" => {
-            let text = argument.as_str().ok_or("type needs text")?;
-            // One character at a time, with the due tasks between: Playwright
-            // awaits each key, so a task queued by one character (a
-            // `selectionchange`) runs before the next.
-            for ch in text.chars() {
-                call(page, "input.type", json!({ "text": ch.to_string() }))?;
-                page.run_event_loop(Duration::from_micros(1), Duration::from_secs(5));
-            }
-        }
-        "key" => {
-            let spec = argument.as_str().ok_or("key needs a key name")?;
-            let (modifiers, key) = split_key(spec);
-            call(
-                page,
-                "input.key",
-                json!({ "key": key, "modifiers": modifiers }),
-            )?;
-        }
-        "wheel" => {
-            let delta = argument.as_array().ok_or("wheel needs [dx, dy]")?;
-            let at = page.pointer_position().unwrap_or_default();
-            let params = json!({ "x": at.x, "y": at.y, "dx": delta.first(), "dy": delta.get(1) });
-            call(page, "input.wheel", params)?;
-        }
-        "wait" => {
-            let ms = argument.as_u64().ok_or("wait needs milliseconds")?;
-            page.run_event_loop(
-                Duration::from_millis(ms),
-                Duration::from_millis(ms.saturating_add(5000)),
-            );
-        }
+        "mousedown" | "mouseup" => mouse_button_step(page, kind, argument)?,
+        "type" => type_text(page, argument)?,
+        "key" => key_step(page, argument)?,
+        "wheel" => wheel_step(page, argument)?,
+        "wait" => wait_step(page, argument)?,
         "focus" => {
             let selector = argument.as_str().ok_or("focus needs a selector")?;
             focus(page, selector)?;
@@ -344,13 +307,7 @@ fn run_step(page: &mut Page, step: &Value) -> Result<(), String> {
             record(page, source)?;
         }
         "screenshot" => screenshot(page, argument)?,
-        "viewport" => {
-            let size = argument
-                .as_array()
-                .ok_or("viewport needs [width, height]")?;
-            let params = json!({ "width": size.first(), "height": size.get(1) });
-            call(page, "page.setViewport", params)?;
-        }
+        "viewport" => viewport_step(page, argument)?,
         "colorScheme" => match argument.as_str() {
             Some("dark") => page.set_color_scheme(true),
             Some("light") => page.set_color_scheme(false),
@@ -359,6 +316,74 @@ fn run_step(page: &mut Page, step: &Value) -> Result<(), String> {
         "back" | "forward" => history_step(page, kind, argument)?,
         other => return Err(format!("unknown step {other}")),
     }
+    Ok(())
+}
+
+/// The `mousedown` and `mouseup` steps: a button press or release at the
+/// pointer.
+fn mouse_button_step(page: &mut Page, kind: &str, button: &Value) -> Result<(), String> {
+    let at = page.pointer_position().unwrap_or_default();
+    let params = json!({ "x": at.x, "y": at.y, "button": button });
+    let method = if kind == "mousedown" {
+        "input.mouseDown"
+    } else {
+        "input.mouseUp"
+    };
+    call(page, method, params)?;
+    Ok(())
+}
+
+/// The `type` step: types the text.
+fn type_text(page: &mut Page, argument: &Value) -> Result<(), String> {
+    let text = argument.as_str().ok_or("type needs text")?;
+    // One character at a time, with the due tasks between: Playwright
+    // awaits each key, so a task queued by one character (a
+    // `selectionchange`) runs before the next.
+    for ch in text.chars() {
+        call(page, "input.type", json!({ "text": ch.to_string() }))?;
+        page.run_event_loop(Duration::from_micros(1), Duration::from_secs(5));
+    }
+    Ok(())
+}
+
+/// The `key` step: presses a key, with modifiers as in `Control+a`.
+fn key_step(page: &mut Page, argument: &Value) -> Result<(), String> {
+    let spec = argument.as_str().ok_or("key needs a key name")?;
+    let (modifiers, key) = split_key(spec);
+    call(
+        page,
+        "input.key",
+        json!({ "key": key, "modifiers": modifiers }),
+    )?;
+    Ok(())
+}
+
+/// The `wheel` step: a wheel event at the pointer.
+fn wheel_step(page: &mut Page, argument: &Value) -> Result<(), String> {
+    let delta = argument.as_array().ok_or("wheel needs [dx, dy]")?;
+    let at = page.pointer_position().unwrap_or_default();
+    let params = json!({ "x": at.x, "y": at.y, "dx": delta.first(), "dy": delta.get(1) });
+    call(page, "input.wheel", params)?;
+    Ok(())
+}
+
+/// The `wait` step: runs the event loop for the given milliseconds.
+fn wait_step(page: &mut Page, argument: &Value) -> Result<(), String> {
+    let ms = argument.as_u64().ok_or("wait needs milliseconds")?;
+    page.run_event_loop(
+        Duration::from_millis(ms),
+        Duration::from_millis(ms.saturating_add(5000)),
+    );
+    Ok(())
+}
+
+/// The `viewport` step: sets the viewport size.
+fn viewport_step(page: &mut Page, argument: &Value) -> Result<(), String> {
+    let size = argument
+        .as_array()
+        .ok_or("viewport needs [width, height]")?;
+    let params = json!({ "width": size.first(), "height": size.get(1) });
+    call(page, "page.setViewport", params)?;
     Ok(())
 }
 

@@ -1,5 +1,8 @@
 # M12 step 1: diagnosis of openstreetmap.org (Zagreb)
 
+Historical record: the features of M12 changed after owner decisions; see
+docs/roadmap.md.
+
 The report of the diagnosis that plans the features of M12 (docs/roadmap.md,
 "M12"), written on 2026-11-18 (part 1a: tools and recordings, part 1b: this
 report). Base 8e93e61 plus part 1a. Chromium 148.0.7778.96 (Playwright 1.60).

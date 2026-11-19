@@ -26,19 +26,15 @@
 //! [`glue::run`]: crate::bindings::glue::run
 
 use swb_dom::NodeId;
+use swb_dom::position::{
+    CONTAINED_BY, CONTAINS, DISCONNECTED, FOLLOWING, IMPLEMENTATION_SPECIFIC, PRECEDING,
+};
 use swb_js::{Gc, NativeCall, Object, Runtime, Value};
 
 use super::attrs::{self, AttrData};
 use crate::bindings::{self as b, Context, Exception, Platform};
 use crate::generated as g;
 use crate::state::{WebState, dom, engine_mut};
-
-const DISCONNECTED: u16 = 0x01;
-const PRECEDING: u16 = 0x02;
-const FOLLOWING: u16 = 0x04;
-const CONTAINS: u16 = 0x08;
-const CONTAINED_BY: u16 = 0x10;
-const IMPLEMENTATION_SPECIFIC: u16 = 0x20;
 
 /// `Node` is the interface of the member that was called.
 const NODE: &str = "Node";

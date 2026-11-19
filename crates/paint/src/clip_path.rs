@@ -19,7 +19,8 @@
 //!   them. Chromium's curvature for it was not measured.
 
 use swb_layout::{
-    BoxFragment, CornerRadii, Edges, Point, Rect, ShapeGeometry, box_geometry, shape_geometry,
+    BoxFragment, CornerRadii, Edges, Point, Rect, ShapeGeometry, box_geometry, has_rounded_corner,
+    shape_geometry,
 };
 use swb_style::{ClipPath as ClipPathValue, GeometryBox, LengthPercentage, LengthPercentageOrAuto};
 
@@ -86,7 +87,7 @@ fn reference_box(
         }
         GeometryBox::MarginBox => margin_box(b, border, outer),
     };
-    let rounded = radii.iter().any(|&(h, v)| h > 0.0 && v > 0.0);
+    let rounded = has_rounded_corner(&radii);
     (rect, rounded.then_some(radii))
 }
 

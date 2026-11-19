@@ -8,6 +8,8 @@
 The exit test of the OpenStreetMap target (M12 feature 4) compared swb with
 Chromium at the pixel level and found paint and layout differences that the
 earlier pages did not show. This ADR records the rules that parts 4c and 4d added.
+It also records the small paint and layout rules that the OSM exit test needed
+(float sizes, `z-index` on flex and grid items, `appearance`).
 Every rule comes from black-box measurements in Chromium 148 (probe files
 named below).
 

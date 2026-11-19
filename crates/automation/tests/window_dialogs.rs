@@ -10,7 +10,7 @@
 #![allow(clippy::unwrap_used)]
 
 mod common;
-use common::{on_page_thread, repo_root, value};
+use common::{on_page_thread, open_script_page, repo_root, value};
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -18,7 +18,7 @@ use std::time::Duration;
 
 use serde_json::Value;
 use swb_automation::run_steps;
-use swb_engine::{FontContext, Page, PageConfig, Size, Url};
+use swb_engine::{Page, Size, Url};
 use swb_net::NetworkFetcher;
 
 /// A directory with test pages, removed at the end of the test.
@@ -48,22 +48,11 @@ impl Drop for Site {
 
 /// A page with JavaScript on at `url` (400x200, test fonts), loaded.
 fn open(url: Url) -> Page {
-    let config = PageConfig {
-        fetcher: Arc::new(NetworkFetcher::new()),
-        notify: Arc::new(|| {}),
-        network_threads: 2,
-        scripts_allowed: true,
-    };
-    let mut page = Page::new(
-        config,
-        FontContext::for_tests(),
+    open_script_page(
+        Arc::new(NetworkFetcher::new()),
+        url,
         Size::new(400.0, 200.0),
-        1.0,
-    );
-    page.set_javascript(true);
-    page.navigate(url);
-    assert!(page.wait_until_loaded(Duration::from_secs(30)));
-    page
+    )
 }
 
 /// Runs the cases of the probe file against Chromium's values.

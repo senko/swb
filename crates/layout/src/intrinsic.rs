@@ -26,6 +26,16 @@ impl ContentSizes {
         }
     }
 
+    /// The sizes with negative values raised to 0: a float contributes its
+    /// margin box, at least 0, so a negative margin does not shrink the line
+    /// (Chromium).
+    pub(crate) fn non_negative(self) -> ContentSizes {
+        ContentSizes {
+            min: self.min.max(0.0),
+            max: self.max.max(0.0),
+        }
+    }
+
     fn add(self, v: f32) -> ContentSizes {
         ContentSizes {
             min: self.min + v,
@@ -407,9 +417,7 @@ fn blocks_content_sizes(ctx: &mut LayoutContext<'_>, children: &[BlockLevelBox])
             }
         }
         if floating {
-            // A float's contribution is its margin box, at least 0
-            // (a negative margin does not shrink the line).
-            let contribution = child_sizes.max.max(0.0);
+            let contribution = child_sizes.non_negative().max;
             if child_style(child).is_some_and(|s| s.float == swb_style::Float::Right) {
                 right += contribution;
             } else {

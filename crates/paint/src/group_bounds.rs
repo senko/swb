@@ -306,13 +306,7 @@ mod tests {
     }
 
     fn opacity() -> DisplayItem {
-        DisplayItem::PushOpacity {
-            opacity: 0.5,
-            blend: swb_style::MixBlendMode::Normal,
-            bounds: Rect::default(),
-            fixed_bounds: None,
-            escapes_clips: false,
-        }
+        DisplayItem::opacity_group(0.5, swb_style::MixBlendMode::Normal)
     }
 
     #[test]

@@ -19,16 +19,12 @@
 #![allow(clippy::unwrap_used)]
 
 mod common;
-use common::{html_response, on_page_thread, repo_root, value};
+use common::{DataUrls, OnePage, on_page_thread, open_script_page, run_probe_file};
 
-use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
 
 use serde_json::Value;
-use swb_automation::run_steps;
-use swb_engine::{FontContext, Page, PageConfig, Size, Url};
-use swb_net::{Fetcher, Headers, NetError, Request, Response};
+use swb_engine::{Page, Size, Url};
 
 /// The values where swb departs from Chromium on purpose or not yet: (case,
 /// query index, the member of the value that differs (empty: the whole
@@ -101,7 +97,7 @@ const SWB_VALUES: &[(&str, usize, &str, &str, &str)] = &[
 
 /// The expected value of a query: Chromium's, with the departures of
 /// [`SWB_VALUES`] for this case and index.
-fn expected_value(chromium: &Value, name: &str, index: usize) -> Value {
+fn expected_value(name: &str, index: usize, chromium: &Value) -> Value {
     let mut want = chromium.clone();
     for &(case, at, member, json, _why) in SWB_VALUES {
         if case != name || at != index {
@@ -117,105 +113,29 @@ fn expected_value(chromium: &Value, name: &str, index: usize) -> Value {
     want
 }
 
-/// A fetcher that serves one page at `url`, the `data:` URLs with a base64
-/// payload (`data:image/gif;base64,...`), and a 404 for the rest.
-struct Site {
-    url: &'static str,
-    html: String,
-}
-
-impl Fetcher for Site {
-    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
-        let url = request.url.as_str();
-        if url == self.url {
-            return Ok(html_response(request, 200, self.html.as_bytes().to_vec()));
-        }
-        let data = url
-            .strip_prefix("data:")
-            .and_then(|rest| rest.split_once(";base64,"));
-        let Some((mime, payload)) = data else {
-            return Ok(html_response(request, 404, b"not found".to_vec()));
-        };
-        let body = data_encoding::BASE64.decode(payload.as_bytes()).unwrap();
-        let headers: Headers = [("content-type", mime)].into_iter().collect();
-        Ok(Response {
-            url: request.url.clone(),
-            status: 200,
-            headers,
-            body,
-            redirected: false,
-        })
-    }
-}
-
-/// A page with JavaScript on (800x600, test fonts) that shows `html` at
-/// `url`, loaded.
-fn open(url: &'static str, html: &str) -> Page {
-    let config = PageConfig {
-        fetcher: Arc::new(Site {
-            url,
-            html: html.to_owned(),
-        }),
-        notify: Arc::new(|| {}),
-        network_threads: 2,
-        scripts_allowed: true,
+/// The page of a probe case.
+fn open(case: &Value) -> Page {
+    let url = if case.get("resources").is_some() {
+        "http://127.0.0.1:8000/case.html"
+    } else {
+        "file:///case.html"
     };
-    let mut page = Page::new(
-        config,
-        FontContext::for_tests(),
+    let fetcher = DataUrls(OnePage {
+        url,
+        html: case["html"].as_str().unwrap().to_owned(),
+    });
+    open_script_page(
+        Arc::new(fetcher),
+        Url::parse(url).unwrap(),
         Size::new(800.0, 600.0),
-        1.0,
-    );
-    page.set_javascript(true);
-    page.navigate(Url::parse(url).unwrap());
-    assert!(page.wait_until_loaded(Duration::from_secs(30)));
-    page
+    )
 }
 
 /// Runs the cases of the probe file against Chromium's values.
 #[test]
 fn probe_cases() {
     on_page_thread(|| {
-        let probe: Value = serde_json::from_str(
-            &std::fs::read_to_string(repo_root().join("tools/probes/web-osm-gaps.json")).unwrap(),
-        )
-        .unwrap();
-        let expected: Value = serde_json::from_str(
-            &std::fs::read_to_string(
-                Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/web-osm-gaps.json"),
-            )
-            .unwrap(),
-        )
-        .unwrap();
-        let cases = probe["cases"].as_array().unwrap();
-        assert_eq!(cases.len(), expected.as_object().unwrap().len());
-        let mut failures = Vec::new();
-        for case in cases {
-            let name = case["name"].as_str().unwrap();
-            let url = if case.get("resources").is_some() {
-                "http://127.0.0.1:8000/case.html"
-            } else {
-                "file:///case.html"
-            };
-            let mut page = open(url, case["html"].as_str().unwrap());
-            let steps = case["steps"].as_array().cloned().unwrap_or_default();
-            if let Err(error) = run_steps(&mut page, &steps) {
-                failures.push(format!("{name}: {error}"));
-                continue;
-            }
-            for (index, query) in case["measure"].as_array().unwrap().iter().enumerate() {
-                let Some(source) = query["js"].as_str() else {
-                    continue;
-                };
-                let want = expected_value(&expected[name][index], name, index);
-                let got = value(&mut page, source);
-                if got != want {
-                    failures.push(format!(
-                        "{name} #{index}: {source}\n  expected: {want}\n  actual:   {got}"
-                    ));
-                }
-            }
-        }
+        let failures = run_probe_file("web-osm-gaps", open, expected_value);
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     });
 }

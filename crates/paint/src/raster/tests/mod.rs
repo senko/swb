@@ -132,16 +132,6 @@ fn rgb(p: &Pixmap, x: u32, y: u32) -> (u8, u8, u8) {
     (c.red(), c.green(), c.blue())
 }
 
-fn border(widths: [f32; 4], colors: [Rgba; 4], style: BorderStyle, radius: f32) -> DisplayItem {
-    DisplayItem::Border {
-        rect: Rect::new(10.0, 10.0, 80.0, 60.0),
-        widths,
-        colors,
-        styles: [style; 4],
-        radii: [(radius, radius); 4],
-    }
-}
-
 #[test]
 fn polygons_fill_and_skip_degenerate_input() {
     let polygon = |points: &[(f32, f32)], color| DisplayItem::Polygon {
@@ -167,182 +157,6 @@ fn polygons_fill_and_skip_degenerate_input() {
         let p = render(vec![item]);
         assert_eq!(rgb(&p, 30, 30), (255, 255, 255));
     }
-}
-
-#[test]
-fn rounded_border_keeps_the_color_of_each_side() {
-    // Only the bottom side has a width; the top color must not be used.
-    let p = render(vec![border(
-        [0.0, 0.0, 10.0, 0.0],
-        [Rgba::BLACK, Rgba::BLACK, BLUE, Rgba::BLACK],
-        BorderStyle::Solid,
-        4.0,
-    )]);
-    assert_eq!(rgb(&p, 50, 65), (0, 0, 255));
-    assert_eq!(rgb(&p, 50, 30), (255, 255, 255));
-    // The rounded corner cuts the bottom-left pixel.
-    assert_eq!(rgb(&p, 10, 69), (255, 255, 255));
-}
-
-#[test]
-fn rounded_border_has_no_gaps_at_the_corners() {
-    // The spinner pattern: a circle with one side in another color. The
-    // ring at 45° lies inside the inner rectangle's corner, outside the
-    // side trapezoids.
-    let item = DisplayItem::Border {
-        rect: Rect::new(10.0, 10.0, 80.0, 80.0),
-        widths: [10.0; 4],
-        colors: [BLUE, RED, RED, RED],
-        styles: [BorderStyle::Solid; 4],
-        radii: [(40.0, 40.0); 4],
-    };
-    let p = render(vec![item]);
-    // A point on the ring's center line at 45° (top-left corner).
-    let d = 35.0 * std::f32::consts::FRAC_1_SQRT_2;
-    let (x, y) = ((50.0 - d) as u32, (50.0 - d) as u32);
-    assert_ne!(
-        rgb(&p, x, y),
-        (255, 255, 255),
-        "corner pixel ({x}, {y}) is painted"
-    );
-    // The bottom-right corner belongs to the right/bottom sides.
-    let (x, y) = ((50.0 + d) as u32, (50.0 + d) as u32);
-    assert_eq!(rgb(&p, x, y), (255, 0, 0));
-}
-
-#[test]
-fn rounded_corner_belongs_to_the_painted_side() {
-    // Only the top side has a width: its rounded ends taper into the
-    // corners, which must be painted although they lie below the inner
-    // corner line.
-    let item = DisplayItem::Border {
-        rect: Rect::new(10.0, 10.0, 80.0, 60.0),
-        widths: [4.0, 0.0, 0.0, 0.0],
-        colors: [BLUE; 4],
-        styles: [BorderStyle::Solid; 4],
-        radii: [(20.0, 20.0); 4],
-    };
-    let p = render(vec![item]);
-    // Near the left end of the taper: the ring at x = 12.5 spans
-    // y = 21.3..23.0, below the line from the inner corner (10, 14) to
-    // the center. The painted top side owns this area.
-    let (r, _, b) = rgb(&p, 12, 22);
-    assert!(
-        b == 255 && r < 200,
-        "taper is painted: {:?}",
-        rgb(&p, 12, 22)
-    );
-    // Further down the left edge nothing is painted.
-    assert_eq!(rgb(&p, 11, 50), (255, 255, 255));
-}
-
-#[test]
-fn a_transparent_side_keeps_its_part_of_the_corners() {
-    // Bootstrap's `.spinner-border`: 32 px, `border: 4px solid #222;
-    // border-right-color: transparent; border-radius: 50%`. The join of
-    // the top and the transparent right side is the diagonal through the
-    // corner, so the C ends at 45° (Chromium's pixels, probe case
-    // `spinner` of `tools/probes/border-radius-sides.json`).
-    let dark = Rgba::rgb(34, 34, 34);
-    let item = DisplayItem::Border {
-        rect: Rect::new(10.0, 10.0, 32.0, 32.0),
-        widths: [4.0; 4],
-        colors: [dark, Rgba::new(0, 0, 0, 0), dark, dark],
-        styles: [BorderStyle::Solid; 4],
-        radii: [(16.0, 16.0); 4],
-    };
-    let p = render(vec![item]);
-    let at = |x: u32, y: u32| rgb(&p, 10 + x, 10 + y);
-    let white = (255, 255, 255);
-    for (x, y) in [
-        (23, 5),
-        (21, 3),
-        (3, 15),
-        (15, 3),
-        (15, 29),
-        (23, 27),
-        (7, 25),
-    ] {
-        assert_eq!(at(x, y), (34, 34, 34), "({x}, {y})");
-    }
-    for (x, y) in [(29, 15), (29, 17), (27, 9), (27, 23), (29, 11), (29, 21)] {
-        assert_eq!(at(x, y), white, "({x}, {y})");
-    }
-}
-
-#[test]
-fn the_join_of_unequal_widths_follows_the_ratio_of_the_widths() {
-    // 40 px circle, widths 10, 2, 6, 4 and four colors: the join of two
-    // sides is the line through the outer and the inner corner, also where
-    // the ring lies beyond the inner corner (Chromium's pixels, probe case
-    // `unequal-widths-circle`).
-    let (red, green) = (Rgba::rgb(204, 0, 0), Rgba::rgb(0, 170, 0));
-    let (blue, yellow) = (Rgba::rgb(0, 0, 204), Rgba::rgb(204, 153, 0));
-    let item = DisplayItem::Border {
-        rect: Rect::new(10.0, 10.0, 40.0, 40.0),
-        widths: [10.0, 2.0, 6.0, 4.0],
-        colors: [red, green, blue, yellow],
-        styles: [BorderStyle::Solid; 4],
-        radii: [(20.0, 20.0); 4],
-    };
-    let p = render(vec![item]);
-    let at = |x: u32, y: u32| rgb(&p, 10 + x, 10 + y);
-    // (7, 13) is on the top side, right of the join line from (0, 0)
-    // through (4, 10); the swb of before painted the left color.
-    let (r, g, _) = at(7, 13);
-    assert!(r > 200 && g < 80, "{:?}", at(7, 13));
-    assert_eq!(at(4, 13), (204, 153, 0));
-    assert_eq!(at(4, 31), (204, 153, 0));
-    assert_eq!(at(34, 10), (204, 0, 0));
-    assert_eq!(at(20, 4), (204, 0, 0));
-    assert_eq!(at(37, 16), (0, 170, 0));
-    assert_eq!(at(31, 34), (0, 0, 204));
-    assert_eq!(at(19, 37), (0, 0, 204));
-}
-
-#[test]
-fn the_square_corners_of_a_partly_rounded_border_have_a_seam() {
-    // A link of a pagination, the last of two: a 1 px border in the color
-    // of its background, rounded at the right only, over the border of the
-    // first. Chromium paints the sides one by one: the pixel of a square
-    // corner is covered 0.79 by the border (probe case
-    // `pagination-26-25-16` of `tools/probes/border-radius-pagination.json`:
-    // 135 over 222 with the border at 112). swb covers it 0.75 (140): the
-    // difference is anti-aliasing.
-    let color = Rgba::rgb(112, 146, 255);
-    let rect = Rect::new(10.0, 10.0, 25.0, 31.0);
-    let item = DisplayItem::Border {
-        rect,
-        widths: [1.0; 4],
-        colors: [color; 4],
-        styles: [BorderStyle::Solid; 4],
-        radii: [(0.0, 0.0), (6.0, 6.0), (6.0, 6.0), (0.0, 0.0)],
-    };
-    let under = DisplayItem::Rect {
-        rect: Rect::new(0.0, 10.0, 11.0, 1.0),
-        radii: [(0.0, 0.0); 4],
-        color: Rgba::rgb(222, 226, 230),
-    };
-    let p = render(vec![under, item]);
-    assert_eq!(rgb(&p, 15, 10), (112, 146, 255), "the straight top border");
-    let (r, _, _) = rgb(&p, 10, 10);
-    assert!((130..=140).contains(&r), "{:?}", rgb(&p, 10, 10));
-}
-
-#[test]
-fn uniform_inset_border_is_shaded() {
-    let gray = Rgba::rgb(150, 150, 150);
-    let p = render(vec![border([10.0; 4], [gray; 4], BorderStyle::Inset, 0.0)]);
-    assert_eq!(rgb(&p, 50, 14), (100, 100, 100), "top is darker");
-    assert_eq!(rgb(&p, 50, 65), (150, 150, 150), "bottom keeps the color");
-}
-
-#[test]
-fn double_border_has_two_lines() {
-    let p = render(vec![border([9.0; 4], [BLUE; 4], BorderStyle::Double, 0.0)]);
-    assert_eq!(rgb(&p, 50, 11), (0, 0, 255), "outer line");
-    assert_eq!(rgb(&p, 50, 14), (255, 255, 255), "gap");
-    assert_eq!(rgb(&p, 50, 17), (0, 0, 255), "inner line");
 }
 
 #[test]
@@ -476,7 +290,7 @@ fn opacity_group_is_composited() {
     let p = render(vec![
         DisplayItem::PushOpacity {
             opacity: 0.5,
-            blend: swb_style::MixBlendMode::Normal,
+            blend: MixBlendMode::Normal,
             bounds: rect,
             fixed_bounds: None,
             escapes_clips: false,
@@ -494,122 +308,13 @@ fn opacity_group_is_composited() {
     assert_eq!(rgb(&p, 50, 50), (255, 255, 255));
 }
 
-/// The mode and the colors at the middle of each stripe (see
-/// [`chromium_blend_cases`]).
-type BlendCase = (swb_style::MixBlendMode, [(u8, u8, u8); 3]);
-
-/// The blend modes against Chromium 148 (probe cases `box-*` of
-/// `tools/probes/mix-blend-mode.json`): a box (120, 200, 90) over three
-/// stripes of backdrop (233, 236, 239), (200, 60, 40) and (60, 120, 200),
-/// each 30 px high; the colors at the middle of each stripe.
-fn chromium_blend_cases() -> [BlendCase; 17] {
-    use swb_style::MixBlendMode as M;
-    #[rustfmt::skip]
-    let cases = [
-        (M::Normal, [(120, 200, 90), (120, 200, 90), (120, 200, 90)]),
-        (M::Multiply, [(110, 185, 85), (94, 47, 15), (29, 94, 71)]),
-        (M::Screen, [(243, 251, 245), (226, 213, 116), (152, 226, 219)]),
-        (M::Overlay, [(231, 246, 234), (196, 94, 29), (57, 188, 184)]),
-        (M::Darken, [(120, 200, 90), (120, 60, 40), (60, 120, 90)]),
-        (M::Lighten, [(233, 236, 239), (200, 200, 90), (120, 200, 200)]),
-        (M::ColorDodge, [(255, 255, 255), (255, 255, 62), (113, 255, 255)]),
-        (M::ColorBurn, [(208, 231, 210), (138, 6, 0), (0, 83, 99)]),
-        (M::HardLight, [(219, 246, 169), (188, 171, 29), (57, 196, 141)]),
-        (M::SoftLight, [(232, 241, 235), (197, 96, 30), (57, 151, 187)]),
-        (M::Difference, [(113, 36, 149), (80, 140, 50), (60, 80, 110)]),
-        (M::Exclusion, [(133, 66, 159), (132, 166, 100), (122, 132, 148)]),
-        (M::Hue, [(233, 237, 231), (41, 149, 0), (55, 157, 17)]),
-        (M::Saturation, [(222, 239, 255), (169, 72, 59), (71, 118, 181)]),
-        (M::Color, [(212, 255, 195), (56, 136, 26), (67, 147, 37)]),
-        (M::Luminosity, [(161, 164, 167), (255, 128, 110), (113, 173, 253)]),
-        (M::PlusLighter, [(255, 255, 255), (255, 255, 130), (180, 255, 255)]),
-    ];
-    cases
-}
-
-#[test]
-fn blend_modes_match_chromium() {
-    use swb_style::MixBlendMode as M;
-    let cases = chromium_blend_cases();
-    let stripe = |y: f32, (r, g, b): (u8, u8, u8)| DisplayItem::Rect {
-        rect: Rect::new(0.0, y, 60.0, 30.0),
-        radii: [(0.0, 0.0); 4],
-        color: Rgba::rgb(r, g, b),
-    };
-    for (mode, expected) in cases {
-        let area = Rect::new(0.0, 0.0, 60.0, 90.0);
-        let p = render(vec![
-            stripe(0.0, (233, 236, 239)),
-            stripe(30.0, (200, 60, 40)),
-            stripe(60.0, (60, 120, 200)),
-            DisplayItem::PushOpacity {
-                opacity: 1.0,
-                blend: mode,
-                bounds: area,
-                fixed_bounds: None,
-                escapes_clips: false,
-            },
-            DisplayItem::Rect {
-                rect: area,
-                radii: [(0.0, 0.0); 4],
-                color: Rgba::rgb(120, 200, 90),
-            },
-            DisplayItem::PopOpacity,
-        ]);
-        for (i, want) in expected.into_iter().enumerate() {
-            let got = rgb(&p, 30, 15 + 30 * i as u32);
-            // The non-separable modes differ by a few levels in rounding.
-            let tolerance = if matches!(mode, M::Hue | M::Saturation | M::Color | M::Luminosity) {
-                6
-            } else {
-                2
-            };
-            let close = |a: u8, b: u8| a.abs_diff(b) <= tolerance;
-            assert!(
-                close(got.0, want.0) && close(got.1, want.1) && close(got.2, want.2),
-                "{mode:?} stripe {i}: {got:?}, Chromium {want:?}"
-            );
-        }
-    }
-}
-
-#[test]
-fn a_blend_group_in_an_isolated_group_sees_only_that_group() {
-    // A `difference` box in a group of opacity 0.99 over a grey backdrop:
-    // the group has nothing behind the box, so the box keeps its color.
-    use swb_style::MixBlendMode as M;
-    let area = Rect::new(0.0, 0.0, 60.0, 30.0);
-    let group = |opacity, blend| DisplayItem::PushOpacity {
-        opacity,
-        blend,
-        bounds: area,
-        fixed_bounds: None,
-        escapes_clips: false,
-    };
-    let rect = |color| DisplayItem::Rect {
-        rect: area,
-        radii: [(0.0, 0.0); 4],
-        color,
-    };
-    let p = render(vec![
-        rect(Rgba::rgb(233, 236, 239)),
-        group(0.99, M::Normal),
-        group(1.0, M::Difference),
-        rect(Rgba::rgb(120, 200, 90)),
-        DisplayItem::PopOpacity,
-        DisplayItem::PopOpacity,
-    ]);
-    let (r, g, b) = rgb(&p, 30, 15);
-    assert!(r.abs_diff(121) <= 2 && g.abs_diff(200) <= 2 && b.abs_diff(91) <= 2);
-}
-
 #[test]
 fn transparent_group_draws_nothing() {
     let rect = Rect::new(0.0, 0.0, 100.0, 100.0);
     let p = render(vec![
         DisplayItem::PushOpacity {
             opacity: 0.0,
-            blend: swb_style::MixBlendMode::Normal,
+            blend: MixBlendMode::Normal,
             bounds: rect,
             fixed_bounds: None,
             escapes_clips: false,
@@ -631,7 +336,7 @@ fn clip_applies_inside_opacity_layers() {
         DisplayItem::PushClip(Rect::new(0.0, 0.0, 50.0, 100.0)),
         DisplayItem::PushOpacity {
             opacity: 0.5,
-            blend: swb_style::MixBlendMode::Normal,
+            blend: MixBlendMode::Normal,
             bounds: rect,
             fixed_bounds: None,
             escapes_clips: false,
@@ -1028,7 +733,7 @@ fn transformed_and_fixed_groups() -> DisplayList {
         rect(30.0, 40.0, 30.0, 80.0, BLUE),
         DisplayItem::PushOpacity {
             opacity: 0.5,
-            blend: swb_style::MixBlendMode::Normal,
+            blend: MixBlendMode::Normal,
             bounds: Rect::new(25.0, 90.0, 40.0, 20.0),
             fixed_bounds: None,
             escapes_clips: false,
@@ -1150,7 +855,7 @@ fn rotated_square() -> Vec<DisplayItem> {
         },
         DisplayItem::PushOpacity {
             opacity: 1.0,
-            blend: swb_style::MixBlendMode::Normal,
+            blend: MixBlendMode::Normal,
             bounds: rect,
             fixed_bounds: None,
             escapes_clips: false,
@@ -1368,7 +1073,7 @@ fn strips_render_like_one_pass() {
         },
         DisplayItem::PushOpacity {
             opacity: 0.5,
-            blend: swb_style::MixBlendMode::Normal,
+            blend: MixBlendMode::Normal,
             bounds: rect,
             fixed_bounds: None,
             escapes_clips: false,
@@ -1443,7 +1148,7 @@ fn groups_beyond_the_layer_budget() {
     let opacity = vec![
         DisplayItem::PushOpacity {
             opacity: 0.5,
-            blend: swb_style::MixBlendMode::Normal,
+            blend: MixBlendMode::Normal,
             bounds: rect,
             fixed_bounds: None,
             escapes_clips: false,
@@ -1470,7 +1175,7 @@ fn groups_beyond_the_layer_budget() {
         0,
         DisplayItem::PushOpacity {
             opacity: 0.5,
-            blend: swb_style::MixBlendMode::Normal,
+            blend: MixBlendMode::Normal,
             bounds: rect,
             fixed_bounds: None,
             escapes_clips: false,
@@ -1497,7 +1202,8 @@ fn opaque_layers_are_opaque_for_luminance() {
 }
 
 mod backdrop;
-mod blend_image;
+mod blend;
+mod border;
 mod frame;
 mod gradient;
 mod svg;

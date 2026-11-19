@@ -336,13 +336,8 @@ fn float_content_sizes(
         .iter()
         .map(|item| match item {
             InlineItem::Float(inner) => {
-                // A float's contribution is its margin box, at least 0: a
-                // negative margin does not shrink the line (Chromium).
                 let sizes = crate::intrinsic::independent_outer_sizes(ctx, inner);
-                Some(ContentSizes {
-                    min: sizes.min.max(0.0),
-                    max: sizes.max.max(0.0),
-                })
+                Some(sizes.non_negative())
             }
             _ => None,
         })

@@ -119,7 +119,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use common::{
-    Recording, console_errors, fixture, load_at_capture_with, on_page_thread, step_groups, value,
+    PIXEL_TOLERANCE, Recording, console_errors, fixture, load_at_capture_with, on_page_thread,
+    step_groups, value,
 };
 use serde_json::{Value, json};
 use swb_automation::run_steps;
@@ -142,10 +143,6 @@ const RECTANGLES: &[&str] = &[
 
 /// The largest difference in px between two rectangle values.
 const TOLERANCE: i64 = 3;
-
-/// The largest difference of a color channel between swb's pixel and
-/// Chromium's. The points are in flat areas.
-const PIXEL_TOLERANCE: i32 = 12;
 
 /// The URL that the link "No, take me to settings" of the cookie banner
 /// navigates to.
