@@ -83,6 +83,16 @@ A case file is JSON (committed ones are in `tools/probes/`):
   on (contexts are keyed by time zone and this flag). With `--with-swb`, swb
   runs the case with `--js`, and the `js` queries are also evaluated in swb
   (`--eval`, docs/testing.md "Probe Chromium behaviour").
+- `animations` (file and case, optional; default false; needs `javascript`
+  for the animations to be useful): true leaves CSS animations and
+  transitions on. Without it the tool injects `animation: none !important;
+  transition: none !important` after the load (as `reference` does) and takes
+  screenshots with Playwright's `animations: "disabled"` (finite animations
+  jump to their end, infinite ones restart). With it the injection is
+  skipped and screenshots use `animations: "allow"`, so a `js` query can
+  pause and seek the animations (`document.getAnimations()`,
+  `animation.currentTime`) and a later `pixels` or `ink` query sees that
+  time (docs/testing.md, "Probe animations and transitions").
 - `steps` (case, optional; needs `javascript`): input to send before the
   queries, in order. Chromium gets it through Playwright's mouse and
   keyboard; swb through the `input.*` methods of the automation API
@@ -368,14 +378,17 @@ def ink_of_image(image: Image.Image) -> tuple[float, tuple[int, int, int, int] |
     return ink, (min(xs), min(ys), max(xs) - min(xs) + 1, max(ys) - min(ys) + 1)
 
 
-async def _screenshot(page: Page, clip: dict[str, float]) -> bytes:
+async def _screenshot(page: Page, clip: dict[str, float], animations: bool = False) -> bytes:
     """A screenshot of `clip` (document coordinates). The first screenshot
     of a session can fail before the page has painted once; it is tried
     again after a short wait."""
     for attempt in range(2):
         try:
             return await page.screenshot(
-                clip=clip, full_page=True, animations="disabled", caret="hide"
+                clip=clip,
+                full_page=True,
+                animations="allow" if animations else "disabled",
+                caret="hide",
             )
         except Exception:
             if attempt == 1:
@@ -384,7 +397,7 @@ async def _screenshot(page: Page, clip: dict[str, float]) -> bytes:
     raise AssertionError("unreachable")
 
 
-async def _ink_rows(page: Page, selector: str) -> list[Row]:
+async def _ink_rows(page: Page, selector: str, animations: bool = False) -> list[Row]:
     elements = await page.evaluate(_ELEMENTS_JS, selector)
     if not elements:
         return [Row("ink", selector, {"matched": False})]
@@ -396,19 +409,23 @@ async def _ink_rows(page: Page, selector: str) -> list[Row]:
             continue
         x, y, w, h = rect
         clip = {"x": x, "y": y, "width": w, "height": h}
-        png = await _screenshot(page, clip)
+        png = await _screenshot(page, clip, animations)
         ink, bbox = ink_of(png)
         rows.append(Row("ink", _label(selector, n), {"ink": ink, "bbox": bbox, "area": rect}))
     return rows
 
 
-async def _pixel_rows(page: Page, selector: str, points: Sequence[Sequence[int]]) -> list[Row]:
+async def _pixel_rows(
+    page: Page, selector: str, points: Sequence[Sequence[int]], animations: bool = False
+) -> list[Row]:
     """The RGB values at `points` (px from the top left of the element's
     border box) of a screenshot of the whole page, for each match."""
     elements = await page.evaluate(_ELEMENTS_JS, selector)
     if not elements:
         return [Row("pixels", selector, {"matched": False})]
-    png = await page.screenshot(full_page=True, animations="disabled", caret="hide")
+    png = await page.screenshot(
+        full_page=True, animations="allow" if animations else "disabled", caret="hide"
+    )
     rows = []
     with Image.open(io.BytesIO(png)) as image:
         for n, element in enumerate(elements, 1):
@@ -422,11 +439,12 @@ async def _pixel_rows(page: Page, selector: str, points: Sequence[Sequence[int]]
     return rows
 
 
-async def _run_query(page: Page, query: Query) -> list[Row]:
-    """Runs one query. A failing selector or expression gives an error row."""
+async def _run_query(page: Page, query: Query, animations: bool = False) -> list[Row]:
+    """Runs one query. A failing selector or expression gives an error row.
+    `animations` leaves the page's animations as they are in screenshots."""
     try:
         if query.kind == "pixels":
-            return await _pixel_rows(page, query.target, query.points)
+            return await _pixel_rows(page, query.target, query.points, animations)
         if query.kind == "js":
             scope = await frame_at(page, query.frame) if query.frame else page
             value = await scope.evaluate(query.target)
@@ -436,7 +454,7 @@ async def _run_query(page: Page, query: Query) -> list[Row]:
                 raise ProbeError(f"the value is not JSON: {error}") from error
             return [Row("js", query.target, {"value": value})]
         if query.kind == "ink":
-            return await _ink_rows(page, query.target)
+            return await _ink_rows(page, query.target, animations)
         if query.kind == "style":
             styles = await page.evaluate(_STYLE_JS, [query.target, list(query.props)])
             if not styles:
@@ -556,7 +574,8 @@ async def probe_case(
         await browser.load_html(page, path, case.html)
         url = path.as_uri()
     await browser.wait_for_fonts(page)
-    await browser.stop_animations(page)
+    if not case.animations:
+        await browser.stop_animations(page)
     if case.steps:
         try:
             await run_steps(page, case.steps)
@@ -567,7 +586,7 @@ async def probe_case(
             raise ProbeError(f"case {case.name!r}: step failed: {message}") from error
     result = CaseResult(case.name, case.viewport)
     for query in case.queries:
-        result.rows.extend(await _run_query(page, query))
+        result.rows.extend(await _run_query(page, query, case.animations))
     return result, path, url
 
 

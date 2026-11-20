@@ -4,6 +4,44 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-20: Next target videojs.org; plan of M13 to M15
+
+- The owner chose the front page of videojs.org: CSS transitions and
+  animations, audio and video playback (ground rules, 2026-11-20).
+- First look with `curl`: the hero is a Video.js 10 player that plays a
+  Mux HLS stream (fragmented MP4 segments of 4 s, about 36 s, 8
+  renditions from 360p to 2160p, H.264 High profile with B-frames, AAC-LC
+  in separate audio renditions) with hls.js over Media Source
+  Extensions. hls.js runs its transmuxer in a `Worker` when one exists,
+  so the M12 stand-in would stop it. A metadata track gives the timeline
+  thumbnails. The style sheets have 9 `@keyframes` and about 170
+  transition declarations.
+- Playwright's Chromium 148 decodes H.264 and AAC, so the references can
+  include video frames. It also answers "maybe" to `canPlayType` for
+  HLS; the page does not ask.
+- FFmpeg's own H.264 and AAC decoders are LGPL (FFmpeg's `LICENSE.md`
+  lists its GPL parts: filters, some x86 code, external encoders such as
+  x264), so a static build without GPL parts is LGPL-2.1 or later.
+- Plan: M13 CSS transitions and animations, M14 media playback, M15 the
+  player (roadmap).
+- M13 step 1, the diagnosis (`docs/videojs-diagnosis.md`): fixtures and
+  references with JS off and on, seven step groups, four probe files
+  (three equal Chromium runs each), the probe flag `animations`, the
+  tools `animation-survey` and `animation-cpu`, the GUI trace
+  `videojs-page`. swb already runs the page and its step groups without
+  a console error and with Chromium's state records. The gaps: static
+  CSS (29 properties, more than the five of the first look; `text-wrap`
+  changes the hero title), the logo (an inline SVG with width 0), the
+  animation APIs, and the cost of a frame (30 ms for a repaint of the
+  hero).
+- The references turn animations off with a style sheet that the tools
+  inject after the load, not with Playwright's flag. Feature 3 adds a
+  swb option with the same effect from the start of the document, so the
+  other targets' scores do not depend on the animation code.
+- Plan changes: static CSS in two features (2a, 2b); the cost of a frame
+  before the transitions. Next: the ADR for CSS animations and
+  transitions, then feature 2a.
+
 ## 2026-11-19: README and CI
 
 - The README starts with a CI badge, a screenshot and the quick start;

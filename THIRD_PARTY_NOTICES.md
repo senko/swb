@@ -567,8 +567,18 @@ OpenStreetMap name and logo are marks of the OpenStreetMap Foundation. The
 fixture has no map data: that is ODbL data of the OpenStreetMap contributors
 and it is not in the repository.
 
+The Video.js page (`fixtures/pages/videojs`, JavaScript off) keeps the markup,
+style sheets and texts of videojs.org. Its main style sheet contains Tailwind
+CSS (MIT, notice in its first line). The thumbnail of the player is replaced
+with a placeholder image; the fixture has no video.
+
 Fonts in the fixtures:
 
+- `videojs`: IBM Plex Mono (Copyright 2017 IBM Corp.) and Instrument Sans
+  (Copyright 2022 The Instrument Sans Project Authors), unchanged copies of the
+  WOFF2 files that the site serves, under the SIL Open Font License 1.1, text
+  in `fixtures/LICENSE-OFL-1.1.txt`. The site's two commercial display fonts
+  are replaced with DejaVu Sans (as for `bbc`, same license).
 - `ars-technica`: Source Sans 3 (© 2010–2021 Adobe, with Reserved Font
   Name ‘Source’), Faustina (Copyright 2019 The Faustina Project
   Authors), Exo 2 (Copyright 2013 The Exo 2 Project Authors), unchanged

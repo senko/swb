@@ -5916,6 +5916,243 @@ Steps:
    behind the header links (not in the fixture; they only navigate),
    print.
 
+## M13: CSS transitions and animations (videojs.org) — planned
+
+Owner decisions (2026-11-20, ground rules): the target is the front page
+of <https://videojs.org/>, with JavaScript on and off, in three
+milestones: M13 CSS transitions and animations (the page without
+playback), M14 media playback, M15 the page's player. FFmpeg demuxes
+and decodes (M14); swb writes no codec, decoder or demuxer. The rules of
+M9 apply.
+
+What the page uses (first look on 2026-11-20 with `curl`; the diagnosis
+checks it in swb and Chromium):
+
+- An Astro site with React islands (`HeroVideo`, `AnimatedBars`,
+  `AppearanceMenu`, `Search`, `MobileNav`, `GetStartedLink`,
+  `PreferenceSync`) and module scripts; two style sheets (Tailwind 4,
+  128 KB; the Video.js skin, 94 KB).
+- 9 `@keyframes` (`opacity`, `transform`, `background-position`,
+  `width`, `height`): the hero reveal, a marquee, bars that grow when an
+  `IntersectionObserver` sees them, a spinner with `steps(8, end)` and
+  delays from custom properties, a shimmer on text.
+- About 170 transition declarations: `opacity`, `scale`, `translate`,
+  `rotate`, `transform`, `filter`, `backdrop-filter`, colors,
+  `box-shadow`, `width` and `height` (one with `interpolate-size`),
+  `inset`, `outline-offset`, `background-size`, registered custom
+  properties (`--media-slider-fill`, `--tw-gradient-*`), and `display`,
+  `overlay` and `content-visibility`. Easing: `cubic-bezier()`, the
+  keywords, `linear()` with points.
+- Scripts start transitions through inline styles (a spring of the page
+  at its end: `transform 600ms var(--ease-soft)`) and attributes (the
+  hero reveal: `data-hero-ready` and `--hero-delay`).
+- CSS that swb lacks besides animations: the properties `translate`,
+  `rotate` and `scale` (swb has only `transform`); `box-shadow` and
+  `text-shadow` (parsed, not drawn); `-webkit-text-stroke` (the outlined
+  part of the title); `corner-shape`.
+- The hero is a Video.js 10 player with hls.js (M15). hls.js needs
+  `MediaSource`; the diagnosis records what the hero shows in swb without
+  it. M13 changes the hero only where it breaks the rest of the page.
+
+Steps:
+
+1. Diagnosis and tools (`implementer`):
+   - The fixtures `fixtures/js/videojs` (local only) and
+     `fixtures/pages/videojs` (JS off), their Chromium references and
+     scores.
+   - A way to compare animations with Chromium at given times: probe
+     cases that read computed values and pixels at fixed animation times
+     (in Chromium through `document.getAnimations()` and
+     `Animation.currentTime`, or CDP's animation domain; in swb through
+     the same API or its virtual clock). Probe files for animations,
+     transitions and their events.
+   - The list of gaps: the page's console errors, the CSS that swb
+     ignores, the APIs that the scripts need (for example
+     `element.animate()`), with JavaScript on and off.
+   - A GUI trace with the page's animations and hovers; the frame time
+     and the idle CPU while only the endless animations run (marquee,
+     spinner); the budget of the `load` event.
+   - Report `docs/videojs-diagnosis.md`. The diagnosis may change the
+     order and the scope of the features below.
+
+   Done (2026-11-20): `docs/videojs-diagnosis.md`.
+   - Fixtures: `fixtures/pages/videojs` (JS off, committed: geometry
+     0.9096, pixels 0.7216) and `fixtures/js/videojs` (local; JS on:
+     geometry 0.8347, pixels 0.9139, 15 boxes missing, 14 of them the
+     picture-in-picture and fullscreen buttons). Seven step groups in
+     `crates/automation/tests/data/videojs-steps.json`.
+   - Sampling: `js` rows that pause every animation and set
+     `currentTime` (`document.getAnimations()`), with the new probe flag
+     `"animations": true`. Probe files `css-animations`,
+     `css-transitions`, `css-videojs-static`, `css-videojs-support`
+     (three equal Chromium runs each). New tools `animation-survey`,
+     `animation-cpu`; GUI trace `videojs-page`.
+   - swb runs the page and the seven groups without a console error,
+     with state records equal to Chromium's. The gaps: static CSS (55
+     declarations of 29 properties that `CSS.supports` rejects, more
+     than the five listed above), the inline SVG logo with width 0, the
+     animation APIs (none exist; Base UI waits on
+     `getAnimations()`/`finished` to close popups), and the cost of a
+     frame (a repaint of the hero takes 30 ms).
+   - The references turn animations off with an injected style sheet
+     (`animation: none !important; transition: none !important`) after
+     the load, not with Playwright's flag. Only github-swb,
+     ars-technica, osm-zagreb and videojs have animations or transitions
+     in the first view.
+   - Budgets: `load` at most 1.34 s (swb today 0.32 s); frame p90 16 ms
+     with the hero in view; pointer move to frame p90 50 ms (today
+     94 ms); idle CPU 0 % with no visible animation, at most 5 % with
+     only the spinner and 15 % with only the marquee in view (Chromium:
+     0.9 % and 2.1 %).
+   - Plan changes, applied below: feature 2 is split in two; the cost
+     of a frame moves before the transitions; feature 3 adds the option
+     that turns animations off for the comparisons of the other targets.
+2. ADR: CSS animations and transitions (the Web Animations timing model
+   inside `style`; where animated values enter the cascade; the
+   interpolation of each value type; the frame loop in headless mode,
+   virtual time and the GUI; events; the `Animation` objects; what a
+   frame does without layout).
+3. Features, in this order. Each feature ends with a review and a commit,
+   with the checks of M9. The commits number the features from 2 on
+   (feature 1 is the diagnosis).
+   2a. Static CSS that changes the first view (`implementer`): the
+      properties `translate`, `rotate` and `scale`; drawing `box-shadow`
+      and `text-shadow`; `-webkit-text-stroke`; `corner-shape` as far as
+      the page uses it (`squircle`); `text-wrap` (`balance`, `pretty`);
+      `isolation`; `-webkit-text-fill-color`; the width of an inline SVG
+      with `height: 100%` in a flex item (the logo).
+   2b. The other static CSS of the page (`implementer`):
+      `-webkit-background-clip: text`, `all`,
+      `grid-template-rows: subgrid`, `min-height: 1lh`,
+      `font-variant-ligatures` and `font-variant-numeric`, `line-break`,
+      `-webkit-line-clamp`, and the properties that parse without an
+      effect (`overscroll-behavior`, `overflow-anchor`,
+      `-webkit-tap-highlight-color`, `-webkit-text-size-adjust`,
+      `-webkit-font-smoothing`).
+   3. CSS animations (`implementer-hard`): `@keyframes` in the cascade;
+      the `animation-*` longhands and the shorthand; delay, duration,
+      iteration count, direction, fill mode, play state; the easing
+      functions (`cubic-bezier()`, `steps()`, `linear()`, the keywords);
+      the interpolation of the value types that the page animates
+      (lengths and percentages, numbers, colors, transform lists and the
+      individual transform properties, filter lists, shadows, background
+      positions and sizes, registered custom properties, discrete
+      values); `animationstart`, `animationiteration`, `animationend`,
+      `animationcancel`; `document.getAnimations()` and the
+      `CSSAnimation` members that the probes and the page use; the frame
+      loop (the GUI draws frames while an animation runs; headless mode
+      and tests advance with virtual time). `finished` must settle
+      (resolve at the end, reject on cancel), or Base UI's popups never
+      close. The option `--animations off` (diagnosis, section 3): from
+      the start of the document no animation or transition starts and
+      `getAnimations()` is empty; `compare`, `replay`-based tests,
+      `perf` and `js-survey` pass it, so that the scores of the other
+      targets stay as they are. The acceptance of this feature checks
+      values, events and the frame loop, not the frame budget.
+   4. The cost of a frame (`implementer`): an animation of `transform`,
+      `opacity` or `filter` runs without layout; a frame rasterizes only
+      the rectangles that changed (also needed for video frames in M14);
+      animations of elements without a box or outside the viewport cost
+      no frames. Budgets from the diagnosis. This comes before the
+      transitions: every hover on the page repaints the hero (30 ms).
+   5. CSS transitions (`implementer-hard`): the `transition-*` longhands
+      take effect (they leave `inert.rs`, with `calc()` in times and
+      `linear()` as a timing function); the before- and after-change
+      styles; start, cancel and the reversing of a running transition;
+      `transition-behavior: allow-discrete`; `interpolate-size`;
+      `transitionrun`, `transitionstart`, `transitionend`,
+      `transitioncancel`; transitions that scripts start through styles,
+      classes and attributes.
+   6. The exit test (`implementer`): an integration test on the fixture
+      with the items below, the JS-off check and the `load` budget.
+
+   Features 3 and 5 add the hostile cases that the diagnosis lists
+   (section 7, item 8) to the hostile-page set.
+
+   What "works" means (confirmed by the owner on 2026-11-20), on the
+   `videojs` fixture, 1280 x 800:
+
+   1. The first view after the hero reveal renders like Chromium's
+      replay; with JavaScript off like Chromium's JS-off reference.
+   2. The page's CSS animations (the hero reveal, the marquee, the
+      spinner, the growing bars, the shimmer) give Chromium's computed
+      values and pixels at sampled times.
+   3. The hover and focus transitions (links, buttons, the controls of
+      the player before play) and the transitions that scripts start
+      (the theme menu, the spring at the end of the page) give Chromium's
+      values at sampled times, and their events come in Chromium's
+      order.
+   4. The page's scripts run without a console error that Chromium does
+      not have, apart from the media errors that M14 and M15 remove.
+   5. In the GUI the animations run within the frame budget, and the
+      endless animations stay within the idle CPU budget.
+   6. The `load` event within the budget.
+
+   Not in M13: playback (M14, M15), the player after a click on play,
+   `element.animate()` (the page does not call it), scroll-driven
+   animations, view transitions, anchor positioning (only the highlight
+   in the player's settings menu uses it).
+
+## M14: Media playback — planned
+
+Owner decisions (2026-11-20, ground rules): FFmpeg (libavformat,
+libavcodec, libswscale, libswresample) from a pinned source release,
+built with only the needed demuxers and decoders, without network code
+and GPL parts, linked statically (LGPL-2.1 or later); PipeWire for audio
+output, linked dynamically; a Cargo feature for media support, so that
+swb builds without FFmpeg and PipeWire; CI builds and tests both.
+
+Draft, planned in detail when M13 is done:
+
+1. ADR: media (the FFmpeg build and its license, the exception to
+   ADR 0003, the feature, the boundary to FFmpeg and its `unsafe` code
+   (the code conventions require an ADR first), FFmpeg reads through
+   swb's loader and never opens network connections itself, threads,
+   the media clock, audio output). Updates ADR 0020.
+2. The FFmpeg build in `just` and CI; the `media` crate: demuxing and
+   decoding through FFmpeg, decode threads, the frame queue, the media
+   clock and audio and video synchronization.
+3. Audio output: PipeWire, a silent output for headless mode and tests,
+   mixing and volume.
+4. The media element (HTML), for `<audio>` and `<video>` alike, and
+   `new Audio()`: resource selection, fetches with `Range` requests,
+   ready and network states, events, play, pause, seeking, autoplay
+   rules, `TimeRanges`, `MediaError`, `canPlayType` with Chromium's
+   answers for the formats that the build supports. The default
+   controls of `controls` (ADR 0020 draws them, without interaction)
+   respond: play and pause, the timeline, mute and volume, the time.
+5. Video frames in paint (with `object-fit` and rounded clips) and in
+   the GUI frame loop; frames at paused times compared with Chromium's.
+6. Test media: small files made with FFmpeg's test sources (committed),
+   and Mux's `highest.mp4` and `audio.m4a` from the page's constants
+   (local fixtures).
+
+## M15: The videojs.org player — planned
+
+Draft, planned in detail when M14 is done:
+
+1. Dedicated workers: a script runtime per worker on its own thread,
+   messages with transfer (`ArrayBuffer`), Blob URLs, `importScripts`
+   and module workers as the page needs. They replace the `Worker`
+   stand-in of M12, which hls.js would wait on forever. ADR.
+2. Media Source Extensions: `MediaSource`, `SourceBuffer`,
+   `SourceBufferList`, `isTypeSupported` with Chromium's answers; the
+   ISO BMFF byte stream format (WebM later, for YouTube); the coded
+   frame processing, removal and eviction; `URL.createObjectURL` of a
+   `MediaSource`. ADR.
+3. Text tracks: the WebVTT parser, `TextTrack`, `TextTrackList`,
+   `VTTCue`, `<track>` loading (the storyboard thumbnails of the
+   timeline).
+4. The Fullscreen API and the GUI window in fullscreen.
+5. The exit test, with the owner's list (ground rules, 2026-11-20) on a
+   fixture that records the master playlist and the segments that
+   Chromium fetches while it plays (the rendition URLs are signed per
+   visit, so one visit records them all).
+
+Later (backlog): native HLS (`<video src="x.m3u8">`; libavformat's HLS
+demuxer through swb's loader has no adaptive switching), WebM in Media
+Source Extensions, AV1 (dav1d), YouTube.
+
 ## Pending decisions
 
 - Clean-room rewrites of the code derived from Chromium (table layout
@@ -5923,6 +6160,21 @@ Steps:
   sizing; sticky offsets; two float helpers), Skia data and Servo
   (`collapsed_margin.rs`, MPL-2.0); kept with attribution for now
   (ADR 0021).
+
+## Backlog from M13
+
+- Replay (feature 1): the PostHog events of videojs.org
+  (`POST /ph/i/v0/e/`, with retries at changing URLs) are missing from
+  the fixture; Chromium sends none (PostHog drops headless Chromium as a
+  bot). A replay rule that answers them with 204 would remove the noise
+  in swb's log (as for the Matomo requests of M12).
+- Capture (feature 1): Astro prefetches links on hover and focus; a page
+  that does this needs step groups for a complete fixture.
+- CSS (feature 1): anchor positioning (`anchor-name`, `anchor-scope`,
+  `position-anchor`, `anchor()`): the highlight of the menu items in the
+  player's settings menu.
+- DOM (feature 1): `document.fonts` (`FontFaceSet`) and
+  `CSS.registerProperty` do not exist; the page does not need them.
 
 ## Backlog from M12
 

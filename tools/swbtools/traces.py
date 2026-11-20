@@ -311,9 +311,79 @@ def osm_map_trace() -> tuple[list[Event], float]:
     return events, round(t, 3)
 
 
+VIDEOJS_WINDOW = (1280, 840)
+"""The window of the `videojs-page` trace: swb's toolbar (40 px) and a viewport
+of 1280 x 800, the size of the fixture."""
+
+VIDEOJS_STOPS = (
+    ("blog", (1053, 100)),
+    ("docs", (954, 100)),
+    ("github", (1208, 100)),
+    ("discord", (1164, 100)),
+    ("play", (84, 720)),
+    ("settings", (1123, 720)),
+    ("timeline", (619, 720)),
+    ("video", (640, 400)),
+)
+"""The elements of the front page of videojs.org that the pointer visits, with
+their centers in window coordinates (the rectangles of the Chromium reference
+of `fixtures/js/videojs`, plus the toolbar's 40 px)."""
+
+VIDEOJS_APPEARANCE = (1122, 100)
+"""The center of the appearance button of the page, in window coordinates."""
+
+
+def videojs_page_trace() -> tuple[list[Event], float]:
+    """The events and the duration of the `videojs-page` trace (M13 feature
+    1): the pointer glides at 60 Hz over the header links and the controls of
+    the player before play (0.7 s on each, so that a hover transition of
+    200 to 300 ms ends before the next), a click on the appearance button
+    and one on a blank area (a menu that opens and closes), 12 wheel notches
+    100 ms apart (the bars come into view), 25 notches that reach the end of
+    the page, and a gesture of 3 notches 30 ms apart at the end (the page's
+    spring), then 1.5 s of rest."""
+    events: list[Event] = []
+    t = 0.5
+    here = (640, 600)
+    events.append(Event(round(t, 3), "move", x=here[0], y=here[1]))
+    for _, (x, y) in VIDEOJS_STOPS:
+        for i in range(1, 25):
+            at = round(t + i / 60, 3)
+            events.append(
+                Event(
+                    at,
+                    "move",
+                    x=here[0] + round((x - here[0]) * i / 24),
+                    y=here[1] + round((y - here[1]) * i / 24),
+                )
+            )
+        here = (x, y)
+        t += 0.4 + 0.7
+    events.append(Event(round(t, 3), "move", x=VIDEOJS_APPEARANCE[0], y=VIDEOJS_APPEARANCE[1]))
+    t += 0.2
+    events.append(Event(round(t, 3), "press", button=1))
+    events.append(Event(round(t + 0.08, 3), "release", button=1))
+    t += 1.0
+    events.append(Event(round(t, 3), "move", x=300, y=400))
+    events.append(Event(round(t + 0.05, 3), "press", button=1))
+    events.append(Event(round(t + 0.13, 3), "release", button=1))
+    t += 1.2
+    for i in range(12):
+        events.append(Event(round(t + i * 0.1, 3), "wheel", notches=1))
+    t += 1.2 + 2.5
+    for i in range(25):
+        events.append(Event(round(t + i * 0.05, 3), "wheel", notches=1))
+    t += 1.25 + 1.0
+    for i in range(3):
+        events.append(Event(round(t + i * 0.03, 3), "wheel", notches=1))
+    t += 0.09 + 1.5
+    return events, round(t, 3)
+
+
 def synthetic_traces() -> dict[str, tuple[str, tuple[int, int] | None, float, list[Event]]]:
     """The synthetic traces by name: (description, window, duration,
-    events). All are for a window of at least 1280 x 900 pixels."""
+    events). The ones without a window of their own are for a window of
+    at least 1280 x 900 pixels."""
     # A diagonal sweep over the page: 125 moves per second for 3 s, 4 px
     # across and 2 px down per move, wrapping inside the area x 50 to 1230,
     # y 100 to 700 (the pointer rate of a mouse).
@@ -327,6 +397,7 @@ def synthetic_traces() -> dict[str, tuple[str, tuple[int, int] | None, float, li
     burst += [Event(round(0.5 + i * 0.03, 3), "wheel", notches=1) for i in range(10)]
     burst += [Event(round(1.5 + i * 0.03, 3), "wheel", notches=-1) for i in range(10)]
     osm_events, osm_duration = osm_map_trace()
+    vjs_events, vjs_duration = videojs_page_trace()
     return {
         "osm-map": (
             "synthetic: drags of the map of openstreetmap.org (five drags of 200 to 400 px, "
@@ -335,6 +406,14 @@ def synthetic_traces() -> dict[str, tuple[str, tuple[int, int] | None, float, li
             OSM_MAP_WINDOW,
             osm_duration,
             osm_events,
+        ),
+        "videojs-page": (
+            "synthetic: the front page of videojs.org (hovers over the header links and the "
+            "controls of the player, the appearance menu, wheel scrolls past the bars to the end "
+            "of the page, and the gesture of the page's spring)",
+            VIDEOJS_WINDOW,
+            vjs_duration,
+            vjs_events,
         ),
         "pointer-sweep": (
             "synthetic: a diagonal pointer sweep, 125 moves per second for 3 s",

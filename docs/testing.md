@@ -629,6 +629,22 @@ order, per sequence:
    of the test (`osm-zagreb-departures.json`, `-nt-departures.json`) gets one
    entry per cause.
 
+The second example is `crates/automation/tests/data/videojs-steps.json` (M13
+feature 1; the front page of videojs.org, `fixtures/js/videojs`): seven groups
+for the hover, focus and script transitions of the page: hovers over the
+header links (`hover nav links`), four `Tab` presses (`focus links by
+keyboard`), the player's controls before play (`hover player controls`), the
+appearance menu (open, Dark, System, Escape), two wheel scrolls that bring
+the bars into view, three that reach the end of the page, and three notches
+without a gap at the end (the spring). The capture was
+`just capture --js --force --steps crates/automation/tests/data/videojs-steps.json https://videojs.org/ videojs`
+(275 responses; the steps add the prefetches that Astro makes on hover
+and focus: `/blog`, `/docs/guides/installation/react`, `DocSearchModal.*.js`,
+a style sheet). `swbtools replay videojs --steps FILE --record EXPR` runs
+them in Chromium with animations off (the page's own state records are equal
+in swb and Chromium, docs/videojs-diagnosis.md); `swb --steps` runs the same
+groups flattened.
+
 `summary` prints a table of the records. After a change of the steps or of
 the record expression, run all of `steps`, `records` and `points` again.
 
@@ -1129,9 +1145,10 @@ least the last event's time; an idle trace has no events. The traces:
 | `idle-10s` | No input for 10 s: the CPU and the frames of a page at rest. |
 | `pointer-sweep` | A diagonal pointer sweep, 125 moves per second for 3 s. |
 | `wheel-burst` | The pointer to the page's middle, 10 notches down and 10 up, 30 ms apart. |
+| `videojs-page` | The front page of videojs.org (M13 feature 1; 19.24 s, window 1280 x 840 = toolbar and a 1280 x 800 viewport): the pointer glides at 60 Hz (24 moves) to eight elements and rests 0.7 s on each (the links Blog, Docs, GitHub and Discord of the header, the play button, the settings button and the timeline of the player, then the video), a click on the appearance button and one on a blank area (the menu opens and closes), 12 wheel notches 100 ms apart (the bars come into view), 25 notches 50 ms apart (the end of the page) and a gesture of 3 notches 30 ms apart there (the page's spring), then 1.5 s of rest. 195 moves, 40 notches, 2 clicks. `tools/make_traces.py synthetic` makes it (`videojs_page_trace` in `swbtools/traces.py`; the centers of the elements are from the Chromium reference of `fixtures/js/videojs`). |
 | `osm-map` | The map of openstreetmap.org (M12 feature 1b; 13.07 s, window 1280 x 900, the pointer in the part of the window that the map covers: x 360 to 1200, y 150 to 840, toolbar included): five drags of 200 to 364 px in different directions (press, 36 moves at 60 Hz over 0.6 s, a rest of 0.1 s, release, 0.8 s between drags), then wheel notches over the map: three in and three out one at a time 400 ms apart, and a burst of five in 30 ms apart. 186 moves (the tool counted 182: moves to the place where the pointer already is give no X event), 11 notches, 5 clicks. |
 
-`tools/make_traces.py` makes them: `synthetic` writes `osm-map` and the last three;
+`tools/make_traces.py` makes them: `synthetic` writes `idle-10s`, `pointer-sweep`, `wheel-burst`, `videojs-page` and `osm-map`;
 `wayland LOG NAME --description TEXT [--until S] [--window WxH]` extracts the
 pointer input over the window from a `WAYLAND_DEBUG=1` log (each line
 prefixed with `CLOCK_MONOTONIC` seconds, as `out/perf/record.sh` made them
@@ -1248,6 +1265,14 @@ temporary directory, loaded by navigation.
   (scripting)` matches. The clock is not fixed: a case must not depend on
   the date. Without the flag, scripts do not run and `js` queries only read
   the DOM that the HTML made.
+- `animations` (file and case, optional; M13 feature 1): `true` leaves CSS
+  animations and transitions on. Without it the tool injects `animation:
+  none !important; transition: none !important` after the load (as
+  `reference` does, `browser.stop_animations`) and takes screenshots with
+  Playwright's `animations: "disabled"`, so a case cannot see an animation.
+  With it, `js` queries can pause and seek animations and a later `pixels` or
+  `ink` query sees that time (screenshots use `animations: "allow"`). See
+  "Probe animations and transitions" below.
 - `resources` (case, optional): text files that a local HTTP server
   serves next to the page, each after its delay:
   `{"a.js": {"text": "log('a')", "delay_ms": 200, "content_type":
@@ -1612,6 +1637,102 @@ font glyph: the probe cases that measured it (the glyph of `bi-plus-lg` at
 every subpixel offset of its box, 23 pixels over 8 levels at each offset)
 needed the local fonts of `fixtures/js/osm-zagreb` and are not in the
 repository.
+
+### Probe animations and transitions
+
+M13 feature 1 (the diagnosis of videojs.org, docs/videojs-diagnosis.md)
+decided how a test compares an animation or a transition with Chromium at a
+fixed time: **a `js` query pauses every animation of the document and seeks
+it, then reads computed styles**; a `pixels` or `ink` query of the same case
+then sees the same time. The case has `"javascript": true` and `"animations":
+true`. The pieces, as the three files below use them:
+
+```js
+function seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }
+// at('#a', ['opacity','transform'], [0, 500, 1000]): one line per time
+function at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\n'); }
+```
+
+`currentTime` is the time of the animation, with the delay included (an
+animation with `animation-delay: .9s` starts to change at 900). It works for
+`CSSAnimation` and `CSSTransition`; the sample does not depend on real time,
+so three Chromium runs give equal output, and swb runs the same expressions
+with `--eval` (`--with-swb`). Why this and not CDP's `Animation` domain
+(`Animation.setPlaybackRate`, `seekAnimations`) or Chromium's virtual time
+(`Emulation.setVirtualTimePolicy`): the expressions exercise the API that
+swb must have (`document.getAnimations()`, `Animation.pause()`,
+`currentTime`, `effect.getComputedTiming()`, `finished`) and the page's own
+libraries use it (Base UI waits for `getAnimations().map((a) => a.finished)`
+before it closes a popup); no Chromium-specific protocol is needed; and the
+rows are plain text that the Rust tests of the features can compare, with a
+tolerance for numbers.
+
+Rules that the cases follow, found in Chromium 148:
+
+- A transition or animation that has finished and has no fill is not in
+  `getAnimations()`; seek inside the duration (`seek(t)` with `t` past the end
+  of a transition that has no `forwards` fill leaves the list empty).
+- Cases that start a transition with the pointer (`steps`: `hover`, `key`)
+  use durations of 20 s, because the step takes some milliseconds and a
+  transition of 200 ms would be over before the query; the timing function
+  is the one under test, the sampled times are fractions of the duration.
+  Transitions that a script starts (`classList.add`) use the page's own
+  durations.
+- A transition needs a style flush between the two states: read
+  `getComputedStyle(el).prop` before the class change. An element inserted
+  and changed in one task has no before-change style and gets no transition
+  (`no-transition-on-insert`); an element that goes from `display: none` to
+  `block` starts none either.
+- Events (`animationstart`, `transitionrun`, ...) run in real time with
+  durations of 40 to 400 ms and a `wait()`. The `elapsedTime` of `*cancel`
+  events and of the end of a reversed transition depends on real time, so
+  those rows print `~`. Event order is the order of the log.
+- A real-time value must not enter a row (`currentTime` of a running
+  animation, `pending`): the three runs would differ.
+
+The probe files (Chromium 148, three runs each with equal output):
+
+| File | Cases |
+|---|---|
+| `tools/probes/css-animations.json` (17) | The page's animations: `hero-reveal` (paused animations started by an attribute and `--hero-delay` that a script sets: `data-hero-ready`, delay 300 ms; `color`, `-webkit-text-stroke-color` with `var()` in the keyframes, `transform` from `translateY() scale()` to `none`, and the pixels), `hero-reveal-default-delay` (the 900 ms of `var(--hero-delay, .9s)`), `marquee` (`translate(-50%)` to `translate(0)`, 30 s, infinite), `spin-implicit-from` (only a `to` keyframe), `spinner-steps` (`steps(8, end)`, eight delays from a custom property, `--media-spinner-animation: none`), `bars-grow` (paused until `[data-animate]`, `forwards`, `var()` in a keyframe, `width` and `height` in percent), `shimmer` (`background-position`, `-webkit-background-clip: text`); and the general cases: 20 timing functions (the keywords, the page's `cubic-bezier()` values, `steps()` forms, `linear()` with points and with overshoot), a timing function inside a keyframe, fill modes with a delay, iteration count and direction, the `animation` shorthand and its longhands (also `var()` that is `none`), events (single, two elements and two animations, cancel by `display: none`, `animation-name: none`, `cancel()` and `finish()`, paused start), and `animation-api` (`CSSAnimation` members, `getKeyframes()`, `getComputedTiming()`, `getAnimations({subtree})`, `finished` and `ready`, `cancel()` rejecting with `AbortError`, `pause()` and `currentTime`). |
+| `tools/probes/css-transitions.json` (17) | Hover and keyboard focus (`hover-colors-after`, `hover-scale-translate-opacity`, `focus-visible-colors`: `background-color`, `color`, `opacity`, `scale`, `translate`, with pixels and the box), `values-by-class` (16 properties at once: `width`, `height`, colors, `outline-offset`, `opacity`, `filter`, `backdrop-filter`, `left`, `top`, `box-shadow` with a list of another length, `background-size`), `individual-transform-properties` (`transform`, `translate`, `scale`, `rotate` together), `inline-style-spring` (the page's script: `transition: none` and an inline `transform`, then `transform 600ms var(--ease-soft)`) and the case without a flush, `attribute-popup` (an attribute; `transition-property` and `transition-duration` lists of different length, a delay list), `reverse-running-transition` (reversal, with a delay, and a change to another value), events (run, start, end; cancel, reverse, `finish()`), `transition-behavior-discrete` (`display` and `content-visibility` with `allow-discrete`, `normal`, lists), `interpolate-size` (`height` and `width` to `auto` and `max-content`, with and without `allow-keywords`; `CSS.supports` of the new names), `custom-properties` (registered `<percentage>` transitions, unregistered ones do not), `linear-overshoot` (the slider's `linear(0, -24 20%, ...)`), and `transition-api-finished` (`finished` of a popup's transitions, `transitionProperty`, `getAnimations({subtree})`). |
+| `tools/probes/css-videojs-static.json` (6) | Pixels and computed values for what swb draws or parses not yet: `box-shadow` (the Tailwind shadows, a ring, `inset`, a blur, rounded and clipped), `text-shadow` (`ink` and pixels), `-webkit-text-stroke` (the outlined title with `clamp()` and a transparent fill), `corner-shape` (`squircle`, `bevel`, `scoop`, `superellipse()`; with border and clip), `translate`, `rotate` and `scale` (the order with `transform`, percentages, three-value forms). |
+| `tools/probes/css-videojs-support.json` (1) | The 689 declarations of the page's style sheets (180 properties, without `var()` values) that Chromium accepts: the rows list what `CSS.supports` rejects, so Chromium's rows are empty and swb's rows list its gaps (55 declarations of 29 properties on 2026-11-20). |
+
+Run one file: `just probe tools/probes/css-transitions.json`; with swb:
+`just probe --with-swb --swb target/release/swb FILE` (every case differs
+until the features of M13 exist; the baseline of 2026-11-20 is in
+docs/videojs-diagnosis.md).
+
+### Animations in the references
+
+`reference`, `reference --js`, `replay`, `compare` and `js-survey` turn
+animations off by one mechanism: after the load (and for fixtures with
+JavaScript after the network is idle, the settle time and the fonts) they add
+a style sheet with `animation: none !important; transition: none !important`
+for every element (`browser.stop_animations`). Chromium's own
+`animations: "disabled"` of `page.screenshot` then has nothing to act on. So the reference is the
+base style of every element at the end of the load: the end state of a
+reveal animation is the base style only when the page's CSS makes it so (the
+hero of videojs.org does), and a transition that was running at that moment
+is at its end value. Steps that run afterwards (`replay`, `compare --click`)
+run with animations off as well. The Playwright flag is not the convention.
+
+`swbtools animation-survey [--js] [NAME...]` (M13 feature 1;
+`tools/swbtools/animation_survey.py`) loads fixtures the same way without
+turning animations off and counts: the animations that `document.getAnimations()`
+lists after the settle time (by class, how many in the first viewport, how
+many infinite, how many are gone 2 s later), the elements whose computed style
+declares an animation or a transition (and the properties of the
+transitions), and, with JavaScript on, the animation and transition events
+since the start of the document (`started`: names of the animations and
+properties). It writes `out/animations/NAME.json` (`--out` changes the
+directory). `swbtools animation-cpu TARGET... [--js] [--scroll Y] [--seconds
+N]` measures the CPU time of the Chromium processes (CDP
+`SystemInfo.getProcessInfo`, by process type, as a share of one core) over
+`N` seconds (default 10) after a 2 s wait, for the synthetic pages
+`idle`, `spinner` (the player's buffering spinner) and `marquee` (the
+page's) or for a fixture scrolled to `Y`.
 
 ## Hostile-page set
 

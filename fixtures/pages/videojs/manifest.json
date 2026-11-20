@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "method": "GET",
+      "url": "https://image.mux.com/BV3YZtogl89mg9VcNBhhnHm02Y34zI1nlMuMQfAbl3dM/storyboard.vtt",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/vtt"
+        ]
+      ],
+      "body": "files/88262ef488e52bbb.bin"
+    },
+    {
+      "method": "GET",
+      "url": "https://image.mux.com/BV3YZtogl89mg9VcNBhhnHm02Y34zI1nlMuMQfAbl3dM/thumbnail.webp?time=7.72&width=2400",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/webp"
+        ]
+      ],
+      "body": "files/cf84d3f64014af99.webp"
+    },
+    {
+      "method": "GET",
+      "url": "https://static.mux.com/fonts/EurostileLTProBoldExtended2/font.woff2",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "application/x-www-form-urlencoded"
+        ]
+      ],
+      "body": "files/0fda5850f201a526.bin"
+    },
+    {
+      "method": "GET",
+      "url": "https://static.mux.com/fonts/EurostileLTProExtended2/font.woff2",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "application/x-www-form-urlencoded"
+        ]
+      ],
+      "body": "files/66223b11c227ded3.bin"
+    },
+    {
+      "method": "GET",
+      "url": "https://videojs.org/",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/html; charset=UTF-8"
+        ]
+      ],
+      "body": "files/a8673fdb57d1dcdf.html"
+    },
+    {
+      "method": "GET",
+      "url": "https://videojs.org/_astro/Base.CPm2-D3c.css",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/css; charset=UTF-8"
+        ]
+      ],
+      "body": "files/e9d5a37d70b24b4a.css"
+    },
+    {
+      "method": "GET",
+      "url": "https://videojs.org/_astro/fonts/46a5a390fda0f23a.woff2?dpl=6afdf89321b0251325f0adac",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "font/woff2"
+        ]
+      ],
+      "body": "files/5b7716398b823c97.woff2"
+    },
+    {
+      "method": "GET",
+      "url": "https://videojs.org/_astro/fonts/6f8849817f17f5e0.woff2?dpl=6afdf89321b0251325f0adac",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "font/woff2"
+        ]
+      ],
+      "body": "files/d228ca3e0dab07c7.woff2"
+    },
+    {
+      "method": "GET",
+      "url": "https://videojs.org/_astro/fonts/b25d8f0f97e6e525.woff2?dpl=6afdf89321b0251325f0adac",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "font/woff2"
+        ]
+      ],
+      "body": "files/6219bc4bfdfc5d9b.woff2"
+    },
+    {
+      "method": "GET",
+      "url": "https://videojs.org/_astro/fonts/c7badacef09f3c2d.woff2?dpl=6afdf89321b0251325f0adac",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "font/woff2"
+        ]
+      ],
+      "body": "files/52de70091213c9ea.woff2"
+    },
+    {
+      "method": "GET",
+      "url": "https://videojs.org/_astro/skin.BNjUttpJ.css",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "text/css; charset=UTF-8"
+        ]
+      ],
+      "body": "files/e467e66410383cfd.css"
+    },
+    {
+      "method": "GET",
+      "url": "https://videojs.org/built-bg-horizontal-line-gray.svg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/bb197be2955bdfb7.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://videojs.org/data-bar-orange.svg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/1a341e4dcba20ec4.svg"
+    },
+    {
+      "method": "GET",
+      "url": "https://videojs.org/data-bar-white.svg",
+      "status": 200,
+      "headers": [
+        [
+          "content-type",
+          "image/svg+xml"
+        ]
+      ],
+      "body": "files/83595fb4dab9beae.svg"
+    }
+  ]
+}

@@ -390,6 +390,52 @@ def test_time_zone_must_be_a_name():
         parse_cases(text)
 
 
+def test_animations_flag_in_the_case_file():
+    text = (
+        '{"animations": true, "cases": ['
+        '{"name": "a", "html": "<p>", "measure": [{"js": "1"}]},'
+        '{"name": "b", "html": "<p>", "animations": false, "measure": [{"js": "1"}]}]}'
+    )
+    a, b = parse_cases(text)
+    assert (a.animations, b.animations) == (True, False)
+    (c,) = parse_cases('{"cases": [{"name": "c", "html": "", "measure": [{"js": "1"}]}]}')
+    assert c.animations is False
+    bad = '{"cases": [{"name": "d", "html": "", "animations": 1, "measure": [{"js": "1"}]}]}'
+    with pytest.raises(ProbeError, match="animations must be true or false"):
+        parse_cases(bad)
+
+
+@pytest.mark.parametrize("name", ["css-animations", "css-transitions", "css-videojs-static"])
+def test_animation_probe_files_parse(name):
+    cases = read_cases(paths.repo_root() / "tools" / "probes" / f"{name}.json")
+    assert len(cases) >= 6
+    if name != "css-videojs-static":
+        assert all(case.javascript and case.animations for case in cases)
+
+
+@pytest.mark.usefixtures("chromium")
+def test_animations_flag_keeps_animations_running_and_seekable():
+    html = (
+        "<style>body{margin:0;background:#fff}#a{width:20px;height:20px;background:#000;"
+        "animation:f 10s linear both}@keyframes f{from{opacity:0}to{opacity:1}}</style>"
+        "<div id=a></div><script>function seek(t){for(const a of document.getAnimations())"
+        "{a.pause();a.currentTime=t}}</script>"
+    )
+    queries = (
+        Query("js", "document.getAnimations().length"),
+        Query("js", "(seek(5000), getComputedStyle(a).opacity)"),
+        Query("pixels", "#a", points=((5, 5),)),
+    )
+    on = Case("on", html, (50, 50), queries, javascript=True, animations=True)
+    off = Case("off", html, (50, 50), queries, javascript=True)
+    result_on, result_off = asyncio.run(
+        in_chromium(lambda page, directory: _probe_all([on, off], None, 1.0, page, directory))
+    )
+    assert [row.data.get("value") for row in result_on.rows[:2]] == [1, "0.5"]
+    assert result_on.rows[2].data["pixels"] == [(127, 127, 127)]
+    assert result_off.rows[0].data["value"] == 0
+
+
 def test_any_error_finds_failed_queries():
     ok = CaseResult("c", (1, 1), [Row("js", "1", {"value": 1})])
     failed = CaseResult("d", (1, 1), [Row("boxes", "p[", {"error": "not a valid selector"})])

@@ -41,6 +41,12 @@
     "relative": 1.0,
     "size": 1.0
   },
+  "videojs": {
+    "geometry": 0.9096,
+    "pixels": 0.7216,
+    "relative": 0.9126,
+    "size": 0.9277
+  },
   "wikipedia-web-browser": {
     "geometry": 0.9977,
     "pixels": 0.9941,

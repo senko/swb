@@ -1,0 +1,335 @@
+{
+ "viewport": [
+  400,
+  300
+ ],
+ "javascript": true,
+ "animations": true,
+ "cases": [
+  {
+   "name": "hero-reveal",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>\n:root{--ease-soft:cubic-bezier(.2,.8,.2,1);--manila:rgb(243,231,210);--black:rgb(31,29,27)}\nbody{margin:0;background:rgb(120,90,150)}\nheader{--hero-title-from:var(--black);position:relative;width:380px;height:240px}\n[data-hero-video]{position:absolute;left:20px;top:10px;width:200px;height:100px;background:rgb(200,0,0);animation:hero-video-in 1.1s var(--ease-soft) var(--hero-delay,.9s) both paused}\n[data-hero-title]{margin:0;position:absolute;left:20px;top:140px;font:bold 40px Arial;text-transform:uppercase;color:var(--manila);animation:hero-title-in 1.1s ease var(--hero-delay,.9s) both paused}\n[data-hero-title-outline]{color:#0000;-webkit-text-stroke:1.5px var(--manila);animation:hero-outline-in 1.1s ease var(--hero-delay,.9s) both paused}\n[data-hero-ready] [data-hero-video],[data-hero-ready] [data-hero-title],[data-hero-ready] [data-hero-title-outline]{animation-play-state:running}\n@keyframes hero-video-in{0%{opacity:0;transform:translateY(12px)scale(.99)}to{opacity:1;transform:none}}\n@keyframes hero-title-in{0%{color:var(--hero-title-from)}to{color:var(--manila)}}\n@keyframes hero-outline-in{0%{-webkit-text-stroke-color:var(--hero-title-from)}to{-webkit-text-stroke-color:var(--manila)}}\n</style></head><body><header data-hero-reveal><div data-hero-video></div><h1 data-hero-title>Open <span data-hero-title-outline>Web</span></h1></header><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n\nconst H = $('header');\nconst VID = '[data-hero-video]', TTL = '[data-hero-title]', OUT = '[data-hero-title-outline]';\nfunction ready(delay) { H.style.setProperty('--hero-delay', delay); H.setAttribute('data-hero-ready', ''); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "states()"
+    },
+    {
+     "js": "val(VID, ['opacity','transform','animation-play-state','animation-delay','animation-fill-mode','animation-timing-function'])"
+    },
+    {
+     "js": "val(TTL, ['color','animation-play-state'])"
+    },
+    {
+     "js": "E(() => { ready('300ms'); return states(); })"
+    },
+    {
+     "js": "document.getAnimations().map((a) => a.animationName + ' ' + timing(a)).join('\\n')"
+    },
+    {
+     "js": "at(VID, ['opacity','transform'], [0, 299, 300, 350, 850, 1400, 1401, 2000])"
+    },
+    {
+     "js": "at(TTL, ['color'], [0, 300, 850, 1400, 2000])"
+    },
+    {
+     "js": "at(OUT, ['-webkit-text-stroke-color'], [0, 300, 850, 1400, 2000])"
+    },
+    {
+     "pixels": "header",
+     "points": [
+      [
+       30,
+       20
+      ],
+      [
+       100,
+       60
+      ],
+      [
+       40,
+       175
+      ],
+      [
+       200,
+       175
+      ],
+      [
+       300,
+       175
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "hero-reveal-default-delay",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>\n:root{--ease-soft:cubic-bezier(.2,.8,.2,1);--manila:rgb(243,231,210);--black:rgb(31,29,27)}\nbody{margin:0;background:rgb(120,90,150)}\nheader{--hero-title-from:var(--black);position:relative;width:380px;height:240px}\n[data-hero-video]{position:absolute;left:20px;top:10px;width:200px;height:100px;background:rgb(200,0,0);animation:hero-video-in 1.1s var(--ease-soft) var(--hero-delay,.9s) both paused}\n[data-hero-title]{margin:0;position:absolute;left:20px;top:140px;font:bold 40px Arial;text-transform:uppercase;color:var(--manila);animation:hero-title-in 1.1s ease var(--hero-delay,.9s) both paused}\n[data-hero-title-outline]{color:#0000;-webkit-text-stroke:1.5px var(--manila);animation:hero-outline-in 1.1s ease var(--hero-delay,.9s) both paused}\n[data-hero-ready] [data-hero-video],[data-hero-ready] [data-hero-title],[data-hero-ready] [data-hero-title-outline]{animation-play-state:running}\n@keyframes hero-video-in{0%{opacity:0;transform:translateY(12px)scale(.99)}to{opacity:1;transform:none}}\n@keyframes hero-title-in{0%{color:var(--hero-title-from)}to{color:var(--manila)}}\n@keyframes hero-outline-in{0%{-webkit-text-stroke-color:var(--hero-title-from)}to{-webkit-text-stroke-color:var(--manila)}}\n</style></head><body><header data-hero-reveal><div data-hero-video></div><h1 data-hero-title>Open <span data-hero-title-outline>Web</span></h1></header><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n\nconst H = $('header');\nconst VID = '[data-hero-video]', TTL = '[data-hero-title]', OUT = '[data-hero-title-outline]';\nfunction ready(delay) { H.style.setProperty('--hero-delay', delay); H.setAttribute('data-hero-ready', ''); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { H.setAttribute('data-hero-ready', ''); return states() + ' | ' + document.getAnimations().map(timing).join(' '); })"
+    },
+    {
+     "js": "at(VID, ['opacity','transform'], [0, 899, 900, 1450, 2000, 2001])"
+    }
+   ]
+  },
+  {
+   "name": "marquee",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#m{width:1158px;height:15px;background:#ccc;--animate-marquee:marquee 30s linear infinite;animation:var(--animate-marquee)}@keyframes marquee{0%{transform:translate(-50%)}to{transform:translate(0)}}</style></head><body><div id=m></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "viewport": [
+    1200,
+    100
+   ],
+   "measure": [
+    {
+     "js": "states()"
+    },
+    {
+     "js": "at('#m', ['transform'], [0, 1000, 7500, 15000, 29999, 30000, 37500, 60000, 95000])"
+    },
+    {
+     "js": "document.getAnimations().map((a) => timing(a) + ' ' + a.effect.getComputedTiming().currentIteration + ' ' + a.effect.getComputedTiming().progress).join()"
+    },
+    {
+     "js": "(seek(37500), timing(document.getAnimations()[0]) + ' ' + document.getAnimations()[0].effect.getComputedTiming().currentIteration + ' ' + document.getAnimations()[0].effect.getComputedTiming().progress)"
+    }
+   ]
+  },
+  {
+   "name": "spin-implicit-from",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#s{width:40px;height:20px;background:#c33;--animate-spin:spin 1s linear infinite;animation:var(--animate-spin)}#t{width:40px;height:20px;background:#33c;transform:translateX(10px);animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div id=s></div><div id=t></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "at('#s', ['transform','rotate'], [0, 125, 250, 500, 750, 999, 1000, 1250])"
+    },
+    {
+     "js": "at('#t', ['transform'], [0, 250, 500, 1000])"
+    }
+   ]
+  },
+  {
+   "name": "spinner-steps",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.seg{display:block;width:10px;height:4px;background:#222;opacity:.5;animation:var(--media-spinner-animation, media-spinner-fade 1s steps(8, end) infinite);animation-delay:var(--media-spinner-delay)}@keyframes media-spinner-fade{0%{opacity:1}to{opacity:0}}#off{--media-spinner-animation:none}</style></head><body><i class=seg id=g0 style=\"--media-spinner-delay:0s\"></i><i class=seg id=g1 style=\"--media-spinner-delay:0.125s\"></i><i class=seg id=g2 style=\"--media-spinner-delay:0.25s\"></i><i class=seg id=g3 style=\"--media-spinner-delay:0.375s\"></i><i class=seg id=g4 style=\"--media-spinner-delay:0.5s\"></i><i class=seg id=g5 style=\"--media-spinner-delay:0.625s\"></i><i class=seg id=g6 style=\"--media-spinner-delay:0.75s\"></i><i class=seg id=g7 style=\"--media-spinner-delay:0.875s\"></i><i class=seg id=off></i><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "document.getAnimations().length + ' ' + document.getAnimations().map(timing).slice(0, 2).join()"
+    },
+    {
+     "js": "at('#g0', ['opacity'], [0, 1, 124, 125, 126, 499, 500, 999, 1000, 1124, 1125, 2500])"
+    },
+    {
+     "js": "at('#g3', ['opacity'], [0, 374, 375, 376, 499, 500, 875, 1374, 1375, 1400, 2375])"
+    },
+    {
+     "js": "at('#g7', ['opacity'], [0, 500, 874, 875, 876, 1000, 1875, 2000])"
+    },
+    {
+     "js": "val('#off', ['opacity','animation-name'])"
+    },
+    {
+     "js": "val('#g1', ['animation-timing-function','animation-delay','animation-duration','animation-iteration-count'])"
+    }
+   ]
+  },
+  {
+   "name": "bars-grow",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>\nbody{margin:0}.w{width:400px}\n.data-bar{width:var(--data-bar-width,100%);height:20px;margin:4px 0;background:#eee;animation:grow-bar var(--data-bar-duration,1.5s) ease-out forwards;animation-play-state:paused}\n.v{height:60px;width:30px;display:inline-block;animation:horizontal-grow-bar 1s ease-out forwards;animation-play-state:paused}\n[data-animate] .data-bar,[data-animate] .v{animation-play-state:running}\n@keyframes grow-bar{0%{width:0%}to{width:var(--data-bar-width,100%)}}\n@keyframes horizontal-grow-bar{0%{height:0%}to{height:100%}}\n</style></head><body><div class=w id=w><div class=data-bar id=b1 style=\"--data-bar-width:100%;--data-bar-duration:3.25s\"></div><div class=data-bar id=b2 style=\"--data-bar-width:31.10%;--data-bar-duration:1.01s\"></div></div><div id=hv style=\"height:60px\"><span class=v id=v1></span></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "states()"
+    },
+    {
+     "js": "val('#b2', ['width','animation-play-state']) + ' / ' + val('#b1', ['width'])"
+    },
+    {
+     "js": "E(() => { $('#w').setAttribute('data-animate', ''); $('#hv').setAttribute('data-animate', ''); return states(); })"
+    },
+    {
+     "js": "document.getAnimations().map(timing).join('\\n')"
+    },
+    {
+     "js": "atAll(['#b1', '#b2'], ['width'], [0, 100, 253, 505, 1010, 1011, 1625, 3250, 3251, 5000])"
+    },
+    {
+     "js": "atAll(['#v1'], ['height'], [0, 100, 500, 1000, 1500])"
+    }
+   ]
+  },
+  {
+   "name": "shimmer",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.shimmer{--shimmer-bg:linear-gradient(90deg,#e0e3e8 0%,#778 20%,#778 60%,#e0e3e8 95%);width:300px;height:30px;font:bold 24px Arial;background:var(--shimmer-bg);color:#0000;-webkit-text-fill-color:transparent;background-size:200%;-webkit-background-clip:text;background-clip:text;animation:2.5s linear infinite shimmerText}@keyframes shimmerText{0%{background-position:200% 0}to{background-position:-200% 0}}</style></head><body><div class=shimmer id=s>Shimmering text</div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "at('#s', ['background-position','background-size'], [0, 625, 1250, 1875, 2499, 2500, 3125, 5000])"
+    },
+    {
+     "js": "val('#s', ['animation-duration','animation-iteration-count','animation-timing-function','-webkit-background-clip'])"
+    },
+    {
+     "pixels": "#s",
+     "points": [
+      [
+       10,
+       15
+      ],
+      [
+       150,
+       15
+      ],
+      [
+       290,
+       15
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "easings",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.e{position:absolute;left:0;width:10px;height:3px;background:#000;animation:slide 1s both}@keyframes slide{from{left:0}to{left:100px}}</style></head><body><div class=e id=e-ease style=\"top:0px;animation-timing-function:ease\"></div><div class=e id=e-ease-in style=\"top:4px;animation-timing-function:ease-in\"></div><div class=e id=e-ease-out style=\"top:8px;animation-timing-function:ease-out\"></div><div class=e id=e-ease-in-out style=\"top:12px;animation-timing-function:ease-in-out\"></div><div class=e id=e-linear style=\"top:16px;animation-timing-function:linear\"></div><div class=e id=e-soft style=\"top:20px;animation-timing-function:cubic-bezier(.2, .8, .2, 1)\"></div><div class=e id=e-fast style=\"top:24px;animation-timing-function:cubic-bezier(.45,.15,.6,.9)\"></div><div class=e id=e-in style=\"top:28px;animation-timing-function:cubic-bezier(.4, 0, 1, 1)\"></div><div class=e id=e-inout style=\"top:32px;animation-timing-function:cubic-bezier(.4, 0, .2, 1)\"></div><div class=e id=e-out style=\"top:36px;animation-timing-function:cubic-bezier(0, 0, .2, 1)\"></div><div class=e id=e-smooth style=\"top:40px;animation-timing-function:cubic-bezier(.25,.8,.4,1)\"></div><div class=e id=e-over style=\"top:44px;animation-timing-function:cubic-bezier(.3, 1.6, .6, 1)\"></div><div class=e id=e-steps8end style=\"top:48px;animation-timing-function:steps(8, end)\"></div><div class=e id=e-steps4start style=\"top:52px;animation-timing-function:steps(4, start)\"></div><div class=e id=e-steps3both style=\"top:56px;animation-timing-function:steps(3, jump-both)\"></div><div class=e id=e-steps3none style=\"top:60px;animation-timing-function:steps(3, jump-none)\"></div><div class=e id=e-lin3 style=\"top:64px;animation-timing-function:linear(0, 0.25 25%, 1)\"></div><div class=e id=e-lin4 style=\"top:68px;animation-timing-function:linear(0, 0.5 30% 60%, 1)\"></div><div class=e id=e-linover style=\"top:72px;animation-timing-function:linear(0, -24 20%, 16 40%, -8 60%, 4 80%, 1)\"></div><div class=e id=e-lin-unplaced style=\"top:76px;animation-timing-function:linear(0, 1, 0, 1)\"></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\nconst NAMES = [\"ease\", \"ease-in\", \"ease-out\", \"ease-in-out\", \"linear\", \"soft\", \"fast\", \"in\", \"inout\", \"out\", \"smooth\", \"over\", \"steps8end\", \"steps4start\", \"steps3both\", \"steps3none\", \"lin3\", \"lin4\", \"linover\", \"lin-unplaced\"];</script></body></html>",
+   "measure": [
+    {
+     "js": "NAMES.map((n) => 'e-' + n + ' ' + getComputedStyle($('#e-' + n)).animationTimingFunction).join('\\n')"
+    },
+    {
+     "js": "[0, 50, 100, 200, 250, 333, 500, 667, 750, 800, 900, 950, 1000].map((t) => { seek(t); return t + ' ' + NAMES.map((n) => n + '=' + getComputedStyle($('#e-' + n)).left).join(' '); }).join('\\n')"
+    }
+   ]
+  },
+  {
+   "name": "easing-in-keyframes",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#a{position:absolute;left:0;width:10px;height:4px;background:#000;animation:k 1s linear both}@keyframes k{0%{left:0;animation-timing-function:steps(2,end)}50%{left:50px;animation-timing-function:ease-in}100%{left:100px}}</style></head><body><div id=a></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "at('#a', ['left'], [0, 100, 250, 499, 500, 600, 750, 900, 1000])"
+    }
+   ]
+  },
+  {
+   "name": "fill-modes",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.f{width:20px;height:4px;background:#000;opacity:1;animation:o 1s linear 500ms}@keyframes o{from{opacity:.2}to{opacity:.8}}</style></head><body><div class=f id=f-none style=\"animation-fill-mode:none\"></div><div class=f id=f-forwards style=\"animation-fill-mode:forwards\"></div><div class=f id=f-backwards style=\"animation-fill-mode:backwards\"></div><div class=f id=f-both style=\"animation-fill-mode:both\"></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\nconst M = ['none','forwards','backwards','both'];</script></body></html>",
+   "measure": [
+    {
+     "js": "[0, 250, 499, 500, 750, 1000, 1499, 1500, 2000].map((t) => { seek(t); return t + ' ' + M.map((m) => m + '=' + getComputedStyle($('#f-' + m)).opacity).join(' '); }).join('\\n')"
+    },
+    {
+     "js": "document.getAnimations().map((a) => a.animationName + ' ' + a.effect.getComputedTiming().fill + ' ' + a.effect.getComputedTiming().progress).join('\\n')"
+    }
+   ]
+  },
+  {
+   "name": "iteration-direction",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.i{position:absolute;left:0;width:10px;height:4px;background:#000;animation:s 1s linear both}@keyframes s{from{left:0}to{left:100px}}</style></head><body><div class=i id=i-n25 style=\"top:0px;animation-iteration-count:2.5;animation-direction:normal\"></div><div class=i id=i-rev style=\"top:6px;animation-iteration-count:2;animation-direction:reverse\"></div><div class=i id=i-alt style=\"top:12px;animation-iteration-count:3;animation-direction:alternate\"></div><div class=i id=i-altrev style=\"top:18px;animation-iteration-count:3;animation-direction:alternate-reverse\"></div><div class=i id=i-inf style=\"top:24px;animation-iteration-count:infinite;animation-direction:alternate\"></div><div class=i id=i-zero style=\"top:30px;animation-iteration-count:0;animation-direction:normal\"></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\nconst N = [\"n25\", \"rev\", \"alt\", \"altrev\", \"inf\", \"zero\"];</script></body></html>",
+   "measure": [
+    {
+     "js": "[0, 250, 999, 1000, 1250, 1999, 2000, 2250, 2499, 2500, 2750, 3500, 10250].map((t) => { seek(t); return t + ' ' + N.map((n) => n + '=' + getComputedStyle($('#i-' + n)).left).join(' '); }).join('\\n')"
+    },
+    {
+     "js": "(seek(2250), document.getAnimations().map((a) => a.effect.target.id + ' ' + a.effect.getComputedTiming().currentIteration + ' ' + a.effect.getComputedTiming().progress).join('\\n'))"
+    }
+   ]
+  },
+  {
+   "name": "animation-shorthand",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>@keyframes a{to{opacity:.5}}@keyframes b{to{opacity:.6}}@keyframes fade-in{to{opacity:1}}@keyframes slideDown{to{opacity:1}}@keyframes shimmerText{to{opacity:1}}@keyframes hero-video-in{to{opacity:1}}@keyframes marquee{to{opacity:1}}@keyframes media-spinner-fade{to{opacity:1}}@keyframes grow-bar{to{opacity:1}}@keyframes spin{to{opacity:1}}</style></head><body><div id=x></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\nconst SH = [\".1s ease-in forwards fade-in\", \".3s ease-out slideDown\", \".3s ease-in-out both fade-in\", \"2.5s linear infinite shimmerText\", \"hero-video-in 1.1s cubic-bezier(.2, .8, .2, 1) .9s both paused\", \"marquee 30s linear infinite\", \"media-spinner-fade 1s steps(8, end) infinite\", \"grow-bar 1.5s ease-out forwards\", \"spin 1s linear infinite\", \"a 1s, b 2s 1s reverse\", \"none\", \"1s 2s\", \"ease-in 2s a\"];function L(v) { const e = $('#x'); e.style.animation = v; const cs = getComputedStyle(e); return v + ' => ' + ['animation-name','animation-duration','animation-timing-function','animation-delay','animation-iteration-count','animation-direction','animation-fill-mode','animation-play-state'].map((p) => cs.getPropertyValue(p)).join(' ; ') + ' [' + e.style.animation + ']'; }</script></body></html>",
+   "measure": [
+    {
+     "js": "SH.map(L).join('\\n')"
+    },
+    {
+     "js": "(document.getElementById('x').style.cssText = '', E(() => { const e = $('#x'); e.style.setProperty('--a', 'a 1s'); e.style.animation = 'var(--a, b 2s)'; const s1 = getComputedStyle(e).animationName + '/' + getComputedStyle(e).animationDuration; e.style.setProperty('--a', 'none'); const s2 = getComputedStyle(e).animationName + '/' + getComputedStyle(e).animationDuration; e.style.removeProperty('--a'); return s1 + ' ' + s2 + ' ' + getComputedStyle(e).animationName; }))"
+    }
+   ]
+  },
+  {
+   "name": "events-single",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:10px;height:10px;background:#000}@keyframes a{from{opacity:1}to{opacity:.5}}@keyframes b{from{width:10px}to{width:20px}}@keyframes c{from{left:0}to{left:10px}}</style></head><body><div class=t id=e1></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n\nwindow.LOG = [];\nfunction lg(e) { LOG.push([e.type, e.animationName, e.type === 'animationcancel' ? '~' : e.elapsedTime, e.pseudoElement === '' ? '-' : e.pseudoElement, e.target.id, e.bubbles, e.cancelable, e.constructor.name].join(' ')); }\nfor (const t of ['animationstart', 'animationiteration', 'animationend', 'animationcancel']) document.addEventListener(t, lg);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { $('#e1').style.animation = 'a 80ms linear 40ms 2'; await wait(500); return LOG.join('\\n'); })()"
+    }
+   ]
+  },
+  {
+   "name": "events-two-elements-two-animations",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:10px;height:10px;background:#000}@keyframes a{from{opacity:1}to{opacity:.5}}@keyframes b{from{width:10px}to{width:20px}}@keyframes c{from{left:0}to{left:10px}}</style></head><body><div class=t id=e1></div><div class=t id=e2></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n\nwindow.LOG = [];\nfunction lg(e) { LOG.push([e.type, e.animationName, e.type === 'animationcancel' ? '~' : e.elapsedTime, e.pseudoElement === '' ? '-' : e.pseudoElement, e.target.id, e.bubbles, e.cancelable, e.constructor.name].join(' ')); }\nfor (const t of ['animationstart', 'animationiteration', 'animationend', 'animationcancel']) document.addEventListener(t, lg);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { $('#e1').style.animation = 'a 80ms linear, b 120ms linear'; $('#e2').style.animation = 'c 80ms linear'; await wait(500); return LOG.join('\\n'); })()"
+    }
+   ]
+  },
+  {
+   "name": "events-cancel",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:10px;height:10px;background:#000}@keyframes a{from{opacity:1}to{opacity:.5}}@keyframes b{from{width:10px}to{width:20px}}@keyframes c{from{left:0}to{left:10px}}</style></head><body><div class=t id=e1></div><div class=t id=e2></div><div class=t id=e3></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n\nwindow.LOG = [];\nfunction lg(e) { LOG.push([e.type, e.animationName, e.type === 'animationcancel' ? '~' : e.elapsedTime, e.pseudoElement === '' ? '-' : e.pseudoElement, e.target.id, e.bubbles, e.cancelable, e.constructor.name].join(' ')); }\nfor (const t of ['animationstart', 'animationiteration', 'animationend', 'animationcancel']) document.addEventListener(t, lg);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { $('#e1').style.animation = 'a 400ms linear'; $('#e2').style.animation = 'b 400ms linear'; $('#e3').style.animation = 'c 400ms linear 1s'; await wait(100); $('#e1').style.display = 'none'; $('#e2').style.animationName = 'none'; $('#e3').style.animation = 'none'; await wait(100); return LOG.join('\\n'); })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; const e = $('#e1'); e.style.display = ''; e.style.animation = 'a 400ms linear'; await wait(100); e.getAnimations()[0].cancel(); await wait(50); const n1 = e.getAnimations().length; e.style.animation = 'a 60ms linear'; await wait(30); const n2 = e.getAnimations().length; e.style.animation = 'b 60ms linear'; await wait(30); const n3 = e.getAnimations().length; e.getAnimations()[0].finish(); await wait(100); return [n1, n2, n3].join(' ') + '\\n' + LOG.join('\\n'); })()"
+    }
+   ]
+  },
+  {
+   "name": "events-restart-and-pause",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:10px;height:10px;background:#000}@keyframes a{from{opacity:1}to{opacity:.5}}@keyframes b{from{width:10px}to{width:20px}}@keyframes c{from{left:0}to{left:10px}}</style></head><body><div class=t id=e1></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n\nwindow.LOG = [];\nfunction lg(e) { LOG.push([e.type, e.animationName, e.type === 'animationcancel' ? '~' : e.elapsedTime, e.pseudoElement === '' ? '-' : e.pseudoElement, e.target.id, e.bubbles, e.cancelable, e.constructor.name].join(' ')); }\nfor (const t of ['animationstart', 'animationiteration', 'animationend', 'animationcancel']) document.addEventListener(t, lg);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { const e = $('#e1'); e.style.animation = 'a 200ms linear paused'; await wait(100); const a1 = LOG.join('|'); e.style.animationPlayState = 'running'; await wait(300); return a1 + '\\n' + LOG.join('|'); })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; const e = $('#e1'); e.style.animation = 'none'; await wait(20); e.style.animation = 'a 50ms linear'; await wait(20); e.style.animation = 'b 50ms linear'; await wait(200); return LOG.join('\\n'); })()"
+    }
+   ]
+  },
+  {
+   "name": "animation-api",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#a,#c,#d{width:10px;height:10px;background:#000;animation:k 2s linear 1s 3 alternate both}@keyframes k{from{opacity:.2;transform:translateX(0)}50%{opacity:.7}to{opacity:1;transform:translateX(30px)}}#b{width:10px;height:10px}</style></head><body><div id=p><div id=a></div><div id=b></div><div id=c></div><div id=d></div></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\nconst A = () => $('#a').getAnimations()[0];</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof document.getAnimations, typeof Element.prototype.getAnimations, typeof Element.prototype.animate, typeof Animation, typeof CSSAnimation, typeof CSSTransition, typeof KeyframeEffect, typeof AnimationEvent, typeof TransitionEvent, typeof document.timeline, typeof AnimationTimeline, typeof DocumentTimeline].join(' ')"
+    },
+    {
+     "js": "document.getAnimations().length + ' ' + $('#a').getAnimations().length + ' ' + $('#b').getAnimations().length + ' ' + $('#p').getAnimations().length + ' ' + $('#p').getAnimations({subtree: true}).length"
+    },
+    {
+     "js": "[A().constructor.name, A() instanceof CSSAnimation, A() instanceof Animation, A().animationName, A().playState, A().pending, A().id === '', A().replaceState, A().timeline === document.timeline, A().effect.constructor.name, A().effect.target.id, A().effect.pseudoElement, 'transitionProperty' in A(), 'animationName' in A()].join(' ')"
+    },
+    {
+     "js": "JSON.stringify(A().effect.getKeyframes())"
+    },
+    {
+     "js": "timing(A()) + ' ' + JSON.stringify(A().effect.getComputedTiming())"
+    },
+    {
+     "js": "(seek(500), [A().currentTime, A().startTime, A().playState, A().effect.getComputedTiming().progress, getComputedStyle($('#a')).opacity].join(' '))"
+    },
+    {
+     "js": "(seek(1500), [A().currentTime, A().effect.getComputedTiming().currentIteration, A().effect.getComputedTiming().progress, getComputedStyle($('#a')).opacity].join(' '))"
+    },
+    {
+     "js": "(seek(2500), [A().effect.getComputedTiming().currentIteration, A().effect.getComputedTiming().progress, getComputedStyle($('#a')).opacity].join(' '))"
+    },
+    {
+     "js": "(seek(7000), [A().effect.getComputedTiming().progress, getComputedStyle($('#a')).opacity, A().playState].join(' '))"
+    },
+    {
+     "js": "(async () => { const a = A(); a.play(); await a.ready; const s = a.playState + ' ' + a.pending; a.finish(); await a.finished; return s + ' ' + a.playState + ' ' + a.currentTime + ' ' + getComputedStyle($('#a')).opacity; })()"
+    },
+    {
+     "js": "(async () => { const a = $('#d').getAnimations()[0]; $('#d').style.animation = 'k 100ms linear'; const same = a === $('#d').getAnimations()[0]; const n = $('#d').getAnimations().length; await wait(250); return [same, n, a.effect.getComputedTiming().duration, a.playState, $('#d').getAnimations().length].join(' '); })()"
+    },
+    {
+     "js": "(async () => { const a = $('#c').getAnimations()[0]; let r = 'pending'; a.finished.then(() => (r = 'resolved'), (e) => (r = 'rejected ' + e.name)); a.cancel(); await wait(10); return r + ' ' + a.playState + ' ' + $('#c').getAnimations().length + ' ' + getComputedStyle($('#c')).opacity; })()"
+    },
+    {
+     "js": "(async () => { const el = $('#b'); el.style.animation = 'k 80ms linear'; const as = el.getAnimations(); await Promise.all(as.map((x) => x.finished)); return as.length + ' ' + as[0].playState + ' ' + el.getAnimations().length; })()"
+    },
+    {
+     "js": "E(() => { const el = $('#b'); el.style.animation = 'k 1s linear'; const a = el.getAnimations()[0]; a.pause(); const p = a.playState + ' ' + a.pending; a.currentTime = 400; return p + ' ' + a.currentTime + ' ' + a.playState + ' ' + getComputedStyle(el).opacity; })"
+    }
+   ]
+  }
+ ]
+}

@@ -160,3 +160,47 @@ Details and reasons are in [ADR 0025](adr/0025-javascript-approach.md).
   directions, "Query features", the object pages) are in M12. Tests use
   answers recorded once from the live services.
 - The rules of M9 apply.
+
+## Decisions from 2026-11-20: videojs.org and media playback
+
+- The next target is the front page of `https://videojs.org/`, with
+  JavaScript on and off. In scope: CSS transitions and animations, audio
+  and video playback, and the media formats that the page and similar
+  sites use, free and non-free. The page's player plays an HLS stream
+  (H.264 and AAC in fragmented MP4) with hls.js over Media Source
+  Extensions; HLS through hls.js is in scope.
+- Three milestones: M13 CSS transitions and animations (the page without
+  playback), M14 media playback (the media element, media files, audio
+  output), M15 the page's player (dedicated workers, Media Source
+  Extensions, text tracks, fullscreen).
+- swb does not write codecs, decoders or demuxers. FFmpeg (libavformat,
+  libavcodec, libswscale, libswresample) demuxes, decodes and converts.
+  swb writes what the specifications give to the browser: the media
+  element, Media Source Extensions (with the segment boundaries of its
+  byte stream formats), the media clock, audio and video synchronization,
+  and audio output.
+- FFmpeg is built from a pinned source release, with only the demuxers
+  and decoders that swb needs, without its network code and without its
+  GPL parts, and linked statically into the `swb` binary. The result is
+  LGPL-2.1 or later (FFmpeg's own H.264 and AAC decoders are LGPL). This
+  is an exception to ADR 0003 for builds with media support.
+- Audio output uses PipeWire (libpipewire, MIT), linked dynamically.
+  Headless mode and tests use a silent output.
+- A Cargo feature turns media support on. Without it, swb builds without
+  FFmpeg and PipeWire and plays no audio or video. CI builds and tests
+  both variants.
+- FFmpeg runs in the browser process, without a sandbox.
+- Dedicated workers are real: their scripts run in their own runtime on
+  another thread.
+- Not in scope: DRM (Encrypted Media Extensions), WebAssembly, Spotify
+  (its music needs DRM). Native HLS (`<video src="x.m3u8">`, which
+  Chromium supports) comes later; until then `canPlayType` answers ""
+  for HLS, so that sites use hls.js.
+- What "works" means for the player (M15): play and pause; seek by click
+  and by drag; the thumbnails over the timeline; the time display; mute
+  and volume; fullscreen; the keyboard shortcuts; the controls hide by
+  themselves; the buffering spinner; rendition switches without a
+  glitch; audio in sync with the video. Picture-in-picture is not in the
+  list: swb reports it as unavailable, and Video.js then hides its
+  button.
+- The rules of M9 apply.

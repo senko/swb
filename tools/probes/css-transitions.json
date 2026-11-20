@@ -1,0 +1,413 @@
+{
+ "viewport": [
+  400,
+  300
+ ],
+ "javascript": true,
+ "animations": true,
+ "cases": [
+  {
+   "name": "hover-colors-after",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>\nbody{margin:20px;background:#fff}\na{display:inline-block;padding:8px 16px;color:rgb(31,29,27);background-color:rgb(243,231,210);border-radius:6px;transition-property:background-color,color,box-shadow;transition-duration:20s;transition-timing-function:ease}\na.in{--hover:rgb(255,166,0)}\n@media (hover:hover){a:hover,a:focus-visible{background-color:rgb(255,102,0);color:rgb(255,255,255)}}\n#sc{transition-property:opacity,scale,translate;transition-duration:20s;transition-timing-function:cubic-bezier(.2,.8,.2,1);display:block;width:80px;height:30px;background:#06c;margin-top:20px}\n#sc:hover{opacity:.5;scale:1.1;translate:10px 6px}\n</style></head><body><a href=\"#x\" id=l1>Docs</a> <a href=\"#y\" id=l2>Blog</a><div id=sc></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "steps": [
+    {
+     "hover": "#l1"
+    }
+   ],
+   "measure": [
+    {
+     "js": "states()"
+    },
+    {
+     "js": "document.getAnimations().map((a) => a.constructor.name + ' ' + a.transitionProperty + ' ' + a.effect.target.id + ' ' + timing(a)).join('\\n')"
+    },
+    {
+     "js": "at('#l1', ['background-color','color'], [0, 5000, 10000, 20000])"
+    },
+    {
+     "pixels": "#l1",
+     "points": [
+      [
+       3,
+       3
+      ],
+      [
+       30,
+       15
+      ],
+      [
+       60,
+       28
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "hover-scale-translate-opacity",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>\nbody{margin:20px;background:#fff}\na{display:inline-block;padding:8px 16px;color:rgb(31,29,27);background-color:rgb(243,231,210);border-radius:6px;transition-property:background-color,color,box-shadow;transition-duration:20s;transition-timing-function:ease}\na.in{--hover:rgb(255,166,0)}\n@media (hover:hover){a:hover,a:focus-visible{background-color:rgb(255,102,0);color:rgb(255,255,255)}}\n#sc{transition-property:opacity,scale,translate;transition-duration:20s;transition-timing-function:cubic-bezier(.2,.8,.2,1);display:block;width:80px;height:30px;background:#06c;margin-top:20px}\n#sc:hover{opacity:.5;scale:1.1;translate:10px 6px}\n</style></head><body><a href=\"#x\" id=l1>Docs</a><div id=sc></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "steps": [
+    {
+     "hover": "#sc"
+    }
+   ],
+   "measure": [
+    {
+     "js": "states()"
+    },
+    {
+     "js": "at('#sc', ['opacity','scale','translate','transform'], [0, 5000, 10000, 20000])"
+    },
+    {
+     "js": "(seek(10000), rect('#sc'))"
+    },
+    {
+     "pixels": "#sc",
+     "points": [
+      [
+       2,
+       2
+      ],
+      [
+       40,
+       15
+      ],
+      [
+       78,
+       28
+      ],
+      [
+       84,
+       20
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "focus-visible-colors",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>\nbody{margin:20px;background:#fff}\na{display:inline-block;padding:8px 16px;color:rgb(31,29,27);background-color:rgb(243,231,210);border-radius:6px;transition-property:background-color,color,box-shadow;transition-duration:20s;transition-timing-function:ease}\na.in{--hover:rgb(255,166,0)}\n@media (hover:hover){a:hover,a:focus-visible{background-color:rgb(255,102,0);color:rgb(255,255,255)}}\n#sc{transition-property:opacity,scale,translate;transition-duration:20s;transition-timing-function:cubic-bezier(.2,.8,.2,1);display:block;width:80px;height:30px;background:#06c;margin-top:20px}\n#sc:hover{opacity:.5;scale:1.1;translate:10px 6px}\n</style></head><body><a href=\"#x\" id=l1>Docs</a> <a href=\"#y\" id=l2>Blog</a><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "steps": [
+    {
+     "key": "Tab"
+    }
+   ],
+   "measure": [
+    {
+     "js": "document.activeElement.id + ' ' + states()"
+    },
+    {
+     "js": "at('#l1', ['background-color','color'], [0, 10000, 20000])"
+    }
+   ]
+  },
+  {
+   "name": "values-by-class",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>\nbody{margin:0}\n#r div{width:50px;height:20px;background:rgb(200,50,50);color:rgb(0,0,0);border:2px solid rgb(0,0,255);outline:2px solid rgb(255,0,0);outline-offset:0px;opacity:1;filter:blur(0px);backdrop-filter:blur(0px);position:relative;left:0px;top:0px;box-shadow:0 0 #0000;background-size:20px 100%;background-image:linear-gradient(#fff,#000);background-repeat:repeat-x;transition:all 8s linear}\n#r.on div{width:100px;height:40px;background-color:rgb(50,200,50);color:rgb(255,255,255);border-color:rgb(255,0,255);outline-color:rgb(0,0,0);outline-offset:6px;opacity:.2;filter:blur(4px) brightness(.5);backdrop-filter:blur(8px);left:30px;top:10px;box-shadow:0 4px 6px -1px #0000001a,0 2px 4px -2px #0000001a;background-size:50% 100%}\n</style></head><body><div id=r><div id=t></div></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\nconst P = ['width', 'height', 'background-color', 'color', 'border-top-color', 'outline-color', 'outline-offset', 'opacity', 'filter', 'backdrop-filter', 'left', 'top', 'box-shadow', 'background-size'];</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { getComputedStyle($('#t')).width; $('#r').classList.add('on'); return states(); })"
+    },
+    {
+     "js": "document.getAnimations().map((a) => a.transitionProperty).sort().join(' ')"
+    },
+    {
+     "js": "[0, 2000, 4000, 8000].map((t) => { seek(t); return t + ' ' + val('#t', P); }).join('\\n')"
+    }
+   ]
+  },
+  {
+   "name": "individual-transform-properties",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#t{position:absolute;left:10px;top:10px;width:40px;height:20px;background:#06c;transform-origin:20px 10px;transition-property:transform,translate,scale,rotate;transition-duration:4s;transition-timing-function:linear}#t.on{transform:translateX(30px);translate:10px 20px;scale:2 1.5;rotate:90deg}#u{position:absolute;left:100px;top:10px;width:40px;height:20px;background:#c60;translate:10% 50%;scale:.5;rotate:-30deg;transform:rotate(30deg)}</style></head><body><div id=t></div><div id=u></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "val('#u', ['translate','scale','rotate','transform']) + ' ' + rect('#u')"
+    },
+    {
+     "js": "E(() => { getComputedStyle($('#t')).transform; $('#t').classList.add('on'); return states(); })"
+    },
+    {
+     "js": "document.getAnimations().map((a) => a.transitionProperty).sort().join(' ')"
+    },
+    {
+     "js": "[0, 1000, 2000, 4000].map((t) => { seek(t); return t + ' ' + val('#t', ['translate','scale','rotate','transform']) + ' ' + rect('#t'); }).join('\\n')"
+    },
+    {
+     "pixels": "#t",
+     "points": [
+      [
+       1,
+       1
+      ],
+      [
+       20,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "inline-style-spring",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>:root{--ease-soft:cubic-bezier(.2,.8,.2,1)}body{margin:0}#p{width:100px;height:100px;background:#06c}</style></head><body><div id=p data-overscroll-page></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\nconst P = $('#p');</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { P.style.transition = 'none'; P.style.transform = 'translate3d(0, -80px, 0)'; return getComputedStyle(P).transform + ' ' + document.getAnimations().length; })"
+    },
+    {
+     "js": "E(() => { P.style.transition = 'transform 600ms var(--ease-soft)'; P.style.transform = ''; return states() + ' | ' + getComputedStyle(P).transform; })"
+    },
+    {
+     "js": "document.getAnimations().map((a) => a.transitionProperty + ' ' + timing(a)).join('\\n')"
+    },
+    {
+     "js": "[0, 60, 150, 300, 600].map((t) => { seek(t); return t + ' ' + val('#p', ['transform']); }).join('\\n')"
+    },
+    {
+     "pixels": "#p",
+     "points": [
+      [
+       50,
+       50
+      ],
+      [
+       50,
+       99
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "inline-style-no-style-flush",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>:root{--ease-soft:cubic-bezier(.2,.8,.2,1)}body{margin:0}#p{width:100px;height:100px;background:#06c}</style></head><body><div id=p></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\nconst P = $('#p');</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { P.style.transition = 'none'; P.style.transform = 'translate3d(0, -80px, 0)'; P.style.transition = 'transform 600ms'; P.style.transform = ''; return states() + '|' + getComputedStyle(P).transform; })"
+    },
+    {
+     "js": "E(() => { P.style.transition = 'transform 600ms'; P.style.transform = 'translateY(10px)'; return states() + '|' + getComputedStyle(P).transform; })"
+    }
+   ]
+  },
+  {
+   "name": "attribute-popup",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}:root{--d:200ms;--e:cubic-bezier(.4,0,.2,1)}#m{width:50px;height:30px;background:#06c;opacity:0;scale:.95;translate:0 -4px;filter:blur(2px);transition-property:filter,opacity,scale,translate;transition-duration:var(--d),var(--d),calc(var(--d) * 2);transition-timing-function:var(--e);transition-delay:0s,50ms}#m[data-open]{opacity:1;scale:1;translate:0 0;filter:blur(0)}</style></head><body><div id=m></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { getComputedStyle($('#m')).opacity; $('#m').setAttribute('data-open', ''); return states(); })"
+    },
+    {
+     "js": "document.getAnimations().map((a) => a.transitionProperty + ' ' + timing(a)).sort().join('\\n')"
+    },
+    {
+     "js": "[0, 50, 100, 200, 300, 400].map((t) => { seek(t); return t + ' ' + val('#m', ['opacity','scale','translate','filter']); }).join('\\n')"
+    },
+    {
+     "js": "val('#m', ['transition-property','transition-duration','transition-delay','transition-timing-function','transition-behavior'])"
+    }
+   ]
+  },
+  {
+   "name": "reverse-running-transition",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#a{width:20px;height:20px;background:#000;opacity:0;transition:opacity 1000ms linear}#a.on{opacity:1}#b{width:20px;height:20px;background:#000;opacity:0;transition:opacity 1000ms linear 200ms}#b.on{opacity:1}#c{width:20px;height:20px;background:#000;opacity:.2;transition:opacity 1000ms linear}#c.on{opacity:1}#c.other{opacity:.9}</style></head><body><div id=a></div><div id=b></div><div id=c></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { getComputedStyle($('#a')).opacity; $('#a').classList.add('on'); return states(); })"
+    },
+    {
+     "js": "(seek(400), val('#a', ['opacity']))"
+    },
+    {
+     "js": "E(() => { $('#a').classList.remove('on'); const as = $('#a').getAnimations(); return as.length + ' ' + as.map((a) => a.transitionProperty + ' ' + timing(a) + ' ' + a.currentTime + ' ' + a.playState).join('|') + ' ' + val('#a', ['opacity']); })"
+    },
+    {
+     "js": "[0, 100, 200, 400].map((t) => { seek(t); return t + ' ' + val('#a', ['opacity']); }).join('\\n')"
+    },
+    {
+     "js": "E(() => { $('#a').classList.add('on'); const as = $('#a').getAnimations(); return as.length + ' ' + as.map((a) => timing(a)).join('|'); })"
+    },
+    {
+     "js": "[0, 500, 1000].map((t) => { seek(t); return t + ' ' + val('#a', ['opacity']); }).join('\\n')"
+    },
+    {
+     "js": "E(() => { getComputedStyle($('#b')).opacity; $('#b').classList.add('on'); return states(); })"
+    },
+    {
+     "js": "(seek(100), val('#b', ['opacity']))"
+    },
+    {
+     "js": "E(() => { $('#b').classList.remove('on'); const as = $('#b').getAnimations(); return as.length + ' ' + as.map((a) => timing(a)).join('|') + ' ' + val('#b', ['opacity']); })"
+    },
+    {
+     "js": "E(() => { getComputedStyle($('#c')).opacity; $('#c').classList.add('on'); return states(); })"
+    },
+    {
+     "js": "(seek(500), val('#c', ['opacity']))"
+    },
+    {
+     "js": "E(() => { $('#c').classList.remove('on'); $('#c').classList.add('other'); const as = $('#c').getAnimations(); return as.length + ' ' + as.map((a) => timing(a) + ' ' + a.currentTime).join('|') + ' ' + val('#c', ['opacity']); })"
+    },
+    {
+     "js": "[0, 500, 1000].map((t) => { seek(t); return t + ' ' + val('#c', ['opacity']); }).join('\\n')"
+    }
+   ]
+  },
+  {
+   "name": "events-run-start-end",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:10px;height:10px;background:#000;opacity:1;left:0;position:relative}.t.on{opacity:.2;left:20px}</style></head><body><div class=t id=e1 style='transition:opacity 80ms linear, left 80ms linear 40ms'></div><div class=t id=e2 style='transition:all 60ms'></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n\nwindow.LOG = [];\nfunction lg(e) { LOG.push([e.type, e.propertyName, (e.type === 'transitioncancel' || window.MASK) ? '~' : e.elapsedTime, e.pseudoElement === '' ? '-' : e.pseudoElement, e.target.id, e.bubbles, e.cancelable, e.constructor.name].join(' ')); }\nfor (const t of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) document.addEventListener(t, lg);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { for (const e of $$('.t')) getComputedStyle(e).opacity; for (const e of $$('.t')) e.classList.add('on'); await wait(500); return LOG.join('\\n'); })()"
+    }
+   ]
+  },
+  {
+   "name": "events-cancel-and-reverse",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:10px;height:10px;background:#000;opacity:1;left:0;position:relative}.t.on{opacity:.2;left:20px}</style></head><body><div class=t id=e1 style='transition:opacity 300ms linear'></div><div class=t id=e2 style='transition:opacity 300ms linear'></div><div class=t id=e3 style='transition:opacity 300ms linear'></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n\nwindow.LOG = [];\nfunction lg(e) { LOG.push([e.type, e.propertyName, (e.type === 'transitioncancel' || window.MASK) ? '~' : e.elapsedTime, e.pseudoElement === '' ? '-' : e.pseudoElement, e.target.id, e.bubbles, e.cancelable, e.constructor.name].join(' ')); }\nfor (const t of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) document.addEventListener(t, lg);\nwindow.MASK = true;</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { for (const e of $$('.t')) getComputedStyle(e).opacity; for (const e of $$('.t')) e.classList.add('on'); await wait(100); $('#e1').classList.remove('on'); $('#e2').style.display = 'none'; $('#e3').style.transition = 'none'; await wait(500); return LOG.join('\\n'); })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; const e = $('#e1'); e.style.transition = 'opacity 100ms linear'; getComputedStyle(e).opacity; e.classList.add('on'); await wait(40); e.classList.remove('on'); await wait(300); return LOG.join('\\n'); })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; const e = $('#e3'); e.style.transition = 'none'; e.classList.remove('on'); getComputedStyle(e).opacity; e.style.transition = 'opacity 50ms linear'; e.classList.add('on'); await wait(20); e.getAnimations()[0].finish(); await wait(100); return LOG.join('\\n'); })()"
+    }
+   ]
+  },
+  {
+   "name": "no-transition-on-insert",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:10px;height:10px;background:#000;opacity:1;transition:opacity 1s}.t.on{opacity:.2}</style></head><body><div id=h></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { const e = document.createElement('div'); e.className = 't on'; $('#h').appendChild(e); return states() + '|' + getComputedStyle(e).opacity; })"
+    },
+    {
+     "js": "E(() => { const e = document.createElement('div'); e.className = 't'; $('#h').appendChild(e); e.classList.add('on'); return states() + '|' + getComputedStyle(e).opacity; })"
+    },
+    {
+     "js": "E(() => { const e = document.createElement('div'); e.className = 't'; $('#h').appendChild(e); getComputedStyle(e).opacity; e.classList.add('on'); return states() + '|' + getComputedStyle(e).opacity; })"
+    },
+    {
+     "js": "E(() => { const e = $('#h').lastChild; e.style.display = 'none'; getComputedStyle(e).opacity; e.classList.remove('on'); e.style.display = ''; return states() + '|' + getComputedStyle(e).opacity; })"
+    }
+   ]
+  },
+  {
+   "name": "transition-behavior-discrete",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:20px;height:20px;background:#000;opacity:1;display:block}.t.off{display:none;opacity:0}#a{transition:opacity 1s linear,display 1s allow-discrete}#b{transition:opacity 1s linear,display 1s}#c{transition:all 1s allow-discrete;content-visibility:visible}#c.off{content-visibility:hidden}#d{transition:all 1s linear;}#e{transition:display 1s allow-discrete;transition-behavior:normal}#f{transition-property:opacity,display;transition-duration:1s;transition-behavior:normal,allow-discrete}</style></head><body><div class=t id=a></div><div class=t id=b></div><div class=t id=c></div><div class=t id=d></div><div class=t id=e></div><div class=t id=f></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "val('#a', ['transition-behavior','transition-property']) + ' / ' + val('#b', ['transition-behavior']) + ' / ' + val('#c', ['transition-behavior','transition-property']) + ' / ' + val('#f', ['transition-behavior','transition-property'])"
+    },
+    {
+     "js": "E(() => { for (const e of $$('.t')) getComputedStyle(e).display; for (const e of $$('.t')) e.classList.add('off'); return states() + '|' + $$('.t').map((e) => e.id + '=' + getComputedStyle(e).display + '/' + getComputedStyle(e).contentVisibility).join(' '); })"
+    },
+    {
+     "js": "document.getAnimations().map((a) => a.effect.target.id + ' ' + a.transitionProperty).sort().join(' ')"
+    },
+    {
+     "js": "[0, 400, 999, 1000].map((t) => { seek(t); return t + ' ' + ['#a','#b','#c','#d','#e','#f'].map((s) => s + '=' + getComputedStyle($(s)).display + '/' + getComputedStyle($(s)).opacity + '/' + getComputedStyle($(s)).contentVisibility).join(' '); }).join('\\n')"
+    },
+    {
+     "js": "E(() => { for (const a of document.getAnimations()) a.finish(); for (const e of $$('.t')) getComputedStyle(e).display; for (const e of $$('.t')) e.classList.remove('off'); return states() + '|' + $$('.t').map((e) => e.id + '=' + getComputedStyle(e).display).join(' '); })"
+    },
+    {
+     "js": "[0, 1, 500, 1000].map((t) => { seek(t); return t + ' ' + ['#a','#b','#c','#e','#f'].map((s) => s + '=' + getComputedStyle($(s)).display + '/' + getComputedStyle($(s)).opacity + '/' + getComputedStyle($(s)).contentVisibility).join(' '); }).join('\\n')"
+    }
+   ]
+  },
+  {
+   "name": "interpolate-size",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.k{interpolate-size:allow-keywords}.p{overflow:hidden;width:40px;height:0px;background:#06c;transition:height 1s linear,width 1s linear}.p.on{height:auto;width:max-content}.p>div{height:50px;white-space:nowrap}#q{height:auto}#q.on{height:60px}</style></head><body><div class=k><div class=p id=a><div>abc</div></div></div><div class=p id=b><div>abc</div></div><div class=k><div class=p id=q><div>abc</div></div></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "val('.k', ['interpolate-size']) + ' / ' + val('#b', ['interpolate-size']) + ' / ' + val('html', ['interpolate-size'])"
+    },
+    {
+     "js": "E(() => { for (const e of $$('.p')) getComputedStyle(e).height; for (const e of $$('.p')) e.classList.add('on'); return states(); })"
+    },
+    {
+     "js": "document.getAnimations().map((a) => a.effect.target.id + ' ' + a.transitionProperty).sort().join(' ')"
+    },
+    {
+     "js": "[0, 250, 500, 1000].map((t) => { seek(t); return t + ' ' + ['#a','#b','#q'].map((s) => s + '=' + getComputedStyle($(s)).height + '/' + getComputedStyle($(s)).width).join(' '); }).join('\\n')"
+    },
+    {
+     "js": "(seek(500), CSS.supports('interpolate-size', 'allow-keywords') + ' ' + CSS.supports('transition-behavior', 'allow-discrete') + ' ' + CSS.supports('corner-shape', 'squircle') + ' ' + CSS.supports('translate', '1px') + ' ' + CSS.supports('rotate', '1deg') + ' ' + CSS.supports('scale', '1.5') + ' ' + CSS.supports('overlay', 'auto') + ' ' + CSS.supports('content-visibility', 'auto'))"
+    }
+   ]
+  },
+  {
+   "name": "custom-properties",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>@property --fill{syntax:'<percentage>';inherits:true;initial-value:0%}@property --buf{syntax:'<percentage>';inherits:true;initial-value:0%}body{margin:0}#s{--fill:0%;--buf:0%;--tw:#ff0000;--plain:10px;position:relative;width:200px;height:10px;background:#ccc;transition-property:--fill,--buf,--tw,--plain;transition-duration:4s;transition-timing-function:linear}#s>i{position:absolute;left:0;top:0;height:10px;width:var(--fill);background:rgb(0,102,204)}#s.on{--fill:50%;--buf:80%;--tw:#0000ff;--plain:30px}</style></head><body><div id=s><i></i></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { getComputedStyle($('#s')).getPropertyValue('--fill'); $('#s').classList.add('on'); return states() + ' | ' + document.getAnimations().map((a) => a.transitionProperty).sort().join(' '); })"
+    },
+    {
+     "js": "[0, 1000, 2000, 4000].map((t) => { seek(t); const cs = getComputedStyle($('#s')); return t + ' ' + ['--fill','--buf','--tw','--plain'].map((p) => p + '=' + cs.getPropertyValue(p)).join(' ') + ' w=' + getComputedStyle($('#s > i')).width; }).join('\\n')"
+    },
+    {
+     "pixels": "#s",
+     "points": [
+      [
+       10,
+       5
+      ],
+      [
+       60,
+       5
+      ],
+      [
+       90,
+       5
+      ],
+      [
+       120,
+       5
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "linear-overshoot",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#t{width:10px;height:10px;background:#000;transform:translate(.25px);transition:transform .3s linear(0, -24 20%, 16 40%, -8 60%, 4 80%, 1)}#t.on{transform:translate(1px)}</style></head><body><div id=t></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { getComputedStyle($('#t')).transform; $('#t').classList.add('on'); return states(); })"
+    },
+    {
+     "js": "document.getAnimations().map((a) => timing(a)).join()"
+    },
+    {
+     "js": "[0, 30, 60, 90, 120, 150, 180, 240, 300].map((t) => { seek(t); return t + ' ' + val('#t', ['transform']); }).join('\\n')"
+    }
+   ]
+  },
+  {
+   "name": "transition-api-finished",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#p{width:20px;height:20px;background:#000;opacity:1;transition:opacity 150ms linear,scale 150ms linear}#p.off{opacity:0;scale:.9}</style></head><body><div id=h><div id=p></div></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof CSSTransition, E(() => { const p = $('#p'); getComputedStyle(p).opacity; p.classList.add('off'); const a = p.getAnimations(); return a.length + ' ' + a.map((x) => x.constructor.name + ' ' + x.transitionProperty + ' ' + (x instanceof CSSTransition) + ' ' + ('transitionProperty' in x) + ' ' + ('animationName' in x) + ' ' + x.playState + ' ' + x.effect.getComputedTiming().duration + ' ' + x.effect.target.id).join('|'); })].join(' ')"
+    },
+    {
+     "js": "(async () => { const p = $('#p'); const t0 = performance.now(); let done = 'no'; const pr = Promise.all(p.getAnimations().map((a) => a.finished)).then(() => { done = 'yes'; }); await wait(60); const early = done; await pr; const dt = performance.now() - t0; return [early, done, dt >= 140 && dt < 400, p.getAnimations().length, getComputedStyle(p).opacity].join(' '); })()"
+    },
+    {
+     "js": "(async () => { const p = $('#p'); getComputedStyle(p).opacity; p.classList.remove('off'); const a = p.getAnimations(); let r = 'pending'; Promise.all(a.map((x) => x.finished)).then(() => (r = 'resolved'), (e) => (r = 'rejected ' + e.name)); p.classList.add('off'); await wait(60); const r1 = r; p.style.display = 'none'; await wait(30); return [a.length, r1, r, p.getAnimations().length].join(' '); })()"
+    },
+    {
+     "js": "(async () => { const p = $('#p'); p.style.display = ''; getComputedStyle(p).opacity; const any = p.getAnimations().some((t) => 'transitionProperty' in t && t.transitionProperty === 'opacity' && t.playState !== 'finished'); const sub = document.documentElement.getAnimations({subtree: true}).length; return any + ' ' + sub; })()"
+    },
+    {
+     "js": "(async () => { const p = $('#p'); p.classList.remove('off'); getComputedStyle(p).opacity; p.classList.add('off'); const a = p.getAnimations(); for (const x of $('#h').getAnimations({subtree: true})) x.cancel(); await wait(10); return a.length + ' ' + a.map((x) => x.playState).join() + ' ' + getComputedStyle(p).opacity; })()"
+    }
+   ]
+  }
+ ]
+}

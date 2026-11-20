@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from swbtools import paths, swb
+from swbtools.animation_survey import animation_cpu, animation_survey
 from swbtools.capture import DEFAULT_MAX_RESPONSES, capture, capture_missing, directory_size
 from swbtools.compare import Options, compare_fixture, update_scores
 from swbtools.cssom_cases import write_cssom_cases
@@ -227,6 +228,14 @@ def cmd_js_survey(args: argparse.Namespace) -> int:
         log.error("give fixture names or --all")
         return 2
     return js_survey(names, args.runs, args.system_fonts)
+
+
+def cmd_animation_survey(args: argparse.Namespace) -> int:
+    return animation_survey(args.names, args.js, Path(args.out))
+
+
+def cmd_animation_cpu(args: argparse.Namespace) -> int:
+    return animation_cpu(args.targets, args.js, args.scroll, args.seconds, Path(args.out))
 
 
 def cmd_replay(args: argparse.Namespace) -> int:
@@ -611,6 +620,41 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--runs", type=int, default=3, help="runs of the timing measurement (default 3)")
     p.add_argument("--system-fonts", action="store_true", help=fonts_help)
     p.set_defaults(func=cmd_js_survey)
+
+    p = commands.add_parser(
+        "animation-survey",
+        help="count the CSS animations and transitions that run in the first view in Chromium",
+        description=(
+            "Loads fixtures (fixtures/pages, or fixtures/js with --js) as `reference` does but "
+            "without turning animations off, lists document.getAnimations() after the settle "
+            "time and counts the elements that declare animations and transitions. All fixtures "
+            "if no NAME. Writes out/animations/NAME.json."
+        ),
+    )
+    p.add_argument("names", nargs="*", metavar="NAME")
+    p.add_argument("--js", action="store_true", help="JavaScript on: the fixtures of fixtures/js")
+    p.add_argument(
+        "--out", default="out/animations", help="output directory (default out/animations)"
+    )
+    p.set_defaults(func=cmd_animation_survey)
+
+    p = commands.add_parser(
+        "animation-cpu",
+        help="measure the CPU use of Chromium while only endless animations run",
+        description=(
+            "Loads each target (the synthetic pages spinner, marquee and idle, or a fixture "
+            "of fixtures/js with --js, else of fixtures/pages; scripts run in all cases), "
+            "scrolls to --scroll, waits 2 s "
+            "and measures the CPU time of the Chromium processes over --seconds (CDP "
+            "SystemInfo.getProcessInfo), as a share of one core. Writes out/animations/cpu.json."
+        ),
+    )
+    p.add_argument("targets", nargs="+", metavar="TARGET")
+    p.add_argument("--js", action="store_true", help="fixtures of fixtures/js")
+    p.add_argument("--scroll", type=int, default=0, help="scroll position in px (default 0)")
+    p.add_argument("--seconds", type=float, default=10.0, help="measured time (default 10)")
+    p.add_argument("--out", default="out/animations", help="output directory")
+    p.set_defaults(func=cmd_animation_cpu)
 
     p = commands.add_parser(
         "replay",

@@ -79,6 +79,9 @@ class Case:
     over HTTP."""
     steps: tuple[dict[str, Any], ...] = ()
     """The input to send before the queries (see the module comment)."""
+    animations: bool = False
+    """True leaves CSS animations and transitions on (the tool otherwise
+    turns them off after the load, as `reference` does)."""
 
 
 def _parse_viewport(value: Any, where: str) -> tuple[int, int]:
@@ -155,10 +158,14 @@ def _parse_time_zone(value: Any, where: str) -> str | None:
     return value
 
 
-def _parse_javascript(value: Any, where: str) -> bool:
+def _parse_flag(value: Any, where: str, key: str) -> bool:
     if not isinstance(value, bool):
-        raise ProbeError(f"{where}: javascript must be true or false")
+        raise ProbeError(f"{where}: {key} must be true or false")
     return value
+
+
+def _parse_javascript(value: Any, where: str) -> bool:
+    return _parse_flag(value, where, "javascript")
 
 
 def _parse_case(
@@ -167,6 +174,7 @@ def _parse_case(
     default_viewport: tuple[int, int],
     default_zone: str | None = None,
     default_javascript: bool = False,
+    default_animations: bool = False,
 ) -> Case:
     if not isinstance(item, dict):
         raise ProbeError(f"case {number}: must be an object")
@@ -186,12 +194,19 @@ def _parse_case(
     javascript = (
         _parse_javascript(item["javascript"], where) if "javascript" in item else default_javascript
     )
+    animations = (
+        _parse_flag(item["animations"], where, "animations")
+        if "animations" in item
+        else default_animations
+    )
     files = _parse_files(item.get("files", {}), where)
     resources = _parse_resources(item.get("resources", {}), where)
     steps = parse_steps(item.get("steps", []), where)
     if steps and not javascript:
         raise ProbeError(f"{where}: steps need javascript")
-    return Case(name, html, viewport, queries, files, zone, javascript, resources, steps)
+    return Case(
+        name, html, viewport, queries, files, zone, javascript, resources, steps, animations
+    )
 
 
 # The step kinds of `swb_automation::run_steps` that the probe tool also runs
@@ -376,8 +391,10 @@ def _parse_data(data: Any) -> list[Case]:
     viewport = _parse_viewport(data["viewport"], "file") if "viewport" in data else DEFAULT_VIEWPORT
     zone = _parse_time_zone(data.get("time_zone"), "file")
     javascript = _parse_javascript(data.get("javascript", False), "file")
+    animations = _parse_flag(data.get("animations", False), "file", "animations")
     cases = [
-        _parse_case(item, i, viewport, zone, javascript) for i, item in enumerate(data["cases"], 1)
+        _parse_case(item, i, viewport, zone, javascript, animations)
+        for i, item in enumerate(data["cases"], 1)
     ]
     seen: set[str] = set()
     for case in cases:
