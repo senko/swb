@@ -6012,6 +6012,19 @@ Steps:
    interpolation of each value type; the frame loop in headless mode,
    virtual time and the GUI; events; the `Animation` objects; what a
    frame does without layout).
+
+   Done (2026-11-20): ADR 0044 (accepted). The model lives in the style
+   crate, one per document; the timeline advances in a new step of the
+   rendering update, also without scripts; animated values enter the
+   compute step of the cascade, so `em`, `var()` and inheritance see
+   them. Interpolation, easing precision, event order and script
+   overrides are measured: 17 new cases in `css-animations.json` and 1
+   in `css-transitions.json` (three equal Chromium runs). A paint-only
+   frame keeps the layout and rebuilds the display list; damage comes
+   from a diff of the display lists. One decision of the orchestrator:
+   computed `oklch()` and the other non-legacy colors keep their space
+   (feature 2b), so that color transitions mix in Oklab as in Chromium.
+   The ADR proposed the split of features 3 and 4 below.
 3. Features, in this order. Each feature ends with a review and a commit,
    with the checks of M9. The commits number the features from 2 on
    (feature 1 is the diagnosis).
@@ -6028,33 +6041,39 @@ Steps:
       `-webkit-line-clamp`, and the properties that parse without an
       effect (`overscroll-behavior`, `overflow-anchor`,
       `-webkit-tap-highlight-color`, `-webkit-text-size-adjust`,
-      `-webkit-font-smoothing`).
-   3. CSS animations (`implementer-hard`): `@keyframes` in the cascade;
-      the `animation-*` longhands and the shorthand; delay, duration,
-      iteration count, direction, fill mode, play state; the easing
-      functions (`cubic-bezier()`, `steps()`, `linear()`, the keywords);
-      the interpolation of the value types that the page animates
-      (lengths and percentages, numbers, colors, transform lists and the
-      individual transform properties, filter lists, shadows, background
-      positions and sizes, registered custom properties, discrete
-      values); `animationstart`, `animationiteration`, `animationend`,
-      `animationcancel`; `document.getAnimations()` and the
-      `CSSAnimation` members that the probes and the page use; the frame
-      loop (the GUI draws frames while an animation runs; headless mode
-      and tests advance with virtual time). `finished` must settle
-      (resolve at the end, reject on cancel), or Base UI's popups never
-      close. The option `--animations off` (diagnosis, section 3): from
-      the start of the document no animation or transition starts and
-      `getAnimations()` is empty; `compare`, `replay`-based tests,
-      `perf` and `js-survey` pass it, so that the scores of the other
-      targets stay as they are. The acceptance of this feature checks
+      `-webkit-font-smoothing`). Computed `oklch()`, `oklab()`, `lab()`,
+      `lch()` and `color()` keep their space and float coordinates as
+      `Wide` colors (ADR 0044, section 4), and `getComputedStyle` shows
+      them as Chromium does.
+   3a. CSS animations, values (`implementer-hard`; ADR 0044 sections 2
+      to 5 and 10): the `animation-*` longhands and the shorthand with
+      their CSSOM forms; the timing model (delay, duration, iteration
+      count, direction, fill mode, play state); the easing functions
+      (`cubic-bezier()`, `steps()`, `linear()`, the keywords); the
+      interpolation of the value types of section 4; `@keyframes` in the
+      cascade at the animation origin; the document timeline and the
+      animation step of the rendering update, also without scripts;
+      virtual time; the minimal `getAnimations()`, `pause()` and
+      `currentTime` that seeking needs; the probe value rows as Rust
+      tests. The option `--animations off` with `swb.py` lands in the
+      same commit as the first running animation, so that the scores of
+      the other targets stay as they are.
+   3b. CSS animations, API and frames (`implementer-hard`; sections 6
+      to 8 and 11): the rest of `Animation`, `KeyframeEffect` and
+      `CSSAnimation`; `ready` and `finished` (they must settle, or Base
+      UI's popups never close); `AnimationEvent` and the event step; the
+      script overrides; the frame scheduling in the GUI (step
+      boundaries, visibility); the hostile cases. The acceptance checks
       values, events and the frame loop, not the frame budget.
-   4. The cost of a frame (`implementer`): an animation of `transform`,
-      `opacity` or `filter` runs without layout; a frame rasterizes only
-      the rectangles that changed (also needed for video frames in M14);
-      animations of elements without a box or outside the viewport cost
-      no frames. Budgets from the diagnosis. This comes before the
-      transitions: every hover on the page repaints the hero (30 ms).
+   4a. Paint-only frames (`implementer`; section 9): the classification
+      of paint properties, the refresh of fragment styles, overflow, the
+      display list rebuild, and the check mode as the oracle. This comes
+      before the transitions: every hover on the page repaints the hero
+      (30 ms).
+   4b. Damage rectangles (`implementer-hard`; section 9): the display
+      list diff, the region raster with its bit-exact oracle, the GUI
+      path, the content generation of media for M14; the budgets of the
+      diagnosis.
    5. CSS transitions (`implementer-hard`): the `transition-*` longhands
       take effect (they leave `inert.rs`, with `calc()` in times and
       `linear()` as a timing function); the before- and after-change
@@ -6066,8 +6085,11 @@ Steps:
    6. The exit test (`implementer`): an integration test on the fixture
       with the items below, the JS-off check and the `load` budget.
 
-   Features 3 and 5 add the hostile cases that the diagnosis lists
-   (section 7, item 8) to the hostile-page set.
+   Features 3b and 5 add the hostile cases that the diagnosis lists
+   (section 7, item 8) to the hostile-page set. Feature 5 also settles
+   the order of the cancel events of `events-cancel-and-reverse` (ADR
+   0044, section 6); that row's order of `e1` and `e3` varies in
+   Chromium.
 
    What "works" means (confirmed by the owner on 2026-11-20), on the
    `videojs` fixture, 1280 x 800:
@@ -6175,6 +6197,12 @@ Source Extensions, AV1 (dav1d), YouTube.
   player's settings menu.
 - DOM (feature 1): `document.fonts` (`FontFaceSet`) and
   `CSS.registerProperty` do not exist; the page does not need them.
+- Tests (step 2): `crates/web/tests/range.rs` `probe_cases` fails under
+  load (load average 10 on 20 cores, a parallel build): the query of
+  `contents-extract` in the GC stress mode exceeds the task time limit of
+  5 s. It passes on an idle machine, so the case runs close to the limit.
+  Give the stress mode a larger limit in the test, or list the case in
+  `NO_STRESS`.
 
 ## Backlog from M12
 

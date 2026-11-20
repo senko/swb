@@ -330,6 +330,240 @@
      "js": "E(() => { const el = $('#b'); el.style.animation = 'k 1s linear'; const a = el.getAnimations()[0]; a.pause(); const p = a.playState + ' ' + a.pending; a.currentTime = 400; return p + ' ' + a.currentTime + ' ' + a.playState + ' ' + getComputedStyle(el).opacity; })"
     }
    ]
+  },
+  {
+   "name": "interp-colors",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{position:relative;width:20px;height:4px;animation-duration:1s;animation-timing-function:linear;animation-fill-mode:both}.x{color:rgb(0,128,0)}@keyframes k-c-red-blue{from{background-color:rgb(255, 0, 0)}to{background-color:rgb(0, 0, 255)}}#c-red-blue{animation-name:k-c-red-blue}@keyframes k-c-half{from{background-color:rgb(255, 0, 0)}to{background-color:rgb(0, 0, 254)}}#c-half{animation-name:k-c-half}@keyframes k-c-alpha{from{background-color:rgba(255, 0, 0, 1)}to{background-color:rgba(0, 0, 255, 0)}}#c-alpha{animation-name:k-c-alpha}@keyframes k-c-transparent{from{background-color:transparent}to{background-color:rgb(255, 255, 255)}}#c-transparent{animation-name:k-c-transparent}@keyframes k-c-hsl{from{background-color:hsl(0 100% 50%)}to{background-color:hsl(240 100% 50%)}}#c-hsl{animation-name:k-c-hsl}@keyframes k-c-oklch{from{background-color:oklch(0.7 0.1 30)}to{background-color:oklch(0.7 0.1 200)}}#c-oklch{animation-name:k-c-oklch}@keyframes k-c-p3{from{background-color:color(display-p3 1 0 0)}to{background-color:rgb(0, 0, 255)}}#c-p3{animation-name:k-c-p3}@keyframes k-c-legacy-lab{from{background-color:rgb(255 0 0 / 50%)}to{background-color:lab(50 40 -20)}}#c-legacy-lab{animation-name:k-c-legacy-lab}@keyframes k-c-current{from{background-color:currentcolor}to{background-color:rgb(255, 0, 0)}}#c-current{animation-name:k-c-current}</style></head><body><div class=x id=c-red-blue></div><div class=x id=c-half></div><div class=x id=c-alpha></div><div class=x id=c-transparent></div><div class=x id=c-hsl></div><div class=x id=c-oklch></div><div class=x id=c-p3></div><div class=x id=c-legacy-lab></div><div class=x id=c-current></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "each(['c-red-blue','c-half','c-alpha','c-transparent','c-hsl','c-oklch','c-p3','c-legacy-lab','c-current'], 'background-color', [250, 500])"
+    }
+   ]
+  },
+  {
+   "name": "interp-color-current",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{position:relative;width:20px;height:4px;animation-duration:1s;animation-timing-function:linear;animation-fill-mode:both}.x{color:rgb(0,128,0);border-top:2px solid}@keyframes k-cc-current{from{border-top-color:currentcolor}to{border-top-color:rgb(255, 0, 0)}}#cc-current{animation-name:k-cc-current}</style></head><body><div class=x id=cc-current></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "each(['cc-current'], 'border-top-color', [500])"
+    }
+   ]
+  },
+  {
+   "name": "interp-transforms",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{position:relative;width:20px;height:4px;animation-duration:1s;animation-timing-function:linear;animation-fill-mode:both}.x{width:200px}@keyframes k-t-match{from{transform:translateX(10px) rotate(0deg)}to{transform:translateX(100px) rotate(90deg)}}#t-match{animation-name:k-t-match}@keyframes k-t-mismatch{from{transform:rotate(45deg)}to{transform:scale(2)}}#t-mismatch{animation-name:k-t-mismatch}@keyframes k-t-none-rotate{from{transform:none}to{transform:rotate(360deg)}}#t-none-rotate{animation-name:k-t-none-rotate}@keyframes k-t-rotate-720{from{transform:rotate(0deg)}to{transform:rotate(720deg)}}#t-rotate-720{animation-name:k-t-rotate-720}@keyframes k-t-prefix{from{transform:translateX(10px)}to{transform:translateX(20px) rotate(90deg)}}#t-prefix{animation-name:k-t-prefix}@keyframes k-t-percent{from{transform:translate(-50%)}to{transform:translate(0)}}#t-percent{animation-name:k-t-percent}@keyframes k-t-flip{from{transform:scale(1)}to{transform:scale(-1, 1)}}#t-flip{animation-name:k-t-flip}@keyframes k-t-skew{from{transform:skewX(0deg)}to{transform:skewX(60deg)}}#t-skew{animation-name:k-t-skew}@keyframes k-t-matrix-180{from{transform:rotate(0deg)}to{transform:matrix(-1, 0, 0, -1, 0, 0)}}#t-matrix-180{animation-name:k-t-matrix-180}@keyframes k-t-translate-scale{from{transform:translateY(20px) scale(.5)}to{transform:none}}#t-translate-scale{animation-name:k-t-translate-scale}</style></head><body><div class=x id=t-match></div><div class=x id=t-mismatch></div><div class=x id=t-none-rotate></div><div class=x id=t-rotate-720></div><div class=x id=t-prefix></div><div class=x id=t-percent></div><div class=x id=t-flip></div><div class=x id=t-skew></div><div class=x id=t-matrix-180></div><div class=x id=t-translate-scale></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "each(['t-match','t-mismatch','t-none-rotate','t-rotate-720','t-prefix','t-percent','t-flip','t-skew','t-matrix-180','t-translate-scale'], 'transform', [250, 500])"
+    }
+   ]
+  },
+  {
+   "name": "interp-transform-decomposition",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{position:relative;width:20px;height:4px;animation-duration:1s;animation-timing-function:linear;animation-fill-mode:both}.x{width:200px}@keyframes k-d-flip-x{from{transform:rotate(0deg)}to{transform:matrix(-1, 0, 0, 1, 0, 0)}}#d-flip-x{animation-name:k-d-flip-x}@keyframes k-d-skew{from{transform:rotate(0deg)}to{transform:matrix(1, 0, 1, 1, 0, 0)}}#d-skew{animation-name:k-d-skew}@keyframes k-d-reflect{from{transform:rotate(30deg)}to{transform:matrix(0, 1, 1, 0, 0, 0)}}#d-reflect{animation-name:k-d-reflect}@keyframes k-d-rotate-90{from{transform:scale(1)}to{transform:matrix(0, 1, -1, 0, 0, 0)}}#d-rotate-90{animation-name:k-d-rotate-90}@keyframes k-d-rotate-180{from{transform:matrix(1, 0, 0, 1, 0, 0)}to{transform:matrix(-1, 0, 0, -1, 0, 0)}}#d-rotate-180{animation-name:k-d-rotate-180}@keyframes k-d-general{from{transform:translate(10px, 20px) scale(2) skewX(30deg)}to{transform:rotate(60deg) translate(5px)}}#d-general{animation-name:k-d-general}@keyframes k-d-flip-rotate{from{transform:rotate(170deg)}to{transform:matrix(-1, 0, 0, 1, 0, 0)}}#d-flip-rotate{animation-name:k-d-flip-rotate}</style></head><body><div class=x id=d-flip-x></div><div class=x id=d-skew></div><div class=x id=d-reflect></div><div class=x id=d-rotate-90></div><div class=x id=d-rotate-180></div><div class=x id=d-general></div><div class=x id=d-flip-rotate></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "each(['d-flip-x','d-skew','d-reflect','d-rotate-90','d-rotate-180','d-general','d-flip-rotate'], 'transform', [250, 500])"
+    }
+   ]
+  },
+  {
+   "name": "easing-precision-duration",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{width:20px;height:4px;animation:k both}@keyframes k{from{opacity:0}to{opacity:1}}</style></head><body><div class=x id=a1 style='animation-duration:100ms;animation-timing-function:cubic-bezier(.2,.8,.2,1)'></div><div class=x id=a2 style='animation-duration:1s;animation-timing-function:cubic-bezier(.2,.8,.2,1)'></div><div class=x id=a3 style='animation-duration:100s;animation-timing-function:cubic-bezier(.2,.8,.2,1)'></div><div class=x id=b1 style='animation-duration:100ms;animation-timing-function:cubic-bezier(.9,0,.1,1)'></div><div class=x id=b2 style='animation-duration:100s;animation-timing-function:cubic-bezier(.9,0,.1,1)'></div><div class=x id=c1 style='animation-duration:100ms;animation-timing-function:ease'></div><div class=x id=c2 style='animation-duration:100s;animation-timing-function:ease'></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\nfunction frac(id, fs) { const a = $('#' + id).getAnimations()[0]; a.pause(); const d = a.effect.getComputedTiming().duration; return id + ' ' + fs.map((f) => { a.currentTime = f * d; return f + '=' + getComputedStyle($('#' + id)).opacity; }).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "['a1','a2','a3','b1','b2','c1','c2'].map((id) => frac(id, [0.01, 0.05, 0.3, 0.45, 0.5, 0.55, 0.9])).join('\\n')"
+    }
+   ]
+  },
+  {
+   "name": "interp-individual-transforms",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{position:relative;width:200px;height:4px;animation:1s linear both}@keyframes kr{from{rotate:0deg}to{rotate:90deg}}#r1{animation-name:kr}@keyframes kr2{from{rotate:none}to{rotate:45deg}}#r2{animation-name:kr2}@keyframes ks{from{scale:1}to{scale:2 3}}#s1{animation-name:ks}@keyframes ks2{from{scale:none}to{scale:2}}#s2{animation-name:ks2}@keyframes kt{from{translate:0}to{translate:10px 50%}}#t1{animation-name:kt}@keyframes kt2{from{translate:none}to{translate:20px}}#t2{animation-name:kt2}@keyframes kall{from{translate:0 0;rotate:0deg;scale:1;transform:none}to{translate:40px 0;rotate:180deg;scale:2;transform:translateX(10px)}}#a1{animation-name:kall}</style></head><body><div class=x id=r1></div><div class=x id=r2></div><div class=x id=s1></div><div class=x id=s2></div><div class=x id=t1></div><div class=x id=t2></div><div class=x id=a1></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "atAll(['#r1','#r2'], ['rotate'], [500])"
+    },
+    {
+     "js": "atAll(['#s1','#s2'], ['scale'], [500])"
+    },
+    {
+     "js": "atAll(['#t1','#t2'], ['translate'], [500])"
+    },
+    {
+     "js": "at('#a1', ['translate','rotate','scale','transform'], [500])"
+    }
+   ]
+  },
+  {
+   "name": "interp-filters",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{position:relative;width:20px;height:4px;animation-duration:1s;animation-timing-function:linear;animation-fill-mode:both}@keyframes k-f-pad{from{filter:blur(0px)}to{filter:blur(10px) brightness(2)}}#f-pad{animation-name:k-f-pad}@keyframes k-f-none-shadow{from{filter:none}to{filter:drop-shadow(4px 4px 2px rgb(255, 0, 0))}}#f-none-shadow{animation-name:k-f-none-shadow}@keyframes k-f-mismatch{from{filter:grayscale(1)}to{filter:blur(4px)}}#f-mismatch{animation-name:k-f-mismatch}@keyframes k-f-none-list{from{filter:none}to{filter:blur(10px) sepia(1)}}#f-none-list{animation-name:k-f-none-list}@keyframes k-f-hue{from{filter:hue-rotate(0deg)}to{filter:hue-rotate(360deg)}}#f-hue{animation-name:k-f-hue}</style></head><body><div class=x id=f-pad></div><div class=x id=f-none-shadow></div><div class=x id=f-mismatch></div><div class=x id=f-none-list></div><div class=x id=f-hue></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "each(['f-pad','f-none-shadow','f-mismatch','f-none-list','f-hue'], 'filter', [250, 500])"
+    }
+   ]
+  },
+  {
+   "name": "interp-box-shadows",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{position:relative;width:20px;height:4px;animation-duration:1s;animation-timing-function:linear;animation-fill-mode:both}.x{color:rgb(0,128,0)}@keyframes k-sh-simple{from{box-shadow:0 0 0 rgb(255, 0, 0)}to{box-shadow:10px 10px 10px 5px rgb(0, 0, 255)}}#sh-simple{animation-name:k-sh-simple}@keyframes k-sh-none{from{box-shadow:none}to{box-shadow:0 4px 6px rgba(0, 0, 0, 0.5), 0 2px 4px rgb(255, 0, 0)}}#sh-none{animation-name:k-sh-none}@keyframes k-sh-inset{from{box-shadow:inset 0 0 5px rgb(255, 0, 0)}to{box-shadow:0 0 5px rgb(255, 0, 0)}}#sh-inset{animation-name:k-sh-inset}@keyframes k-sh-lengths{from{box-shadow:1px 1px rgb(255, 0, 0)}to{box-shadow:2px 2px rgb(0, 0, 255), 3px 3px rgb(0, 128, 0)}}#sh-lengths{animation-name:k-sh-lengths}@keyframes k-sh-current{from{box-shadow:0 0 4px}to{box-shadow:0 0 4px rgb(255, 0, 0)}}#sh-current{animation-name:k-sh-current}</style></head><body><div class=x id=sh-simple></div><div class=x id=sh-none></div><div class=x id=sh-inset></div><div class=x id=sh-lengths></div><div class=x id=sh-current></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "each(['sh-simple','sh-none','sh-inset','sh-lengths','sh-current'], 'box-shadow', [250, 500])"
+    }
+   ]
+  },
+  {
+   "name": "interp-text-shadows",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{position:relative;width:20px;height:4px;animation-duration:1s;animation-timing-function:linear;animation-fill-mode:both}@keyframes k-ts-simple{from{text-shadow:0 0 rgb(255, 0, 0)}to{text-shadow:4px 4px 2px rgb(0, 0, 255)}}#ts-simple{animation-name:k-ts-simple}@keyframes k-ts-none{from{text-shadow:none}to{text-shadow:2px 2px rgb(0, 0, 0)}}#ts-none{animation-name:k-ts-none}</style></head><body><div class=x id=ts-simple></div><div class=x id=ts-none></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "each(['ts-simple','ts-none'], 'text-shadow', [500])"
+    }
+   ]
+  },
+  {
+   "name": "interp-background-position",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{position:relative;width:20px;height:4px;animation-duration:1s;animation-timing-function:linear;animation-fill-mode:both}.x{background-image:linear-gradient(red,blue);background-size:5px 5px}@keyframes k-bp-percent{from{background-position:0% 0%}to{background-position:100% 100%}}#bp-percent{animation-name:k-bp-percent}@keyframes k-bp-keywords{from{background-position:left top}to{background-position:right 10px bottom 20px}}#bp-keywords{animation-name:k-bp-keywords}@keyframes k-bp-mixed{from{background-position:10px 20px}to{background-position:50% 50%}}#bp-mixed{animation-name:k-bp-mixed}@keyframes k-bp-list{from{background-position:0 0, 0 0}to{background-position:10px 10px}}#bp-list{animation-name:k-bp-list}</style></head><body><div class=x id=bp-percent></div><div class=x id=bp-keywords></div><div class=x id=bp-mixed></div><div class=x id=bp-list></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "each(['bp-percent','bp-keywords','bp-mixed','bp-list'], 'background-position', [250, 500])"
+    }
+   ]
+  },
+  {
+   "name": "interp-background-size",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{position:relative;width:20px;height:4px;animation-duration:1s;animation-timing-function:linear;animation-fill-mode:both}.x{background-image:linear-gradient(red,blue)}@keyframes k-bs-lengths{from{background-size:10px 10px}to{background-size:50% 20px}}#bs-lengths{animation-name:k-bs-lengths}@keyframes k-bs-auto{from{background-size:auto}to{background-size:100px}}#bs-auto{animation-name:k-bs-auto}@keyframes k-bs-auto-pair{from{background-size:10px auto}to{background-size:30px auto}}#bs-auto-pair{animation-name:k-bs-auto-pair}@keyframes k-bs-cover{from{background-size:cover}to{background-size:contain}}#bs-cover{animation-name:k-bs-cover}@keyframes k-bs-mixed{from{background-size:20px 100%}to{background-size:50% 100%}}#bs-mixed{animation-name:k-bs-mixed}</style></head><body><div class=x id=bs-lengths></div><div class=x id=bs-auto></div><div class=x id=bs-auto-pair></div><div class=x id=bs-cover></div><div class=x id=bs-mixed></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "each(['bs-lengths','bs-auto','bs-auto-pair','bs-cover','bs-mixed'], 'background-size', [250, 500])"
+    }
+   ]
+  },
+  {
+   "name": "interp-lengths-numbers",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{position:relative;width:20px;height:4px;animation:1s linear both}#w{display:block}#box{width:200px}@keyframes ti{from{text-indent:10px}to{text-indent:50%}}#ti{animation-name:ti}@keyframes wa{from{width:auto}to{width:100px}}#wa{animation-name:wa}@keyframes lh{from{line-height:normal}to{line-height:2}}#lh{animation-name:lh}@keyframes lhm{from{line-height:1}to{line-height:20px}}#lhm{animation-name:lhm}@keyframes fw{from{font-weight:400}to{font-weight:700}}#fw{animation-name:fw}@keyframes zi{from{z-index:1}to{z-index:10}}#zi{animation-name:zi}@keyframes op{from{opacity:0}to{opacity:1}}#op{animation-name:op;animation-timing-function:linear(0, 2 50%, 1)}@keyframes wn{from{width:20px}to{width:40px}}#wn{animation-name:wn;animation-timing-function:linear(0, -4 50%, 1)}@keyframes vi{from{visibility:visible}to{visibility:hidden}}#vi{animation-name:vi}@keyframes vi2{from{visibility:hidden}to{visibility:visible}}#vi2{animation-name:vi2}@keyframes ds{from{display:block}to{display:none}}#ds{animation-name:ds}@keyframes cv{from{content-visibility:visible}to{content-visibility:hidden}}#cv{animation-name:cv}@keyframes fs{from{font-size:10px}to{font-size:20px}}#fs{animation-name:fs;padding-left:1em}#fs>i{display:block;width:2em;height:2px}@keyframes cl{from{color:rgb(0,0,0)}to{color:rgb(200,100,0)}}#cl{animation-name:cl}#cl>i{display:block;height:2px;border-top:2px solid}@keyframes bw{from{border-top-width:0px}to{border-top-width:3px}}#bw{animation-name:bw;border-top-style:solid}@keyframes in{from{inset:0px auto auto 0px}to{inset:10px auto auto 20%}}#in{animation-name:in;position:absolute}</style></head><body><div id=box><div class=x id=ti></div><div class=x id=wa></div><div class=x id=lh></div><div class=x id=lhm></div><div class=x id=fw></div><div class=x id=zi></div><div class=x id=op></div><div class=x id=wn></div><div class=x id=vi></div><div class=x id=vi2></div><div class=x id=ds></div><div class=x id=cv></div><div class=x id=fs><i></i></div><div class=x id=cl><i></i></div><div class=x id=bw></div><div class=x id=in></div></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "each(['ti'], 'text-indent', [250, 500])"
+    },
+    {
+     "js": "each(['wa'], 'width', [400, 600])"
+    },
+    {
+     "js": "each(['lh'], 'line-height', [400, 600]) + '\\n' + each(['lhm'], 'line-height', [400, 600])"
+    },
+    {
+     "js": "each(['fw'], 'font-weight', [250, 500]) + '\\n' + each(['zi'], 'z-index', [250, 500, 501])"
+    },
+    {
+     "js": "each(['op'], 'opacity', [250, 500]) + '\\n' + each(['wn'], 'width', [250, 500])"
+    },
+    {
+     "js": "each(['vi', 'vi2'], 'visibility', [0, 1, 500, 999, 1000])"
+    },
+    {
+     "js": "each(['ds'], 'display', [0, 400, 600, 1000]) + '\\n' + each(['cv'], 'content-visibility', [0, 400, 600, 1000])"
+    },
+    {
+     "js": "[0, 500].map((t) => { seek(t); return t + ' fs=' + getComputedStyle($('#fs')).fontSize + ' pad=' + getComputedStyle($('#fs')).paddingLeft + ' child=' + getComputedStyle($('#fs > i')).width; }).join('\\n')"
+    },
+    {
+     "js": "[500].map((t) => { seek(t); return t + ' color=' + getComputedStyle($('#cl')).color + ' child=' + getComputedStyle($('#cl > i')).color + ' childBorder=' + getComputedStyle($('#cl > i')).borderTopColor; }).join('\\n')"
+    },
+    {
+     "js": "each(['bw'], 'border-top-width', [100, 250, 500, 900])"
+    },
+    {
+     "js": "[500].map((t) => { seek(t); return t + ' ' + val('#in', ['top','left','right','bottom']); }).join('\\n')"
+    }
+   ]
+  },
+  {
+   "name": "interp-custom-properties",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}@property --len{syntax:'<length>';inherits:true;initial-value:0px}@property --col{syntax:'<color>';inherits:false;initial-value:black}@property --list{syntax:'<length>+';inherits:false;initial-value:0px}@property --tl{syntax:'<transform-list>';inherits:false;initial-value:none}@property --num{syntax:'<number>';inherits:false;initial-value:0}@property --any{syntax:'*';inherits:false}@property --ang{syntax:'<angle>';inherits:false;initial-value:0deg}.x{position:relative;width:20px;height:4px;animation:1s linear both}@keyframes len{from{--len:0px}to{--len:100px}}#len{animation-name:len;width:var(--len)}#len>i{display:block;height:2px;width:var(--len)}@keyframes un{from{--u:a}to{--u:b}}#un{animation-name:un}@keyframes col{from{--col:rgb(255,0,0)}to{--col:rgb(0,0,255)}}#col{animation-name:col;background-color:var(--col)}@keyframes list{from{--list:1px 2px}to{--list:11px 22px}}#list{animation-name:list}@keyframes list2{from{--list:1px}to{--list:11px 22px}}#list2{animation-name:list2}@keyframes tl{from{--tl:rotate(0deg)}to{--tl:rotate(90deg)}}#tl{animation-name:tl}@keyframes num{from{--num:0}to{--num:10}}#num{animation-name:num;opacity:calc(var(--num) / 10)}@keyframes any{from{--any:10px}to{--any:20px}}#any{animation-name:any}@keyframes ang{from{--ang:0deg}to{--ang:1turn}}#ang{animation-name:ang}@keyframes kv{from{width:var(--w0)}to{width:var(--w1)}}#kv{animation-name:kv;--w0:10px;--w1:30px}@keyframes kvu{from{--a:10px}to{--a:30px}}#kvu{animation-name:kvu;width:var(--a)}</style></head><body><div class=x id=len><i></i></div><div class=x id=un></div><div class=x id=col></div><div class=x id=list></div><div class=x id=list2></div><div class=x id=tl></div><div class=x id=num></div><div class=x id=any></div><div class=x id=ang></div><div class=x id=kv></div><div class=x id=kvu></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[500].map((t) => { seek(t); const cs = getComputedStyle($('#len')); return t + ' --len=' + cs.getPropertyValue('--len') + ' width=' + cs.width + ' child=' + getComputedStyle($('#len > i')).width; }).join('\\n')"
+    },
+    {
+     "js": "each(['un'], '--u', [0, 400, 499, 500, 600, 1000])"
+    },
+    {
+     "js": "each(['col'], '--col', [250, 500]) + '\\n' + each(['col'], 'background-color', [500])"
+    },
+    {
+     "js": "each(['list', 'list2'], '--list', [250, 500])"
+    },
+    {
+     "js": "each(['tl'], '--tl', [500]) + '\\n' + each(['num'], '--num', [250]) + '\\n' + each(['num'], 'opacity', [250])"
+    },
+    {
+     "js": "each(['any'], '--any', [400, 600]) + '\\n' + each(['ang'], '--ang', [500])"
+    },
+    {
+     "js": "each(['kv'], 'width', [500]) + '\\n' + E(() => { $('#kv').style.setProperty('--w1', '50px'); seek(500); return 'after --w1=50px: ' + getComputedStyle($('#kv')).width; })"
+    },
+    {
+     "js": "each(['kvu'], 'width', [250, 500, 750])"
+    }
+   ]
+  },
+  {
+   "name": "script-overrides",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{width:20px;height:4px;animation:k 10s linear}@keyframes k{from{opacity:0}to{opacity:1}}@keyframes k2{from{opacity:0}to{opacity:1}}#p2{animation-play-state:paused}</style></head><body><div class=x id=p1></div><div class=x id=p2></div><div class=x id=p3></div><div class=x id=p4></div><div class=x id=p5></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { const e = $('#p1'); const a = e.getAnimations()[0]; a.pause(); const s1 = a.playState; e.style.animationPlayState = 'running'; getComputedStyle(e).opacity; const s2 = a.playState; e.style.animationPlayState = 'paused'; getComputedStyle(e).opacity; e.style.animationPlayState = 'running'; getComputedStyle(e).opacity; return [s1, s2, a.playState].join(' '); })"
+    },
+    {
+     "js": "E(() => { const e = $('#p2'); const a = e.getAnimations()[0]; const s0 = a.playState; a.play(); const s1 = a.playState; e.style.animationPlayState = 'running'; getComputedStyle(e).opacity; const s2 = a.playState; e.style.animationPlayState = 'paused'; getComputedStyle(e).opacity; return [s0, s1, s2, a.playState].join(' '); })"
+    },
+    {
+     "js": "E(() => { const e = $('#p3'); const a = e.getAnimations()[0]; a.cancel(); e.style.animationDuration = '2s'; getComputedStyle(e).opacity; const n1 = e.getAnimations().length; e.style.animationName = 'k2'; getComputedStyle(e).opacity; const b = e.getAnimations()[0]; const n2 = e.getAnimations().length; e.style.animationName = 'k'; getComputedStyle(e).opacity; const c = e.getAnimations()[0]; return [n1, n2, b && b.animationName, c && c.animationName, b === c, a.playState].join(' '); })"
+    },
+    {
+     "js": "E(() => { const e = $('#p4'); const a = e.getAnimations()[0]; a.pause(); a.currentTime = 3000; e.style.animationDuration = '20s'; getComputedStyle(e).opacity; const same = a === e.getAnimations()[0]; return [same, a.currentTime, a.effect.getComputedTiming().duration, a.playState, getComputedStyle(e).opacity].join(' '); })"
+    },
+    {
+     "js": "E(() => { const e = $('#p5'); const a = e.getAnimations()[0]; a.pause(); a.currentTime = 2000; e.style.animationDelay = '1s'; getComputedStyle(e).opacity; return [a.currentTime, a.effect.getComputedTiming().delay, getComputedStyle(e).opacity].join(' '); })"
+    }
+   ]
+  },
+  {
+   "name": "easing-progress-precision",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{width:20px;height:4px;animation:k 1000s both}@keyframes k{from{opacity:0}to{opacity:1}}</style></head><body><div class=x id=e1 style='animation-timing-function:ease'></div><div class=x id=e2 style='animation-timing-function:cubic-bezier(.2,.8,.2,1)'></div><div class=x id=e3 style='animation-timing-function:cubic-bezier(.3,1.6,.6,1)'></div><div class=x id=e4 style='animation-timing-function:cubic-bezier(0,0,1,-0.5)'></div><div class=x id=e5 style='animation-timing-function:linear(0, 0.25 25%, 1)'></div><div class=x id=e6 style='animation-timing-function:steps(3, jump-both)'></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\nfunction prog(id, times) { const a = $('#' + id).getAnimations()[0]; a.pause(); return id + ' ' + times.map((t) => { a.currentTime = t * 1000; return t + '=' + a.effect.getComputedTiming().progress; }).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "['e1','e2','e3','e4','e5','e6'].map((id) => prog(id, [0.1, 1, 33.3, 50, 66.7, 99.9])).join('\\n')"
+    },
+    {
+     "js": "[1, 50, 99.9].map((t) => { seek(t * 1000); return t + ' ' + ['e1','e2','e3','e4'].map((id) => id + '=' + getComputedStyle($('#' + id)).opacity).join(' '); }).join('\\n')"
+    }
+   ]
+  },
+  {
+   "name": "get-animations-order",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{width:20px;height:4px;position:relative;left:0}@keyframes a{to{opacity:.5}}@keyframes b{to{width:30px}}#o1{transition:all 10s linear}#o1.on{left:10px;opacity:.5;background-color:rgb(255,0,0);font-size:20px;color:rgb(0,0,255)}#o2.on{animation:b 10s, a 10s}#o3.on{animation:a 10s}</style></head><body><div class=x id=o1></div><div class=x id=o2></div><div class=x id=o3></div><p id=ps></p><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { for (const e of $$('.x')) getComputedStyle(e).opacity; $('#o3').classList.add('on'); $('#o2').classList.add('on'); $('#o1').classList.add('on'); getComputedStyle($('#o1')).opacity; return document.getAnimations().map((a) => a.effect.target.id + ':' + (a.animationName || a.transitionProperty)).join(' '); })"
+    }
+   ]
+  },
+  {
+   "name": "hostile-limits",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.x{width:20px;height:4px}</style></head><body><div class=x id=h1></div><div class=x id=h2></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { const pts = []; for (let i = 0; i <= 100000; i++) pts.push((i % 2) + ' ' + (i / 1000) + '%'); const big = 'linear(' + pts.join(', ') + ')'; const small = 'linear(' + pts.slice(0, 10001).join(', ') + ')'; return [CSS.supports('animation-timing-function', big), CSS.supports('animation-timing-function', small), CSS.supports('animation-timing-function', 'steps(1000000)'), CSS.supports('animation-timing-function', 'steps(2147483648)')].join(' '); })"
+    },
+    {
+     "js": "E(() => { const s = document.createElement('style'); let t = ''; for (let i = 0; i < 10000; i++) t += '@keyframes h' + i + '{to{opacity:.5}}'; s.textContent = t; document.head.append(s); const names = []; for (let i = 0; i < 10000; i++) names.push('h' + i); $('#h1').style.animation = names.map((n) => n + ' 10s').join(', '); getComputedStyle($('#h1')).opacity; return getComputedStyle($('#h1')).animationName.split(',').length + ' ' + $('#h1').getAnimations().length + ' ' + document.getAnimations().length; })"
+    },
+    {
+     "js": "E(() => { $('#h2').style.animation = 'h1 1ms infinite'; getComputedStyle($('#h2')).opacity; const a = $('#h2').getAnimations()[0]; a.pause(); a.currentTime = 1e9 + 0.5; return a.effect.getComputedTiming().currentIteration + ' ' + getComputedStyle($('#h2')).opacity; })"
+    }
+   ]
   }
  ]
 }

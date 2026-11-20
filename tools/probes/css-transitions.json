@@ -408,6 +408,15 @@
      "js": "(async () => { const p = $('#p'); p.classList.remove('off'); getComputedStyle(p).opacity; p.classList.add('off'); const a = p.getAnimations(); for (const x of $('#h').getAnimations({subtree: true})) x.cancel(); await wait(10); return a.length + ' ' + a.map((x) => x.playState).join() + ' ' + getComputedStyle(p).opacity; })()"
     }
    ]
+  },
+  {
+   "name": "events-order-many-properties",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:10px;height:10px;background-color:rgb(0,0,0);color:rgb(0,0,0);opacity:1;left:0;position:relative;font-size:10px;transition:all 60ms linear}.t.on{width:20px;opacity:.5;font-size:20px;color:rgb(0,0,255);background-color:rgb(255,0,0);left:20px}@keyframes k{to{outline-offset:4px}}.t.an{animation:k 60ms linear}</style></head><body><div class=t id=e1></div><div class=t id=e2></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction each(ids, prop, times) { return ids.map((id) => id + ' ' + times.map((t) => { seek(t); return t + '=' + getComputedStyle($('#' + id)).getPropertyValue(prop); }).join(' | ')).join('\\n'); }\nwindow.LOG = [];\nfunction lg(e) { LOG.push([e.type, e.propertyName || e.animationName, e.target.id].join(' ')); }\nfor (const t of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel', 'animationstart', 'animationend']) document.addEventListener(t, lg);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { for (const e of $$('.t')) getComputedStyle(e).opacity; $('#e2').classList.add('on'); $('#e1').classList.add('on'); $('#e1').classList.add('an'); getComputedStyle($('#e1')).opacity; const order = document.getAnimations().map((a) => a.effect.target.id + ':' + (a.transitionProperty || a.animationName)).join(' '); await wait(400); return order + '\\n' + LOG.join('\\n'); })()"
+    }
+   ]
   }
  ]
 }

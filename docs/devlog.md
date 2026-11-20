@@ -39,8 +39,25 @@ in commit messages, ADRs and other docs.
   swb option with the same effect from the start of the document, so the
   other targets' scores do not depend on the animation code.
 - Plan changes: static CSS in two features (2a, 2b); the cost of a frame
-  before the transitions. Next: the ADR for CSS animations and
-  transitions, then feature 2a.
+  before the transitions.
+- M13 step 2: ADR 0044 (CSS animations and transitions), accepted. The
+  model lives in the style crate, one per document; the timeline
+  advances in a new step of the rendering update, also with JavaScript
+  off; animated values enter the compute step of the cascade. 18 new
+  probe cases measure interpolation (Chromium's 2D matrix decomposition
+  matches the 3D algorithm of Transforms 2 reduced to 2D, not the 2D
+  algorithm of Transforms 1), easing precision (exact to 6 digits for
+  any duration), the event order (code point order of the property
+  names) and the script overrides. Headless mode updates animations only
+  at their event times; the GUI asks for frames only for visible,
+  changing animations, and a `steps()` animation only at its steps.
+  Paint-only frames keep the layout; damage rectangles come from a diff
+  of display lists.
+- Decided by the orchestrator: computed `oklch()` and the other
+  non-legacy colors keep their space (feature 2b). Tailwind 4 writes all
+  colors as `oklch()`, and Chromium mixes them in Oklab. Features 3 and 4
+  split into 3a/3b and 4a/4b.
+- Next: feature 2a (running), then 2b.
 
 ## 2026-11-19: README and CI
 
