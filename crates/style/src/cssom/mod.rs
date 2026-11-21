@@ -537,7 +537,7 @@ impl StyleDeclarations {
                 };
                 // A shorthand of one longhand of swb's (Chromium's have more)
                 // only where it set the value.
-                if def.kind == props::Kind::Single && entry.via != Some(s) {
+                if def.kind == props::Kind::FontVariant && entry.via != Some(s) {
                     continue;
                 }
                 let positions: Option<Vec<usize>> = def

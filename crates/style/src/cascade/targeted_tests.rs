@@ -332,6 +332,21 @@ fn root_font_size() {
 }
 
 #[test]
+fn root_line_height() {
+    let doc = parse_html("<!DOCTYPE html><p id=p>p</p>");
+    let html = doc.document_element().expect("root");
+    assert_eq!(
+        change(
+            &doc,
+            "html:hover { line-height: 30px } p { margin: 1rlh }",
+            &hover(None),
+            &hover(Some(html))
+        ),
+        Restyle::Full(FullReason::RootFontSize)
+    );
+}
+
+#[test]
 fn focus_states() {
     let doc = parse_html(
         "<!DOCTYPE html><form id=f class=f><input id=i class=i><a id=a class=a href=#>a</a>\

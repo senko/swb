@@ -325,3 +325,47 @@ fn stop_positions_follow_the_fixup_of_css_images() {
     let p = stop_positions(&gradient(vec![(c, px(-50.0)), (c, px(150.0))]), 100.0);
     assert_eq!(p, vec![-0.5, 1.5]);
 }
+
+/// A gradient item of `tile` over `rect`, black to white to the right.
+fn tiled_item(rect: Rect, tile: Rect) -> DisplayItem {
+    DisplayItem::LinearGradient {
+        rect,
+        tile,
+        clip: rect,
+        gradient: Arc::new(LinearGradient {
+            angle_deg: 90.0,
+            stops: vec![
+                (Color::Rgba(Rgba::BLACK), None),
+                (Color::Rgba(Rgba::WHITE), None),
+            ],
+            repeating: false,
+        }),
+        current_color: Rgba::BLACK,
+    }
+}
+
+#[test]
+fn a_tiled_gradient_item_repeats_its_tile_at_any_count() {
+    let area = Rect::new(10.0, 10.0, 80.0, 80.0);
+    // Two 40 px tiles in a row (copies drawn one by one) and sixteen 5 px
+    // tiles (one tile rendered and repeated) start dark and end light.
+    for (size, count) in [(40_u32, 2_u32), (5, 16)] {
+        let tile = Rect::new(10.0, 10.0, size as f32, size as f32);
+        let p = render(vec![tiled_item(area, tile)]);
+        for column in 0..count {
+            let x = 10 + column * size;
+            assert!(rgb(&p, x, 20).0 < 60, "start of {column} at {size}");
+            assert!(rgb(&p, x + size - 1, 20).0 > 200, "end of {column}");
+        }
+    }
+    // A tile of 1 px over a large area is one pixel of mid gray.
+    let big = Rect::new(0.0, 0.0, 100.0, 100.0);
+    let p = render(vec![tiled_item(big, Rect::new(0.0, 0.0, 1.0, 1.0))]);
+    let (gray, ..) = rgb(&p, 37, 61);
+    assert!((100..156).contains(&gray), "gray {gray}");
+    // One tile that is the area: the gradient spans the area once.
+    let p = render(vec![tiled_item(area, area)]);
+    assert_eq!(rgb(&p, 5, 50), (255, 255, 255));
+    assert!(rgb(&p, 11, 50).0 < 20);
+    assert!(rgb(&p, 88, 50).0 > 235);
+}

@@ -122,9 +122,9 @@ pub(crate) enum Kind {
     Position,
     /// `grid-row`, `grid-column`, `grid-area`.
     GridLines,
-    /// One longhand under another name (`font-variant`,
-    /// `-webkit-mask-origin`, ...).
-    Single,
+    /// `font-variant`: ligatures, caps and numeric (Chromium's has three
+    /// more longhands that swb does not store).
+    FontVariant,
     /// `border-image` (only `initial` and the other CSS-wide keywords).
     BorderImage,
     /// Kept as written: the longhands read as empty strings, as for a
@@ -288,6 +288,8 @@ const ALIASES: &[(&str, &str)] = &[
         "-webkit-transition-timing-function",
         "transition-timing-function",
     ),
+    ("-webkit-text-size-adjust", "text-size-adjust"),
+    ("-webkit-background-clip", "background-clip"),
     ("-webkit-perspective", "perspective"),
     ("-webkit-perspective-origin", "perspective-origin"),
 ];
@@ -639,10 +641,25 @@ const SHORTHANDS: &[Shorthand] = &[
             "font-size",
             "line-height",
             "font-family",
+            "font-variant-ligatures",
+            "font-variant-numeric",
         ],
         Kind::Font,
     ),
-    sh("font-variant", &["font-variant-caps"], Kind::Single),
+    sh(
+        "font-variant",
+        &[
+            "font-variant-ligatures",
+            "font-variant-caps",
+            "font-variant-numeric",
+        ],
+        Kind::FontVariant,
+    ),
+    sh(
+        "overscroll-behavior",
+        &["overscroll-behavior-x", "overscroll-behavior-y"],
+        Kind::Pair,
+    ),
     sh(
         "list-style",
         &["list-style-position", "list-style-image", "list-style-type"],
@@ -777,6 +794,7 @@ const fn sh(name: &'static str, longhands: &'static [&'static str], kind: Kind) 
 }
 
 /// How each of swb's longhands is written.
+#[allow(clippy::too_many_lines)] // One line per property.
 fn ser_of(name: &str) -> Ser {
     match name {
         "color"
@@ -784,6 +802,7 @@ fn ser_of(name: &str) -> Ser {
         | "outline-color"
         | "-webkit-text-stroke-color"
         | "-webkit-text-fill-color"
+        | "-webkit-tap-highlight-color"
         | "text-decoration-color"
         | "border-top-color"
         | "border-right-color"
@@ -810,7 +829,7 @@ fn ser_of(name: &str) -> Ser {
         "stroke-dasharray" => Ser::Dasharray,
         "clip-path" => Ser::ClipPath,
         "filter" | "backdrop-filter" => Ser::Filter,
-        "z-index" => Ser::Integer,
+        "z-index" | "-webkit-line-clamp" => Ser::Integer,
         "opacity" | "fill-opacity" | "stroke-opacity" => Ser::Opacity,
         "display" => Ser::Display,
         "text-decoration-line" => Ser::DecorationLine,
@@ -935,7 +954,25 @@ fn build() -> Table {
         .filter(|(_, l)| l.settable)
         .map(|(i, l)| (l.name, Property::Longhand(i)))
         .collect();
-    for (i, s) in SHORTHANDS.iter().enumerate() {
+    // `all` sets every longhand but `direction` and `unicode-bidi` (CSS
+    // Cascade 4 section 3.1.2). A block holds its longhands, so `length`
+    // counts them; Chromium's block has the one entry `all`.
+    let all_names: Vec<&'static str> = longhands
+        .iter()
+        .filter(|l| l.settable && !matches!(l.name, "direction" | "unicode-bidi"))
+        .map(|l| l.name)
+        .collect();
+    // The leaks here and below are bounded: `build()` runs once per
+    // process (the table is a `LazyLock`), so the leaked slices are
+    // static data of fixed size, not a growth per document.
+    let mut shorthands: Vec<Shorthand> = SHORTHANDS.to_vec();
+    shorthands.push(sh(
+        "all",
+        Box::leak(all_names.into_boxed_slice()),
+        Kind::Opaque,
+    ));
+    let shorthands: &'static [Shorthand] = Box::leak(shorthands.into_boxed_slice());
+    for (i, s) in shorthands.iter().enumerate() {
         // `border-image` only resets with `border`: swb does not parse it.
         if is_known_property(s.name) {
             names.insert(s.name, Property::Shorthand(i));
@@ -950,10 +987,10 @@ fn build() -> Table {
     attribute_names.sort_unstable();
     attribute_names.dedup();
     let mut shorthands_of = vec![Vec::new(); longhands.len()];
-    let mut order: Vec<usize> = (0..SHORTHANDS.len()).collect();
-    order.sort_by_key(|&i| std::cmp::Reverse(SHORTHANDS.get(i).map_or(0, |s| s.longhands.len())));
+    let mut order: Vec<usize> = (0..shorthands.len()).collect();
+    order.sort_by_key(|&i| std::cmp::Reverse(shorthands.get(i).map_or(0, |s| s.longhands.len())));
     for i in order {
-        let Some(s) = SHORTHANDS.get(i) else {
+        let Some(s) = shorthands.get(i) else {
             continue;
         };
         for l in s.longhands {
@@ -967,7 +1004,7 @@ fn build() -> Table {
     }
     Table {
         longhands,
-        shorthands: SHORTHANDS,
+        shorthands,
         names,
         longhand_index,
         attribute_names,
@@ -1095,7 +1132,7 @@ mod tests {
             ("borderTopLeftRadius", Some("border-top-left-radius")),
             ("marginInlineStart", Some("margin-inline-start")),
             ("gridGap", Some("grid-gap")),
-            ("all", None),
+            ("all", Some("all")),
             ("borderImage", None),
             ("BACKGROUND", None),
             ("--x", None),

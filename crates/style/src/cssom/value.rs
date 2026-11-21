@@ -328,10 +328,17 @@ fn write_color_value(value: &ComponentValue, out: &mut String) {
     let mut p = Parser::new(values);
     match parse_color(&mut p) {
         Ok(Color::Rgba(c)) => write_rgba(c, out),
-        Ok(Color::Special(_)) => {
+        Ok(Color::Special(id)) => {
             let text = match value {
-                ComponentValue::Function(f) => {
+                ComponentValue::Function(f) if f.name.eq_ignore_ascii_case("color-mix") => {
                     crate::values::color_mix::specified_text(&f.arguments, &color_tokens_text)
+                }
+                // `oklch()`, `color()` and the like: written as computed.
+                ComponentValue::Function(f) if !f.name.eq_ignore_ascii_case("light-dark") => {
+                    match id.get() {
+                        crate::values::color_mix::Special::Wide(w) => Some(w.serialize()),
+                        crate::values::color_mix::Special::Mix(_) => None,
+                    }
                 }
                 _ => None,
             };

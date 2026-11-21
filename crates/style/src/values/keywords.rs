@@ -710,6 +710,77 @@ keyword_enum! {
 }
 
 keyword_enum! {
+    /// The `overflow-anchor` property (CSS Scroll Anchoring 1 §3.1).
+    /// Chromium 148 also accepts `visible` (measured; the computed value is
+    /// `visible`). swb has no scroll anchoring.
+    OverflowAnchor {
+        Auto = "auto",
+        None = "none",
+        Visible = "visible",
+    }
+    default Auto
+}
+
+keyword_enum! {
+    /// `overscroll-behavior-x`, `-y`, `-inline` and `-block` (CSS
+    /// Overscroll Behavior 1 §3). swb scrolls no chain of containers, so the
+    /// value has no effect.
+    OverscrollBehavior {
+        Auto = "auto",
+        Contain = "contain",
+        None = "none",
+    }
+    default Auto
+}
+
+keyword_enum! {
+    /// `-webkit-font-smoothing` (no effect: swb has one anti-aliasing mode).
+    FontSmoothing {
+        Auto = "auto",
+        None = "none",
+        Antialiased = "antialiased",
+        SubpixelAntialiased = "subpixel-antialiased",
+    }
+    default Auto
+}
+
+keyword_enum! {
+    /// The `line-break` property (CSS Text 3 §5.3). Only `anywhere` changes
+    /// the breaks of Latin text in Chromium 148; the others differ for CJK
+    /// text and punctuation only.
+    LineBreak {
+        Auto = "auto",
+        Loose = "loose",
+        Normal = "normal",
+        Strict = "strict",
+        Anywhere = "anywhere",
+    }
+    default Auto
+}
+
+keyword_enum! {
+    /// `-webkit-box-orient` (the legacy flexible box). `inline-axis` and
+    /// `block-axis` are the old names of `horizontal` and `vertical`.
+    BoxOrient {
+        Horizontal = "horizontal" | "inline-axis",
+        Vertical = "vertical" | "block-axis",
+    }
+    default Horizontal
+}
+
+/// The computed `text-size-adjust` (also `-webkit-text-size-adjust`): swb
+/// does not adjust text, so only the value is kept. `none` is `100%`
+/// (measured in Chromium 148).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum TextSizeAdjust {
+    /// `auto`.
+    #[default]
+    Auto,
+    /// A percentage (`none` is 100).
+    Percent(f32),
+}
+
+keyword_enum! {
     /// The `pointer-events` property. The values other than `auto` and
     /// `none` are for SVG shapes (SVG 2 §16.4); on HTML content they
     /// behave as `auto`. HTML boxes and text with `none` have no hit
@@ -860,6 +931,7 @@ keyword_enum! {
         BorderBox = "border-box",
         PaddingBox = "padding-box",
         ContentBox = "content-box",
+        Text = "text",
     }
     default BorderBox
 }

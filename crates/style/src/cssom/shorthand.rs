@@ -46,7 +46,7 @@ pub(crate) fn expand(
         Kind::Background => cx.background(tokens),
         Kind::Position => Parts::position(tokens),
         Kind::GridLines => cx.grid_lines(tokens),
-        Kind::Single => Some(vec![cx.text(0, tokens)]),
+        Kind::FontVariant => Parts::font_variant(tokens),
         Kind::Container => cx.container(tokens),
         Kind::WhiteSpace => Parts::white_space(tokens).or_else(|| cx.any_order(tokens)),
         Kind::Transition => {
@@ -408,7 +408,7 @@ impl Parts<'_> {
         // Longhand indices: 0 style, 1 variant-caps, 2 feature settings,
         // 3 variation settings, 4 weight, 5 stretch, 6 size, 7 line
         // height, 8 family.
-        let mut found: [Option<String>; 9] = Default::default();
+        let mut found: [Option<String>; 11] = Default::default();
         let mut i = 0;
         let mut previous: Option<usize> = None;
         while let Some(part) = p.get(i) {
@@ -467,6 +467,39 @@ impl Parts<'_> {
                 .map(|f| f.map_or(Value::Implicit("normal"), Value::Text))
                 .collect(),
         )
+    }
+
+    /// `font-variant`: the keywords go to the longhand that takes them,
+    /// in the order written; the others are `normal` (`none` is the
+    /// ligatures alone).
+    fn font_variant(tokens: &[ComponentValue]) -> Option<Vec<Value>> {
+        use crate::values::{FontVariantCaps, FontVariantLigatures, FontVariantNumeric};
+        let words: Vec<String> = parts(tokens)
+            .into_iter()
+            .map(keyword)
+            .collect::<Option<_>>()?;
+        let text = |v: &[&str]| {
+            Value::Text(if v.is_empty() {
+                "normal".to_owned()
+            } else {
+                v.join(" ")
+            })
+        };
+        if words.as_slice() == ["none"] {
+            return Some(vec![text(&["none"]), text(&[]), text(&[])]);
+        }
+        let (mut ligatures, mut caps, mut numeric) = (Vec::new(), Vec::new(), Vec::new());
+        for word in &words {
+            let lower = word.as_str();
+            if FontVariantLigatures::default().add_keyword(lower).is_some() {
+                ligatures.push(lower);
+            } else if FontVariantNumeric::default().add_keyword(lower).is_some() {
+                numeric.push(lower);
+            } else if FontVariantCaps::from_ident(lower).is_some() {
+                caps.push(lower);
+            }
+        }
+        Some(vec![text(&ligatures), text(&caps), text(&numeric)])
     }
 
     /// `background` of one layer: image, position with `/` size, repeat,
@@ -713,7 +746,7 @@ pub(crate) fn value_of(index: usize, def: &Shorthand, values: &[&Value]) -> Stri
                 .join(", ")
         }
         Kind::GridLines => grid_lines(&t),
-        Kind::Single => get(0).to_owned(),
+        Kind::FontVariant => font_variant_value(get(0), get(1), get(2)),
         Kind::Container => container_value(get(0), get(1)),
         Kind::WhiteSpace => white_space_value(get(0), get(1)),
         Kind::Transition => transition_value(&t),
@@ -725,6 +758,27 @@ pub(crate) fn value_of(index: usize, def: &Shorthand, values: &[&Value]) -> Stri
             }
         }
         Kind::Opaque => String::new(),
+    }
+}
+
+/// `font-variant` from its longhands: the parts that are not `normal`;
+/// `none` alone if the ligatures are `none`.
+pub(crate) fn font_variant_value(ligatures: &str, caps: &str, numeric: &str) -> String {
+    if ligatures == "none" {
+        return if caps == "normal" && numeric == "normal" {
+            "none".to_owned()
+        } else {
+            String::new()
+        };
+    }
+    let parts: Vec<&str> = [ligatures, caps, numeric]
+        .into_iter()
+        .filter(|s| *s != "normal")
+        .collect();
+    if parts.is_empty() {
+        "normal".to_owned()
+    } else {
+        parts.join(" ")
     }
 }
 
@@ -860,7 +914,7 @@ fn any_order(def: &Shorthand, t: &[&str], implicit: &dyn Fn(usize) -> bool) -> S
 /// settings are not `normal`.
 fn font(t: &[&str]) -> String {
     let get = |i: usize| t.get(i).copied().unwrap_or("");
-    if get(2) != "normal" || get(3) != "normal" {
+    if get(2) != "normal" || get(3) != "normal" || get(9) != "normal" || get(10) != "normal" {
         return String::new();
     }
     if !matches!(get(1), "normal" | "small-caps") || get(5).ends_with('%') {

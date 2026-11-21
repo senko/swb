@@ -14,7 +14,7 @@ use super::inert::{scroll_margin, scroll_padding};
 use super::longhand::{
     AlignKind, keyword, lp_or_auto, non_negative_length, padding, parse_alignment,
     parse_background_repeat, parse_background_size, parse_bg_position, parse_border_style,
-    parse_box, parse_column_count, parse_column_width, parse_contain_intrinsic,
+    parse_box, parse_clip_box, parse_column_count, parse_column_width, parse_contain_intrinsic,
     parse_container_name, parse_flex_basis, parse_font_family, parse_font_size, parse_font_stretch,
     parse_font_style, parse_font_weight, parse_gap, parse_image_or_none, parse_line_height,
     parse_line_width, parse_list_style_type, parse_outline_color, parse_outline_style,
@@ -134,10 +134,10 @@ shorthands! {
     WebkitMaskClip "-webkit-mask-clip" [MaskClip];
     WebkitMaskComposite "-webkit-mask-composite" [MaskComposite];
     Font "font" [
-        FontStyle, FontVariantCaps, FontWeight, FontStretch, FontSize, LineHeight, FontFamily,
-        FontVariationSettings, FontFeatureSettings
+        FontStyle, FontVariantCaps, FontVariantLigatures, FontVariantNumeric, FontWeight,
+        FontStretch, FontSize, LineHeight, FontFamily, FontVariationSettings, FontFeatureSettings
     ];
-    FontVariant "font-variant" [FontVariantCaps];
+    FontVariant "font-variant" [FontVariantLigatures, FontVariantCaps, FontVariantNumeric];
     ListStyle "list-style" [ListStyleType, ListStylePosition, ListStyleImage];
     TextDecoration "text-decoration" [TextDecorationLine, TextDecorationStyle, TextDecorationColor];
     TextWrap "text-wrap" [TextWrapMode, TextWrapStyle];
@@ -151,6 +151,7 @@ shorthands! {
     Gap "gap" [RowGap, ColumnGap];
     Columns "columns" [ColumnWidth, ColumnCount];
     Overflow "overflow" [OverflowX, OverflowY];
+    OverscrollBehavior "overscroll-behavior" [OverscrollBehaviorX, OverscrollBehaviorY];
     ContainIntrinsicSize "contain-intrinsic-size" [ContainIntrinsicWidth, ContainIntrinsicHeight];
     Container "container" [ContainerName, ContainerType];
     PlaceContent "place-content" [AlignContent, JustifyContent];
@@ -237,6 +238,7 @@ impl ShorthandId {
                 | S::Gap
                 | S::Columns
                 | S::Overflow
+                | S::OverscrollBehavior
                 | S::ContainIntrinsicSize
                 | S::Container
                 | S::PlaceContent
@@ -521,10 +523,7 @@ fn parse_paint_shorthand(
         | S::WebkitMaskClip
         | S::WebkitMaskComposite => super::mask::parse_shorthand(id, p, cx, out),
         S::Font => parse_font(p, out),
-        S::FontVariant => {
-            out.push(LonghandValue::FontVariantCaps(parse_font_variant(p)?));
-            Ok(())
-        }
+        S::FontVariant => parse_font_variant(p, out),
         S::ListStyle => parse_list_style(p, cx, out),
         S::TextDecoration => parse_text_decoration(p, out),
         S::TextWrap => parse_text_wrap(p, out),
@@ -600,6 +599,13 @@ fn parse_layout_shorthand(
             let y = keyword(p, Overflow::from_ident).unwrap_or(x);
             out.push(LonghandValue::OverflowX(x));
             out.push(LonghandValue::OverflowY(y));
+            Ok(())
+        }
+        S::OverscrollBehavior => {
+            let x = keyword(p, crate::values::OverscrollBehavior::from_ident)?;
+            let y = keyword(p, crate::values::OverscrollBehavior::from_ident).unwrap_or(x);
+            out.push(LonghandValue::OverscrollBehaviorX(x));
+            out.push(LonghandValue::OverscrollBehaviorY(y));
             Ok(())
         }
         S::PlaceContent => {
@@ -1022,7 +1028,7 @@ fn parse_background_layer(p: &mut Parser<'_>, cx: &ParserContext) -> ParseResult
         {
             layer.origin = Some(b);
         } else if layer.clip.is_none()
-            && let Ok(b) = parse_box(p)
+            && let Ok(b) = parse_clip_box(p)
         {
             layer.clip = Some(b);
         } else if layer.color.is_none()
@@ -1056,6 +1062,8 @@ fn parse_font(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResult<(
         out.extend([
             LonghandValue::FontStyle(FontStyle::Normal),
             LonghandValue::FontVariantCaps(FontVariantCaps::Normal),
+            LonghandValue::FontVariantLigatures(crate::values::FontVariantLigatures::default()),
+            LonghandValue::FontVariantNumeric(crate::values::FontVariantNumeric::default()),
             LonghandValue::FontWeight(SpecifiedFontWeight::Absolute(400.0)),
             LonghandValue::FontStretch(100.0),
             LonghandValue::FontSize(SpecifiedFontSize::Length(Lp::Length(Length::px(13.0)))),
@@ -1110,6 +1118,8 @@ fn parse_font(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResult<(
     out.extend([
         LonghandValue::FontStyle(style.unwrap_or(FontStyle::Normal)),
         LonghandValue::FontVariantCaps(caps.unwrap_or(FontVariantCaps::Normal)),
+        LonghandValue::FontVariantLigatures(crate::values::FontVariantLigatures::default()),
+        LonghandValue::FontVariantNumeric(crate::values::FontVariantNumeric::default()),
         LonghandValue::FontWeight(weight.unwrap_or(SpecifiedFontWeight::Absolute(400.0))),
         LonghandValue::FontStretch(stretch.unwrap_or(100.0)),
         LonghandValue::FontSize(size),
@@ -1122,25 +1132,9 @@ fn parse_font(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResult<(
     Ok(())
 }
 
-/// The keywords of the `font-variant-*` longhands other than caps, which
-/// swb accepts and ignores.
+/// The keywords of the `font-variant-*` longhands that swb does not store
+/// (east asian forms, position, alternates, emoji): accepted and ignored.
 const OTHER_FONT_VARIANT_KEYWORDS: &[&str] = &[
-    "common-ligatures",
-    "no-common-ligatures",
-    "discretionary-ligatures",
-    "no-discretionary-ligatures",
-    "historical-ligatures",
-    "no-historical-ligatures",
-    "contextual",
-    "no-contextual",
-    "lining-nums",
-    "oldstyle-nums",
-    "proportional-nums",
-    "tabular-nums",
-    "diagonal-fractions",
-    "stacked-fractions",
-    "ordinal",
-    "slashed-zero",
     "jis78",
     "jis83",
     "jis90",
@@ -1158,36 +1152,62 @@ const OTHER_FONT_VARIANT_KEYWORDS: &[&str] = &[
     "unicode",
 ];
 
-/// `font-variant`: `normal | none | <keywords>`. Only the caps part is
-/// stored. <https://www.w3.org/TR/css-fonts-4/#font-variant-prop>
-fn parse_font_variant(p: &mut Parser<'_>) -> ParseResult<FontVariantCaps> {
-    if p.expect_one_of(&[("normal", ()), ("none", ())]).is_ok() {
-        return Ok(FontVariantCaps::Normal);
-    }
-    let mut caps = None;
-    let mut any = false;
-    while !p.is_exhausted() {
-        if caps.is_none()
-            && let Ok(c) = keyword(p, FontVariantCaps::from_ident)
-        {
-            caps = Some(c);
-        } else {
-            let other = keyword(p, |i| {
-                OTHER_FONT_VARIANT_KEYWORDS
-                    .iter()
-                    .any(|k| k.eq_ignore_ascii_case(i))
-                    .then_some(())
-            });
-            if other.is_err() && p.expect_function().is_err() {
-                return Err(ParseError::Unexpected);
-            }
+/// `font-variant`: `normal | none | <keywords>`. The ligatures, caps and
+/// numeric parts are stored; `none` is `font-variant-ligatures: none` and
+/// the other longhands `normal` (measured in Chromium 148: `none` alone,
+/// `normal` alone; both with another keyword are invalid).
+/// <https://www.w3.org/TR/css-fonts-4/#font-variant-prop>
+fn parse_font_variant(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResult<()> {
+    use crate::values::{FontVariantLigatures, FontVariantNumeric};
+    let mut ligatures = FontVariantLigatures::default();
+    let mut numeric = FontVariantNumeric::default();
+    let mut caps = FontVariantCaps::Normal;
+    let single = p.try_parse(|p| {
+        let k = p.expect_one_of(&[("normal", false), ("none", true)])?;
+        p.expect_exhausted()?;
+        Ok::<_, ParseError>(k)
+    });
+    if let Ok(none) = single {
+        if none {
+            ligatures = FontVariantLigatures::NONE;
         }
-        any = true;
+    } else {
+        let (mut caps_set, mut any) = (false, false);
+        while !p.is_exhausted() {
+            let word = match p.peek() {
+                Some(swb_css::ComponentValue::Ident(w)) => w.to_ascii_lowercase(),
+                _ => return Err(ParseError::Unexpected),
+            };
+            let accepted = if let Some(r) = ligatures.add_keyword(&word) {
+                r.is_ok()
+            } else if let Some(r) = numeric.add_keyword(&word) {
+                r.is_ok()
+            } else if let Some(c) =
+                FontVariantCaps::from_ident(&word).filter(|c| *c != FontVariantCaps::Normal)
+            {
+                !std::mem::replace(&mut caps_set, true) && {
+                    caps = c;
+                    true
+                }
+            } else {
+                OTHER_FONT_VARIANT_KEYWORDS.contains(&word.as_str())
+            };
+            if !accepted {
+                return Err(ParseError::Invalid);
+            }
+            p.expect_ident()?;
+            any = true;
+        }
+        if !any {
+            return Err(ParseError::EndOfInput);
+        }
     }
-    if !any {
-        return Err(ParseError::EndOfInput);
-    }
-    Ok(caps.unwrap_or(FontVariantCaps::Normal))
+    out.extend([
+        LonghandValue::FontVariantLigatures(ligatures),
+        LonghandValue::FontVariantCaps(caps),
+        LonghandValue::FontVariantNumeric(numeric),
+    ]);
+    Ok(())
 }
 
 /// `list-style`: `<type> || <position> || <image>`, where `none` sets

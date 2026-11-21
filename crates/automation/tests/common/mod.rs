@@ -104,6 +104,17 @@ pub(crate) fn run_probe_file(
     open: impl Fn(&Value) -> Page,
     want: impl Fn(&str, usize, &Value) -> Value,
 ) -> Vec<String> {
+    run_probe_file_with(name, open, want, |want, got| want == got)
+}
+
+/// [`run_probe_file`] with `same`, the comparison of an expected and an
+/// actual value (a test that accepts small numeric differences).
+pub(crate) fn run_probe_file_with(
+    name: &str,
+    open: impl Fn(&Value) -> Page,
+    want: impl Fn(&str, usize, &Value) -> Value,
+    same: impl Fn(&Value, &Value) -> bool,
+) -> Vec<String> {
     let read = |path: PathBuf| -> Value {
         serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
     };
@@ -127,7 +138,7 @@ pub(crate) fn run_probe_file(
             };
             let want = want(name, index, &expected[name][index]);
             let got = value(&mut page, source);
-            if got != want {
+            if !same(&want, &got) {
                 failures.push(format!(
                     "{name} #{index}: {source}
   expected: {want}

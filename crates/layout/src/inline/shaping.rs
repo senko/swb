@@ -232,18 +232,26 @@ fn same_font(a: &ComputedStyle, b: &ComputedStyle) -> bool {
             && a.font_style == b.font_style
             && a.font_stretch == b.font_stretch
             && a.font_variant_caps == b.font_variant_caps
+            && a.font_variant_ligatures == b.font_variant_ligatures
+            && a.font_variant_numeric == b.font_variant_numeric
             && a.font_variation_settings == b.font_variation_settings
             && a.font_feature_settings == b.font_feature_settings
             && a.letter_spacing == b.letter_spacing
             && a.word_spacing == b.word_spacing)
 }
 
-/// The OpenType features of `font-feature-settings`.
+/// The OpenType features of `font-variant-ligatures`,
+/// `font-variant-numeric` and `font-feature-settings`, in this order: a
+/// later setting of a feature wins, so `font-feature-settings` overrides
+/// the variants (CSS Fonts 4 section 6.12; measured in Chromium 148).
 fn style_features(style: &ComputedStyle) -> Vec<Feature> {
     style
-        .font_feature_settings
-        .iter()
-        .map(|&(tag, value)| Feature::from_setting(tag, value))
+        .font_variant_ligatures
+        .features()
+        .into_iter()
+        .chain(style.font_variant_numeric.features())
+        .chain(style.font_feature_settings.iter().copied())
+        .map(|(tag, value)| Feature::from_setting(tag, value))
         .collect()
 }
 

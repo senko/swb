@@ -109,7 +109,11 @@ pub(super) fn value(name: &str, r: &Resolver<'_>) -> String {
         ),
         "mask" => mask(r),
         "font" => font(r),
-        "font-variant" => get("font-variant-caps"),
+        "font-variant" => super::super::shorthand::font_variant_value(
+            &get("font-variant-ligatures"),
+            &get("font-variant-caps"),
+            &get("font-variant-numeric"),
+        ),
         "list-style" => format!(
             "{} {} {}",
             get("list-style-position"),
@@ -155,6 +159,7 @@ pub(super) fn value(name: &str, r: &Resolver<'_>) -> String {
             (w, c) => format!("{w} {c}"),
         },
         "overflow" => pair(&get("overflow-x"), &get("overflow-y")),
+        "overscroll-behavior" => pair(&get("overscroll-behavior-x"), &get("overscroll-behavior-y")),
         "container" => {
             crate::cssom::shorthand::container_value(&get("container-name"), &get("container-type"))
         }
@@ -371,6 +376,9 @@ fn mask(r: &Resolver<'_>) -> String {
 /// that the shorthand cannot write.
 fn font(r: &Resolver<'_>) -> String {
     let s = r.style;
+    if !s.font_variant_ligatures.is_normal() || !s.font_variant_numeric.is_normal() {
+        return String::new();
+    }
     let mut parts = Vec::new();
     if s.font_style != FontStyle::Normal {
         parts.push("italic".to_owned());

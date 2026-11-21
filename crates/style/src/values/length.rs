@@ -35,6 +35,12 @@ pub enum LengthUnit {
     Em,
     /// The root element's font size.
     Rem,
+    /// The line height of the element (`lh`; of its parent for
+    /// `line-height` and `font-size`; `normal` is
+    /// approximated as 1.15em, rounded: swb's style has no font metrics).
+    Lh,
+    /// The line height of the root element (`rlh`).
+    Rlh,
     /// The x-height of the element's font (approximated as 0.5em).
     Ex,
     /// The advance of "0" in the element's font (approximated as 0.5em).
@@ -90,6 +96,8 @@ impl LengthUnit {
             "px" => Self::Px,
             "em" => Self::Em,
             "rem" => Self::Rem,
+            "lh" => Self::Lh,
+            "rlh" => Self::Rlh,
             "ex" => Self::Ex,
             "ch" => Self::Ch,
             "vw" | "svw" | "lvw" | "dvw" | "vi" | "svi" | "lvi" | "dvi" => Self::Vw,
@@ -142,6 +150,11 @@ pub struct LengthContext {
     pub font_size: f32,
     /// The root element's computed font size, in px.
     pub root_font_size: f32,
+    /// The computed line height of the element, in px (`lh`); of its parent
+    /// for `line-height` and `font-size`.
+    pub line_height: f32,
+    /// The computed line height of the root element, in px (`rlh`).
+    pub root_line_height: f32,
     /// Viewport width in CSS px.
     pub viewport_width: f32,
     /// Viewport height in CSS px.
@@ -151,10 +164,18 @@ pub struct LengthContext {
 }
 
 impl LengthContext {
+    /// The line height that `lh` and `rlh` use for `normal`: 1.15 times the
+    /// font size, rounded (Chromium: 18 px for Arial at 16 px).
+    pub fn normal_line_height(font_size: f32) -> f32 {
+        (font_size * 1.15).round()
+    }
+
     /// A context with default values: 16px fonts, 800x600 viewport.
     pub const DEFAULT: LengthContext = LengthContext {
         font_size: 16.0,
         root_font_size: 16.0,
+        line_height: 18.0,
+        root_line_height: 18.0,
         viewport_width: 800.0,
         viewport_height: 600.0,
         container: ContainerBasis {
@@ -208,6 +229,8 @@ impl Length {
             LengthUnit::Px => v,
             LengthUnit::Em => v * ctx.font_size,
             LengthUnit::Rem => v * ctx.root_font_size,
+            LengthUnit::Lh => v * ctx.line_height,
+            LengthUnit::Rlh => v * ctx.root_line_height,
             LengthUnit::Ex | LengthUnit::Ch => v * ctx.font_size * 0.5,
             LengthUnit::Vw => v * ctx.viewport_width / 100.0,
             LengthUnit::Vh => v * ctx.viewport_height / 100.0,
@@ -580,6 +603,8 @@ mod tests {
         let ctx = LengthContext {
             font_size: 20.0,
             root_font_size: 10.0,
+            line_height: 24.0,
+            root_line_height: 12.0,
             viewport_width: 1000.0,
             viewport_height: 500.0,
             container: ContainerBasis {
@@ -594,6 +619,10 @@ mod tests {
         assert_eq!(cq(10.0, LengthUnit::Cqb), 30.0);
         assert_eq!(cq(10.0, LengthUnit::Cqmin), 30.0);
         assert_eq!(cq(10.0, LengthUnit::Cqmax), 40.0);
+        assert_eq!(cq(2.0, LengthUnit::Lh), 48.0);
+        assert_eq!(cq(2.0, LengthUnit::Rlh), 24.0);
+        assert_eq!(LengthUnit::from_name("LH"), Some(LengthUnit::Lh));
+        assert_eq!(LengthContext::normal_line_height(16.0), 18.0);
         assert_eq!(LengthUnit::from_name("CQW"), Some(LengthUnit::Cqw));
         assert!(LengthUnit::Cqmax.is_container_relative());
         assert!(!LengthUnit::Vw.is_container_relative());

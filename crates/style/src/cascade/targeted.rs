@@ -489,6 +489,7 @@ impl Styler<'_> {
         };
         if is_root {
             self.cx.root_font_size = style.font_size;
+            self.cx.root_line_height = style.line_height_px();
             self.containers.set_root_font_size(style.font_size);
         }
         if style.display == Display::None {
@@ -571,7 +572,11 @@ impl Styler<'_> {
         if same(old, &new) {
             return Ok((Arc::clone(old), false));
         }
-        if is_root && old.font_size != new.font_size {
+        // `rem` and `rlh` of every element depend on the root's font size and
+        // line height.
+        if is_root
+            && (old.font_size != new.font_size || old.line_height_px() != new.line_height_px())
+        {
             return Err(FullReason::RootFontSize);
         }
         if old.is_query_container() || new.is_query_container() {

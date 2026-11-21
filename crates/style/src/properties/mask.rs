@@ -315,7 +315,8 @@ fn parse_clip(p: &mut Parser<'_>, syntax: Syntax) -> ParseResult<MaskClip> {
 
 fn clip_of(b: BackgroundBox) -> MaskClip {
     match b {
-        BackgroundBox::BorderBox => MaskClip::BorderBox,
+        // `text` is a clip of backgrounds only; a mask has no such value.
+        BackgroundBox::BorderBox | BackgroundBox::Text => MaskClip::BorderBox,
         BackgroundBox::PaddingBox => MaskClip::PaddingBox,
         BackgroundBox::ContentBox => MaskClip::ContentBox,
     }

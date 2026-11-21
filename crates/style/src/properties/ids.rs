@@ -23,16 +23,18 @@ use crate::font_settings::{FontFeatureSettings, FontVariationSettings};
 use crate::parse::image::SpecifiedImage;
 use crate::values::{
     Alignment, Appearance, AspectRatio, BackgroundAttachment, BackgroundBox,
-    BackgroundRepeatKeyword, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color,
-    CompositeOperator, Contain, ContainerName, ContainerType, ContentVisibility, CornerShape,
-    CounterList, Cursor, Direction, Display, EmptyCells, FieldSizing, FillRule, FlexDirection,
-    FlexWrap, Float, FontFamily, FontStyle, FontVariantCaps, GridAutoFlow, GridLine,
-    GridTemplateAreas, Hyphens, Isolation, ListStylePosition, ListStyleType, MaskClip, MaskMode,
-    MixBlendMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents,
-    Position, Resize, Rotate, Scale, ScrollbarWidth, ShapeRendering, SpaceCollapse,
+    BackgroundRepeatKeyword, BorderCollapse, BorderStyle, BoxOrient, BoxSizing, CaptionSide, Clear,
+    Color, CompositeOperator, Contain, ContainerName, ContainerType, ContentVisibility,
+    CornerShape, CounterList, Cursor, Direction, Display, EmptyCells, FieldSizing, FillRule,
+    FlexDirection, FlexWrap, Float, FontFamily, FontSmoothing, FontStyle, FontVariantCaps,
+    FontVariantLigatures, FontVariantNumeric, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens,
+    Isolation, LineBreak, ListStylePosition, ListStyleType, MaskClip, MaskMode, MixBlendMode,
+    ObjectFit, OutlineStyle, Overflow, OverflowAnchor, OverflowWrap, Overlay, OverscrollBehavior,
+    PointerEvents, Position, Resize, Rotate, Scale, ScrollbarWidth, ShapeRendering, SpaceCollapse,
     SpecifiedLengthPercentage as Lp, SpecifiedTrackList, SpecifiedTrackSize, StrokeLinecap,
     StrokeLinejoin, SvgPaint, TableLayout, TextDecorationLine, TextDecorationStyle, TextOverflow,
-    TextTransform, TextWrapStyle, UnicodeBidi, UserSelect, Visibility, WordBreak, ZIndex,
+    TextSizeAdjust, TextTransform, TextWrapStyle, UnicodeBidi, UserSelect, Visibility, WordBreak,
+    ZIndex,
 };
 
 macro_rules! longhands {
@@ -137,6 +139,12 @@ longhands! {
     FontStyle "font-style" inherited font_style: FontStyle;
     FontStretch "font-stretch" inherited font_stretch: f32;
     FontVariantCaps "font-variant-caps" inherited font_variant_caps: FontVariantCaps;
+    FontVariantLigatures "font-variant-ligatures" inherited font_variant_ligatures: FontVariantLigatures;
+    FontVariantNumeric "font-variant-numeric" inherited font_variant_numeric: FontVariantNumeric;
+    TapHighlightColor "-webkit-tap-highlight-color" inherited tap_highlight_color: Color;
+    TextSizeAdjust "text-size-adjust" inherited text_size_adjust: TextSizeAdjust;
+    FontSmoothing "-webkit-font-smoothing" inherited font_smoothing: FontSmoothing;
+    LineBreak "line-break" inherited line_break: LineBreak;
     FontVariationSettings "font-variation-settings" inherited font_variation_settings: FontVariationSettings;
     FontFeatureSettings "font-feature-settings" inherited font_feature_settings: FontFeatureSettings;
     LineHeight "line-height" inherited line_height: SpecifiedLineHeight;
@@ -315,6 +323,13 @@ longhands! {
     Rotate "rotate" reset rotate: Option<Rotate>;
     Scale "scale" reset scale: Option<Scale>;
     Isolation "isolation" reset isolation: Isolation;
+    OverflowAnchor "overflow-anchor" reset overflow_anchor: OverflowAnchor;
+    OverscrollBehaviorX "overscroll-behavior-x" reset overscroll_behavior_x: OverscrollBehavior;
+    OverscrollBehaviorY "overscroll-behavior-y" reset overscroll_behavior_y: OverscrollBehavior;
+    OverscrollBehaviorInline "overscroll-behavior-inline" reset overscroll_behavior_inline: OverscrollBehavior;
+    OverscrollBehaviorBlock "overscroll-behavior-block" reset overscroll_behavior_block: OverscrollBehavior;
+    WebkitLineClamp "-webkit-line-clamp" reset line_clamp: Option<i32>;
+    WebkitBoxOrient "-webkit-box-orient" reset box_orient: BoxOrient;
     CornerTopLeftShape "corner-top-left-shape" reset corner_top_left_shape: CornerShape;
     CornerTopRightShape "corner-top-right-shape" reset corner_top_right_shape: CornerShape;
     CornerBottomRightShape "corner-bottom-right-shape" reset corner_bottom_right_shape: CornerShape;

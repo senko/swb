@@ -954,10 +954,11 @@ impl Rasterizer<'_> {
             }
             DisplayItem::LinearGradient {
                 rect,
+                tile,
                 clip,
                 gradient,
                 current_color,
-            } => self.linear_gradient(*rect, *clip, gradient, *current_color),
+            } => self.gradient_layer(*rect, *tile, *clip, gradient, *current_color),
             DisplayItem::PushClip(rect) => self.push_rect_clip(*rect),
             // The target is the viewport (or a strip of it): the clip
             // hides nothing there. In a frame it is the frame's viewport.
@@ -1625,6 +1626,27 @@ impl Rasterizer<'_> {
             ..Paint::default()
         };
         self.draw(area, |p, t, m| p.fill_rect(r, &paint, t, m));
+    }
+
+    /// Fills the part of `rect` inside `clip` with tiles of a linear
+    /// gradient. A tile that covers it is drawn as one gradient (the tile
+    /// is the gradient's box); copies are drawn by `gradient_tiles`.
+    fn gradient_layer(
+        &mut self,
+        rect: Rect,
+        tile: Rect,
+        clip: Rect,
+        gradient: &swb_style::LinearGradient,
+        current: Rgba,
+    ) {
+        let Some(area) = rect.intersection(&clip) else {
+            return;
+        };
+        if is_tiled(area, tile) {
+            self.gradient_tiles(gradient, current, area, tile);
+        } else {
+            self.linear_gradient(tile, area, gradient, current);
+        }
     }
 
     /// Fills `area` with tiles of a linear gradient: each tile contains

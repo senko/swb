@@ -266,6 +266,7 @@ pub fn compute_element_styles_with_containers(
         let style = styler.style_element(&el, &parent, layout_parent, is_root);
         if is_root {
             styler.cx.root_font_size = style.font_size;
+            styler.cx.root_line_height = style.line_height_px();
             styler.containers.set_root_font_size(style.font_size);
         }
         if style.display != Display::Contents {
@@ -319,6 +320,7 @@ pub fn compute_pseudo_element_style_with_containers(
     let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, false, sizes, None);
     if let Some((_, root)) = chain.first() {
         styler.cx.root_font_size = root.font_size;
+        styler.cx.root_line_height = root.line_height_px();
         styler.containers.set_root_font_size(root.font_size);
     }
     for (id, s) in chain {
@@ -389,6 +391,9 @@ struct CascadeContext<'a> {
     /// The root element's font size, for `rem` (the environment's default
     /// until the root is styled).
     root_font_size: f32,
+    /// The root element's computed line height, for `rlh` (`normal`
+    /// until the root is styled).
+    root_line_height: f32,
     initial: Arc<ComputedStyle>,
     /// The rank of each cascade layer for the environment's media
     /// conditions ([`Stylist::layer_ranks`]); `layer_ranks[0]` is the rank
@@ -530,6 +535,7 @@ impl<'a> Styler<'a> {
                 env,
                 quirks,
                 root_font_size: env.root_font_size,
+                root_line_height: LengthContext::normal_line_height(env.root_font_size),
                 initial,
                 layer_ranks: stylist.layer_ranks(&media),
                 registry,
@@ -603,6 +609,7 @@ impl<'a> Styler<'a> {
             let style = self.style_element(&el, &parent, layout_parent, is_root);
             if is_root {
                 self.cx.root_font_size = style.font_size;
+                self.cx.root_line_height = style.line_height_px();
                 self.containers.set_root_font_size(style.font_size);
             }
             if style.display != Display::None {
@@ -1487,6 +1494,13 @@ fn compute(
         } else {
             cx.root_font_size
         },
+        line_height: parent.line_height_px(),
+        // The root element's own value is not known yet: `normal`.
+        root_line_height: if is_root {
+            LengthContext::normal_line_height(env.root_font_size)
+        } else {
+            cx.root_line_height
+        },
         viewport_width: env.viewport_width,
         viewport_height: env.viewport_height,
         container: units,
@@ -1525,21 +1539,36 @@ fn compute(
     }
     // Registered lengths in `em` and `rem` are computed against the font
     // size of the element, which is known only now.
-    if let Some(registry) = registry
-        && (ccx.lengths.font_size != lengths.font_size
-            || ccx.lengths.root_font_size != lengths.root_font_size)
-        && registry.declares_any(winners.custom.iter().map(|(name, _)| *name))
+    let recompute = |style: &mut ComputedStyle, lengths: &LengthContext| {
+        if let Some(registry) = registry
+            && registry.declares_any(winners.custom.iter().map(|(name, _)| *name))
+        {
+            style.custom_properties = compute_custom_properties(
+                parent.custom_properties.as_ref(),
+                &winners.custom,
+                Some(Registered {
+                    registry,
+                    lengths,
+                    font_cycle: &winners.font_cycle,
+                }),
+                &cx.custom_pool,
+            );
+        }
+    };
+    if ccx.lengths.font_size != lengths.font_size
+        || ccx.lengths.root_font_size != lengths.root_font_size
     {
-        style.custom_properties = compute_custom_properties(
-            parent.custom_properties.as_ref(),
-            &winners.custom,
-            Some(Registered {
-                registry,
-                lengths: &ccx.lengths,
-                font_cycle: &winners.font_cycle,
-            }),
-            &cx.custom_pool,
-        );
+        recompute(&mut style, &ccx.lengths);
+    }
+    // `lh` is the element's own line height, except in `line-height` and
+    // `font-size`: compute `line-height` (with the parent's) first.
+    apply_winner(LonghandId::LineHeight, &ccx, &mut style);
+    ccx.lengths.line_height = style.line_height_px();
+    let customs = parent.custom_properties.as_deref();
+    if ccx.lengths.line_height != lengths.line_height
+        && crate::font_cycle::depends_on_line_height(&winners.custom, customs)
+    {
+        recompute(&mut style, &ccx.lengths);
     }
     // The other longhands that have a winner, in the order of `ALL`.
     for (word_index, &word) in winners.set.iter().enumerate() {
@@ -1548,7 +1577,10 @@ fn compute(
             let index = word_index * 64 + bits.trailing_zeros() as usize;
             bits &= bits - 1;
             if let Some(&id) = LonghandId::ALL.get(index)
-                && !matches!(id, LonghandId::FontFamily | LonghandId::FontSize)
+                && !matches!(
+                    id,
+                    LonghandId::FontFamily | LonghandId::FontSize | LonghandId::LineHeight
+                )
             {
                 apply_winner(id, &ccx, &mut style);
             }

@@ -4,8 +4,9 @@
 mod color;
 pub(crate) mod color_mix;
 mod effects;
-pub use color_mix::ColorId;
+pub use color_mix::{ColorId, reset_color_table_warnings};
 mod filter;
+mod font_variant;
 mod grid;
 mod keywords;
 mod length;
@@ -20,6 +21,7 @@ pub use color::{Color, Rgba};
 pub(crate) use color::{named_color, system_color};
 pub use effects::{BoxShadow, CornerShape, Rotate, Scale, TextShadow, Translate};
 pub use filter::{DropShadow, Filter, FilterFunction, MAX_FILTER_BLUR, MAX_FILTER_FUNCTIONS};
+pub use font_variant::{FeatureSetting, FontVariantLigatures, FontVariantNumeric};
 pub use grid::{
     GenericTrackBreadth, GenericTrackList, GenericTrackListEntry, GenericTrackListValue,
     GenericTrackRepeat, GenericTrackSize, GridAutoFlow, GridLine, GridTemplateAreas, LineName,

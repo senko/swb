@@ -6080,6 +6080,53 @@ Steps:
       `lch()` and `color()` keep their space and float coordinates as
       `Wide` colors (ADR 0044, section 4), and `getComputedStyle` shows
       them as Chromium does.
+
+      Done (2026-11-21): ADR 0046. Items 3 to 5 of the scope are not
+      done: the paint of `background-clip: text` moves to feature 2c;
+      the layout of `-webkit-line-clamp` and `subgrid` go to the backlog
+      (no element of the first view needs them; ADR 0046 has the plans).
+      - Colors: computed `oklch()`, `oklab()`, `lab()`, `lch()` and
+        `color()` keep their space and float coordinates (`Wide`, with
+        `none` components; new spaces `a98-rgb`, `prophoto-rgb`,
+        `rec2020`), serialized as Chromium does (six significant digits,
+        `1.00000e-7`). Paint is unchanged (8-bit sRGB). `color-mix()`
+        converts polar and rectangular forms exactly. The process-wide
+        color table holds at most 2^20 colors and, separately, 2^16
+        mixes with `currentcolor` (about 200 MB when full), so a page
+        full of colors cannot stop the mixes of later pages.
+      - `font-variant-ligatures`, `font-variant-numeric` and the
+        `font-variant` shorthand, as OpenType features before
+        `font-feature-settings`. `line-break` (`anywhere` allows a break
+        at every grapheme cluster, as `overflow-wrap: anywhere`). The
+        units `lh` (the element's own line height) and `rlh` (the
+        root's). Parse and computed values
+        only: `overscroll-behavior` and its longhands, `overflow-anchor`,
+        `-webkit-tap-highlight-color`, `text-size-adjust`,
+        `-webkit-font-smoothing`, `-webkit-line-clamp`,
+        `-webkit-box-orient`, `background-clip: text`. `all` in the CSSOM
+        and `CSS.supports`.
+      - The gradient over the player: the cause was not the color space.
+        Gradient layers ignored `background-size`, `-position` and
+        `-repeat`, so the player's overlay covered the whole video. A
+        gradient item now has a tile that the rasterizer repeats. The
+        first version made one display item per tile; the review found
+        that 60,000 boxes with three small-tile layers took 11.9 GiB.
+        Now they take 0.2 s and 187 MiB.
+      - Scores of videojs: JS off pixels 0.7481 -> 0.9999, JS on
+        0.9529 -> 0.9979; geometry unchanged (0.9759 and 0.8852).
+        ars-technica JS-on pixels 0.9980 -> 0.9990.
+      - Probes: `css-videojs-2b.json` (26 cases; three equal
+        Chromium runs). Tests: `videojs_static.rs`,
+        `static_css_pixels.rs`, unit tests in `parse/color.rs`,
+        `values/font_variant.rs`, `values/length.rs`, `background.rs`;
+        5 hostile cases.
+   2c. `background-clip: text` and the rest of the first view
+      (`implementer`): the paint of `background-clip: text` (the
+      shimmer: the pixel case `shimmer` of `css-animations.json` at time
+      0; the plan in ADR 0046); gradients clipped by `border-radius` and
+      `corner-shape` (swb paints the corners; found in the 2b review);
+      the SVG icons of the player, the worst geometry matches of the
+      JS-off first view after 2b (zero-size paths).
    3a. CSS animations, values (`implementer-hard`; ADR 0044 sections 2
       to 5 and 10): the `animation-*` longhands and the shorthand with
       their CSSOM forms; the timing model (delay, duration, iteration
@@ -6238,10 +6285,6 @@ Source Extensions, AV1 (dav1d), YouTube.
   5 s. It passes on an idle machine, so the case runs close to the limit.
   Give the stress mode a larger limit in the test, or list the case in
   `NO_STRESS`.
-- CSS (feature 2a): the gradient over the videojs.org player
-  (`linear-gradient(to top, color-mix(in oklab, ...))`) darkens too early
-  in swb; the middle band of the pixel diff. Check after feature 2b
-  (colors in Oklab).
 - CSSOM (feature 2a): `element.style` writes a specified shadow as
   given; Chromium writes the color first and drops trailing zero
   lengths.
@@ -6278,6 +6321,49 @@ Source Extensions, AV1 (dav1d), YouTube.
   data; the exact threshold is not measured.
 - CSS (feature 2a): `white-space-trim` does not exist (Chromium 148 has
   none either).
+- Layout (feature 2b): `-webkit-line-clamp` has no layout effect, and
+  `display: -webkit-box` computes to `flex` (Chromium: `-webkit-box`).
+  The plan and what to measure first are in ADR 0046. Tailwind's
+  `.line-clamp-2` exists on videojs.org; no element of the first view
+  uses it.
+- Layout (feature 2b): `grid-template-rows: subgrid` (and columns) is
+  invalid in swb. The sponsors section of videojs.org uses it; its boxes
+  are not among the worst matches. The plan (more than 600 lines, track
+  sizing) is in ADR 0046.
+- Style (feature 2b review): the color table of `Wide` colors and mixes
+  is process-wide and never shrinks (ADR 0038, section 7b). A page that
+  fills it makes the colors of later pages 8-bit (paint stays right,
+  `getComputedStyle` shows `rgb()`). A table per document, or one that
+  drops entries no document uses.
+- Style (feature 2b): conversions between color spaces differ from
+  Chromium's in the fifth significant digit (`color-mix(in oklch, red,
+  blue)`); paint is equal.
+- Style (feature 2b): relative colors (`oklch(from red l c h)`) are
+  invalid in swb, valid in Chromium 148. The player's style sheet tests
+  them in `@supports`; swb takes the `color-mix()` branch, with equal
+  alphas.
+- Style (feature 2b): `font-variant-east-asian`, `-position` and
+  `-alternates` do not exist; `font-variant` accepts and ignores their
+  keywords (`historical-forms` computes to `normal`). Also missing:
+  `caret-color`, `column-rule-color`, `text-emphasis-color`,
+  `accent-color`, `stop-color`, `flood-color`, `lighting-color`. None is
+  on videojs.org.
+- Style (feature 2b): the logical `overscroll-behavior-inline` and
+  `-block` are not mapped to the physical longhands.
+- Style (feature 2b review): `all: unset` in a rule stores about 270
+  declarations (20,000 rules: 831 MiB). Keep `all` as one declaration
+  and expand it in the cascade. Also `style.length` counts the
+  longhands (Chromium: one entry `all`), and
+  `CSS.supports('all', 'unset !important')` is false (Chromium: true).
+- Paint (feature 2b review of the fixes): a gradient tile with more than
+  16 visible copies is rendered once at whole device pixels and scaled
+  to its size, so fractional tiles differ from Chromium at the tile
+  edges (`background-size: 6.4px 100%`: up to 15 per channel; a 5.5 px
+  tile with a hard stop: 3 to 4). Render a group of copies whose size is
+  close to whole pixels, or draw the copies of a row with one shader.
+- Paint (feature 2b review, older): `background-repeat: space` and
+  `round` paint as `repeat`; `background-origin: content-box` as
+  `padding-box`; `background-attachment: fixed` is ignored.
 
 ## Backlog from M12
 

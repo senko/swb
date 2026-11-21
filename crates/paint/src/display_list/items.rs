@@ -89,10 +89,15 @@ pub enum DisplayItem {
         /// Clip.
         clip: Rect,
     },
-    /// Fill the part of `rect` inside `clip` with a linear gradient.
+    /// Fill the part of `rect` inside `clip` with a linear gradient. Each
+    /// tile contains the whole gradient; the rasterizer repeats it over
+    /// `rect`, so the cost does not depend on the number of tiles.
     LinearGradient {
-        /// The area of the gradient.
+        /// The area to fill with tiles.
         rect: Rect,
+        /// The size and origin of one tile (the box of the gradient); equal
+        /// to `rect` when not tiled.
+        tile: Rect,
         /// The area to paint.
         clip: Rect,
         /// The gradient.

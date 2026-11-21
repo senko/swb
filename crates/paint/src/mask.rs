@@ -142,7 +142,7 @@ impl MaskBoxes {
 
     fn positioning_area(&self, origin: BackgroundBox) -> Rect {
         match origin {
-            BackgroundBox::BorderBox => self.border,
+            BackgroundBox::BorderBox | BackgroundBox::Text => self.border,
             BackgroundBox::PaddingBox => self.padding,
             BackgroundBox::ContentBox => self.content,
         }

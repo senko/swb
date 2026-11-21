@@ -35,11 +35,6 @@ use common::{OnePage, answer, differences, new_page, on_page_threads, settle};
 /// Rows where swb differs on purpose: (case, rows, why).
 const DEPARTURES: &[(&str, &[usize], &str)] = &[
     (
-        "ap-color",
-        &[0],
-        "swb converts `oklch()`, `lab()` and `color(display-p3 ...)` to 8-bit sRGB; Chromium keeps them as written",
-    ),
-    (
         "ap-universal",
         &[0],
         "swb collapses runs of white space, writes `/**/` between tokens that would merge and drops comments",
@@ -62,11 +57,6 @@ const DEPARTURES: &[(&str, &[usize], &str)] = &[
         "`scrollHeight` of a box with skipped contents: Chromium reports the overflow of the skipped content, swb 0 (the children are out of the fragment tree)",
     ),
     (
-        "ap-font-size-cycle-rlh",
-        &[0],
-        "swb has no `rlh`, `lh`, `cap` and `ic` units: the value is invalid (the initial value); Chromium computes `rlh` against the root's line height",
-    ),
-    (
         "cm-form-calc-percent-sum",
         &[0],
         "`element.style` text: Chromium simplifies `calc(20% + 30%)` to `calc(50%)`, swb keeps the text",
@@ -87,19 +77,9 @@ const DEPARTURES: &[(&str, &[usize], &str)] = &[
         "swb has no `none` components in `hsl()`: it is 0",
     ),
     (
-        "cm-form-none-lab",
-        &[0],
-        "swb has no `none` components in `lab()`: it is 0, and `lab()` is 8-bit sRGB",
-    ),
-    (
         "cm-form-powerless-hue",
         &[0],
         "swb writes the hue of a gray as a number, Chromium as `none`",
-    ),
-    (
-        "cm-form-out-of-gamut",
-        &[0],
-        "swb clamps `color(srgb 2 0 -1)` to 8-bit sRGB when it parses it; Chromium keeps the coordinates",
     ),
 ];
 

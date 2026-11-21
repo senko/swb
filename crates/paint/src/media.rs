@@ -167,6 +167,7 @@ fn gradient(rect: Rect) -> DisplayItem {
         .collect();
     DisplayItem::LinearGradient {
         rect,
+        tile: rect,
         clip: rect,
         gradient: Arc::new(LinearGradient {
             angle_deg: 0.0,

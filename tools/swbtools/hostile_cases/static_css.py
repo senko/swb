@@ -146,3 +146,79 @@ def text_stroke_huge_width_on_long_text() -> Page:
     widths = ("1000px", "1e9px", "8000px")
     body = "".join(f"<p style='-webkit-text-stroke:{w} #f00'>{words}</p>" for w in widths)
     return Page(doc(body, css))
+
+
+@case(
+    "1,100,000 distinct lab() colors set by a script (M13 feature 2b, ADR 0046): the table of "
+    "wide colors stops at 2^20 entries and later colors fall back to 8-bit sRGB, so memory "
+    "stays bounded and the page does not slow down; swb logs the limit once",
+    time_limit_s=40,
+    rss_limit_mib=2048,
+    swb_args=("--js",),
+    expect_log="the color table has 1048576 wide colors",
+)
+def lab_1_100_000_distinct_colors() -> Page:
+    script = (
+        "var p=document.getElementById('p');"
+        "for(var i=0;i<1100000;i++){p.style.color='lab(0 '+i+' 0)';}"
+    )
+    return Page(doc(f"<p id=p>x</p><script>{script}</script>"))
+
+
+@case(
+    "1,000 elements with backgrounds of 1 px gradient tiles in boxes of 5,000 x 5,000 px (M13 "
+    "feature 2b, fix round): a tiled gradient is one display item that the rasterizer "
+    "repeats, so the cost does not depend on the number of tiles",
+    time_limit_s=30,
+)
+def gradient_one_pixel_tiles_in_large_boxes() -> Page:
+    css = (
+        "div{width:5000px;height:5000px;"
+        "background:linear-gradient(red,blue) 0 0/1px 1px repeat,"
+        "linear-gradient(blue,red) 3px 3px/2px 7px space}"
+    )
+    return Page(doc("<div></div>" * 1000, css))
+
+
+@case(
+    "60,000 boxes of 100 x 100 px with three gradient layers of 4, 5 and 6 px tiles (M13 "
+    "feature 2b, fix round): 1,314 tiles per box, 79 million in all, as 180,000 display "
+    "items; one item per tile took 12 GiB",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+)
+def gradient_tiles_in_60000_boxes() -> Page:
+    css = (
+        "div{width:100px;height:100px;"
+        "background:linear-gradient(red,blue) 0 0/4px 4px,"
+        "linear-gradient(blue,red) 0 0/5px 5px,"
+        "linear-gradient(#0f0,#00f) 0 0/6px 6px}"
+    )
+    return Page(doc("<div></div>" * 60000, css))
+
+
+@case(
+    "`all: unset` in 20,000 rules on 20,000 elements (M13 feature 2b): `all` sets every "
+    "longhand, so each rule holds about 270 declarations",
+    time_limit_s=30,
+    rss_limit_mib=2048,
+)
+def all_unset_in_20000_rules() -> Page:
+    css = "".join(f".c{i}{{all:unset;display:block}}" for i in range(20000))
+    body = "".join(f"<i class=c{i}>x</i>" for i in range(20000))
+    return Page(doc(body, css))
+
+
+@case(
+    "font-variant-numeric and font-variant-ligatures with 100,000 keywords and with var() "
+    "chains (M13 feature 2b): each group may appear once, so the value is invalid",
+    time_limit_s=10,
+)
+def font_variant_many_keywords() -> Page:
+    many = " ".join(["tabular-nums"] * 100_000)
+    css = (
+        f"p{{font-variant-numeric:{many};font-variant-ligatures:{many}}}"
+        "q{--a:tabular-nums;--b:var(--a) var(--a);font-variant-numeric:var(--b)}"
+        "s{font-variant:" + " ".join(["small-caps"] * 100_000) + "}"
+    )
+    return Page(doc("<p>1111</p><q>2222</q><s>3333</s>", css))

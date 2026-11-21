@@ -463,6 +463,8 @@ impl Page {
             config.network_threads,
             config.notify,
         ));
+        // A new document: the color table logs again when it is full.
+        swb_style::reset_color_table_warnings();
         let storage = swb_web::StorageStore::shared();
         let frame_bodies = swb_net::ByteBudget::new(crate::frames::MAX_SOURCE_BYTES);
         let frame_images = swb_net::ByteBudget::new(crate::frames::MAX_IMAGE_BYTES);

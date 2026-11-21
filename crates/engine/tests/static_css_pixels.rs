@@ -423,3 +423,71 @@ fn corner_shape_shadows_match_chromium() {
         &[white, white, white, white, red, red],
     );
 }
+
+/// The pixel cases of `tools/probes/css-videojs-2b.json` (M13 feature 2b):
+/// colors that keep their space (each paints as its color clipped to
+/// sRGB), gradients with `background-size`, `-position` and `-repeat`, and
+/// the gradient of the videojs.org player controls. The values are
+/// Chromium 148's (`tests/data/css-videojs-2b-pixels.json`: `uv run --project
+/// tools swbtools probe --json tools/probes/css-videojs-2b.json`, three
+/// equal runs, the `pixels` rows).
+#[test]
+fn colors_and_gradient_tiles_match_chromium() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let read = |path: std::path::PathBuf| -> Value {
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+    };
+    let probe = read(root.join("../../tools/probes/css-videojs-2b.json"));
+    let data = read(root.join("tests/data/css-videojs-2b-pixels.json"));
+    let mut failures = Vec::new();
+    for (name, rows) in data.as_object().unwrap() {
+        let case = probe["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == name.as_str())
+            .unwrap();
+        let viewport = case["viewport"].as_array().unwrap();
+        let size = Size::new(
+            viewport[0].as_f64().unwrap() as f32,
+            viewport[1].as_f64().unwrap() as f32,
+        );
+        let site = Site::new(name);
+        let url = site.page("page.html", case["html"].as_str().unwrap());
+        let mut page: Page = common::new_page(Arc::new(NetworkFetcher::new()), 2, size);
+        page.navigate(url);
+        common::finish_loading(&mut page, Duration::from_secs(20));
+        let shot = page.screenshot(false).unwrap();
+        for row in rows.as_array().unwrap() {
+            let label = format!("{name} {}", row["label"].as_str().unwrap());
+            let area = row["area"].as_array().unwrap();
+            let origin = (
+                area[0].as_f64().unwrap().round() as i32,
+                area[1].as_f64().unwrap().round() as i32,
+            );
+            let points: Vec<(i32, i32)> = row["points"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|p| (p[0].as_i64().unwrap() as i32, p[1].as_i64().unwrap() as i32))
+                .collect();
+            let want: Vec<[u8; 3]> = row["pixels"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|c| [0, 1, 2].map(|i| c[i].as_u64().unwrap() as u8))
+                .collect();
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                check(&shot, &label, origin, &points, &want);
+            }));
+            if let Err(error) = result {
+                let text = error
+                    .downcast_ref::<String>()
+                    .cloned()
+                    .unwrap_or_else(|| label.clone());
+                failures.push(text);
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}

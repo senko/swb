@@ -11,8 +11,11 @@
 //! narrower. A cut is never placed before a space: the space hangs at the
 //! end of the line instead.
 //!
-//! `anywhere` and `word-break: break-word` also make every grapheme cluster
-//! boundary in the text a break opportunity for the min-content size;
+//! `overflow-wrap: anywhere`, `line-break: anywhere` and `word-break:
+//! break-word` also make every grapheme cluster boundary in the text a
+//! break opportunity for the min-content size (also before punctuation and
+//! between Japanese characters, with `word-break: keep-all` and with
+//! `white-space: pre-wrap`);
 //! `overflow-wrap: break-word` does not change it.
 //!
 //! Not done: floats inside a word that is cut are placed as if the whole
@@ -20,7 +23,7 @@
 
 use std::ops::Range;
 
-use swb_style::{ComputedStyle, OverflowWrap, WordBreak};
+use swb_style::{ComputedStyle, LineBreak, OverflowWrap, WordBreak};
 use unicode_segmentation::GraphemeCursor;
 
 use super::shaping::{Piece, Run, ShapedText, snapped_width};
@@ -61,6 +64,7 @@ pub(crate) fn breaks_anywhere(style: &ComputedStyle, purpose: Purpose) -> bool {
     style.white_space.wraps()
         && (style.word_break == WordBreak::BreakWord
             || style.overflow_wrap == OverflowWrap::Anywhere
+            || style.line_break == LineBreak::Anywhere
             || (purpose == Purpose::Layout && style.overflow_wrap == OverflowWrap::BreakWord))
 }
 

@@ -1,0 +1,4642 @@
+{
+ "c-color": [
+  [
+   [
+    "color",
+    "oklch(0.628 0.2577 29.23)",
+    "oklch(0.628 0.2577 29.23)"
+   ],
+   [
+    "color",
+    "oklch(62.8% 0.2577 29.23)",
+    "oklch(0.628 0.2577 29.23)"
+   ],
+   [
+    "color",
+    "oklch(1 0 0)",
+    "oklch(1 0 0)"
+   ],
+   [
+    "color",
+    "oklch(0 0 0)",
+    "oklch(0 0 0)"
+   ],
+   [
+    "color",
+    "oklch(0.5 none 30)",
+    "oklch(0.5 none 30)"
+   ],
+   [
+    "color",
+    "oklch(none none none)",
+    "oklch(none none none)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 none)",
+    "oklch(0.5 0.1 none)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 30 / none)",
+    "oklch(0.5 0.1 30 / none)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 30 / 0.5)",
+    "oklch(0.5 0.1 30 / 0.5)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 30 / 50%)",
+    "oklch(0.5 0.1 30 / 0.5)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 30 / 2)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 30 / -1)",
+    "oklch(0.5 0.1 30 / 0)"
+   ],
+   [
+    "color",
+    "oklch(2 0.1 30)",
+    "oklch(1 0.1 30)"
+   ],
+   [
+    "color",
+    "oklch(-1 0.1 30)",
+    "oklch(0 0.1 30)"
+   ],
+   [
+    "color",
+    "oklch(0.5 -0.1 30)",
+    "oklch(0.5 0 30)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.9 30)",
+    "oklch(0.5 0.9 30)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 390)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 -30)",
+    "oklch(0.5 0.1 330)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 0.5turn)",
+    "oklch(0.5 0.1 180)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 3.14rad)",
+    "oklch(0.5 0.1 179.909)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 200grad)",
+    "oklch(0.5 0.1 180)"
+   ],
+   [
+    "color",
+    "oklch(0.123456789 0.123456789 123.456789)",
+    "oklch(0.123457 0.123457 123.457)"
+   ],
+   [
+    "color",
+    "oklch(50% 50% 30)",
+    "oklch(0.5 0.2 30)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.00001 30)",
+    "oklch(0.5 0.00001 30)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0 30)",
+    "oklch(0.5 0 30)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 30deg)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "color",
+    "oklch(1e-7 0 0)",
+    "oklch(1.00000e-7 0 0)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 30 / 0.123456)",
+    "oklch(0.5 0.1 30 / 0.123456)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 30 / 0.999)",
+    "oklch(0.5 0.1 30 / 0.999)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 30 / 0.004)",
+    "oklch(0.5 0.1 30 / 0.004)"
+   ],
+   [
+    "color",
+    "oklch(calc(0.5 + 0.1) 0.1 30)",
+    "oklch(0.6 0.1 30)"
+   ],
+   [
+    "color",
+    "oklch(0.5 calc(0.1*2) 30)",
+    "oklch(0.5 0.2 30)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 calc(30 + 10))",
+    "oklch(0.5 0.1 40)"
+   ],
+   [
+    "color",
+    "oklch(0.5, 0.1, 30)",
+    "invalid"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1)",
+    "invalid"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 30 40)",
+    "invalid"
+   ],
+   [
+    "color",
+    "OKLCH(0.5 0.1 30)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "color",
+    "oklab(0.628 0.225 0.126)",
+    "oklab(0.628 0.225 0.126)"
+   ],
+   [
+    "color",
+    "oklab(1 0 0)",
+    "oklab(1 0 0)"
+   ],
+   [
+    "color",
+    "oklab(0.5 none 0.1)",
+    "oklab(0.5 none 0.1)"
+   ],
+   [
+    "color",
+    "oklab(50% 0.1 -0.1 / 0.5)",
+    "oklab(0.5 0.1 -0.1 / 0.5)"
+   ],
+   [
+    "color",
+    "oklab(0.5 50% -50%)",
+    "oklab(0.5 0.2 -0.2)"
+   ],
+   [
+    "color",
+    "oklab(0.5 0.123456789 -0.123456789)",
+    "oklab(0.5 0.123457 -0.123457)"
+   ],
+   [
+    "color",
+    "oklab(2 0 0)",
+    "oklab(1 0 0)"
+   ],
+   [
+    "color",
+    "oklab(0.5 0.5 0.5)",
+    "oklab(0.5 0.5 0.5)"
+   ],
+   [
+    "color",
+    "oklab(0 0 0 / 0)",
+    "oklab(0 0 0 / 0)"
+   ],
+   [
+    "color",
+    "lab(50 40 30)",
+    "lab(50 40 30)"
+   ],
+   [
+    "color",
+    "lab(50% 40 30)",
+    "lab(50 40 30)"
+   ],
+   [
+    "color",
+    "lab(50 100% -100%)",
+    "lab(50 125 -125)"
+   ],
+   [
+    "color",
+    "lab(120 0 0)",
+    "lab(100 0 0)"
+   ],
+   [
+    "color",
+    "lab(-5 0 0)",
+    "lab(0 0 0)"
+   ],
+   [
+    "color",
+    "lab(29.2345% 39.3825 20.0664)",
+    "lab(29.2345 39.3825 20.0664)"
+   ],
+   [
+    "color",
+    "lab(50 none 30 / 0.3)",
+    "lab(50 none 30 / 0.3)"
+   ],
+   [
+    "color",
+    "lab(50 200 200)",
+    "lab(50 200 200)"
+   ],
+   [
+    "color",
+    "lab(100 0 0)",
+    "lab(100 0 0)"
+   ],
+   [
+    "color",
+    "lch(50 40 30)",
+    "lch(50 40 30)"
+   ],
+   [
+    "color",
+    "lch(50% 100% 30)",
+    "lch(50 150 30)"
+   ],
+   [
+    "color",
+    "lch(50 40 none)",
+    "lch(50 40 none)"
+   ],
+   [
+    "color",
+    "lch(50 -5 30)",
+    "lch(50 0 30)"
+   ],
+   [
+    "color",
+    "lch(50 40 30 / 0.5)",
+    "lch(50 40 30 / 0.5)"
+   ],
+   [
+    "color",
+    "lch(120 200 380)",
+    "lch(100 200 20)"
+   ],
+   [
+    "color",
+    "lch(0 0 0)",
+    "lch(0 0 0)"
+   ],
+   [
+    "color",
+    "color(srgb 1 0 0)",
+    "color(srgb 1 0 0)"
+   ],
+   [
+    "color",
+    "color(srgb 0.5 0.5 0.5 / 0.5)",
+    "color(srgb 0.5 0.5 0.5 / 0.5)"
+   ],
+   [
+    "color",
+    "color(srgb 2 -1 0.5)",
+    "color(srgb 2 -1 0.5)"
+   ],
+   [
+    "color",
+    "color(srgb 50% 0% 100%)",
+    "color(srgb 0.5 0 1)"
+   ],
+   [
+    "color",
+    "color(srgb none 0 0)",
+    "color(srgb none 0 0)"
+   ],
+   [
+    "color",
+    "color(srgb-linear 0.5 0.5 0.5)",
+    "color(srgb-linear 0.5 0.5 0.5)"
+   ],
+   [
+    "color",
+    "color(display-p3 1 0 0)",
+    "color(display-p3 1 0 0)"
+   ],
+   [
+    "color",
+    "color(display-p3 0.5 0.2 0.8 / 0.7)",
+    "color(display-p3 0.5 0.2 0.8 / 0.7)"
+   ],
+   [
+    "color",
+    "color(a98-rgb 1 0 0)",
+    "color(a98-rgb 1 0 0)"
+   ],
+   [
+    "color",
+    "color(prophoto-rgb 1 0 0)",
+    "color(prophoto-rgb 1 0 0)"
+   ],
+   [
+    "color",
+    "color(rec2020 1 0 0)",
+    "color(rec2020 1 0 0)"
+   ],
+   [
+    "color",
+    "color(xyz 0.5 0.5 0.5)",
+    "color(xyz-d65 0.5 0.5 0.5)"
+   ],
+   [
+    "color",
+    "color(xyz-d65 0.5 0.5 0.5)",
+    "color(xyz-d65 0.5 0.5 0.5)"
+   ],
+   [
+    "color",
+    "color(xyz-d50 0.5 0.5 0.5)",
+    "color(xyz-d50 0.5 0.5 0.5)"
+   ],
+   [
+    "color",
+    "color(srgb 0.123456789 0.5 0.5)",
+    "color(srgb 0.123457 0.5 0.5)"
+   ],
+   [
+    "color",
+    "color(srgb 1 1 1 / 0)",
+    "color(srgb 1 1 1 / 0)"
+   ],
+   [
+    "color",
+    "color(foo 1 0 0)",
+    "invalid"
+   ],
+   [
+    "color",
+    "color(srgb 1 0)",
+    "invalid"
+   ],
+   [
+    "color",
+    "color(1 0 0)",
+    "invalid"
+   ],
+   [
+    "color",
+    "color(display-p3 1 0 0 / 50%)",
+    "color(display-p3 1 0 0 / 0.5)"
+   ],
+   [
+    "color",
+    "rgb(255 0 0)",
+    "rgb(255, 0, 0)"
+   ],
+   [
+    "color",
+    "rgb(255 0 0 / 0.5)",
+    "rgba(255, 0, 0, 0.5)"
+   ],
+   [
+    "color",
+    "rgba(255,0,0,0.5)",
+    "rgba(255, 0, 0, 0.5)"
+   ],
+   [
+    "color",
+    "hsl(120 100% 50%)",
+    "rgb(0, 255, 0)"
+   ],
+   [
+    "color",
+    "hwb(120 0% 0%)",
+    "rgb(0, 255, 0)"
+   ],
+   [
+    "color",
+    "rgb(none 0 0)",
+    "rgb(0, 0, 0)"
+   ],
+   [
+    "color",
+    "hsl(none 100% 50%)",
+    "rgb(255, 0, 0)"
+   ],
+   [
+    "color",
+    "hwb(none 0% 0%)",
+    "rgb(255, 0, 0)"
+   ],
+   [
+    "color",
+    "rgb(300 0 0)",
+    "rgb(255, 0, 0)"
+   ],
+   [
+    "color",
+    "red",
+    "rgb(255, 0, 0)"
+   ],
+   [
+    "color",
+    "transparent",
+    "rgba(0, 0, 0, 0)"
+   ],
+   [
+    "color",
+    "currentcolor",
+    "rgb(0, 0, 0)"
+   ],
+   [
+    "color",
+    "color-mix(in oklch, red, blue)",
+    "oklch(0.539974 0.285457 326.643)"
+   ],
+   [
+    "color",
+    "color-mix(in oklab, oklch(0.5 0.1 30), oklch(0.7 0.1 50))",
+    "oklab(0.6 0.0754407 0.0633022)"
+   ],
+   [
+    "color",
+    "color-mix(in oklch, oklch(0.5 0.1 30), oklch(0.7 0.1 50))",
+    "oklch(0.6 0.1 40)"
+   ],
+   [
+    "color",
+    "color-mix(in srgb, oklch(0.5 0.1 30), oklch(0.7 0.1 50))",
+    "color(srgb 0.698749 0.421094 0.322919)"
+   ],
+   [
+    "color",
+    "color-mix(in lab, oklch(0.5 0.1 30), red)",
+    "lab(47.6929 55.6031 45.53)"
+   ],
+   [
+    "color",
+    "color-mix(in oklab, oklch(0.5 none 30), oklch(0.7 0.1 50))",
+    "oklab(0.6 0.0321394 0.0383022)"
+   ],
+   [
+    "color",
+    "color-mix(in oklch, oklch(0.5 none 30), oklch(0.7 0.1 50))",
+    "oklch(0.6 0.1 40)"
+   ],
+   [
+    "color",
+    "color-mix(in oklab, oklch(0.5 0.1 30) 25%, white)",
+    "oklab(0.874995 0.0216848 0.0125151)"
+   ],
+   [
+    "color",
+    "color-mix(in oklab, oklch(0.5 0.1 30 / 0.5), oklch(0.7 0.1 50 / 0.5))",
+    "oklab(0.6 0.0754407 0.0633022 / 0.5)"
+   ],
+   [
+    "color",
+    "color-mix(in srgb, oklch(0.5 0.1 30) 0%, red)",
+    "color(srgb 1 0 0)"
+   ],
+   [
+    "color",
+    "color-mix(in oklab, color(display-p3 1 0 0), blue)",
+    "oklab(0.550278 0.11479 -0.0832604)"
+   ],
+   [
+    "color",
+    "color-mix(in display-p3, oklch(0.5 0.1 30), blue)",
+    "color(display-p3 0.270963 0.154607 0.612007)"
+   ],
+   [
+    "color",
+    "color-mix(in oklab, oklch(0.5 0.1 30), currentcolor)",
+    "oklab(0.25 0.0433013 0.025)"
+   ],
+   [
+    "color",
+    "color-mix(in oklab, lab(50 40 30), lab(60 -40 30))",
+    "oklab(0.609806 -0.00157422 0.0720097)"
+   ],
+   [
+    "color",
+    "color-mix(in lab, lab(50 40 30), lab(60 -40 30))",
+    "lab(55 0 30)"
+   ],
+   [
+    "color",
+    "color-mix(in oklab, oklch(0.5 0.1 30) 50%, oklch(0.7 0.1 50) 20%)",
+    "oklab(0.557143 0.0802243 0.0576013 / 0.7)"
+   ],
+   [
+    "color",
+    "light-dark(oklch(0.5 0.1 30), oklch(0.7 0.1 50))",
+    "oklch(0.5 0.1 30)"
+   ]
+  ]
+ ],
+ "c-background-color": [
+  [
+   [
+    "background-color",
+    "oklch(0.628 0.2577 29.23)",
+    "oklch(0.628 0.2577 29.23)"
+   ],
+   [
+    "background-color",
+    "oklch(62.8% 0.2577 29.23)",
+    "oklch(0.628 0.2577 29.23)"
+   ],
+   [
+    "background-color",
+    "oklch(1 0 0)",
+    "oklch(1 0 0)"
+   ],
+   [
+    "background-color",
+    "oklch(0 0 0)",
+    "oklch(0 0 0)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 none 30)",
+    "oklch(0.5 none 30)"
+   ],
+   [
+    "background-color",
+    "oklch(none none none)",
+    "oklch(none none none)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 none)",
+    "oklch(0.5 0.1 none)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 30 / none)",
+    "oklch(0.5 0.1 30 / none)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 30 / 0.5)",
+    "oklch(0.5 0.1 30 / 0.5)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 30 / 50%)",
+    "oklch(0.5 0.1 30 / 0.5)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 30 / 2)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 30 / -1)",
+    "oklch(0.5 0.1 30 / 0)"
+   ],
+   [
+    "background-color",
+    "oklch(2 0.1 30)",
+    "oklch(1 0.1 30)"
+   ],
+   [
+    "background-color",
+    "oklch(-1 0.1 30)",
+    "oklch(0 0.1 30)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 -0.1 30)",
+    "oklch(0.5 0 30)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.9 30)",
+    "oklch(0.5 0.9 30)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 390)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 -30)",
+    "oklch(0.5 0.1 330)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 0.5turn)",
+    "oklch(0.5 0.1 180)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 3.14rad)",
+    "oklch(0.5 0.1 179.909)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 200grad)",
+    "oklch(0.5 0.1 180)"
+   ],
+   [
+    "background-color",
+    "oklch(0.123456789 0.123456789 123.456789)",
+    "oklch(0.123457 0.123457 123.457)"
+   ],
+   [
+    "background-color",
+    "oklch(50% 50% 30)",
+    "oklch(0.5 0.2 30)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.00001 30)",
+    "oklch(0.5 0.00001 30)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0 30)",
+    "oklch(0.5 0 30)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 30deg)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "background-color",
+    "oklch(1e-7 0 0)",
+    "oklch(1.00000e-7 0 0)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 30 / 0.123456)",
+    "oklch(0.5 0.1 30 / 0.123456)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 30 / 0.999)",
+    "oklch(0.5 0.1 30 / 0.999)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 30 / 0.004)",
+    "oklch(0.5 0.1 30 / 0.004)"
+   ],
+   [
+    "background-color",
+    "oklch(calc(0.5 + 0.1) 0.1 30)",
+    "oklch(0.6 0.1 30)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 calc(0.1*2) 30)",
+    "oklch(0.5 0.2 30)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 calc(30 + 10))",
+    "oklch(0.5 0.1 40)"
+   ],
+   [
+    "background-color",
+    "oklch(0.5, 0.1, 30)",
+    "invalid"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1)",
+    "invalid"
+   ],
+   [
+    "background-color",
+    "oklch(0.5 0.1 30 40)",
+    "invalid"
+   ],
+   [
+    "background-color",
+    "OKLCH(0.5 0.1 30)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "background-color",
+    "oklab(0.628 0.225 0.126)",
+    "oklab(0.628 0.225 0.126)"
+   ],
+   [
+    "background-color",
+    "oklab(1 0 0)",
+    "oklab(1 0 0)"
+   ],
+   [
+    "background-color",
+    "oklab(0.5 none 0.1)",
+    "oklab(0.5 none 0.1)"
+   ],
+   [
+    "background-color",
+    "oklab(50% 0.1 -0.1 / 0.5)",
+    "oklab(0.5 0.1 -0.1 / 0.5)"
+   ],
+   [
+    "background-color",
+    "oklab(0.5 50% -50%)",
+    "oklab(0.5 0.2 -0.2)"
+   ],
+   [
+    "background-color",
+    "oklab(0.5 0.123456789 -0.123456789)",
+    "oklab(0.5 0.123457 -0.123457)"
+   ],
+   [
+    "background-color",
+    "oklab(2 0 0)",
+    "oklab(1 0 0)"
+   ],
+   [
+    "background-color",
+    "oklab(0.5 0.5 0.5)",
+    "oklab(0.5 0.5 0.5)"
+   ],
+   [
+    "background-color",
+    "oklab(0 0 0 / 0)",
+    "oklab(0 0 0 / 0)"
+   ],
+   [
+    "background-color",
+    "lab(50 40 30)",
+    "lab(50 40 30)"
+   ],
+   [
+    "background-color",
+    "lab(50% 40 30)",
+    "lab(50 40 30)"
+   ],
+   [
+    "background-color",
+    "lab(50 100% -100%)",
+    "lab(50 125 -125)"
+   ],
+   [
+    "background-color",
+    "lab(120 0 0)",
+    "lab(100 0 0)"
+   ],
+   [
+    "background-color",
+    "lab(-5 0 0)",
+    "lab(0 0 0)"
+   ],
+   [
+    "background-color",
+    "lab(29.2345% 39.3825 20.0664)",
+    "lab(29.2345 39.3825 20.0664)"
+   ],
+   [
+    "background-color",
+    "lab(50 none 30 / 0.3)",
+    "lab(50 none 30 / 0.3)"
+   ],
+   [
+    "background-color",
+    "lab(50 200 200)",
+    "lab(50 200 200)"
+   ],
+   [
+    "background-color",
+    "lab(100 0 0)",
+    "lab(100 0 0)"
+   ],
+   [
+    "background-color",
+    "lch(50 40 30)",
+    "lch(50 40 30)"
+   ],
+   [
+    "background-color",
+    "lch(50% 100% 30)",
+    "lch(50 150 30)"
+   ],
+   [
+    "background-color",
+    "lch(50 40 none)",
+    "lch(50 40 none)"
+   ],
+   [
+    "background-color",
+    "lch(50 -5 30)",
+    "lch(50 0 30)"
+   ],
+   [
+    "background-color",
+    "lch(50 40 30 / 0.5)",
+    "lch(50 40 30 / 0.5)"
+   ],
+   [
+    "background-color",
+    "lch(120 200 380)",
+    "lch(100 200 20)"
+   ],
+   [
+    "background-color",
+    "lch(0 0 0)",
+    "lch(0 0 0)"
+   ],
+   [
+    "background-color",
+    "color(srgb 1 0 0)",
+    "color(srgb 1 0 0)"
+   ],
+   [
+    "background-color",
+    "color(srgb 0.5 0.5 0.5 / 0.5)",
+    "color(srgb 0.5 0.5 0.5 / 0.5)"
+   ],
+   [
+    "background-color",
+    "color(srgb 2 -1 0.5)",
+    "color(srgb 2 -1 0.5)"
+   ],
+   [
+    "background-color",
+    "color(srgb 50% 0% 100%)",
+    "color(srgb 0.5 0 1)"
+   ],
+   [
+    "background-color",
+    "color(srgb none 0 0)",
+    "color(srgb none 0 0)"
+   ],
+   [
+    "background-color",
+    "color(srgb-linear 0.5 0.5 0.5)",
+    "color(srgb-linear 0.5 0.5 0.5)"
+   ],
+   [
+    "background-color",
+    "color(display-p3 1 0 0)",
+    "color(display-p3 1 0 0)"
+   ],
+   [
+    "background-color",
+    "color(display-p3 0.5 0.2 0.8 / 0.7)",
+    "color(display-p3 0.5 0.2 0.8 / 0.7)"
+   ],
+   [
+    "background-color",
+    "color(a98-rgb 1 0 0)",
+    "color(a98-rgb 1 0 0)"
+   ],
+   [
+    "background-color",
+    "color(prophoto-rgb 1 0 0)",
+    "color(prophoto-rgb 1 0 0)"
+   ],
+   [
+    "background-color",
+    "color(rec2020 1 0 0)",
+    "color(rec2020 1 0 0)"
+   ],
+   [
+    "background-color",
+    "color(xyz 0.5 0.5 0.5)",
+    "color(xyz-d65 0.5 0.5 0.5)"
+   ],
+   [
+    "background-color",
+    "color(xyz-d65 0.5 0.5 0.5)",
+    "color(xyz-d65 0.5 0.5 0.5)"
+   ],
+   [
+    "background-color",
+    "color(xyz-d50 0.5 0.5 0.5)",
+    "color(xyz-d50 0.5 0.5 0.5)"
+   ],
+   [
+    "background-color",
+    "color(srgb 0.123456789 0.5 0.5)",
+    "color(srgb 0.123457 0.5 0.5)"
+   ],
+   [
+    "background-color",
+    "color(srgb 1 1 1 / 0)",
+    "color(srgb 1 1 1 / 0)"
+   ],
+   [
+    "background-color",
+    "color(foo 1 0 0)",
+    "invalid"
+   ],
+   [
+    "background-color",
+    "color(srgb 1 0)",
+    "invalid"
+   ],
+   [
+    "background-color",
+    "color(1 0 0)",
+    "invalid"
+   ],
+   [
+    "background-color",
+    "color(display-p3 1 0 0 / 50%)",
+    "color(display-p3 1 0 0 / 0.5)"
+   ],
+   [
+    "background-color",
+    "rgb(255 0 0)",
+    "rgb(255, 0, 0)"
+   ],
+   [
+    "background-color",
+    "rgb(255 0 0 / 0.5)",
+    "rgba(255, 0, 0, 0.5)"
+   ],
+   [
+    "background-color",
+    "rgba(255,0,0,0.5)",
+    "rgba(255, 0, 0, 0.5)"
+   ],
+   [
+    "background-color",
+    "hsl(120 100% 50%)",
+    "rgb(0, 255, 0)"
+   ],
+   [
+    "background-color",
+    "hwb(120 0% 0%)",
+    "rgb(0, 255, 0)"
+   ],
+   [
+    "background-color",
+    "rgb(none 0 0)",
+    "rgb(0, 0, 0)"
+   ],
+   [
+    "background-color",
+    "hsl(none 100% 50%)",
+    "rgb(255, 0, 0)"
+   ],
+   [
+    "background-color",
+    "hwb(none 0% 0%)",
+    "rgb(255, 0, 0)"
+   ],
+   [
+    "background-color",
+    "rgb(300 0 0)",
+    "rgb(255, 0, 0)"
+   ],
+   [
+    "background-color",
+    "red",
+    "rgb(255, 0, 0)"
+   ],
+   [
+    "background-color",
+    "transparent",
+    "rgba(0, 0, 0, 0)"
+   ],
+   [
+    "background-color",
+    "currentcolor",
+    "rgb(0, 0, 0)"
+   ],
+   [
+    "background-color",
+    "color-mix(in oklch, red, blue)",
+    "oklch(0.539974 0.285457 326.643)"
+   ],
+   [
+    "background-color",
+    "color-mix(in oklab, oklch(0.5 0.1 30), oklch(0.7 0.1 50))",
+    "oklab(0.6 0.0754407 0.0633022)"
+   ],
+   [
+    "background-color",
+    "color-mix(in oklch, oklch(0.5 0.1 30), oklch(0.7 0.1 50))",
+    "oklch(0.6 0.1 40)"
+   ],
+   [
+    "background-color",
+    "color-mix(in srgb, oklch(0.5 0.1 30), oklch(0.7 0.1 50))",
+    "color(srgb 0.698749 0.421094 0.322919)"
+   ],
+   [
+    "background-color",
+    "color-mix(in lab, oklch(0.5 0.1 30), red)",
+    "lab(47.6929 55.6031 45.53)"
+   ],
+   [
+    "background-color",
+    "color-mix(in oklab, oklch(0.5 none 30), oklch(0.7 0.1 50))",
+    "oklab(0.6 0.0321394 0.0383022)"
+   ],
+   [
+    "background-color",
+    "color-mix(in oklch, oklch(0.5 none 30), oklch(0.7 0.1 50))",
+    "oklch(0.6 0.1 40)"
+   ],
+   [
+    "background-color",
+    "color-mix(in oklab, oklch(0.5 0.1 30) 25%, white)",
+    "oklab(0.874995 0.0216848 0.0125151)"
+   ],
+   [
+    "background-color",
+    "color-mix(in oklab, oklch(0.5 0.1 30 / 0.5), oklch(0.7 0.1 50 / 0.5))",
+    "oklab(0.6 0.0754407 0.0633022 / 0.5)"
+   ],
+   [
+    "background-color",
+    "color-mix(in srgb, oklch(0.5 0.1 30) 0%, red)",
+    "color(srgb 1 0 0)"
+   ],
+   [
+    "background-color",
+    "color-mix(in oklab, color(display-p3 1 0 0), blue)",
+    "oklab(0.550278 0.11479 -0.0832604)"
+   ],
+   [
+    "background-color",
+    "color-mix(in display-p3, oklch(0.5 0.1 30), blue)",
+    "color(display-p3 0.270963 0.154607 0.612007)"
+   ],
+   [
+    "background-color",
+    "color-mix(in oklab, oklch(0.5 0.1 30), currentcolor)",
+    "oklab(0.25 0.0433013 0.025)"
+   ],
+   [
+    "background-color",
+    "color-mix(in oklab, lab(50 40 30), lab(60 -40 30))",
+    "oklab(0.609806 -0.00157422 0.0720097)"
+   ],
+   [
+    "background-color",
+    "color-mix(in lab, lab(50 40 30), lab(60 -40 30))",
+    "lab(55 0 30)"
+   ],
+   [
+    "background-color",
+    "color-mix(in oklab, oklch(0.5 0.1 30) 50%, oklch(0.7 0.1 50) 20%)",
+    "oklab(0.557143 0.0802243 0.0576013 / 0.7)"
+   ],
+   [
+    "background-color",
+    "light-dark(oklch(0.5 0.1 30), oklch(0.7 0.1 50))",
+    "oklch(0.5 0.1 30)"
+   ]
+  ]
+ ],
+ "c-border-top-color": [
+  [
+   [
+    "border-top-color",
+    "oklch(0.5 0.1 30)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "border-top-color",
+    "oklab(0.5 0.1 0.1 / 0.5)",
+    "oklab(0.5 0.1 0.1 / 0.5)"
+   ],
+   [
+    "border-top-color",
+    "lab(50 40 30)",
+    "lab(50 40 30)"
+   ],
+   [
+    "border-top-color",
+    "color(display-p3 1 0 0)",
+    "color(display-p3 1 0 0)"
+   ],
+   [
+    "border-top-color",
+    "color-mix(in oklab, oklch(0.5 0.1 30), red)",
+    "oklab(0.563983 0.155741 0.0879297)"
+   ],
+   [
+    "border-top-color",
+    "currentcolor",
+    "rgb(0, 0, 0)"
+   ],
+   [
+    "border-top-color",
+    "red",
+    "rgb(255, 0, 0)"
+   ]
+  ]
+ ],
+ "c-outline-color": [
+  [
+   [
+    "outline-color",
+    "oklch(0.5 0.1 30)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "outline-color",
+    "oklab(0.5 0.1 0.1 / 0.5)",
+    "oklab(0.5 0.1 0.1 / 0.5)"
+   ],
+   [
+    "outline-color",
+    "lab(50 40 30)",
+    "lab(50 40 30)"
+   ],
+   [
+    "outline-color",
+    "color(display-p3 1 0 0)",
+    "color(display-p3 1 0 0)"
+   ],
+   [
+    "outline-color",
+    "color-mix(in oklab, oklch(0.5 0.1 30), red)",
+    "oklab(0.563983 0.155741 0.0879297)"
+   ],
+   [
+    "outline-color",
+    "currentcolor",
+    "rgb(0, 0, 0)"
+   ],
+   [
+    "outline-color",
+    "red",
+    "rgb(255, 0, 0)"
+   ]
+  ]
+ ],
+ "c-text-decoration-color": [
+  [
+   [
+    "text-decoration-color",
+    "oklch(0.5 0.1 30)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "text-decoration-color",
+    "oklab(0.5 0.1 0.1 / 0.5)",
+    "oklab(0.5 0.1 0.1 / 0.5)"
+   ],
+   [
+    "text-decoration-color",
+    "lab(50 40 30)",
+    "lab(50 40 30)"
+   ],
+   [
+    "text-decoration-color",
+    "color(display-p3 1 0 0)",
+    "color(display-p3 1 0 0)"
+   ],
+   [
+    "text-decoration-color",
+    "color-mix(in oklab, oklch(0.5 0.1 30), red)",
+    "oklab(0.563983 0.155741 0.0879297)"
+   ],
+   [
+    "text-decoration-color",
+    "currentcolor",
+    "rgb(0, 0, 0)"
+   ],
+   [
+    "text-decoration-color",
+    "red",
+    "rgb(255, 0, 0)"
+   ]
+  ]
+ ],
+ "c--webkit-text-fill-color": [
+  [
+   [
+    "-webkit-text-fill-color",
+    "oklch(0.5 0.1 30)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "-webkit-text-fill-color",
+    "oklab(0.5 0.1 0.1 / 0.5)",
+    "oklab(0.5 0.1 0.1 / 0.5)"
+   ],
+   [
+    "-webkit-text-fill-color",
+    "lab(50 40 30)",
+    "lab(50 40 30)"
+   ],
+   [
+    "-webkit-text-fill-color",
+    "color(display-p3 1 0 0)",
+    "color(display-p3 1 0 0)"
+   ],
+   [
+    "-webkit-text-fill-color",
+    "color-mix(in oklab, oklch(0.5 0.1 30), red)",
+    "oklab(0.563983 0.155741 0.0879297)"
+   ],
+   [
+    "-webkit-text-fill-color",
+    "currentcolor",
+    "rgb(0, 0, 0)"
+   ],
+   [
+    "-webkit-text-fill-color",
+    "red",
+    "rgb(255, 0, 0)"
+   ]
+  ]
+ ],
+ "c--webkit-text-stroke-color": [
+  [
+   [
+    "-webkit-text-stroke-color",
+    "oklch(0.5 0.1 30)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "-webkit-text-stroke-color",
+    "oklab(0.5 0.1 0.1 / 0.5)",
+    "oklab(0.5 0.1 0.1 / 0.5)"
+   ],
+   [
+    "-webkit-text-stroke-color",
+    "lab(50 40 30)",
+    "lab(50 40 30)"
+   ],
+   [
+    "-webkit-text-stroke-color",
+    "color(display-p3 1 0 0)",
+    "color(display-p3 1 0 0)"
+   ],
+   [
+    "-webkit-text-stroke-color",
+    "color-mix(in oklab, oklch(0.5 0.1 30), red)",
+    "oklab(0.563983 0.155741 0.0879297)"
+   ],
+   [
+    "-webkit-text-stroke-color",
+    "currentcolor",
+    "rgb(0, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke-color",
+    "red",
+    "rgb(255, 0, 0)"
+   ]
+  ]
+ ],
+ "c-fill": [
+  [
+   [
+    "fill",
+    "oklch(0.5 0.1 30)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "fill",
+    "oklab(0.5 0.1 0.1 / 0.5)",
+    "oklab(0.5 0.1 0.1 / 0.5)"
+   ],
+   [
+    "fill",
+    "lab(50 40 30)",
+    "lab(50 40 30)"
+   ],
+   [
+    "fill",
+    "color(display-p3 1 0 0)",
+    "color(display-p3 1 0 0)"
+   ],
+   [
+    "fill",
+    "color-mix(in oklab, oklch(0.5 0.1 30), red)",
+    "oklab(0.563983 0.155741 0.0879297)"
+   ],
+   [
+    "fill",
+    "currentcolor",
+    "rgb(0, 0, 0)"
+   ],
+   [
+    "fill",
+    "red",
+    "rgb(255, 0, 0)"
+   ]
+  ]
+ ],
+ "c-stroke": [
+  [
+   [
+    "stroke",
+    "oklch(0.5 0.1 30)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "stroke",
+    "oklab(0.5 0.1 0.1 / 0.5)",
+    "oklab(0.5 0.1 0.1 / 0.5)"
+   ],
+   [
+    "stroke",
+    "lab(50 40 30)",
+    "lab(50 40 30)"
+   ],
+   [
+    "stroke",
+    "color(display-p3 1 0 0)",
+    "color(display-p3 1 0 0)"
+   ],
+   [
+    "stroke",
+    "color-mix(in oklab, oklch(0.5 0.1 30), red)",
+    "oklab(0.563983 0.155741 0.0879297)"
+   ],
+   [
+    "stroke",
+    "currentcolor",
+    "rgb(0, 0, 0)"
+   ],
+   [
+    "stroke",
+    "red",
+    "rgb(255, 0, 0)"
+   ]
+  ]
+ ],
+ "c--webkit-tap-highlight-color": [
+  [
+   [
+    "-webkit-tap-highlight-color",
+    "oklch(0.5 0.1 30)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "oklab(0.5 0.1 0.1 / 0.5)",
+    "oklab(0.5 0.1 0.1 / 0.5)"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "lab(50 40 30)",
+    "lab(50 40 30)"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "color(display-p3 1 0 0)",
+    "color(display-p3 1 0 0)"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "color-mix(in oklab, oklch(0.5 0.1 30), red)",
+    "oklab(0.563983 0.155741 0.0879297)"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "currentcolor",
+    "rgb(0, 0, 0)"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "red",
+    "rgb(255, 0, 0)"
+   ]
+  ]
+ ],
+ "c-number-format": [
+  [
+   [
+    "color",
+    "oklab(0.5 0.001 0)",
+    "oklab(0.5 0.001 0)"
+   ],
+   [
+    "color",
+    "oklab(0.5 0.0001 0)",
+    "oklab(0.5 0.0001 0)"
+   ],
+   [
+    "color",
+    "oklab(0.5 0.00015 0)",
+    "oklab(0.5 0.00015 0)"
+   ],
+   [
+    "color",
+    "oklab(0.5 0.00001 0)",
+    "oklab(0.5 0.00001 0)"
+   ],
+   [
+    "color",
+    "oklab(0.5 0.000015 0)",
+    "oklab(0.5 0.000015 0)"
+   ],
+   [
+    "color",
+    "oklab(0.5 0.000001 0)",
+    "oklab(0.5 0.000001 0)"
+   ],
+   [
+    "color",
+    "oklab(0.5 0.0000001 0)",
+    "oklab(0.5 1.00000e-7 0)"
+   ],
+   [
+    "color",
+    "oklab(0.5 0.000000123456 0)",
+    "oklab(0.5 1.23456e-7 0)"
+   ],
+   [
+    "color",
+    "oklab(0.5 -0.00001 0)",
+    "oklab(0.5 -0.00001 0)"
+   ],
+   [
+    "color",
+    "oklab(0.5 -0.0000001 0)",
+    "oklab(0.5 -1.00000e-7 0)"
+   ],
+   [
+    "color",
+    "color(srgb 1000 0 0)",
+    "color(srgb 1000 0 0)"
+   ],
+   [
+    "color",
+    "color(srgb 123456 0 0)",
+    "color(srgb 123456 0 0)"
+   ],
+   [
+    "color",
+    "color(srgb 1234567 0 0)",
+    "color(srgb 1.23457e+6 0 0)"
+   ],
+   [
+    "color",
+    "color(srgb 12345678.9 0 0)",
+    "color(srgb 1.23457e+7 0 0)"
+   ],
+   [
+    "color",
+    "color(srgb 1e10 0 0)",
+    "color(srgb 1.00000e+10 0 0)"
+   ],
+   [
+    "color",
+    "color(srgb 1e20 0 0)",
+    "color(srgb 1.00000e+20 0 0)"
+   ],
+   [
+    "color",
+    "color(srgb -1e6 0 0)",
+    "color(srgb -1.00000e+6 0 0)"
+   ],
+   [
+    "color",
+    "color(srgb 123456.7 0 0)",
+    "color(srgb 123457 0 0)"
+   ],
+   [
+    "color",
+    "color(srgb 99999.95 0 0)",
+    "color(srgb 100000 0 0)"
+   ],
+   [
+    "color",
+    "color(srgb 999999.5 0 0)",
+    "color(srgb 1.00000e+6 0 0)"
+   ],
+   [
+    "color",
+    "lab(50 100000 0)",
+    "lab(50 100000 0)"
+   ],
+   [
+    "color",
+    "oklch(0.5 0.1 1e10)",
+    "oklch(0.5 0.1 280)"
+   ],
+   [
+    "color",
+    "oklch(0.5 1e-9 30)",
+    "oklch(0.5 1.00000e-9 30)"
+   ]
+  ]
+ ],
+ "props-7": [
+  [
+   [
+    "overscroll-behavior",
+    "none",
+    "none"
+   ],
+   [
+    "overscroll-behavior",
+    "auto",
+    "auto"
+   ],
+   [
+    "overscroll-behavior",
+    "contain",
+    "contain"
+   ],
+   [
+    "overscroll-behavior",
+    "none contain",
+    "none contain"
+   ],
+   [
+    "overscroll-behavior",
+    "contain none",
+    "contain none"
+   ],
+   [
+    "overscroll-behavior",
+    "auto auto",
+    "auto"
+   ],
+   [
+    "overscroll-behavior",
+    "none none none",
+    "invalid"
+   ],
+   [
+    "overscroll-behavior",
+    "scroll",
+    "invalid"
+   ],
+   [
+    "overscroll-behavior",
+    "inherit",
+    "auto"
+   ],
+   [
+    "overscroll-behavior",
+    "initial",
+    "auto"
+   ],
+   [
+    "overscroll-behavior",
+    "unset",
+    "auto"
+   ],
+   [
+    "overscroll-behavior",
+    "NONE",
+    "none"
+   ],
+   [
+    "overscroll-behavior-x",
+    "contain",
+    "contain"
+   ],
+   [
+    "overscroll-behavior-x",
+    "none",
+    "none"
+   ],
+   [
+    "overscroll-behavior-x",
+    "auto",
+    "auto"
+   ],
+   [
+    "overscroll-behavior-x",
+    "none contain",
+    "invalid"
+   ],
+   [
+    "overscroll-behavior-x",
+    "inherit",
+    "auto"
+   ],
+   [
+    "overscroll-behavior-y",
+    "contain",
+    "contain"
+   ],
+   [
+    "overscroll-behavior-y",
+    "none",
+    "none"
+   ],
+   [
+    "overscroll-behavior-y",
+    "auto",
+    "auto"
+   ],
+   [
+    "overscroll-behavior-y",
+    "none contain",
+    "invalid"
+   ],
+   [
+    "overscroll-behavior-y",
+    "inherit",
+    "auto"
+   ],
+   [
+    "overscroll-behavior-inline",
+    "contain",
+    "contain"
+   ],
+   [
+    "overscroll-behavior-inline",
+    "none",
+    "none"
+   ],
+   [
+    "overscroll-behavior-inline",
+    "auto",
+    "auto"
+   ],
+   [
+    "overscroll-behavior-inline",
+    "none contain",
+    "invalid"
+   ],
+   [
+    "overscroll-behavior-inline",
+    "inherit",
+    "auto"
+   ],
+   [
+    "overscroll-behavior-block",
+    "contain",
+    "contain"
+   ],
+   [
+    "overscroll-behavior-block",
+    "none",
+    "none"
+   ],
+   [
+    "overscroll-behavior-block",
+    "auto",
+    "auto"
+   ],
+   [
+    "overscroll-behavior-block",
+    "none contain",
+    "invalid"
+   ],
+   [
+    "overscroll-behavior-block",
+    "inherit",
+    "auto"
+   ],
+   [
+    "overflow-anchor",
+    "auto",
+    "auto"
+   ],
+   [
+    "overflow-anchor",
+    "none",
+    "none"
+   ],
+   [
+    "overflow-anchor",
+    "auto none",
+    "invalid"
+   ],
+   [
+    "overflow-anchor",
+    "visible",
+    "visible"
+   ],
+   [
+    "overflow-anchor",
+    "inherit",
+    "auto"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "transparent",
+    "rgba(0, 0, 0, 0)"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "rgba(0,0,0,.2)",
+    "rgba(0, 0, 0, 0.2)"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "red",
+    "rgb(255, 0, 0)"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "currentcolor",
+    "rgb(0, 0, 0)"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "#ff000080",
+    "rgba(255, 0, 0, 0.5)"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "oklch(0.5 0.1 30)",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "inherit",
+    "rgba(0, 0, 0, 0.18)"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "initial",
+    "rgba(0, 0, 0, 0.18)"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "none",
+    "invalid"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "1px",
+    "invalid"
+   ],
+   [
+    "-webkit-text-size-adjust",
+    "none",
+    "100%"
+   ],
+   [
+    "-webkit-text-size-adjust",
+    "auto",
+    "auto"
+   ],
+   [
+    "-webkit-text-size-adjust",
+    "100%",
+    "100%"
+   ],
+   [
+    "-webkit-text-size-adjust",
+    "50%",
+    "50%"
+   ],
+   [
+    "-webkit-text-size-adjust",
+    "0%",
+    "0%"
+   ],
+   [
+    "-webkit-text-size-adjust",
+    "-5%",
+    "invalid"
+   ],
+   [
+    "-webkit-text-size-adjust",
+    "100px",
+    "invalid"
+   ],
+   [
+    "-webkit-text-size-adjust",
+    "calc(50% + 10%)",
+    "60%"
+   ],
+   [
+    "-webkit-text-size-adjust",
+    "150.5%",
+    "150.5%"
+   ],
+   [
+    "-webkit-text-size-adjust",
+    "initial",
+    "auto"
+   ],
+   [
+    "-webkit-text-size-adjust",
+    "inherit",
+    "auto"
+   ],
+   [
+    "-webkit-text-size-adjust",
+    "100",
+    "invalid"
+   ],
+   [
+    "-webkit-font-smoothing",
+    "auto",
+    "auto"
+   ],
+   [
+    "-webkit-font-smoothing",
+    "none",
+    "none"
+   ],
+   [
+    "-webkit-font-smoothing",
+    "antialiased",
+    "antialiased"
+   ],
+   [
+    "-webkit-font-smoothing",
+    "subpixel-antialiased",
+    "subpixel-antialiased"
+   ],
+   [
+    "-webkit-font-smoothing",
+    "grayscale",
+    "invalid"
+   ],
+   [
+    "-webkit-font-smoothing",
+    "inherit",
+    "auto"
+   ],
+   [
+    "-webkit-font-smoothing",
+    "initial",
+    "auto"
+   ],
+   [
+    "line-break",
+    "auto",
+    "auto"
+   ],
+   [
+    "line-break",
+    "loose",
+    "loose"
+   ],
+   [
+    "line-break",
+    "normal",
+    "normal"
+   ],
+   [
+    "line-break",
+    "strict",
+    "strict"
+   ],
+   [
+    "line-break",
+    "anywhere",
+    "anywhere"
+   ],
+   [
+    "line-break",
+    "foo",
+    "invalid"
+   ],
+   [
+    "line-break",
+    "inherit",
+    "auto"
+   ],
+   [
+    "line-break",
+    "initial",
+    "auto"
+   ],
+   [
+    "-webkit-line-clamp",
+    "none",
+    "none"
+   ],
+   [
+    "-webkit-line-clamp",
+    "2",
+    "2"
+   ],
+   [
+    "-webkit-line-clamp",
+    "0",
+    "invalid"
+   ],
+   [
+    "-webkit-line-clamp",
+    "-1",
+    "invalid"
+   ],
+   [
+    "-webkit-line-clamp",
+    "2.5",
+    "invalid"
+   ],
+   [
+    "-webkit-line-clamp",
+    "50%",
+    "invalid"
+   ],
+   [
+    "-webkit-line-clamp",
+    "calc(1 + 1)",
+    "2"
+   ],
+   [
+    "-webkit-line-clamp",
+    "1000000",
+    "1e+06"
+   ],
+   [
+    "-webkit-line-clamp",
+    "99999999999",
+    "2.14748e+09"
+   ],
+   [
+    "-webkit-line-clamp",
+    "auto",
+    "invalid"
+   ],
+   [
+    "-webkit-line-clamp",
+    "initial",
+    "none"
+   ],
+   [
+    "-webkit-line-clamp",
+    "inherit",
+    "none"
+   ],
+   [
+    "-webkit-box-orient",
+    "horizontal",
+    "horizontal"
+   ],
+   [
+    "-webkit-box-orient",
+    "vertical",
+    "vertical"
+   ],
+   [
+    "-webkit-box-orient",
+    "inline-axis",
+    "horizontal"
+   ],
+   [
+    "-webkit-box-orient",
+    "block-axis",
+    "vertical"
+   ],
+   [
+    "-webkit-box-orient",
+    "foo",
+    "invalid"
+   ],
+   [
+    "-webkit-box-orient",
+    "initial",
+    "horizontal"
+   ],
+   [
+    "-webkit-box-orient",
+    "inherit",
+    "horizontal"
+   ],
+   [
+    "display",
+    "-webkit-box",
+    "-webkit-box"
+   ],
+   [
+    "display",
+    "-webkit-inline-box",
+    "-webkit-inline-box"
+   ],
+   [
+    "display",
+    "-webkit-flex",
+    "flex"
+   ],
+   [
+    "display",
+    "-webkit-inline-flex",
+    "inline-flex"
+   ],
+   [
+    "-webkit-background-clip",
+    "text",
+    "text"
+   ],
+   [
+    "-webkit-background-clip",
+    "border-box",
+    "border-box"
+   ],
+   [
+    "-webkit-background-clip",
+    "padding-box",
+    "padding-box"
+   ],
+   [
+    "-webkit-background-clip",
+    "content-box",
+    "content-box"
+   ],
+   [
+    "-webkit-background-clip",
+    "text, border-box",
+    "text"
+   ],
+   [
+    "-webkit-background-clip",
+    "border-box, text",
+    "border-box"
+   ],
+   [
+    "-webkit-background-clip",
+    "foo",
+    "invalid"
+   ],
+   [
+    "-webkit-background-clip",
+    "initial",
+    "border-box"
+   ],
+   [
+    "-webkit-background-clip",
+    "inherit",
+    "border-box"
+   ],
+   [
+    "-webkit-background-clip",
+    "border-area",
+    "invalid"
+   ],
+   [
+    "background-clip",
+    "text",
+    "text"
+   ],
+   [
+    "background-clip",
+    "border-box",
+    "border-box"
+   ],
+   [
+    "background-clip",
+    "padding-box",
+    "padding-box"
+   ],
+   [
+    "background-clip",
+    "content-box",
+    "content-box"
+   ],
+   [
+    "background-clip",
+    "text, border-box",
+    "text"
+   ],
+   [
+    "background-clip",
+    "border-box, text",
+    "border-box"
+   ],
+   [
+    "background-clip",
+    "foo",
+    "invalid"
+   ],
+   [
+    "background-clip",
+    "initial",
+    "border-box"
+   ],
+   [
+    "background-clip",
+    "inherit",
+    "border-box"
+   ],
+   [
+    "background-clip",
+    "border-area",
+    "invalid"
+   ],
+   [
+    "background",
+    "red text",
+    "rgb(255, 0, 0) none repeat scroll 0% 0% / auto padding-box text"
+   ],
+   [
+    "background",
+    "linear-gradient(red, blue) text",
+    "rgba(0, 0, 0, 0) linear-gradient(rgb(255, 0, 0), rgb(0, 0, 255)) repeat scroll 0% 0% / auto padding-box text"
+   ],
+   [
+    "background",
+    "red padding-box text",
+    "rgb(255, 0, 0) none repeat scroll 0% 0% / auto padding-box text"
+   ],
+   [
+    "background",
+    "text red",
+    "rgb(255, 0, 0) none repeat scroll 0% 0% / auto padding-box text"
+   ],
+   [
+    "font-variant-ligatures",
+    "normal",
+    "normal"
+   ],
+   [
+    "font-variant-ligatures",
+    "none",
+    "none"
+   ],
+   [
+    "font-variant-ligatures",
+    "common-ligatures",
+    "common-ligatures"
+   ],
+   [
+    "font-variant-ligatures",
+    "no-common-ligatures",
+    "no-common-ligatures"
+   ],
+   [
+    "font-variant-ligatures",
+    "discretionary-ligatures",
+    "discretionary-ligatures"
+   ],
+   [
+    "font-variant-ligatures",
+    "no-discretionary-ligatures",
+    "no-discretionary-ligatures"
+   ],
+   [
+    "font-variant-ligatures",
+    "historical-ligatures",
+    "historical-ligatures"
+   ],
+   [
+    "font-variant-ligatures",
+    "no-historical-ligatures",
+    "no-historical-ligatures"
+   ],
+   [
+    "font-variant-ligatures",
+    "contextual",
+    "contextual"
+   ],
+   [
+    "font-variant-ligatures",
+    "no-contextual",
+    "no-contextual"
+   ],
+   [
+    "font-variant-ligatures",
+    "common-ligatures discretionary-ligatures",
+    "common-ligatures discretionary-ligatures"
+   ],
+   [
+    "font-variant-ligatures",
+    "no-common-ligatures contextual",
+    "no-common-ligatures contextual"
+   ],
+   [
+    "font-variant-ligatures",
+    "common-ligatures no-common-ligatures",
+    "invalid"
+   ],
+   [
+    "font-variant-ligatures",
+    "none common-ligatures",
+    "invalid"
+   ],
+   [
+    "font-variant-ligatures",
+    "contextual common-ligatures",
+    "common-ligatures contextual"
+   ],
+   [
+    "font-variant-ligatures",
+    "historical-ligatures no-contextual common-ligatures",
+    "common-ligatures historical-ligatures no-contextual"
+   ],
+   [
+    "font-variant-ligatures",
+    "no-contextual no-historical-ligatures no-discretionary-ligatures no-common-ligatures",
+    "none"
+   ],
+   [
+    "font-variant-ligatures",
+    "common-ligatures common-ligatures",
+    "invalid"
+   ],
+   [
+    "font-variant-ligatures",
+    "inherit",
+    "normal"
+   ],
+   [
+    "font-variant-ligatures",
+    "initial",
+    "normal"
+   ],
+   [
+    "font-variant-ligatures",
+    "foo",
+    "invalid"
+   ],
+   [
+    "font-variant-ligatures",
+    "NONE",
+    "none"
+   ],
+   [
+    "font-variant-ligatures",
+    "common-ligatures historical-ligatures discretionary-ligatures contextual",
+    "common-ligatures discretionary-ligatures historical-ligatures contextual"
+   ],
+   [
+    "font-variant-numeric",
+    "normal",
+    "normal"
+   ],
+   [
+    "font-variant-numeric",
+    "tabular-nums",
+    "tabular-nums"
+   ],
+   [
+    "font-variant-numeric",
+    "proportional-nums",
+    "proportional-nums"
+   ],
+   [
+    "font-variant-numeric",
+    "lining-nums",
+    "lining-nums"
+   ],
+   [
+    "font-variant-numeric",
+    "oldstyle-nums",
+    "oldstyle-nums"
+   ],
+   [
+    "font-variant-numeric",
+    "diagonal-fractions",
+    "diagonal-fractions"
+   ],
+   [
+    "font-variant-numeric",
+    "stacked-fractions",
+    "stacked-fractions"
+   ],
+   [
+    "font-variant-numeric",
+    "ordinal",
+    "ordinal"
+   ],
+   [
+    "font-variant-numeric",
+    "slashed-zero",
+    "slashed-zero"
+   ],
+   [
+    "font-variant-numeric",
+    "tabular-nums slashed-zero",
+    "tabular-nums slashed-zero"
+   ],
+   [
+    "font-variant-numeric",
+    "slashed-zero tabular-nums ordinal",
+    "tabular-nums ordinal slashed-zero"
+   ],
+   [
+    "font-variant-numeric",
+    "lining-nums oldstyle-nums",
+    "invalid"
+   ],
+   [
+    "font-variant-numeric",
+    "tabular-nums proportional-nums",
+    "invalid"
+   ],
+   [
+    "font-variant-numeric",
+    "ordinal ordinal",
+    "invalid"
+   ],
+   [
+    "font-variant-numeric",
+    "none",
+    "invalid"
+   ],
+   [
+    "font-variant-numeric",
+    "stacked-fractions diagonal-fractions",
+    "invalid"
+   ],
+   [
+    "font-variant-numeric",
+    "tabular-nums diagonal-fractions lining-nums",
+    "lining-nums tabular-nums diagonal-fractions"
+   ],
+   [
+    "font-variant-numeric",
+    "ordinal slashed-zero stacked-fractions oldstyle-nums tabular-nums",
+    "oldstyle-nums tabular-nums stacked-fractions ordinal slashed-zero"
+   ],
+   [
+    "font-variant-numeric",
+    "inherit",
+    "normal"
+   ],
+   [
+    "font-variant-numeric",
+    "initial",
+    "normal"
+   ],
+   [
+    "font-variant-numeric",
+    "foo",
+    "invalid"
+   ],
+   [
+    "font-variant",
+    "normal",
+    "normal"
+   ],
+   [
+    "font-variant",
+    "none",
+    "none"
+   ],
+   [
+    "font-variant",
+    "tabular-nums",
+    "tabular-nums"
+   ],
+   [
+    "font-variant",
+    "small-caps tabular-nums",
+    "small-caps tabular-nums"
+   ],
+   [
+    "font-variant",
+    "no-common-ligatures",
+    "no-common-ligatures"
+   ],
+   [
+    "font-variant",
+    "small-caps",
+    "small-caps"
+   ],
+   [
+    "font-variant",
+    "common-ligatures small-caps",
+    "common-ligatures small-caps"
+   ],
+   [
+    "font-variant",
+    "tabular-nums ordinal lining-nums",
+    "lining-nums tabular-nums ordinal"
+   ],
+   [
+    "font-variant",
+    "none tabular-nums",
+    "invalid"
+   ],
+   [
+    "font-variant",
+    "normal small-caps",
+    "invalid"
+   ],
+   [
+    "font-variant",
+    "small-caps normal",
+    "invalid"
+   ],
+   [
+    "font-variant",
+    "inherit",
+    "normal"
+   ],
+   [
+    "font-variant",
+    "all-small-caps slashed-zero",
+    "all-small-caps slashed-zero"
+   ],
+   [
+    "font-variant",
+    "historical-ligatures",
+    "historical-ligatures"
+   ],
+   [
+    "font-variant",
+    "contextual",
+    "contextual"
+   ],
+   [
+    "font-variant",
+    "ordinal",
+    "ordinal"
+   ],
+   [
+    "font-feature-settings",
+    "normal",
+    "normal"
+   ],
+   [
+    "font-feature-settings",
+    "\"tnum\"",
+    "\"tnum\""
+   ],
+   [
+    "font-feature-settings",
+    "\"tnum\" 1",
+    "\"tnum\""
+   ],
+   [
+    "font-feature-settings",
+    "\"tnum\" 0",
+    "\"tnum\" 0"
+   ],
+   [
+    "font-feature-settings",
+    "\"liga\" off",
+    "\"liga\" 0"
+   ],
+   [
+    "font-feature-settings",
+    "\"tnum\", \"liga\" 0",
+    "\"liga\" 0, \"tnum\""
+   ],
+   [
+    "grid-template-rows",
+    "subgrid",
+    "subgrid"
+   ],
+   [
+    "grid-template-rows",
+    "subgrid [a] [b]",
+    "subgrid [a] [b]"
+   ],
+   [
+    "grid-template-rows",
+    "subgrid repeat(2, [x])",
+    "subgrid repeat(2, [x])"
+   ],
+   [
+    "grid-template-rows",
+    "subgrid [a] repeat(auto-fill, [b])",
+    "subgrid [a] repeat(auto-fill, [b])"
+   ],
+   [
+    "grid-template-rows",
+    "subgrid / auto",
+    "invalid"
+   ],
+   [
+    "grid-template-rows",
+    "none",
+    "none"
+   ],
+   [
+    "grid-template-rows",
+    "subgrid subgrid",
+    "invalid"
+   ],
+   [
+    "grid-template-rows",
+    "subgrid 10px",
+    "invalid"
+   ],
+   [
+    "grid-template-rows",
+    "subgrid [a b] [c]",
+    "subgrid [a b] [c]"
+   ],
+   [
+    "grid-template-columns",
+    "subgrid",
+    "subgrid"
+   ],
+   [
+    "grid-template-columns",
+    "subgrid [a] [b]",
+    "subgrid [a] [b]"
+   ],
+   [
+    "grid-template-columns",
+    "subgrid [a b] [c]",
+    "subgrid [a b] [c]"
+   ],
+   [
+    "grid-template-columns",
+    "subgrid repeat(2, [x])",
+    "subgrid repeat(2, [x])"
+   ],
+   [
+    "grid-template",
+    "subgrid / subgrid",
+    "subgrid / subgrid"
+   ],
+   [
+    "grid-template",
+    "subgrid [a] / 100px",
+    "subgrid [a] / 100px"
+   ],
+   [
+    "min-height",
+    "1lh",
+    "18px"
+   ],
+   [
+    "min-height",
+    "2lh",
+    "36px"
+   ],
+   [
+    "min-height",
+    "1rlh",
+    "18px"
+   ],
+   [
+    "min-height",
+    "calc(1lh + 2px)",
+    "20px"
+   ],
+   [
+    "min-height",
+    "1LH",
+    "18px"
+   ],
+   [
+    "line-height",
+    "1lh",
+    "18px"
+   ],
+   [
+    "line-height",
+    "normal",
+    "normal"
+   ],
+   [
+    "line-height",
+    "1.5",
+    "24px"
+   ],
+   [
+    "all",
+    "unset",
+    ""
+   ],
+   [
+    "all",
+    "initial",
+    ""
+   ],
+   [
+    "all",
+    "inherit",
+    ""
+   ],
+   [
+    "all",
+    "revert",
+    ""
+   ],
+   [
+    "all",
+    "revert-layer",
+    ""
+   ],
+   [
+    "all",
+    "none",
+    "invalid"
+   ],
+   [
+    "all",
+    "red",
+    "invalid"
+   ],
+   [
+    "all",
+    "initial initial",
+    "invalid"
+   ]
+  ]
+ ],
+ "props-7-enum": [
+  [
+   [
+    "overscroll-behavior",
+    false,
+    "auto",
+    true,
+    true,
+    true,
+    "auto"
+   ],
+   [
+    "overscroll-behavior-x",
+    true,
+    "auto",
+    true,
+    true,
+    true,
+    "auto"
+   ],
+   [
+    "overscroll-behavior-y",
+    true,
+    "auto",
+    true,
+    true,
+    true,
+    "auto"
+   ],
+   [
+    "overscroll-behavior-inline",
+    true,
+    "auto",
+    true,
+    true,
+    true,
+    "auto"
+   ],
+   [
+    "overscroll-behavior-block",
+    true,
+    "auto",
+    true,
+    true,
+    true,
+    "auto"
+   ],
+   [
+    "overflow-anchor",
+    true,
+    "auto",
+    true,
+    true,
+    true,
+    "auto"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    true,
+    "rgba(0, 0, 0, 0.18)",
+    true,
+    true,
+    true,
+    "rgba(0, 0, 0, 0.18)"
+   ],
+   [
+    "-webkit-text-size-adjust",
+    false,
+    "auto",
+    true,
+    true,
+    true,
+    "auto"
+   ],
+   [
+    "-webkit-font-smoothing",
+    true,
+    "auto",
+    true,
+    true,
+    true,
+    "auto"
+   ],
+   [
+    "line-break",
+    true,
+    "auto",
+    true,
+    true,
+    true,
+    "auto"
+   ],
+   [
+    "-webkit-line-clamp",
+    true,
+    "none",
+    true,
+    true,
+    true,
+    "none"
+   ],
+   [
+    "-webkit-box-orient",
+    true,
+    "horizontal",
+    true,
+    true,
+    true,
+    "horizontal"
+   ],
+   [
+    "-webkit-background-clip",
+    false,
+    "border-box",
+    true,
+    true,
+    true,
+    "border-box"
+   ],
+   [
+    "background-clip",
+    true,
+    "border-box",
+    true,
+    true,
+    true,
+    "border-box"
+   ],
+   [
+    "font-variant-ligatures",
+    true,
+    "normal",
+    true,
+    true,
+    true,
+    "normal"
+   ],
+   [
+    "font-variant-numeric",
+    true,
+    "normal",
+    true,
+    true,
+    true,
+    "normal"
+   ],
+   [
+    "all",
+    false,
+    "",
+    true,
+    true,
+    true,
+    ""
+   ],
+   [
+    "min-height",
+    true,
+    "0px",
+    true,
+    true,
+    true,
+    "0px"
+   ]
+  ]
+ ],
+ "props-7-inherit": [
+  [
+   [
+    "overscroll-behavior",
+    "none contain",
+    "none contain",
+    "auto",
+    "overscroll-behavior: none contain;",
+    "none contain"
+   ],
+   [
+    "overscroll-behavior",
+    "none",
+    "none",
+    "auto",
+    "overscroll-behavior: none;",
+    "none"
+   ],
+   [
+    "overscroll-behavior-x",
+    "contain",
+    "contain",
+    "auto",
+    "overscroll-behavior-x: contain;",
+    "contain"
+   ],
+   [
+    "overflow-anchor",
+    "none",
+    "none",
+    "auto",
+    "overflow-anchor: none;",
+    "none"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "rgba(0,0,0,.2)",
+    "rgba(0, 0, 0, 0.2)",
+    "rgba(0, 0, 0, 0.2)",
+    "-webkit-tap-highlight-color: rgba(0, 0, 0, 0.2);",
+    "rgba(0, 0, 0, 0.2)"
+   ],
+   [
+    "-webkit-tap-highlight-color",
+    "oklch(0.5 0.1 30)",
+    "oklch(0.5 0.1 30)",
+    "oklch(0.5 0.1 30)",
+    "-webkit-tap-highlight-color: oklch(0.5 0.1 30);",
+    "oklch(0.5 0.1 30)"
+   ],
+   [
+    "-webkit-text-size-adjust",
+    "none",
+    "100%",
+    "100%",
+    "text-size-adjust: none;",
+    "none"
+   ],
+   [
+    "-webkit-text-size-adjust",
+    "50%",
+    "50%",
+    "50%",
+    "text-size-adjust: 50%;",
+    "50%"
+   ],
+   [
+    "-webkit-font-smoothing",
+    "antialiased",
+    "antialiased",
+    "antialiased",
+    "-webkit-font-smoothing: antialiased;",
+    "antialiased"
+   ],
+   [
+    "line-break",
+    "anywhere",
+    "anywhere",
+    "anywhere",
+    "line-break: anywhere;",
+    "anywhere"
+   ],
+   [
+    "font-variant-ligatures",
+    "none",
+    "none",
+    "none",
+    "font-variant-ligatures: none;",
+    "none"
+   ],
+   [
+    "font-variant-ligatures",
+    "no-common-ligatures contextual",
+    "no-common-ligatures contextual",
+    "no-common-ligatures contextual",
+    "font-variant-ligatures: no-common-ligatures contextual;",
+    "no-common-ligatures contextual"
+   ],
+   [
+    "font-variant-numeric",
+    "tabular-nums",
+    "tabular-nums",
+    "tabular-nums",
+    "font-variant-numeric: tabular-nums;",
+    "tabular-nums"
+   ],
+   [
+    "font-variant-numeric",
+    "slashed-zero ordinal tabular-nums",
+    "tabular-nums ordinal slashed-zero",
+    "tabular-nums ordinal slashed-zero",
+    "font-variant-numeric: slashed-zero ordinal tabular-nums;",
+    "slashed-zero ordinal tabular-nums"
+   ],
+   [
+    "font-variant",
+    "tabular-nums",
+    "tabular-nums",
+    "tabular-nums",
+    "font-variant: tabular-nums;",
+    "tabular-nums"
+   ],
+   [
+    "font-variant",
+    "small-caps tabular-nums",
+    "small-caps tabular-nums",
+    "small-caps tabular-nums",
+    "font-variant: small-caps tabular-nums;",
+    "small-caps tabular-nums"
+   ],
+   [
+    "font-variant",
+    "none",
+    "none",
+    "none",
+    "font-variant: none;",
+    "none"
+   ],
+   [
+    "-webkit-line-clamp",
+    "3",
+    "3",
+    "none",
+    "-webkit-line-clamp: 3;",
+    "3"
+   ],
+   [
+    "-webkit-box-orient",
+    "vertical",
+    "vertical",
+    "horizontal",
+    "-webkit-box-orient: vertical;",
+    "vertical"
+   ],
+   [
+    "-webkit-background-clip",
+    "text",
+    "text",
+    "border-box",
+    "background-clip: text;",
+    "text"
+   ],
+   [
+    "background-clip",
+    "text, border-box",
+    "text",
+    "border-box",
+    "background-clip: text, border-box;",
+    "text, border-box"
+   ],
+   [
+    "all",
+    "unset",
+    "",
+    "",
+    "all: unset;",
+    "unset"
+   ],
+   [
+    "all",
+    "initial",
+    "",
+    "",
+    "all: initial;",
+    "initial"
+   ]
+  ]
+ ],
+ "all-values": [
+  [
+   [
+    "a1",
+    "block",
+    "rgb(255, 0, 0)",
+    "30px",
+    "0px",
+    "15px",
+    "70px",
+    "static",
+    "rgba(0, 0, 0, 0)",
+    "rtl",
+    "normal",
+    "1",
+    "2",
+    "0px",
+    "0px",
+    "auto",
+    ""
+   ],
+   [
+    "a2",
+    "block",
+    "rgb(0, 0, 0)",
+    "16px",
+    "0px",
+    "8px",
+    "70px",
+    "static",
+    "rgba(0, 0, 0, 0)",
+    "rtl",
+    "normal",
+    "1",
+    "2",
+    "0px",
+    "0px",
+    "auto",
+    ""
+   ],
+   [
+    "b",
+    "flex",
+    "rgb(255, 0, 0)",
+    "30px",
+    "10px",
+    "15px",
+    "34px",
+    "relative",
+    "rgb(0, 0, 255)",
+    "rtl",
+    "normal",
+    "1",
+    "2",
+    "3px",
+    "5px",
+    "auto",
+    ""
+   ],
+   [
+    "c",
+    "block",
+    "rgb(0, 128, 0)",
+    "30px",
+    "0px",
+    "15px",
+    "70px",
+    "static",
+    "rgba(0, 0, 0, 0)",
+    "rtl",
+    "normal",
+    "1",
+    "2",
+    "0px",
+    "0px",
+    "auto",
+    ""
+   ],
+   [
+    "d",
+    "block",
+    "rgb(255, 0, 0)",
+    "30px",
+    "0px",
+    "15px",
+    "70px",
+    "static",
+    "rgba(0, 0, 0, 0)",
+    "rtl",
+    "normal",
+    "1",
+    "2",
+    "0px",
+    "0px",
+    "auto",
+    ""
+   ],
+   [
+    "e",
+    "block",
+    "rgb(255, 0, 0)",
+    "30px",
+    "0px",
+    "15px",
+    "70px",
+    "static",
+    "rgba(0, 0, 0, 0)",
+    "rtl",
+    "normal",
+    "1",
+    "2",
+    "0px",
+    "0px",
+    "auto",
+    ""
+   ],
+   [
+    "f",
+    "block",
+    "rgb(255, 0, 0)",
+    "30px",
+    "0px",
+    "15px",
+    "70px",
+    "static",
+    "rgba(0, 0, 0, 0)",
+    "rtl",
+    "normal",
+    "1",
+    "2",
+    "0px",
+    "0px",
+    "auto",
+    ""
+   ],
+   [
+    "btn",
+    "inline-block",
+    "rgb(0, 0, 0)",
+    "16px",
+    "0px",
+    "12.4531px",
+    "18px",
+    "static",
+    "rgba(0, 0, 0, 0)",
+    "ltr",
+    "normal",
+    "",
+    "",
+    "0px",
+    "0px",
+    "auto",
+    ""
+   ],
+   [
+    "g",
+    "block",
+    "rgb(0, 0, 0)",
+    "16px",
+    "0px",
+    "30px",
+    "10px",
+    "static",
+    "rgb(255, 0, 0)",
+    "ltr",
+    "isolate",
+    "",
+    "",
+    "0px",
+    "0px",
+    "auto",
+    ""
+   ]
+  ],
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null
+ ],
+ "all-cssom": [
+  [
+   [
+    "unset",
+    "all: unset;",
+    "unset",
+    "unset"
+   ],
+   [
+    "all: inherit;"
+   ],
+   [
+    "unset",
+    "all: unset !important;",
+    "important"
+   ],
+   [
+    "all: revert;"
+   ],
+   [
+    ""
+   ]
+  ]
+ ],
+ "line-break-effects": [
+  [
+   [
+    "auto",
+    56
+   ],
+   [
+    "auto",
+    56
+   ],
+   [
+    "auto",
+    20
+   ],
+   [
+    "auto",
+    74
+   ],
+   [
+    "auto",
+    20
+   ],
+   [
+    "auto",
+    110
+   ],
+   [
+    "auto",
+    56
+   ],
+   [
+    "auto",
+    74
+   ],
+   [
+    "loose",
+    56
+   ],
+   [
+    "loose",
+    56
+   ],
+   [
+    "loose",
+    20
+   ],
+   [
+    "loose",
+    74
+   ],
+   [
+    "loose",
+    20
+   ],
+   [
+    "loose",
+    110
+   ],
+   [
+    "loose",
+    56
+   ],
+   [
+    "loose",
+    74
+   ],
+   [
+    "normal",
+    56
+   ],
+   [
+    "normal",
+    56
+   ],
+   [
+    "normal",
+    20
+   ],
+   [
+    "normal",
+    74
+   ],
+   [
+    "normal",
+    20
+   ],
+   [
+    "normal",
+    110
+   ],
+   [
+    "normal",
+    56
+   ],
+   [
+    "normal",
+    74
+   ],
+   [
+    "strict",
+    56
+   ],
+   [
+    "strict",
+    56
+   ],
+   [
+    "strict",
+    20
+   ],
+   [
+    "strict",
+    74
+   ],
+   [
+    "strict",
+    20
+   ],
+   [
+    "strict",
+    110
+   ],
+   [
+    "strict",
+    56
+   ],
+   [
+    "strict",
+    74
+   ],
+   [
+    "anywhere",
+    56
+   ],
+   [
+    "anywhere",
+    56
+   ],
+   [
+    "anywhere",
+    74
+   ],
+   [
+    "anywhere",
+    56
+   ],
+   [
+    "anywhere",
+    74
+   ],
+   [
+    "anywhere",
+    92
+   ],
+   [
+    "anywhere",
+    56
+   ],
+   [
+    "anywhere",
+    74
+   ]
+  ]
+ ],
+ "line-break-anywhere": [
+  [
+   [
+    0,
+    0,
+    62,
+    56
+   ],
+   [
+    0,
+    61,
+    62,
+    38
+   ],
+   [
+    0,
+    104,
+    62,
+    56
+   ],
+   [
+    0,
+    165,
+    62,
+    56
+   ],
+   [
+    40,
+    226,
+    139.88,
+    20
+   ],
+   [
+    0,
+    226,
+    40,
+    72
+   ],
+   [
+    0,
+    226,
+    40,
+    36
+   ]
+  ]
+ ],
+ "variant-widths": [
+  [
+   [
+    48.047,
+    53.391,
+    133.484,
+    73.406,
+    120.094,
+    26.672,
+    87.578
+   ],
+   [
+    48.047,
+    53.391,
+    133.484,
+    73.406,
+    120.094,
+    26.672,
+    87.578
+   ],
+   [
+    48.047,
+    53.391,
+    133.484,
+    73.406,
+    120.094,
+    26.672,
+    87.578
+   ],
+   [
+    48.047,
+    53.391,
+    133.484,
+    73.406,
+    120.094,
+    26.672,
+    87.578
+   ],
+   [
+    48.047,
+    53.391,
+    133.484,
+    73.406,
+    120.094,
+    26.672,
+    87.578
+   ],
+   [
+    48.047,
+    53.391,
+    133.484,
+    73.406,
+    120.094,
+    26.672,
+    87.578
+   ],
+   [
+    48.047,
+    53.391,
+    133.484,
+    73.406,
+    120.094,
+    26.672,
+    87.578
+   ],
+   [
+    48.047,
+    53.391,
+    133.484,
+    73.406,
+    120.094,
+    26.672,
+    87.578
+   ],
+   [
+    48.047,
+    53.391,
+    133.484,
+    73.406,
+    120.094,
+    26.672,
+    87.578
+   ],
+   [
+    48.047,
+    53.391,
+    133.484,
+    73.406,
+    120.094,
+    26.672,
+    87.578
+   ],
+   [
+    48.047,
+    53.391,
+    133.484,
+    73.406,
+    120.094,
+    26.672,
+    87.578
+   ],
+   [
+    48.047,
+    53.391,
+    133.484,
+    73.406,
+    120.094,
+    26.672,
+    87.578
+   ],
+   [
+    48.047,
+    53.391,
+    133.484,
+    73.406,
+    120.094,
+    26.672,
+    87.578
+   ],
+   [
+    48.047,
+    53.391,
+    133.484,
+    73.406,
+    120.094,
+    26.672,
+    87.578
+   ],
+   [
+    48.047,
+    53.391,
+    133.484,
+    73.406,
+    120.094,
+    26.672,
+    87.578
+   ],
+   [
+    100.047,
+    125.859,
+    118.766,
+    44.016,
+    72.047,
+    44.906
+   ],
+   [
+    100.047,
+    125.859,
+    118.766,
+    44.016,
+    72.047,
+    44.906
+   ],
+   [
+    100.047,
+    125.859,
+    118.766,
+    44.016,
+    72.047,
+    44.906
+   ],
+   [
+    100.047,
+    125.859,
+    118.766,
+    44.016,
+    72.047,
+    44.906
+   ],
+   [
+    100.047,
+    125.859,
+    118.766,
+    44.016,
+    72.047,
+    44.906
+   ],
+   [
+    100.047,
+    125.859,
+    118.766,
+    44.016,
+    72.047,
+    44.906
+   ],
+   [
+    100.047,
+    125.859,
+    118.766,
+    44.016,
+    72.047,
+    44.906
+   ],
+   [
+    100.047,
+    125.859,
+    118.766,
+    44.016,
+    72.047,
+    44.906
+   ],
+   [
+    100.047,
+    125.859,
+    118.766,
+    44.016,
+    72.047,
+    44.906
+   ],
+   [
+    100.047,
+    125.859,
+    118.766,
+    44.016,
+    72.047,
+    44.906
+   ],
+   [
+    100.047,
+    125.859,
+    118.766,
+    44.016,
+    72.047,
+    44.906
+   ],
+   [
+    45.328,
+    48,
+    120,
+    67.344,
+    108,
+    25.344,
+    87.375
+   ],
+   [
+    45.328,
+    48,
+    120,
+    67.344,
+    108,
+    25.344,
+    87.375
+   ],
+   [
+    45.328,
+    48,
+    120,
+    67.344,
+    108,
+    25.344,
+    87.375
+   ],
+   [
+    45.328,
+    48,
+    120,
+    67.344,
+    108,
+    25.344,
+    87.375
+   ],
+   [
+    45.328,
+    48,
+    120,
+    67.344,
+    108,
+    25.344,
+    87.375
+   ],
+   [
+    45.328,
+    48,
+    120,
+    67.344,
+    108,
+    25.344,
+    87.375
+   ],
+   [
+    45.328,
+    48,
+    120,
+    67.344,
+    108,
+    25.344,
+    87.375
+   ],
+   [
+    45.328,
+    48,
+    120,
+    67.344,
+    108,
+    25.344,
+    87.375
+   ],
+   [
+    45.328,
+    48,
+    120,
+    67.344,
+    108,
+    25.344,
+    87.375
+   ],
+   [
+    45.328,
+    48,
+    120,
+    67.344,
+    108,
+    25.344,
+    87.375
+   ],
+   [
+    45.328,
+    48,
+    120,
+    67.344,
+    108,
+    25.344,
+    87.375
+   ],
+   [
+    45.328,
+    48,
+    120,
+    67.344,
+    108,
+    25.344,
+    87.375
+   ],
+   [
+    45.328,
+    48,
+    120,
+    67.344,
+    108,
+    25.344,
+    87.375
+   ],
+   [
+    45.328,
+    48,
+    120,
+    67.344,
+    108,
+    25.344,
+    87.375
+   ],
+   [
+    45.328,
+    48,
+    120,
+    67.344,
+    108,
+    25.344,
+    87.375
+   ],
+   [
+    113.313,
+    122.391,
+    115.203,
+    39.328,
+    68.672,
+    45.563
+   ],
+   [
+    113.313,
+    122.391,
+    115.203,
+    39.328,
+    68.672,
+    45.563
+   ],
+   [
+    113.313,
+    122.391,
+    115.203,
+    39.328,
+    68.672,
+    45.563
+   ],
+   [
+    113.313,
+    122.391,
+    115.203,
+    39.328,
+    68.672,
+    45.563
+   ],
+   [
+    113.313,
+    122.391,
+    115.203,
+    39.328,
+    68.672,
+    45.563
+   ],
+   [
+    113.313,
+    122.391,
+    115.203,
+    39.328,
+    68.672,
+    45.563
+   ],
+   [
+    113.313,
+    122.391,
+    115.203,
+    39.328,
+    68.672,
+    45.563
+   ],
+   [
+    113.313,
+    122.391,
+    115.203,
+    39.328,
+    68.672,
+    45.563
+   ],
+   [
+    113.313,
+    122.391,
+    115.203,
+    39.328,
+    68.672,
+    45.563
+   ],
+   [
+    113.313,
+    122.391,
+    115.203,
+    39.328,
+    68.672,
+    45.563
+   ],
+   [
+    113.313,
+    122.391,
+    115.203,
+    39.328,
+    68.672,
+    45.563
+   ],
+   [
+    61.078,
+    61.078,
+    152.703,
+    84.891,
+    138.109,
+    31.438,
+    92.656
+   ],
+   [
+    61.078,
+    61.078,
+    152.703,
+    84.891,
+    138.109,
+    31.438,
+    92.656
+   ],
+   [
+    61.078,
+    61.078,
+    152.703,
+    84.891,
+    138.109,
+    31.438,
+    92.656
+   ],
+   [
+    61.078,
+    61.078,
+    152.703,
+    84.891,
+    138.109,
+    31.438,
+    92.656
+   ],
+   [
+    61.078,
+    61.078,
+    152.703,
+    84.891,
+    138.109,
+    31.438,
+    92.656
+   ],
+   [
+    61.078,
+    61.078,
+    152.703,
+    84.891,
+    138.109,
+    31.438,
+    92.656
+   ],
+   [
+    61.078,
+    61.078,
+    152.703,
+    84.891,
+    138.109,
+    31.438,
+    92.656
+   ],
+   [
+    61.078,
+    61.078,
+    152.703,
+    84.891,
+    138.109,
+    31.438,
+    92.656
+   ],
+   [
+    61.078,
+    61.078,
+    152.703,
+    84.891,
+    138.109,
+    31.438,
+    92.656
+   ],
+   [
+    61.078,
+    61.078,
+    152.703,
+    84.891,
+    138.109,
+    31.438,
+    92.656
+   ],
+   [
+    61.078,
+    61.078,
+    152.703,
+    84.891,
+    138.109,
+    31.438,
+    92.656
+   ],
+   [
+    61.078,
+    61.078,
+    152.703,
+    84.891,
+    138.109,
+    31.438,
+    92.656
+   ],
+   [
+    61.078,
+    61.078,
+    152.703,
+    84.891,
+    138.109,
+    31.438,
+    92.656
+   ],
+   [
+    61.078,
+    61.078,
+    152.703,
+    84.891,
+    138.109,
+    31.438,
+    92.656
+   ],
+   [
+    61.078,
+    61.078,
+    152.703,
+    84.891,
+    138.109,
+    31.438,
+    92.656
+   ],
+   [
+    123.703,
+    145.781,
+    161.828,
+    52.156,
+    83.813,
+    50.844
+   ],
+   [
+    124.781,
+    146.516,
+    161.828,
+    52.156,
+    83.813,
+    50.844
+   ],
+   [
+    124.781,
+    146.516,
+    161.828,
+    52.156,
+    83.813,
+    50.844
+   ],
+   [
+    123.703,
+    145.781,
+    161.828,
+    52.156,
+    83.813,
+    50.844
+   ],
+   [
+    123.703,
+    145.781,
+    161.828,
+    50.906,
+    83.813,
+    50.844
+   ],
+   [
+    123.703,
+    145.781,
+    161.828,
+    52.156,
+    83.813,
+    50.844
+   ],
+   [
+    123.703,
+    145.781,
+    161.828,
+    52.156,
+    83.813,
+    50.844
+   ],
+   [
+    123.703,
+    145.781,
+    161.828,
+    52.156,
+    83.813,
+    50.844
+   ],
+   [
+    124.781,
+    146.516,
+    161.828,
+    52.156,
+    83.813,
+    50.844
+   ],
+   [
+    124.781,
+    146.516,
+    161.828,
+    52.156,
+    83.813,
+    50.844
+   ],
+   [
+    123.703,
+    145.781,
+    161.828,
+    52.156,
+    83.813,
+    50.844
+   ],
+   [
+    57.609,
+    57.609,
+    144.031,
+    100.828,
+    158.438,
+    57.609,
+    86.422
+   ],
+   [
+    57.609,
+    57.609,
+    144.031,
+    100.828,
+    158.438,
+    57.609,
+    86.422
+   ],
+   [
+    57.609,
+    57.609,
+    144.031,
+    100.828,
+    158.438,
+    57.609,
+    86.422
+   ],
+   [
+    57.609,
+    57.609,
+    144.031,
+    100.828,
+    158.438,
+    57.609,
+    86.422
+   ],
+   [
+    57.609,
+    57.609,
+    144.031,
+    100.828,
+    158.438,
+    57.609,
+    86.422
+   ],
+   [
+    57.609,
+    57.609,
+    144.031,
+    100.828,
+    158.438,
+    57.609,
+    86.422
+   ],
+   [
+    57.609,
+    57.609,
+    144.031,
+    100.828,
+    158.438,
+    57.609,
+    86.422
+   ],
+   [
+    57.609,
+    57.609,
+    144.031,
+    100.828,
+    158.438,
+    57.609,
+    86.422
+   ],
+   [
+    57.609,
+    57.609,
+    144.031,
+    100.828,
+    158.438,
+    57.609,
+    86.422
+   ],
+   [
+    57.609,
+    57.609,
+    144.031,
+    100.828,
+    158.438,
+    57.609,
+    86.422
+   ],
+   [
+    57.609,
+    57.609,
+    144.031,
+    100.828,
+    158.438,
+    57.609,
+    86.422
+   ],
+   [
+    57.609,
+    57.609,
+    144.031,
+    100.828,
+    158.438,
+    57.609,
+    86.422
+   ],
+   [
+    57.609,
+    57.609,
+    144.031,
+    100.828,
+    158.438,
+    57.609,
+    86.422
+   ],
+   [
+    57.609,
+    57.609,
+    144.031,
+    100.828,
+    158.438,
+    57.609,
+    86.422
+   ],
+   [
+    57.609,
+    57.609,
+    144.031,
+    100.828,
+    158.438,
+    57.609,
+    86.422
+   ],
+   [
+    230.438,
+    187.234,
+    158.438,
+    72.016,
+    115.219,
+    72.016
+   ],
+   [
+    230.438,
+    187.234,
+    158.438,
+    72.016,
+    115.219,
+    72.016
+   ],
+   [
+    230.438,
+    187.234,
+    158.438,
+    72.016,
+    115.219,
+    72.016
+   ],
+   [
+    230.438,
+    187.234,
+    158.438,
+    72.016,
+    115.219,
+    72.016
+   ],
+   [
+    230.438,
+    187.234,
+    158.438,
+    72.016,
+    115.219,
+    72.016
+   ],
+   [
+    230.438,
+    187.234,
+    158.438,
+    72.016,
+    115.219,
+    72.016
+   ],
+   [
+    230.438,
+    187.234,
+    158.438,
+    72.016,
+    115.219,
+    72.016
+   ],
+   [
+    230.438,
+    187.234,
+    158.438,
+    72.016,
+    115.219,
+    72.016
+   ],
+   [
+    230.438,
+    187.234,
+    158.438,
+    72.016,
+    115.219,
+    72.016
+   ],
+   [
+    230.438,
+    187.234,
+    158.438,
+    72.016,
+    115.219,
+    72.016
+   ],
+   [
+    230.438,
+    187.234,
+    158.438,
+    72.016,
+    115.219,
+    72.016
+   ]
+  ]
+ ],
+ "variant-cascade": [
+  [
+   [
+    "a",
+    "tabular-nums",
+    "normal",
+    "tabular-nums",
+    "normal",
+    ""
+   ],
+   [
+    "a1",
+    "tabular-nums",
+    "normal",
+    "tabular-nums",
+    "normal",
+    ""
+   ],
+   [
+    "b",
+    "tabular-nums",
+    "normal",
+    "tabular-nums",
+    "normal",
+    ""
+   ],
+   [
+    "b1",
+    "tabular-nums",
+    "normal",
+    "tabular-nums",
+    "normal",
+    ""
+   ],
+   [
+    "b2",
+    "normal",
+    "normal",
+    "normal",
+    "normal",
+    "20px \"Liberation Sans\""
+   ],
+   [
+    "b3",
+    "tabular-nums",
+    "normal",
+    "tabular-nums",
+    "normal",
+    ""
+   ],
+   [
+    "b4",
+    "tabular-nums",
+    "normal",
+    "tabular-nums",
+    "normal",
+    ""
+   ],
+   [
+    "c",
+    "tabular-nums",
+    "none",
+    "",
+    "normal",
+    ""
+   ],
+   [
+    "d",
+    "normal",
+    "none",
+    "none",
+    "normal",
+    ""
+   ],
+   [
+    "d1",
+    "normal",
+    "none",
+    "none",
+    "normal",
+    ""
+   ]
+  ]
+ ],
+ "color-paint": [
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null
+ ],
+ "bg-size-max": [
+  null,
+  null,
+  null,
+  null,
+  null,
+  null
+ ],
+ "gradient-tiles": [
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null
+ ],
+ "lh-units": [
+  [
+   [
+    "rlh 1.5",
+    "24px"
+   ],
+   [
+    "lh child of 1.5",
+    "18px"
+   ],
+   [
+    "lh normal",
+    "18px"
+   ],
+   [
+    "lh own lh 40px",
+    "40px"
+   ],
+   [
+    "lh in child",
+    "50px"
+   ],
+   [
+    "font-size 2lh",
+    "60px"
+   ],
+   [
+    "line-height 2lh",
+    "60px"
+   ],
+   [
+    "root lh 2lh",
+    "36px"
+   ],
+   [
+    "root fs 2lh",
+    "36px"
+   ]
+  ]
+ ],
+ "line-break-min-content": [
+  [
+   [
+    "t0",
+    13.56,
+    794
+   ],
+   [
+    "t1",
+    14,
+    362
+   ],
+   [
+    "t2",
+    14,
+    488
+   ],
+   [
+    "t3",
+    15.34,
+    668
+   ],
+   [
+    "t4",
+    26,
+    218
+   ],
+   [
+    "t5",
+    22.25,
+    272
+   ],
+   [
+    "t6",
+    13.56,
+    794
+   ],
+   [
+    "t7",
+    14,
+    362
+   ],
+   [
+    "t8",
+    14,
+    488
+   ],
+   [
+    "t9",
+    175.44,
+    56
+   ],
+   [
+    "t10",
+    26,
+    218
+   ],
+   [
+    "t11",
+    73.19,
+    74
+   ],
+   [
+    "t12",
+    175.44,
+    56
+   ],
+   [
+    "t13",
+    26,
+    218
+   ],
+   [
+    "t14",
+    73.19,
+    74
+   ],
+   [
+    "t15",
+    175.44,
+    56
+   ],
+   [
+    "t16",
+    26,
+    218
+   ],
+   [
+    "t17",
+    73.19,
+    74
+   ],
+   [
+    "t18",
+    13.56,
+    794
+   ],
+   [
+    "t19",
+    14,
+    362
+   ],
+   [
+    "t20",
+    14,
+    488
+   ],
+   [
+    "t21",
+    13.56,
+    794
+   ],
+   [
+    "t22",
+    14,
+    362
+   ],
+   [
+    "t23",
+    14,
+    488
+   ],
+   [
+    "t24",
+    380.88,
+    20
+   ],
+   [
+    "t25",
+    242,
+    20
+   ],
+   [
+    "t26",
+    233.47,
+    20
+   ],
+   [
+    "t27",
+    13.56,
+    794
+   ],
+   [
+    "t28",
+    14,
+    362
+   ],
+   [
+    "t29",
+    14,
+    488
+   ]
+  ]
+ ],
+ "gradient-many-tiles": [
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null
+ ]
+}

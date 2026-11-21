@@ -303,6 +303,8 @@ fn longhand_alias(name: &str) -> Option<LonghandId> {
         "-webkit-transition-duration" => L::TransitionDuration,
         "-webkit-transition-delay" => L::TransitionDelay,
         "-webkit-transition-timing-function" => L::TransitionTimingFunction,
+        "-webkit-text-size-adjust" => L::TextSizeAdjust,
+        "-webkit-background-clip" => L::BackgroundClip,
         "-webkit-perspective" => L::Perspective,
         "-webkit-perspective-origin" => L::PerspectiveOrigin,
         _ => return None,
@@ -944,7 +946,7 @@ mod tests {
                 BackgroundRepeatKeyword::Round
             )
         );
-        assert_eq!(s.background_clip[0], BackgroundBox::BorderBox);
+        assert_eq!(s.background_clip[0], BackgroundBox::Text);
         let s = style("background-image: radial-gradient(red, blue), image-set('a.png' 1x)");
         assert_eq!(s.background_image[0], None);
         assert_eq!(s.background_image[1], Some(Image::Url("a.png".into())));

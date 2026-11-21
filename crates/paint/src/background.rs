@@ -46,7 +46,7 @@ impl BackgroundAreas {
 
     pub(crate) fn area(&self, which: BackgroundBox) -> Rect {
         match which {
-            BackgroundBox::BorderBox => self.border,
+            BackgroundBox::BorderBox | BackgroundBox::Text => self.border,
             // `content-box` is painted as `padding-box` (not supported yet).
             _ => self.padding,
         }
@@ -140,6 +140,51 @@ pub(crate) fn tile(
         if repeat_y { clip.height } else { h },
     );
     (tile, area.intersection(&clip).unwrap_or_default())
+}
+
+/// The tiling of a gradient layer: the first tile, the area that the tiles
+/// cover (within the painting area) and whether the painting area lies
+/// within that one tile (no copy is visible).
+pub(crate) struct GradientTiling {
+    pub(crate) tile: Rect,
+    pub(crate) area: Rect,
+    pub(crate) single: bool,
+}
+
+/// The tiling of a gradient layer: [`tile`] with the size of a gradient
+/// (it has no natural size, so `auto` is the positioning area), and
+/// whether the painting area `clip` needs more than one tile. The
+/// rasterizer repeats the tile over `area`, so the cost does not depend on
+/// the number of tiles. `None` for an empty tile.
+pub(crate) fn gradient_tiling(
+    layer: &Layer<'_>,
+    positioning: Rect,
+    clip: Rect,
+) -> Option<GradientTiling> {
+    let (first, area) = tile(layer, positioning, clip, &NaturalSize::default());
+    if first.width <= 0.0 || first.height <= 0.0 {
+        return None;
+    }
+    let repeat_x = !matches!(layer.repeat.0, BackgroundRepeatKeyword::NoRepeat);
+    let repeat_y = !matches!(layer.repeat.1, BackgroundRepeatKeyword::NoRepeat);
+    // The copies of the tile that the clip needs along one axis: from the
+    // first tile at or before the start of the clip.
+    let count = |first: f32, size: f32, from: f32, length: f32, repeat: bool| -> f32 {
+        if !repeat {
+            return 1.0;
+        }
+        let back = ((first - from) / size).ceil().max(0.0);
+        ((from + length - (first - back * size)) / size)
+            .ceil()
+            .max(1.0)
+    };
+    let nx = count(first.x, first.width, clip.x, clip.width, repeat_x);
+    let ny = count(first.y, first.height, clip.y, clip.height, repeat_y);
+    Some(GradientTiling {
+        tile: first,
+        area,
+        single: nx <= 1.0 && ny <= 1.0,
+    })
 }
 
 /// The area of the image of a replaced element whose content box is
@@ -239,6 +284,61 @@ fn unclamped_tile_size(size: &BackgroundSize, area: Rect, natural: &NaturalSize)
 mod tests {
     use super::*;
     use swb_style::{LengthPercentage, LengthPercentageOrAuto};
+
+    #[test]
+    fn gradient_tiling_counts_copies_without_listing_them() {
+        let zero = PositionComponent {
+            offset: LengthPercentage::Percent(0.0),
+            from_end: false,
+        };
+        let area = Rect::new(0.0, 0.0, 100.0, 100.0);
+        let size = BackgroundSize::Explicit(px(40.0), px(40.0));
+        let repeat = (
+            BackgroundRepeatKeyword::Repeat,
+            BackgroundRepeatKeyword::Repeat,
+        );
+        let layer = Layer {
+            size: &size,
+            position_x: &zero,
+            position_y: &zero,
+            repeat,
+        };
+        let t = gradient_tiling(&layer, area, area).expect("a tile");
+        assert_eq!(t.tile, Rect::new(0.0, 0.0, 40.0, 40.0));
+        assert_eq!(t.area, area);
+        assert!(!t.single);
+        // One tile covers the area: no copy shows.
+        let big = BackgroundSize::Explicit(px(100.0), px(100.0));
+        let layer = Layer {
+            size: &big,
+            position_x: &zero,
+            position_y: &zero,
+            repeat,
+        };
+        assert!(gradient_tiling(&layer, area, area).is_some_and(|t| t.single));
+        // A tile of 1 px in a huge area is one tiling, not 10^10 items.
+        let tiny = BackgroundSize::Explicit(px(1.0), px(1.0));
+        let layer = Layer {
+            size: &tiny,
+            position_x: &zero,
+            position_y: &zero,
+            repeat,
+        };
+        let huge = Rect::new(0.0, 0.0, 100_000.0, 100_000.0);
+        assert!(gradient_tiling(&layer, huge, huge).is_some_and(|t| !t.single && t.area == huge));
+        // No repeat in y: the area is one row of tiles.
+        let layer = Layer {
+            size: &size,
+            position_x: &zero,
+            position_y: &zero,
+            repeat: (
+                BackgroundRepeatKeyword::Repeat,
+                BackgroundRepeatKeyword::NoRepeat,
+            ),
+        };
+        let t = gradient_tiling(&layer, area, area).expect("a tile");
+        assert_eq!(t.area, Rect::new(0.0, 0.0, 100.0, 40.0));
+    }
 
     #[test]
     fn centered_no_repeat() {

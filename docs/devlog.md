@@ -4,6 +4,35 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-21: M13 feature 2b, colors that keep their space
+
+- ADR 0046. Computed `oklch()`, `oklab()`, `lab()`, `lch()` and
+  `color()` keep their space and float coordinates, and
+  `getComputedStyle` writes them as Chromium does. Tailwind 4 writes
+  every color of videojs.org as `oklch()`; feature 3a needs the space to
+  interpolate colors in Oklab. Paint stays 8-bit sRGB, and no fixture
+  pixel changed.
+- New: `font-variant-ligatures`, `font-variant-numeric` and the
+  `font-variant` shorthand (OpenType features), `line-break`, the units
+  `lh` and `rlh`, and nine properties that parse without a visible
+  effect.
+- The backlog item "the gradient over the player darkens too early" was
+  not about colors. Gradient layers ignored `background-size`,
+  `-position` and `-repeat`, so the player's overlay covered the whole
+  video. The JS-off pixel score of videojs rises from 0.7481 to
+  0.9999.
+- The review found that one display item per gradient tile let 60,000
+  small boxes take 11.9 GiB. A gradient item now has a tile, and the
+  rasterizer repeats it. The review also found that `lh` used the
+  parent's line height, `rlh` ignored the root's, and `line-break:
+  anywhere` did not break around punctuation and in Japanese text; all
+  three now equal Chromium.
+- Not done: the paint of `background-clip: text` (feature 2c, with
+  gradients clipped by rounded corners and the player's icons), the
+  layout of `-webkit-line-clamp` and `subgrid` (backlog; ADR 0046 has
+  the plans).
+- Next: feature 2c.
+
 ## 2026-11-21: M13 feature 2a, static CSS of videojs.org
 
 - ADR 0045. New: `translate`, `rotate`, `scale`, `box-shadow` and

@@ -12,8 +12,8 @@ use crate::values::{
     CompositeOperator, ComputedCalc, Content, ContentItem, CounterList, Direction, FlexBasis,
     FontFamily, FontStyle, GenericFamily, GridLine, Image, LengthPercentage,
     LengthPercentageOrAuto, LineHeight, ListStyleType, MaskClip, MaskImage, MaskMode, MaxSize,
-    Position, PositionComponent, Size, SvgPaint, TextAlign, TrackBreadth, TrackList,
-    TrackListValue, TrackSize, TransformFunction, VerticalAlign, ZIndex,
+    Position, PositionComponent, Size, SvgPaint, TextAlign, TextSizeAdjust, TrackBreadth,
+    TrackList, TrackListValue, TrackSize, TransformFunction, VerticalAlign, ZIndex,
 };
 use crate::{ComputedStyle, InertStyle, PseudoKind};
 
@@ -558,6 +558,25 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
         "rotate" => super::effects::rotate(s.rotate.as_ref()),
         "scale" => super::effects::scale(s.scale.as_ref()),
         "isolation" => s.isolation.as_str().to_owned(),
+        "font-variant-ligatures" => s.font_variant_ligatures.as_text(),
+        "font-variant-numeric" => s.font_variant_numeric.as_text(),
+        "-webkit-tap-highlight-color" => color(s.tap_highlight_color),
+        "text-size-adjust" => match s.text_size_adjust {
+            TextSizeAdjust::Auto => "auto".to_owned(),
+            TextSizeAdjust::Percent(v) => format!("{}%", number(v)),
+        },
+        "-webkit-font-smoothing" => s.font_smoothing.as_str().to_owned(),
+        "line-break" => s.line_break.as_str().to_owned(),
+        "overflow-anchor" => s.overflow_anchor.as_str().to_owned(),
+        "overscroll-behavior-x" => s.overscroll_behavior_x.as_str().to_owned(),
+        "overscroll-behavior-y" => s.overscroll_behavior_y.as_str().to_owned(),
+        "overscroll-behavior-inline" => s.overscroll_behavior_inline.as_str().to_owned(),
+        "overscroll-behavior-block" => s.overscroll_behavior_block.as_str().to_owned(),
+        "-webkit-line-clamp" => s.line_clamp.map_or_else(
+            || "none".to_owned(),
+            |n| super::super::value::format_number(f64::from(n)),
+        ),
+        "-webkit-box-orient" => s.box_orient.as_str().to_owned(),
         "corner-top-left-shape" => super::effects::corner_shape(s.corner_top_left_shape),
         "corner-top-right-shape" => super::effects::corner_shape(s.corner_top_right_shape),
         "corner-bottom-right-shape" => super::effects::corner_shape(s.corner_bottom_right_shape),

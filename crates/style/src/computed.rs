@@ -15,17 +15,18 @@ use crate::values::{
     ContainerType, Content, ContentVisibility, CornerRadius, CounterList, Cursor, Direction,
     Display, EmptyCells, FieldSizing, FillRule, Filter, FlexBasis, FlexDirection, FlexWrap, Float,
     FontFamily, FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily, GridAutoFlow,
-    GridLine, GridTemplateAreas, Hyphens, Image, LengthPercentage, LengthPercentageOrAuto,
-    LineHeight, ListStylePosition, ListStyleType, MaskClip, MaskImage, MaskMode, MaxSize,
-    MixBlendMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents,
-    Position, PositionComponent, Resize, Rgba, ScrollbarWidth, ShapeRendering, Size, StrokeLinecap,
-    StrokeLinejoin, SvgPaint, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle,
-    TextOverflow, TextTransform, TextWrapStyle, TrackBreadth, TrackList, TrackSize, UnicodeBidi,
-    UserSelect, VerticalAlign, Visibility, WhiteSpace, WordBreak, ZIndex,
+    GridLine, GridTemplateAreas, Hyphens, Image, LengthContext, LengthPercentage,
+    LengthPercentageOrAuto, LineHeight, ListStylePosition, ListStyleType, MaskClip, MaskImage,
+    MaskMode, MaxSize, MixBlendMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay,
+    PointerEvents, Position, PositionComponent, Resize, Rgba, ScrollbarWidth, ShapeRendering, Size,
+    StrokeLinecap, StrokeLinejoin, SvgPaint, TableLayout, TextAlign, TextDecorationLine,
+    TextDecorationStyle, TextOverflow, TextTransform, TextWrapStyle, TrackBreadth, TrackList,
+    TrackSize, UnicodeBidi, UserSelect, VerticalAlign, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
 use crate::values::{
-    BoxShadow, ClipRect, CornerShape, Isolation, Rotate, Scale, TextShadow, TransformFunction,
-    TransformOrigin, Translate,
+    BoxOrient, BoxShadow, ClipRect, CornerShape, FontSmoothing, FontVariantLigatures,
+    FontVariantNumeric, Isolation, LineBreak, OverflowAnchor, OverscrollBehavior, Rotate, Scale,
+    TextShadow, TextSizeAdjust, TransformFunction, TransformOrigin, Translate,
 };
 
 /// The computed values of all supported properties for one element (or
@@ -57,6 +58,32 @@ pub struct ComputedStyle {
     pub font_style: FontStyle,
     pub font_stretch: f32,
     pub font_variant_caps: FontVariantCaps,
+    /// `font-variant-ligatures`.
+    pub font_variant_ligatures: FontVariantLigatures,
+    /// `font-variant-numeric`.
+    pub font_variant_numeric: FontVariantNumeric,
+    /// `-webkit-tap-highlight-color` (no effect).
+    pub tap_highlight_color: Color,
+    /// `text-size-adjust` (no effect).
+    pub text_size_adjust: TextSizeAdjust,
+    /// `-webkit-font-smoothing` (no effect).
+    pub font_smoothing: FontSmoothing,
+    /// `line-break`.
+    pub line_break: LineBreak,
+    /// `overflow-anchor` (no effect).
+    pub overflow_anchor: OverflowAnchor,
+    /// `overscroll-behavior-x` (no effect).
+    pub overscroll_behavior_x: OverscrollBehavior,
+    /// `overscroll-behavior-y` (no effect).
+    pub overscroll_behavior_y: OverscrollBehavior,
+    /// `overscroll-behavior-inline` (no effect).
+    pub overscroll_behavior_inline: OverscrollBehavior,
+    /// `overscroll-behavior-block` (no effect).
+    pub overscroll_behavior_block: OverscrollBehavior,
+    /// `-webkit-line-clamp`: the number of lines, `None` for `none`.
+    pub line_clamp: Option<i32>,
+    /// `-webkit-box-orient`.
+    pub box_orient: BoxOrient,
     /// `font-variation-settings`: sorted by tag (see `font_settings`).
     pub font_variation_settings: FontVariationSettings,
     /// `font-feature-settings`: sorted by tag.
@@ -362,6 +389,19 @@ impl ComputedStyle {
             font_style: FontStyle::Normal,
             font_stretch: 100.0,
             font_variant_caps: FontVariantCaps::Normal,
+            font_variant_ligatures: FontVariantLigatures::default(),
+            font_variant_numeric: FontVariantNumeric::default(),
+            tap_highlight_color: Color::Rgba(Rgba::new(0, 0, 0, 46)),
+            text_size_adjust: TextSizeAdjust::Auto,
+            font_smoothing: FontSmoothing::Auto,
+            line_break: LineBreak::Auto,
+            overflow_anchor: OverflowAnchor::Auto,
+            overscroll_behavior_x: OverscrollBehavior::Auto,
+            overscroll_behavior_y: OverscrollBehavior::Auto,
+            overscroll_behavior_inline: OverscrollBehavior::Auto,
+            overscroll_behavior_block: OverscrollBehavior::Auto,
+            line_clamp: None,
+            box_orient: BoxOrient::Horizontal,
             font_variation_settings: Arc::from([]),
             font_feature_settings: Arc::from([]),
             line_height: LineHeight::Normal,
@@ -618,6 +658,15 @@ impl ComputedStyle {
         self.line_height
             .resolve(self.font_size)
             .unwrap_or(normal_line_height)
+    }
+
+    /// The computed line height in px, for `lh` and `rlh`: `normal` is
+    /// [`LengthContext::normal_line_height`] of the font size (the style has
+    /// no font metrics).
+    pub fn line_height_px(&self) -> f32 {
+        self.line_height
+            .resolve(self.font_size)
+            .unwrap_or_else(|| LengthContext::normal_line_height(self.font_size))
     }
 
     /// True if the box is a float.

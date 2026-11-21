@@ -57,12 +57,6 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
         "swb's selector parser accepts the `s` flag of attribute selectors (Chromium 148 does not)",
     ),
     (
-        "rule-objects",
-        2,
-        r#"["@media screen and (max-width: 599px) {\n  .x { height: 26px; max-width: 248px; }\n}", "@media (hover: hover) {\n  .x { color: red; }\n  .y { color: blue; }\n}", "@media print, (min-width: 100px) and (max-width: 200px) {\n}", "@media (foo) {\n  a { }\n}", "@media screen {\n  @media (min-width: 1px) {\n  a { top: 0px; }\n}\n}", "@media screen and (min-width: 1px) {\n}", "@supports (text-size-adjust:none) {\n  body { }\n}", "@supports not (display: grid) {\n  a { top: 0px; }\n}", "@supports (display: grid) and (not (display: inline-grid)) {\n}", "@keyframes pulse { \n  0% { opacity: 1; }\n  60% { opacity: 0.3; }\n  100% { opacity: 1; }\n}", "@keyframes x { \n  0% { top: 0px; }\n  100% { top: 10px; }\n}", "@font-face { font-family: \"X Y\"; src: url(\"x.woff2\") format(\"woff2\"); font-weight: 400; }"]"#,
-        "swb does not parse `text-size-adjust`, so the declaration is not in the block",
-    ),
-    (
         "grouping-rules",
         4,
         r#"[7, "CSSKeyframesRule", "k", "@keyframes k { \n  0% { top: 0px; }\n  50% { top: 5px; }\n  100% { top: 10px; }\n}", "none", "none"]"#,

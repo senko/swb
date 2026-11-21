@@ -3,16 +3,16 @@
 //! <https://www.w3.org/TR/css-color-4/> and
 //! <https://www.w3.org/TR/css-color-5/#color-mix>.
 //!
-//! All colors are converted to sRGB at parse time and clipped to the sRGB
-//! gamut. The conversion matrices are the ones published in CSS Color 4,
-//! section 18 ("Sample code for color conversions").
+//! The legacy syntaxes (`rgb()`, `hsl()`, `hwb()`, hex, names) are converted
+//! to 8-bit sRGB at parse time. `lab()`, `lch()`, `oklab()`, `oklch()` and
+//! `color()` keep their space and float coordinates as a
+//! [`Wide`](crate::values::color_mix::Wide) color (ADR 0046), which paints
+//! as the 8-bit sRGB color clipped to the gamut. The conversion matrices
+//! are the ones published in CSS Color 4, section 18 ("Sample code for color
+//! conversions").
 //!
 //! Limitations: relative color syntax (`rgb(from ...)`) is not supported.
-//! `color()` supports `srgb`, `srgb-linear`, `display-p3`, `xyz`,
-//! `xyz-d65` and `xyz-d50`. `color-mix()` supports only colors without
-//! `currentColor`; mixing in a polar space (`hsl`, `hwb`, `lch`, `oklch`)
-//! is done in the matching rectangular space (`srgb`, `lab`, `oklab`),
-//! which is an approximation. `light-dark()` always picks the light color.
+//! `light-dark()` always picks the light color.
 
 #![allow(clippy::many_single_char_names)] // Color math uses one-letter channel names.
 
@@ -99,8 +99,14 @@ fn parse_color_function(name: &str, mut args: Parser<'_>) -> ParseResult<Color> 
         "rgb" | "rgba" => parse_rgb(&mut args)?,
         "hsl" | "hsla" => parse_hsl(&mut args)?,
         "hwb" => args.parse_entirely(parse_hwb)?,
-        "lab" | "lch" | "oklab" | "oklch" => args.parse_entirely(|p| parse_lab_like(p, &lower))?,
-        "color" => args.parse_entirely(parse_color_space_function)?,
+        "lab" | "lch" | "oklab" | "oklch" => {
+            let wide = args.parse_entirely(|p| parse_lab_like(p, &lower))?;
+            return Ok(color_mix::wide_color(wide));
+        }
+        "color" => {
+            let wide = args.parse_entirely(parse_color_space_function)?;
+            return Ok(color_mix::wide_color(wide));
+        }
         "light-dark" => {
             let colors = args.parse_comma_separated(parse_color)?;
             return match colors.as_slice() {
@@ -233,51 +239,89 @@ fn parse_hwb(p: &mut Parser<'_>) -> ParseResult<Rgba> {
     Ok(Rgba::from_f32(r * 255.0, g * 255.0, b * 255.0, a))
 }
 
-/// `lab()`, `lch()`, `oklab()` and `oklch()`.
-/// <https://www.w3.org/TR/css-color-4/#specifying-lab-lch>
-fn parse_lab_like(p: &mut Parser<'_>, name: &str) -> ParseResult<Rgba> {
-    let (l_scale, ab_scale) = match name {
-        "lab" => (100.0, 125.0),
-        "lch" => (100.0, 150.0),
-        "oklab" | "oklch" => (1.0, 0.4),
-        _ => return Err(ParseError::Unexpected),
-    };
-    let l = modern_channel(p, l_scale)?;
-    let polar = name.ends_with("ch");
-    let (a, b) = if polar {
-        let c = modern_channel(p, ab_scale)?.max(0.0);
-        let h = modern_hue(p)?.to_radians();
-        (c * h.cos(), c * h.sin())
-    } else {
-        (modern_channel(p, ab_scale)?, modern_channel(p, ab_scale)?)
-    };
-    let alpha = modern_alpha(p)?;
-    let linear = if name.starts_with("ok") {
-        oklab_to_linear_srgb([l, a, b])
-    } else {
-        xyz_d65_to_linear_srgb(d50_to_d65(lab_to_xyz_d50([l.max(0.0), a, b])))
-    };
-    Ok(linear_srgb_to_rgba(linear, alpha))
+/// A channel of a modern color function: its value and whether it is
+/// `none` (the value is then 0).
+fn channel_or_none(p: &mut Parser<'_>, percent_scale: f32) -> ParseResult<(f32, bool)> {
+    if p.expect_ident_matching("none").is_ok() {
+        return Ok((0.0, true));
+    }
+    modern_channel(p, percent_scale).map(|v| (v, false))
 }
 
-/// `color(<colorspace> c1 c2 c3 [/ alpha])`.
-/// <https://www.w3.org/TR/css-color-4/#color-function>
-fn parse_color_space_function(p: &mut Parser<'_>) -> ParseResult<Rgba> {
-    let space = p.expect_ident()?.to_ascii_lowercase();
-    let mut c = [0.0; 3];
-    for v in &mut c {
-        *v = modern_channel(p, 1.0)?;
+/// A hue channel of a modern color function, in degrees, and whether it is
+/// `none`.
+fn hue_or_none(p: &mut Parser<'_>) -> ParseResult<(f32, bool)> {
+    if p.expect_ident_matching("none").is_ok() {
+        return Ok((0.0, true));
     }
-    let alpha = modern_alpha(p)?;
-    let linear = match space.as_str() {
-        "srgb" => c.map(srgb_to_linear),
-        "srgb-linear" => c,
-        "display-p3" => xyz_d65_to_linear_srgb(mul(&P3_TO_XYZ_D65, c.map(srgb_to_linear))),
-        "xyz" | "xyz-d65" => xyz_d65_to_linear_srgb(c),
-        "xyz-d50" => xyz_d65_to_linear_srgb(d50_to_d65(c)),
+    parse_hue(p).map(|v| (v, false))
+}
+
+/// The optional `/ <alpha-value>` of a modern color function, and whether
+/// it is `none`.
+fn alpha_or_none(p: &mut Parser<'_>) -> ParseResult<(f32, bool)> {
+    if p.expect_delim('/').is_err() {
+        return Ok((1.0, false));
+    }
+    if p.expect_ident_matching("none").is_ok() {
+        return Ok((0.0, true));
+    }
+    alpha_value(p).map(|v| (v, false))
+}
+
+/// `lab()`, `lch()`, `oklab()` and `oklch()`. The lightness is clamped,
+/// the chroma is not negative, the hue is in 0 to 360 (measured in Chromium
+/// 148, `css-videojs-2b.json`).
+/// <https://www.w3.org/TR/css-color-4/#specifying-lab-lch>
+fn parse_lab_like(p: &mut Parser<'_>, name: &str) -> ParseResult<Wide> {
+    let (space, l_scale, ab_scale) = match name {
+        "lab" => (Space::Lab, 100.0, 125.0),
+        "lch" => (Space::Lch, 100.0, 150.0),
+        "oklab" => (Space::Oklab, 1.0, 0.4),
+        "oklch" => (Space::Oklch, 1.0, 0.4),
+        _ => return Err(ParseError::Unexpected),
+    };
+    let polar = space.is_polar();
+    let (l, none_l) = channel_or_none(p, l_scale)?;
+    let (second, none_2) = channel_or_none(p, ab_scale)?;
+    let (third, none_3) = if polar {
+        hue_or_none(p)?
+    } else {
+        channel_or_none(p, ab_scale)?
+    };
+    let (alpha, none_alpha) = alpha_or_none(p)?;
+    let (second, third) = if polar {
+        (second.max(0.0), third.rem_euclid(360.0))
+    } else {
+        (second, third)
+    };
+    let none = u8::from(none_l)
+        | (u8::from(none_2) << 1)
+        | (u8::from(none_3) << 2)
+        | (u8::from(none_alpha) * color_mix::NONE_ALPHA);
+    Ok(Wide::new(space, [l.clamp(0.0, l_scale), second, third], alpha).with_none(none))
+}
+
+/// `color(<colorspace> c1 c2 c3 [/ alpha])`. The coordinates are not
+/// clamped.
+/// <https://www.w3.org/TR/css-color-4/#color-function>
+fn parse_color_space_function(p: &mut Parser<'_>) -> ParseResult<Wide> {
+    let name = p.expect_ident()?.to_ascii_lowercase();
+    let space = match name.as_str() {
+        "srgb" | "srgb-linear" | "display-p3" | "a98-rgb" | "prophoto-rgb" | "rec2020" | "xyz"
+        | "xyz-d65" | "xyz-d50" => Space::from_name(&name).ok_or(ParseError::Invalid)?,
         _ => return Err(ParseError::Invalid),
     };
-    Ok(linear_srgb_to_rgba(linear, alpha))
+    let mut c = [0.0; 3];
+    let mut none = 0u8;
+    for (i, v) in c.iter_mut().enumerate() {
+        let (value, is_none) = channel_or_none(p, 1.0)?;
+        *v = value;
+        none |= u8::from(is_none) << i;
+    }
+    let (alpha, none_alpha) = alpha_or_none(p)?;
+    none |= u8::from(none_alpha) * color_mix::NONE_ALPHA;
+    Ok(Wide::new(space, c, alpha).with_none(none))
 }
 
 /// A percentage of `color-mix()`: a `<percentage>`, or a math function that
@@ -492,19 +536,6 @@ pub(crate) fn xyz_d50_to_lab(xyz: [f32; 3]) -> [f32; 3] {
     [116.0 * f1 - 16.0, 500.0 * (f0 - f1), 200.0 * (f1 - f2)]
 }
 
-/// <https://bottosson.github.io/posts/oklab/>
-pub(crate) fn oklab_to_linear_srgb([l, a, b]: [f32; 3]) -> [f32; 3] {
-    let l_ = l + 0.396_337_78 * a + 0.215_803_76 * b;
-    let m_ = l - 0.105_561_346 * a - 0.063_854_17 * b;
-    let s_ = l - 0.089_484_18 * a - 1.291_485_5 * b;
-    let (l3, m3, s3) = (l_.powi(3), m_.powi(3), s_.powi(3));
-    [
-        4.076_741_7 * l3 - 3.307_711_6 * m3 + 0.230_969_94 * s3,
-        -1.268_438 * l3 + 2.609_757_4 * m3 - 0.341_319_38 * s3,
-        -0.004_196_086_3 * l3 - 0.703_418_6 * m3 + 1.707_614_7 * s3,
-    ]
-}
-
 /// HSL to sRGB (0..1), saturation and lightness as fractions.
 /// <https://www.w3.org/TR/css-color-4/#hsl-to-rgb>
 pub(crate) fn hsl_to_srgb(hue: f32, sat: f32, light: f32) -> [f32; 3] {
@@ -658,6 +689,100 @@ mod tests {
         for (css, expected) in cases {
             assert_eq!(c(css), *expected, "{css}");
         }
+    }
+
+    /// The computed text of a color, as `getComputedStyle` shows it.
+    fn text(css: &str) -> Option<String> {
+        c(css).map(|color| color.resolved_text(Rgba::BLACK))
+    }
+
+    /// The values are those that Chromium 148 gave (`css-videojs-2b.json`).
+    #[test]
+    fn wide_colors_keep_their_space() {
+        let cases: &[(&str, Option<&str>)] = &[
+            (
+                "oklch(0.628 0.2577 29.23)",
+                Some("oklch(0.628 0.2577 29.23)"),
+            ),
+            (
+                "oklch(62.8% 0.2577 29.23)",
+                Some("oklch(0.628 0.2577 29.23)"),
+            ),
+            ("oklch(0.5 none 30)", Some("oklch(0.5 none 30)")),
+            ("oklch(none none none)", Some("oklch(none none none)")),
+            ("oklch(0.5 0.1 30 / none)", Some("oklch(0.5 0.1 30 / none)")),
+            ("oklch(0.5 0.1 30 / 50%)", Some("oklch(0.5 0.1 30 / 0.5)")),
+            ("oklch(0.5 0.1 30 / 2)", Some("oklch(0.5 0.1 30)")),
+            ("oklch(0.5 0.1 30 / -1)", Some("oklch(0.5 0.1 30 / 0)")),
+            ("oklch(2 0.1 30)", Some("oklch(1 0.1 30)")),
+            ("oklch(-1 0.1 30)", Some("oklch(0 0.1 30)")),
+            ("oklch(0.5 -0.1 30)", Some("oklch(0.5 0 30)")),
+            ("oklch(0.5 0.1 390)", Some("oklch(0.5 0.1 30)")),
+            ("oklch(0.5 0.1 -30)", Some("oklch(0.5 0.1 330)")),
+            ("oklch(0.5 0.1 0.5turn)", Some("oklch(0.5 0.1 180)")),
+            ("oklch(50% 50% 30)", Some("oklch(0.5 0.2 30)")),
+            ("oklch(0.5 0.00001 30)", Some("oklch(0.5 0.00001 30)")),
+            ("oklch(1e-7 0 0)", Some("oklch(1.00000e-7 0 0)")),
+            ("oklch(0.5, 0.1, 30)", None),
+            ("oklch(0.5 0.1)", None),
+            ("oklab(0.5 50% -50%)", Some("oklab(0.5 0.2 -0.2)")),
+            ("oklab(2 0 0)", Some("oklab(1 0 0)")),
+            ("lab(50% 40 30)", Some("lab(50 40 30)")),
+            ("lab(50 100% -100%)", Some("lab(50 125 -125)")),
+            ("lab(120 0 0)", Some("lab(100 0 0)")),
+            ("lab(50 none 30 / 0.3)", Some("lab(50 none 30 / 0.3)")),
+            ("lch(50% 100% 30)", Some("lch(50 150 30)")),
+            ("lch(120 200 380)", Some("lch(100 200 20)")),
+            ("color(srgb 2 -1 0.5)", Some("color(srgb 2 -1 0.5)")),
+            ("color(srgb 50% 0% 100%)", Some("color(srgb 0.5 0 1)")),
+            ("color(xyz 0.5 0.5 0.5)", Some("color(xyz-d65 0.5 0.5 0.5)")),
+            ("color(srgb none 0 0)", Some("color(srgb none 0 0)")),
+            (
+                "color(display-p3 1 0 0 / 50%)",
+                Some("color(display-p3 1 0 0 / 0.5)"),
+            ),
+            ("color(rec2020 1 0 0)", Some("color(rec2020 1 0 0)")),
+            ("color(foo 1 0 0)", None),
+            ("color(srgb 1 0)", None),
+            (
+                "color(srgb 1234567 0 0)",
+                Some("color(srgb 1.23457e+6 0 0)"),
+            ),
+            ("rgb(none 0 0)", Some("rgb(0, 0, 0)")),
+        ];
+        for (css, expected) in cases {
+            assert_eq!(text(css).as_deref(), *expected, "{css}");
+        }
+    }
+
+    #[test]
+    fn wide_colors_paint_clipped_to_srgb() {
+        let paint = |css: &str| c(css).map(|color| color.resolve(Rgba::BLACK));
+        assert_eq!(
+            paint("color(srgb 0.5 0.5 0.5)"),
+            Some(Rgba::rgb(128, 128, 128))
+        );
+        assert_eq!(paint("color(srgb 2 -1 0.5)"), Some(Rgba::rgb(255, 0, 128)));
+        assert_eq!(paint("color(display-p3 1 0 0)"), Some(Rgba::rgb(255, 0, 0)));
+        assert_eq!(paint("oklch(0.5 0.1 120)"), Some(Rgba::rgb(92, 107, 33)));
+        assert_eq!(paint("lab(50% 20 30)"), Some(Rgba::rgb(161, 105, 69)));
+        assert_eq!(paint("oklab(0.7 -0.1 0.1 / 0.5)").map(|c| c.a), Some(128));
+    }
+
+    #[test]
+    fn mixes_of_wide_colors_use_their_coordinates() {
+        // The mix of two `oklch()` colors in `oklab` has the average of
+        // their rectangular coordinates, not of 8-bit sRGB ones.
+        assert_eq!(
+            text("color-mix(in oklab, oklch(0.5 0.1 30 / 0.5), oklch(0.7 0.1 50 / 0.5))")
+                .as_deref(),
+            Some("oklab(0.6 0.0754407 0.0633022 / 0.5)")
+        );
+        // A missing chroma takes the other color's; the hue stays.
+        assert_eq!(
+            text("color-mix(in oklch, oklch(0.5 none 30), oklch(0.7 0.1 50))").as_deref(),
+            Some("oklch(0.6 0.1 40)")
+        );
     }
 
     fn close(a: Option<Color>, b: Rgba) -> bool {

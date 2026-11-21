@@ -11,6 +11,9 @@
 //! `ap-font-size-indirect`, `ap-font-size-unrelated`); ADR 0038, section
 //! "7b". Properties that no font property references are not affected.
 //!
+//! The module also tells the cascade whether an element's registered
+//! values can depend on its own line height ([`depends_on_line_height`]).
+//!
 //! <https://www.w3.org/TR/css-properties-values-api-1/#dependency-cycles>
 
 use std::collections::HashMap;
@@ -18,6 +21,7 @@ use std::sync::Arc;
 
 use swb_css::ComponentValue;
 
+use crate::custom::CustomProperties;
 use crate::properties::CustomDeclaration;
 use crate::registered::Registry;
 
@@ -132,6 +136,35 @@ pub(crate) fn cycle_names(
         .collect()
 }
 
+/// True if the registered custom properties of an element can depend on
+/// its own line height: a declared value uses `lh`, or it references
+/// through `var()` an inherited value that does. Inherited values have no
+/// `var()` left, so one lookup in the parent's map is enough. The cascade
+/// computes the registered lengths again with the element's line height
+/// only then (on videojs.org, most elements change the line height and
+/// none uses `lh`).
+pub(crate) fn depends_on_line_height(
+    declared: &[(&Arc<str>, &CustomDeclaration)],
+    parent: Option<&CustomProperties>,
+) -> bool {
+    let mut names = Vec::new();
+    for (_, decl) in declared {
+        if let CustomDeclaration::Value(value) = decl {
+            if has_unit(value, line_height_unit, false) {
+                return true;
+            }
+            var_names(value, &mut names);
+        }
+    }
+    parent.is_some_and(|parent| {
+        names.iter().any(|name| {
+            parent
+                .get(name)
+                .is_some_and(|value| has_unit(value, line_height_unit, false))
+        })
+    })
+}
+
 /// Appends the names that `var()` references in `values` use, at any
 /// depth (also those in fallbacks).
 fn var_names(values: &[ComponentValue], out: &mut Vec<String>) {
@@ -197,16 +230,7 @@ mod tests {
         registered: &[&str],
         is_root: bool,
     ) -> Vec<String> {
-        let owned: Vec<(Arc<str>, CustomDeclaration)> = decls
-            .iter()
-            .map(|(n, v)| {
-                let tokens = parse_component_values(v);
-                (
-                    Arc::from(*n),
-                    CustomDeclaration::Value(Arc::from(swb_css::trim_whitespace(&tokens))),
-                )
-            })
-            .collect();
+        let owned = declarations(decls);
         let refs: Vec<(&Arc<str>, &CustomDeclaration)> =
             owned.iter().map(|(n, d)| (n, d)).collect();
         let mut out: Vec<String> = cycle_names(
@@ -221,6 +245,50 @@ mod tests {
         .collect();
         out.sort();
         out
+    }
+
+    fn declarations(decls: &[(&str, &str)]) -> Vec<(Arc<str>, CustomDeclaration)> {
+        decls
+            .iter()
+            .map(|(n, v)| {
+                let tokens = parse_component_values(v);
+                (
+                    Arc::from(*n),
+                    CustomDeclaration::Value(Arc::from(swb_css::trim_whitespace(&tokens))),
+                )
+            })
+            .collect()
+    }
+
+    fn uses_lh(decls: &[(&str, &str)], inherited: &[(&str, &str)]) -> bool {
+        let parent_decls = declarations(inherited);
+        let parent_refs: Vec<(&Arc<str>, &CustomDeclaration)> =
+            parent_decls.iter().map(|(n, d)| (n, d)).collect();
+        let pool = crate::custom::CustomPool::default();
+        let parent = crate::custom::compute_custom_properties(None, &parent_refs, None, &pool);
+        let owned = declarations(decls);
+        let refs: Vec<(&Arc<str>, &CustomDeclaration)> =
+            owned.iter().map(|(n, d)| (n, d)).collect();
+        depends_on_line_height(&refs, parent.as_deref())
+    }
+
+    #[test]
+    fn registered_values_depend_on_the_line_height_only_through_lh() {
+        assert!(uses_lh(&[("--a", "2lh")], &[]));
+        assert!(uses_lh(&[("--a", "calc(1px + 2LH)")], &[]));
+        assert!(uses_lh(&[("--a", "var(--x, 1lh)")], &[]));
+        assert!(!uses_lh(&[("--a", "2em"), ("--b", "3rlh")], &[]));
+        // Through an inherited value, also through a declared one.
+        assert!(uses_lh(&[("--a", "var(--x)")], &[("--x", "1lh")]));
+        assert!(uses_lh(
+            &[("--a", "var(--b)"), ("--b", "var(--x)")],
+            &[("--x", "1lh")]
+        ));
+        assert!(!uses_lh(
+            &[("--a", "var(--x)")],
+            &[("--x", "1em"), ("--y", "1lh")]
+        ));
+        assert!(!uses_lh(&[], &[("--x", "1lh")]));
     }
 
     #[test]

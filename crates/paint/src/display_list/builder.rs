@@ -1080,21 +1080,82 @@ impl Builder<'_> {
                     });
                 }
                 Image::LinearGradient(gradient) => {
-                    // Gradients are not tiled yet: one gradient fills the
-                    // positioning area (the whole canvas for the canvas).
-                    let rect = match areas.painting {
-                        PaintingArea::Own => clip.intersection(&positioning).unwrap_or(clip),
-                        PaintingArea::Canvas(_) => clip,
-                        PaintingArea::Cell(_) => positioning,
-                    };
-                    self.list.push(DisplayItem::LinearGradient {
-                        rect,
-                        clip,
-                        gradient: Arc::clone(gradient),
-                        current_color: style.color,
-                    });
+                    self.gradient_layer(style, areas, i, gradient, positioning, clip);
                 }
             }
+        }
+    }
+
+    /// Paints layer `i` of the background images, a gradient. One gradient
+    /// fills the positioning area (the whole canvas for the canvas) when the
+    /// layer has the default size, position and repeat; otherwise one item
+    /// holds the layer's first tile (`background-size`, `-position`,
+    /// `-repeat`) and the rasterizer repeats it.
+    fn gradient_layer(
+        &mut self,
+        style: &ComputedStyle,
+        areas: &BackgroundAreas,
+        i: usize,
+        gradient: &Arc<swb_style::LinearGradient>,
+        positioning: Rect,
+        clip: Rect,
+    ) {
+        let item = |rect: Rect, tile: Rect, clip: Rect| DisplayItem::LinearGradient {
+            rect,
+            tile,
+            clip,
+            gradient: Arc::clone(gradient),
+            current_color: style.color,
+        };
+        let rect = match areas.painting {
+            PaintingArea::Own => clip.intersection(&positioning).unwrap_or(clip),
+            PaintingArea::Canvas(_) => clip,
+            PaintingArea::Cell(_) => positioning,
+        };
+        let tiling = match (
+            areas.painting,
+            layer_value(&style.background_size, i),
+            layer_value(&style.background_position_x, i),
+            layer_value(&style.background_position_y, i),
+            layer_value(&style.background_repeat, i),
+        ) {
+            (
+                PaintingArea::Own | PaintingArea::Canvas(_),
+                Some(size),
+                Some(position_x),
+                Some(position_y),
+                Some(&repeat),
+            ) => {
+                let layer = background::Layer {
+                    size,
+                    position_x,
+                    position_y,
+                    repeat,
+                };
+                // An empty tile paints nothing.
+                let Some(tiling) = background::gradient_tiling(&layer, positioning, clip) else {
+                    return;
+                };
+                Some(tiling)
+            }
+            _ => None,
+        };
+        let Some(tiling) = tiling else {
+            self.list.push(item(rect, rect, clip));
+            return;
+        };
+        // The default layer: one tile that is the positioning area, painted
+        // as one gradient.
+        let t = tiling.tile;
+        let plain = tiling.single
+            && (t.x - positioning.x).abs() < 0.01
+            && (t.y - positioning.y).abs() < 0.01
+            && (t.width - positioning.width).abs() < 0.01
+            && (t.height - positioning.height).abs() < 0.01;
+        if plain {
+            self.list.push(item(rect, rect, clip));
+        } else {
+            self.list.push(item(tiling.area, t, clip));
         }
     }
 

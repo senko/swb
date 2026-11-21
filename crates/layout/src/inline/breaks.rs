@@ -38,7 +38,7 @@
 use std::borrow::Cow;
 use std::ops::Range;
 
-use swb_style::{ComputedStyle, Hyphens, UnicodeBidi, WordBreak};
+use swb_style::{ComputedStyle, Hyphens, LineBreak, UnicodeBidi, WordBreak};
 use swb_text::{BreakKind, BreakRules};
 
 use crate::box_tree::{InlineFormattingContext, InlineItem};
@@ -121,10 +121,17 @@ fn wrap_opportunities(ifc: &InlineFormattingContext, layout: &BoundaryLayout) ->
 
 /// The line break rules of text in `style` (CSS Text 3 §5.2). `word-break:
 /// break-word` breaks like `normal`; it only changes what happens to a word
-/// that does not fit.
+/// that does not fit. `line-break: anywhere` allows a break at every
+/// grapheme cluster boundary, whatever `word-break` says: here it gives the
+/// `break-all` opportunities, and `overflow::breaks_anywhere` the rest (before
+/// punctuation, between Japanese characters; measured in Chromium 148,
+/// `line-break-effects`, `line-break-anywhere` and `line-break-min-content`;
+/// the other `line-break` values give the breaks of `auto` for Latin and
+/// Japanese text).
 fn break_rules(style: &ComputedStyle) -> BreakRules {
     BreakRules {
         word_break: match style.word_break {
+            _ if style.line_break == LineBreak::Anywhere => swb_text::WordBreak::BreakAll,
             WordBreak::Normal | WordBreak::BreakWord => swb_text::WordBreak::Normal,
             WordBreak::BreakAll => swb_text::WordBreak::BreakAll,
             WordBreak::KeepAll => swb_text::WordBreak::KeepAll,

@@ -33,12 +33,6 @@ pub(crate) struct Case {
 /// value, why).
 const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
-        "values-longhand-colors",
-        0,
-        r##"["red => rgb(255, 0, 0)","RED => rgb(255, 0, 0)","#f00 => rgb(255, 0, 0)","#FF0000 => rgb(255, 0, 0)","#f008 => rgba(255, 0, 0, 0.533)","#ff000080 => rgba(255, 0, 0, 0.5)","rgb(255,0,0) => rgb(255, 0, 0)","rgb(255 0 0 / 50%) => rgba(255, 0, 0, 0.5)","rgba(0,0,0,0.5) => rgba(0, 0, 0, 0.5)","rgba(0,0,0,0) => rgba(0, 0, 0, 0)","transparent => rgba(0, 0, 0, 0)","currentColor => rgb(0, 0, 255)","CurrentColor => rgb(0, 0, 255)","hsl(120, 100%, 50%) => rgb(0, 255, 0)","hsla(120,100%,50%,0.3) => rgba(0, 255, 0, 0.3)","rgb(10.5, 20, 30) => rgb(11, 20, 30)","rgba(0,0,0,0.123456) => rgba(0, 0, 0, 0.12)","rgba(0,0,0,0.3) => rgba(0, 0, 0, 0.3)","rgba(1,2,3,0.25) => rgba(1, 2, 3, 0.25)","rgba(1,2,3,.1) => rgba(1, 2, 3, 0.1)","rgb(300,-5,0) => rgb(255, 0, 0)","rgb(50%,0%,10%) => rgb(128, 0, 26)","foo => rgb(0, 0, 255)","#ggg => rgb(0, 0, 255)","Canvas => rgb(255, 255, 255)","canvastext => rgb(0, 0, 0)","-webkit-link => rgb(0, 0, 238)","lab(50% 20 30) => rgb(161, 105, 69)","oklch(0.5 0.1 120) => rgb(92, 107, 33)","color(srgb 1 0 0) => rgb(255, 0, 0)","color-mix(in srgb, red, blue) => color(srgb 0.5 0 0.5)","hwb(120 0% 0%) => rgb(0, 255, 0)","rgb(0 0 0 / 0.5) => rgba(0, 0, 0, 0.5)","#ABCDEF => rgb(171, 205, 239)","aliceblue => rgb(240, 248, 255)","rgba(255,0,0,1) => rgb(255, 0, 0)","rgb(1,2,3,0.5) => rgba(1, 2, 3, 0.5)","  red   => rgb(255, 0, 0)","red !important => rgb(0, 0, 255)"]"##,
-        "swb computes `lab()`, `oklch()` and `color()` to 8-bit sRGB",
-    ),
-    (
         "values-longhand-lengths",
         0,
         r#"["10px => 10px","10PX => 10px","0 => 0px","0.5em => 10px",".5em => 10px","10.0px => 10px","1e2px => 100px","50% => 200px","auto => 400px","calc(10px + 5px) => 15px","calc(100% - 10px) => 390px","calc(10px*2) => 20px","calc( 50% + 2em ) => 240px","calc(100%/3) => 133.328px","-10px => 400px","10vw => 80px","3rem => 48px","1in => 96px","1cm => 37.7812px","12pt => 16px","1mm => 3.76562px","1q => 0.9375px","1pc => 16px","2ex => 20px","2ch => 20px","min-content => 400px","fit-content => 400px","max-content => 400px","10 => 400px","1.23456789px => 1.23438px","0.0001px => 0px","1e-7px => 0px","123456789px => 3.35544e+07px","1234567.5px => 1.23457e+06px","0.1px => 0.09375px","33.333333px => 33.3281px","+5px => 5px","-0px => 0px","0.000001px => 0px","1e21px => 3.35544e+07px","fit-content(10px) => 400px","10px 20px => 400px","stretch => 400px","-webkit-fill-available => 400px","min(10px, 5%) => 10px","max(1px,2px) => 2px","clamp(1px, 5%, 10px) => 10px"]"#,
@@ -97,12 +91,6 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
         42,
         r#"["italic => italic","oblique => italic","oblique 10deg => italic","normal => normal"]"#,
         "swb's `font-style` has no oblique angle",
-    ),
-    (
-        "values-longhand-keywords",
-        48,
-        r#"["text => border-box","padding-box => padding-box"]"#,
-        "swb has no `background-clip: text`",
     ),
     (
         "values-longhand-keywords",
@@ -175,12 +163,6 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
         20,
         r#"["12px Arial => 12px Arial","bold 12px/1.5 Arial, sans-serif => 700 12px / 18px Arial, sans-serif","italic small-caps bold 12px Arial => italic small-caps 700 12px Arial","12px/20px sans-serif => 12px / 20px sans-serif","caption => 13px system-ui","menu => 13px system-ui","small-caption => 13px system-ui","message-box => 13px system-ui","icon => 13px system-ui","status-bar => 13px system-ui","normal 400 16px/normal serif => 16px serif","condensed 12px a => condensed 12px a","italic 12px a => italic 12px a","16px => 20px \"Times New Roman\"","12px \"Times New Roman\" => 12px \"Times New Roman\"","oblique 10deg 12px a => italic 12px a","bold italic 12px a => italic 700 12px a","1.2em/1.2 a => 24px / 28.8px a","x-large a => 24px a","100 12px a => 100 12px a","small-caps 12px a => small-caps 12px a","normal normal 12px a => 12px a"]"#,
         "swb's system fonts are 13px `system-ui`; no oblique angle",
-    ),
-    (
-        "values-shorthands",
-        21,
-        r#"["small-caps => small-caps","normal => normal","none => normal","all-small-caps => all-small-caps","common-ligatures => normal"]"#,
-        "swb's `font-variant` sets `font-variant-caps` only",
     ),
     (
         "values-shorthands",
@@ -275,8 +257,8 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
         "pseudo",
         12,
-        r#"["::foo =>   0","before => rgb(255, 0, 0) \"ab\" 258","::before  =>   0"," ::before => rgb(0, 128, 0) normal 258",":after => rgb(0, 0, 255) none 258","::-webkit-scrollbar => rgb(0, 128, 0) normal 258",":hover =>   0","::before::after =>   0","::first-letter => rgb(0, 128, 0) normal 258",":first-line => rgb(0, 128, 0) normal 258","::backdrop => rgb(0, 128, 0) normal 258","::part(x) => rgb(0, 128, 0) normal 258","::slotted(p) => rgb(0, 128, 0) normal 258","::details-content => rgb(0, 128, 0) normal 258"]"#,
-        "a declaration lists swb's properties (258; Chromium 456); `::first-line` is not styled",
+        r#"["::foo =>   0","before => rgb(255, 0, 0) \"ab\" 271","::before  =>   0"," ::before => rgb(0, 128, 0) normal 271",":after => rgb(0, 0, 255) none 271","::-webkit-scrollbar => rgb(0, 128, 0) normal 271",":hover =>   0","::before::after =>   0","::first-letter => rgb(0, 128, 0) normal 271",":first-line => rgb(0, 128, 0) normal 271","::backdrop => rgb(0, 128, 0) normal 271","::part(x) => rgb(0, 128, 0) normal 271","::slotted(p) => rgb(0, 128, 0) normal 271","::details-content => rgb(0, 128, 0) normal 271"]"#,
+        "a declaration lists swb's properties (271; Chromium 456); `::first-line` is not styled",
     ),
     (
         "quirks",
@@ -287,7 +269,7 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
         "extra",
         13,
-        r#"["align-content,align-items,align-self",true,"-webkit-border-horizontal-spacing,-webkit-border-vertical-spacing,-webkit-mask-position-x",true,true,true,253,-1]"#,
+        r#"["align-content,align-items,align-self",true,"-webkit-border-horizontal-spacing,-webkit-border-vertical-spacing,-webkit-box-orient",true,true,true,265,-1]"#,
         "a declaration lists swb's properties (Chromium also `accent-color`, `-webkit-border-image`, `mask-position`, ...)",
     ),
     (

@@ -28,15 +28,17 @@ use crate::parse::{
 };
 use crate::values::{
     Alignment, Appearance, AspectRatio, BackgroundAttachment, BackgroundBox,
-    BackgroundRepeatKeyword, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Contain,
-    ContainerName, ContainerType, ContentVisibility, CounterList, Cursor, Direction, Display,
-    EmptyCells, FieldSizing, FillRule, FlexDirection, FlexWrap, Float, FontFamily, FontSizeKeyword,
-    FontStyle, FontVariantCaps, GenericFamily, Hyphens, Isolation, Length, ListStylePosition,
-    ListStyleType, MixBlendMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay,
-    PointerEvents, Position, Resize, ScrollbarWidth, ShapeRendering, SpaceCollapse,
-    SpecifiedLengthPercentage as Lp, StrokeLinecap, StrokeLinejoin, TableLayout, TextAlign,
-    TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, TextWrapStyle,
-    UnicodeBidi, UserSelect, VerticalAlignKeyword, Visibility, WordBreak, ZIndex,
+    BackgroundRepeatKeyword, BorderCollapse, BorderStyle, BoxOrient, BoxSizing, CaptionSide, Clear,
+    Contain, ContainerName, ContainerType, ContentVisibility, CounterList, Cursor, Direction,
+    Display, EmptyCells, FieldSizing, FillRule, FlexDirection, FlexWrap, Float, FontFamily,
+    FontSizeKeyword, FontSmoothing, FontStyle, FontVariantCaps, FontVariantLigatures,
+    FontVariantNumeric, GenericFamily, Hyphens, Isolation, Length, LineBreak, ListStylePosition,
+    ListStyleType, MixBlendMode, ObjectFit, OutlineStyle, Overflow, OverflowAnchor, OverflowWrap,
+    Overlay, OverscrollBehavior, PointerEvents, Position, Resize, ScrollbarWidth, ShapeRendering,
+    SpaceCollapse, SpecifiedLengthPercentage as Lp, StrokeLinecap, StrokeLinejoin, TableLayout,
+    TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextSizeAdjust,
+    TextTransform, TextWrapStyle, UnicodeBidi, UserSelect, VerticalAlignKeyword, Visibility,
+    WordBreak, ZIndex,
 };
 
 /// True for the properties where the quirks mode unitless length quirk
@@ -98,6 +100,27 @@ pub(crate) fn parse_longhand(
             L::FontStyle => V::FontStyle(parse_font_style(p)?),
             L::FontStretch => V::FontStretch(parse_font_stretch(p)?),
             L::FontVariantCaps => V::FontVariantCaps(keyword(p, FontVariantCaps::from_ident)?),
+            L::FontVariantLigatures => V::FontVariantLigatures(FontVariantLigatures::parse(p)?),
+            L::FontVariantNumeric => V::FontVariantNumeric(FontVariantNumeric::parse(p)?),
+            L::TapHighlightColor => V::TapHighlightColor(parse_color(p)?),
+            L::TextSizeAdjust => V::TextSizeAdjust(parse_text_size_adjust(p)?),
+            L::FontSmoothing => V::FontSmoothing(keyword(p, FontSmoothing::from_ident)?),
+            L::LineBreak => V::LineBreak(keyword(p, LineBreak::from_ident)?),
+            L::OverflowAnchor => V::OverflowAnchor(keyword(p, OverflowAnchor::from_ident)?),
+            L::OverscrollBehaviorX => {
+                V::OverscrollBehaviorX(keyword(p, OverscrollBehavior::from_ident)?)
+            }
+            L::OverscrollBehaviorY => {
+                V::OverscrollBehaviorY(keyword(p, OverscrollBehavior::from_ident)?)
+            }
+            L::OverscrollBehaviorInline => {
+                V::OverscrollBehaviorInline(keyword(p, OverscrollBehavior::from_ident)?)
+            }
+            L::OverscrollBehaviorBlock => {
+                V::OverscrollBehaviorBlock(keyword(p, OverscrollBehavior::from_ident)?)
+            }
+            L::WebkitLineClamp => V::WebkitLineClamp(parse_line_clamp(p)?),
+            L::WebkitBoxOrient => V::WebkitBoxOrient(keyword(p, BoxOrient::from_ident)?),
             L::FontVariationSettings => V::FontVariationSettings(parse_variation_settings(p)?),
             L::FontFeatureSettings => V::FontFeatureSettings(parse_feature_settings(p)?),
             L::LineHeight => V::LineHeight(parse_line_height(p)?),
@@ -225,7 +248,7 @@ pub(crate) fn parse_longhand(
             L::BackgroundSize => V::BackgroundSize(list(p, parse_background_size)?),
             L::BackgroundRepeat => V::BackgroundRepeat(list(p, parse_background_repeat)?),
             L::BackgroundOrigin => V::BackgroundOrigin(list(p, parse_box)?),
-            L::BackgroundClip => V::BackgroundClip(list(p, parse_box)?),
+            L::BackgroundClip => V::BackgroundClip(list(p, parse_clip_box)?),
             L::BackgroundAttachment => {
                 V::BackgroundAttachment(list(p, |p| keyword(p, BackgroundAttachment::from_ident))?)
             }
@@ -334,6 +357,46 @@ pub(crate) fn keyword<T>(
     from_ident: impl FnOnce(&str) -> Option<T>,
 ) -> ParseResult<T> {
     p.try_parse(|p| from_ident(p.expect_ident()?).ok_or(ParseError::Unexpected))
+}
+
+/// `-webkit-text-size-adjust`: `auto | none | <percentage [0,∞]>`; `none` is
+/// `100%` (measured in Chromium 148).
+fn parse_text_size_adjust(p: &mut Parser<'_>) -> ParseResult<TextSizeAdjust> {
+    if p.expect_ident_matching("auto").is_ok() {
+        return Ok(TextSizeAdjust::Auto);
+    }
+    if p.expect_ident_matching("none").is_ok() {
+        return Ok(TextSizeAdjust::Percent(100.0));
+    }
+    let percent = if let Ok(v) = p.expect_percentage() {
+        v
+    } else {
+        p.try_parse(|p| {
+            let expr = crate::parse::length::parse_math_function(p)?;
+            if expr.kind != crate::parse::length::CalcKind::Percentage {
+                return Err(ParseError::Invalid);
+            }
+            expr.as_number_or_percentage()
+                .map(|fraction| fraction * 100.0)
+                .ok_or(ParseError::Invalid)
+        })?
+    };
+    if percent < 0.0 {
+        return Err(ParseError::Invalid);
+    }
+    Ok(TextSizeAdjust::Percent(percent))
+}
+
+/// `-webkit-line-clamp`: `none | <integer [1,∞]>`.
+fn parse_line_clamp(p: &mut Parser<'_>) -> ParseResult<Option<i32>> {
+    if p.expect_ident_matching("none").is_ok() {
+        return Ok(None);
+    }
+    let n = parse_integer(p)?;
+    if n < 1 {
+        return Err(ParseError::Invalid);
+    }
+    Ok(Some(n))
 }
 
 /// Parses a comma-separated list into a shared slice.
@@ -1352,14 +1415,20 @@ pub(crate) fn parse_background_repeat(
     }
 }
 
-/// `<visual-box>` for `background-origin` and `background-clip`. `text`
-/// (and `-webkit-text`) clip to the border box: swb does not clip
-/// backgrounds to text.
+/// `<visual-box>` for `background-origin`.
 pub(crate) fn parse_box(p: &mut Parser<'_>) -> ParseResult<BackgroundBox> {
     keyword(p, |i| {
+        BackgroundBox::from_ident(i).filter(|b| *b != BackgroundBox::Text)
+    })
+}
+
+/// `<bg-clip>` for `background-clip`: a `<visual-box>` or `text`
+/// (`-webkit-text` is the old name).
+pub(crate) fn parse_clip_box(p: &mut Parser<'_>) -> ParseResult<BackgroundBox> {
+    keyword(p, |i| {
         BackgroundBox::from_ident(i).or_else(|| {
-            (i.eq_ignore_ascii_case("text") || i.eq_ignore_ascii_case("-webkit-text"))
-                .then_some(BackgroundBox::BorderBox)
+            i.eq_ignore_ascii_case("-webkit-text")
+                .then_some(BackgroundBox::Text)
         })
     })
 }
