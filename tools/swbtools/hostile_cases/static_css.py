@@ -222,3 +222,108 @@ def font_variant_many_keywords() -> Page:
         "s{font-variant:" + " ".join(["small-caps"] * 100_000) + "}"
     )
     return Page(doc("<p>1111</p><q>2222</q><s>3333</s>", css))
+
+
+@case(
+    "One `background-clip: text` box with 100,001 glyphs (M13 feature 2c, ADR 0046): the "
+    "mask holds at most 100,000 glyphs, so the layers paint as `border-box`; swb logs the "
+    "limit once",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+    expect_log="background-clip: text: more than 100000 text shapes",
+)
+def text_clip_100001_glyphs() -> Page:
+    css = (
+        "div{width:400px;font:10px/10px Arial;overflow-wrap:anywhere;"
+        "color:#0000;-webkit-text-fill-color:transparent;"
+        "background:linear-gradient(90deg,red,blue);background-clip:text}"
+    )
+    return Page(doc("<div>" + "x" * 100_001 + "</div>", css))
+
+
+@case(
+    "20,000 small `background-clip: text` boxes (M13 feature 2c): each box is one mask group "
+    "with a small layer",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+)
+def text_clip_20000_small_boxes() -> Page:
+    css = (
+        "b{display:inline-block;width:40px;height:16px;font:bold 14px/16px Arial;"
+        "color:#0000;-webkit-text-fill-color:transparent;"
+        "background:linear-gradient(90deg,red,blue);background-clip:text}"
+    )
+    return Page(doc("<b>Hi</b>" * 20_000, css))
+
+
+@case(
+    "`background-clip: text` on 250 nested boxes, each with 5,000 glyphs below it (M13 feature "
+    "2c): every box collects the text of its descendants, so the work is the depth times "
+    "the glyphs; the limit of 1,000,000 glyphs in all stops the masks and the layers paint as "
+    "`border-box`",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+    expect_log="background-clip: text: more than 100000 text shapes",
+)
+def text_clip_nested_250_deep() -> Page:
+    css = (
+        "div{padding:1px;color:#0000;-webkit-text-fill-color:transparent;"
+        "background:linear-gradient(90deg,red,blue);background-clip:text;font:8px/10px Arial}"
+    )
+    inner = "x" * 5000
+    body = "<div>" * 250 + inner + "</div>" * 250
+    return Page(doc(body, css))
+
+
+@case(
+    "`background-clip: text` on 250 nested boxes that all declare three decoration lines, with "
+    "3,900 `<b>x</b>` below them (M13 feature 2c review): the mask of a box at depth k used to "
+    "get one rectangle per decorating ancestor and line for every fragment (31 GB). It now gets "
+    "at most one rectangle per line kind and fragment, and every shape counts against the "
+    "limits, so the masks stop when the total of 1,000,000 is spent and the layers paint as "
+    "`border-box`",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+    expect_log="background-clip: text: more than 100000 text shapes",
+)
+def text_clip_nested_250_deep_decorations() -> Page:
+    css = (
+        "div{color:#0000;-webkit-text-fill-color:transparent;"
+        "text-decoration:underline overline line-through;"
+        "background:linear-gradient(90deg,red,blue);background-clip:text;font:8px/10px Arial}"
+    )
+    body = "<div>" * 250 + "<b>x</b>" * 3_900 + "</div>" * 250
+    return Page(doc(body, css))
+
+
+@case(
+    "20,000 rounded boxes with a gradient layer of 3 px tiles and an image layer (M13 feature "
+    "2c): each box clips its layers in one group with a rounded path; the tiles stay one "
+    "display item per layer",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+)
+def rounded_boxes_with_many_gradient_tiles() -> Page:
+    css = (
+        "i{display:inline-block;width:60px;height:40px;margin:2px;border-radius:12px;"
+        "background:linear-gradient(red,blue) 0 0/3px 3px,"
+        "linear-gradient(blue,#0f0) 1px 1px/5px 7px,#0c0;"
+        "background-clip:padding-box;border:2px solid #0003}"
+    )
+    return Page(doc("<i></i>" * 20_000, css))
+
+
+@case(
+    "One `background-clip: text` box with 99,000 glyphs of 1 px in the viewport (M13 feature "
+    "2c): the largest mask that is allowed; the rasterizer draws every glyph into the mask",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+    forbid_log="background-clip: text: more than",
+)
+def text_clip_99000_visible_glyphs() -> Page:
+    css = (
+        "div{width:1000px;font:1px/1px Arial;overflow-wrap:anywhere;"
+        "color:#0000;-webkit-text-fill-color:transparent;"
+        "background:linear-gradient(90deg,red,blue);background-clip:text}"
+    )
+    return Page(doc("<div>" + "x" * 99_000 + "</div>", css))

@@ -83,6 +83,35 @@ fn paths_fill_black_with_the_view_box_transform() {
     assert_eq!(path.segments().len(), 4);
 }
 
+/// A viewport with a width or height of 0 has no `viewBox` transform, and
+/// the elements keep their user-space boxes (Chromium 148, probe case
+/// `svg-css-size`: the icons of the videojs.org player in a box of
+/// width 0).
+#[test]
+fn a_viewport_of_size_zero_has_no_view_box_transform() {
+    for style in [
+        "width:0;height:14px",
+        "width:14px;height:0",
+        "width:0;height:0",
+    ] {
+        let items = draw(&format!(
+            "<svg style='{style}' viewBox='5 7 18 18'><path d='M2 4h10v6H2z'/></svg>"
+        ));
+        let [SvgDrawItem::Fill { transform, .. }] = &items[..] else {
+            panic!("one fill: {items:?}");
+        };
+        assert_eq!(*transform, Matrix::IDENTITY, "{style}");
+    }
+    // A viewport with size keeps the transform (the same box, 14 x 14).
+    let items = draw(
+        "<svg style='width:14px;height:14px' viewBox='5 7 18 18'><path d='M2 4h10v6H2z'/></svg>",
+    );
+    let [SvgDrawItem::Fill { transform, .. }] = &items[..] else {
+        panic!("one fill: {items:?}");
+    };
+    assert_ne!(*transform, Matrix::IDENTITY);
+}
+
 #[test]
 fn presentation_attributes_cascade_and_inherit() {
     let items = draw(
@@ -222,6 +251,18 @@ fn percentages_use_the_view_box_or_the_content_box() {
         ),
         Rect::new(10.0, 0.0, 10.0, 4.0)
     );
+    // A viewport of size 0 keeps the `viewBox` as the reference (Chromium
+    // 148, `svg-percent-zero`: the box of a `rect` of 50% is 9 x 9 in a
+    // viewBox of 18 x 18 whatever the viewport).
+    for size in ["width=0 height=18", "width=18 height=0", "width=0 height=0"] {
+        let b = bounds(&format!(
+            "<svg {size} viewBox='0 0 18 18'><rect x='10%' y='20%' width='50%' height='50%' /></svg>"
+        ));
+        let got = [b.x, b.y, b.width, b.height];
+        for (got, want) in got.iter().zip([1.8, 3.6, 9.0, 9.0]) {
+            assert!((got - want).abs() < 1e-4, "{size}: {b:?}");
+        }
+    }
     // `r` refers to the normalized diagonal: sqrt((200² + 100²) / 2).
     let r = bounds("<svg width=200 height=100><circle r='10%' /></svg>").width / 2.0;
     assert!((r - 15.811).abs() < 0.01, "{r}");

@@ -161,7 +161,7 @@ impl Rasterizer<'_> {
         );
         // Close unbalanced groups.
         while self.layers.len() > open_layers {
-            self.pop_layer(source);
+            self.pop_layer(source, fonts);
         }
         self.frames.frames -= 1;
         self.clips.truncate(open_clips);
@@ -173,7 +173,7 @@ impl Rasterizer<'_> {
         self.viewport_clip = outer.viewport_clip;
         self.sticky = outer.sticky;
         if isolate {
-            self.pop_layer(images);
+            self.pop_layer(images, fonts);
         }
     }
 }

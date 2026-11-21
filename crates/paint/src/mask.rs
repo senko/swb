@@ -83,6 +83,17 @@ pub enum MaskLayerImage {
         /// The size and origin of one tile.
         tile: Rect,
     },
+    /// Shapes that the rasterizer draws in opaque white, for
+    /// `background-clip: text` (ADR 0046): the glyphs of the box's text,
+    /// their strokes and decoration lines, as `Text`, `TextStroke` and
+    /// `Rect` items. The coverage of the union is the mask.
+    Content {
+        /// The items, all in white.
+        items: Arc<[DisplayItem]>,
+        /// The area outside which the layer is transparent: it contains
+        /// everything the items draw.
+        area: Rect,
+    },
 }
 
 impl MaskLayer {
@@ -93,7 +104,8 @@ impl MaskLayer {
             MaskLayerImage::Empty => return None,
             MaskLayerImage::Opaque(area)
             | MaskLayerImage::Image { area, .. }
-            | MaskLayerImage::Gradient { area, .. } => *area,
+            | MaskLayerImage::Gradient { area, .. }
+            | MaskLayerImage::Content { area, .. } => *area,
         };
         (area.width > 0.0 && area.height > 0.0).then_some(area)
     }

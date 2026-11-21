@@ -3,6 +3,9 @@
 //! name differs from `crate::mask`, which has the mask layers themselves.
 
 use swb_layout::Rect;
+use swb_text::FontContext;
+
+use crate::display_list::DisplayItem;
 
 use super::{
     ImageSource, IntSize, Layer, LayerKind, LayerPixels, Mask, MaskLayer, MaskLayerImage, Pixmap,
@@ -22,6 +25,7 @@ impl Rasterizer<'_> {
         origin: (i32, i32),
         layers: &[MaskLayer],
         images: &dyn ImageSource,
+        fonts: &mut FontContext,
     ) -> bool {
         let Some(size) = IntSize::from_wh(pixmap.width(), pixmap.height()) else {
             return false;
@@ -34,7 +38,7 @@ impl Rasterizer<'_> {
         }
         let mut result: Option<Vec<u8>> = None;
         for layer in layers.iter().rev() {
-            let source = match self.mask_layer_pixels(layer, origin, size, images) {
+            let source = match self.mask_layer_pixels(layer, origin, size, images, fonts) {
                 LayerPixels::Transparent => None,
                 LayerPixels::Pixels(p) => Some(mask::coverage(p.data(), layer.luminance)),
                 LayerPixels::OverBudget => return false,
@@ -65,6 +69,7 @@ impl Rasterizer<'_> {
         origin: (i32, i32),
         size: IntSize,
         images: &dyn ImageSource,
+        fonts: &mut FontContext,
     ) -> LayerPixels {
         if matches!(layer.image, MaskLayerImage::Empty) {
             return LayerPixels::Transparent;
@@ -99,6 +104,11 @@ impl Rasterizer<'_> {
                 area,
                 tile,
             } => self.gradient_tiles(gradient, *current_color, *area, *tile),
+            MaskLayerImage::Content { items, .. } => {
+                for item in items.iter() {
+                    self.item(item, fonts, images);
+                }
+            }
         }
         self.mask = None;
         let Some(pixmap) = self.layers.pop().and_then(|l| l.pixmap) else {
@@ -134,6 +144,7 @@ impl Rasterizer<'_> {
                         .map_or(0, |visible| {
                             self.tile_plan(*layer_area, *tile, visible).work()
                         }),
+                    MaskLayerImage::Content { items, .. } => content_work(items),
                     _ => 0,
                 };
                 pixels.saturating_add(rows).saturating_add(tiles)
@@ -151,3 +162,22 @@ impl Rasterizer<'_> {
         fits
     }
 }
+
+/// The work of drawing the items of a content mask layer, in pixels for
+/// the mask budget: each glyph costs `GLYPH_COST_PIXELS`.
+fn content_work(items: &[DisplayItem]) -> u64 {
+    items
+        .iter()
+        .map(|item| match item {
+            DisplayItem::Text { glyphs, .. } | DisplayItem::TextStroke { glyphs, .. } => {
+                (glyphs.len() as u64).saturating_mul(GLYPH_COST_PIXELS)
+            }
+            _ => ROW_COST_PIXELS,
+        })
+        .fold(0, u64::saturating_add)
+}
+
+/// The work of one glyph of a content mask layer, in pixels for the mask
+/// budget: a cached glyph mask is blitted in about 100 ns, 16 pixels at
+/// 6.4 ns.
+const GLYPH_COST_PIXELS: u64 = 16;

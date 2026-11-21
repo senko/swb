@@ -4,6 +4,34 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-21: M13 feature 2c, text clips and rounded layers
+
+- ADR 0046, section "Feature 2c". `background-clip: text` paints: a
+  mask group draws the shapes of the box's text (glyphs, strokes,
+  decoration lines), with the text of the descendants that paint in the
+  box's layer. The rules come from 60 boxes in Chromium: positioned
+  boxes and boxes with an effect leave the mask, and overflow clips of
+  descendants do not cut it. The ADR 0046 plan asked for a new raster
+  layer kind; the existing mask group already had the work budget and
+  the clips.
+- Gradients and images were not clipped by rounded corners at all. Now
+  they are, with the inner radii for `padding-box` and `content-box`
+  and with `corner-shape`. The first version cost 3 ms of raster on
+  videojs.org (a clip group around a hero gradient of 1,180 x 570 px);
+  only the rows with the corners paint in a group now.
+- The player's spinner icons had zero size: a viewport of width 0 got a
+  viewBox scale of 0, where Chromium uses no viewBox transform. JS-off
+  videojs is at geometry 1.0000 and pixels 0.9999. What remains with
+  scripts is the player, which needs media (M14, M15).
+- The review found that the text mask counted only glyphs: one
+  decoration rectangle per ancestor and fragment let 250 nested boxes
+  take 31.5 GB. The lines of all ancestors are now one rectangle per
+  line kind, and every shape counts against the bounds: 552 MiB. The
+  review also found that the clip group of a rounded box at a
+  fractional position blended its first and last row; it is now
+  snapped to device pixels as the fills are.
+- Next: feature 3a (CSS animations, values).
+
 ## 2026-11-21: M13 feature 2b, colors that keep their space
 
 - ADR 0046. Computed `oklch()`, `oklab()`, `lab()`, `lch()` and

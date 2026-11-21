@@ -485,7 +485,7 @@ fn rasterize_strip(
     r.run(&list.items, 0..list.items.len(), ends, fonts, images);
     // Close unbalanced groups.
     while !r.layers.is_empty() {
-        r.pop_layer(images);
+        r.pop_layer(images, fonts);
     }
     r.budget.skipped
 }
@@ -835,7 +835,7 @@ impl Rasterizer<'_> {
             };
             nested.run(items, range, ends, fonts, images);
             while !nested.layers.is_empty() {
-                nested.pop_layer(images);
+                nested.pop_layer(images, fonts);
             }
             self.sticky = std::mem::take(&mut nested.sticky);
             nested.budget
@@ -1014,7 +1014,7 @@ impl Rasterizer<'_> {
             | DisplayItem::PopFilter
             | DisplayItem::PopMask
             | DisplayItem::PopSvgClip => {
-                self.pop_layer(images);
+                self.pop_layer(images, fonts);
             }
             DisplayItem::Polyline {
                 points,
@@ -1299,7 +1299,7 @@ impl Rasterizer<'_> {
         self.layers.push(layer);
     }
 
-    fn pop_layer(&mut self, images: &dyn ImageSource) {
+    fn pop_layer(&mut self, images: &dyn ImageSource, fonts: &mut FontContext) {
         self.mask = None;
         let Some(mut layer) = self.layers.pop() else {
             return;
@@ -1321,7 +1321,9 @@ impl Rasterizer<'_> {
         };
         let visible = match &layer.kind {
             LayerKind::Opacity | LayerKind::Blend(_) | LayerKind::Filter(_) => true,
-            LayerKind::Mask(layers) => self.apply_mask(&mut pixmap, layer.origin, layers, images),
+            LayerKind::Mask(layers) => {
+                self.apply_mask(&mut pixmap, layer.origin, layers, images, fonts)
+            }
             LayerKind::SvgClip(c) => {
                 match self.apply_svg_clip(&mut pixmap, layer.origin, &c.clip, &c.transform) {
                     ClipResult::Applied => true,

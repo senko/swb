@@ -248,6 +248,17 @@ pub(crate) fn settle(page: &mut Page) {
 /// Creates a page with `fetcher`, the bundled test fonts and the scale
 /// factor 1.
 pub(crate) fn new_page(fetcher: Arc<dyn Fetcher>, network_threads: usize, viewport: Size) -> Page {
+    new_page_at_scale(fetcher, network_threads, viewport, 1.0)
+}
+
+/// Like [`new_page`] with the scale factor `scale` (device pixels per CSS
+/// pixel).
+pub(crate) fn new_page_at_scale(
+    fetcher: Arc<dyn Fetcher>,
+    network_threads: usize,
+    viewport: Size,
+    scale: f32,
+) -> Page {
     let config = PageConfig {
         fetcher,
         notify: Arc::new(|| {}),
@@ -257,7 +268,7 @@ pub(crate) fn new_page(fetcher: Arc<dyn Fetcher>, network_threads: usize, viewpo
         // trivial scripts (`var a = 1`) on the test thread.
         scripts_allowed: true,
     };
-    Page::new(config, FontContext::for_tests(), viewport, 1.0)
+    Page::new(config, FontContext::for_tests(), viewport, scale)
 }
 
 /// Renders the viewport of `page` into a new pixmap of its size.

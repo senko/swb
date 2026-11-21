@@ -6127,6 +6127,43 @@ Steps:
       `corner-shape` (swb paints the corners; found in the 2b review);
       the SVG icons of the player, the worst geometry matches of the
       JS-off first view after 2b (zero-size paths).
+
+      Done (2026-11-21): ADR 0046, section "Feature 2c".
+      - `background-clip: text` paints. The layers that say `text` paint
+        inside a mask group whose shapes are the glyphs, strokes and
+        decoration lines of the box's text. Descendants count unless
+        they are positioned or have an effect (transform, opacity below
+        1, filter and others); overflow clips of descendants do not cut
+        the mask (rules measured on 60 boxes in Chromium). Bounds:
+        100,000 shapes (glyphs, strokes, decoration lines) per box and
+        1,000,000 per display list, else the layers paint as
+        `border-box` with a warning; the decoration lines of all
+        ancestors are one rectangle per line kind. The shimmer of the
+        search dialog at time 0 equals Chromium's (3 points exactly,
+        4,300 points within 24 levels, the most at glyph edges); a shift
+        of the glyphs by 1 px fails the test.
+      - Gradients, images and the background color follow the rounded
+        clip box (border, padding and content box with the inner radii;
+        `corner-shape`). Only the rows with the corners paint in a clip
+        group, snapped to device pixels as the fills are: the raster
+        time of videojs.org rises from 29.2 to 30.2 ms (a group around
+        the whole hero gradient cost 3 ms). `background-clip:
+        content-box` now clips to the content box.
+      - SVG: a viewport of width or height 0 has no viewBox transform
+        (the player's spinner paths had zero size), and percentages in
+        it use the viewBox size, as in Chromium.
+      - Scores of videojs: JS off geometry 0.9759 -> 1.0000, pixels
+        0.9999; JS on size 0.9132 -> 0.9244, relative 0.8964 -> 0.9188,
+        geometry 0.8852 and pixels 0.9979 unchanged. What remains with
+        scripts is the player (M14, M15).
+      - The review found unbounded memory in the text mask (one
+        decoration rectangle per ancestor and fragment: 250 nested boxes
+        took 31.5 GB and 20.5 s); now 552 MiB and 0.3 s.
+      - Probes: `css-videojs-2c.json` (8 cases; three equal
+        Chromium runs). Tests: `static_css_pixels.rs`,
+        `videojs_static.rs`, `text_clip.rs`, unit tests in
+        `raster/tests`, `background.rs`, `svg/tests.rs`; 6 hostile
+        cases.
    3a. CSS animations, values (`implementer-hard`; ADR 0044 sections 2
       to 5 and 10): the `animation-*` longhands and the shorthand with
       their CSSOM forms; the timing model (delay, duration, iteration
@@ -6292,8 +6329,8 @@ Source Extensions, AV1 (dav1d), YouTube.
   also `hue-rotate()`) is invalid in swb.
 - CSS (feature 2a): `translate`, `rotate` and `scale` do not apply to SVG
   elements; `text-shadow` does not apply to text decorations;
-  `corner-shape` does not apply to background images, gradients and
-  non-uniform borders.
+  `corner-shape` does not apply to non-uniform borders (background
+  images and gradients since feature 2c).
 - Paint (feature 2a): the outer shadow of a box with an opaque
   background has no clip; one anti-aliased corner pixel of a ring differs
   from Chromium's (246 against 207).
@@ -6364,6 +6401,35 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Paint (feature 2b review, older): `background-repeat: space` and
   `round` paint as `repeat`; `background-origin: content-box` as
   `padding-box`; `background-attachment: fixed` is ignored.
+- Paint (feature 2c review): tiled gradients and images at fractional
+  positions differ from Chromium, in square and rounded boxes alike
+  (1,900 of 3,400 points of a tiled image by more than 24 levels).
+- Paint (feature 2c review of the fixes): the clip group of a rounded
+  box snaps to device pixels before the transform. With
+  `translate(.3px, .3px)` on a box at `top: 10.6px`, the rounded edge
+  moves to 11.3 px while the fill stays crisp at 10.9 px; Chromium
+  blends both rows. Snap after the transform, as the rasterizer does
+  for fills, or not at all under a fractional transform.
+- Paint (feature 2c): `corner-shape` boxes and text masks paint in one
+  clip group around the whole box (a layer of the box size); only the
+  plain rounded case is split at the corner rows.
+- Paint (feature 2c review, older): an inline box with
+  `background-clip: text` that wraps paints the gradient per line;
+  Chromium slices one gradient across the lines. `zoom`,
+  `writing-mode: vertical-rl` and `::first-letter` do not exist, so
+  their text clips differ.
+- Paint (feature 2c): `<tr>` and column backgrounds and the root canvas
+  paint `text` as `border-box`; a list marker is in the text mask
+  (Chromium: not); SVG `<text>` is not drawn.
+- Paint (feature 2c): the underline and line-through of large text lie
+  lower than in Chromium (60 px text: Chromium's underline at y + 69,
+  swb's at y + 75).
+- Paint (feature 2c): `<img>` and the video poster with
+  `border-radius` were not checked (`replaced_image` clips to the
+  content rectangle).
+- Layout (feature 2c): an inline block with `overflow` and
+  `vertical-align: top` puts the glyphs of the text after it 1 px lower
+  than Chromium.
 
 ## Backlog from M12
 

@@ -19,6 +19,9 @@ use crate::display_list::Radii;
 pub(crate) struct BackgroundAreas {
     pub(crate) border: Rect,
     pub(crate) padding: Rect,
+    /// The content box, for `background-clip: content-box` (a table and
+    /// the parts of a table use the padding box).
+    pub(crate) content: Rect,
     pub(crate) painting: PaintingArea,
 }
 
@@ -40,16 +43,47 @@ impl BackgroundAreas {
         BackgroundAreas {
             border: b.border_rect.translate(origin),
             padding: b.padding_rect().translate(origin),
+            content: b.content_rect().translate(origin),
             painting: PaintingArea::Own,
         }
     }
 
+    /// Areas whose content box is the padding box: the canvas, a table and
+    /// the parts of a table (they have no `background-clip: content-box`).
+    pub(crate) fn flat(border: Rect, padding: Rect, painting: PaintingArea) -> Self {
+        BackgroundAreas {
+            border,
+            padding,
+            content: padding,
+            painting,
+        }
+    }
+
+    /// The positioning area of `background-origin`. `content-box` is
+    /// painted as `padding-box` (not supported yet).
     pub(crate) fn area(&self, which: BackgroundBox) -> Rect {
         match which {
             BackgroundBox::BorderBox | BackgroundBox::Text => self.border,
-            // `content-box` is painted as `padding-box` (not supported yet).
             _ => self.padding,
         }
+    }
+
+    /// The area that `background-clip: which` selects. `text` is the border
+    /// box, which the text of the box clips further (ADR 0046).
+    fn clip_area(&self, which: BackgroundBox) -> Rect {
+        match which {
+            BackgroundBox::BorderBox | BackgroundBox::Text => self.border,
+            BackgroundBox::PaddingBox => self.padding,
+            BackgroundBox::ContentBox => self.content,
+        }
+    }
+
+    /// The painting area that `clip` selects with its corner radii: the
+    /// border radii of the box inside the border and padding (CSS
+    /// Backgrounds 3 §4.2, the inner radii), also for a box with no radii.
+    pub(crate) fn clip_shape(&self, clip: BackgroundBox, radii: Radii) -> (Rect, Radii) {
+        let area = self.clip_area(clip);
+        (area, inner_radii(radii, self.border, area))
     }
 
     /// The area and corner radii that the background color fills. A rounded
@@ -82,28 +116,40 @@ impl BackgroundAreas {
                 .iter()
                 .all(|&(kind, color)| opaque(kind, color.resolve(style.color)));
         if !borders_hide_the_edge {
-            return (self.painting_area(clip), radii);
+            return match self.painting {
+                PaintingArea::Own => self.clip_shape(clip, radii),
+                _ => (self.painting_area(clip), radii),
+            };
         }
-        let (top, right) = (padding.y - border.y, border.right() - padding.right());
-        let (bottom, left) = (border.bottom() - padding.bottom(), padding.x - border.x);
-        let inner = [
-            ((radii[0].0 - left).max(0.0), (radii[0].1 - top).max(0.0)),
-            ((radii[1].0 - right).max(0.0), (radii[1].1 - top).max(0.0)),
-            (
-                (radii[2].0 - right).max(0.0),
-                (radii[2].1 - bottom).max(0.0),
-            ),
-            ((radii[3].0 - left).max(0.0), (radii[3].1 - bottom).max(0.0)),
-        ];
-        (padding, inner)
+        (padding, inner_radii(radii, border, padding))
     }
 
     pub(crate) fn painting_area(&self, clip: BackgroundBox) -> Rect {
         match self.painting {
-            PaintingArea::Own => self.area(clip),
+            PaintingArea::Own => self.clip_area(clip),
             PaintingArea::Canvas(area) | PaintingArea::Cell(area) => area,
         }
     }
+}
+
+/// The corner radii of the box `inner` inside the box `outer` whose corner
+/// radii are `radii`: each radius shrinks by the distance of the edges,
+/// at least to 0 (CSS Backgrounds 3 §4.2).
+pub(crate) fn inner_radii(radii: Radii, outer: Rect, inner: Rect) -> Radii {
+    let (top, left) = (inner.y - outer.y, inner.x - outer.x);
+    let (right, bottom) = (
+        outer.right() - inner.right(),
+        outer.bottom() - inner.bottom(),
+    );
+    [
+        ((radii[0].0 - left).max(0.0), (radii[0].1 - top).max(0.0)),
+        ((radii[1].0 - right).max(0.0), (radii[1].1 - top).max(0.0)),
+        (
+            (radii[2].0 - right).max(0.0),
+            (radii[2].1 - bottom).max(0.0),
+        ),
+        ((radii[3].0 - left).max(0.0), (radii[3].1 - bottom).max(0.0)),
+    ]
 }
 
 /// The properties of one background layer that affect tiling.
@@ -284,6 +330,41 @@ fn unclamped_tile_size(size: &BackgroundSize, area: Rect, natural: &NaturalSize)
 mod tests {
     use super::*;
     use swb_style::{LengthPercentage, LengthPercentageOrAuto};
+
+    /// A box of 100 x 100 with a border of 10 and padding of 12.
+    fn areas() -> BackgroundAreas {
+        BackgroundAreas {
+            border: Rect::new(0.0, 0.0, 100.0, 100.0),
+            padding: Rect::new(10.0, 10.0, 80.0, 80.0),
+            content: Rect::new(22.0, 22.0, 56.0, 56.0),
+            painting: PaintingArea::Own,
+        }
+    }
+
+    /// The clip boxes have the border radii shrunk by the border and the
+    /// padding (CSS Backgrounds 3 §4.2); `text` is the border box.
+    #[test]
+    fn clip_boxes_have_inner_radii() {
+        let radii = [(40.0, 40.0), (40.0, 20.0), (5.0, 5.0), (0.0, 0.0)];
+        let a = areas();
+        assert_eq!(
+            a.clip_shape(BackgroundBox::BorderBox, radii),
+            (a.border, radii)
+        );
+        assert_eq!(a.clip_shape(BackgroundBox::Text, radii), (a.border, radii));
+        let (rect, padding) = a.clip_shape(BackgroundBox::PaddingBox, radii);
+        assert_eq!(rect, a.padding);
+        assert_eq!(
+            padding,
+            [(30.0, 30.0), (30.0, 10.0), (0.0, 0.0), (0.0, 0.0)]
+        );
+        let (rect, content) = a.clip_shape(BackgroundBox::ContentBox, radii);
+        assert_eq!(rect, a.content);
+        assert_eq!(content, [(18.0, 18.0), (18.0, 0.0), (0.0, 0.0), (0.0, 0.0)]);
+        // The origin of `content-box` is still the padding box.
+        assert_eq!(a.area(BackgroundBox::ContentBox), a.padding);
+        assert_eq!(a.painting_area(BackgroundBox::ContentBox), a.content);
+    }
 
     #[test]
     fn gradient_tiling_counts_copies_without_listing_them() {

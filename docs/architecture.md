@@ -153,7 +153,15 @@ Rules:
   clip, mask and opacity apply to the filtered result). A mask group
   carries its mask layers: images or gradients
   positioned like background layers
-  (`paint/src/mask.rs`, ADR 0018). The builder collects items in chunks
+  (`paint/src/mask.rs`, ADR 0018). The layers of a background that say
+  `background-clip: text` paint inside a mask group whose one layer is a
+  `MaskLayerImage::Content`: the white glyphs, strokes and decoration
+  lines of the box's text, which the builder collects before it paints
+  the background (`display_list/builder/text_clip.rs`, ADR 0046); the
+  image layers of a rounded box paint inside rounded clip groups, with
+  the color: one group for the rows with the corners at the top and one
+  at the bottom, the part between them without a group
+  (`display_list/builder/layers.rs`). The builder collects items in chunks
   (`paint/src/rope.rs`), so moving the items of positioned boxes copies
   each item a bounded number of times, and computes the bounds of all
   groups in one pass at the end (`paint/src/group_bounds.rs`). Form

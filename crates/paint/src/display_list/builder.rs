@@ -33,6 +33,11 @@ use crate::scroll_indicator::element_scroll_indicators;
 use crate::{background, box_shadow, control, corner_shape, media};
 
 mod groups;
+mod layers;
+mod text_clip;
+
+use layers::Piece;
+use text_clip::TextMask;
 
 /// Builds the display list for the whole document, with the selection
 /// highlight and the scroll offsets of scroll containers.
@@ -59,6 +64,9 @@ pub fn build_display_list(
         scroll: ScrollState::default(),
         indicators: scrolling.indicators,
         scale: scrolling.scale,
+        text_clip_shapes: 0,
+        text_clip_warned: false,
+        pieces: Vec::new(),
     };
     if let Some(canvas_background) = &tree.canvas_background {
         let bg = &canvas_background.style;
@@ -70,13 +78,9 @@ pub fn build_display_list(
         let (border, padding) = tree.root.as_ref().map_or((canvas, canvas), |root| {
             (root.border_rect, root.padding_rect())
         });
-        let areas = BackgroundAreas {
-            border,
-            padding,
-            painting: PaintingArea::Canvas(canvas),
-        };
+        let areas = BackgroundAreas::flat(border, padding, PaintingArea::Canvas(canvas));
         let start = builder.list.len();
-        builder.background(bg, &areas, [(0.0, 0.0); 4]);
+        builder.background(bg, &areas, [(0.0, 0.0); 4], None);
         builder.canvas_source = Some(canvas_background.source);
         // The opacity and the mask of the root element apply to the canvas
         // background too (as in Chromium): it is painted inside the root's
@@ -162,6 +166,14 @@ fn paint_kind(b: &BoxFragment) -> PaintKind {
     } else {
         PaintKind::Block
     }
+}
+
+/// True if the rectangles are equal within 0.01 px.
+fn same_rect(a: &Rect, b: &Rect) -> bool {
+    (a.x - b.x).abs() < 0.01
+        && (a.y - b.y).abs() < 0.01
+        && (a.width - b.width).abs() < 0.01
+        && (a.height - b.height).abs() < 0.01
 }
 
 /// A positioned box painted after the normal flow of its stacking context.
@@ -339,6 +351,13 @@ struct Builder<'a> {
     indicators: bool,
     /// Device pixels per CSS px.
     scale: f32,
+    /// The shapes that `background-clip: text` groups clip by so far (see
+    /// [`text_clip::MAX_SHAPES_TOTAL`]).
+    text_clip_shapes: usize,
+    /// True once the limits warned (once per display list).
+    text_clip_warned: bool,
+    /// The buffer of [`Builder::background`], kept between boxes.
+    pieces: Vec<Piece>,
 }
 
 /// A text decoration propagated from an ancestor.
@@ -737,12 +756,9 @@ impl Builder<'_> {
                 // the cell.
                 for part in &cell.backgrounds {
                     let area = part.area.translate(rect.origin());
-                    let part_areas = BackgroundAreas {
-                        border: area,
-                        padding: area,
-                        painting: PaintingArea::Cell(part.clip.translate(rect.origin())),
-                    };
-                    self.background(&part.style, &part_areas, [(0.0, 0.0); 4]);
+                    let clip = part.clip.translate(rect.origin());
+                    let part_areas = BackgroundAreas::flat(area, area, PaintingArea::Cell(clip));
+                    self.background(&part.style, &part_areas, [(0.0, 0.0); 4], None);
                 }
                 if cell.hidden {
                     return;
@@ -753,11 +769,8 @@ impl Builder<'_> {
             // captions; collapsed borders are painted after the cells.
             BoxContent::Table(table) => {
                 border_rect = table.grid.translate(rect.origin());
-                areas = BackgroundAreas {
-                    border: border_rect,
-                    padding: border_rect.inset(&b.border),
-                    painting: PaintingArea::Own,
-                };
+                let padding = border_rect.inset(&b.border);
+                areas = BackgroundAreas::flat(border_rect, padding, PaintingArea::Own);
                 paint_border = table.collapsed.is_none();
             }
             BoxContent::None
@@ -779,7 +792,7 @@ impl Builder<'_> {
         let native = matches!(&b.content, BoxContent::Control(c) if c.native);
         self.outer_shadows(b, border_rect, radii, native);
         if !paints_canvas && !native {
-            self.background(style, &areas, radii);
+            self.box_background(b, origin, &areas, radii);
         }
         self.inner_shadows(b, border_rect, radii, native);
         if paint_border && !native {
@@ -1015,7 +1028,38 @@ impl Builder<'_> {
         }
     }
 
-    fn background(&mut self, style: &ComputedStyle, areas: &BackgroundAreas, radii: Radii) {
+    /// Paints the background of box `b` (its parent's border box starts at
+    /// `origin`): with the mask of its text if a layer says
+    /// `background-clip: text` and paints (ADR 0046).
+    fn box_background(
+        &mut self,
+        b: &BoxFragment,
+        origin: Point,
+        areas: &BackgroundAreas,
+        radii: Radii,
+    ) {
+        let style = &b.style;
+        let paints = !style.background_color.resolve(style.color).is_transparent()
+            || style.background_image.iter().any(Option::is_some);
+        let text = (paints
+            && style.background_clip.contains(&BackgroundBox::Text)
+            && matches!(areas.painting, PaintingArea::Own))
+        .then(|| self.text_mask(b, origin))
+        .flatten();
+        self.background(style, areas, radii, text.as_ref());
+    }
+
+    /// Paints the background of a box: the color, then the image layers,
+    /// each clipped by its `background-clip` with the corner radii of the
+    /// clip box (`layers.rs`) and, for `text`, by the mask of the text
+    /// (`text`: `None` paints `text` as `border-box`).
+    fn background(
+        &mut self,
+        style: &ComputedStyle,
+        areas: &BackgroundAreas,
+        radii: Radii,
+        text: Option<&TextMask>,
+    ) {
         let color = style.background_color.resolve(style.color);
         // The color is painted with the clip of the bottom layer.
         let color_clip = style
@@ -1023,17 +1067,48 @@ impl Builder<'_> {
             .last()
             .copied()
             .unwrap_or(BackgroundBox::BorderBox);
+        let kinds = corner_shape::shapes(style);
+        let own = matches!(areas.painting, PaintingArea::Own);
+        let rounded = |shape: (Rect, Radii)| Some(shape).filter(|s| has_rounded_corner(&s.1));
+        // The buffer is reused: most boxes have one piece.
+        let mut pieces = std::mem::take(&mut self.pieces);
         if !color.is_transparent() {
-            let (rect, radii) = match areas.painting {
+            let (rect, shaped_radii) = match areas.painting {
                 PaintingArea::Own => areas.color_area(style, color_clip, radii),
                 PaintingArea::Canvas(_) | PaintingArea::Cell(_) => {
                     (areas.painting_area(color_clip), [(0.0, 0.0); 4])
                 }
             };
-            let shaped =
-                corner_shape::shapes(style).and_then(|k| corner_shape::fill(rect, radii, k, color));
-            self.list
-                .push(shaped.unwrap_or(DisplayItem::Rect { rect, radii, color }));
+            // A rounded box with image layers clips the color and the
+            // layers together, so that the anti-aliased edge does not show
+            // the color around the layers (Chromium clips the whole
+            // background in one layer). Not where the color keeps out of
+            // the borders (`color_area`).
+            let shape = areas.clip_shape(color_clip, radii);
+            let has_images = style.background_image.iter().any(Option::is_some);
+            let together = own && has_images && rect == shape.0 && shaped_radii == shape.1;
+            let (round, item) = if together {
+                let square = DisplayItem::Rect {
+                    rect,
+                    radii: [(0.0, 0.0); 4],
+                    color,
+                };
+                (rounded(shape), square)
+            } else {
+                // The item has the rounded shape itself.
+                let shaped = kinds.and_then(|k| corner_shape::fill(rect, shaped_radii, k, color));
+                let fill = DisplayItem::Rect {
+                    rect,
+                    radii: shaped_radii,
+                    color,
+                };
+                (None, shaped.unwrap_or(fill))
+            };
+            pieces.push(Piece {
+                clip: color_clip,
+                round,
+                item,
+            });
         }
         // Layers are painted bottom (last) to top (first).
         for (i, image) in style.background_image.iter().enumerate().rev() {
@@ -1045,62 +1120,64 @@ impl Builder<'_> {
                 continue;
             };
             let positioning = areas.area(origin);
-            let clip = areas.painting_area(clip);
-            match image {
-                Image::Url(url) => {
-                    let image_ref = ImageRef::Url(Arc::clone(url));
-                    let (
-                        Some(natural),
-                        Some(size),
-                        Some(position_x),
-                        Some(position_y),
-                        Some(&repeat),
-                    ) = (
-                        self.images.size(&image_ref),
-                        layer_value(&style.background_size, i),
-                        layer_value(&style.background_position_x, i),
-                        layer_value(&style.background_position_y, i),
-                        layer_value(&style.background_repeat, i),
-                    )
-                    else {
-                        continue;
-                    };
-                    let layer = background::Layer {
-                        size,
-                        position_x,
-                        position_y,
-                        repeat,
-                    };
-                    let (tile, area) = background::tile(&layer, positioning, clip, &natural);
-                    self.list.push(DisplayItem::Image {
-                        image: image_ref,
-                        rect: area,
-                        tile,
-                        clip,
-                    });
-                }
+            let clip_area = areas.painting_area(clip);
+            let item = match image {
+                Image::Url(url) => self.image_layer(style, i, url, positioning, clip_area),
                 Image::LinearGradient(gradient) => {
-                    self.gradient_layer(style, areas, i, gradient, positioning, clip);
+                    Self::gradient_layer(style, areas, i, gradient, positioning, clip_area)
                 }
+            };
+            if let Some(item) = item {
+                let round = own.then(|| areas.clip_shape(clip, radii)).and_then(rounded);
+                pieces.push(Piece { clip, round, item });
             }
         }
+        self.emit_pieces(&mut pieces, text, areas.border, kinds);
+        self.pieces = pieces;
     }
 
-    /// Paints layer `i` of the background images, a gradient. One gradient
-    /// fills the positioning area (the whole canvas for the canvas) when the
-    /// layer has the default size, position and repeat; otherwise one item
-    /// holds the layer's first tile (`background-size`, `-position`,
-    /// `-repeat`) and the rasterizer repeats it.
+    /// The item of layer `i` of the background images, an image at `url`
+    /// (`None` while its size is unknown).
+    fn image_layer(
+        &self,
+        style: &ComputedStyle,
+        i: usize,
+        url: &Arc<str>,
+        positioning: Rect,
+        clip: Rect,
+    ) -> Option<DisplayItem> {
+        let image = ImageRef::Url(Arc::clone(url));
+        let natural = self.images.size(&image)?;
+        let layer = background::Layer {
+            size: layer_value(&style.background_size, i)?,
+            position_x: layer_value(&style.background_position_x, i)?,
+            position_y: layer_value(&style.background_position_y, i)?,
+            repeat: *layer_value(&style.background_repeat, i)?,
+        };
+        let (tile, area) = background::tile(&layer, positioning, clip, &natural);
+        Some(DisplayItem::Image {
+            image,
+            rect: area,
+            tile,
+            clip,
+        })
+    }
+
+    /// The item of layer `i` of the background images, a gradient. One
+    /// gradient fills the positioning area (the whole canvas for the
+    /// canvas) when the layer has the default size, position and repeat;
+    /// otherwise the item holds the layer's first tile (`background-size`,
+    /// `-position`, `-repeat`) and the rasterizer repeats it. `None` for an
+    /// empty tile.
     fn gradient_layer(
-        &mut self,
         style: &ComputedStyle,
         areas: &BackgroundAreas,
         i: usize,
         gradient: &Arc<swb_style::LinearGradient>,
         positioning: Rect,
         clip: Rect,
-    ) {
-        let item = |rect: Rect, tile: Rect, clip: Rect| DisplayItem::LinearGradient {
+    ) -> Option<DisplayItem> {
+        let item = |rect: Rect, tile: Rect| DisplayItem::LinearGradient {
             rect,
             tile,
             clip,
@@ -1132,31 +1209,25 @@ impl Builder<'_> {
                     position_y,
                     repeat,
                 };
-                // An empty tile paints nothing.
-                let Some(tiling) = background::gradient_tiling(&layer, positioning, clip) else {
-                    return;
-                };
-                Some(tiling)
+                Some(background::gradient_tiling(&layer, positioning, clip)?)
             }
             _ => None,
         };
         let Some(tiling) = tiling else {
-            self.list.push(item(rect, rect, clip));
-            return;
+            return Some(item(rect, rect));
         };
         // The default layer: one tile that is the positioning area, painted
         // as one gradient.
         let t = tiling.tile;
-        let plain = tiling.single
-            && (t.x - positioning.x).abs() < 0.01
-            && (t.y - positioning.y).abs() < 0.01
-            && (t.width - positioning.width).abs() < 0.01
-            && (t.height - positioning.height).abs() < 0.01;
-        if plain {
-            self.list.push(item(rect, rect, clip));
+        let plain = tiling.single && same_rect(&t, &positioning);
+        Some(if plain {
+            // The gradient's box is the positioning area, also where the
+            // clip is smaller (`content-box`).
+            let own = matches!(areas.painting, PaintingArea::Own);
+            item(rect, if own { t } else { rect })
         } else {
-            self.list.push(item(tiling.area, t, clip));
-        }
+            item(tiling.area, t)
+        })
     }
 
     /// Paints the borders of a table with collapsing borders. `origin` is
@@ -1280,15 +1351,13 @@ impl Builder<'_> {
         decorations: &[Decoration],
         color: Option<Rgba>,
     ) {
-        let thickness = (t.font_size / 16.0).max(1.0).round();
         for d in decorations {
             let line_color = color.unwrap_or(d.color);
-            if d.lines.contains(TextDecorationLine::UNDERLINE) {
-                let y = (baseline.y + (t.font_size / 9.0).max(1.0)).round();
-                self.decoration_line(rect.x, y, rect.width, thickness, line_color);
-            }
-            if d.lines.contains(TextDecorationLine::OVERLINE) {
-                self.decoration_line(rect.x, rect.y.round(), rect.width, thickness, line_color);
+            for line in [TextDecorationLine::UNDERLINE, TextDecorationLine::OVERLINE] {
+                if d.lines.contains(line) {
+                    let r = decoration_rect(line, rect, baseline.y, t.font_size);
+                    self.decoration_line(r, line_color);
+                }
             }
         }
         let style = &t.style;
@@ -1315,8 +1384,13 @@ impl Builder<'_> {
         }
         for d in decorations {
             if d.lines.contains(TextDecorationLine::LINE_THROUGH) {
-                let y = (baseline.y - t.font_size * 0.3).round();
-                self.decoration_line(rect.x, y, rect.width, thickness, color.unwrap_or(d.color));
+                let r = decoration_rect(
+                    TextDecorationLine::LINE_THROUGH,
+                    rect,
+                    baseline.y,
+                    t.font_size,
+                );
+                self.decoration_line(r, color.unwrap_or(d.color));
             }
         }
     }
@@ -1357,13 +1431,28 @@ impl Builder<'_> {
         }
     }
 
-    fn decoration_line(&mut self, x: f32, y: f32, width: f32, thickness: f32, color: Rgba) {
+    fn decoration_line(&mut self, rect: Rect, color: Rgba) {
         self.list.push(DisplayItem::Rect {
-            rect: Rect::new(x, y, width, thickness),
+            rect,
             radii: [(0.0, 0.0); 4],
             color,
         });
     }
+}
+
+/// The rectangle of the decoration line `line` (one of `underline`,
+/// `overline` and `line-through`) of a text fragment whose box is `rect`,
+/// with its baseline at `baseline_y`.
+fn decoration_rect(line: TextDecorationLine, rect: Rect, baseline_y: f32, font_size: f32) -> Rect {
+    let thickness = (font_size / 16.0).max(1.0).round();
+    let y = if line == TextDecorationLine::UNDERLINE {
+        (baseline_y + (font_size / 9.0).max(1.0)).round()
+    } else if line == TextDecorationLine::OVERLINE {
+        rect.y.round()
+    } else {
+        (baseline_y - font_size * 0.3).round()
+    };
+    Rect::new(rect.x, y, rect.width, thickness)
 }
 
 /// The border box of `b` united with the boxes and text of its descendants

@@ -415,6 +415,44 @@ fn mask_multiplies_by_the_image_alpha() {
     }
 }
 
+/// A content layer (the mask of `background-clip: text`): the group shows
+/// where the white shapes of the layer cover it, anti-aliased at the edges
+/// of the shapes; overlapping shapes do not add up.
+#[test]
+fn content_layers_clip_to_the_union_of_their_shapes() {
+    let white = |x: f32, y: f32, w: f32, h: f32| DisplayItem::Rect {
+        rect: Rect::new(x, y, w, h),
+        radii: [(0.0, 0.0); 4],
+        color: Rgba::WHITE,
+    };
+    let area = Rect::new(20.0, 20.0, 40.0, 40.0);
+    let layer = mask_layer(MaskLayerImage::Content {
+        items: Arc::from([
+            white(25.0, 20.0, 10.0, 40.0),
+            white(30.0, 30.0, 20.0, 10.0),
+            white(31.0, 31.0, 5.0, 5.0),
+        ]),
+        area,
+    });
+    for scale in [1.0, 2.0] {
+        let p = render_with(masked_square(vec![layer.clone()]), scale, &NoImages);
+        let at = |x: f32, y: f32| rgb(&p, (x * scale) as u32, (y * scale) as u32);
+        assert_eq!(at(27.0, 25.0), (255, 0, 0), "first shape, scale {scale}");
+        assert_eq!(at(45.0, 35.0), (255, 0, 0), "second shape, scale {scale}");
+        assert_eq!(at(32.0, 33.0), (255, 0, 0), "overlap, scale {scale}");
+        assert_eq!(at(22.0, 25.0), (255, 255, 255), "left of both");
+        assert_eq!(at(45.0, 50.0), (255, 255, 255), "below the bar");
+        assert_eq!(at(10.0, 10.0), (255, 255, 255), "outside the group");
+    }
+    // A layer without shapes hides the group.
+    let empty = mask_layer(MaskLayerImage::Content {
+        items: Arc::from([]),
+        area,
+    });
+    let p = render(masked_square(vec![empty]));
+    assert_eq!(rgb(&p, 40, 40), (255, 255, 255));
+}
+
 #[test]
 fn unavailable_layers_hide_the_group() {
     let rect = Rect::new(20.0, 20.0, 40.0, 40.0);

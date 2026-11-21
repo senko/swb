@@ -163,28 +163,14 @@ runs; tests in `crates/automation/tests/videojs_static.rs` and
   tile size, so a fractional tile with more than 16 visible copies differs
   at the tile edges: a 6.4 px tile by up to 15 per channel, a 5.5 px tile
   with a hard stop by 3 to 4 (measured in the review of the fixes). Not
-  done: gradients are not clipped by `border-radius` and
-  `corner-shape`, `space` and `round` paint as `repeat`, `background-origin:
+  done: `space` and `round` paint as `repeat`, `background-origin:
   content-box` is `padding-box`, `background-attachment: fixed` is ignored
-  (earlier gaps that the tiled path inherits).
+  (earlier gaps that the tiled path inherits). The clip of gradients by
+  `border-radius` and `corner-shape` is in 2c.
 
 ## Not done in 2b, with plans
 
-- **`background-clip: text`** (the shimmer of the search dialog). The
-  property parses and computes; paint treats `text` as `border-box`. Plan:
-  a display item pair `PushTextClip { bounds }` and `PopTextClip`, and a
-  raster layer kind `TextClip` that, like the mask group, multiplies the
-  layer by a coverage; the coverage is the union of the glyph masks of the
-  `Text` items of the box and its descendants (`-webkit-text-fill-color:
-  transparent` hides the text itself). The builder must collect those items
-  before it paints the background of the box: a pre-pass over the
-  descendant fragments that appends the `Text` items to a side list, then
-  the group holds the background items, and the text items follow in
-  paint order as before. Bounds: at most 100,000 glyphs per group (hostile
-  case with 100,000 glyphs), else the clip falls back to `border-box`.
-  Measure first in Chromium (pixels of a gradient clipped to "Hi" at 60 px,
-  with `text-shadow`, a nested inline box, a `transform`, and
-  `-webkit-text-stroke`).
+- **`background-clip: text`**: done in 2c (below).
 - **`-webkit-line-clamp`** with `display: -webkit-box` and
   `-webkit-box-orient: vertical`. `-webkit-box` parses to `flex` in swb (the
   computed `display` is `flex`, Chromium's is `-webkit-box`). Plan: add
@@ -216,6 +202,137 @@ runs; tests in `crates/automation/tests/videojs_static.rs` and
 - **Interpolation** of gradients with non-legacy colors in Oklab (feature
   3a): `linear-gradient(to right, oklch(0.9 0.1 90), oklch(0.5 0.2 270))` is
   `145,157,191` at the middle in Chromium and `153,150,178` in swb.
+
+## Feature 2c: `background-clip: text` and gradients in rounded boxes
+
+Probe file `tools/probes/css-videojs-2c.json` (8 cases; three equal
+Chromium 148 runs). Measured rules are marked (M); the rest is the design.
+
+- **The mask of `background-clip: text`** (M). The layers that say `text`
+  (and the background color, when the bottom layer says it) paint only
+  where the text of the box is. The mask is the union of: the glyphs of
+  the text whatever the fill (`-webkit-text-fill-color: transparent` is
+  the usual case; with a visible fill the text paints over its layer), the
+  stroke of `-webkit-text-stroke` (the area under a stroke counts when
+  the width is above 0, also with a transparent stroke color: the outer
+  half of a 6 px stroke has the layer under it), and the decoration
+  lines (underline, overline, line-through). `text-shadow` is not in the
+  mask. The box paints inside its border box, so text outside it (an
+  overflow) shows no layer; the positioning area is the one that
+  `background-origin` selects (`padding-box` by default), the gradient
+  moves with `background-position`, and a transform, the opacity and the
+  `border-radius` of the box apply as for any background. A box without
+  text paints nothing for these layers (also not its color); layers that
+  say something else paint as before.
+- **Which text counts** (M). The text of the box itself and of all
+  descendants that paint in the box's layer: inline boxes, block children,
+  floats, inline blocks, flex and grid items, table cells, `::before` and
+  `::after`, `display: contents`, and boxes with `opacity: 1`. The
+  `overflow` clip of a descendant (also `auto` and with `border-radius`)
+  does not cut the shapes. Not in the mask: the text of positioned boxes
+  (`relative`, `absolute`, `sticky`, `fixed`), of boxes with `transform`
+  (also `translate(0, 0)`), `translate`, `rotate` or `scale`, `opacity`
+  below 1, `filter`, `mask`, `clip-path`, `backdrop-filter`, `isolation`,
+  `mix-blend-mode`, `contain: paint` or `layout`; text with `visibility:
+  hidden`; the text of an `input` and of SVG `<text>`. `will-change:
+  transform` alone keeps the text in the mask. swb uses the stacking
+  context test of the builder (`forms_stacking_context` or a `position`
+  other than `static`).
+- **Paint.** A mask group (`PushMask`, ADR 0018) holds the layers that say
+  `text`; its one mask layer is `MaskLayerImage::Content`, the items
+  `Text`, `TextStroke` and `Rect` in white. The rasterizer draws them into
+  the temporary layer of the mask like any other mask layer and multiplies
+  the group by their alpha, so overlapping shapes do not add up. The
+  builder collects the items in a walk of the box's descendants before it
+  paints the background (`display_list/builder/text_clip.rs`): the text
+  is painted later, in the foreground phase, so the mask cannot be filled
+  by painting. The first plan (a new group kind) was not needed: the mask
+  group already has the budgets (layer pixels, mask work: each glyph
+  counts 16 pixels), the bounds and the clips. Consecutive layers with the
+  same clips share their groups (`display_list/builder/layers.rs`).
+- **Bounds.** A box collects at most 100,000 shapes and a display list
+  1,000,000 (nested boxes each collect the text below them). A glyph counts
+  1 (a stroked glyph 2), a decoration line rectangle counts 1, and the
+  count is checked before each push; a walk gets what is left of the total
+  as its limit, so it stops early. Beyond a limit the layers paint as
+  `border-box` and swb logs a warning once per list. The decoration
+  lines of all ancestors are white shapes, so a fragment gets at most one
+  rectangle per line kind (the union of the ancestors' lines). Without
+  this, 250 nested boxes with three lines each and 3,900 `<b>x</b>` took
+  20.5 s and 31.5 GB (review of 2c); now 0.30 s and 554 MiB. Hostile
+  cases: 100,001 glyphs (0.05 s, 82 MiB), 99,000 visible glyphs (0.05 s,
+  82 MiB), 20,000 small boxes (0.20 s, 148 MiB), 250 nested boxes with
+  5,000 glyphs below (0.15 s, 69 MiB), 250 nested boxes with decorations
+  (0.30 s, 554 MiB).
+- **Where it does not apply.** The canvas background (root element) and
+  the backgrounds of table rows and columns paint `text` as `border-box`.
+  A `<tr>`, a column or a root with `background-clip: text` is not
+  measured.
+- **Shimmer.** The static box of `css-animations.json` `shimmer` with
+  `background-position: 200% 0` (the value at time 0): the three points of
+  its pixel row equal Chromium's animated values (229,231,235; 201,201,207;
+  255,255,255), and 4,300 points of `shimmer-static` equal Chromium's
+  within 2 levels away from glyph edges (the edge pixels differ by up to
+  21 levels; the pixel test asserts at most 24 at all of the points, and
+  that a shift of 1 px breaks it).
+- **Gradients, images and colors in rounded boxes.** Chromium clips each
+  background layer by the rounded clip box (M): the border radii for
+  `border-box` and `text`, the radii minus the border widths for
+  `padding-box`, minus border and padding for `content-box`. swb painted
+  gradients and images as rectangles (the corner of a `border-radius:
+  40px` box at (6,6) was 17, Chromium's 255). Now the layers of a box with
+  a rounded clip box paint inside a clip group of the rounded path
+  (`PushSvgClip`, as the rounded `overflow` clip; `corner-shape` uses the
+  path of ADR 0045), also the tiled path. A group needs a layer of the
+  size of its content, and one group around the hero of videojs.org (a
+  gradient of 1,180 x 570 px in a box with a radius of 24 px) took 2.5 ms
+  of 29 ms of raster per frame. So the layers are split at the rows that
+  hold the corners (the larger vertical radius at the top and at the
+  bottom): the part between them paints without a group, the top and the
+  bottom part in a group each (the items are copies with the `clip` of
+  the band), and the layer of a group is as large as the corner rows. The
+  cost on videojs is 0.5 to 1 ms of 29 ms of raster. The group's
+  rectangle is snapped to device pixels as the fills are (at scale 2
+  too); an unsnapped group blended the top and bottom row of a box at a
+  fractional position (up to 64 levels, case `rounded-fractional`). The
+  snap is in CSS space, before the transform (a fractional `translate`
+  moves the rounded edge apart from the fill: backlog). A box whose
+  corner rows cover its height has one group, and so has a box with
+  `corner-shape` or a text mask. When the box has image layers, the
+  background color paints in the same group as a square rectangle
+  (M: a color drawn as its own anti-aliased rounded rectangle under the
+  layers showed at the curve, up to 73 levels off). The color of a
+  `padding-box` or `content-box` clip uses the inner radii. Not rounded:
+  the color that keeps out of opaque borders (ADR 0043) and the canvas.
+  `background-clip: content-box` now clips to the content box (the origin
+  stays the padding box). A plain gradient whose clip is smaller than its
+  positioning area (`content-box`) kept the clip as its box and squeezed
+  the gradient; its box is now the positioning area. Edge pixels at the
+  curve differ from Chromium by up to 40 levels (anti-aliasing), the
+  inside by at most 2.
+- **SVG with a viewport of size 0.** The 8 `path` boxes of the player's
+  buffering spinner were the worst geometry matches of the JS-off first
+  view (zero size). The icon is an `<svg viewBox="0 0 18 18">` with
+  `max-width: 100%` in a box of width 0: its viewport has width 0 and
+  height 18 (M). Chromium gives no `viewBox` transform to a viewport with
+  a width or height of 0: the user space is the viewport's, whatever the
+  `viewBox` origin and `preserveAspectRatio` (229 rows of `svg-zero-
+  viewport` and `svg-css-size`, with the CSS sizes, attribute sizes,
+  `auto` and `var()`). swb scaled by 0 and collapsed the paths to a
+  point. Fix: `SvgContent::space`. The percentages of the content still
+  refer to the `viewBox` size in such a viewport (M, `svg-percent-zero`:
+  a `rect` of 50% has the box 9 x 9 in a viewBox of 18 x 18 and a
+  viewport of 0 x 18, 18 x 0 or 0 x 0); without a `viewBox` they refer
+  to the viewport. JS-off geometry of `videojs`: 0.9759 -> 1.0000; JS
+  on: size 0.9132 -> 0.9244, relative 0.8964 -> 0.9188.
+- **Departures.** A list marker is in the mask (Chromium: not;
+  swb's marker is a text fragment of the item); the underline and
+  line-through of 60 px text lie lower in swb than in Chromium (existing
+  decoration geometry, so the mask has them there); SVG `<text>` is not
+  drawn. A repeating image in a rounded box whose tile is taller than a
+  corner row, with a fractional position, may differ by a pixel between the
+  bands: the rasterizer snaps a single tile and not a repeated one, and a
+  band can hold one tile where the middle holds several.
 
 ## Departures and open points
 

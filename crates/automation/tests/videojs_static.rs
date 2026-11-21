@@ -222,3 +222,27 @@ fn probe_cases_2b() {
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     });
 }
+
+/// True if two texts are equal but for numbers that differ by at most
+/// 0.02: swb places boxes in `f32` and Chromium in 1/64 px.
+fn same_numbers(want: &Value, got: &Value) -> bool {
+    let (Some(want), Some(got)) = (want.as_str(), got.as_str()) else {
+        return want == got;
+    };
+    let ((a, na), (b, nb)) = (color_parts(want), color_parts(got));
+    a == b && na.len() == nb.len() && na.iter().zip(&nb).all(|(x, y)| (x - y).abs() <= 0.02)
+}
+
+/// Runs the cases of the probe file of feature 2c (ADR 0046): the `js`
+/// rows are the geometry of the paths of an inline `<svg>` with a viewport
+/// of width or height 0 (the viewBox transform is the identity there: the
+/// zero-size icons of the videojs.org player), and with CSS sizes; the
+/// pixel rows are in `crates/engine/tests/static_css_pixels.rs`.
+#[test]
+fn probe_cases_2c() {
+    on_page_thread(|| {
+        let failures =
+            common::run_probe_file_with("css-videojs-2c", open, expected_value, same_numbers);
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    });
+}

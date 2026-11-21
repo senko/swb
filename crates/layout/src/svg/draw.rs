@@ -226,12 +226,22 @@ impl SvgContent {
         })
     }
 
+    /// A viewport with a width or height of 0 has no `viewBox` transform:
+    /// the user space is the viewport's (measured in Chromium 148, with
+    /// `viewBox` origins and `preserveAspectRatio` values; the max-width
+    /// of 100% of a player icon in a box of width 0 makes such a viewport).
+    /// The percentages still refer to the `viewBox` size (`svg-percent-zero`
+    /// in `tools/probes/css-videojs-2c.json`).
     fn space(&self, size: Size) -> Space {
         let (base, reference) = match self.view_box {
-            Some(vb) => (
-                view_box_transform(vb, self.preserve_aspect_ratio, size),
-                Size::new(vb.width, vb.height),
-            ),
+            Some(vb) => {
+                let base = if size.width > 0.0 && size.height > 0.0 {
+                    view_box_transform(vb, self.preserve_aspect_ratio, size)
+                } else {
+                    Matrix::IDENTITY
+                };
+                (base, Size::new(vb.width, vb.height))
+            }
             None => (Matrix::IDENTITY, size),
         };
         Space {
