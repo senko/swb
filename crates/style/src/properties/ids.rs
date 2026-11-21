@@ -9,6 +9,7 @@
 use std::sync::Arc;
 
 use super::clip_path::SpecifiedClipPath;
+use super::effects::{SpecifiedShadows, SpecifiedTranslate};
 use super::filter::SpecifiedFilter;
 use super::mask::SpecifiedMaskImage;
 use super::specified::{
@@ -23,15 +24,15 @@ use crate::parse::image::SpecifiedImage;
 use crate::values::{
     Alignment, Appearance, AspectRatio, BackgroundAttachment, BackgroundBox,
     BackgroundRepeatKeyword, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color,
-    CompositeOperator, Contain, ContainerName, ContainerType, ContentVisibility, CounterList,
-    Cursor, Direction, Display, EmptyCells, FieldSizing, FillRule, FlexDirection, FlexWrap, Float,
-    FontFamily, FontStyle, FontVariantCaps, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens,
-    ListStylePosition, ListStyleType, MaskClip, MaskMode, MixBlendMode, ObjectFit, OutlineStyle,
-    Overflow, OverflowWrap, Overlay, PointerEvents, Position, Resize, ScrollbarWidth,
-    ShapeRendering, SpecifiedLengthPercentage as Lp, SpecifiedTrackList, SpecifiedTrackSize,
-    StrokeLinecap, StrokeLinejoin, SvgPaint, TableLayout, TextDecorationLine, TextDecorationStyle,
-    TextOverflow, TextTransform, UnicodeBidi, UserSelect, Visibility, WhiteSpace, WordBreak,
-    ZIndex,
+    CompositeOperator, Contain, ContainerName, ContainerType, ContentVisibility, CornerShape,
+    CounterList, Cursor, Direction, Display, EmptyCells, FieldSizing, FillRule, FlexDirection,
+    FlexWrap, Float, FontFamily, FontStyle, FontVariantCaps, GridAutoFlow, GridLine,
+    GridTemplateAreas, Hyphens, Isolation, ListStylePosition, ListStyleType, MaskClip, MaskMode,
+    MixBlendMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents,
+    Position, Resize, Rotate, Scale, ScrollbarWidth, ShapeRendering, SpaceCollapse,
+    SpecifiedLengthPercentage as Lp, SpecifiedTrackList, SpecifiedTrackSize, StrokeLinecap,
+    StrokeLinejoin, SvgPaint, TableLayout, TextDecorationLine, TextDecorationStyle, TextOverflow,
+    TextTransform, TextWrapStyle, UnicodeBidi, UserSelect, Visibility, WordBreak, ZIndex,
 };
 
 macro_rules! longhands {
@@ -80,9 +81,21 @@ macro_rules! longhands {
 
             /// Copies this property's computed value from `from` to `to`.
             pub(crate) fn copy_value(self, from: &ComputedStyle, to: &mut ComputedStyle) {
+                let white_space = to.white_space;
                 match self {
                     $(LonghandId::$id => to.$field.clone_from(&from.$field),)+
                     $(LonghandId::$iid)|+ => super::inert::copy_value(self, from, to),
+                }
+                // `white-space-collapse` and `text-wrap-mode` share one
+                // computed field: each copies only its half.
+                match self {
+                    LonghandId::WhiteSpaceCollapse => {
+                        to.white_space = white_space.with_collapse(from.white_space.collapse());
+                    }
+                    LonghandId::TextWrapMode => {
+                        to.white_space = white_space.with_wrap(from.white_space.wraps());
+                    }
+                    _ => {}
                 }
                 if self == LonghandId::FontSize {
                     to.font_size_origin = from.font_size_origin;
@@ -130,7 +143,7 @@ longhands! {
     TextAlign "text-align" inherited text_align: SpecifiedTextAlign;
     TextIndent "text-indent" inherited text_indent: Lp;
     TextTransform "text-transform" inherited text_transform: TextTransform;
-    WhiteSpace "white-space" inherited white_space: WhiteSpace;
+    WhiteSpaceCollapse "white-space-collapse" inherited white_space: SpaceCollapse;
     LetterSpacing "letter-spacing" inherited letter_spacing: Lp;
     WordSpacing "word-spacing" inherited word_spacing: Lp;
     WordBreak "word-break" inherited word_break: WordBreak;
@@ -162,6 +175,15 @@ longhands! {
     StrokeDasharray "stroke-dasharray" inherited stroke_dasharray: Arc<[Lp]>;
     StrokeDashoffset "stroke-dashoffset" inherited stroke_dashoffset: Lp;
     StrokeOpacity "stroke-opacity" inherited stroke_opacity: f32;
+    // `white-space` is the shorthand of `white-space-collapse` and
+    // `text-wrap-mode`. `ComputedStyle::white_space` holds both halves;
+    // each longhand sets and copies only its half (`copy_value`, `compute.rs`).
+    TextWrapMode "text-wrap-mode" inherited white_space: bool;
+    TextWrapStyle "text-wrap-style" inherited text_wrap_style: TextWrapStyle;
+    TextStrokeWidth "-webkit-text-stroke-width" inherited text_stroke_width: Lp;
+    TextStrokeColor "-webkit-text-stroke-color" inherited text_stroke_color: Color;
+    TextFillColor "-webkit-text-fill-color" inherited text_fill_color: Color;
+    TextShadow "text-shadow" inherited text_shadow: SpecifiedShadows;
 
     // Not inherited.
     Display "display" reset display: Display;
@@ -288,6 +310,15 @@ longhands! {
     UnicodeBidi "unicode-bidi" reset unicode_bidi: UnicodeBidi;
     Filter "filter" reset filter: SpecifiedFilter;
     BackdropFilter "backdrop-filter" reset backdrop_filter: SpecifiedFilter;
+    BoxShadow "box-shadow" reset box_shadow: SpecifiedShadows;
+    Translate "translate" reset translate: SpecifiedTranslate;
+    Rotate "rotate" reset rotate: Option<Rotate>;
+    Scale "scale" reset scale: Option<Scale>;
+    Isolation "isolation" reset isolation: Isolation;
+    CornerTopLeftShape "corner-top-left-shape" reset corner_top_left_shape: CornerShape;
+    CornerTopRightShape "corner-top-right-shape" reset corner_top_right_shape: CornerShape;
+    CornerBottomRightShape "corner-bottom-right-shape" reset corner_bottom_right_shape: CornerShape;
+    CornerBottomLeftShape "corner-bottom-left-shape" reset corner_bottom_left_shape: CornerShape;
 
     // Not inherited, without effect on layout or paint (the scroll margin
     // and padding only on scrolling to an element): the computed values are

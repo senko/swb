@@ -364,7 +364,39 @@ impl FontContext {
             glyph,
             size: size.to_bits(),
             subpixel: subpixel.min(3),
+            stroke: 0,
         };
+        self.cached_mask(key)
+    }
+
+    /// The coverage mask of the outline stroke of a glyph (the stroke is
+    /// centered on the outline and `width` device pixels wide): as
+    /// [`FontContext::glyph_mask`], for `-webkit-text-stroke`. `None`
+    /// also if `width` is not positive.
+    pub fn glyph_stroke_mask(
+        &mut self,
+        font: FontId,
+        glyph: GlyphId,
+        size: f32,
+        subpixel: u8,
+        width: f32,
+    ) -> Option<Arc<GlyphMask>> {
+        if !(width > 0.0 && width.is_finite()) {
+            return None;
+        }
+        let adjust = self.instance(font).map_or(1.0, Instance::size_adjust);
+        let size = sanitize_size(size * adjust);
+        let key = MaskKey {
+            font,
+            glyph,
+            size: size.to_bits(),
+            subpixel: subpixel.min(3),
+            stroke: width.min(1024.0).to_bits(),
+        };
+        self.cached_mask(key)
+    }
+
+    fn cached_mask(&mut self, key: MaskKey) -> Option<Arc<GlyphMask>> {
         if let Some(mask) = self.masks.get(&key) {
             return mask.clone();
         }
@@ -384,6 +416,7 @@ impl FontContext {
             f32::from_bits(key.size),
             key.subpixel,
             synthesis,
+            f32::from_bits(key.stroke),
         );
         if let Ok(mask) = result {
             return mask;

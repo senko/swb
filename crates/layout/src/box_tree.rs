@@ -38,7 +38,7 @@ use std::sync::Arc;
 use swb_dom::{Document, NodeData, NodeId, local_name, ns};
 use swb_style::{
     ComputedStyle, ContainerType, Display, LengthPercentageOrAuto, Overflow, PseudoKind, StyleMap,
-    TextTransform, WhiteSpace,
+    TextTransform,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -1609,7 +1609,7 @@ fn process_text(
                 previous = next;
                 chars.next();
             }
-            if ws == WhiteSpace::PreLine && breaks > 0 {
+            if ws.is_pre_line() && breaks > 0 {
                 for _ in 0..breaks {
                     segment = segment.finish(ifc, &source);
                     ifc.items.push(InlineItem::LineBreak(None));

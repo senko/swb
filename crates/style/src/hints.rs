@@ -30,7 +30,7 @@ use crate::properties::longhand::parse_font_family;
 use crate::properties::specified::{SpecifiedFontSize, SpecifiedSize};
 use crate::values::{
     AspectRatio, BorderStyle, CaptionSide, Color, FontFamily, FontSizeKeyword, Length, Rgba,
-    SpecifiedLengthPercentage as Lp, TextAlign, WhiteSpace,
+    SpaceCollapse, SpecifiedLengthPercentage as Lp, TextAlign,
 };
 
 /// Document-wide data for hints.
@@ -268,7 +268,8 @@ fn cell_hints(
     // The nowrap rule is in hints.css; in quirks mode a fixed width
     // overrides it.
     if cx.quirks && e.has_attr("nowrap") && matches!(width, Some(Dimension::Length(_))) {
-        push(LonghandValue::WhiteSpace(WhiteSpace::Normal));
+        push(LonghandValue::WhiteSpaceCollapse(SpaceCollapse::Collapse));
+        push(LonghandValue::TextWrapMode(true));
     }
     cell_hints_from_table(doc, node, push);
 }

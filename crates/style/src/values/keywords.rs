@@ -251,7 +251,10 @@ keyword_enum! {
 }
 
 keyword_enum! {
-    /// The `white-space` property (as a single keyword).
+    /// The computed value of `white-space`: the pair of
+    /// `white-space-collapse` and `text-wrap-mode` (CSS Text 4 §4.1,
+    /// `white-space` is their shorthand). The keywords are the shorthand's
+    /// serialization; the two pairs with no legacy keyword use the long form.
     WhiteSpace {
         Normal = "normal",
         Pre = "pre",
@@ -259,22 +262,87 @@ keyword_enum! {
         PreWrap = "pre-wrap",
         PreLine = "pre-line",
         BreakSpaces = "break-spaces",
+        PreLineNowrap = "preserve-breaks nowrap",
+        BreakSpacesNowrap = "break-spaces nowrap",
     }
     default Normal
 }
 
+keyword_enum! {
+    /// The `white-space-collapse` property.
+    /// <https://www.w3.org/TR/css-text-4/#white-space-collapsing>
+    SpaceCollapse {
+        Collapse = "collapse",
+        Preserve = "preserve",
+        PreserveBreaks = "preserve-breaks",
+        BreakSpaces = "break-spaces",
+    }
+    default Collapse
+}
+
 impl WhiteSpace {
+    /// The value of the pair `white-space-collapse` and `text-wrap-mode`
+    /// (`wrap` is true for `wrap`).
+    pub fn from_parts(collapse: SpaceCollapse, wrap: bool) -> WhiteSpace {
+        match (collapse, wrap) {
+            (SpaceCollapse::Collapse, true) => WhiteSpace::Normal,
+            (SpaceCollapse::Collapse, false) => WhiteSpace::Nowrap,
+            (SpaceCollapse::Preserve, true) => WhiteSpace::PreWrap,
+            (SpaceCollapse::Preserve, false) => WhiteSpace::Pre,
+            (SpaceCollapse::PreserveBreaks, true) => WhiteSpace::PreLine,
+            (SpaceCollapse::PreserveBreaks, false) => WhiteSpace::PreLineNowrap,
+            (SpaceCollapse::BreakSpaces, true) => WhiteSpace::BreakSpaces,
+            (SpaceCollapse::BreakSpaces, false) => WhiteSpace::BreakSpacesNowrap,
+        }
+    }
+
+    /// The `white-space-collapse` half.
+    pub fn collapse(self) -> SpaceCollapse {
+        match self {
+            WhiteSpace::Normal | WhiteSpace::Nowrap => SpaceCollapse::Collapse,
+            WhiteSpace::Pre | WhiteSpace::PreWrap => SpaceCollapse::Preserve,
+            WhiteSpace::PreLine | WhiteSpace::PreLineNowrap => SpaceCollapse::PreserveBreaks,
+            WhiteSpace::BreakSpaces | WhiteSpace::BreakSpacesNowrap => SpaceCollapse::BreakSpaces,
+        }
+    }
+
     /// True if sequences of white space collapse.
     pub fn collapses_spaces(self) -> bool {
         matches!(
-            self,
-            WhiteSpace::Normal | WhiteSpace::Nowrap | WhiteSpace::PreLine
+            self.collapse(),
+            SpaceCollapse::Collapse | SpaceCollapse::PreserveBreaks
         )
     }
 
-    /// True if lines may wrap at soft wrap opportunities.
+    /// True for `preserve-breaks`: spaces collapse, segment breaks stay.
+    pub fn is_pre_line(self) -> bool {
+        self.collapse() == SpaceCollapse::PreserveBreaks
+    }
+
+    /// True if lines may wrap at soft wrap opportunities (`text-wrap-mode`
+    /// is `wrap`).
     pub fn wraps(self) -> bool {
-        !matches!(self, WhiteSpace::Pre | WhiteSpace::Nowrap)
+        matches!(
+            self,
+            WhiteSpace::Normal
+                | WhiteSpace::PreWrap
+                | WhiteSpace::PreLine
+                | WhiteSpace::BreakSpaces
+        )
+    }
+
+    /// The value with another `white-space-collapse` and the same
+    /// `text-wrap-mode`.
+    #[must_use]
+    pub fn with_collapse(self, collapse: SpaceCollapse) -> WhiteSpace {
+        WhiteSpace::from_parts(collapse, self.wraps())
+    }
+
+    /// The value with another `text-wrap-mode` and the same
+    /// `white-space-collapse`.
+    #[must_use]
+    pub fn with_wrap(self, wrap: bool) -> WhiteSpace {
+        WhiteSpace::from_parts(self.collapse(), wrap)
     }
 }
 
@@ -616,6 +684,29 @@ keyword_enum! {
         PlusLighter = "plus-lighter",
     }
     default Normal
+}
+
+keyword_enum! {
+    /// The `isolation` property (CSS Compositing and Blending 1 §3.1,
+    /// <https://www.w3.org/TR/compositing-1/#isolation>): `isolate` makes
+    /// a stacking context.
+    Isolation {
+        Auto = "auto",
+        Isolate = "isolate",
+    }
+    default Auto
+}
+
+keyword_enum! {
+    /// The `text-wrap-style` property (CSS Text 4 §5.2,
+    /// <https://www.w3.org/TR/css-text-4/#text-wrap-style>).
+    TextWrapStyle {
+        Auto = "auto",
+        Balance = "balance",
+        Stable = "stable",
+        Pretty = "pretty",
+    }
+    default Auto
 }
 
 keyword_enum! {

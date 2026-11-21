@@ -954,7 +954,7 @@ impl TextBuilder {
             self.out.extend(text.chars().filter(|&c| c != '\r'));
             return;
         }
-        let pre_line = white_space == WhiteSpace::PreLine;
+        let pre_line = white_space.is_pre_line();
         let mut chars = text.chars().peekable();
         while let Some(c) = chars.next() {
             if !is_html_whitespace(c) {

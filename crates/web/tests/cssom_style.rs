@@ -22,8 +22,8 @@ const SWB_VALUES: &[Departure] = &[
     (
         "feature-tests",
         1,
-        r#""transition=true animation=false all=false webkitAppearance=true filter=true boxShadow=false willChange=true zoom=false touchAction=true borderImage=false""#,
-        "swb does not parse `animation`, `all`, `box-shadow`, `zoom` and `border-image`, so feature tests see that",
+        r#""transition=true animation=false all=false webkitAppearance=true filter=true boxShadow=true willChange=true zoom=false touchAction=true borderImage=false""#,
+        "swb does not parse `animation`, `all`, `zoom` and `border-image`, so feature tests see that",
     ),
     (
         "css-namespace",

@@ -4,6 +4,39 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-21: M13 feature 2a, static CSS of videojs.org
+
+- ADR 0045. New: `translate`, `rotate`, `scale`, `box-shadow` and
+  `text-shadow` (drawn), `text-wrap` with `balance` and `pretty`,
+  `-webkit-text-stroke`, `-webkit-text-fill-color`, `isolation`,
+  `corner-shape`.
+- Shadows are made from the existing filter and clip groups, so the
+  rasterizer has no new code. A blur is a `blur()` group; the outer
+  shadow is clipped to the outside of the border box.
+- `balance` keeps the greedy line count (2 to 6 lines) and breaks where
+  the sum of the squared line widths is smallest. `pretty` breaks the
+  last four lines again when the last line is one short word. The rules
+  are fitted to Chromium's line breaks in 213 paragraph and width pairs;
+  they are not Chromium's algorithm.
+- The logo had width 0: percentage heights did not resolve in the
+  content sizes of a container. Now they resolve against the
+  container's definite height.
+- The review found that `white-space: normal` lost against an earlier
+  `text-wrap: nowrap`. `white-space` is now the shorthand of
+  `white-space-collapse` and `text-wrap-mode`, with Chromium 148's
+  grammar; no target page changed.
+- The review also found that a 1,000 px text stroke on 5,000 words took
+  9.4 s. The used width is now at most twice the font size; Chromium
+  itself draws no stroke from 8,191 px, and neither does swb. The case
+  takes 0.1 s.
+- Scores of videojs, JS off: geometry 0.9096 -> 0.9759, pixels 0.7216 ->
+  0.7481; JS on: geometry 0.8347 -> 0.8852, pixels 0.9139 -> 0.9529.
+  The shadows raise the pixels of github-swb and wikipedia.
+- Process: running `just check` in the main checkout while the
+  implementer built in its worktree filled the disk twice. Builds now
+  run in one tree at a time.
+- Next: feature 2b (the other static CSS, colors that keep their space).
+
 ## 2026-11-20: Next target videojs.org; plan of M13 to M15
 
 - The owner chose the front page of videojs.org: CSS transitions and

@@ -61,6 +61,22 @@ pub enum DisplayItem {
         /// The color.
         color: Rgba,
     },
+    /// Stroke the outlines of glyphs (`-webkit-text-stroke`): the stroke is
+    /// centered on the outline. It paints over the fill of the same text.
+    TextStroke {
+        /// Pen position of the first glyph on the baseline.
+        origin: Point,
+        /// The font.
+        font: FontId,
+        /// Font size in px.
+        size: f32,
+        /// Glyphs relative to `origin`.
+        glyphs: Arc<[PositionedGlyph]>,
+        /// The stroke width in px.
+        width: f32,
+        /// The color.
+        color: Rgba,
+    },
     /// Draw an image scaled into `rect`, tiled as `tile` describes.
     Image {
         /// What to draw.
@@ -320,6 +336,18 @@ impl DisplayItem {
                 glyphs,
                 ..
             } => text_bounds(*origin, *size, glyphs),
+            DisplayItem::TextStroke {
+                origin,
+                size,
+                glyphs,
+                width,
+                ..
+            } => {
+                // The used width of the raster's work bound; none paints
+                // above it.
+                let used = crate::raster::used_stroke_width(*size, *width)?;
+                text_bounds(*origin, *size + 2.0 * used.max(0.0), glyphs)
+            }
             DisplayItem::Polyline { points, width, .. } => polyline_bounds(points, *width),
             // One pixel of margin for the anti-aliased edges.
             DisplayItem::Polygon { points, .. } => polyline_bounds(points, 0.5),

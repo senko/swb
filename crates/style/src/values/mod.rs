@@ -3,6 +3,7 @@
 
 mod color;
 pub(crate) mod color_mix;
+mod effects;
 pub use color_mix::ColorId;
 mod filter;
 mod grid;
@@ -17,6 +18,7 @@ use std::sync::Arc;
 
 pub use color::{Color, Rgba};
 pub(crate) use color::{named_color, system_color};
+pub use effects::{BoxShadow, CornerShape, Rotate, Scale, TextShadow, Translate};
 pub use filter::{DropShadow, Filter, FilterFunction, MAX_FILTER_BLUR, MAX_FILTER_FUNCTIONS};
 pub use grid::{
     GenericTrackBreadth, GenericTrackList, GenericTrackListEntry, GenericTrackListValue,

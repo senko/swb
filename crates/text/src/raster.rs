@@ -54,6 +54,7 @@ pub(crate) fn rasterize(
     size: f32,
     subpixel: u8,
     synthesis: Synthesis,
+    stroke_width: f32,
 ) -> Result<Option<GlyphMask>, ColorGlyph> {
     let Some(font) = face.font() else {
         return Ok(None);
@@ -90,11 +91,35 @@ pub(crate) fn rasterize(
     let Some(path) = pen.0.finish() else {
         return Ok(None);
     };
-    Ok(fill(path, size, subpixel, synthesis))
+    Ok(fill(path, size, subpixel, synthesis, stroke_width))
 }
 
-/// Applies synthesis and the subpixel offset and fills the path.
-fn fill(path: Path, size: f32, subpixel: u8, synthesis: Synthesis) -> Option<GlyphMask> {
+/// Applies synthesis and the subpixel offset and fills the path. With a
+/// positive `outline`, the mask is the stroke of the outline of that width
+/// (miter joins) instead of the fill (`-webkit-text-stroke`).
+fn fill(
+    path: Path,
+    size: f32,
+    subpixel: u8,
+    synthesis: Synthesis,
+    outline: f32,
+) -> Option<GlyphMask> {
+    let (path, synthesis) = if outline > 0.0 {
+        let stroke = Stroke {
+            width: outline,
+            line_join: LineJoin::Miter,
+            ..Stroke::default()
+        };
+        (
+            path.stroke(&stroke, 1.0)?,
+            Synthesis {
+                bold: false,
+                ..synthesis
+            },
+        )
+    } else {
+        (path, synthesis)
+    };
     let stroke = if synthesis.bold {
         let stroke = Stroke {
             width: size * fake_bold_scale(size),
@@ -244,7 +269,7 @@ mod tests {
         builder.line_to(0.0, 0.0);
         builder.close();
         let path = builder.finish().unwrap();
-        let mask = fill(path, 10.0, 0, Synthesis::default()).unwrap();
+        let mask = fill(path, 10.0, 0, Synthesis::default(), 0.0).unwrap();
         assert_eq!(
             (mask.left, mask.top, mask.width, mask.height),
             (0, -4, 4, 4)
@@ -262,7 +287,7 @@ mod tests {
         builder.line_to(0.3, 0.0);
         builder.close();
         let path = builder.finish().unwrap();
-        let mask = fill(path, 10.0, 0, Synthesis::default()).unwrap();
+        let mask = fill(path, 10.0, 0, Synthesis::default(), 0.0).unwrap();
         assert_eq!((mask.width, mask.height), (2, 4));
         let (left, right) = (i32::from(mask.data[0]), i32::from(mask.data[1]));
         // Exact coverage: 0.7 and 0.3 of 255.
@@ -280,7 +305,7 @@ mod tests {
         builder.line_to(0.3, 0.0);
         builder.close();
         let path = builder.finish().unwrap();
-        let mask = fill(path, 400.0, 0, Synthesis::default()).unwrap();
+        let mask = fill(path, 400.0, 0, Synthesis::default(), 0.0).unwrap();
         assert_eq!((mask.width, mask.height), (301, 300));
         // Without supersampling, 0.7 coverage comes out as 0.75.
         let left = i32::from(mask.data[0]);

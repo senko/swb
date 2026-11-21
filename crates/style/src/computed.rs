@@ -20,10 +20,13 @@ use crate::values::{
     MixBlendMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents,
     Position, PositionComponent, Resize, Rgba, ScrollbarWidth, ShapeRendering, Size, StrokeLinecap,
     StrokeLinejoin, SvgPaint, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle,
-    TextOverflow, TextTransform, TrackBreadth, TrackList, TrackSize, UnicodeBidi, UserSelect,
-    VerticalAlign, Visibility, WhiteSpace, WordBreak, ZIndex,
+    TextOverflow, TextTransform, TextWrapStyle, TrackBreadth, TrackList, TrackSize, UnicodeBidi,
+    UserSelect, VerticalAlign, Visibility, WhiteSpace, WordBreak, ZIndex,
 };
-use crate::values::{ClipRect, TransformFunction, TransformOrigin};
+use crate::values::{
+    BoxShadow, ClipRect, CornerShape, Isolation, Rotate, Scale, TextShadow, TransformFunction,
+    TransformOrigin, Translate,
+};
 
 /// The computed values of all supported properties for one element (or
 /// pseudo-element).
@@ -63,6 +66,16 @@ pub struct ComputedStyle {
     pub text_indent: LengthPercentage,
     pub text_transform: TextTransform,
     pub white_space: WhiteSpace,
+    /// `text-wrap-style`.
+    pub text_wrap_style: TextWrapStyle,
+    /// `-webkit-text-stroke-width` in px.
+    pub text_stroke_width: f32,
+    /// `-webkit-text-stroke-color`.
+    pub text_stroke_color: Color,
+    /// `-webkit-text-fill-color`.
+    pub text_fill_color: Color,
+    /// `text-shadow`; empty for `none`.
+    pub text_shadow: Arc<[TextShadow]>,
     pub letter_spacing: f32,
     pub word_spacing: f32,
     pub word_break: WordBreak,
@@ -145,6 +158,25 @@ pub struct ComputedStyle {
     /// The transform functions in order; empty for `none`.
     pub transform: Arc<[TransformFunction]>,
     pub transform_origin: TransformOrigin,
+    /// `translate`; `None` for `none`. The individual transform properties
+    /// apply before `transform`, in the order translate, rotate, scale.
+    pub translate: Option<Translate>,
+    /// `rotate`; `None` for `none`.
+    pub rotate: Option<Rotate>,
+    /// `scale`; `None` for `none`.
+    pub scale: Option<Scale>,
+    /// `isolation`.
+    pub isolation: Isolation,
+    /// `box-shadow`; empty for `none`.
+    pub box_shadow: Arc<[BoxShadow]>,
+    /// `corner-top-left-shape`.
+    pub corner_top_left_shape: CornerShape,
+    /// `corner-top-right-shape`.
+    pub corner_top_right_shape: CornerShape,
+    /// `corner-bottom-right-shape`.
+    pub corner_bottom_right_shape: CornerShape,
+    /// `corner-bottom-left-shape`.
+    pub corner_bottom_left_shape: CornerShape,
     /// `None` for `auto`.
     pub clip: Option<ClipRect>,
     pub width: Size,
@@ -337,6 +369,11 @@ impl ComputedStyle {
             text_indent: LengthPercentage::ZERO,
             text_transform: TextTransform::None,
             white_space: WhiteSpace::Normal,
+            text_wrap_style: TextWrapStyle::Auto,
+            text_stroke_width: 0.0,
+            text_stroke_color: Color::CurrentColor,
+            text_fill_color: Color::CurrentColor,
+            text_shadow: Arc::from([]),
             letter_spacing: 0.0,
             word_spacing: 0.0,
             word_break: WordBreak::Normal,
@@ -387,6 +424,15 @@ impl ComputedStyle {
             flex_or_grid_item: false,
             transform: Arc::from([]),
             transform_origin: TransformOrigin::default(),
+            translate: None,
+            rotate: None,
+            scale: None,
+            isolation: Isolation::Auto,
+            box_shadow: Arc::from([]),
+            corner_top_left_shape: CornerShape::ROUND,
+            corner_top_right_shape: CornerShape::ROUND,
+            corner_bottom_right_shape: CornerShape::ROUND,
+            corner_bottom_left_shape: CornerShape::ROUND,
             clip: None,
             width: Size::Auto,
             height: Size::Auto,
@@ -809,10 +855,14 @@ impl ComputedStyle {
         InertStyle::will_change_effects(self).containing_block
     }
 
-    /// True if `transform` is not `none`. Transforms do not apply to
-    /// inline boxes (only to block-level and atomic boxes); layout and
-    /// paint check that.
+    /// True if `transform`, `translate`, `rotate` or `scale` is not `none`
+    /// (also an identity value: it still makes a stacking context and a
+    /// containing block). Transforms do not apply to inline boxes (only to
+    /// block-level and atomic boxes); layout and paint check that.
     pub fn has_transform(&self) -> bool {
         !self.transform.is_empty()
+            || self.translate.is_some()
+            || self.rotate.is_some()
+            || self.scale.is_some()
     }
 }

@@ -16,7 +16,7 @@ use super::specified::{
     SpecifiedFlexBasis, SpecifiedFontSize, SpecifiedFontWeight, SpecifiedLineHeight,
     SpecifiedPosition, SpecifiedSize, SpecifiedTextAlign, SpecifiedVerticalAlign,
 };
-use super::{clip_path, filter, svg, transform};
+use super::{clip_path, effects, filter, svg, transform};
 use crate::font_settings::{parse_feature_settings, parse_variation_settings};
 use crate::parse::color::parse_color;
 use crate::parse::grid;
@@ -31,12 +31,12 @@ use crate::values::{
     BackgroundRepeatKeyword, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Contain,
     ContainerName, ContainerType, ContentVisibility, CounterList, Cursor, Direction, Display,
     EmptyCells, FieldSizing, FillRule, FlexDirection, FlexWrap, Float, FontFamily, FontSizeKeyword,
-    FontStyle, FontVariantCaps, GenericFamily, Hyphens, Length, ListStylePosition, ListStyleType,
-    MixBlendMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay, PointerEvents,
-    Position, Resize, ScrollbarWidth, ShapeRendering, SpecifiedLengthPercentage as Lp,
-    StrokeLinecap, StrokeLinejoin, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle,
-    TextOverflow, TextTransform, UnicodeBidi, UserSelect, VerticalAlignKeyword, Visibility,
-    WhiteSpace, WordBreak, ZIndex,
+    FontStyle, FontVariantCaps, GenericFamily, Hyphens, Isolation, Length, ListStylePosition,
+    ListStyleType, MixBlendMode, ObjectFit, OutlineStyle, Overflow, OverflowWrap, Overlay,
+    PointerEvents, Position, Resize, ScrollbarWidth, ShapeRendering, SpaceCollapse,
+    SpecifiedLengthPercentage as Lp, StrokeLinecap, StrokeLinejoin, TableLayout, TextAlign,
+    TextDecorationLine, TextDecorationStyle, TextOverflow, TextTransform, TextWrapStyle,
+    UnicodeBidi, UserSelect, VerticalAlignKeyword, Visibility, WordBreak, ZIndex,
 };
 
 /// True for the properties where the quirks mode unitless length quirk
@@ -104,7 +104,28 @@ pub(crate) fn parse_longhand(
             L::TextAlign => V::TextAlign(parse_text_align(p, cx)?),
             L::TextIndent => V::TextIndent(parse_text_indent(p, quirky)?),
             L::TextTransform => V::TextTransform(keyword(p, TextTransform::from_ident)?),
-            L::WhiteSpace => V::WhiteSpace(parse_white_space(p)?),
+            L::WhiteSpaceCollapse => V::WhiteSpaceCollapse(parse_white_space_collapse(p)?),
+            L::TextWrapMode => V::TextWrapMode(parse_text_wrap_mode(p)?),
+            L::TextWrapStyle => V::TextWrapStyle(keyword(p, TextWrapStyle::from_ident)?),
+            L::TextStrokeWidth => V::TextStrokeWidth(effects::parse_stroke_width(p)?),
+            L::TextStrokeColor | L::TextFillColor => {
+                let color = parse_color(p)?;
+                if id == L::TextStrokeColor {
+                    V::TextStrokeColor(color)
+                } else {
+                    V::TextFillColor(color)
+                }
+            }
+            L::TextShadow => V::TextShadow(effects::parse_shadows(p, true)?),
+            L::BoxShadow => V::BoxShadow(effects::parse_shadows(p, false)?),
+            L::Translate => V::Translate(effects::parse_translate(p)?),
+            L::Rotate => V::Rotate(effects::parse_rotate(p)?),
+            L::Scale => V::Scale(effects::parse_scale(p)?),
+            L::Isolation => V::Isolation(keyword(p, Isolation::from_ident)?),
+            L::CornerTopLeftShape => V::CornerTopLeftShape(effects::parse_corner_shape(p)?),
+            L::CornerTopRightShape => V::CornerTopRightShape(effects::parse_corner_shape(p)?),
+            L::CornerBottomRightShape => V::CornerBottomRightShape(effects::parse_corner_shape(p)?),
+            L::CornerBottomLeftShape => V::CornerBottomLeftShape(effects::parse_corner_shape(p)?),
             L::LetterSpacing => V::LetterSpacing(parse_spacing(p, quirky, true)?),
             L::WordSpacing => V::WordSpacing(parse_spacing(p, quirky, false)?),
             L::WordBreak => V::WordBreak(parse_word_break(p)?),
@@ -517,81 +538,17 @@ fn parse_text_indent(p: &mut Parser<'_>, quirky: bool) -> ParseResult<Lp> {
     value.ok_or(ParseError::Invalid)
 }
 
-/// `white-space`: the CSS 2 keywords, and the CSS Text 4 shorthand form
-/// (`<white-space-collapse> || <text-wrap-mode> || <white-space-trim>`).
-/// <https://www.w3.org/TR/css-text-4/#white-space-property>
-fn parse_white_space(p: &mut Parser<'_>) -> ParseResult<WhiteSpace> {
-    let single = p.try_parse(|p| {
-        let v = keyword(p, |i| {
-            WhiteSpace::from_ident(i).or_else(|| match i.to_ascii_lowercase().as_str() {
-                "-webkit-nowrap" => Some(WhiteSpace::Nowrap),
-                "-moz-pre-wrap" | "-o-pre-wrap" | "-pre-wrap" => Some(WhiteSpace::PreWrap),
-                _ => None,
-            })
-        })?;
-        p.expect_exhausted()?;
-        Ok::<_, ParseError>(v)
-    });
-    if let Ok(v) = single {
-        return Ok(v);
-    }
-    let mut collapse = None;
-    let mut wrap = None;
-    let mut trim = false;
-    while !p.is_exhausted() {
-        if collapse.is_none()
-            && let Ok(c) = p.expect_one_of(&[
-                ("collapse", SpaceHandling::Collapse),
-                ("preserve", SpaceHandling::Preserve),
-                ("preserve-breaks", SpaceHandling::PreserveBreaks),
-                ("preserve-spaces", SpaceHandling::Preserve),
-                ("break-spaces", SpaceHandling::BreakSpaces),
-            ])
-        {
-            collapse = Some(c);
-        } else if wrap.is_none()
-            && let Ok(w) = p.expect_one_of(&[("wrap", true), ("nowrap", false)])
-        {
-            wrap = Some(w);
-        } else if !trim
-            && p.expect_one_of(&[
-                ("none", ()),
-                ("discard-before", ()),
-                ("discard-after", ()),
-                ("discard-inner", ()),
-            ])
-            .is_ok()
-        {
-            trim = true;
-        } else {
-            return Err(ParseError::Unexpected);
-        }
-    }
-    if collapse.is_none() && wrap.is_none() && !trim {
-        return Err(ParseError::Invalid);
-    }
-    Ok(
-        match (
-            collapse.unwrap_or(SpaceHandling::Collapse),
-            wrap.unwrap_or(true),
-        ) {
-            (SpaceHandling::Collapse, true) => WhiteSpace::Normal,
-            (SpaceHandling::Collapse | SpaceHandling::PreserveBreaks, false) => WhiteSpace::Nowrap,
-            (SpaceHandling::Preserve, true) => WhiteSpace::PreWrap,
-            (SpaceHandling::Preserve | SpaceHandling::BreakSpaces, false) => WhiteSpace::Pre,
-            (SpaceHandling::PreserveBreaks, true) => WhiteSpace::PreLine,
-            (SpaceHandling::BreakSpaces, true) => WhiteSpace::BreakSpaces,
-        },
-    )
+/// `white-space-collapse`: `collapse | preserve | preserve-breaks |
+/// break-spaces`.
+/// <https://www.w3.org/TR/css-text-4/#white-space-collapsing>
+pub(crate) fn parse_white_space_collapse(p: &mut Parser<'_>) -> ParseResult<SpaceCollapse> {
+    keyword(p, SpaceCollapse::from_ident)
 }
 
-/// `<white-space-collapse>` values.
-#[derive(Clone, Copy, PartialEq)]
-enum SpaceHandling {
-    Collapse,
-    Preserve,
-    PreserveBreaks,
-    BreakSpaces,
+/// `text-wrap-mode`: `wrap | nowrap`; true for `wrap`.
+/// <https://www.w3.org/TR/css-text-4/#text-wrap-mode>
+pub(crate) fn parse_text_wrap_mode(p: &mut Parser<'_>) -> ParseResult<bool> {
+    p.expect_one_of(&[("wrap", true), ("nowrap", false)])
 }
 
 /// `letter-spacing` (`normal | <length-percentage>`) and `word-spacing`

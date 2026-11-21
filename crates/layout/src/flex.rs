@@ -219,10 +219,15 @@ fn collect_items<'a>(
         .filter(|c| !c.base.style.is_absolutely_positioned())
         .collect();
     ordered.sort_by_key(|c| c.base.style.order);
-    ordered
+    // The container's definite height is the base of the percentage heights
+    // in the items' content sizes (see `intrinsic::enter_container`).
+    let saved = std::mem::replace(&mut ctx.intrinsic_height_base, cb.height);
+    let items = ordered
         .into_iter()
         .map(|b| new_item(ctx, container, b, axes, cb))
-        .collect()
+        .collect();
+    ctx.intrinsic_height_base = saved;
+    items
 }
 
 fn new_item<'a>(

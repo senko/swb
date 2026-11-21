@@ -12,6 +12,7 @@
 
 pub(crate) mod clip_path;
 pub(crate) mod compute;
+pub(crate) mod effects;
 pub(crate) mod filter;
 pub(crate) mod ids;
 pub(crate) mod inert;
@@ -1119,7 +1120,8 @@ mod tests {
             ("collapse", WhiteSpace::Normal),
             ("nowrap collapse", WhiteSpace::Nowrap),
             ("preserve-breaks", WhiteSpace::PreLine),
-            ("-moz-pre-wrap", WhiteSpace::PreWrap),
+            ("preserve-breaks nowrap", WhiteSpace::PreLineNowrap),
+            ("break-spaces nowrap", WhiteSpace::BreakSpacesNowrap),
         ];
         for (value, expected) in spaces {
             assert_eq!(
@@ -1129,6 +1131,18 @@ mod tests {
             );
         }
         assert!(!valid("white-space", "nowrap nowrap"));
+        // Chromium 148: no legacy keyword in the long form, no trim.
+        for bad in [
+            "-moz-pre-wrap",
+            "-webkit-nowrap",
+            "pre-line nowrap",
+            "none",
+            "preserve-spaces",
+            "discard-before",
+            "wrap wrap",
+        ] {
+            assert!(!valid("white-space", bad), "{bad}");
+        }
         let s = style("text-decoration: underline dotted red 2px");
         assert_eq!(s.text_decoration_line, TextDecorationLine::UNDERLINE);
         assert_eq!(s.text_decoration_style, TextDecorationStyle::Dotted);

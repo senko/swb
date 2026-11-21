@@ -449,6 +449,11 @@ impl LineBuilder<'_, '_> {
             if fill.end > start.group && width > fill.right - fill.left + FIT_TOLERANCE {
                 break;
             }
+            // A line that `text-wrap: balance` or `pretty` planned ends
+            // here.
+            if fill.end > start.group && self.planned.binary_search(&index).is_ok() {
+                break;
+            }
             if !self.floats.is_empty() && group.last_out_of_flow.is_some() {
                 let site = FloatSite {
                     piece: 0,

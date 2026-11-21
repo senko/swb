@@ -34,6 +34,7 @@
 //! inline box) has a border or padding on its start or end side (margins
 //! do not count). Lines of list items always have the root strut.
 
+mod balance;
 mod breaks;
 mod caps;
 mod lines;
@@ -105,6 +106,14 @@ pub(crate) fn layout_inline(
     let mut groups = build_groups(ifc, &shaped, &shaped.break_before, &atomics, width);
     let indent = clamp_length(container_style.text_indent.resolve(width));
 
+    let planned = plan_breaks(
+        ctx,
+        &groups,
+        container_style,
+        width,
+        indent,
+        !floats.is_empty(),
+    );
     let root_metrics = strut_metrics(ctx, container_style);
     let mut builder = LineBuilder {
         ctx,
@@ -125,6 +134,7 @@ pub(crate) fn layout_inline(
         last_baseline: None,
         content_right: 0.0,
         in_flow_floats: crate::geom::Size::default(),
+        planned,
     };
     if ifc.is_empty() {
         builder.layout_empty(&groups, indent, flow);
@@ -145,6 +155,38 @@ pub(crate) fn layout_inline(
         content_right: builder.content_right,
         in_flow_floats: builder.in_flow_floats,
     }
+}
+
+/// The line starts that `text-wrap: balance` or `pretty` plans for the
+/// groups (empty for `auto` and `stable`, for text that does not wrap, and
+/// where floats could narrow the lines).
+fn plan_breaks(
+    ctx: &mut LayoutContext<'_>,
+    groups: &[Group],
+    style: &ComputedStyle,
+    width: f32,
+    indent: f32,
+    has_floats: bool,
+) -> Vec<usize> {
+    use swb_style::TextWrapStyle;
+    if !matches!(
+        style.text_wrap_style,
+        TextWrapStyle::Balance | TextWrapStyle::Pretty
+    ) || !style.white_space.wraps()
+        || has_floats
+        || !ctx.bfc().exclusions.is_empty()
+    {
+        return Vec::new();
+    }
+    let items: Vec<balance::Item> = groups
+        .iter()
+        .map(|g| balance::Item {
+            width: g.width,
+            trailing: g.trailing_space,
+            forced: g.forced_break_after,
+        })
+        .collect();
+    balance::plan(&items, width, indent, style.text_wrap_style)
 }
 
 /// [`layout_inline`] for a container that establishes a new block
@@ -953,6 +995,9 @@ struct LineBuilder<'a, 'b> {
     content_right: f32,
     /// See [`InlineLayout::in_flow_floats`].
     in_flow_floats: crate::geom::Size,
+    /// The groups that start a line by the plan of `text-wrap: balance` or
+    /// `pretty` (see `balance.rs`), sorted; empty without a plan.
+    planned: Vec<usize>,
 }
 
 /// Vertical extent of the line content relative to the root baseline.

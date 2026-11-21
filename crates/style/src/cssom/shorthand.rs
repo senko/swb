@@ -48,6 +48,7 @@ pub(crate) fn expand(
         Kind::GridLines => cx.grid_lines(tokens),
         Kind::Single => Some(vec![cx.text(0, tokens)]),
         Kind::Container => cx.container(tokens),
+        Kind::WhiteSpace => Parts::white_space(tokens).or_else(|| cx.any_order(tokens)),
         Kind::Transition => {
             expand_transition(tokens).map(|texts| texts.into_iter().map(Value::Text).collect())
         }
@@ -270,6 +271,27 @@ impl Parts<'_> {
             _ => return None,
         };
         Some(vec![self.text(0, &join(names)), ty])
+    }
+
+    /// `white-space` as a legacy keyword: its two longhands.
+    fn white_space(tokens: &[ComponentValue]) -> Option<Vec<Value>> {
+        let p = parts(tokens);
+        let [one] = p.as_slice() else {
+            return None;
+        };
+        let (collapse, wrap) = match keyword(one)?.as_str() {
+            "normal" => ("collapse", "wrap"),
+            "nowrap" => ("collapse", "nowrap"),
+            "pre" => ("preserve", "nowrap"),
+            "pre-wrap" => ("preserve", "wrap"),
+            "pre-line" => ("preserve-breaks", "wrap"),
+            "break-spaces" => ("break-spaces", "wrap"),
+            _ => return None,
+        };
+        Some(vec![
+            Value::Text(collapse.to_owned()),
+            Value::Text(wrap.to_owned()),
+        ])
     }
 
     /// The implicit value of longhand `i` of an any-order shorthand.
@@ -693,6 +715,7 @@ pub(crate) fn value_of(index: usize, def: &Shorthand, values: &[&Value]) -> Stri
         Kind::GridLines => grid_lines(&t),
         Kind::Single => get(0).to_owned(),
         Kind::Container => container_value(get(0), get(1)),
+        Kind::WhiteSpace => white_space_value(get(0), get(1)),
         Kind::Transition => transition_value(&t),
         Kind::BorderImage => {
             if t.iter().all(|s| *s == "initial") {
@@ -712,6 +735,28 @@ pub(crate) fn container_value(names: &str, ty: &str) -> String {
         names.to_owned()
     } else {
         format!("{names} / {ty}")
+    }
+}
+
+/// `white-space` from `white-space-collapse` and `text-wrap-mode` (a
+/// longhand left to its initial value counts as that value): the legacy
+/// keyword where there is one, else the two values (measured in Chromium
+/// 148, `css-videojs-2a`).
+pub(crate) fn white_space_value(collapse: &str, wrap: &str) -> String {
+    let collapse = if collapse == "initial" {
+        "collapse"
+    } else {
+        collapse
+    };
+    let wrap = if wrap == "initial" { "wrap" } else { wrap };
+    match (collapse, wrap) {
+        ("collapse", "wrap") => "normal".to_owned(),
+        ("collapse", "nowrap") => "nowrap".to_owned(),
+        ("preserve", "wrap") => "pre-wrap".to_owned(),
+        ("preserve", "nowrap") => "pre".to_owned(),
+        ("preserve-breaks", "wrap") => "pre-line".to_owned(),
+        ("break-spaces", "wrap") => "break-spaces".to_owned(),
+        _ => format!("{collapse} {wrap}"),
     }
 }
 

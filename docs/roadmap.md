@@ -6034,6 +6034,41 @@ Steps:
       the page uses it (`squircle`); `text-wrap` (`balance`, `pretty`);
       `isolation`; `-webkit-text-fill-color`; the width of an inline SVG
       with `height: 100%` in a flex item (the logo).
+
+      Done (2026-11-21): ADR 0045.
+      - The logo: the percentage height of a replaced child in the
+        content sizes of a container with a definite height (also through
+        a percentage height of the container, and in flex items).
+      - `translate`, `rotate`, `scale` (applied before `transform`);
+        `box-shadow` and `text-shadow`, drawn with the existing filter
+        and clip groups (no new rasterizer code); `isolation`;
+        `-webkit-text-stroke` and `-webkit-text-fill-color`;
+        `corner-shape` and the four `corner-*-shape` longhands
+        (backgrounds, uniform solid borders, the `overflow` clip,
+        shadows).
+      - `text-wrap` with `text-wrap-mode` and `text-wrap-style`.
+        `balance` and `pretty` use rules fitted to 213 paragraph and
+        width pairs of Chromium's line breaks (all equal), and to 9
+        layouts with inline boxes, floats and flex items.
+      - `white-space` is the shorthand of `white-space-collapse` and
+        `text-wrap-mode`: each longhand wins in the cascade on its own
+        (the review found `white-space: normal` lost against an earlier
+        `text-wrap: nowrap`).
+      - Work bounds: at most 64 shadows of a box; the used stroke width is
+        at most twice the font size, and none from 8,191 px (Chromium
+        stops at the same width). 11 hostile cases.
+      - Scores. JS off: videojs geometry 0.9096 -> 0.9759, pixels
+        0.7216 -> 0.7481. JS on: geometry 0.8347 -> 0.8852, pixels
+        0.9139 -> 0.9529. The shadows also raise the pixels of
+        github-swb (0.9980 -> 0.9992) and wikipedia (0.9941 -> 0.9948);
+        the other scores are unchanged.
+      - Probes: `css-videojs-2a.json` (69 cases), 2 more cases in
+        `css-videojs-static.json`; three equal Chromium runs. Tests:
+        `videojs_static.rs`, `static_css_pixels.rs`, unit tests in
+        `balance.rs`, `box_shadow.rs`, `corner_shape.rs`,
+        `static_css_tests.rs`.
+      - What remains on the first view: the gradient over the player
+        (pixels), the video element (M14, M15).
    2b. The other static CSS of the page (`implementer`):
       `-webkit-background-clip: text`, `all`,
       `grid-template-rows: subgrid`, `min-height: 1lh`,
@@ -6203,6 +6238,46 @@ Source Extensions, AV1 (dav1d), YouTube.
   5 s. It passes on an idle machine, so the case runs close to the limit.
   Give the stress mode a larger limit in the test, or list the case in
   `NO_STRESS`.
+- CSS (feature 2a): the gradient over the videojs.org player
+  (`linear-gradient(to top, color-mix(in oklab, ...))`) darkens too early
+  in swb; the middle band of the pixel diff. Check after feature 2b
+  (colors in Oklab).
+- CSSOM (feature 2a): `element.style` writes a specified shadow as
+  given; Chromium writes the color first and drops trailing zero
+  lengths.
+- CSS (feature 2a): `calc()` in angles (`rotate: calc(10deg + 5deg)`,
+  also `hue-rotate()`) is invalid in swb.
+- CSS (feature 2a): `translate`, `rotate` and `scale` do not apply to SVG
+  elements; `text-shadow` does not apply to text decorations;
+  `corner-shape` does not apply to background images, gradients and
+  non-uniform borders.
+- Paint (feature 2a): the outer shadow of a box with an opaque
+  background has no clip; one anti-aliased corner pixel of a ring differs
+  from Chromium's (246 against 207).
+- Paint (feature 2a): the shadow of a `corner-shape` box grows the radii
+  by the spread; Chromium offsets the outline by the spread (the notch of
+  a `scoop` shadow differs at one pixel).
+- Paint (feature 2a): a text stroke wider than twice the font size is
+  narrower than Chromium's (the work bound of ADR 0045).
+- Layout (feature 2a): grid containers do not give their definite height
+  to their items as the base of percentage heights in content sizes (flex
+  containers do).
+- Layout (feature 2a review): a stretched flex item with `height: auto`
+  is not a definite base for the percentage height of its child in
+  content sizes. A flex container with `height: 100px`, a `div` item, and
+  in it an SVG with `height: 100%` and a 225 x 40 viewBox: Chromium gives
+  the item a width of 562.5 px, swb 0. The same with padding,
+  `max-height`, a percentage height of the container, and float and
+  `inline-flex` parents. An SVG that is the item itself is correct.
+- Layout (feature 2a review, older than M13): in quirks mode,
+  `<td nowrap width=40>` wraps in swb (the fixed width cancels `nowrap`,
+  `hints.rs`); Chromium 148 keeps the text on one line.
+- Layout (feature 2a): `balance` and `pretty` are fitted on Latin text;
+  bidi text is not measured. The `pretty` trigger (a one-word last line
+  narrower than a third of the width) lies between 22 % and 47 % in the
+  data; the exact threshold is not measured.
+- CSS (feature 2a): `white-space-trim` does not exist (Chromium 148 has
+  none either).
 
 ## Backlog from M12
 

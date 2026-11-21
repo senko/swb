@@ -677,7 +677,11 @@ impl Split<'_> {
     ) -> f64 {
         let hangs = matches!(
             self.style.white_space,
-            WhiteSpace::Normal | WhiteSpace::Nowrap | WhiteSpace::PreLine | WhiteSpace::PreWrap
+            WhiteSpace::Normal
+                | WhiteSpace::Nowrap
+                | WhiteSpace::PreLine
+                | WhiteSpace::PreLineNowrap
+                | WhiteSpace::PreWrap
         );
         let opportunities = self.opportunities;
         let mut start = 0;

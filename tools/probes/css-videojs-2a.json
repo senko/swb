@@ -1,0 +1,910 @@
+{
+ "viewport": [
+  600,
+  200
+ ],
+ "cases": [
+  {
+   "name": "logo",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}</style></head><body><nav style='display:flex;justify-content:space-between;align-items:center'><a id=a style='display:flex;height:40px;align-items:flex-end;gap:16px'><svg id=s viewBox='0 0 225 40' fill=none height='100%'><path d='M0 0h10v10z' fill=currentColor></path></svg></a><b>x</b></nav><nav style='display:flex'><a id=c style='display:flex;height:40px;'><svg id=u viewBox='0 0 225 40' style='height:100%'></svg></a></nav><div style='float:left'><div id=d style='display:flex;height:40px;'><svg id=v viewBox='0 0 225 40' style='height:100%'></svg></div></div><div style='clear:both;display:flex'><div id=e style='height:40px;'><svg id=w viewBox='0 0 225 40' style='height:100%'></svg></div></div><div style='clear:both;display:grid;'><div id=f style='height:40px;display:flex'><img id=g src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyMjUgNDAnLz4=' style='height:100%'></div></div></body></html>",
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll(\"a,div,svg,img\")].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*100)/100)})"
+    }
+   ]
+  },
+  {
+   "name": "transforms-boxes",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;background:#fff}.b{position:absolute;width:40px;height:20px;background:#06c;top:60px}#a{left:10px;translate:20px 10px}#b{left:90px;rotate:90deg}#c{left:150px;scale:2 .5}#d{left:210px;translate:10px 0;rotate:45deg;scale:1.5;transform:translateX(10px)}#e{left:300px;translate:50% 100%;transform-origin:0 0;rotate:30deg}#f{left:10px;top:130px;translate:none;rotate:x 90deg}#g{left:90px;top:130px;scale:1.5 1.5 2;rotate:0 0 1 90deg}</style></head><body><div class=b id=a></div><div class=b id=b></div><div class=b id=c></div><div class=b id=d></div><div class=b id=e></div><div class=b id=f></div><div class=b id=g></div></body></html>",
+   "viewport": [
+    400,
+    200
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll(\".b\")].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*100)/100)})"
+    },
+    {
+     "js": "[...document.querySelectorAll('.b')].map(e=>{const s=getComputedStyle(e);return [s.translate,s.rotate,s.scale,s.transform]})"
+    }
+   ]
+  },
+  {
+   "name": "translate-values",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}</style></head><body></body></html>",
+   "viewport": [
+    400,
+    300
+   ],
+   "measure": [
+    {
+     "js": "(function(list){const d=document.createElement('div');document.body.appendChild(d);const out=[];for(const [prop,value] of list){const ok=CSS.supports(prop,value);d.style.cssText='';d.style.setProperty(prop,value);out.push(ok?[prop,value,getComputedStyle(d).getPropertyValue(prop)]:[prop,value,'invalid']);}d.remove();return out;})([[\"translate\", \"none\"], [\"translate\", \"10px\"], [\"translate\", \"10px 20px\"], [\"translate\", \"10px 0\"], [\"translate\", \"10px 0px 0px\"], [\"translate\", \"10px 0 5px\"], [\"translate\", \"50% 100%\"], [\"translate\", \"1em 2em\"], [\"translate\", \"calc(10px + 5%)\"], [\"translate\", \"-5px\"], [\"translate\", \"0\"], [\"translate\", \"10px 20px 30px 40px\"], [\"translate\", \"10\"], [\"translate\", \"auto\"], [\"translate\", \"10deg\"], [\"translate\", \"none none\"], [\"translate\", \"10px, 20px\"], [\"translate\", \"inherit\"], [\"translate\", \"initial\"], [\"translate\", \"unset\"], [\"translate\", \"1px 2%\"], [\"translate\", \"0 0 0\"]])"
+    }
+   ]
+  },
+  {
+   "name": "rotate-values",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}</style></head><body></body></html>",
+   "viewport": [
+    400,
+    300
+   ],
+   "measure": [
+    {
+     "js": "(function(list){const d=document.createElement('div');document.body.appendChild(d);const out=[];for(const [prop,value] of list){const ok=CSS.supports(prop,value);d.style.cssText='';d.style.setProperty(prop,value);out.push(ok?[prop,value,getComputedStyle(d).getPropertyValue(prop)]:[prop,value,'invalid']);}d.remove();return out;})([[\"rotate\", \"none\"], [\"rotate\", \"45deg\"], [\"rotate\", \"0.25turn\"], [\"rotate\", \"1rad\"], [\"rotate\", \"100grad\"], [\"rotate\", \"0\"], [\"rotate\", \"0deg\"], [\"rotate\", \"x 90deg\"], [\"rotate\", \"y 90deg\"], [\"rotate\", \"z 90deg\"], [\"rotate\", \"90deg x\"], [\"rotate\", \"1 0 0 90deg\"], [\"rotate\", \"0 0 1 90deg\"], [\"rotate\", \"0 1 0 45deg\"], [\"rotate\", \"1 1 1 30deg\"], [\"rotate\", \"0 0 0 10deg\"], [\"rotate\", \"2 0 0 10deg\"], [\"rotate\", \"x\"], [\"rotate\", \"10\"], [\"rotate\", \"x y 1deg\"], [\"rotate\", \"calc(10deg + 5deg)\"], [\"rotate\", \"-90deg\"], [\"rotate\", \"720deg\"], [\"rotate\", \"90deg 1 0 0\"], [\"rotate\", \"inherit\"]])"
+    }
+   ]
+  },
+  {
+   "name": "scale-values",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}</style></head><body></body></html>",
+   "viewport": [
+    400,
+    300
+   ],
+   "measure": [
+    {
+     "js": "(function(list){const d=document.createElement('div');document.body.appendChild(d);const out=[];for(const [prop,value] of list){const ok=CSS.supports(prop,value);d.style.cssText='';d.style.setProperty(prop,value);out.push(ok?[prop,value,getComputedStyle(d).getPropertyValue(prop)]:[prop,value,'invalid']);}d.remove();return out;})([[\"scale\", \"none\"], [\"scale\", \"2\"], [\"scale\", \"2 3\"], [\"scale\", \"2 2\"], [\"scale\", \"2 3 4\"], [\"scale\", \"1 1 1\"], [\"scale\", \"1 1 2\"], [\"scale\", \"50%\"], [\"scale\", \"50% 200%\"], [\"scale\", \"-1\"], [\"scale\", \"-1 1\"], [\"scale\", \"0\"], [\"scale\", \"1.5 1.5 2\"], [\"scale\", \"1px\"], [\"scale\", \"auto\"], [\"scale\", \"1 2 3 4\"], [\"scale\", \"calc(1 + 1)\"], [\"scale\", \"calc(50% + 1)\"], [\"scale\", \"inherit\"], [\"scale\", \"initial\"]])"
+    }
+   ]
+  },
+  {
+   "name": "box-shadow-values",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}</style></head><body></body></html>",
+   "viewport": [
+    400,
+    300
+   ],
+   "measure": [
+    {
+     "js": "(function(list){const d=document.createElement('div');document.body.appendChild(d);const out=[];for(const [prop,value] of list){const ok=CSS.supports(prop,value);d.style.cssText='';d.style.setProperty(prop,value);out.push(ok?[prop,value,getComputedStyle(d).getPropertyValue(prop)]:[prop,value,'invalid']);}d.remove();return out;})([[\"box-shadow\", \"none\"], [\"box-shadow\", \"0 0 #0000\"], [\"box-shadow\", \"0 1px 3px 0 #0000001a, 0 1px 2px -1px #0000001a\"], [\"box-shadow\", \"inset 0 2px 4px red\"], [\"box-shadow\", \"1px 2px\"], [\"box-shadow\", \"red 1px 2px 3px 4px\"], [\"box-shadow\", \"1px 2px 3px 4px red inset\"], [\"box-shadow\", \"inset 1px 2px red\"], [\"box-shadow\", \"1px 2px 3px\"], [\"box-shadow\", \"1px 2px -3px\"], [\"box-shadow\", \"1px\"], [\"box-shadow\", \"1px 2px 3px 4px 5px\"], [\"box-shadow\", \"red\"], [\"box-shadow\", \"1px 2px red red\"], [\"box-shadow\", \"1px red 2px\"], [\"box-shadow\", \"0 0 0 1px currentcolor\"], [\"box-shadow\", \"0 0 0 1px\"], [\"box-shadow\", \"1em 2em 3em 4em\"], [\"box-shadow\", \"calc(1px + 2px) 0\"], [\"box-shadow\", \"none, 1px 1px\"], [\"box-shadow\", \"1px 1px, none\"], [\"box-shadow\", \"inherit\"], [\"box-shadow\", \"0 0 0 0 #fff, 0 0 0 2px #06c, 0 0 #0000\"], [\"box-shadow\", \"rgb(0 0 0 / 50%) 0 1px\"], [\"box-shadow\", \"inset\"], [\"box-shadow\", \"1px 2px 3px 4px inset red\"], [\"box-shadow\", \"red inset 1px 1px\"], [\"box-shadow\", \"inset 1px 1px inset\"], [\"box-shadow\", \"0 0 10% black\"], [\"box-shadow\", \"-0px 0\"]])"
+    }
+   ]
+  },
+  {
+   "name": "text-shadow-values",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}</style></head><body></body></html>",
+   "viewport": [
+    400,
+    300
+   ],
+   "measure": [
+    {
+     "js": "(function(list){const d=document.createElement('div');document.body.appendChild(d);const out=[];for(const [prop,value] of list){const ok=CSS.supports(prop,value);d.style.cssText='';d.style.setProperty(prop,value);out.push(ok?[prop,value,getComputedStyle(d).getPropertyValue(prop)]:[prop,value,'invalid']);}d.remove();return out;})([[\"text-shadow\", \"none\"], [\"text-shadow\", \"1px 2px\"], [\"text-shadow\", \"red 1px 2px 3px\"], [\"text-shadow\", \"1px 2px 3px red\"], [\"text-shadow\", \"1px 2px 3px 4px\"], [\"text-shadow\", \"inset 1px 2px\"], [\"text-shadow\", \"1px 2px -3px\"], [\"text-shadow\", \"1px\"], [\"text-shadow\", \"0 1px 0 rgb(0 0 0 / 50%)\"], [\"text-shadow\", \"1px 1px red, 2px 2px blue\"], [\"text-shadow\", \"red\"], [\"text-shadow\", \"1px red 2px\"], [\"text-shadow\", \"0 0 currentcolor\"], [\"text-shadow\", \"3px 4px 6px #c00\"]])"
+    }
+   ]
+  },
+  {
+   "name": "text-wrap-values",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}</style></head><body></body></html>",
+   "viewport": [
+    400,
+    300
+   ],
+   "measure": [
+    {
+     "js": "(function(list){const d=document.createElement('div');document.body.appendChild(d);const out=[];for(const [prop,value] of list){const ok=CSS.supports(prop,value);d.style.cssText='';d.style.setProperty(prop,value);out.push(ok?[prop,value,getComputedStyle(d).getPropertyValue(prop)]:[prop,value,'invalid']);}d.remove();return out;})([[\"text-wrap\", \"wrap\"], [\"text-wrap\", \"nowrap\"], [\"text-wrap\", \"balance\"], [\"text-wrap\", \"pretty\"], [\"text-wrap\", \"stable\"], [\"text-wrap\", \"auto\"], [\"text-wrap\", \"nowrap balance\"], [\"text-wrap\", \"balance nowrap\"], [\"text-wrap\", \"wrap pretty\"], [\"text-wrap\", \"wrap wrap\"], [\"text-wrap\", \"balance pretty\"], [\"text-wrap\", \"inherit\"], [\"text-wrap\", \"initial\"], [\"text-wrap\", \"unset\"], [\"text-wrap\", \"x\"], [\"text-wrap-mode\", \"wrap\"], [\"text-wrap-mode\", \"nowrap\"], [\"text-wrap-mode\", \"balance\"], [\"text-wrap-mode\", \"x\"], [\"text-wrap-style\", \"auto\"], [\"text-wrap-style\", \"balance\"], [\"text-wrap-style\", \"stable\"], [\"text-wrap-style\", \"pretty\"], [\"text-wrap-style\", \"nowrap\"], [\"text-wrap-style\", \"x\"]])"
+    }
+   ]
+  },
+  {
+   "name": "text-wrap-and-white-space",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{width:60px;margin:0}</style></head><body><p id=a style='text-wrap:nowrap'>aa bb cc dd</p><p id=b style='white-space:nowrap;text-wrap:wrap'>aa bb cc dd</p><p id=d style='white-space:pre;text-wrap-mode:wrap'>aa bb cc dd</p></body></html>",
+   "viewport": [
+    400,
+    300
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll(\"p\")].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*100)/100)})"
+    },
+    {
+     "js": "[...document.querySelectorAll('p')].map(e=>{const s=getComputedStyle(e);return [s.whiteSpace,s.textWrap,s.textWrapMode,s.textWrapStyle]})"
+    }
+   ]
+  },
+  {
+   "name": "text-stroke-values",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}</style></head><body></body></html>",
+   "viewport": [
+    400,
+    300
+   ],
+   "measure": [
+    {
+     "js": "(function(list){const d=document.createElement('div');document.body.appendChild(d);const out=[];for(const [prop,value] of list){const ok=CSS.supports(prop,value);d.style.cssText='';d.style.setProperty(prop,value);out.push(ok?[prop,value,getComputedStyle(d).getPropertyValue(prop)]:[prop,value,'invalid']);}d.remove();return out;})([[\"-webkit-text-stroke\", \"1px\"], [\"-webkit-text-stroke\", \"thin\"], [\"-webkit-text-stroke\", \"medium\"], [\"-webkit-text-stroke\", \"thick\"], [\"-webkit-text-stroke\", \"2px red\"], [\"-webkit-text-stroke\", \"red 2px\"], [\"-webkit-text-stroke\", \"red\"], [\"-webkit-text-stroke\", \"0\"], [\"-webkit-text-stroke\", \"-1px\"], [\"-webkit-text-stroke\", \"1em\"], [\"-webkit-text-stroke\", \"calc(1px + 1px)\"], [\"-webkit-text-stroke\", \"10%\"], [\"-webkit-text-stroke\", \"clamp(1px, .035em, 1.5px)\"], [\"-webkit-text-stroke\", \"1px 2px\"], [\"-webkit-text-stroke\", \"none\"], [\"-webkit-text-stroke\", \"inherit\"], [\"-webkit-text-stroke-width\", \"1px\"], [\"-webkit-text-stroke-width\", \"thin\"], [\"-webkit-text-stroke-width\", \"medium\"], [\"-webkit-text-stroke-width\", \"thick\"], [\"-webkit-text-stroke-width\", \"0\"], [\"-webkit-text-stroke-width\", \"-1px\"], [\"-webkit-text-stroke-width\", \"1.5em\"], [\"-webkit-text-stroke-width\", \"red\"], [\"-webkit-text-stroke-width\", \"calc(2px)\"], [\"-webkit-text-stroke-width\", \"1px 2px\"], [\"-webkit-text-stroke-color\", \"red\"], [\"-webkit-text-stroke-color\", \"transparent\"], [\"-webkit-text-stroke-color\", \"currentcolor\"], [\"-webkit-text-stroke-color\", \"#1f1d1b\"], [\"-webkit-text-stroke-color\", \"1px\"], [\"-webkit-text-stroke-color\", \"rgb(1 2 3 / 50%)\"], [\"-webkit-text-fill-color\", \"red\"], [\"-webkit-text-fill-color\", \"transparent\"], [\"-webkit-text-fill-color\", \"currentcolor\"], [\"-webkit-text-fill-color\", \"#1f1d1b\"], [\"-webkit-text-fill-color\", \"1px\"], [\"-webkit-text-fill-color\", \"none\"]])"
+    }
+   ]
+  },
+  {
+   "name": "isolation-and-corner-values",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}</style></head><body></body></html>",
+   "viewport": [
+    400,
+    300
+   ],
+   "measure": [
+    {
+     "js": "(function(list){const d=document.createElement('div');document.body.appendChild(d);const out=[];for(const [prop,value] of list){const ok=CSS.supports(prop,value);d.style.cssText='';d.style.setProperty(prop,value);out.push(ok?[prop,value,getComputedStyle(d).getPropertyValue(prop)]:[prop,value,'invalid']);}d.remove();return out;})([[\"isolation\", \"auto\"], [\"isolation\", \"isolate\"], [\"isolation\", \"x\"], [\"isolation\", \"inherit\"], [\"corner-shape\", \"round\"], [\"corner-shape\", \"squircle\"], [\"corner-shape\", \"bevel\"], [\"corner-shape\", \"scoop\"], [\"corner-shape\", \"notch\"], [\"corner-shape\", \"square\"], [\"corner-shape\", \"superellipse(3)\"], [\"corner-shape\", \"superellipse(-1.5)\"], [\"corner-shape\", \"superellipse(infinity)\"], [\"corner-shape\", \"superellipse(-infinity)\"], [\"corner-shape\", \"superellipse()\"], [\"corner-shape\", \"squircle round\"], [\"corner-shape\", \"squircle round bevel\"], [\"corner-shape\", \"squircle round bevel scoop\"], [\"corner-shape\", \"a b c d e\"], [\"corner-shape\", \"round, round\"], [\"corner-shape\", \"inherit\"], [\"corner-shape\", \"superellipse(0)\"], [\"corner-shape\", \"superellipse(1)\"], [\"corner-shape\", \"superellipse(2)\"], [\"corner-shape\", \"superellipse(calc(1 + 1))\"], [\"corner-top-left-shape\", \"squircle\"], [\"corner-top-left-shape\", \"superellipse(0.5)\"], [\"corner-top-left-shape\", \"x\"], [\"corner-bottom-right-shape\", \"scoop\"]])"
+    }
+   ]
+  },
+  {
+   "name": "wrap-title-auto",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:auto}</style></head><body><p style='width:120px'>The Open Source Player for the Web</p><p style='width:140px'>The Open Source Player for the Web</p><p style='width:160px'>The Open Source Player for the Web</p><p style='width:180px'>The Open Source Player for the Web</p><p style='width:200px'>The Open Source Player for the Web</p><p style='width:220px'>The Open Source Player for the Web</p><p style='width:240px'>The Open Source Player for the Web</p><p style='width:260px'>The Open Source Player for the Web</p><p style='width:280px'>The Open Source Player for the Web</p><p style='width:300px'>The Open Source Player for the Web</p><p style='width:320px'>The Open Source Player for the Web</p><p style='width:340px'>The Open Source Player for the Web</p><p style='width:360px'>The Open Source Player for the Web</p><p style='width:380px'>The Open Source Player for the Web</p><p style='width:400px'>The Open Source Player for the Web</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-title-balance",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:balance}</style></head><body><p style='width:120px'>The Open Source Player for the Web</p><p style='width:140px'>The Open Source Player for the Web</p><p style='width:160px'>The Open Source Player for the Web</p><p style='width:180px'>The Open Source Player for the Web</p><p style='width:200px'>The Open Source Player for the Web</p><p style='width:220px'>The Open Source Player for the Web</p><p style='width:240px'>The Open Source Player for the Web</p><p style='width:260px'>The Open Source Player for the Web</p><p style='width:280px'>The Open Source Player for the Web</p><p style='width:300px'>The Open Source Player for the Web</p><p style='width:320px'>The Open Source Player for the Web</p><p style='width:340px'>The Open Source Player for the Web</p><p style='width:360px'>The Open Source Player for the Web</p><p style='width:380px'>The Open Source Player for the Web</p><p style='width:400px'>The Open Source Player for the Web</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-title-pretty",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:pretty}</style></head><body><p style='width:120px'>The Open Source Player for the Web</p><p style='width:140px'>The Open Source Player for the Web</p><p style='width:160px'>The Open Source Player for the Web</p><p style='width:180px'>The Open Source Player for the Web</p><p style='width:200px'>The Open Source Player for the Web</p><p style='width:220px'>The Open Source Player for the Web</p><p style='width:240px'>The Open Source Player for the Web</p><p style='width:260px'>The Open Source Player for the Web</p><p style='width:280px'>The Open Source Player for the Web</p><p style='width:300px'>The Open Source Player for the Web</p><p style='width:320px'>The Open Source Player for the Web</p><p style='width:340px'>The Open Source Player for the Web</p><p style='width:360px'>The Open Source Player for the Web</p><p style='width:380px'>The Open Source Player for the Web</p><p style='width:400px'>The Open Source Player for the Web</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-title-stable",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:stable}</style></head><body><p style='width:120px'>The Open Source Player for the Web</p><p style='width:140px'>The Open Source Player for the Web</p><p style='width:160px'>The Open Source Player for the Web</p><p style='width:180px'>The Open Source Player for the Web</p><p style='width:200px'>The Open Source Player for the Web</p><p style='width:220px'>The Open Source Player for the Web</p><p style='width:240px'>The Open Source Player for the Web</p><p style='width:260px'>The Open Source Player for the Web</p><p style='width:280px'>The Open Source Player for the Web</p><p style='width:300px'>The Open Source Player for the Web</p><p style='width:320px'>The Open Source Player for the Web</p><p style='width:340px'>The Open Source Player for the Web</p><p style='width:360px'>The Open Source Player for the Web</p><p style='width:380px'>The Open Source Player for the Web</p><p style='width:400px'>The Open Source Player for the Web</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-para-auto",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:auto}</style></head><body><p style='width:200px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:240px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:280px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:320px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:360px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:400px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:440px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:480px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:520px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:560px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:600px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-para-balance",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:balance}</style></head><body><p style='width:200px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:240px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:280px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:320px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:360px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:400px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:440px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:480px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:520px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:560px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:600px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-para-pretty",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:pretty}</style></head><body><p style='width:200px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:240px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:280px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:320px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:360px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:400px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:440px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:480px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:520px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:560px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:600px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-para-stable",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:stable}</style></head><body><p style='width:200px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:240px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:280px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:320px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:360px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:400px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:440px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:480px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:520px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:560px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:600px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-short-auto",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:auto}</style></head><body><p style='width:120px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:140px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:160px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:180px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:200px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:220px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:240px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:260px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:280px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:300px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:320px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:340px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:360px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:380px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:400px'>Alpha beta gamma delta epsilon zeta eta theta iota</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-short-balance",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:balance}</style></head><body><p style='width:120px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:140px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:160px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:180px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:200px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:220px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:240px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:260px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:280px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:300px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:320px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:340px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:360px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:380px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:400px'>Alpha beta gamma delta epsilon zeta eta theta iota</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-short-pretty",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:pretty}</style></head><body><p style='width:120px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:140px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:160px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:180px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:200px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:220px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:240px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:260px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:280px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:300px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:320px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:340px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:360px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:380px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:400px'>Alpha beta gamma delta epsilon zeta eta theta iota</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-short-stable",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:stable}</style></head><body><p style='width:120px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:140px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:160px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:180px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:200px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:220px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:240px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:260px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:280px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:300px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:320px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:340px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:360px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:380px'>Alpha beta gamma delta epsilon zeta eta theta iota</p><p style='width:400px'>Alpha beta gamma delta epsilon zeta eta theta iota</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-orphan-auto",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:auto}</style></head><body><p style='width:120px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:140px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:160px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:180px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:200px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:220px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:240px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:260px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:280px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:300px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:320px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:340px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:360px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:380px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:400px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-orphan-balance",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:balance}</style></head><body><p style='width:120px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:140px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:160px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:180px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:200px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:220px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:240px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:260px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:280px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:300px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:320px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:340px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:360px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:380px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:400px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-orphan-pretty",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:pretty}</style></head><body><p style='width:120px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:140px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:160px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:180px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:200px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:220px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:240px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:260px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:280px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:300px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:320px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:340px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:360px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:380px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:400px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-orphan-stable",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:stable}</style></head><body><p style='width:120px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:140px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:160px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:180px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:200px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:220px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:240px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:260px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:280px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:300px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:320px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:340px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:360px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:380px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p><p style='width:400px'>The quick brown fox jumps over the lazy dogs and then runs away quickly</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-words-auto",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:auto}</style></head><body><p style='width:120px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:140px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:160px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:180px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:200px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:220px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:240px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:260px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:280px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:300px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:320px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:340px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:360px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:380px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:400px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-words-balance",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:balance}</style></head><body><p style='width:120px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:140px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:160px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:180px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:200px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:220px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:240px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:260px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:280px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:300px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:320px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:340px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:360px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:380px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:400px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-words-pretty",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:pretty}</style></head><body><p style='width:120px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:140px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:160px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:180px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:200px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:220px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:240px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:260px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:280px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:300px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:320px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:340px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:360px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:380px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:400px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-words-stable",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:stable}</style></head><body><p style='width:120px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:140px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:160px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:180px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:200px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:220px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:240px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:260px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:280px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:300px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:320px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:340px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:360px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:380px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p><p style='width:400px'>a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-long-auto",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:auto}</style></head><body><p style='width:110px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:120px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:130px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:140px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:150px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:160px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:170px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:180px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:190px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-long-balance",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:balance}</style></head><body><p style='width:110px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:120px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:130px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:140px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:150px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:160px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:170px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:180px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:190px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-long-pretty",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p{margin:0 0 8px;text-wrap:pretty}</style></head><body><p style='width:110px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:120px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:130px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:140px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:150px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:160px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:170px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:180px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p><p style='width:190px'>For over 15 years, Video.js has been the world's web video player. Now rebuilt in v10 for modern development and performance.</p></body></html>",
+   "viewport": [
+    500,
+    800
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const p of document.querySelectorAll('p')){const t=p.firstChild;const r=document.createRange();const lines=[];let top=null;for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const y=Math.round(r.getBoundingClientRect().top);if(y!==top){lines.push([]);top=y;}lines[lines.length-1].push(m[0]);}out.push(lines.map(l=>l.join(' ')).join('|'));}return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "wrap-hero-title",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:bold 56px Arial}h1{margin:0 auto;width:700px;text-align:center;text-wrap:balance;text-transform:uppercase}h1 span{color:#c00}</style></head><body><h1 id=t>The Open Source Player <br class=x style='display:none'><span id=s>for the Web</span></h1></body></html>",
+   "viewport": [
+    800,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll(\"h1,span\")].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*100)/100)})"
+    },
+    {
+     "js": "(function(){const r=document.createRange();const t=document.getElementById('t').firstChild;const out=[];for(const m of t.data.matchAll(/\\S+/g)){r.setStart(t,m.index);r.setEnd(t,m.index+m[0].length);const b=r.getBoundingClientRect();out.push([m[0],Math.round(b.x),Math.round(b.y)]);}const s=document.getElementById('s').getBoundingClientRect();out.push(['span',Math.round(s.x),Math.round(s.y)]);return out;})()"
+    }
+   ]
+  },
+  {
+   "name": "ws-order1",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><p style='text-wrap:nowrap;white-space:normal'><span class=w>aa</span> <span class=w>bb</span> <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-order2",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><p style='white-space:normal;text-wrap:nowrap'><span class=w>aa</span> <span class=w>bb</span> <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-sheet-a",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}.a{white-space:normal} p{text-wrap:nowrap}</style></head><body><p class=a><span class=w>aa</span> <span class=w>bb</span> <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-sheet-b",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}p{text-wrap:nowrap} .a{white-space:normal}</style></head><body><p class=a><span class=w>aa</span> <span class=w>bb</span> <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-sheet-c",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}.a{white-space:normal} p.a{text-wrap:nowrap}</style></head><body><p class=a><span class=w>aa</span> <span class=w>bb</span> <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-inherit-a",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><div style='text-wrap:nowrap'><p style='white-space:normal'><span class=w>aa</span> <span class=w>bb</span> <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></div></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-inherit-b",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><div style='white-space:nowrap'><p style='text-wrap:wrap'><span class=w>aa</span> <span class=w>bb</span> <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></div></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-inherit-c",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><div style='white-space:pre-line'><p style='text-wrap-mode:nowrap'><span class=w>aa</span>\n<span class=w>bb</span> <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></div></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-inherit-d",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><div style='white-space-collapse:preserve'><p style='white-space:nowrap'><span class=w>aa</span> <span class=w>bb</span> <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></div></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-preline-nowrap",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><p style='white-space:pre-line;text-wrap:nowrap'><span class=w>aa</span>\n<span class=w>bb</span> <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-preline-nowrap2",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><p style='white-space-collapse:preserve-breaks;text-wrap-mode:nowrap'><span class=w>aa</span>\n<span class=w>bb</span> <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-pre-wrap",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><p style='white-space:pre;text-wrap:wrap'><span class=w>aa</span> <span class=w>bb</span>   <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-breakspaces-nowrap",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><p style='white-space-collapse:break-spaces;text-wrap-mode:nowrap'><span class=w>aa</span> <span class=w>bb</span>   <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-breakspaces-wrap",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><p style='white-space:break-spaces'><span class=w>aa</span> <span class=w>bb</span>   <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-shorthand-reset",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><p style='white-space-collapse:preserve;text-wrap-mode:nowrap;white-space:normal'><span class=w>aa</span> <span class=w>bb</span> <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-important",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}.a{white-space:normal !important}</style></head><body><p class=a style='text-wrap-mode:nowrap'><span class=w>aa</span> <span class=w>bb</span> <span class=w>cc</span> <span class=w>dd</span> <span class=w>ee</span></p></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "ws-computed-combos",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><div style='white-space-collapse:collapse;text-wrap-mode:wrap'>x</div><div style='white-space-collapse:collapse;text-wrap-mode:nowrap'>x</div><div style='white-space-collapse:preserve;text-wrap-mode:wrap'>x</div><div style='white-space-collapse:preserve;text-wrap-mode:nowrap'>x</div><div style='white-space-collapse:preserve-breaks;text-wrap-mode:wrap'>x</div><div style='white-space-collapse:preserve-breaks;text-wrap-mode:nowrap'>x</div><div style='white-space-collapse:break-spaces;text-wrap-mode:wrap'>x</div><div style='white-space-collapse:break-spaces;text-wrap-mode:nowrap'>x</div><div style='white-space:pre-line'>x</div><div style='white-space:normal;text-wrap:nowrap'>x</div><div style='white-space:nowrap;text-wrap:balance'>x</div><div style='text-wrap:balance nowrap'>x</div></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('div')].map(e=>{const s=getComputedStyle(e);return [s.whiteSpace,s.whiteSpaceCollapse,s.textWrapMode,s.textWrap,s.textWrapStyle]})"
+    }
+   ]
+  },
+  {
+   "name": "ws-style-serialization",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const d of [\"white-space:normal\", \"white-space:nowrap\", \"white-space:pre\", \"white-space:pre-wrap\", \"white-space:pre-line\", \"white-space:break-spaces\", \"white-space:collapse\", \"white-space:preserve nowrap\", \"white-space:preserve-breaks nowrap\", \"white-space:break-spaces nowrap\", \"white-space:wrap\", \"white-space:nowrap wrap\", \"white-space:nowrap collapse\", \"white-space:collapse nowrap\", \"white-space:preserve wrap\", \"white-space:preserve-spaces\", \"white-space:preserve-spaces nowrap\", \"white-space:pre-line nowrap\", \"white-space:normal normal\", \"white-space:inherit\", \"white-space:initial\", \"white-space:unset\", \"white-space:revert\", \"white-space:-webkit-nowrap\", \"white-space:-moz-pre-wrap\", \"white-space:none\", \"white-space:discard-before\", \"white-space:preserve discard-after\", \"white-space:nowrap discard-inner\", \"white-space:wrap wrap\", \"white-space:preserve preserve\", \"white-space:wrap collapse\", \"white-space:collapse preserve\", \"white-space-collapse:preserve\", \"white-space-collapse:preserve-breaks\", \"white-space-collapse:break-spaces\", \"white-space-collapse:collapse\", \"white-space-collapse:preserve-spaces\", \"white-space-collapse:normal\", \"white-space-collapse:nowrap\", \"white-space-collapse:preserve;text-wrap-mode:nowrap\", \"white-space-collapse:preserve-breaks;text-wrap-mode:nowrap\", \"white-space-collapse:break-spaces;text-wrap-mode:nowrap\", \"white-space-collapse:collapse;text-wrap-mode:nowrap\", \"white-space-collapse:preserve;text-wrap-mode:wrap\", \"white-space-collapse:preserve-breaks;text-wrap-mode:wrap\", \"white-space-collapse:break-spaces;text-wrap-mode:wrap\", \"text-wrap-mode:nowrap\", \"text-wrap:nowrap\", \"text-wrap:balance\", \"text-wrap:balance nowrap\", \"text-wrap:nowrap;white-space:pre\", \"white-space:pre;text-wrap:nowrap\", \"white-space:pre-wrap;text-wrap:nowrap\", \"white-space-collapse:preserve;white-space:normal\", \"white-space:normal;white-space-collapse:preserve\", \"white-space:pre;white-space-collapse:collapse\", \"text-wrap-mode:nowrap;white-space:normal\"]){const e=document.createElement('div');e.setAttribute('style',d);const s=e.style;out.push([d,e.getAttribute('style'),s.cssText,s.whiteSpace,s.whiteSpaceCollapse,s.textWrapMode,s.textWrap,s.length,s.getPropertyValue('white-space'),s.getPropertyPriority('white-space')]);}return out})()"
+    }
+   ]
+  },
+  {
+   "name": "ws-supports",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[\"white-space:normal\", \"white-space:nowrap\", \"white-space:pre\", \"white-space:pre-line\", \"white-space:break-spaces\", \"white-space:preserve nowrap\", \"white-space:preserve-breaks nowrap\", \"white-space:break-spaces nowrap\", \"white-space:wrap\", \"white-space-collapse:preserve\", \"text-wrap-mode:nowrap\", \"white-space:pre;text-wrap:balance nowrap\", \"white-space-collapse:foo\", \"white-space:foo\", \"text-wrap-mode:balance\", \"white-space:nowrap nowrap\", \"white-space:pre-line wrap\", \"white-space:normal nowrap\"].map(d=>[d,CSS.supports(d)])"
+    }
+   ]
+  },
+  {
+   "name": "ws-computed-decls",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "(function(){const out=[];for(const d of [\"white-space:pre-line;text-wrap:nowrap\", \"white-space:break-spaces;text-wrap:nowrap\", \"white-space:pre;text-wrap:wrap\", \"white-space:preserve-breaks wrap\", \"white-space-collapse:preserve;text-wrap-mode:nowrap\", \"white-space-collapse:preserve-breaks\", \"text-wrap-mode:nowrap\", \"white-space:pre-line\", \"white-space:inherit\"]){const e=document.createElement('div');document.body.appendChild(e);e.setAttribute('style',d);const s=getComputedStyle(e);out.push([d,s.whiteSpace,s.whiteSpaceCollapse,s.textWrapMode]);e.remove();}return out})()"
+    }
+   ]
+  },
+  {
+   "name": "ws-in-enumeration",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><div id=a></div></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "(function(){const s=getComputedStyle(document.getElementById('a'));const n=[];for(let i=0;i<s.length;i++)n.push(s[i]);return [n.indexOf('white-space-collapse')>=0,n.indexOf('white-space')>=0,n.indexOf('text-wrap-mode')>=0, s.getPropertyValue('white-space'), s.getPropertyValue('white-space-collapse'), 'whiteSpaceCollapse' in s, 'whiteSpaceCollapse' in document.body.style]})()"
+    }
+   ]
+  },
+  {
+   "name": "balance-inline",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><h1 style='width:230px;text-wrap:balance'><span class=m>The</span> Open <b class=m>Source Player</b> for the <i class=m style='padding:0 10px'>Web</i> today</h1></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "balance-center",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><h1 style='width:230px;text-wrap:balance;text-align:center'><span class=w>The</span> <span class=w>Open</span> <span class=w>Source</span> <span class=w>Player</span> <span class=w>for</span> <span class=w>the</span> <span class=w>Web</span></h1></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "balance-float",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><div style='float:left;width:40px;height:20px'></div><h1 style='width:230px;text-wrap:balance'><span class=w>The</span> <span class=w>Open</span> <span class=w>Source</span> <span class=w>Player</span> <span class=w>for</span> <span class=w>the</span> <span class=w>Web</span></h1></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "balance-indent",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><h1 style='width:230px;text-wrap:balance;text-indent:40px'><span class=w>The</span> <span class=w>Open</span> <span class=w>Source</span> <span class=w>Player</span> <span class=w>for</span> <span class=w>the</span> <span class=w>Web</span> <span class=w>again</span></h1></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "balance-br",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><h1 style='width:150px;text-wrap:balance'><span class=w>The</span> <span class=w>Open</span> <span class=w>Source</span> <span class=w>Player</span><br><span class=w>for</span> <span class=w>the</span> <span class=w>Web</span> <span class=w>is</span></h1></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "balance-shrink",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><div style='float:left;max-width:200px'><h1 style='width:auto;text-wrap:balance'><span class=w>The</span> <span class=w>Open</span> <span class=w>Source</span> <span class=w>Player</span> <span class=w>for</span> <span class=w>the</span> <span class=w>Web</span></h1></div></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "balance-flexitem",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><div style='display:flex;width:260px'><h1 style='width:auto;text-wrap:balance'><span class=w>The</span> <span class=w>Open</span> <span class=w>Source</span> <span class=w>Player</span> <span class=w>for</span> <span class=w>the</span> <span class=w>Web</span></h1></div></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "balance-atomic",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><h1 style='width:230px;text-wrap:balance'><span class=w>The</span> <span class=w>Open</span> <span class=m style='display:inline-block;width:50px;height:10px'></span> <span class=w>Source</span> <span class=w>Player</span> <span class=w>for</span> <span class=w>the</span> <span class=w>Web</span></h1></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "pretty-inline",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><h1 style='width:230px;text-wrap:pretty'><span class=w>The</span> <span class=w>Open</span> <span class=w>Source</span> <span class=w>Player</span> <span class=w>for</span> <span class=w>the</span> <b class=m>Web</b></h1></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "pct-height-in-pct-height",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><div style='display:flex;height:40px'><div class=m style='height:50%'><svg class=m viewBox='0 0 225 40' style='height:100%'></svg></div></div></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "pct-height-auto-chain",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><div style='display:flex;height:40px'><div class=m><div class=m style='display:block'><svg class=m viewBox='0 0 225 40' style='height:100%'></svg></div></div></div></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "pct-height-min-height",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><div style='display:flex;height:40px;align-items:flex-start'><div class=m style='min-height:80px'><svg class=m viewBox='0 0 225 40' style='height:100%'></svg></div></div></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  },
+  {
+   "name": "pct-height-table",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0;font:16px Arial}p,h1{width:100px;margin:0;font-size:16px;font-weight:normal}</style></head><body><div style='display:flex;height:40px'><table style='border-collapse:collapse'><tr><td class=m><svg viewBox='0 0 225 40' style='height:100%'></svg></td></tr></table></div><div class=m style='height:1px'></div></body></html>",
+   "viewport": [
+    400,
+    400
+   ],
+   "measure": [
+    {
+     "js": "[...document.querySelectorAll('.w,.m')].map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height].map(v=>Math.round(v*10)/10)})"
+    }
+   ]
+  }
+ ]
+}

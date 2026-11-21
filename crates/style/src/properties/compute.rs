@@ -9,7 +9,7 @@ use swb_dom::ElementData;
 
 use super::ids::LonghandValue;
 use super::specified::clamp_non_negative;
-use super::transform;
+use super::{effects, transform};
 use crate::ComputedStyle;
 use crate::values::{
     CornerRadius, FontFamily, Gap, GenericFamily, LengthContext, LengthPercentage,
@@ -103,7 +103,23 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::TextAlign(v) => s.text_align = v.compute(cx),
         V::TextIndent(v) => s.text_indent = cx.lp(v),
         V::TextTransform(v) => s.text_transform = *v,
-        V::WhiteSpace(v) => s.white_space = *v,
+        // Each longhand sets its half of the one computed `white_space`.
+        V::WhiteSpaceCollapse(v) => s.white_space = s.white_space.with_collapse(*v),
+        V::TextWrapMode(v) => s.white_space = s.white_space.with_wrap(*v),
+        V::TextWrapStyle(v) => s.text_wrap_style = *v,
+        V::TextStrokeWidth(v) => s.text_stroke_width = cx.px(v).max(0.0),
+        V::TextStrokeColor(v) => s.text_stroke_color = *v,
+        V::TextFillColor(v) => s.text_fill_color = *v,
+        V::TextShadow(v) => s.text_shadow = effects::compute_text_shadows(v, cx),
+        V::BoxShadow(v) => s.box_shadow = effects::compute_box_shadows(v, cx),
+        V::Translate(v) => s.translate = effects::compute_translate(v, cx),
+        V::Rotate(v) => s.rotate = *v,
+        V::Scale(v) => s.scale = *v,
+        V::Isolation(v) => s.isolation = *v,
+        V::CornerTopLeftShape(v) => s.corner_top_left_shape = *v,
+        V::CornerTopRightShape(v) => s.corner_top_right_shape = *v,
+        V::CornerBottomRightShape(v) => s.corner_bottom_right_shape = *v,
+        V::CornerBottomLeftShape(v) => s.corner_bottom_left_shape = *v,
         V::LetterSpacing(v) => s.letter_spacing = cx.lp(v).resolve(cx.lengths.font_size),
         V::WordSpacing(v) => s.word_spacing = cx.px(v),
         V::WordBreak(v) => s.word_break = *v,

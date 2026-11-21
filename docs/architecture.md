@@ -157,7 +157,13 @@ Rules:
   (`paint/src/rope.rs`), so moving the items of positioned boxes copies
   each item a bounded number of times, and computes the bounds of all
   groups in one pass at the end (`paint/src/group_bounds.rs`). Form
-  controls with the native look are drawn by `paint/src/control.rs`. The
+  controls with the native look are drawn by `paint/src/control.rs`. A box
+  with a `box-shadow` paints its shadows from the same groups
+  (`paint/src/box_shadow.rs`, ADR 0045: a blur is a filter group, the clip
+  of the box is an SVG clip group), text with a `text-shadow` paints
+  blurred copies in filter groups, `-webkit-text-stroke` is a
+  `TextStroke` item, and a box with `corner-shape` fills a polyline
+  outline (`paint/src/corner_shape.rs`). The
   rasterizer consumes it. The rasterizer can be replaced without changes
   to layout. The list also
   contains hit regions, so hit testing finds what is painted on top.

@@ -56,6 +56,8 @@ mod shape;
 #[cfg(test)]
 mod small_features_tests;
 mod source_map;
+#[cfg(test)]
+mod static_css_tests;
 pub mod svg;
 mod table;
 #[cfg(test)]
@@ -162,6 +164,10 @@ pub(crate) struct LayoutContext<'a> {
     float_budget: u64,
     /// True once the float work budget of this layout pass ran out.
     pub(crate) float_budget_spent: bool,
+    /// The definite content height of the container whose content sizes
+    /// are being computed (see `intrinsic.rs`): a replaced child with a
+    /// percentage `height` resolves it against this height.
+    pub(crate) intrinsic_height_base: Option<f32>,
 }
 
 /// True once a spent float work budget was logged: the warning appears
@@ -185,6 +191,7 @@ impl<'a> LayoutContext<'a> {
             bfc_depth: 0,
             float_budget: floats::WORK_BUDGET,
             float_budget_spent: false,
+            intrinsic_height_base: None,
         }
     }
 

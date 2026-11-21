@@ -460,7 +460,7 @@ impl Collector {
         let keeps_space = |pending_shown: bool| pending_shown && (visible || !shown);
         let mut text = String::new();
         if style.white_space.collapses_spaces() {
-            let pre_line = style.white_space == swb_style::WhiteSpace::PreLine;
+            let pre_line = style.white_space.is_pre_line();
             for c in data.chars() {
                 if matches!(c, ' ' | '\t' | '\n' | '\r' | '\u{c}') {
                     if pre_line && c == '\n' {

@@ -266,6 +266,7 @@ pub fn forms_stacking_context(fragment: &BoxFragment) -> bool {
         || (style.z_index_applies() && style.z_index != swb_style::ZIndex::Auto)
         || style.opacity < 1.0
         || style.has_blend_mode()
+        || style.isolation == swb_style::Isolation::Isolate
         || style.has_layout_containment()
         || style.has_paint_containment()
         || style.has_filter_effect()
@@ -1615,6 +1616,20 @@ pub(crate) fn style_transform(style: &ComputedStyle, reference: Rect) -> Matrix 
         reference.y + style.transform_origin.y.resolve(reference.height),
     );
     let mut m = Matrix::translate(origin.x, origin.y);
+    // The individual properties come first, in this order (CSS Transforms 2
+    // §3: translate, rotate, scale, then `transform`).
+    if let Some(t) = &style.translate {
+        m = m.multiply(&Matrix::translate(
+            t.x.resolve(reference.width),
+            t.y.resolve(reference.height),
+        ));
+    }
+    if let Some(r) = &style.rotate {
+        m = m.multiply(&rotate_matrix(r.axis, r.angle));
+    }
+    if let Some(s) = &style.scale {
+        m = m.multiply(&Matrix::new(s.x, 0.0, 0.0, s.y, 0.0, 0.0));
+    }
     for function in style.transform.iter() {
         let f = match function {
             TransformFunction::Matrix(m) => Matrix::new(m[0], m[1], m[2], m[3], m[4], m[5]),
@@ -1643,6 +1658,44 @@ pub(crate) fn style_transform(style: &ComputedStyle, reference: Rect) -> Matrix 
     } else {
         Matrix::new(0.0, 0.0, 0.0, 0.0, origin.x, origin.y)
     }
+}
+
+/// The 2D part of the rotation by `degrees` around `axis` (CSS Transforms
+/// 2 §3, `rotate3d()`): the upper left 2 x 2 of the 3D matrix, as the
+/// projection without perspective shows it. A rotation around the z axis is
+/// the usual 2D rotation; one around x or y squashes the box on the other
+/// axis. An axis of length 0 is no rotation.
+#[allow(clippy::many_single_char_names)] // The names of Rodrigues' formula.
+fn rotate_matrix(axis: [f32; 3], degrees: f32) -> Matrix {
+    let length = (axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]).sqrt();
+    if length == 0.0 || !length.is_finite() {
+        return Matrix::IDENTITY;
+    }
+    let (x, y, z) = (axis[0] / length, axis[1] / length, axis[2] / length);
+    let (sin, cos) = exact_sin_cos(degrees);
+    let c1 = 1.0 - cos;
+    // Rodrigues' formula; column-major entries a = m11, b = m21, c = m12,
+    // d = m22 of the 4 x 4 matrix.
+    let a = cos + x * x * c1;
+    let b = z * sin + x * y * c1;
+    let c = x * y * c1 - z * sin;
+    let d = cos + y * y * c1;
+    Matrix::new(a, b, c, d, 0.0, 0.0)
+}
+
+/// The sine and cosine of an angle in degrees, exact at multiples of 90
+/// degrees (as Chromium computes them).
+fn exact_sin_cos(degrees: f32) -> (f32, f32) {
+    let quarter = degrees / 90.0;
+    if quarter.fract() == 0.0 && quarter.is_finite() {
+        return match (quarter as i64).rem_euclid(4) {
+            0 => (0.0, 1.0),
+            1 => (1.0, 0.0),
+            2 => (0.0, -1.0),
+            _ => (-1.0, 0.0),
+        };
+    }
+    degrees.to_radians().sin_cos()
 }
 
 #[cfg(test)]

@@ -187,6 +187,27 @@ const ROW_COST_PIXELS: u64 = 16;
 /// one; with more, one tile is rendered and repeated as an image.
 const MAX_GRADIENT_TILES: i64 = 16;
 
+/// A `-webkit-text-stroke-width` (CSS px) from which no stroke paints, only
+/// the fill: Chromium 148 draws the stroke up to 8100 px (the ink of a
+/// 30 px "Hi" grows with the width) and not at 8191 px (probe
+/// `text-stroke-limit`).
+const MAX_STROKE_WIDTH: f32 = 8191.0;
+
+/// The used width of a stroke of `width` CSS px on text of `size` px, or
+/// `None` if no stroke paints (from `MAX_STROKE_WIDTH` on).
+///
+/// The widest stroke that is drawn is twice the font size, at least 16 px.
+/// A wider stroke costs a mask of (size + width)^2 pixels for each glyph;
+/// the work of a page of 5,000 words with a stroke of 1,000 px was 10 s.
+/// Strokes of up to twice the font size are unchanged; wider ones are
+/// narrower than in Chromium (a blob that grows with the width).
+pub(crate) fn used_stroke_width(size: f32, width: f32) -> Option<f32> {
+    if width >= MAX_STROKE_WIDTH {
+        return None;
+    }
+    Some(width.min((2.0 * size).max(16.0)))
+}
+
 /// Rasterizes a display list into `target`. The target is not cleared.
 ///
 /// New renderings of SVG images share one work budget per call. When it is
@@ -895,6 +916,7 @@ impl Rasterizer<'_> {
         });
     }
 
+    #[allow(clippy::too_many_lines)] // One arm per item.
     fn item(&mut self, item: &DisplayItem, fonts: &mut FontContext, images: &dyn ImageSource) {
         match item {
             DisplayItem::Rect { rect, radii, color } => self.fill_rect(*rect, radii, *color),
@@ -911,7 +933,15 @@ impl Rasterizer<'_> {
                 size,
                 glyphs,
                 color,
-            } => self.text(*origin, *font, *size, glyphs, *color, fonts),
+            } => self.text(*origin, *font, *size, glyphs, (*color, None), fonts),
+            DisplayItem::TextStroke {
+                origin,
+                font,
+                size,
+                glyphs,
+                width,
+                color,
+            } => self.text(*origin, *font, *size, glyphs, (*color, Some(*width)), fonts),
             DisplayItem::Image {
                 image,
                 rect,
@@ -1386,14 +1416,25 @@ impl Rasterizer<'_> {
         font: swb_text::FontId,
         size: f32,
         glyphs: &[swb_layout::PositionedGlyph],
-        color: Rgba,
+        (color, stroke): (Rgba, Option<f32>),
         fonts: &mut FontContext,
     ) {
+        if color.is_transparent() {
+            return;
+        }
         let (Some(surface), Some(visible)) = (self.surface_rect(), self.visible_area()) else {
             return;
         };
         let scale = self.params.scale;
         let device_size = size * scale;
+        // The work bound of a stroke.
+        let stroke = match stroke {
+            Some(width) => match used_stroke_width(size, width) {
+                Some(used) => Some(used),
+                None => return,
+            },
+            None => None,
+        };
         let start = self.to_device_point(origin);
         let baseline_y = start.y.round();
         // The clip in surface px.
@@ -1419,7 +1460,13 @@ impl Rasterizer<'_> {
                 continue;
             }
             let (pixel_x, subpixel) = subpixel_position(x);
-            let Some(mask) = fonts.glyph_mask(font, g.id, device_size, subpixel) else {
+            let mask = match stroke {
+                None => fonts.glyph_mask(font, g.id, device_size, subpixel),
+                Some(width) => {
+                    fonts.glyph_stroke_mask(font, g.id, device_size, subpixel, width * scale)
+                }
+            };
+            let Some(mask) = mask else {
                 continue;
             };
             let left = (pixel_x as i64).saturating_add(i64::from(mask.left)) - surface.x as i64;

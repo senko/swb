@@ -130,6 +130,9 @@ pub(crate) enum Kind {
     /// Kept as written: the longhands read as empty strings, as for a
     /// value with `var()` (`grid`, `grid-template`, `mask`).
     Opaque,
+    /// `white-space`: a legacy keyword or `white-space-collapse` and
+    /// `text-wrap-mode` in any order.
+    WhiteSpace,
     /// `transition`: comma-separated layers; each longhand is the list
     /// of its values per layer.
     Transition,
@@ -646,6 +649,33 @@ const SHORTHANDS: &[Shorthand] = &[
         Kind::AnyOrder,
     ),
     sh(
+        "text-wrap",
+        &["text-wrap-mode", "text-wrap-style"],
+        Kind::AnyOrder,
+    ),
+    // After `text-wrap`: a block that sets `text-wrap-mode` first serializes
+    // it with `text-wrap` (measured).
+    sh(
+        "white-space",
+        &["white-space-collapse", "text-wrap-mode"],
+        Kind::WhiteSpace,
+    ),
+    sh(
+        "-webkit-text-stroke",
+        &["-webkit-text-stroke-width", "-webkit-text-stroke-color"],
+        Kind::AnyOrder,
+    ),
+    sh(
+        "corner-shape",
+        &[
+            "corner-top-left-shape",
+            "corner-top-right-shape",
+            "corner-bottom-right-shape",
+            "corner-bottom-left-shape",
+        ],
+        Kind::Sides,
+    ),
+    sh(
         "text-decoration",
         &[
             "text-decoration-line",
@@ -752,6 +782,8 @@ fn ser_of(name: &str) -> Ser {
         "color"
         | "background-color"
         | "outline-color"
+        | "-webkit-text-stroke-color"
+        | "-webkit-text-fill-color"
         | "text-decoration-color"
         | "border-top-color"
         | "border-right-color"
@@ -826,6 +858,7 @@ fn ser_of(name: &str) -> Ser {
         | "border-bottom-width"
         | "border-left-width"
         | "outline-width"
+        | "-webkit-text-stroke-width"
         | "outline-offset"
         | "background-position-x"
         | "background-position-y"

@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use swb_css::{ParseError, Parser};
 
+use super::effects;
 use super::ids::{LonghandId, LonghandValue};
 use super::inert::{scroll_margin, scroll_padding};
 use super::longhand::{
@@ -17,7 +18,7 @@ use super::longhand::{
     parse_container_name, parse_flex_basis, parse_font_family, parse_font_size, parse_font_stretch,
     parse_font_style, parse_font_weight, parse_gap, parse_image_or_none, parse_line_height,
     parse_line_width, parse_list_style_type, parse_outline_color, parse_outline_style,
-    parse_text_decoration_line,
+    parse_text_decoration_line, parse_text_wrap_mode, parse_white_space_collapse,
 };
 use super::specified::{
     SpecifiedBackgroundSize, SpecifiedFlexBasis, SpecifiedFontSize, SpecifiedFontWeight,
@@ -32,7 +33,8 @@ use crate::values::{
     BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword, BorderStyle, Color,
     ContainerType, FlexDirection, FlexWrap, FontFamily, FontStyle, FontVariantCaps, GenericFamily,
     Length, ListStylePosition, ListStyleType, OutlineStyle, Overflow, Rgba,
-    SpecifiedLengthPercentage as Lp, TextDecorationLine, TextDecorationStyle,
+    SpecifiedLengthPercentage as Lp, TextDecorationLine, TextDecorationStyle, TextWrapStyle,
+    WhiteSpace,
 };
 
 macro_rules! shorthands {
@@ -138,6 +140,12 @@ shorthands! {
     FontVariant "font-variant" [FontVariantCaps];
     ListStyle "list-style" [ListStyleType, ListStylePosition, ListStyleImage];
     TextDecoration "text-decoration" [TextDecorationLine, TextDecorationStyle, TextDecorationColor];
+    TextWrap "text-wrap" [TextWrapMode, TextWrapStyle];
+    WhiteSpace "white-space" [WhiteSpaceCollapse, TextWrapMode];
+    WebkitTextStroke "-webkit-text-stroke" [TextStrokeWidth, TextStrokeColor];
+    CornerShape "corner-shape" [
+        CornerTopLeftShape, CornerTopRightShape, CornerBottomRightShape, CornerBottomLeftShape
+    ];
     Flex "flex" [FlexGrow, FlexShrink, FlexBasis];
     FlexFlow "flex-flow" [FlexDirection, FlexWrap];
     Gap "gap" [RowGap, ColumnGap];
@@ -250,7 +258,11 @@ impl ShorthandId {
                 | S::Font
                 | S::FontVariant
                 | S::ListStyle
-                | S::TextDecoration => parse_paint_shorthand(self, p, cx, out),
+                | S::TextDecoration
+                | S::TextWrap
+                | S::WhiteSpace
+                | S::WebkitTextStroke
+                | S::CornerShape => parse_paint_shorthand(self, p, cx, out),
                 S::Transition => super::inert::parse_transition(p, out),
             }
         })
@@ -515,6 +527,17 @@ fn parse_paint_shorthand(
         }
         S::ListStyle => parse_list_style(p, cx, out),
         S::TextDecoration => parse_text_decoration(p, out),
+        S::TextWrap => parse_text_wrap(p, out),
+        S::WhiteSpace => parse_white_space(p, out),
+        S::WebkitTextStroke => parse_text_stroke(p, out),
+        S::CornerShape => four_sides(p, out, effects::parse_corner_shape, |[a, b, c, d]| {
+            vec![
+                LonghandValue::CornerTopLeftShape(a),
+                LonghandValue::CornerTopRightShape(b),
+                LonghandValue::CornerBottomRightShape(c),
+                LonghandValue::CornerBottomLeftShape(d),
+            ]
+        }),
         _ => Err(ParseError::Invalid),
     }
 }
@@ -1359,5 +1382,113 @@ fn parse_columns(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResul
     }
     out.push(LonghandValue::ColumnWidth(width.flatten()));
     out.push(LonghandValue::ColumnCount(count.flatten()));
+    Ok(())
+}
+
+/// `white-space`: `normal | pre | pre-wrap | pre-line | nowrap |
+/// break-spaces`, or `<'white-space-collapse'> || <'text-wrap-mode'>`. The
+/// longhand that the second form leaves out gets its initial value.
+/// `white-space-trim` is not part of the shorthand (Chromium 148 does not
+/// have it).
+/// <https://www.w3.org/TR/css-text-4/#white-space-property>
+fn parse_white_space(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResult<()> {
+    let legacy = p.try_parse(|p| {
+        let v = keyword(p, |i| match WhiteSpace::from_ident(i) {
+            Some(
+                v @ (WhiteSpace::Normal
+                | WhiteSpace::Pre
+                | WhiteSpace::Nowrap
+                | WhiteSpace::PreWrap
+                | WhiteSpace::PreLine
+                | WhiteSpace::BreakSpaces),
+            ) => Some(v),
+            _ => None,
+        })?;
+        p.expect_exhausted()?;
+        Ok::<_, ParseError>(v)
+    });
+    let (collapse, wrap) = if let Ok(v) = legacy {
+        (v.collapse(), v.wraps())
+    } else {
+        let mut collapse = None;
+        let mut wrap = None;
+        while !p.is_exhausted() {
+            if collapse.is_none()
+                && let Ok(c) = parse_white_space_collapse(p)
+            {
+                collapse = Some(c);
+            } else if wrap.is_none()
+                && let Ok(w) = parse_text_wrap_mode(p)
+            {
+                wrap = Some(w);
+            } else {
+                return Err(ParseError::Unexpected);
+            }
+        }
+        if collapse.is_none() && wrap.is_none() {
+            return Err(ParseError::EndOfInput);
+        }
+        (collapse.unwrap_or_default(), wrap.unwrap_or(true))
+    };
+    out.push(LonghandValue::WhiteSpaceCollapse(collapse));
+    out.push(LonghandValue::TextWrapMode(wrap));
+    Ok(())
+}
+
+/// `text-wrap`: `<'text-wrap-mode'> || <'text-wrap-style'>`.
+/// <https://www.w3.org/TR/css-text-4/#text-wrap-shorthand>
+fn parse_text_wrap(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResult<()> {
+    let mut mode = None;
+    let mut style = None;
+    while !p.is_exhausted() {
+        if mode.is_none()
+            && let Ok(m) = parse_text_wrap_mode(p)
+        {
+            mode = Some(m);
+        } else if style.is_none()
+            && let Ok(s) = keyword(p, TextWrapStyle::from_ident)
+        {
+            style = Some(s);
+        } else {
+            return Err(ParseError::Unexpected);
+        }
+    }
+    if mode.is_none() && style.is_none() {
+        return Err(ParseError::EndOfInput);
+    }
+    out.push(LonghandValue::TextWrapMode(mode.unwrap_or(true)));
+    out.push(LonghandValue::TextWrapStyle(
+        style.unwrap_or(TextWrapStyle::Auto),
+    ));
+    Ok(())
+}
+
+/// `-webkit-text-stroke`: `<'-webkit-text-stroke-width'> ||
+/// <'-webkit-text-stroke-color'>`.
+fn parse_text_stroke(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResult<()> {
+    let mut width = None;
+    let mut color = None;
+    while !p.is_exhausted() {
+        if width.is_none()
+            && let Ok(w) = effects::parse_stroke_width(p)
+        {
+            width = Some(w);
+        } else if color.is_none()
+            && let Ok(c) = parse_color(p)
+        {
+            color = Some(c);
+        } else {
+            return Err(ParseError::Unexpected);
+        }
+    }
+    if width.is_none() && color.is_none() {
+        return Err(ParseError::EndOfInput);
+    }
+    out.push(LonghandValue::TextStrokeWidth(
+        width.unwrap_or(Lp::Length(Length::px(0.0))),
+    ));
+    out.push(LonghandValue::TextStrokeColor(
+        color.unwrap_or(Color::CurrentColor),
+    ));
     Ok(())
 }

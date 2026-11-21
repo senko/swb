@@ -117,6 +117,29 @@ pub(super) fn value(name: &str, r: &Resolver<'_>) -> String {
             get("list-style-type")
         ),
         "text-decoration" => text_decoration(r),
+        "white-space" => super::super::shorthand::white_space_value(
+            &get("white-space-collapse"),
+            &get("text-wrap-mode"),
+        ),
+        "text-wrap" => {
+            let (mode, style) = (get("text-wrap-mode"), get("text-wrap-style"));
+            match (mode.as_str(), style.as_str()) {
+                (_, "auto") => mode,
+                ("wrap", _) => style,
+                _ => format!("{mode} {style}"),
+            }
+        }
+        "-webkit-text-stroke" => format!(
+            "{} {}",
+            get("-webkit-text-stroke-width"),
+            get("-webkit-text-stroke-color")
+        ),
+        "corner-shape" => sides(&[
+            get("corner-top-left-shape"),
+            get("corner-top-right-shape"),
+            get("corner-bottom-right-shape"),
+            get("corner-bottom-left-shape"),
+        ]),
         "flex" => format!(
             "{} {} {}",
             get("flex-grow"),

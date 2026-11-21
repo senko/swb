@@ -541,7 +541,27 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
         .to_owned(),
         "text-indent" => lp(&s.text_indent),
         "text-transform" => s.text_transform.as_str().to_owned(),
-        "white-space" => s.white_space.as_str().to_owned(),
+        "white-space-collapse" => s.white_space.collapse().as_str().to_owned(),
+        "text-wrap-mode" => if s.white_space.wraps() {
+            "wrap"
+        } else {
+            "nowrap"
+        }
+        .to_owned(),
+        "text-wrap-style" => s.text_wrap_style.as_str().to_owned(),
+        "-webkit-text-stroke-width" => px(s.text_stroke_width),
+        "-webkit-text-stroke-color" => color(s.text_stroke_color),
+        "-webkit-text-fill-color" => color(s.text_fill_color),
+        "text-shadow" => super::effects::text_shadow(s),
+        "box-shadow" => super::effects::box_shadow(s),
+        "translate" => super::effects::translate(s.translate.as_ref()),
+        "rotate" => super::effects::rotate(s.rotate.as_ref()),
+        "scale" => super::effects::scale(s.scale.as_ref()),
+        "isolation" => s.isolation.as_str().to_owned(),
+        "corner-top-left-shape" => super::effects::corner_shape(s.corner_top_left_shape),
+        "corner-top-right-shape" => super::effects::corner_shape(s.corner_top_right_shape),
+        "corner-bottom-right-shape" => super::effects::corner_shape(s.corner_bottom_right_shape),
+        "corner-bottom-left-shape" => super::effects::corner_shape(s.corner_bottom_left_shape),
         // Chromium computes `letter-spacing: 0` to `normal`.
         "letter-spacing" if s.letter_spacing == 0.0 => "normal".to_owned(),
         "letter-spacing" => px(s.letter_spacing),

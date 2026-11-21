@@ -30,7 +30,7 @@ use crate::mask::{self, MaskBoxes, MaskLayer};
 use crate::resize_handle::resize_handle;
 use crate::rope::ItemRope;
 use crate::scroll_indicator::element_scroll_indicators;
-use crate::{background, control, media};
+use crate::{background, box_shadow, control, corner_shape, media};
 
 mod groups;
 
@@ -150,6 +150,7 @@ fn paint_kind(b: &BoxFragment) -> PaintKind {
     } else if style.display.is_inline_level()
         || style.opacity < 1.0
         || style.has_blend_mode()
+        || style.isolation == swb_style::Isolation::Isolate
         || style.has_layout_containment()
         || style.has_paint_containment()
         || style.has_filter_effect()
@@ -776,9 +777,11 @@ impl Builder<'_> {
         // Controls with the native look draw their own background and
         // border.
         let native = matches!(&b.content, BoxContent::Control(c) if c.native);
+        self.outer_shadows(b, border_rect, radii, native);
         if !paints_canvas && !native {
             self.background(style, &areas, radii);
         }
+        self.inner_shadows(b, border_rect, radii, native);
         if paint_border && !native {
             self.border(b, border_rect, radii);
         }
@@ -850,7 +853,12 @@ impl Builder<'_> {
         }
         let rect = b.padding_rect().translate(origin);
         let radii = padding_radii(b, origin).filter(|r| rounded_clip(rect, r).is_some());
-        self.list.push(clip_item(rect, radii));
+        let shaped = radii.and_then(|r| {
+            let k = corner_shape::shapes(style)?;
+            corner_shape::clip(rect, r, k)
+        });
+        self.list
+            .push(shaped.unwrap_or_else(|| clip_item(rect, radii)));
         self.clips.push(OpenClip {
             rect,
             context_depth,
@@ -898,6 +906,44 @@ impl Builder<'_> {
             self.list.append(d.items);
         }
         area
+    }
+
+    /// The outer `box-shadow`s of a box, below its background.
+    fn outer_shadows(&mut self, b: &BoxFragment, rect: Rect, radii: Radii, native: bool) {
+        let s = &b.style;
+        if s.box_shadow.is_empty() || native {
+            return;
+        }
+        // An opaque background color that covers the border box hides the
+        // part of the shadow below the box: no clip needed.
+        // (With a `corner-shape` other than `round` the shortcut does not
+        // apply: the corners of the border box stay uncovered.)
+        let opaque = s.background_color.resolve(s.color).a == 255
+            && s.background_clip
+                .last()
+                .copied()
+                .unwrap_or(BackgroundBox::BorderBox)
+                == BackgroundBox::BorderBox;
+        let shapes = corner_shape::shapes(s);
+        let items = box_shadow::outer(&s.box_shadow, s.color, rect, radii, opaque, shapes);
+        self.list.extend(items);
+    }
+
+    /// The inner `box-shadow`s of a box, above its background, inside its
+    /// border.
+    fn inner_shadows(&mut self, b: &BoxFragment, rect: Rect, radii: Radii, native: bool) {
+        let s = &b.style;
+        if s.box_shadow.is_empty() || native {
+            return;
+        }
+        let padding = rect.inset(&b.border);
+        let items = box_shadow::inner(
+            &s.box_shadow,
+            s.color,
+            padding,
+            crate::clip_path::shrink(radii, &b.border),
+        );
+        self.list.extend(items);
     }
 
     fn outline(&mut self, b: &BoxFragment, origin: Point) {
@@ -984,7 +1030,10 @@ impl Builder<'_> {
                     (areas.painting_area(color_clip), [(0.0, 0.0); 4])
                 }
             };
-            self.list.push(DisplayItem::Rect { rect, radii, color });
+            let shaped =
+                corner_shape::shapes(style).and_then(|k| corner_shape::fill(rect, radii, k, color));
+            self.list
+                .push(shaped.unwrap_or(DisplayItem::Rect { rect, radii, color }));
         }
         // Layers are painted bottom (last) to top (first).
         for (i, image) in style.background_image.iter().enumerate().rev() {
@@ -1097,6 +1146,19 @@ impl Builder<'_> {
             s.border_bottom_style,
             s.border_left_style,
         ];
+        // A border of one width, color and solid style on a box with
+        // `corner-shape` is the ring between two outlines.
+        let uniform = widths.iter().all(|w| *w == widths[0])
+            && colors.iter().all(|c| *c == colors[0])
+            && styles.iter().all(|st| *st == BorderStyle::Solid);
+        if uniform
+            && has_rounded_corner(&radii)
+            && let Some(k) = corner_shape::shapes(s)
+            && let Some(ring) = corner_shape::ring(rect, radii, k, widths[0], colors[0])
+        {
+            self.list.push(ring);
+            return;
+        }
         self.list.push(DisplayItem::Border {
             rect,
             widths,
@@ -1168,17 +1230,68 @@ impl Builder<'_> {
                 self.decoration_line(rect.x, rect.y.round(), rect.width, thickness, line_color);
             }
         }
+        let style = &t.style;
+        if color.is_none() {
+            self.text_shadows(t, baseline);
+        }
         self.list.push(DisplayItem::Text {
             origin: baseline,
             font: t.font,
             size: t.font_size,
             glyphs: Arc::clone(&t.glyphs),
-            color: color.unwrap_or(t.style.color),
+            color: color.unwrap_or_else(|| style.text_fill_color.resolve(style.color)),
         });
+        let stroke = style.text_stroke_color.resolve(style.color);
+        if color.is_none() && style.text_stroke_width > 0.0 && !stroke.is_transparent() {
+            self.list.push(DisplayItem::TextStroke {
+                origin: baseline,
+                font: t.font,
+                size: t.font_size,
+                glyphs: Arc::clone(&t.glyphs),
+                width: style.text_stroke_width,
+                color: stroke,
+            });
+        }
         for d in decorations {
             if d.lines.contains(TextDecorationLine::LINE_THROUGH) {
                 let y = (baseline.y - t.font_size * 0.3).round();
                 self.decoration_line(rect.x, y, rect.width, thickness, color.unwrap_or(d.color));
+            }
+        }
+    }
+
+    /// Paints the `text-shadow` of a text fragment: the shadows below the
+    /// text, the last one of the list first. A blurred shadow is the text
+    /// in the shadow's color, moved by the offsets, in a group that blurs
+    /// it (the standard deviation is half the blur radius, CSS Text
+    /// Decoration 3 §4). The first [`MAX_SHADOWS`] shadows paint.
+    fn text_shadows(&mut self, t: &TextFragment, baseline: Point) {
+        let style = &t.style;
+        let count = style.text_shadow.len().min(box_shadow::MAX_SHADOWS);
+        for shadow in style.text_shadow[..count].iter().rev() {
+            let color = shadow.color.resolve(style.color);
+            if color.is_transparent() {
+                continue;
+            }
+            let blurred = shadow.blur > 0.0;
+            if blurred {
+                self.list.push(DisplayItem::PushFilter {
+                    filter: Arc::from([swb_style::FilterFunction::Blur(shadow.blur / 2.0)]),
+                    current_color: style.color,
+                    bounds: Rect::default(),
+                    fixed_bounds: None,
+                    escapes_clips: false,
+                });
+            }
+            self.list.push(DisplayItem::Text {
+                origin: Point::new(baseline.x + shadow.x, baseline.y + shadow.y),
+                font: t.font,
+                size: t.font_size,
+                glyphs: Arc::clone(&t.glyphs),
+                color,
+            });
+            if blurred {
+                self.list.push(DisplayItem::PopFilter);
             }
         }
     }

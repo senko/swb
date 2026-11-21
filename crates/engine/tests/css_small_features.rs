@@ -126,16 +126,6 @@ const LATER: &[(&str, &[usize], &str)] = &[
         "swb has no computed value for this property (backlog)",
     ),
     (
-        "cm-prop-webkit_text_fill_color",
-        &[0],
-        "swb has no computed value for this property (backlog)",
-    ),
-    (
-        "cm-prop-webkit_text_stroke_color",
-        &[0],
-        "swb has no computed value for this property (backlog)",
-    ),
-    (
         "cm-prop-text_emphasis_color",
         &[0],
         "swb has no computed value for this property (backlog)",
@@ -204,11 +194,6 @@ const LATER: &[(&str, &[usize], &str)] = &[
         "ap-sheet-after-register",
         &[0],
         "`CSS.registerProperty` (backlog)",
-    ),
-    (
-        "content-visibility-and-text-wrap",
-        &[2, 3],
-        "`text-wrap` is not implemented (backlog)",
     ),
     (
         "cv-hidden-interaction",

@@ -55,6 +55,25 @@ fn contained_sizes(style: &ComputedStyle) -> Option<ContentSizes> {
     })
 }
 
+/// Makes the definite content height of the box with style `style` the
+/// base of the percentage heights of its children's intrinsic sizes
+/// (Chromium resolves them against a definite height; `logo` in
+/// `tools/probes/css-videojs-2a.json`: an inline SVG with `height: 100%`
+/// in a flex container of height 40px is as wide as its ratio makes it).
+/// A percentage `height` of the box resolves against the previous base
+/// (`pct-height-in-pct-height`). Returns the previous base, which the caller
+/// restores.
+fn enter_container(ctx: &mut LayoutContext<'_>, style: &ComputedStyle) -> Option<f32> {
+    let v_edges = BoxEdges::resolve(style, 0.0).sum().vertical();
+    let base = resolve_size(
+        &style.height,
+        ctx.intrinsic_height_base,
+        style.box_sizing,
+        v_edges,
+    );
+    std::mem::replace(&mut ctx.intrinsic_height_base, base)
+}
+
 /// Content-box sizes of an independent box's contents.
 pub(crate) fn independent_content_sizes(
     ctx: &mut LayoutContext<'_>,
@@ -79,14 +98,27 @@ pub(crate) fn independent_content_sizes(
     }
     match &ib.contents {
         IndependentContents::Flow(container) => {
+            let saved = enter_container(ctx, &ib.base.style);
             let sizes = container_content_sizes(ctx, container, &ib.base.style);
+            ctx.intrinsic_height_base = saved;
             with_inside_marker(ctx, sizes, container, ib.marker.as_ref())
         }
-        IndependentContents::Flex(items) => flex_content_sizes(ctx, &ib.base.style, items),
-        IndependentContents::Grid(items) => crate::grid::content_sizes(ctx, &ib.base, items),
+        IndependentContents::Flex(items) => {
+            let saved = enter_container(ctx, &ib.base.style);
+            let sizes = flex_content_sizes(ctx, &ib.base.style, items);
+            ctx.intrinsic_height_base = saved;
+            sizes
+        }
+        IndependentContents::Grid(items) => {
+            let saved = enter_container(ctx, &ib.base.style);
+            let sizes = crate::grid::content_sizes(ctx, &ib.base, items);
+            ctx.intrinsic_height_base = saved;
+            sizes
+        }
         IndependentContents::Replaced(r) => {
             let edges = BoxEdges::resolve(&ib.base.style, 0.0);
-            let w = crate::replaced::natural_content_width(&ib.base.style, r, &edges);
+            let base = ctx.intrinsic_height_base;
+            let w = crate::replaced::natural_content_width(&ib.base.style, r, base, &edges);
             ContentSizes { min: w, max: w }
         }
         IndependentContents::Table(table) => {
@@ -298,7 +330,8 @@ pub(crate) fn independent_outer_sizes(
         // (Chromium: compressible replaced elements, CSS Sizing 3 §5.2.2).
         let edges = BoxEdges::resolve(style, 0.0);
         let extra = edges.sum().horizontal() + fixed_margins(style);
-        let max = crate::replaced::intrinsic_width(style, r, &edges) + extra;
+        let max =
+            crate::replaced::intrinsic_width(style, r, ctx.intrinsic_height_base, &edges) + extra;
         let percentage = |lp: Option<&swb_style::LengthPercentage>| {
             lp.is_some_and(swb_style::LengthPercentage::has_percentage)
         };
@@ -330,7 +363,9 @@ fn block_level_outer_sizes(ctx: &mut LayoutContext<'_>, b: &BlockLevelBox) -> Co
             if let Some(w) = crate::aspect::width_of_definite_height(&base.style) {
                 return ContentSizes { min: w, max: w };
             }
+            let saved = enter_container(ctx, &base.style);
             let sizes = container_content_sizes(ctx, contents, &base.style);
+            ctx.intrinsic_height_base = saved;
             with_inside_marker(ctx, sizes, contents, marker.as_ref())
         }),
         BlockLevelBox::Independent(ib) | BlockLevelBox::Float(ib) => {

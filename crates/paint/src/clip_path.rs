@@ -93,7 +93,7 @@ fn reference_box(
 
 /// The radii inside `edges` (the border or the padding): each radius
 /// minus the width of the sides it touches, at least 0.
-fn shrink(radii: CornerRadii, edges: &Edges) -> CornerRadii {
+pub(crate) fn shrink(radii: CornerRadii, edges: &Edges) -> CornerRadii {
     let [tl, tr, br, bl] = radii;
     let by = |(h, v): (f32, f32), x: f32, y: f32| ((h - x).max(0.0), (v - y).max(0.0));
     [

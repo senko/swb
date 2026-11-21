@@ -2455,6 +2455,34 @@ mod tests {
         assert_eq!(get(&doc, &map, "ifr").border_widths(), [0.0; 4]);
     }
 
+    /// `white-space` is the shorthand of `white-space-collapse` and
+    /// `text-wrap-mode`; each longhand wins on its own (measured in
+    /// Chromium 148, `css-videojs-2a`: the cases `ws-*`).
+    #[test]
+    fn white_space_longhands_cascade_apart() {
+        let (doc, map) = render(
+            "<!DOCTYPE html><p id=a style='text-wrap:nowrap;white-space:normal'>x</p>\
+             <p id=b style='white-space:normal;text-wrap:nowrap'>x</p>\
+             <p id=c class=c>x</p>\
+             <p id=d style='white-space:pre-line;text-wrap:nowrap'>x</p>\
+             <div style='white-space:pre-line'><p id=e style='text-wrap-mode:nowrap'>x</p></div>\
+             <div style='text-wrap:nowrap'><p id=f style='white-space:pre'>x</p></div>\
+             <p id=g style='white-space-collapse:break-spaces;text-wrap-mode:nowrap'>x</p>",
+            "p.c{text-wrap:nowrap} .c{white-space:normal}",
+        );
+        assert_eq!(get(&doc, &map, "a").white_space, WhiteSpace::Normal);
+        assert_eq!(get(&doc, &map, "b").white_space, WhiteSpace::Nowrap);
+        // Chromium: the more specific `.c` sets `white-space`; `p.c` sets only the mode.
+        assert_eq!(get(&doc, &map, "c").white_space, WhiteSpace::Nowrap);
+        assert_eq!(get(&doc, &map, "d").white_space, WhiteSpace::PreLineNowrap);
+        assert_eq!(get(&doc, &map, "e").white_space, WhiteSpace::PreLineNowrap);
+        assert_eq!(get(&doc, &map, "f").white_space, WhiteSpace::Pre);
+        assert_eq!(
+            get(&doc, &map, "g").white_space,
+            WhiteSpace::BreakSpacesNowrap
+        );
+    }
+
     #[test]
     fn tables_reset_webkit_text_align() {
         let (doc, map) = render(

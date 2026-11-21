@@ -275,8 +275,8 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
         "pseudo",
         12,
-        r#"["::foo =>   0","before => rgb(255, 0, 0) \"ab\" 243","::before  =>   0"," ::before => rgb(0, 128, 0) normal 243",":after => rgb(0, 0, 255) none 243","::-webkit-scrollbar => rgb(0, 128, 0) normal 243",":hover =>   0","::before::after =>   0","::first-letter => rgb(0, 128, 0) normal 243",":first-line => rgb(0, 128, 0) normal 243","::backdrop => rgb(0, 128, 0) normal 243","::part(x) => rgb(0, 128, 0) normal 243","::slotted(p) => rgb(0, 128, 0) normal 243","::details-content => rgb(0, 128, 0) normal 243"]"#,
-        "a declaration lists swb's properties (243; Chromium 456); `::first-line` is not styled",
+        r#"["::foo =>   0","before => rgb(255, 0, 0) \"ab\" 258","::before  =>   0"," ::before => rgb(0, 128, 0) normal 258",":after => rgb(0, 0, 255) none 258","::-webkit-scrollbar => rgb(0, 128, 0) normal 258",":hover =>   0","::before::after =>   0","::first-letter => rgb(0, 128, 0) normal 258",":first-line => rgb(0, 128, 0) normal 258","::backdrop => rgb(0, 128, 0) normal 258","::part(x) => rgb(0, 128, 0) normal 258","::slotted(p) => rgb(0, 128, 0) normal 258","::details-content => rgb(0, 128, 0) normal 258"]"#,
+        "a declaration lists swb's properties (258; Chromium 456); `::first-line` is not styled",
     ),
     (
         "quirks",
@@ -287,7 +287,7 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
         "extra",
         13,
-        r#"["align-content,align-items,align-self",true,"-webkit-border-horizontal-spacing,-webkit-border-vertical-spacing,-webkit-mask-position-x",true,true,true,241,-1]"#,
+        r#"["align-content,align-items,align-self",true,"-webkit-border-horizontal-spacing,-webkit-border-vertical-spacing,-webkit-mask-position-x",true,true,true,253,-1]"#,
         "a declaration lists swb's properties (Chromium also `accent-color`, `-webkit-border-image`, `mask-position`, ...)",
     ),
     (

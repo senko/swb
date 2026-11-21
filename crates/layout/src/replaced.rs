@@ -69,8 +69,13 @@ pub(crate) fn used_size(
 /// `ComputeMinAndMaxContentContributionForReplaced`), and an image with
 /// only an aspect ratio contributes 0 unless its height is definite (as in
 /// Chromium).
-pub(crate) fn intrinsic_width(style: &ComputedStyle, replaced: &Replaced, edges: &BoxEdges) -> f32 {
-    sized(style, replaced, None, None, edges).0
+pub(crate) fn intrinsic_width(
+    style: &ComputedStyle,
+    replaced: &Replaced,
+    cb_height: Option<f32>,
+    edges: &BoxEdges,
+) -> f32 {
+    sized(style, replaced, None, cb_height, edges).0
 }
 
 /// The content width of a replaced element as its natural width (CSS
@@ -84,6 +89,7 @@ pub(crate) fn intrinsic_width(style: &ComputedStyle, replaced: &Replaced, edges:
 pub(crate) fn natural_content_width(
     style: &ComputedStyle,
     replaced: &Replaced,
+    cb_height: Option<f32>,
     edges: &BoxEdges,
 ) -> f32 {
     let natural = replaced.natural_size.unwrap_or(NO_IMAGE);
@@ -91,9 +97,9 @@ pub(crate) fn natural_content_width(
     let v_edges = edges.sum().vertical();
     if let (Some(r), Some(height)) = (
         ratio,
-        resolve_size(&style.height, None, style.box_sizing, v_edges),
+        resolve_size(&style.height, cb_height, style.box_sizing, v_edges),
     ) {
-        return clamp_length(SizeLimits::of_height(style, None, v_edges).clamp(height) * r);
+        return clamp_length(SizeLimits::of_height(style, cb_height, v_edges).clamp(height) * r);
     }
     clamp_length(auto_size(&natural, ratio, 0.0).0)
 }

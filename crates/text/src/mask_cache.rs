@@ -36,6 +36,9 @@ pub(crate) struct MaskKey {
     pub(crate) size: u32,
     /// The horizontal offset in quarter pixels, 0 to 3.
     pub(crate) subpixel: u8,
+    /// The width of the outline stroke in pixels, as `f32` bits (0 for
+    /// the fill of the glyph).
+    pub(crate) stroke: u32,
 }
 
 /// Glyph masks by font, glyph, size and subpixel offset. `None` entries
@@ -91,6 +94,7 @@ mod tests {
 
     fn key(glyph: u32) -> MaskKey {
         MaskKey {
+            stroke: 0,
             font: FontId(0),
             glyph: GlyphId(glyph),
             size: 16.0f32.to_bits(),

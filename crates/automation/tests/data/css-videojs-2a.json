@@ -1,0 +1,3664 @@
+{
+ "logo": [
+  [
+   [
+    0,
+    0,
+    225,
+    40
+   ],
+   [
+    0,
+    0,
+    225,
+    40
+   ],
+   [
+    0,
+    40,
+    225,
+    40
+   ],
+   [
+    0,
+    40,
+    225,
+    40
+   ],
+   [
+    0,
+    80,
+    225,
+    40
+   ],
+   [
+    0,
+    80,
+    225,
+    40
+   ],
+   [
+    0,
+    80,
+    225,
+    40
+   ],
+   [
+    0,
+    120,
+    600,
+    40
+   ],
+   [
+    0,
+    120,
+    225,
+    40
+   ],
+   [
+    0,
+    120,
+    225,
+    40
+   ],
+   [
+    0,
+    160,
+    600,
+    40
+   ],
+   [
+    0,
+    160,
+    600,
+    40
+   ],
+   [
+    0,
+    160,
+    225,
+    40
+   ]
+  ]
+ ],
+ "transforms-boxes": [
+  [
+   [
+    30,
+    70,
+    40,
+    20
+   ],
+   [
+    100,
+    50,
+    20,
+    40
+   ],
+   [
+    130,
+    65,
+    80,
+    10
+   ],
+   [
+    218.79,
+    48.79,
+    63.64,
+    63.64
+   ],
+   [
+    310,
+    80,
+    44.64,
+    37.32
+   ],
+   [
+    10,
+    140,
+    40,
+    0
+   ],
+   [
+    95,
+    110,
+    30,
+    60
+   ]
+  ],
+  [
+   [
+    "20px 10px",
+    "none",
+    "none",
+    "none"
+   ],
+   [
+    "none",
+    "90deg",
+    "none",
+    "none"
+   ],
+   [
+    "none",
+    "none",
+    "2 0.5",
+    "none"
+   ],
+   [
+    "10px",
+    "45deg",
+    "1.5",
+    "matrix(1, 0, 0, 1, 10, 0)"
+   ],
+   [
+    "50% 100%",
+    "30deg",
+    "none",
+    "none"
+   ],
+   [
+    "none",
+    "x 90deg",
+    "none",
+    "none"
+   ],
+   [
+    "none",
+    "90deg",
+    "1.5 1.5 2",
+    "none"
+   ]
+  ]
+ ],
+ "translate-values": [
+  [
+   [
+    "translate",
+    "none",
+    "none"
+   ],
+   [
+    "translate",
+    "10px",
+    "10px"
+   ],
+   [
+    "translate",
+    "10px 20px",
+    "10px 20px"
+   ],
+   [
+    "translate",
+    "10px 0",
+    "10px"
+   ],
+   [
+    "translate",
+    "10px 0px 0px",
+    "10px"
+   ],
+   [
+    "translate",
+    "10px 0 5px",
+    "10px 0px 5px"
+   ],
+   [
+    "translate",
+    "50% 100%",
+    "50% 100%"
+   ],
+   [
+    "translate",
+    "1em 2em",
+    "16px 32px"
+   ],
+   [
+    "translate",
+    "calc(10px + 5%)",
+    "calc(5% + 10px)"
+   ],
+   [
+    "translate",
+    "-5px",
+    "-5px"
+   ],
+   [
+    "translate",
+    "0",
+    "0px"
+   ],
+   [
+    "translate",
+    "10px 20px 30px 40px",
+    "invalid"
+   ],
+   [
+    "translate",
+    "10",
+    "invalid"
+   ],
+   [
+    "translate",
+    "auto",
+    "invalid"
+   ],
+   [
+    "translate",
+    "10deg",
+    "invalid"
+   ],
+   [
+    "translate",
+    "none none",
+    "invalid"
+   ],
+   [
+    "translate",
+    "10px, 20px",
+    "invalid"
+   ],
+   [
+    "translate",
+    "inherit",
+    "none"
+   ],
+   [
+    "translate",
+    "initial",
+    "none"
+   ],
+   [
+    "translate",
+    "unset",
+    "none"
+   ],
+   [
+    "translate",
+    "1px 2%",
+    "1px 2%"
+   ],
+   [
+    "translate",
+    "0 0 0",
+    "0px"
+   ]
+  ]
+ ],
+ "rotate-values": [
+  [
+   [
+    "rotate",
+    "none",
+    "none"
+   ],
+   [
+    "rotate",
+    "45deg",
+    "45deg"
+   ],
+   [
+    "rotate",
+    "0.25turn",
+    "90deg"
+   ],
+   [
+    "rotate",
+    "1rad",
+    "57.2958deg"
+   ],
+   [
+    "rotate",
+    "100grad",
+    "90deg"
+   ],
+   [
+    "rotate",
+    "0",
+    "invalid"
+   ],
+   [
+    "rotate",
+    "0deg",
+    "0deg"
+   ],
+   [
+    "rotate",
+    "x 90deg",
+    "x 90deg"
+   ],
+   [
+    "rotate",
+    "y 90deg",
+    "y 90deg"
+   ],
+   [
+    "rotate",
+    "z 90deg",
+    "90deg"
+   ],
+   [
+    "rotate",
+    "90deg x",
+    "x 90deg"
+   ],
+   [
+    "rotate",
+    "1 0 0 90deg",
+    "x 90deg"
+   ],
+   [
+    "rotate",
+    "0 0 1 90deg",
+    "90deg"
+   ],
+   [
+    "rotate",
+    "0 1 0 45deg",
+    "y 45deg"
+   ],
+   [
+    "rotate",
+    "1 1 1 30deg",
+    "1 1 1 30deg"
+   ],
+   [
+    "rotate",
+    "0 0 0 10deg",
+    "0 0 0 10deg"
+   ],
+   [
+    "rotate",
+    "2 0 0 10deg",
+    "x 10deg"
+   ],
+   [
+    "rotate",
+    "x",
+    "invalid"
+   ],
+   [
+    "rotate",
+    "10",
+    "invalid"
+   ],
+   [
+    "rotate",
+    "x y 1deg",
+    "invalid"
+   ],
+   [
+    "rotate",
+    "calc(10deg + 5deg)",
+    "15deg"
+   ],
+   [
+    "rotate",
+    "-90deg",
+    "-90deg"
+   ],
+   [
+    "rotate",
+    "720deg",
+    "720deg"
+   ],
+   [
+    "rotate",
+    "90deg 1 0 0",
+    "x 90deg"
+   ],
+   [
+    "rotate",
+    "inherit",
+    "none"
+   ]
+  ]
+ ],
+ "scale-values": [
+  [
+   [
+    "scale",
+    "none",
+    "none"
+   ],
+   [
+    "scale",
+    "2",
+    "2"
+   ],
+   [
+    "scale",
+    "2 3",
+    "2 3"
+   ],
+   [
+    "scale",
+    "2 2",
+    "2"
+   ],
+   [
+    "scale",
+    "2 3 4",
+    "2 3 4"
+   ],
+   [
+    "scale",
+    "1 1 1",
+    "1"
+   ],
+   [
+    "scale",
+    "1 1 2",
+    "1 1 2"
+   ],
+   [
+    "scale",
+    "50%",
+    "0.5"
+   ],
+   [
+    "scale",
+    "50% 200%",
+    "0.5 2"
+   ],
+   [
+    "scale",
+    "-1",
+    "-1"
+   ],
+   [
+    "scale",
+    "-1 1",
+    "-1 1"
+   ],
+   [
+    "scale",
+    "0",
+    "0"
+   ],
+   [
+    "scale",
+    "1.5 1.5 2",
+    "1.5 1.5 2"
+   ],
+   [
+    "scale",
+    "1px",
+    "invalid"
+   ],
+   [
+    "scale",
+    "auto",
+    "invalid"
+   ],
+   [
+    "scale",
+    "1 2 3 4",
+    "invalid"
+   ],
+   [
+    "scale",
+    "calc(1 + 1)",
+    "2"
+   ],
+   [
+    "scale",
+    "calc(50% + 1)",
+    "invalid"
+   ],
+   [
+    "scale",
+    "inherit",
+    "none"
+   ],
+   [
+    "scale",
+    "initial",
+    "none"
+   ]
+  ]
+ ],
+ "box-shadow-values": [
+  [
+   [
+    "box-shadow",
+    "none",
+    "none"
+   ],
+   [
+    "box-shadow",
+    "0 0 #0000",
+    "rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+   ],
+   [
+    "box-shadow",
+    "0 1px 3px 0 #0000001a, 0 1px 2px -1px #0000001a",
+    "rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px"
+   ],
+   [
+    "box-shadow",
+    "inset 0 2px 4px red",
+    "rgb(255, 0, 0) 0px 2px 4px 0px inset"
+   ],
+   [
+    "box-shadow",
+    "1px 2px",
+    "rgb(0, 0, 0) 1px 2px 0px 0px"
+   ],
+   [
+    "box-shadow",
+    "red 1px 2px 3px 4px",
+    "rgb(255, 0, 0) 1px 2px 3px 4px"
+   ],
+   [
+    "box-shadow",
+    "1px 2px 3px 4px red inset",
+    "rgb(255, 0, 0) 1px 2px 3px 4px inset"
+   ],
+   [
+    "box-shadow",
+    "inset 1px 2px red",
+    "rgb(255, 0, 0) 1px 2px 0px 0px inset"
+   ],
+   [
+    "box-shadow",
+    "1px 2px 3px",
+    "rgb(0, 0, 0) 1px 2px 3px 0px"
+   ],
+   [
+    "box-shadow",
+    "1px 2px -3px",
+    "invalid"
+   ],
+   [
+    "box-shadow",
+    "1px",
+    "invalid"
+   ],
+   [
+    "box-shadow",
+    "1px 2px 3px 4px 5px",
+    "invalid"
+   ],
+   [
+    "box-shadow",
+    "red",
+    "invalid"
+   ],
+   [
+    "box-shadow",
+    "1px 2px red red",
+    "invalid"
+   ],
+   [
+    "box-shadow",
+    "1px red 2px",
+    "invalid"
+   ],
+   [
+    "box-shadow",
+    "0 0 0 1px currentcolor",
+    "rgb(0, 0, 0) 0px 0px 0px 1px"
+   ],
+   [
+    "box-shadow",
+    "0 0 0 1px",
+    "rgb(0, 0, 0) 0px 0px 0px 1px"
+   ],
+   [
+    "box-shadow",
+    "1em 2em 3em 4em",
+    "rgb(0, 0, 0) 16px 32px 48px 64px"
+   ],
+   [
+    "box-shadow",
+    "calc(1px + 2px) 0",
+    "rgb(0, 0, 0) 3px 0px 0px 0px"
+   ],
+   [
+    "box-shadow",
+    "none, 1px 1px",
+    "invalid"
+   ],
+   [
+    "box-shadow",
+    "1px 1px, none",
+    "invalid"
+   ],
+   [
+    "box-shadow",
+    "inherit",
+    "none"
+   ],
+   [
+    "box-shadow",
+    "0 0 0 0 #fff, 0 0 0 2px #06c, 0 0 #0000",
+    "rgb(255, 255, 255) 0px 0px 0px 0px, rgb(0, 102, 204) 0px 0px 0px 2px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+   ],
+   [
+    "box-shadow",
+    "rgb(0 0 0 / 50%) 0 1px",
+    "rgba(0, 0, 0, 0.5) 0px 1px 0px 0px"
+   ],
+   [
+    "box-shadow",
+    "inset",
+    "invalid"
+   ],
+   [
+    "box-shadow",
+    "1px 2px 3px 4px inset red",
+    "rgb(255, 0, 0) 1px 2px 3px 4px inset"
+   ],
+   [
+    "box-shadow",
+    "red inset 1px 1px",
+    "rgb(255, 0, 0) 1px 1px 0px 0px inset"
+   ],
+   [
+    "box-shadow",
+    "inset 1px 1px inset",
+    "invalid"
+   ],
+   [
+    "box-shadow",
+    "0 0 10% black",
+    "invalid"
+   ],
+   [
+    "box-shadow",
+    "-0px 0",
+    "rgb(0, 0, 0) 0px 0px 0px 0px"
+   ]
+  ]
+ ],
+ "text-shadow-values": [
+  [
+   [
+    "text-shadow",
+    "none",
+    "none"
+   ],
+   [
+    "text-shadow",
+    "1px 2px",
+    "rgb(0, 0, 0) 1px 2px 0px"
+   ],
+   [
+    "text-shadow",
+    "red 1px 2px 3px",
+    "rgb(255, 0, 0) 1px 2px 3px"
+   ],
+   [
+    "text-shadow",
+    "1px 2px 3px red",
+    "rgb(255, 0, 0) 1px 2px 3px"
+   ],
+   [
+    "text-shadow",
+    "1px 2px 3px 4px",
+    "invalid"
+   ],
+   [
+    "text-shadow",
+    "inset 1px 2px",
+    "invalid"
+   ],
+   [
+    "text-shadow",
+    "1px 2px -3px",
+    "invalid"
+   ],
+   [
+    "text-shadow",
+    "1px",
+    "invalid"
+   ],
+   [
+    "text-shadow",
+    "0 1px 0 rgb(0 0 0 / 50%)",
+    "rgba(0, 0, 0, 0.5) 0px 1px 0px"
+   ],
+   [
+    "text-shadow",
+    "1px 1px red, 2px 2px blue",
+    "rgb(255, 0, 0) 1px 1px 0px, rgb(0, 0, 255) 2px 2px 0px"
+   ],
+   [
+    "text-shadow",
+    "red",
+    "invalid"
+   ],
+   [
+    "text-shadow",
+    "1px red 2px",
+    "invalid"
+   ],
+   [
+    "text-shadow",
+    "0 0 currentcolor",
+    "rgb(0, 0, 0) 0px 0px 0px"
+   ],
+   [
+    "text-shadow",
+    "3px 4px 6px #c00",
+    "rgb(204, 0, 0) 3px 4px 6px"
+   ]
+  ]
+ ],
+ "text-wrap-values": [
+  [
+   [
+    "text-wrap",
+    "wrap",
+    "wrap"
+   ],
+   [
+    "text-wrap",
+    "nowrap",
+    "nowrap"
+   ],
+   [
+    "text-wrap",
+    "balance",
+    "balance"
+   ],
+   [
+    "text-wrap",
+    "pretty",
+    "pretty"
+   ],
+   [
+    "text-wrap",
+    "stable",
+    "stable"
+   ],
+   [
+    "text-wrap",
+    "auto",
+    "wrap"
+   ],
+   [
+    "text-wrap",
+    "nowrap balance",
+    "nowrap balance"
+   ],
+   [
+    "text-wrap",
+    "balance nowrap",
+    "nowrap balance"
+   ],
+   [
+    "text-wrap",
+    "wrap pretty",
+    "pretty"
+   ],
+   [
+    "text-wrap",
+    "wrap wrap",
+    "invalid"
+   ],
+   [
+    "text-wrap",
+    "balance pretty",
+    "invalid"
+   ],
+   [
+    "text-wrap",
+    "inherit",
+    "wrap"
+   ],
+   [
+    "text-wrap",
+    "initial",
+    "wrap"
+   ],
+   [
+    "text-wrap",
+    "unset",
+    "wrap"
+   ],
+   [
+    "text-wrap",
+    "x",
+    "invalid"
+   ],
+   [
+    "text-wrap-mode",
+    "wrap",
+    "wrap"
+   ],
+   [
+    "text-wrap-mode",
+    "nowrap",
+    "nowrap"
+   ],
+   [
+    "text-wrap-mode",
+    "balance",
+    "invalid"
+   ],
+   [
+    "text-wrap-mode",
+    "x",
+    "invalid"
+   ],
+   [
+    "text-wrap-style",
+    "auto",
+    "auto"
+   ],
+   [
+    "text-wrap-style",
+    "balance",
+    "balance"
+   ],
+   [
+    "text-wrap-style",
+    "stable",
+    "stable"
+   ],
+   [
+    "text-wrap-style",
+    "pretty",
+    "pretty"
+   ],
+   [
+    "text-wrap-style",
+    "nowrap",
+    "invalid"
+   ],
+   [
+    "text-wrap-style",
+    "x",
+    "invalid"
+   ]
+  ]
+ ],
+ "text-wrap-and-white-space": [
+  [
+   [
+    0,
+    0,
+    60,
+    18
+   ],
+   [
+    0,
+    18,
+    60,
+    36
+   ],
+   [
+    0,
+    54,
+    60,
+    36
+   ]
+  ],
+  [
+   [
+    "nowrap",
+    "nowrap",
+    "nowrap",
+    "auto"
+   ],
+   [
+    "normal",
+    "wrap",
+    "wrap",
+    "auto"
+   ],
+   [
+    "pre-wrap",
+    "wrap",
+    "wrap",
+    "auto"
+   ]
+  ]
+ ],
+ "text-stroke-values": [
+  [
+   [
+    "-webkit-text-stroke",
+    "1px",
+    "1px rgb(0, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke",
+    "thin",
+    "0.333333px rgb(0, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke",
+    "medium",
+    "1px rgb(0, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke",
+    "thick",
+    "1.66667px rgb(0, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke",
+    "2px red",
+    "2px rgb(255, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke",
+    "red 2px",
+    "2px rgb(255, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke",
+    "red",
+    "0px rgb(255, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke",
+    "0",
+    "0px rgb(0, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke",
+    "-1px",
+    "invalid"
+   ],
+   [
+    "-webkit-text-stroke",
+    "1em",
+    "16px rgb(0, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke",
+    "calc(1px + 1px)",
+    "2px rgb(0, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke",
+    "10%",
+    "invalid"
+   ],
+   [
+    "-webkit-text-stroke",
+    "clamp(1px, .035em, 1.5px)",
+    "1px rgb(0, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke",
+    "1px 2px",
+    "invalid"
+   ],
+   [
+    "-webkit-text-stroke",
+    "none",
+    "invalid"
+   ],
+   [
+    "-webkit-text-stroke",
+    "inherit",
+    "0px rgb(0, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke-width",
+    "1px",
+    "1px"
+   ],
+   [
+    "-webkit-text-stroke-width",
+    "thin",
+    "0.333333px"
+   ],
+   [
+    "-webkit-text-stroke-width",
+    "medium",
+    "1px"
+   ],
+   [
+    "-webkit-text-stroke-width",
+    "thick",
+    "1.66667px"
+   ],
+   [
+    "-webkit-text-stroke-width",
+    "0",
+    "0px"
+   ],
+   [
+    "-webkit-text-stroke-width",
+    "-1px",
+    "invalid"
+   ],
+   [
+    "-webkit-text-stroke-width",
+    "1.5em",
+    "24px"
+   ],
+   [
+    "-webkit-text-stroke-width",
+    "red",
+    "invalid"
+   ],
+   [
+    "-webkit-text-stroke-width",
+    "calc(2px)",
+    "2px"
+   ],
+   [
+    "-webkit-text-stroke-width",
+    "1px 2px",
+    "invalid"
+   ],
+   [
+    "-webkit-text-stroke-color",
+    "red",
+    "rgb(255, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke-color",
+    "transparent",
+    "rgba(0, 0, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke-color",
+    "currentcolor",
+    "rgb(0, 0, 0)"
+   ],
+   [
+    "-webkit-text-stroke-color",
+    "#1f1d1b",
+    "rgb(31, 29, 27)"
+   ],
+   [
+    "-webkit-text-stroke-color",
+    "1px",
+    "invalid"
+   ],
+   [
+    "-webkit-text-stroke-color",
+    "rgb(1 2 3 / 50%)",
+    "rgba(1, 2, 3, 0.5)"
+   ],
+   [
+    "-webkit-text-fill-color",
+    "red",
+    "rgb(255, 0, 0)"
+   ],
+   [
+    "-webkit-text-fill-color",
+    "transparent",
+    "rgba(0, 0, 0, 0)"
+   ],
+   [
+    "-webkit-text-fill-color",
+    "currentcolor",
+    "rgb(0, 0, 0)"
+   ],
+   [
+    "-webkit-text-fill-color",
+    "#1f1d1b",
+    "rgb(31, 29, 27)"
+   ],
+   [
+    "-webkit-text-fill-color",
+    "1px",
+    "invalid"
+   ],
+   [
+    "-webkit-text-fill-color",
+    "none",
+    "invalid"
+   ]
+  ]
+ ],
+ "isolation-and-corner-values": [
+  [
+   [
+    "isolation",
+    "auto",
+    "auto"
+   ],
+   [
+    "isolation",
+    "isolate",
+    "isolate"
+   ],
+   [
+    "isolation",
+    "x",
+    "invalid"
+   ],
+   [
+    "isolation",
+    "inherit",
+    "auto"
+   ],
+   [
+    "corner-shape",
+    "round",
+    "round"
+   ],
+   [
+    "corner-shape",
+    "squircle",
+    "squircle"
+   ],
+   [
+    "corner-shape",
+    "bevel",
+    "bevel"
+   ],
+   [
+    "corner-shape",
+    "scoop",
+    "scoop"
+   ],
+   [
+    "corner-shape",
+    "notch",
+    "notch"
+   ],
+   [
+    "corner-shape",
+    "square",
+    "square"
+   ],
+   [
+    "corner-shape",
+    "superellipse(3)",
+    "superellipse(3)"
+   ],
+   [
+    "corner-shape",
+    "superellipse(-1.5)",
+    "superellipse(-1.5)"
+   ],
+   [
+    "corner-shape",
+    "superellipse(infinity)",
+    "square"
+   ],
+   [
+    "corner-shape",
+    "superellipse(-infinity)",
+    "notch"
+   ],
+   [
+    "corner-shape",
+    "superellipse()",
+    "invalid"
+   ],
+   [
+    "corner-shape",
+    "squircle round",
+    "squircle round"
+   ],
+   [
+    "corner-shape",
+    "squircle round bevel",
+    "squircle round bevel"
+   ],
+   [
+    "corner-shape",
+    "squircle round bevel scoop",
+    "squircle round bevel scoop"
+   ],
+   [
+    "corner-shape",
+    "a b c d e",
+    "invalid"
+   ],
+   [
+    "corner-shape",
+    "round, round",
+    "invalid"
+   ],
+   [
+    "corner-shape",
+    "inherit",
+    "round"
+   ],
+   [
+    "corner-shape",
+    "superellipse(0)",
+    "bevel"
+   ],
+   [
+    "corner-shape",
+    "superellipse(1)",
+    "round"
+   ],
+   [
+    "corner-shape",
+    "superellipse(2)",
+    "squircle"
+   ],
+   [
+    "corner-shape",
+    "superellipse(calc(1 + 1))",
+    "squircle"
+   ],
+   [
+    "corner-top-left-shape",
+    "squircle",
+    "squircle"
+   ],
+   [
+    "corner-top-left-shape",
+    "superellipse(0.5)",
+    "superellipse(0.5)"
+   ],
+   [
+    "corner-top-left-shape",
+    "x",
+    "invalid"
+   ],
+   [
+    "corner-bottom-right-shape",
+    "scoop",
+    "scoop"
+   ]
+  ]
+ ],
+ "wrap-title-auto": [
+  [
+   "The Open|Source Player|for the Web",
+   "The Open Source|Player for the Web",
+   "The Open Source|Player for the Web",
+   "The Open Source Player|for the Web",
+   "The Open Source Player for|the Web",
+   "The Open Source Player for|the Web",
+   "The Open Source Player for the|Web",
+   "The Open Source Player for the|Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web"
+  ]
+ ],
+ "wrap-title-balance": [
+  [
+   "The Open|Source Player|for the Web",
+   "The Open Source|Player for the Web",
+   "The Open Source|Player for the Web",
+   "The Open Source|Player for the Web",
+   "The Open Source|Player for the Web",
+   "The Open Source|Player for the Web",
+   "The Open Source|Player for the Web",
+   "The Open Source|Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web"
+  ]
+ ],
+ "wrap-title-pretty": [
+  [
+   "The Open|Source Player|for the Web",
+   "The Open Source|Player for the Web",
+   "The Open Source|Player for the Web",
+   "The Open Source Player|for the Web",
+   "The Open Source Player for|the Web",
+   "The Open Source Player for|the Web",
+   "The Open Source Player for|the Web",
+   "The Open Source Player for|the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web"
+  ]
+ ],
+ "wrap-title-stable": [
+  [
+   "The Open|Source Player|for the Web",
+   "The Open Source|Player for the Web",
+   "The Open Source|Player for the Web",
+   "The Open Source Player|for the Web",
+   "The Open Source Player for|the Web",
+   "The Open Source Player for|the Web",
+   "The Open Source Player for the|Web",
+   "The Open Source Player for the|Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web",
+   "The Open Source Player for the Web"
+  ]
+ ],
+ "wrap-para-auto": [
+  [
+   "For over 15 years, Video.js|has been the world's web|video player. Now rebuilt in|v10 for modern|development and|performance.",
+   "For over 15 years, Video.js has|been the world's web video|player. Now rebuilt in v10 for|modern development and|performance.",
+   "For over 15 years, Video.js has been|the world's web video player. Now|rebuilt in v10 for modern development|and performance.",
+   "For over 15 years, Video.js has been the|world's web video player. Now rebuilt in v10|for modern development and performance.",
+   "For over 15 years, Video.js has been the world's|web video player. Now rebuilt in v10 for modern|development and performance.",
+   "For over 15 years, Video.js has been the world's web|video player. Now rebuilt in v10 for modern development|and performance.",
+   "For over 15 years, Video.js has been the world's web video|player. Now rebuilt in v10 for modern development and|performance.",
+   "For over 15 years, Video.js has been the world's web video player.|Now rebuilt in v10 for modern development and performance.",
+   "For over 15 years, Video.js has been the world's web video player. Now|rebuilt in v10 for modern development and performance.",
+   "For over 15 years, Video.js has been the world's web video player. Now rebuilt|in v10 for modern development and performance.",
+   "For over 15 years, Video.js has been the world's web video player. Now rebuilt in|v10 for modern development and performance."
+  ]
+ ],
+ "wrap-para-balance": [
+  [
+   "For over 15 years,|Video.js has been the|world's web video player.|Now rebuilt in v10 for|modern development|and performance.",
+   "For over 15 years, Video.js|has been the world's|web video player. Now|rebuilt in v10 for modern|development and performance.",
+   "For over 15 years, Video.js has|been the world's web video player.|Now rebuilt in v10 for modern|development and performance.",
+   "For over 15 years, Video.js has been the|world's web video player. Now rebuilt in v10|for modern development and performance.",
+   "For over 15 years, Video.js has been the|world's web video player. Now rebuilt in v10|for modern development and performance.",
+   "For over 15 years, Video.js has been the|world's web video player. Now rebuilt in v10|for modern development and performance.",
+   "For over 15 years, Video.js has been the|world's web video player. Now rebuilt in v10|for modern development and performance.",
+   "For over 15 years, Video.js has been the world's web video player.|Now rebuilt in v10 for modern development and performance.",
+   "For over 15 years, Video.js has been the world's web video player.|Now rebuilt in v10 for modern development and performance.",
+   "For over 15 years, Video.js has been the world's web video player.|Now rebuilt in v10 for modern development and performance.",
+   "For over 15 years, Video.js has been the world's web video player.|Now rebuilt in v10 for modern development and performance."
+  ]
+ ],
+ "wrap-para-pretty": [
+  [
+   "For over 15 years, Video.js|has been the world's web|video player. Now rebuilt in|v10 for modern|development and|performance.",
+   "For over 15 years, Video.js has|been the world's web video|player. Now rebuilt in v10 for|modern development and|performance.",
+   "For over 15 years, Video.js has been|the world's web video player. Now|rebuilt in v10 for modern development|and performance.",
+   "For over 15 years, Video.js has been the|world's web video player. Now rebuilt in v10|for modern development and performance.",
+   "For over 15 years, Video.js has been the world's|web video player. Now rebuilt in v10 for modern|development and performance.",
+   "For over 15 years, Video.js has been the world's web|video player. Now rebuilt in v10 for modern development|and performance.",
+   "For over 15 years, Video.js has been the world's web|video player. Now rebuilt in v10 for modern development|and performance.",
+   "For over 15 years, Video.js has been the world's web video player.|Now rebuilt in v10 for modern development and performance.",
+   "For over 15 years, Video.js has been the world's web video player. Now|rebuilt in v10 for modern development and performance.",
+   "For over 15 years, Video.js has been the world's web video player. Now rebuilt|in v10 for modern development and performance.",
+   "For over 15 years, Video.js has been the world's web video player. Now rebuilt in|v10 for modern development and performance."
+  ]
+ ],
+ "wrap-para-stable": [
+  [
+   "For over 15 years, Video.js|has been the world's web|video player. Now rebuilt in|v10 for modern|development and|performance.",
+   "For over 15 years, Video.js has|been the world's web video|player. Now rebuilt in v10 for|modern development and|performance.",
+   "For over 15 years, Video.js has been|the world's web video player. Now|rebuilt in v10 for modern development|and performance.",
+   "For over 15 years, Video.js has been the|world's web video player. Now rebuilt in v10|for modern development and performance.",
+   "For over 15 years, Video.js has been the world's|web video player. Now rebuilt in v10 for modern|development and performance.",
+   "For over 15 years, Video.js has been the world's web|video player. Now rebuilt in v10 for modern development|and performance.",
+   "For over 15 years, Video.js has been the world's web video|player. Now rebuilt in v10 for modern development and|performance.",
+   "For over 15 years, Video.js has been the world's web video player.|Now rebuilt in v10 for modern development and performance.",
+   "For over 15 years, Video.js has been the world's web video player. Now|rebuilt in v10 for modern development and performance.",
+   "For over 15 years, Video.js has been the world's web video player. Now rebuilt|in v10 for modern development and performance.",
+   "For over 15 years, Video.js has been the world's web video player. Now rebuilt in|v10 for modern development and performance."
+  ]
+ ],
+ "wrap-short-auto": [
+  [
+   "Alpha beta|gamma delta|epsilon zeta eta|theta iota",
+   "Alpha beta gamma|delta epsilon zeta|eta theta iota",
+   "Alpha beta gamma|delta epsilon zeta eta|theta iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta|iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta iota",
+   "Alpha beta gamma delta epsilon|zeta eta theta iota",
+   "Alpha beta gamma delta epsilon|zeta eta theta iota",
+   "Alpha beta gamma delta epsilon zeta|eta theta iota",
+   "Alpha beta gamma delta epsilon zeta eta|theta iota",
+   "Alpha beta gamma delta epsilon zeta eta|theta iota",
+   "Alpha beta gamma delta epsilon zeta eta theta|iota",
+   "Alpha beta gamma delta epsilon zeta eta theta|iota",
+   "Alpha beta gamma delta epsilon zeta eta theta iota",
+   "Alpha beta gamma delta epsilon zeta eta theta iota"
+  ]
+ ],
+ "wrap-short-balance": [
+  [
+   "Alpha beta|gamma delta|epsilon zeta|eta theta iota",
+   "Alpha beta gamma|delta epsilon zeta|eta theta iota",
+   "Alpha beta gamma|delta epsilon zeta|eta theta iota",
+   "Alpha beta gamma|delta epsilon zeta|eta theta iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta iota",
+   "Alpha beta gamma delta epsilon zeta eta theta iota",
+   "Alpha beta gamma delta epsilon zeta eta theta iota"
+  ]
+ ],
+ "wrap-short-pretty": [
+  [
+   "Alpha beta|gamma delta|epsilon zeta eta|theta iota",
+   "Alpha beta gamma|delta epsilon zeta|eta theta iota",
+   "Alpha beta gamma|delta epsilon zeta eta|theta iota",
+   "Alpha beta gamma|delta epsilon zeta eta|theta iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta iota",
+   "Alpha beta gamma delta epsilon|zeta eta theta iota",
+   "Alpha beta gamma delta epsilon|zeta eta theta iota",
+   "Alpha beta gamma delta epsilon zeta|eta theta iota",
+   "Alpha beta gamma delta epsilon zeta eta|theta iota",
+   "Alpha beta gamma delta epsilon zeta eta|theta iota",
+   "Alpha beta gamma delta epsilon zeta eta|theta iota",
+   "Alpha beta gamma delta epsilon zeta eta|theta iota",
+   "Alpha beta gamma delta epsilon zeta eta theta iota",
+   "Alpha beta gamma delta epsilon zeta eta theta iota"
+  ]
+ ],
+ "wrap-short-stable": [
+  [
+   "Alpha beta|gamma delta|epsilon zeta eta|theta iota",
+   "Alpha beta gamma|delta epsilon zeta|eta theta iota",
+   "Alpha beta gamma|delta epsilon zeta eta|theta iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta|iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta iota",
+   "Alpha beta gamma delta|epsilon zeta eta theta iota",
+   "Alpha beta gamma delta epsilon|zeta eta theta iota",
+   "Alpha beta gamma delta epsilon|zeta eta theta iota",
+   "Alpha beta gamma delta epsilon zeta|eta theta iota",
+   "Alpha beta gamma delta epsilon zeta eta|theta iota",
+   "Alpha beta gamma delta epsilon zeta eta|theta iota",
+   "Alpha beta gamma delta epsilon zeta eta theta|iota",
+   "Alpha beta gamma delta epsilon zeta eta theta|iota",
+   "Alpha beta gamma delta epsilon zeta eta theta iota",
+   "Alpha beta gamma delta epsilon zeta eta theta iota"
+  ]
+ ],
+ "wrap-orphan-auto": [
+  [
+   "The quick brown|fox jumps over|the lazy dogs|and then runs|away quickly",
+   "The quick brown|fox jumps over the|lazy dogs and then|runs away quickly",
+   "The quick brown fox|jumps over the lazy|dogs and then runs|away quickly",
+   "The quick brown fox|jumps over the lazy dogs|and then runs away|quickly",
+   "The quick brown fox jumps|over the lazy dogs and then|runs away quickly",
+   "The quick brown fox jumps|over the lazy dogs and then|runs away quickly",
+   "The quick brown fox jumps over|the lazy dogs and then runs away|quickly",
+   "The quick brown fox jumps over the|lazy dogs and then runs away|quickly",
+   "The quick brown fox jumps over the|lazy dogs and then runs away quickly",
+   "The quick brown fox jumps over the lazy|dogs and then runs away quickly",
+   "The quick brown fox jumps over the lazy|dogs and then runs away quickly",
+   "The quick brown fox jumps over the lazy dogs|and then runs away quickly",
+   "The quick brown fox jumps over the lazy dogs and|then runs away quickly",
+   "The quick brown fox jumps over the lazy dogs and|then runs away quickly",
+   "The quick brown fox jumps over the lazy dogs and then|runs away quickly"
+  ]
+ ],
+ "wrap-orphan-balance": [
+  [
+   "The quick brown|fox jumps over|the lazy dogs|and then runs|away quickly",
+   "The quick brown|fox jumps over the|lazy dogs and then|runs away quickly",
+   "The quick brown|fox jumps over the|lazy dogs and then|runs away quickly",
+   "The quick brown|fox jumps over the|lazy dogs and then|runs away quickly",
+   "The quick brown fox jumps|over the lazy dogs and|then runs away quickly",
+   "The quick brown fox jumps|over the lazy dogs and|then runs away quickly",
+   "The quick brown fox jumps|over the lazy dogs and|then runs away quickly",
+   "The quick brown fox jumps|over the lazy dogs and|then runs away quickly",
+   "The quick brown fox jumps over the|lazy dogs and then runs away quickly",
+   "The quick brown fox jumps over the|lazy dogs and then runs away quickly",
+   "The quick brown fox jumps over the|lazy dogs and then runs away quickly",
+   "The quick brown fox jumps over the|lazy dogs and then runs away quickly",
+   "The quick brown fox jumps over the|lazy dogs and then runs away quickly",
+   "The quick brown fox jumps over the|lazy dogs and then runs away quickly",
+   "The quick brown fox jumps over the|lazy dogs and then runs away quickly"
+  ]
+ ],
+ "wrap-orphan-pretty": [
+  [
+   "The quick brown|fox jumps over|the lazy dogs|and then runs|away quickly",
+   "The quick brown|fox jumps over the|lazy dogs and then|runs away quickly",
+   "The quick brown fox|jumps over the lazy|dogs and then runs|away quickly",
+   "The quick brown fox|jumps over the lazy|dogs and then runs|away quickly",
+   "The quick brown fox jumps|over the lazy dogs and then|runs away quickly",
+   "The quick brown fox jumps|over the lazy dogs and then|runs away quickly",
+   "The quick brown fox jumps over|the lazy dogs and then runs|away quickly",
+   "The quick brown fox jumps over|the lazy dogs and then runs|away quickly",
+   "The quick brown fox jumps over the|lazy dogs and then runs away quickly",
+   "The quick brown fox jumps over the lazy|dogs and then runs away quickly",
+   "The quick brown fox jumps over the lazy|dogs and then runs away quickly",
+   "The quick brown fox jumps over the lazy dogs|and then runs away quickly",
+   "The quick brown fox jumps over the lazy dogs and|then runs away quickly",
+   "The quick brown fox jumps over the lazy dogs and|then runs away quickly",
+   "The quick brown fox jumps over the lazy dogs and then|runs away quickly"
+  ]
+ ],
+ "wrap-orphan-stable": [
+  [
+   "The quick brown|fox jumps over|the lazy dogs|and then runs|away quickly",
+   "The quick brown|fox jumps over the|lazy dogs and then|runs away quickly",
+   "The quick brown fox|jumps over the lazy|dogs and then runs|away quickly",
+   "The quick brown fox|jumps over the lazy dogs|and then runs away|quickly",
+   "The quick brown fox jumps|over the lazy dogs and then|runs away quickly",
+   "The quick brown fox jumps|over the lazy dogs and then|runs away quickly",
+   "The quick brown fox jumps over|the lazy dogs and then runs away|quickly",
+   "The quick brown fox jumps over the|lazy dogs and then runs away|quickly",
+   "The quick brown fox jumps over the|lazy dogs and then runs away quickly",
+   "The quick brown fox jumps over the lazy|dogs and then runs away quickly",
+   "The quick brown fox jumps over the lazy|dogs and then runs away quickly",
+   "The quick brown fox jumps over the lazy dogs|and then runs away quickly",
+   "The quick brown fox jumps over the lazy dogs and|then runs away quickly",
+   "The quick brown fox jumps over the lazy dogs and|then runs away quickly",
+   "The quick brown fox jumps over the lazy dogs and then|runs away quickly"
+  ]
+ ],
+ "wrap-words-auto": [
+  [
+   "a bb ccc dddd|eeeee ffffff|ggggggg|hhhhhhhh iiiiiiiii|jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc dddd|eeeee ffffff|ggggggg hhhhhhhh|iiiiiiiii jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc dddd eeeee|ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff|ggggggg hhhhhhhh iiiiiiiii|jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff|ggggggg hhhhhhhh iiiiiiiii|jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff|ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff|ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh|iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii|jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii|jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj|kkkkkkkkkkk"
+  ]
+ ],
+ "wrap-words-balance": [
+  [
+   "a bb ccc|dddd eeeee|ffffff ggggggg|hhhhhhhh|iiiiiiiii jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc|dddd eeeee|ffffff ggggggg|hhhhhhhh iiiiiiiii|jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd|eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii|jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee|ffffff ggggggg hhhhhhhh|iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee|ffffff ggggggg hhhhhhhh|iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee|ffffff ggggggg hhhhhhhh|iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee|ffffff ggggggg hhhhhhhh|iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk"
+  ]
+ ],
+ "wrap-words-pretty": [
+  [
+   "a bb ccc dddd|eeeee ffffff|ggggggg|hhhhhhhh iiiiiiiii|jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc dddd|eeeee ffffff|ggggggg hhhhhhhh|iiiiiiiii jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc dddd eeeee|ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff|ggggggg hhhhhhhh iiiiiiiii|jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff|ggggggg hhhhhhhh iiiiiiiii|jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff|ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff|ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh|iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii|jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii|jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii|jjjjjjjjjj kkkkkkkkkkk"
+  ]
+ ],
+ "wrap-words-stable": [
+  [
+   "a bb ccc dddd|eeeee ffffff|ggggggg|hhhhhhhh iiiiiiiii|jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc dddd|eeeee ffffff|ggggggg hhhhhhhh|iiiiiiiii jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc dddd eeeee|ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff|ggggggg hhhhhhhh iiiiiiiii|jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff|ggggggg hhhhhhhh iiiiiiiii|jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff|ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff|ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj|kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg|hhhhhhhh iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh|iiiiiiiii jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii|jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii|jjjjjjjjjj kkkkkkkkkkk",
+   "a bb ccc dddd eeeee ffffff ggggggg hhhhhhhh iiiiiiiii jjjjjjjjjj|kkkkkkkkkkk"
+  ]
+ ],
+ "wrap-long-auto": [
+  [
+   "For over 15|years, Video.js|has been the|world's web|video player.|Now rebuilt in|v10 for modern|development|and|performance.",
+   "For over 15|years, Video.js|has been the|world's web|video player.|Now rebuilt in|v10 for modern|development|and|performance.",
+   "For over 15 years,|Video.js has been|the world's web|video player. Now|rebuilt in v10 for|modern|development and|performance.",
+   "For over 15 years,|Video.js has been|the world's web|video player. Now|rebuilt in v10 for|modern|development and|performance.",
+   "For over 15 years,|Video.js has been|the world's web|video player. Now|rebuilt in v10 for|modern|development and|performance.",
+   "For over 15 years,|Video.js has been the|world's web video|player. Now rebuilt in|v10 for modern|development and|performance.",
+   "For over 15 years,|Video.js has been the|world's web video|player. Now rebuilt in|v10 for modern|development and|performance.",
+   "For over 15 years,|Video.js has been the|world's web video player.|Now rebuilt in v10 for|modern development|and performance.",
+   "For over 15 years,|Video.js has been the|world's web video player.|Now rebuilt in v10 for|modern development and|performance."
+  ]
+ ],
+ "wrap-long-balance": [
+  [
+   "For over 15|years, Video.js|has been the|world's web|video player.|Now rebuilt in|v10 for modern|development|and|performance.",
+   "For over 15|years, Video.js|has been the|world's web|video player.|Now rebuilt in|v10 for modern|development|and|performance.",
+   "For over 15 years,|Video.js has been|the world's web|video player. Now|rebuilt in v10 for|modern|development and|performance.",
+   "For over 15 years,|Video.js has been|the world's web|video player. Now|rebuilt in v10 for|modern|development and|performance.",
+   "For over 15 years,|Video.js has been|the world's web|video player. Now|rebuilt in v10 for|modern|development and|performance.",
+   "For over 15 years,|Video.js has been the|world's web video|player. Now rebuilt in|v10 for modern|development and|performance.",
+   "For over 15 years,|Video.js has been the|world's web video|player. Now rebuilt in|v10 for modern|development and|performance.",
+   "For over 15 years,|Video.js has been the|world's web video player.|Now rebuilt in v10 for|modern development|and performance.",
+   "For over 15 years,|Video.js has been the|world's web video player.|Now rebuilt in v10 for|modern development|and performance."
+  ]
+ ],
+ "wrap-long-pretty": [
+  [
+   "For over 15|years, Video.js|has been the|world's web|video player.|Now rebuilt in|v10 for modern|development|and|performance.",
+   "For over 15|years, Video.js|has been the|world's web|video player.|Now rebuilt in|v10 for modern|development|and|performance.",
+   "For over 15 years,|Video.js has been|the world's web|video player. Now|rebuilt in v10 for|modern|development and|performance.",
+   "For over 15 years,|Video.js has been|the world's web|video player. Now|rebuilt in v10 for|modern|development and|performance.",
+   "For over 15 years,|Video.js has been|the world's web|video player. Now|rebuilt in v10 for|modern|development and|performance.",
+   "For over 15 years,|Video.js has been the|world's web video|player. Now rebuilt in|v10 for modern|development and|performance.",
+   "For over 15 years,|Video.js has been the|world's web video|player. Now rebuilt in|v10 for modern|development and|performance.",
+   "For over 15 years,|Video.js has been the|world's web video player.|Now rebuilt in v10 for|modern development|and performance.",
+   "For over 15 years,|Video.js has been the|world's web video player.|Now rebuilt in v10 for|modern development and|performance."
+  ]
+ ],
+ "wrap-hero-title": [
+  [
+   [
+    50,
+    0,
+    700,
+    645
+   ],
+   [
+    154.23,
+    389,
+    491.53,
+    254
+   ]
+  ],
+  [
+   [
+    "The",
+    114,
+    2
+   ],
+   [
+    "Open",
+    369,
+    2
+   ],
+   [
+    "Source",
+    160,
+    131
+   ],
+   [
+    "Player",
+    178,
+    260
+   ],
+   [
+    "span",
+    154,
+    389
+   ]
+  ]
+ ],
+ "ws-order1": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    0,
+    17.8,
+    17
+   ],
+   [
+    44.5,
+    0,
+    16,
+    17
+   ],
+   [
+    65,
+    0,
+    17.8,
+    17
+   ],
+   [
+    0,
+    18,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-order2": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    0,
+    17.8,
+    17
+   ],
+   [
+    44.5,
+    0,
+    16,
+    17
+   ],
+   [
+    65,
+    0,
+    17.8,
+    17
+   ],
+   [
+    87.2,
+    0,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-sheet-a": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    0,
+    17.8,
+    17
+   ],
+   [
+    44.5,
+    0,
+    16,
+    17
+   ],
+   [
+    65,
+    0,
+    17.8,
+    17
+   ],
+   [
+    0,
+    18,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-sheet-b": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    0,
+    17.8,
+    17
+   ],
+   [
+    44.5,
+    0,
+    16,
+    17
+   ],
+   [
+    65,
+    0,
+    17.8,
+    17
+   ],
+   [
+    0,
+    18,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-sheet-c": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    0,
+    17.8,
+    17
+   ],
+   [
+    44.5,
+    0,
+    16,
+    17
+   ],
+   [
+    65,
+    0,
+    17.8,
+    17
+   ],
+   [
+    87.2,
+    0,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-inherit-a": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    0,
+    17.8,
+    17
+   ],
+   [
+    44.5,
+    0,
+    16,
+    17
+   ],
+   [
+    65,
+    0,
+    17.8,
+    17
+   ],
+   [
+    0,
+    18,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-inherit-b": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    0,
+    17.8,
+    17
+   ],
+   [
+    44.5,
+    0,
+    16,
+    17
+   ],
+   [
+    65,
+    0,
+    17.8,
+    17
+   ],
+   [
+    0,
+    18,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-inherit-c": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    0,
+    18,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    18,
+    16,
+    17
+   ],
+   [
+    42.7,
+    18,
+    17.8,
+    17
+   ],
+   [
+    65,
+    18,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-inherit-d": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    0,
+    17.8,
+    17
+   ],
+   [
+    44.5,
+    0,
+    16,
+    17
+   ],
+   [
+    65,
+    0,
+    17.8,
+    17
+   ],
+   [
+    87.2,
+    0,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-preline-nowrap": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    0,
+    18,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    18,
+    16,
+    17
+   ],
+   [
+    42.7,
+    18,
+    17.8,
+    17
+   ],
+   [
+    65,
+    18,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-preline-nowrap2": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    0,
+    18,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    18,
+    16,
+    17
+   ],
+   [
+    42.7,
+    18,
+    17.8,
+    17
+   ],
+   [
+    65,
+    18,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-pre-wrap": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    0,
+    17.8,
+    17
+   ],
+   [
+    53.4,
+    0,
+    16,
+    17
+   ],
+   [
+    73.8,
+    0,
+    17.8,
+    17
+   ],
+   [
+    0,
+    18,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-breakspaces-nowrap": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    0,
+    17.8,
+    17
+   ],
+   [
+    53.4,
+    0,
+    16,
+    17
+   ],
+   [
+    73.8,
+    0,
+    17.8,
+    17
+   ],
+   [
+    96.1,
+    0,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-breakspaces-wrap": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    0,
+    17.8,
+    17
+   ],
+   [
+    53.4,
+    0,
+    16,
+    17
+   ],
+   [
+    73.8,
+    0,
+    17.8,
+    17
+   ],
+   [
+    0,
+    18,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-shorthand-reset": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    0,
+    17.8,
+    17
+   ],
+   [
+    44.5,
+    0,
+    16,
+    17
+   ],
+   [
+    65,
+    0,
+    17.8,
+    17
+   ],
+   [
+    0,
+    18,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-important": [
+  [
+   [
+    0,
+    0,
+    17.8,
+    17
+   ],
+   [
+    22.3,
+    0,
+    17.8,
+    17
+   ],
+   [
+    44.5,
+    0,
+    16,
+    17
+   ],
+   [
+    65,
+    0,
+    17.8,
+    17
+   ],
+   [
+    0,
+    18,
+    17.8,
+    17
+   ]
+  ]
+ ],
+ "ws-computed-combos": [
+  [
+   [
+    "normal",
+    "collapse",
+    "wrap",
+    "wrap",
+    "auto"
+   ],
+   [
+    "nowrap",
+    "collapse",
+    "nowrap",
+    "nowrap",
+    "auto"
+   ],
+   [
+    "pre-wrap",
+    "preserve",
+    "wrap",
+    "wrap",
+    "auto"
+   ],
+   [
+    "pre",
+    "preserve",
+    "nowrap",
+    "nowrap",
+    "auto"
+   ],
+   [
+    "pre-line",
+    "preserve-breaks",
+    "wrap",
+    "wrap",
+    "auto"
+   ],
+   [
+    "preserve-breaks nowrap",
+    "preserve-breaks",
+    "nowrap",
+    "nowrap",
+    "auto"
+   ],
+   [
+    "break-spaces",
+    "break-spaces",
+    "wrap",
+    "wrap",
+    "auto"
+   ],
+   [
+    "break-spaces nowrap",
+    "break-spaces",
+    "nowrap",
+    "nowrap",
+    "auto"
+   ],
+   [
+    "pre-line",
+    "preserve-breaks",
+    "wrap",
+    "wrap",
+    "auto"
+   ],
+   [
+    "nowrap",
+    "collapse",
+    "nowrap",
+    "nowrap",
+    "auto"
+   ],
+   [
+    "normal",
+    "collapse",
+    "wrap",
+    "balance",
+    "balance"
+   ],
+   [
+    "nowrap",
+    "collapse",
+    "nowrap",
+    "nowrap balance",
+    "balance"
+   ]
+  ]
+ ],
+ "ws-style-serialization": [
+  [
+   [
+    "white-space:normal",
+    "white-space:normal",
+    "white-space: normal;",
+    "normal",
+    "collapse",
+    "wrap",
+    "",
+    2,
+    "normal",
+    ""
+   ],
+   [
+    "white-space:nowrap",
+    "white-space:nowrap",
+    "white-space: nowrap;",
+    "nowrap",
+    "collapse",
+    "nowrap",
+    "",
+    2,
+    "nowrap",
+    ""
+   ],
+   [
+    "white-space:pre",
+    "white-space:pre",
+    "white-space: pre;",
+    "pre",
+    "preserve",
+    "nowrap",
+    "",
+    2,
+    "pre",
+    ""
+   ],
+   [
+    "white-space:pre-wrap",
+    "white-space:pre-wrap",
+    "white-space: pre-wrap;",
+    "pre-wrap",
+    "preserve",
+    "wrap",
+    "",
+    2,
+    "pre-wrap",
+    ""
+   ],
+   [
+    "white-space:pre-line",
+    "white-space:pre-line",
+    "white-space: pre-line;",
+    "pre-line",
+    "preserve-breaks",
+    "wrap",
+    "",
+    2,
+    "pre-line",
+    ""
+   ],
+   [
+    "white-space:break-spaces",
+    "white-space:break-spaces",
+    "white-space: break-spaces;",
+    "break-spaces",
+    "break-spaces",
+    "wrap",
+    "",
+    2,
+    "break-spaces",
+    ""
+   ],
+   [
+    "white-space:collapse",
+    "white-space:collapse",
+    "white-space: normal;",
+    "normal",
+    "collapse",
+    "initial",
+    "",
+    2,
+    "normal",
+    ""
+   ],
+   [
+    "white-space:preserve nowrap",
+    "white-space:preserve nowrap",
+    "white-space: pre;",
+    "pre",
+    "preserve",
+    "nowrap",
+    "",
+    2,
+    "pre",
+    ""
+   ],
+   [
+    "white-space:preserve-breaks nowrap",
+    "white-space:preserve-breaks nowrap",
+    "white-space: preserve-breaks nowrap;",
+    "preserve-breaks nowrap",
+    "preserve-breaks",
+    "nowrap",
+    "",
+    2,
+    "preserve-breaks nowrap",
+    ""
+   ],
+   [
+    "white-space:break-spaces nowrap",
+    "white-space:break-spaces nowrap",
+    "white-space: break-spaces nowrap;",
+    "break-spaces nowrap",
+    "break-spaces",
+    "nowrap",
+    "",
+    2,
+    "break-spaces nowrap",
+    ""
+   ],
+   [
+    "white-space:wrap",
+    "white-space:wrap",
+    "white-space: normal;",
+    "normal",
+    "initial",
+    "wrap",
+    "",
+    2,
+    "normal",
+    ""
+   ],
+   [
+    "white-space:nowrap wrap",
+    "white-space:nowrap wrap",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space:nowrap collapse",
+    "white-space:nowrap collapse",
+    "white-space: nowrap;",
+    "nowrap",
+    "collapse",
+    "nowrap",
+    "",
+    2,
+    "nowrap",
+    ""
+   ],
+   [
+    "white-space:collapse nowrap",
+    "white-space:collapse nowrap",
+    "white-space: nowrap;",
+    "nowrap",
+    "collapse",
+    "nowrap",
+    "",
+    2,
+    "nowrap",
+    ""
+   ],
+   [
+    "white-space:preserve wrap",
+    "white-space:preserve wrap",
+    "white-space: pre-wrap;",
+    "pre-wrap",
+    "preserve",
+    "wrap",
+    "",
+    2,
+    "pre-wrap",
+    ""
+   ],
+   [
+    "white-space:preserve-spaces",
+    "white-space:preserve-spaces",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space:preserve-spaces nowrap",
+    "white-space:preserve-spaces nowrap",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space:pre-line nowrap",
+    "white-space:pre-line nowrap",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space:normal normal",
+    "white-space:normal normal",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space:inherit",
+    "white-space:inherit",
+    "white-space: inherit;",
+    "inherit",
+    "inherit",
+    "inherit",
+    "",
+    2,
+    "inherit",
+    ""
+   ],
+   [
+    "white-space:initial",
+    "white-space:initial",
+    "white-space: initial;",
+    "initial",
+    "initial",
+    "initial",
+    "",
+    2,
+    "initial",
+    ""
+   ],
+   [
+    "white-space:unset",
+    "white-space:unset",
+    "white-space: unset;",
+    "unset",
+    "unset",
+    "unset",
+    "",
+    2,
+    "unset",
+    ""
+   ],
+   [
+    "white-space:revert",
+    "white-space:revert",
+    "white-space: revert;",
+    "revert",
+    "revert",
+    "revert",
+    "",
+    2,
+    "revert",
+    ""
+   ],
+   [
+    "white-space:-webkit-nowrap",
+    "white-space:-webkit-nowrap",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space:-moz-pre-wrap",
+    "white-space:-moz-pre-wrap",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space:none",
+    "white-space:none",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space:discard-before",
+    "white-space:discard-before",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space:preserve discard-after",
+    "white-space:preserve discard-after",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space:nowrap discard-inner",
+    "white-space:nowrap discard-inner",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space:wrap wrap",
+    "white-space:wrap wrap",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space:preserve preserve",
+    "white-space:preserve preserve",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space:wrap collapse",
+    "white-space:wrap collapse",
+    "white-space: normal;",
+    "normal",
+    "collapse",
+    "wrap",
+    "",
+    2,
+    "normal",
+    ""
+   ],
+   [
+    "white-space:collapse preserve",
+    "white-space:collapse preserve",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space-collapse:preserve",
+    "white-space-collapse:preserve",
+    "white-space-collapse: preserve;",
+    "",
+    "preserve",
+    "",
+    "",
+    1,
+    "",
+    ""
+   ],
+   [
+    "white-space-collapse:preserve-breaks",
+    "white-space-collapse:preserve-breaks",
+    "white-space-collapse: preserve-breaks;",
+    "",
+    "preserve-breaks",
+    "",
+    "",
+    1,
+    "",
+    ""
+   ],
+   [
+    "white-space-collapse:break-spaces",
+    "white-space-collapse:break-spaces",
+    "white-space-collapse: break-spaces;",
+    "",
+    "break-spaces",
+    "",
+    "",
+    1,
+    "",
+    ""
+   ],
+   [
+    "white-space-collapse:collapse",
+    "white-space-collapse:collapse",
+    "white-space-collapse: collapse;",
+    "",
+    "collapse",
+    "",
+    "",
+    1,
+    "",
+    ""
+   ],
+   [
+    "white-space-collapse:preserve-spaces",
+    "white-space-collapse:preserve-spaces",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space-collapse:normal",
+    "white-space-collapse:normal",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space-collapse:nowrap",
+    "white-space-collapse:nowrap",
+    "",
+    "",
+    "",
+    "",
+    "",
+    0,
+    "",
+    ""
+   ],
+   [
+    "white-space-collapse:preserve;text-wrap-mode:nowrap",
+    "white-space-collapse:preserve;text-wrap-mode:nowrap",
+    "white-space: pre;",
+    "pre",
+    "preserve",
+    "nowrap",
+    "",
+    2,
+    "pre",
+    ""
+   ],
+   [
+    "white-space-collapse:preserve-breaks;text-wrap-mode:nowrap",
+    "white-space-collapse:preserve-breaks;text-wrap-mode:nowrap",
+    "white-space: preserve-breaks nowrap;",
+    "preserve-breaks nowrap",
+    "preserve-breaks",
+    "nowrap",
+    "",
+    2,
+    "preserve-breaks nowrap",
+    ""
+   ],
+   [
+    "white-space-collapse:break-spaces;text-wrap-mode:nowrap",
+    "white-space-collapse:break-spaces;text-wrap-mode:nowrap",
+    "white-space: break-spaces nowrap;",
+    "break-spaces nowrap",
+    "break-spaces",
+    "nowrap",
+    "",
+    2,
+    "break-spaces nowrap",
+    ""
+   ],
+   [
+    "white-space-collapse:collapse;text-wrap-mode:nowrap",
+    "white-space-collapse:collapse;text-wrap-mode:nowrap",
+    "white-space: nowrap;",
+    "nowrap",
+    "collapse",
+    "nowrap",
+    "",
+    2,
+    "nowrap",
+    ""
+   ],
+   [
+    "white-space-collapse:preserve;text-wrap-mode:wrap",
+    "white-space-collapse:preserve;text-wrap-mode:wrap",
+    "white-space: pre-wrap;",
+    "pre-wrap",
+    "preserve",
+    "wrap",
+    "",
+    2,
+    "pre-wrap",
+    ""
+   ],
+   [
+    "white-space-collapse:preserve-breaks;text-wrap-mode:wrap",
+    "white-space-collapse:preserve-breaks;text-wrap-mode:wrap",
+    "white-space: pre-line;",
+    "pre-line",
+    "preserve-breaks",
+    "wrap",
+    "",
+    2,
+    "pre-line",
+    ""
+   ],
+   [
+    "white-space-collapse:break-spaces;text-wrap-mode:wrap",
+    "white-space-collapse:break-spaces;text-wrap-mode:wrap",
+    "white-space: break-spaces;",
+    "break-spaces",
+    "break-spaces",
+    "wrap",
+    "",
+    2,
+    "break-spaces",
+    ""
+   ],
+   [
+    "text-wrap-mode:nowrap",
+    "text-wrap-mode:nowrap",
+    "text-wrap-mode: nowrap;",
+    "",
+    "",
+    "nowrap",
+    "",
+    1,
+    "",
+    ""
+   ],
+   [
+    "text-wrap:nowrap",
+    "text-wrap:nowrap",
+    "text-wrap: nowrap;",
+    "",
+    "",
+    "nowrap",
+    "nowrap",
+    2,
+    "",
+    ""
+   ],
+   [
+    "text-wrap:balance",
+    "text-wrap:balance",
+    "text-wrap: balance;",
+    "",
+    "",
+    "initial",
+    "balance",
+    2,
+    "",
+    ""
+   ],
+   [
+    "text-wrap:balance nowrap",
+    "text-wrap:balance nowrap",
+    "text-wrap: nowrap balance;",
+    "",
+    "",
+    "nowrap",
+    "nowrap balance",
+    2,
+    "",
+    ""
+   ],
+   [
+    "text-wrap:nowrap;white-space:pre",
+    "text-wrap:nowrap;white-space:pre",
+    "text-wrap: nowrap; white-space-collapse: preserve;",
+    "pre",
+    "preserve",
+    "nowrap",
+    "nowrap",
+    3,
+    "pre",
+    ""
+   ],
+   [
+    "white-space:pre;text-wrap:nowrap",
+    "white-space:pre;text-wrap:nowrap",
+    "white-space: pre; text-wrap-style: initial;",
+    "pre",
+    "preserve",
+    "nowrap",
+    "nowrap",
+    3,
+    "pre",
+    ""
+   ],
+   [
+    "white-space:pre-wrap;text-wrap:nowrap",
+    "white-space:pre-wrap;text-wrap:nowrap",
+    "white-space: pre; text-wrap-style: initial;",
+    "pre",
+    "preserve",
+    "nowrap",
+    "nowrap",
+    3,
+    "pre",
+    ""
+   ],
+   [
+    "white-space-collapse:preserve;white-space:normal",
+    "white-space-collapse:preserve;white-space:normal",
+    "white-space: normal;",
+    "normal",
+    "collapse",
+    "wrap",
+    "",
+    2,
+    "normal",
+    ""
+   ],
+   [
+    "white-space:normal;white-space-collapse:preserve",
+    "white-space:normal;white-space-collapse:preserve",
+    "white-space: pre-wrap;",
+    "pre-wrap",
+    "preserve",
+    "wrap",
+    "",
+    2,
+    "pre-wrap",
+    ""
+   ],
+   [
+    "white-space:pre;white-space-collapse:collapse",
+    "white-space:pre;white-space-collapse:collapse",
+    "white-space: nowrap;",
+    "nowrap",
+    "collapse",
+    "nowrap",
+    "",
+    2,
+    "nowrap",
+    ""
+   ],
+   [
+    "text-wrap-mode:nowrap;white-space:normal",
+    "text-wrap-mode:nowrap;white-space:normal",
+    "white-space: normal;",
+    "normal",
+    "collapse",
+    "wrap",
+    "",
+    2,
+    "normal",
+    ""
+   ]
+  ]
+ ],
+ "ws-supports": [
+  [
+   [
+    "white-space:normal",
+    true
+   ],
+   [
+    "white-space:nowrap",
+    true
+   ],
+   [
+    "white-space:pre",
+    true
+   ],
+   [
+    "white-space:pre-line",
+    true
+   ],
+   [
+    "white-space:break-spaces",
+    true
+   ],
+   [
+    "white-space:preserve nowrap",
+    true
+   ],
+   [
+    "white-space:preserve-breaks nowrap",
+    true
+   ],
+   [
+    "white-space:break-spaces nowrap",
+    true
+   ],
+   [
+    "white-space:wrap",
+    true
+   ],
+   [
+    "white-space-collapse:preserve",
+    true
+   ],
+   [
+    "text-wrap-mode:nowrap",
+    true
+   ],
+   [
+    "white-space:pre;text-wrap:balance nowrap",
+    false
+   ],
+   [
+    "white-space-collapse:foo",
+    false
+   ],
+   [
+    "white-space:foo",
+    false
+   ],
+   [
+    "text-wrap-mode:balance",
+    false
+   ],
+   [
+    "white-space:nowrap nowrap",
+    false
+   ],
+   [
+    "white-space:pre-line wrap",
+    false
+   ],
+   [
+    "white-space:normal nowrap",
+    false
+   ]
+  ]
+ ],
+ "ws-computed-decls": [
+  [
+   [
+    "white-space:pre-line;text-wrap:nowrap",
+    "preserve-breaks nowrap",
+    "preserve-breaks",
+    "nowrap"
+   ],
+   [
+    "white-space:break-spaces;text-wrap:nowrap",
+    "break-spaces nowrap",
+    "break-spaces",
+    "nowrap"
+   ],
+   [
+    "white-space:pre;text-wrap:wrap",
+    "pre-wrap",
+    "preserve",
+    "wrap"
+   ],
+   [
+    "white-space:preserve-breaks wrap",
+    "pre-line",
+    "preserve-breaks",
+    "wrap"
+   ],
+   [
+    "white-space-collapse:preserve;text-wrap-mode:nowrap",
+    "pre",
+    "preserve",
+    "nowrap"
+   ],
+   [
+    "white-space-collapse:preserve-breaks",
+    "pre-line",
+    "preserve-breaks",
+    "wrap"
+   ],
+   [
+    "text-wrap-mode:nowrap",
+    "nowrap",
+    "collapse",
+    "nowrap"
+   ],
+   [
+    "white-space:pre-line",
+    "pre-line",
+    "preserve-breaks",
+    "wrap"
+   ],
+   [
+    "white-space:inherit",
+    "normal",
+    "collapse",
+    "wrap"
+   ]
+  ]
+ ],
+ "ws-in-enumeration": [
+  [
+   true,
+   false,
+   true,
+   "normal",
+   "collapse",
+   true,
+   true
+  ]
+ ],
+ "balance-inline": [
+  [
+   [
+    0,
+    0,
+    27.6,
+    17
+   ],
+   [
+    75.6,
+    0,
+    106.7,
+    17
+   ],
+   [
+    49.8,
+    18,
+    52.6,
+    17
+   ]
+  ]
+ ],
+ "balance-center": [
+  [
+   [
+    51.8,
+    0,
+    27.6,
+    17
+   ],
+   [
+    83.9,
+    0,
+    39.1,
+    17
+   ],
+   [
+    127.5,
+    0,
+    50.7,
+    17
+   ],
+   [
+    48.9,
+    18,
+    45.4,
+    17
+   ],
+   [
+    98.7,
+    18,
+    18.7,
+    17
+   ],
+   [
+    121.8,
+    18,
+    22.3,
+    17
+   ],
+   [
+    148.5,
+    18,
+    32.6,
+    17
+   ]
+  ]
+ ],
+ "balance-float": [
+  [
+   [
+    40,
+    0,
+    27.6,
+    17
+   ],
+   [
+    72,
+    0,
+    39.1,
+    17
+   ],
+   [
+    115.6,
+    0,
+    50.7,
+    17
+   ],
+   [
+    40,
+    18,
+    45.4,
+    17
+   ],
+   [
+    89.8,
+    18,
+    18.7,
+    17
+   ],
+   [
+    112.9,
+    18,
+    22.3,
+    17
+   ],
+   [
+    139.6,
+    18,
+    32.6,
+    17
+   ]
+  ]
+ ],
+ "balance-indent": [
+  [
+   [
+    40,
+    0,
+    27.6,
+    17
+   ],
+   [
+    72,
+    0,
+    39.1,
+    17
+   ],
+   [
+    115.6,
+    0,
+    50.7,
+    17
+   ],
+   [
+    0,
+    18,
+    45.4,
+    17
+   ],
+   [
+    49.8,
+    18,
+    18.7,
+    17
+   ],
+   [
+    72.9,
+    18,
+    22.3,
+    17
+   ],
+   [
+    99.6,
+    18,
+    32.6,
+    17
+   ],
+   [
+    136.7,
+    18,
+    39.2,
+    17
+   ]
+  ]
+ ],
+ "balance-br": [
+  [
+   [
+    0,
+    0,
+    27.6,
+    17
+   ],
+   [
+    32,
+    0,
+    39.1,
+    17
+   ],
+   [
+    0,
+    18,
+    50.7,
+    17
+   ],
+   [
+    55.2,
+    18,
+    45.4,
+    17
+   ],
+   [
+    0,
+    36,
+    18.7,
+    17
+   ],
+   [
+    23.1,
+    36,
+    22.3,
+    17
+   ],
+   [
+    49.8,
+    36,
+    32.6,
+    17
+   ],
+   [
+    86.9,
+    36,
+    11.6,
+    17
+   ]
+  ]
+ ],
+ "balance-shrink": [
+  [
+   [
+    0,
+    0,
+    27.6,
+    17
+   ],
+   [
+    32,
+    0,
+    39.1,
+    17
+   ],
+   [
+    75.6,
+    0,
+    50.7,
+    17
+   ],
+   [
+    0,
+    18,
+    45.4,
+    17
+   ],
+   [
+    49.8,
+    18,
+    18.7,
+    17
+   ],
+   [
+    72.9,
+    18,
+    22.3,
+    17
+   ],
+   [
+    99.6,
+    18,
+    32.6,
+    17
+   ]
+  ]
+ ],
+ "balance-flexitem": [
+  [
+   [
+    0,
+    0,
+    27.6,
+    17
+   ],
+   [
+    32,
+    0,
+    39.1,
+    17
+   ],
+   [
+    75.6,
+    0,
+    50.7,
+    17
+   ],
+   [
+    0,
+    18,
+    45.4,
+    17
+   ],
+   [
+    49.8,
+    18,
+    18.7,
+    17
+   ],
+   [
+    72.9,
+    18,
+    22.3,
+    17
+   ],
+   [
+    99.6,
+    18,
+    32.6,
+    17
+   ]
+  ]
+ ],
+ "balance-atomic": [
+  [
+   [
+    0,
+    0,
+    27.6,
+    17
+   ],
+   [
+    32,
+    0,
+    39.1,
+    17
+   ],
+   [
+    75.6,
+    4,
+    50,
+    10
+   ],
+   [
+    130.1,
+    0,
+    50.7,
+    17
+   ],
+   [
+    0,
+    18,
+    45.4,
+    17
+   ],
+   [
+    49.8,
+    18,
+    18.7,
+    17
+   ],
+   [
+    72.9,
+    18,
+    22.3,
+    17
+   ],
+   [
+    99.6,
+    18,
+    32.6,
+    17
+   ]
+  ]
+ ],
+ "pretty-inline": [
+  [
+   [
+    0,
+    0,
+    27.6,
+    17
+   ],
+   [
+    32,
+    0,
+    39.1,
+    17
+   ],
+   [
+    75.6,
+    0,
+    50.7,
+    17
+   ],
+   [
+    130.8,
+    0,
+    45.4,
+    17
+   ],
+   [
+    180.6,
+    0,
+    18.7,
+    17
+   ],
+   [
+    0,
+    18,
+    22.3,
+    17
+   ],
+   [
+    26.7,
+    18,
+    33.5,
+    17
+   ]
+  ]
+ ],
+ "pct-height-in-pct-height": [
+  [
+   [
+    0,
+    0,
+    112.5,
+    20
+   ],
+   [
+    0,
+    0,
+    112.5,
+    20
+   ]
+  ]
+ ],
+ "pct-height-auto-chain": [
+  [
+   [
+    0,
+    0,
+    0,
+    40
+   ],
+   [
+    0,
+    0,
+    0,
+    18
+   ],
+   [
+    0,
+    14,
+    0,
+    0
+   ]
+  ]
+ ],
+ "pct-height-min-height": [
+  [
+   [
+    0,
+    0,
+    0,
+    80
+   ],
+   [
+    0,
+    14,
+    0,
+    0
+   ]
+  ]
+ ],
+ "pct-height-table": [
+  [
+   [
+    0,
+    0,
+    2,
+    40
+   ],
+   [
+    0,
+    40,
+    400,
+    1
+   ]
+  ]
+ ]
+}
