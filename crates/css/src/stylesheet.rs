@@ -4,7 +4,7 @@
 //! values stay as component values; the style crate parses them.
 //!
 //! Supported rules: style rules, `@media`, `@supports`, `@import`,
-//! `@font-face`, `@keyframes` (kept for the CSSOM; swb runs no animations)
+//! `@font-face`, `@keyframes` and its alias `@-webkit-keyframes`
 //! and the cascade layer rules: `@layer` blocks ([`LayerBlockRule`], named
 //! or anonymous, with the rules inside) and `@layer` statements
 //! ([`LayerStatementRule`]); `@import` keeps its `layer` and `layer(name)`.
@@ -12,10 +12,10 @@
 //! the order (CSS Cascade 5, <https://www.w3.org/TR/css-cascade-5/#layering>).
 //! `@container` ([`ContainerRule`], ADR 0038) keeps its condition and rules.
 //! `@charset` is ignored. All other at-rules (`@page`, `@namespace`,
-//! `@counter-style`, `@property`, `@-webkit-keyframes` and unknown ones)
-//! are dropped.
+//! `@counter-style` and unknown ones) are dropped.
 
 use std::fmt;
+use std::sync::Arc;
 
 use crate::container::ContainerCondition;
 use crate::cursor::Parser;
@@ -45,8 +45,9 @@ pub enum CssRule {
     FontFace(FontFaceRule),
     /// `@supports`.
     Supports(SupportsRule),
-    /// `@keyframes`.
-    Keyframes(KeyframesRule),
+    /// `@keyframes` or `@-webkit-keyframes`, shared with the stylists that
+    /// collect it.
+    Keyframes(Arc<KeyframesRule>),
     /// `@layer name { ... }` and `@layer { ... }`.
     LayerBlock(LayerBlockRule),
     /// `@layer a, b.c;`.
@@ -267,21 +268,27 @@ pub struct SupportsRule {
     pub rules: Vec<CssRule>,
 }
 
-/// An `@keyframes` rule (CSS Animations 1 §4). swb runs no animations; the
-/// rule exists for the CSSOM (`CSSKeyframesRule`).
+/// An `@keyframes` rule (CSS Animations 1 §4,
+/// <https://drafts.csswg.org/css-animations-1/#keyframes>), also written
+/// `@-webkit-keyframes` (an alias in Chromium 148: the same rule type, its
+/// `cssText` keeps the prefix).
 #[derive(Clone, Debug, PartialEq)]
 pub struct KeyframesRule {
     /// The name: an identifier or a string.
     pub name: String,
     /// The keyframes that have valid selectors, in source order.
     pub keyframes: Vec<Keyframe>,
+    /// True if written `@-webkit-keyframes`.
+    pub webkit_prefixed: bool,
 }
 
 /// One keyframe of an `@keyframes` rule.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Keyframe {
-    /// The offsets in percent (`from` is 0, `to` 100), in source order.
-    pub keys: Vec<f32>,
+    /// The offsets in percent (`from` is 0, `to` 100), in source order, in
+    /// `f64` as Chromium keeps them (`33.3%` is the offset
+    /// 0.33299999999999996).
+    pub keys: Vec<f64>,
     /// The declarations.
     pub declarations: Vec<Declaration>,
 }

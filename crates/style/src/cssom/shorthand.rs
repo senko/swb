@@ -52,6 +52,10 @@ pub(crate) fn expand(
         Kind::Transition => {
             expand_transition(tokens).map(|texts| texts.into_iter().map(Value::Text).collect())
         }
+        Kind::Animation => crate::animation::properties::expand_animation(tokens)
+            .map(|texts| texts.into_iter().map(Value::Text).collect()),
+        Kind::AnimationRange => crate::animation::properties::expand_range(tokens)
+            .map(|texts| texts.into_iter().map(Value::Text).collect()),
         Kind::BorderImage | Kind::Opaque => None,
     };
     values
@@ -750,6 +754,8 @@ pub(crate) fn value_of(index: usize, def: &Shorthand, values: &[&Value]) -> Stri
         Kind::Container => container_value(get(0), get(1)),
         Kind::WhiteSpace => white_space_value(get(0), get(1)),
         Kind::Transition => transition_value(&t),
+        Kind::Animation => crate::animation::properties::animation_value(&t),
+        Kind::AnimationRange => crate::animation::properties::range_value(get(0), get(1)),
         Kind::BorderImage => {
             if t.iter().all(|s| *s == "initial") {
                 "initial".to_owned()

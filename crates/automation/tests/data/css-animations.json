@@ -1,0 +1,175 @@
+{
+  "hero-reveal": [
+    "hero-video-in:paused:0 | hero-title-in:paused:0 | hero-outline-in:paused:0",
+    "opacity:0 ; transform:matrix(0.99, 0, 0, 0.99, 0, 12) ; animation-play-state:paused ; animation-delay:0.9s ; animation-fill-mode:both ; animation-timing-function:cubic-bezier(0.2, 0.8, 0.2, 1)",
+    "color:rgb(31, 29, 27) ; animation-play-state:paused",
+    "hero-video-in:running:0 | hero-title-in:running:0 | hero-outline-in:running:0",
+    "hero-video-in {\"delay\":300,\"endDelay\":0,\"fill\":\"both\",\"iterationStart\":0,\"iterations\":1,\"duration\":1100,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":1400.0000000000002,\"activeDuration\":1100}\nhero-title-in {\"delay\":300,\"endDelay\":0,\"fill\":\"both\",\"iterationStart\":0,\"iterations\":1,\"duration\":1100,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":1400.0000000000002,\"activeDuration\":1100}\nhero-outline-in {\"delay\":300,\"endDelay\":0,\"fill\":\"both\",\"iterationStart\":0,\"iterations\":1,\"duration\":1100,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":1400.0000000000002,\"activeDuration\":1100}",
+    "0 opacity:0 ; transform:matrix(0.99, 0, 0, 0.99, 0, 12)\n299 opacity:0 ; transform:matrix(0.99, 0, 0, 0.99, 0, 12)\n300 opacity:0 ; transform:matrix(0.99, 0, 0, 0.99, 0, 12)\n350 opacity:0.183855 ; transform:matrix(0.991839, 0, 0, 0.991839, 0, 9.79374)\n850 opacity:0.946079 ; transform:matrix(0.999461, 0, 0, 0.999461, 0, 0.647046)\n1400 opacity:1 ; transform:matrix(1, 0, 0, 1, 0, 0)\n1401 opacity:1 ; transform:matrix(1, 0, 0, 1, 0, 0)\n2000 opacity:1 ; transform:matrix(1, 0, 0, 1, 0, 0)",
+    "0 color:rgb(31, 29, 27)\n300 color:rgb(31, 29, 27)\n850 color:rgb(201, 191, 174)\n1400 color:rgb(243, 231, 210)\n2000 color:rgb(243, 231, 210)",
+    "0 -webkit-text-stroke-color:rgb(31, 29, 27)\n300 -webkit-text-stroke-color:rgb(31, 29, 27)\n850 -webkit-text-stroke-color:rgb(201, 191, 174)\n1400 -webkit-text-stroke-color:rgb(243, 231, 210)\n2000 -webkit-text-stroke-color:rgb(243, 231, 210)",
+    null
+  ],
+  "hero-reveal-default-delay": [
+    "hero-video-in:running:0 | hero-title-in:running:0 | hero-outline-in:running:0 | {\"delay\":900,\"endDelay\":0,\"fill\":\"both\",\"iterationStart\":0,\"iterations\":1,\"duration\":1100,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":2000,\"activeDuration\":1100} {\"delay\":900,\"endDelay\":0,\"fill\":\"both\",\"iterationStart\":0,\"iterations\":1,\"duration\":1100,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":2000,\"activeDuration\":1100} {\"delay\":900,\"endDelay\":0,\"fill\":\"both\",\"iterationStart\":0,\"iterations\":1,\"duration\":1100,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":2000,\"activeDuration\":1100}",
+    "0 opacity:0 ; transform:matrix(0.99, 0, 0, 0.99, 0, 12)\n899 opacity:0 ; transform:matrix(0.99, 0, 0, 0.99, 0, 12)\n900 opacity:0 ; transform:matrix(0.99, 0, 0, 0.99, 0, 12)\n1450 opacity:0.946079 ; transform:matrix(0.999461, 0, 0, 0.999461, 0, 0.647046)\n2000 opacity:1 ; transform:matrix(1, 0, 0, 1, 0, 0)\n2001 opacity:1 ; transform:matrix(1, 0, 0, 1, 0, 0)"
+  ],
+  "marquee": [
+    "marquee:running:0",
+    "0 transform:matrix(1, 0, 0, 1, -579, 0)\n1000 transform:matrix(1, 0, 0, 1, -559.7, 0)\n7500 transform:matrix(1, 0, 0, 1, -434.25, 0)\n15000 transform:matrix(1, 0, 0, 1, -289.5, 0)\n29999 transform:matrix(1, 0, 0, 1, -0.0193, 0)\n30000 transform:matrix(1, 0, 0, 1, -579, 0)\n37500 transform:matrix(1, 0, 0, 1, -434.25, 0)\n60000 transform:matrix(1, 0, 0, 1, -579, 0)\n95000 transform:matrix(1, 0, 0, 1, -482.5, 0)",
+    "{\"delay\":0,\"endDelay\":0,\"fill\":\"none\",\"iterationStart\":0,\"iterations\":null,\"duration\":30000,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":null,\"activeDuration\":null} 3 0.16666666666666652",
+    "{\"delay\":0,\"endDelay\":0,\"fill\":\"none\",\"iterationStart\":0,\"iterations\":null,\"duration\":30000,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":null,\"activeDuration\":null} 1 0.25"
+  ],
+  "spin-implicit-from": [
+    "0 transform:matrix(1, 0, 0, 1, 0, 0) ; rotate:none\n125 transform:matrix(0.707107, 0.707107, -0.707107, 0.707107, 0, 0) ; rotate:none\n250 transform:matrix(0, 1, -1, 0, 0, 0) ; rotate:none\n500 transform:matrix(-1, 0, 0, -1, 0, 0) ; rotate:none\n750 transform:matrix(0, -1, 1, 0, 0, 0) ; rotate:none\n999 transform:matrix(0.99998, -0.00628314, 0.00628314, 0.99998, 0, 0) ; rotate:none\n1000 transform:matrix(1, 0, 0, 1, 0, 0) ; rotate:none\n1250 transform:matrix(0, 1, -1, 0, 0, 0) ; rotate:none",
+    "0 transform:matrix(1, 0, 0, 1, 10, 0)\n250 transform:matrix(1, 0, 0, 1, 7.5, 0)\n500 transform:matrix(1, 0, 0, 1, 5, 0)\n1000 transform:matrix(1, 0, 0, 1, 10, 0)"
+  ],
+  "spinner-steps": [
+    "8 {\"delay\":0,\"endDelay\":0,\"fill\":\"none\",\"iterationStart\":0,\"iterations\":null,\"duration\":1000,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":null,\"activeDuration\":null},{\"delay\":125,\"endDelay\":0,\"fill\":\"none\",\"iterationStart\":0,\"iterations\":null,\"duration\":1000,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":null,\"activeDuration\":null}",
+    "0 opacity:1\n1 opacity:1\n124 opacity:1\n125 opacity:0.875\n126 opacity:0.875\n499 opacity:0.625\n500 opacity:0.5\n999 opacity:0.125\n1000 opacity:1\n1124 opacity:1\n1125 opacity:0.875\n2500 opacity:0.5",
+    "0 opacity:0.5\n374 opacity:0.5\n375 opacity:1\n376 opacity:1\n499 opacity:1\n500 opacity:0.875\n875 opacity:0.5\n1374 opacity:0.125\n1375 opacity:1\n1400 opacity:1\n2375 opacity:1",
+    "0 opacity:0.5\n500 opacity:0.5\n874 opacity:0.5\n875 opacity:1\n876 opacity:1\n1000 opacity:0.875\n1875 opacity:1\n2000 opacity:0.875",
+    "opacity:0.5 ; animation-name:none",
+    "animation-timing-function:steps(8) ; animation-delay:0.125s ; animation-duration:1s ; animation-iteration-count:infinite"
+  ],
+  "bars-grow": [
+    "grow-bar:paused:0 | grow-bar:paused:0 | horizontal-grow-bar:paused:0",
+    "width:0px ; animation-play-state:paused / width:0px",
+    "grow-bar:running:0 | grow-bar:running:0 | horizontal-grow-bar:running:0",
+    "{\"delay\":0,\"endDelay\":0,\"fill\":\"forwards\",\"iterationStart\":0,\"iterations\":1,\"duration\":3250,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":3250,\"activeDuration\":3250}\n{\"delay\":0,\"endDelay\":0,\"fill\":\"forwards\",\"iterationStart\":0,\"iterations\":1,\"duration\":1010,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":1010,\"activeDuration\":1010}\n{\"delay\":0,\"endDelay\":0,\"fill\":\"forwards\",\"iterationStart\":0,\"iterations\":1,\"duration\":1000,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":1000,\"activeDuration\":1000}",
+    "0 #b1 {width:0px} #b2 {width:0px}\n100 #b1 {width:20.4688px} #b2 {width:19.7812px}\n253 #b1 {width:50.5px} #b2 {width:47.1094px}\n505 #b1 {width:97.5156px} #b2 {width:85.1562px}\n1010 #b1 {width:183.703px} #b2 {width:124.391px}\n1011 #b1 {width:183.859px} #b2 {width:124.391px}\n1625 #b1 {width:273.844px} #b2 {width:124.391px}\n3250 #b1 {width:400px} #b2 {width:124.391px}\n3251 #b1 {width:400px} #b2 {width:124.391px}\n5000 #b1 {width:400px} #b2 {width:124.391px}",
+    "0 #v1 {height:0px}\n100 #v1 {height:9.625px}\n500 #v1 {height:41.0781px}\n1000 #v1 {height:60px}\n1500 #v1 {height:60px}"
+  ],
+  "shimmer": [
+    "0 background-position:200% 0px ; background-size:200%\n625 background-position:100% 0px ; background-size:200%\n1250 background-position:0% 0px ; background-size:200%\n1875 background-position:-100% 0px ; background-size:200%\n2499 background-position:-199.84% 0px ; background-size:200%\n2500 background-position:200% 0px ; background-size:200%\n3125 background-position:100% 0px ; background-size:200%\n5000 background-position:200% 0px ; background-size:200%",
+    "animation-duration:2.5s ; animation-iteration-count:infinite ; animation-timing-function:linear ; -webkit-background-clip:text",
+    null
+  ],
+  "easings": [
+    "e-ease ease\ne-ease-in ease-in\ne-ease-out ease-out\ne-ease-in-out ease-in-out\ne-linear linear\ne-soft cubic-bezier(0.2, 0.8, 0.2, 1)\ne-fast cubic-bezier(0.45, 0.15, 0.6, 0.9)\ne-in cubic-bezier(0.4, 0, 1, 1)\ne-inout cubic-bezier(0.4, 0, 0.2, 1)\ne-out cubic-bezier(0, 0, 0.2, 1)\ne-smooth cubic-bezier(0.25, 0.8, 0.4, 1)\ne-over cubic-bezier(0.3, 1.6, 0.6, 1)\ne-steps8end steps(8)\ne-steps4start steps(4, start)\ne-steps3both steps(3, jump-both)\ne-steps3none steps(3, jump-none)\ne-lin3 linear(0 0%, 0.25 25%, 1 100%)\ne-lin4 linear(0 0%, 0.5 30%, 0.5 60%, 1 100%)\ne-linover linear(0 0%, -24 20%, 16 40%, -8 60%, 4 80%, 1 100%)\ne-lin-unplaced linear(0 0%, 1 33.3333%, 0 66.6667%, 1 100%)",
+    "0 ease=0px ease-in=0px ease-out=0px ease-in-out=0px linear=0px soft=0px fast=0px in=0px inout=0px out=0px smooth=0px over=0px steps8end=0px steps4start=25px steps3both=25px steps3none=0px lin3=0px lin4=0px linover=0px lin-unplaced=0px\n50 ease=3.29515px ease-in=0.447462px ease-out=8.22422px ease-in-out=0.482975px linear=5px soft=20.2241px fast=1.96168px in=0.487612px inout=0.577021px out=17.4678px smooth=15.5648px over=24.6699px steps8end=0px steps4start=25px steps3both=25px steps3none=0px lin3=5px lin4=8.33333px linover=-600px lin-unplaced=15px\n100 ease=9.47963px ease-in=1.70266px ease-out=16.0572px ease-in-out=1.97225px linear=10px soft=39.6694px fast=4.54084px in=1.83729px inout=2.5863px out=30.3848px smooth=30.0087px over=45.5171px steps8end=0px steps4start=25px steps3both=25px steps3none=0px lin3=10px lin4=16.6667px linover=-1200px lin-unplaced=30px\n200 ease=29.5244px ease-in=6.2282px ease-out=30.8366px ease-in-out=8.16599px linear=20px soft=68.1792px fast=11.7024px in=6.61514px inout=13.3947px out=50px smooth=54.2675px over=76.8724px steps8end=12.5px steps4start=25px steps3both=25px steps3none=0px lin3=20px lin4=33.3333px linover=-2400px lin-unplaced=60px\n250 ease=40.8511px ease-in=9.34647px ease-out=37.8138px ease-in-out=12.9162px linear=25px soft=76.7284px fast=16.3398px in=9.86266px inout=23.6587px out=57.7573px smooth=63.7808px over=87.9928px steps8end=25px steps4start=50px steps3both=25px steps3none=0px lin3=25px lin4=41.6667px linover=-1400px lin-unplaced=75px\n333 ease=57.5268px ease-in=15.5889px ease-out=48.7924px ease-in-out=23.1311px linear=33.3px soft=85.7875px fast=25.6016px in=16.2969px inout=45.6377px out=68.471px smooth=75.9552px over=100.845px steps8end=25px steps4start=50px steps3both=25px steps3none=0px lin3=33.3px lin4=50px linover=260px lin-unplaced=99.9px\n500 ease=80.2403px ease-in=31.5357px ease-out=68.4643px ease-in-out=50px linear=50px soft=94.6079px fast=49.0257px in=32.4815px inout=77.5561px out=83.9245px smooth=90.2843px over=110.812px steps8end=50px steps4start=75px steps3both=50px steps3none=50px lin3=50px lin4=50px linover=400px lin-unplaced=50px\n667 ease=92.4995px ease-in=51.2076px ease-out=84.4111px ease-in-out=76.8689px linear=66.7px soft=98.216px fast=73.5017px in=52.14px inout=92.0965px out=93.4209px smooth=96.7573px over=108.556px steps8end=62.5px steps4start=75px steps3both=75px steps3none=100px lin3=66.7px lin4=58.375px linover=-398px lin-unplaced=0.1px\n750 ease=96.0459px ease-in=62.1862px ease-out=90.6535px ease-in-out=87.0838px linear=75px soft=99.1108px fast=83.5572px in=63.0085px inout=95.9368px out=96.4216px smooth=98.3885px over=105.711px steps8end=75px steps4start=100px steps3both=75px steps3none=100px lin3=75px lin4=68.75px linover=100px lin-unplaced=25px\n800 ease=97.5625px ease-in=69.1634px ease-out=93.7718px ease-in-out=91.834px linear=80px soft=99.4687px fast=88.5506px in=69.8843px inout=97.5267px out=97.7559px smooth=99.0399px over=103.966px steps8end=75px steps4start=100px steps3both=75px steps3none=100px lin3=80px lin4=75px linover=400px lin-unplaced=40px\n900 ease=99.4316px ease-in=83.9428px ease-out=98.2973px ease-in-out=98.0278px linear=90px soft=99.883px fast=95.9446px in=84.375px inout=99.4354px out=99.4601px smooth=99.7902px over=101.131px steps8end=87.5px steps4start=100px steps3both=75px steps3none=100px lin3=90px lin4=87.5px linover=250px lin-unplaced=70px\n950 ease=99.8625px ease-in=91.7758px ease-out=99.5525px ease-in-out=99.517px linear=95px soft=99.9724px fast=98.3698px in=92.0148px inout=99.8646px out=99.8675px smooth=99.9508px over=100.298px steps8end=87.5px steps4start=100px steps3both=75px steps3none=100px lin3=95px lin4=93.75px linover=175px lin-unplaced=85px\n1000 ease=100px ease-in=100px ease-out=100px ease-in-out=100px linear=100px soft=100px fast=100px in=100px inout=100px out=100px smooth=100px over=100px steps8end=100px steps4start=100px steps3both=100px steps3none=100px lin3=100px lin4=100px linover=100px lin-unplaced=100px"
+  ],
+  "easing-in-keyframes": [
+    "0 left:0px\n100 left:0px\n250 left:25px\n499 left:25px\n500 left:50px\n600 left:53.1141px\n750 left:65.7678px\n900 left:84.5817px\n1000 left:100px"
+  ],
+  "fill-modes": [
+    "0 none=1 forwards=1 backwards=0.2 both=0.2\n250 none=1 forwards=1 backwards=0.2 both=0.2\n499 none=1 forwards=1 backwards=0.2 both=0.2\n500 none=0.2 forwards=0.2 backwards=0.2 both=0.2\n750 none=0.35 forwards=0.35 backwards=0.35 both=0.35\n1000 none=0.5 forwards=0.5 backwards=0.5 both=0.5\n1499 none=0.7994 forwards=0.7994 backwards=0.7994 both=0.7994\n1500 none=1 forwards=0.8 backwards=1 both=0.8\n2000 none=1 forwards=0.8 backwards=1 both=0.8",
+    "o forwards 1\no both 1"
+  ],
+  "iteration-direction": [
+    "0 n25=0px rev=100px alt=0px altrev=100px inf=0px zero=0px\n250 n25=25px rev=75px alt=25px altrev=75px inf=25px zero=0px\n999 n25=99.9px rev=0.1px alt=99.9px altrev=0.1px inf=99.9px zero=0px\n1000 n25=0px rev=100px alt=100px altrev=0px inf=100px zero=0px\n1250 n25=25px rev=75px alt=75px altrev=25px inf=75px zero=0px\n1999 n25=99.9px rev=0.1px alt=0.1px altrev=99.9px inf=0.1px zero=0px\n2000 n25=0px rev=0px alt=0px altrev=100px inf=0px zero=0px\n2250 n25=25px rev=0px alt=25px altrev=75px inf=25px zero=0px\n2499 n25=49.9px rev=0px alt=49.9px altrev=50.1px inf=49.9px zero=0px\n2500 n25=50px rev=0px alt=50px altrev=50px inf=50px zero=0px\n2750 n25=50px rev=0px alt=75px altrev=25px inf=75px zero=0px\n3500 n25=50px rev=0px alt=100px altrev=0px inf=50px zero=0px\n10250 n25=50px rev=0px alt=100px altrev=0px inf=25px zero=0px",
+    "i-n25 2 0.25\ni-rev 1 0\ni-alt 2 0.25\ni-altrev 2 0.75\ni-inf 2 0.25\ni-zero 0 0"
+  ],
+  "animation-shorthand": [
+    ".1s ease-in forwards fade-in => fade-in ; 0.1s ; ease-in ; 0s ; 1 ; normal ; forwards ; running [0.1s ease-in 0s 1 normal forwards running fade-in]\n.3s ease-out slideDown => slideDown ; 0.3s ; ease-out ; 0s ; 1 ; normal ; none ; running [0.3s ease-out 0s 1 normal none running slideDown]\n.3s ease-in-out both fade-in => fade-in ; 0.3s ; ease-in-out ; 0s ; 1 ; normal ; both ; running [0.3s ease-in-out 0s 1 normal both running fade-in]\n2.5s linear infinite shimmerText => shimmerText ; 2.5s ; linear ; 0s ; infinite ; normal ; none ; running [2.5s linear 0s infinite normal none running shimmerText]\nhero-video-in 1.1s cubic-bezier(.2, .8, .2, 1) .9s both paused => hero-video-in ; 1.1s ; cubic-bezier(0.2, 0.8, 0.2, 1) ; 0.9s ; 1 ; normal ; both ; paused [1.1s cubic-bezier(0.2, 0.8, 0.2, 1) 0.9s 1 normal both paused hero-video-in]\nmarquee 30s linear infinite => marquee ; 30s ; linear ; 0s ; infinite ; normal ; none ; running [30s linear 0s infinite normal none running marquee]\nmedia-spinner-fade 1s steps(8, end) infinite => media-spinner-fade ; 1s ; steps(8) ; 0s ; infinite ; normal ; none ; running [1s steps(8) 0s infinite normal none running media-spinner-fade]\ngrow-bar 1.5s ease-out forwards => grow-bar ; 1.5s ; ease-out ; 0s ; 1 ; normal ; forwards ; running [1.5s ease-out 0s 1 normal forwards running grow-bar]\nspin 1s linear infinite => spin ; 1s ; linear ; 0s ; infinite ; normal ; none ; running [1s linear 0s infinite normal none running spin]\na 1s, b 2s 1s reverse => a, b ; 1s, 2s ; ease, ease ; 0s, 1s ; 1, 1 ; normal, reverse ; none, none ; running, running [1s ease 0s 1 normal none running a, 2s ease 1s 1 reverse none running b]\nnone => none ; 0s ; ease ; 0s ; 1 ; normal ; none ; running [auto ease 0s 1 normal none running none]\n1s 2s => none ; 1s ; ease ; 2s ; 1 ; normal ; none ; running [1s ease 2s 1 normal none running none]\nease-in 2s a => a ; 2s ; ease-in ; 0s ; 1 ; normal ; none ; running [2s ease-in 0s 1 normal none running a]",
+    "a/1s none/0s b"
+  ],
+  "events-single": [
+    "animationstart a 0 - e1 true true AnimationEvent\nanimationiteration a 0.08 - e1 true true AnimationEvent\nanimationend a 0.16 - e1 true true AnimationEvent"
+  ],
+  "events-two-elements-two-animations": [
+    "animationstart a 0 - e1 true true AnimationEvent\nanimationstart b 0 - e1 true true AnimationEvent\nanimationstart c 0 - e2 true true AnimationEvent\nanimationend a 0.08 - e1 true true AnimationEvent\nanimationend c 0.08 - e2 true true AnimationEvent\nanimationend b 0.12 - e1 true true AnimationEvent"
+  ],
+  "events-cancel": [
+    "animationstart a 0 - e1 true true AnimationEvent\nanimationstart b 0 - e2 true true AnimationEvent\nanimationcancel a ~ - e1 true true AnimationEvent\nanimationcancel b ~ - e2 true true AnimationEvent\nanimationcancel c ~ - e3 true true AnimationEvent",
+    "0 0 1\nanimationstart a 0 - e1 true true AnimationEvent\nanimationcancel a ~ - e1 true true AnimationEvent\nanimationstart b 0 - e1 true true AnimationEvent\nanimationend b 0.06 - e1 true true AnimationEvent"
+  ],
+  "events-restart-and-pause": [
+    "animationstart a 0 - e1 true true AnimationEvent\nanimationstart a 0 - e1 true true AnimationEvent|animationend a 0.2 - e1 true true AnimationEvent",
+    "animationstart a 0 - e1 true true AnimationEvent\nanimationcancel a ~ - e1 true true AnimationEvent\nanimationstart b 0 - e1 true true AnimationEvent\nanimationend b 0.05 - e1 true true AnimationEvent"
+  ],
+  "animation-api": [
+    "function function function function function function function function function object function function",
+    "3 1 0 0 3",
+    "CSSAnimation true true k running true true active true KeyframeEffect a  false true",
+    "[{\"offset\":0,\"easing\":\"linear\",\"composite\":\"auto\",\"opacity\":\"0.2\",\"transform\":\"translateX(0px)\",\"computedOffset\":0},{\"offset\":0.5,\"easing\":\"linear\",\"composite\":\"auto\",\"opacity\":\"0.7\",\"computedOffset\":0.5},{\"offset\":1,\"easing\":\"linear\",\"composite\":\"auto\",\"opacity\":\"1\",\"transform\":\"translateX(30px)\",\"computedOffset\":1}]",
+    "{\"delay\":1000,\"endDelay\":0,\"fill\":\"both\",\"iterationStart\":0,\"iterations\":3,\"duration\":2000,\"direction\":\"alternate\",\"easing\":\"linear\",\"endTime\":7000,\"activeDuration\":6000} {\"delay\":1000,\"direction\":\"alternate\",\"duration\":2000,\"easing\":\"linear\",\"endDelay\":0,\"fill\":\"both\",\"iterationStart\":0,\"iterations\":3,\"activeDuration\":6000,\"currentIteration\":0,\"endTime\":7000,\"localTime\":0,\"progress\":0}",
+    "500  paused 0 0.2",
+    "1500 0 0.25 0.45",
+    "0 0.75 0.85",
+    "1 1 paused",
+    "running false finished 7000 1",
+    "false 0 100 paused 0",
+    "rejected AbortError idle 0 1",
+    "1 finished 0",
+    "paused true 400 paused 0.6"
+  ],
+  "interp-colors": [
+    "c-red-blue 250=rgb(191, 0, 64) | 500=rgb(128, 0, 128)\nc-half 250=rgb(191, 0, 64) | 500=rgb(128, 0, 127)\nc-alpha 250=rgba(255, 0, 0, 0.75) | 500=rgba(255, 0, 0, 0.5)\nc-transparent 250=rgba(255, 255, 255, 0.25) | 500=rgba(255, 255, 255, 0.5)\nc-hsl 250=rgb(191, 0, 64) | 500=rgb(128, 0, 128)\nc-oklch 250=oklab(0.7 0.0414596 0.0289495) | 500=oklab(0.7 -0.00368336 0.00789899)\nc-p3 250=oklab(0.599426 0.188415 0.0308708) | 500=oklab(0.550278 0.11479 -0.0832604)\nc-legacy-lab 250=oklab(0.610977 0.183185 0.0537069 / 0.626471) | 500=oklab(0.599621 0.155315 0.0054796 / 0.75098)\nc-current 250=rgb(64, 96, 0) | 500=rgb(128, 64, 0)"
+  ],
+  "interp-color-current": [
+    "cc-current 500=rgb(128, 64, 0)"
+  ],
+  "interp-transforms": [
+    "t-match 250=matrix(0.92388, 0.382683, -0.382683, 0.92388, 32.5, 0) | 500=matrix(0.707107, 0.707107, -0.707107, 0.707107, 55, 0)\nt-mismatch 250=matrix(1.03934, 0.694463, -0.694463, 1.03934, 0, 0) | 500=matrix(1.38582, 0.574025, -0.574025, 1.38582, 0, 0)\nt-none-rotate 250=matrix(0, 1, -1, 0, 0, 0) | 500=matrix(-1, 0, 0, -1, 0, 0)\nt-rotate-720 250=matrix(-1, 0, 0, -1, 0, 0) | 500=matrix(1, 0, 0, 1, 0, 0)\nt-prefix 250=matrix(0.92388, 0.382683, -0.382683, 0.92388, 12.5, 0) | 500=matrix(0.707107, 0.707107, -0.707107, 0.707107, 15, 0)\nt-percent 250=matrix(1, 0, 0, 1, -75, 0) | 500=matrix(1, 0, 0, 1, -50, 0)\nt-flip 250=matrix(0.5, 0, 0, 1, 0, 0) | 500=matrix(0, 0, 0, 1, 0, 0)\nt-skew 250=matrix(1, 0, 0.267949, 1, 0, 0) | 500=matrix(1, 0, 0.57735, 1, 0, 0)\nt-matrix-180 250=matrix(0.707107, 0.707107, -0.707107, 0.707107, 0, 0) | 500=matrix(2.22045e-16, 1, -1, 2.22045e-16, 0, 0)\nt-translate-scale 250=matrix(0.625, 0, 0, 0.625, 0, 15) | 500=matrix(0.75, 0, 0, 0.75, 0, 10)"
+  ],
+  "interp-transform-decomposition": [
+    "d-flip-x 250=matrix(0.5, 0, 0, 1, 0, 0) | 500=matrix(0, 0, 0, 1, 0, 0)\nd-skew 250=matrix(1, 0, 0.25, 1, 0, 0) | 500=matrix(1, 0, 0.5, 1, 0, 0)\nd-reflect 250=matrix(0.707107, 0.707107, -0.353553, 0.353553, 0, 0) | 500=matrix(0.5, 0.866025, 0, 0, 0, 0)\nd-rotate-90 250=matrix(0.92388, 0.382683, -0.382683, 0.92388, 0, 0) | 500=matrix(0.707107, 0.707107, -0.707107, 0.707107, 0, 0)\nd-rotate-180 250=matrix(0.707107, 0.707107, -0.707107, 0.707107, 0, 0) | 500=matrix(2.22045e-16, 1, -1, 2.22045e-16, 0, 0)\nd-general 250=matrix(1.69037, 0.452933, 0.279018, 1.8865, 8.125, 16.0825) | 500=matrix(1.29904, 0.75, -0.375, 1.51554, 6.25, 12.1651)\nd-flip-rotate 250=matrix(-0.304381, 0.396677, -0.793353, -0.608761, 0, 0) | 500=matrix(-4.83812e-18, -5.52999e-17, -0.996195, 0.0871557, 0, 0)"
+  ],
+  "easing-precision-duration": [
+    "a1 0.01=0.0401548 0.05=0.202241 0.3=0.827631 0.45=0.927591 0.5=0.946079 0.55=0.960307 0.9=0.99883\na2 0.01=0.0401548 0.05=0.202241 0.3=0.827631 0.45=0.927591 0.5=0.946079 0.55=0.960307 0.9=0.99883\na3 0.01=0.0401548 0.05=0.202241 0.3=0.827631 0.45=0.927591 0.5=0.946079 0.55=0.960307 0.9=0.99883\nb1 0.01=4.16331e-05 0.05=0.00109249 0.3=0.0598132 0.45=0.233302 0.5=0.5 0.55=0.766698 0.9=0.995334\nb2 0.01=4.16331e-05 0.05=0.00109249 0.3=0.0598132 0.45=0.233302 0.5=0.5 0.55=0.766698 0.9=0.995334\nc1 0.01=0.00448782 0.05=0.0329515 0.3=0.513315 0.45=0.747853 0.5=0.802403 0.55=0.847752 0.9=0.994316\nc2 0.01=0.00448782 0.05=0.0329515 0.3=0.513315 0.45=0.747853 0.5=0.802403 0.55=0.847752 0.9=0.994316"
+  ],
+  "interp-individual-transforms": [
+    "500 #r1 {rotate:45deg} #r2 {rotate:22.5deg}",
+    "500 #s1 {scale:1.5 2} #s2 {scale:1.5}",
+    "500 #t1 {translate:5px 25%} #t2 {translate:10px}",
+    "500 translate:20px ; rotate:90deg ; scale:1.5 ; transform:matrix(1, 0, 0, 1, 5, 0)"
+  ],
+  "interp-filters": [
+    "f-pad 250=blur(2.5px) brightness(1.25) | 500=blur(5px) brightness(1.5)\nf-none-shadow 250=drop-shadow(rgba(255, 0, 0, 0.25) 1px 1px 0.5px) | 500=drop-shadow(rgba(255, 0, 0, 0.5) 2px 2px 1px)\nf-mismatch 250=grayscale(1) | 500=blur(4px)\nf-none-list 250=blur(2.5px) sepia(0.25) | 500=blur(5px) sepia(0.5)\nf-hue 250=hue-rotate(90deg) | 500=hue-rotate(180deg)"
+  ],
+  "interp-box-shadows": [
+    "sh-simple 250=rgb(191, 0, 64) 2.5px 2.5px 2.5px 1.25px | 500=rgb(128, 0, 128) 5px 5px 5px 2.5px\nsh-none 250=rgba(0, 0, 0, 0.125) 0px 1px 1.5px 0px, rgba(255, 0, 0, 0.25) 0px 0.5px 1px 0px | 500=rgba(0, 0, 0, 0.25) 0px 2px 3px 0px, rgba(255, 0, 0, 0.5) 0px 1px 2px 0px\nsh-inset 250=rgb(255, 0, 0) 0px 0px 5px 0px inset | 500=rgb(255, 0, 0) 0px 0px 5px 0px\nsh-lengths 250=rgb(191, 0, 64) 1.25px 1.25px 0px 0px, rgba(0, 128, 0, 0.25) 0.75px 0.75px 0px 0px | 500=rgb(128, 0, 128) 1.5px 1.5px 0px 0px, rgba(0, 128, 0, 0.5) 1.5px 1.5px 0px 0px\nsh-current 250=rgb(64, 96, 0) 0px 0px 4px 0px | 500=rgb(128, 64, 0) 0px 0px 4px 0px"
+  ],
+  "interp-text-shadows": [
+    "ts-simple 500=rgb(128, 0, 128) 2px 2px 1px\nts-none 500=rgba(0, 0, 0, 0.5) 1px 1px 0px"
+  ],
+  "interp-background-position": [
+    "bp-percent 250=25% 25% | 500=50% 50%\nbp-keywords 250=calc(25% - 2.5px) calc(25% - 5px) | 500=calc(50% - 5px) calc(50% - 10px)\nbp-mixed 250=calc(12.5% + 7.5px) calc(12.5% + 15px) | 500=calc(25% + 5px) calc(25% + 10px)\nbp-list 250=2.5px 2.5px | 500=5px 5px"
+  ],
+  "interp-background-size": [
+    "bs-lengths 250=calc(12.5% + 7.5px) 12.5px | 500=calc(25% + 5px) 15px\nbs-auto 250=auto | 500=100px\nbs-auto-pair 250=15px | 500=20px\nbs-cover 250=cover | 500=contain\nbs-mixed 250=calc(12.5% + 15px) 100% | 500=calc(25% + 10px) 100%"
+  ],
+  "interp-lengths-numbers": [
+    "ti 250=calc(12.5% + 7.5px) | 500=calc(25% + 5px)",
+    "wa 400=200px | 600=100px",
+    "lh 400=normal | 600=32px\nlhm 400=16px | 600=20px",
+    "fw 250=475 | 500=550\nzi 250=3 | 500=6 | 501=6",
+    "op 250=1 | 500=1\nwn 250=0px | 500=0px",
+    "vi 0=visible | 1=visible | 500=visible | 999=visible | 1000=hidden\nvi2 0=hidden | 1=visible | 500=visible | 999=visible | 1000=visible",
+    "ds 0=block | 400=block | 600=block | 1000=none\ncv 0=visible | 400=visible | 600=visible | 1000=hidden",
+    "0 fs=10px pad=10px child=20px\n500 fs=15px pad=15px child=30px",
+    "500 color=rgb(100, 50, 0) child=rgb(100, 50, 0) childBorder=rgb(100, 50, 0)",
+    "bw 100=1px | 250=1px | 500=1px | 900=2px",
+    "500 top:5px ; left:40px ; right:340px ; bottom:291px"
+  ],
+  "interp-custom-properties": [
+    "500 --len=50px width=50px child=50px",
+    "un 0=a | 400=a | 499=a | 500=b | 600=b | 1000=b",
+    "col 250=rgb(191, 0, 64) | 500=rgb(128, 0, 128)\ncol 500=rgb(128, 0, 128)",
+    "list 250=3.5px 7px | 500=6px 12px\nlist2 250=1px | 500=11px 22px",
+    "tl 500=rotate(45deg)\nnum 250=2.5\nnum 250=0.25",
+    "any 400=10px | 600=20px\nang 500=180deg",
+    "kv 500=20px\nafter --w1=50px: 30px",
+    "kvu 250=10px | 500=30px | 750=30px"
+  ],
+  "script-overrides": [
+    "paused paused paused",
+    "paused running running running",
+    "0 1 k2 k false idle",
+    "true 3000 20000 paused 0.15",
+    "2000 1000 0.1"
+  ],
+  "easing-progress-precision": [
+    "e1 0.1=0.0001 1=0.001 33.3=0.033299999999999996 50=0.05 66.7=0.06670000000000001 99.9=0.0999\ne2 0.1=0.0001 1=0.001 33.3=0.033299999999999996 50=0.05 66.7=0.06670000000000001 99.9=0.0999\ne3 0.1=0.0001 1=0.001 33.3=0.033299999999999996 50=0.05 66.7=0.06670000000000001 99.9=0.0999\ne4 0.1=0.0001 1=0.001 33.3=0.033299999999999996 50=0.05 66.7=0.06670000000000001 99.9=0.0999\ne5 0.1=0.0001 1=0.001 33.3=0.033299999999999996 50=0.05 66.7=0.06670000000000001 99.9=0.0999\ne6 0.1=0.0001 1=0.001 33.3=0.033299999999999996 50=0.05 66.7=0.06670000000000001 99.9=0.0999",
+    "1 e1=0.000404803 e2=0.0040016 e3=0.00532519 e4=0\n50 e1=0.0329515 e2=0.202241 e3=0.246699 e4=0\n99.9 e1=0.0946424 e2=0.396328 e3=0.45479 e4=0"
+  ],
+  "get-animations-order": [
+    "o1:background-color o1:color o1:font-size o1:left o1:opacity o2:b o2:a o3:a"
+  ],
+  "hostile-limits": [
+    "true true true true",
+    "10000 10000 10000",
+    "1000000000 0.598798"
+  ]
+}

@@ -93,10 +93,11 @@ pub(crate) enum Multiplier {
     Comma,
 }
 
+/// One alternative of a syntax: a component and its multiplier.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Term {
-    component: Component,
-    multiplier: Multiplier,
+    pub(crate) component: Component,
+    pub(crate) multiplier: Multiplier,
 }
 
 /// A syntax string: `*` or alternatives.
@@ -195,7 +196,13 @@ fn parse_term(part: &str) -> Option<Term> {
 }
 
 impl Term {
-    fn compute(&self, tokens: &[ComponentValue], lengths: &LengthContext) -> Option<String> {
+    /// The computed text of `tokens` for this term, or `None` if they do
+    /// not match it.
+    pub(crate) fn compute(
+        &self,
+        tokens: &[ComponentValue],
+        lengths: &LengthContext,
+    ) -> Option<String> {
         match self.multiplier {
             Multiplier::One => self.component.compute(tokens, lengths),
             Multiplier::Comma => {
@@ -218,7 +225,7 @@ impl Term {
 
 /// The items of a space-separated list: the runs between white space (a
 /// function is one item).
-fn space_items(tokens: &[ComponentValue]) -> Vec<&[ComponentValue]> {
+pub(crate) fn space_items(tokens: &[ComponentValue]) -> Vec<&[ComponentValue]> {
     tokens
         .split(ComponentValue::is_whitespace)
         .filter(|part| !part.is_empty())

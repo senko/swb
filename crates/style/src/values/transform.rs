@@ -2,6 +2,8 @@
 //! <https://www.w3.org/TR/css-transforms-1/>) and of `clip` (CSS 2.2
 //! §11.1.2, <https://www.w3.org/TR/CSS22/visufx.html#clipping>).
 
+use std::sync::Arc;
+
 use super::LengthPercentage;
 
 /// A 2D transform function
@@ -20,6 +22,29 @@ pub enum TransformFunction {
     Rotate(f32),
     /// `skew()`, `skewX()`, `skewY()`: the angles in degrees.
     Skew(f32, f32),
+    /// The value between two lists that interpolate as matrices but have a
+    /// percentage, which needs the reference box (ADR 0044 section 4): it
+    /// becomes a matrix at layout and in `getComputedStyle`.
+    Interpolated(Arc<InterpolatedTransform>),
+}
+
+/// Two transform lists and a progress between them, made into a matrix when
+/// the reference box is known ([`InterpolatedTransform::matrix`]: both lists
+/// as matrices, decomposed, interpolated, recomposed). A list may hold
+/// another such value (a transition that starts from an animated value);
+/// [`InterpolatedTransform::nodes`] bounds the nesting.
+#[derive(Clone, Debug, PartialEq)]
+pub struct InterpolatedTransform {
+    /// The list at progress 0.
+    pub from: Arc<[TransformFunction]>,
+    /// The list at progress 1.
+    pub to: Arc<[TransformFunction]>,
+    /// The progress (finite; may be outside 0 to 1).
+    pub progress: f64,
+    /// The number of interpolated values in this one, itself included: the
+    /// cost of making the matrix. At most
+    /// `animation::interpolate::transform::MAX_NODES`.
+    pub nodes: u32,
 }
 
 /// The computed `transform-origin`: the point the transform is applied

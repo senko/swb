@@ -19,6 +19,10 @@ use super::specified::{
 };
 use super::transform::{SpecifiedClip, SpecifiedTransform, SpecifiedTransformOrigin};
 use crate::ComputedStyle;
+use crate::animation::properties::{
+    AnimationName, Composition, IterationCount, PlayState, RangeItem,
+};
+use crate::animation::{Easing, FillMode, PlaybackDirection, Time};
 use crate::font_settings::{FontFeatureSettings, FontVariationSettings};
 use crate::parse::image::SpecifiedImage;
 use crate::values::{
@@ -40,18 +44,21 @@ use crate::values::{
 macro_rules! longhands {
     ($($id:ident $name:literal $kind:ident $field:ident: $spec:ty;)+
      ;
-     $($iid:ident $iname:literal: $ispec:ty;)+) => {
+     $($iid:ident $iname:literal: $ispec:ty;)+
+     ;
+     $($aid:ident $aname:literal: $aspec:ty;)+) => {
         /// A longhand property.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
         pub(crate) enum LonghandId {
             $($id,)+
-            $($iid),+
+            $($iid,)+
+            $($aid),+
         }
 
         impl LonghandId {
             /// All longhands, in declaration order.
             pub(crate) const ALL: &'static [LonghandId] =
-                &[$(LonghandId::$id,)+ $(LonghandId::$iid),+];
+                &[$(LonghandId::$id,)+ $(LonghandId::$iid,)+ $(LonghandId::$aid),+];
 
             /// The number of longhands.
             pub(crate) const COUNT: usize = Self::ALL.len();
@@ -61,6 +68,7 @@ macro_rules! longhands {
                 match name {
                     $($name => Some(LonghandId::$id),)+
                     $($iname => Some(LonghandId::$iid),)+
+                    $($aname => Some(LonghandId::$aid),)+
                     _ => None,
                 }
             }
@@ -69,7 +77,8 @@ macro_rules! longhands {
             pub(crate) fn name(self) -> &'static str {
                 match self {
                     $(LonghandId::$id => $name,)+
-                    $(LonghandId::$iid => $iname),+
+                    $(LonghandId::$iid => $iname,)+
+                    $(LonghandId::$aid => $aname),+
                 }
             }
 
@@ -77,7 +86,8 @@ macro_rules! longhands {
             pub(crate) fn is_inherited(self) -> bool {
                 match self {
                     $(LonghandId::$id => longhands!(@inherited $kind),)+
-                    $(LonghandId::$iid => false),+
+                    $(LonghandId::$iid => false,)+
+                    $(LonghandId::$aid => false),+
                 }
             }
 
@@ -87,6 +97,9 @@ macro_rules! longhands {
                 match self {
                     $(LonghandId::$id => to.$field.clone_from(&from.$field),)+
                     $(LonghandId::$iid)|+ => super::inert::copy_value(self, from, to),
+                    $(LonghandId::$aid)|+ => {
+                        crate::animation::properties::copy_value(self, from, to);
+                    }
                 }
                 // `white-space-collapse` and `text-wrap-mode` share one
                 // computed field: each copies only its half.
@@ -112,7 +125,8 @@ macro_rules! longhands {
         #[derive(Clone, Debug, PartialEq)]
         pub(crate) enum LonghandValue {
             $($id($spec),)+
-            $($iid($ispec)),+
+            $($iid($ispec),)+
+            $($aid($aspec)),+
         }
 
         impl LonghandValue {
@@ -120,7 +134,8 @@ macro_rules! longhands {
             pub(crate) fn id(&self) -> LonghandId {
                 match self {
                     $(LonghandValue::$id(_) => LonghandId::$id,)+
-                    $(LonghandValue::$iid(_) => LonghandId::$iid),+
+                    $(LonghandValue::$iid(_) => LonghandId::$iid,)+
+                    $(LonghandValue::$aid(_) => LonghandId::$aid),+
                 }
             }
         }
@@ -356,6 +371,22 @@ longhands! {
     ScrollPaddingRight "scroll-padding-right": Option<Lp>;
     ScrollPaddingBottom "scroll-padding-bottom": Option<Lp>;
     ScrollPaddingLeft "scroll-padding-left": Option<Lp>;
+
+    // Not inherited: the animation properties, in one shared record
+    // (`ComputedStyle::animations`, `animation/properties.rs`).
+    ;
+    AnimationName "animation-name": Arc<[AnimationName]>;
+    AnimationDuration "animation-duration": Arc<[Option<Time>]>;
+    AnimationTimingFunction "animation-timing-function": Arc<[Easing]>;
+    AnimationDelay "animation-delay": Arc<[Time]>;
+    AnimationIterationCount "animation-iteration-count": Arc<[IterationCount]>;
+    AnimationDirection "animation-direction": Arc<[PlaybackDirection]>;
+    AnimationFillMode "animation-fill-mode": Arc<[FillMode]>;
+    AnimationPlayState "animation-play-state": Arc<[PlayState]>;
+    AnimationComposition "animation-composition": Arc<[Composition]>;
+    AnimationTimeline "animation-timeline": Arc<[Arc<str>]>;
+    AnimationRangeStart "animation-range-start": Arc<[RangeItem]>;
+    AnimationRangeEnd "animation-range-end": Arc<[RangeItem]>;
 }
 
 #[cfg(test)]

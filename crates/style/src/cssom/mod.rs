@@ -46,6 +46,7 @@ use crate::properties::{CssWideKeyword, has_references, is_supported, parse_decl
 use props::{Property, TABLE};
 
 pub(crate) use value::format_number;
+pub(crate) use value::{Style as ValueStyle, serialize as serialize_value, split_commas};
 
 /// `rgb()` or `rgba()` as Chromium writes a computed color.
 pub(crate) fn rgba_text(c: crate::values::Rgba) -> String {
@@ -476,6 +477,23 @@ impl StyleDeclarations {
         Some((text, important.unwrap_or(false)))
     }
 
+    /// True if the value of shorthand `s` parses back to the values of its
+    /// longhands, so that `cssText` can write it: the cascade parses
+    /// `cssText` again. An `animation` whose layered lists differ in length
+    /// does not.
+    fn round_trips(&self, def: &props::Shorthand) -> bool {
+        if def.kind != props::Kind::Animation {
+            return true;
+        }
+        let texts: Vec<&str> = def
+            .longhands
+            .iter()
+            .filter_map(|l| self.entry(&Name::Longhand(TABLE.longhand(l)?)))
+            .map(|e| e.value.text())
+            .collect();
+        crate::animation::properties::lists_match(&texts)
+    }
+
     /// `getPropertyPriority(property)`: `"important"` or `""`.
     pub fn property_priority(&self, property: &str) -> &'static str {
         let property = Self::normalize(property);
@@ -558,7 +576,7 @@ impl StyleDeclarations {
                 let Some((value, important)) = self.shorthand_value(s) else {
                     continue;
                 };
-                if value.is_empty() {
+                if value.is_empty() || !self.round_trips(def) {
                     continue;
                 }
                 out.push(declaration(def.name, &value, important));

@@ -307,6 +307,14 @@ fn longhand_alias(name: &str) -> Option<LonghandId> {
         "-webkit-background-clip" => L::BackgroundClip,
         "-webkit-perspective" => L::Perspective,
         "-webkit-perspective-origin" => L::PerspectiveOrigin,
+        "-webkit-animation-name" => L::AnimationName,
+        "-webkit-animation-duration" => L::AnimationDuration,
+        "-webkit-animation-timing-function" => L::AnimationTimingFunction,
+        "-webkit-animation-delay" => L::AnimationDelay,
+        "-webkit-animation-iteration-count" => L::AnimationIterationCount,
+        "-webkit-animation-direction" => L::AnimationDirection,
+        "-webkit-animation-fill-mode" => L::AnimationFillMode,
+        "-webkit-animation-play-state" => L::AnimationPlayState,
         _ => return None,
     })
 }

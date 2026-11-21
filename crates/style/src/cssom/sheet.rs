@@ -155,7 +155,7 @@ pub enum RuleKind {
     /// `@property` (`CSSPropertyRule`); only valid rules are kept.
     Property(PropertyRule),
     /// `@keyframes` (`CSSKeyframesRule`). swb runs no animations.
-    Keyframes(KeyframesRule),
+    Keyframes(Arc<KeyframesRule>),
     /// `@layer name { ... }` and `@layer { ... }` (`CSSLayerBlockRule`).
     LayerBlock {
         /// The name; `None` for an anonymous layer.
@@ -1040,18 +1040,22 @@ fn grouping_block(prelude: &str, rules: &[RuleRef], quirks: bool) -> String {
     out
 }
 
-/// The text of an `@keyframes` rule, as Chromium writes it: a space after
-/// the opening brace, each keyframe on its own line with its offsets in
-/// percent.
+/// The text of an `@keyframes` rule, as Chromium writes it: the prefix
+/// of `@-webkit-keyframes` kept, a space after the opening brace, each
+/// keyframe on its own line with its offsets in percent.
 fn keyframes_text(rule: &KeyframesRule, quirks: bool) -> String {
-    let mut out = String::from("@keyframes ");
+    let mut out = String::from(if rule.webkit_prefixed {
+        "@-webkit-keyframes "
+    } else {
+        "@keyframes "
+    });
     serialize_identifier(&rule.name, &mut out);
     out.push_str(" { \n");
     for keyframe in &rule.keyframes {
         let keys: Vec<String> = keyframe
             .keys
             .iter()
-            .map(|k| format!("{}%", format_number(f64::from(*k))))
+            .map(|k| format!("{}%", format_number(*k)))
             .collect();
         let block = StyleDeclarations::from_declarations(&keyframe.declarations, quirks).css_text();
         if block.is_empty() {

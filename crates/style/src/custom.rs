@@ -27,7 +27,7 @@ use std::sync::Arc;
 use swb_css::{ComponentValue, Function, SimpleBlock, trim_whitespace};
 
 use crate::properties::{CssWideKeyword, CustomDeclaration};
-use crate::registered::Registry;
+use crate::registered::{Registration, Registry};
 use crate::values::LengthContext;
 
 /// Custom properties (`--name: value`) of an element, after `var()`
@@ -226,6 +226,12 @@ impl CustomProperties {
 
     fn is_invalid(&self, name: &str) -> bool {
         !self.invalid.is_empty() && self.invalid.binary_search_by(|n| (**n).cmp(name)).is_ok()
+    }
+
+    /// The registration of the custom property `name` (`@property`), if
+    /// any.
+    pub(crate) fn registration(&self, name: &str) -> Option<&Registration> {
+        self.registry.as_ref().and_then(|r| r.get(name))
     }
 
     /// The names of the custom properties that have a value, in no order.
@@ -920,9 +926,7 @@ mod tests {
             .rules
             .iter()
             .filter_map(|r| match r {
-                swb_css::CssRule::Property(rule) => {
-                    crate::registered::Registration::from_rule(rule)
-                }
+                swb_css::CssRule::Property(rule) => Registration::from_rule(rule),
                 _ => None,
             })
             .collect();

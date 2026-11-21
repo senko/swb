@@ -49,6 +49,7 @@ MODULES = (
     "style_invalidation",
     "osm_gaps",
     "static_css",
+    "animations",
 )
 for _module in MODULES:
     importlib.import_module(f"{__name__}.{_module}")

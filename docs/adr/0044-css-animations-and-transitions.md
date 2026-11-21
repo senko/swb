@@ -270,7 +270,7 @@ property's clamps apply.
 | `filter`, `backdrop-filter` | Function by function when one list is a prefix of the other in kind; the shorter list is padded with each function's initial value (`drop-shadow` with a transparent shadow); `none` is the other list with initial values; other pairs are discrete | `interp-filters` |
 | `box-shadow`, `text-shadow` | Shadow by shadow: color, offsets, blur, spread; the shorter list is padded with `transparent 0 0 0 0` of the other's `inset`; a pair that differs in `inset` makes the whole list discrete | `interp-box-shadows`, `interp-text-shadows` |
 | `background-position`, `background-size` | Per layer and component as lengths; a pair with `auto`, `cover` or `contain` on one side only is discrete; lists of different length repeat to their least common multiple (Values 4) | `interp-background-position`, `interp-background-size` |
-| Registered custom properties | By syntax: `<length>`, `<number>`, `<percentage>`, `<length-percentage>`, `<integer>`, `<angle>`, `<time>`, `<resolution>`, `<color>`, `<transform-list>` interpolate; `+` and `#` lists interpolate item by item when equal in length, else discrete; `*`, idents, strings, URLs, images discrete. The computed tokens are parsed by the syntax, interpolated and written back as tokens | `interp-custom-properties` |
+| Registered custom properties | By syntax: `<length>`, `<number>`, `<percentage>`, `<length-percentage>`, `<integer>`, `<angle>`, `<time>`, `<resolution>`, `<color>`, `<transform-list>` interpolate; `+` and `#` lists interpolate item by item when equal in length, else discrete; `*`, idents, strings, URLs, images discrete. The computed tokens are parsed by the syntax, interpolated and written back as tokens; a registered `<integer>` rounds half away from zero, `currentcolor` takes the element's color, a `<transform-list>` keeps its function names (section 14) | `interp-custom-properties`, `registered-*` |
 | Unregistered custom properties | Discrete; no transition without `allow-discrete` | `un`, `custom-properties` |
 | `visibility` | `visible` for the whole interval when one end is `visible` | `vi`, `vi2` |
 | `display`, `content-visibility`, `overlay` | With `none` (`hidden`, `none`) on one end, the other value for the whole interval; in transitions only with `allow-discrete` ([Display 4](https://drafts.csswg.org/css-display-4/#display-animation), [Contain 2](https://drafts.csswg.org/css-contain-2/#content-visibility-animation)) | `ds`, `cv`, `transition-behavior-discrete` |
@@ -726,6 +726,197 @@ commits.
   before- and after-change styles in the targeted and full restyles; start,
   cancel and reversal; `allow-discrete` and `interpolate-size`; the
   events; `CSSTransition`.
+
+### 14. Done in feature 3a
+
+Feature 3a built the model (sections 1, 4, 5, 11 and 12) without running
+an animation: no record, no timeline, no change to the output of the
+cascade. Measured in Chromium 148 with the new probe file
+`tools/probes/css-animations-3a.json` (18 cases, three equal runs).
+
+**Module.** `crates/style/src/animation/`: `time.rs` (`<time>` and
+`<number>`), `easing.rs`, `timing.rs`, `properties.rs` (the longhands and
+shorthands; their texts in `properties/text.rs`), `keyframes.rs` and
+`interpolate/` (`mod.rs` for lengths, numbers and keywords, `color.rs`,
+`transform.rs`, `effects.rs` for the individual transforms, filters and
+shadows, `custom.rs` for registered custom properties). The math
+functions of times, numbers and the percentages of `linear()` go through
+the one parser of `crate::parse::length` in its context-free domain
+(`parse_context_free_math`: times as a type, IEEE-754 arithmetic,
+`infinity` and `NaN` kept, evaluated in `f64` at parse time). The module
+is `pub`, so that its API is not dead code before 3b uses it.
+
+**The animation lists.** One optional shared record per style,
+`ComputedStyle::animations: Option<Arc<AnimationStyle>>` (`None` while all
+values are initial, as `inert`): `ComputedStyle` grows from 2016 to 2024
+bytes. Each longhand is an `Arc<[T]>` of computed items (durations in
+seconds, `None` for `auto`; easings in their computed form; iteration
+counts with `f64::INFINITY`). The lists keep their lengths, as Chromium's
+`getComputedStyle` shows them; `AnimationStyle::entry(i)` repeats them to
+the number of names (CSS Animations 1 §4.2). A third group of the
+`longhands!` macro (`ids.rs`) holds the twelve longhands, as the inert
+group does.
+
+**The API for 3b.**
+
+- `AnimationStyle::of(style)` and `entry(i)`: the name, the `Timing`
+  (delay and duration in ms, effect easing `linear`), the keyframe easing
+  (`animation-timing-function`) and the play state of animation `i`.
+- `Timing::compute(local_time)`: phase, active time, current iteration
+  (computed, not counted), directed progress, the before flag and the
+  iteration progress (Web Animations 1 §4.6 to §4.10).
+- `Stylist::keyframes(name, media, ranks)` (and `keyframes_in(name, env)`):
+  the `KeyframeSet` of the rule that wins, built at the first lookup of
+  that rule and cached in the stylist (dropped with it). The stylist shares
+  the rules with the sheets (`CssRule::Keyframes(Arc<KeyframesRule>)`), so
+  a build copies none.
+- `KeyframeSet::interval(index, progress, default_easing, before)`: the
+  two keyframes around the progress (`None` is an implicit 0% or 100%
+  keyframe: the underlying value) and the progress between them after the
+  keyframe easing (Web Animations 1 §5.3.4, interval endpoints). The
+  keyframes keep their specified declarations, so 3b computes them with
+  the element's `ComputeContext` (section 3).
+- `interpolate(keyframes, from, to, progress, out)`: the value of the
+  property between two computed styles, with the clamps of the property;
+  `out.color` must already be the animated `color` (it resolves
+  `currentcolor`). It returns false for a custom property: 3b calls
+  `interpolate_custom(custom, name, from, to, current, progress)` where the
+  custom properties are resolved (`custom` is the element's map, which knows the
+  registrations).
+
+**Measured rules that the sections above did not have.**
+
+- Chromium's `animation` shorthand sets eight longhands and resets
+  `animation-timeline`, `animation-range-start` and `animation-range-end`
+  (eleven in `element.style`); `animation-composition` is not part of it.
+  A layer leaves out the duration as `auto` in `element.style`; the
+  resolved `animation` writes `0s` only for an explicit duration or before
+  a delay, and writes a part that is initial when the name is one of its
+  keywords (`ease ease`, `normal normal`; also a string name: `'none'`
+  gives `none "none"`, the fill mode first). A timeline or range that is not
+
+  initial empties both serializations.
+- `animation-composition` parses and computes (`CSS.supports` is true, as
+  in Chromium), with no effect; section 7 said it would be unsupported.
+  `animation-timeline` and the ranges also parse with no effect;
+  `animation-trigger` (which Chromium also parses) does not.
+- Keyframes merge by offset and keyframe easing: two `50%` keyframes with
+  different `animation-timing-function` stay apart. `all`, the
+  `animation-*` and the `transition-*` properties are dropped from
+  keyframes.
+- `cssText` is parsed again by swb's cascade (inline styles and rule
+  blocks). When the layered lists differ in length, Chromium's `cssText`
+  writes an `animation` that does not parse back to the same longhands; swb
+  writes the longhands there (`getPropertyValue('animation')` is
+  Chromium's).
+- `steps()` prints its count with six significant digits in the computed
+  value (`steps(1e+06)`) and as an integer in the specified value.
+- `@keyframes` rules (case `keyframes-conditions`): a rule inside
+  `@container` counts whatever the condition (a name cannot depend on an
+  element); inside `@supports`, only when the condition is true.
+  `@-webkit-keyframes` is an alias: the same rule type in the CSSOM, its
+  `cssText` keeps the prefix (`@-webkit-keyframes wk { ... }`, also for
+  `@-WEBKIT-KEYFRAMES`); other prefixes are dropped. An `@keyframes` rule
+  of a name beats every `@-webkit-keyframes` rule of it, whatever the
+  order and the layers; then the layer rank and the order decide.
+  Offsets are `f64` (`33.3%` is 0.33299999999999996, `0.0000001%` is
+  9.999999999999999e-10).
+- The range of numbers (case `number-ranges`). Chromium keeps the
+  values as `f64` but saturates every literal to the `f32` range:
+  `1e40s` and `1e999s` are `3.40282e+38s` (also `calc(1e999s)` and the
+  arguments of `cubic-bezier()`, `linear()` and the iteration count). A
+  math function whose result is infinite or NaN stays valid: its
+  specified text is `calc(infinity * 1s)`, `calc(-infinity)`,
+  `calc(NaN * 1s)`, and its computed value is ±1.79769e+308 (the largest
+  `f64`) or 0 for NaN, then the clamps of the property (`calc(-1s/0)` is
+  `0s` as a duration, `-1.79769e+308s` as a delay; `calc(-1/0)` and
+  `calc(NaN)` are 0 as an iteration count, `calc(1/0)` is `1.79769e+308`,
+  not `infinite`). In `cubic-bezier()` and `linear()` the arguments
+  computed so are written as numbers (`cubic-bezier(0, 1.79769e+308, 1,
+  1)`, `linear(0 0%, 1 1.79769e+308%)`); an x outside 0 to 1 stays
+  invalid. The count of `steps()` keeps its math function in the
+  specified text (`steps(calc(2.5))`, `steps(calc(infinity))`) and
+  computes to the rounded count clamped to 1 to 2^31 − 1 (NaN computes to
+  `steps(0)`); a math count is checked only with `jump-none`
+  (`steps(calc(1), jump-none)` is invalid, `steps(calc(-1))` is valid).
+  swb's values are finite everywhere: `Easing::evaluate` saturates at the
+  largest `f64`, the interpolated lengths, numbers, percentages and
+  matrices at the largest `f32` (a percentage at 1e36 as a fraction, so
+  that its text is finite), and `AnimationStyle::entry` gives the timing
+  model finite times in ms, so it never adds opposite infinities.
+  One departure: `element.style.setProperty()` reaches swb's cascade as
+  the specified text, so an infinite argument of `cubic-bezier()` or
+  `linear()` set that way computes to `3.40282e+38` (the literal
+  `1.79769e+308` saturates); from a style sheet it is Chromium's value.
+
+**A matrix pair with percentages.** When the rests of two transform lists
+interpolate as matrices and one has a percentage (`translate(-50%)`
+against `rotate(45deg)`), the computed value ends with
+`TransformFunction::Interpolated(Arc<InterpolatedTransform>)`: both rests
+and the progress. Layout (`style_transform`) and `getComputedStyle`
+(`function_matrix`) call `InterpolatedTransform::matrix(width, height)`:
+both rests as matrices in the reference box, then `interpolate_matrices`
+(case `matrix-percent`, four pairs, equal to Chromium's matrices). Such a
+value can be the start of a later interpolation (a transition from an
+animated value), on either side: `function_matrix` and `list_matrix`
+accept it (with the box), and `identity_of` pads it with an identity
+matrix. The nesting is bounded: `InterpolatedTransform::nodes` counts the
+interpolated values inside, itself included, and a pair that would hold
+more than `MAX_NODES` (32) is discrete (it flips at 0.5). Making the
+matrix resolves each node once, so a page that chains animations or
+interrupts a transition again and again costs at most 32 matrix
+interpolations per element and frame. The model has no 3D transforms;
+the decomposition stays 2D.
+
+**Registered custom properties** interpolate by their syntax
+(`interpolate/custom.rs`, cases `interp-custom-properties` and
+`registered-custom`, `registered-tl-1` to `-4`, `registered-currentcolor`
+of `css-animations-3a.json`): both computed values are matched against the
+terms of the syntax; when both match the same term of an interpolable type
+(`<length>`, `<number>`, `<percentage>`, `<length-percentage>`,
+`<integer>`, `<angle>`, `<time>`, `<resolution>`, `<color>`,
+`<transform-list>`), the tokens are parsed, interpolated with the
+functions of `interpolate/` and written back as `registered.rs` computes
+them (`50px`, `180deg`, `rgb(191, 0, 64)`); `+` and `#` lists go item by
+item when equal in length. Rules measured in Chromium 148:
+
+- A registered `<integer>` rounds half away from zero (0 to -5 at 0.5 is
+  `-3`), unlike `order` and `z-index` (half up).
+- `currentcolor` interpolates with the element's color (`interpolate_custom`
+  takes it as `current`): with black text, `currentcolor` to `red` is
+  `rgb(64, 0, 0)` at 0.25. A `color-mix()` is discrete, whatever it holds.
+- A `<transform-list>` keeps the function names
+  (`interpolate/custom/transform_list.rs`): `none` against a list is
+  discrete; the functions pair by position (the shorter list is padded
+  with the identity of the function it meets); the same name keeps its
+  name (`translateX(2.5px)`), `translate()`, `translateX()` and
+  `translateY()` together give `translate(x[, y])` (`y` is left out when it
+  is 0), `scale()`, `scaleX()` and `scaleY()` give `scale(x[, y])` (`y` is
+  left out when equal to `x`), `skewX()` against `skewY()` or `skew()` does
+  not pair; two `matrix()` functions give `matrix(...)`; from the first
+  position that does not pair, the rests of both lists interpolate as one
+  matrix written `matrix3d(...)` (even for a pair that is 2D), and a rest
+  with a percentage is discrete.
+
+Discrete: `*`, keywords, `<custom-ident>`, `<string>`, `<url>`, `<image>`,
+`<transform-function>`, two terms, lists of different lengths, and a
+`<transform-list>` pair as above. Between two non-legacy colors the text
+is `rgb()` (Chromium `oklab()`), as for other properties (section 4).
+Departures: a `<transform-list>` with a 3D function is discrete (swb has no
+3D model; Chromium writes `translate3d()`, `rotate3d()` and so on, and
+swb's registration does not accept `matrix3d()` or `perspective()` at
+all); the token text of a tiny number has no exponent (`6.12323e-17` is
+written out as a decimal; a trigonometric rest that Chromium prints as `2.22045e-16`
+differs in the noise digits).
+
+**Not done in 3a.**
+
+- *The before flag of a keyframe easing*: `KeyframeSet::interval` takes it
+  from the caller; whether Chromium passes the effect's before flag to a
+  `steps(start)` keyframe easing in the before phase is for 3b to measure.
+- *The members of `CSSKeyframesRule`*: `cssRules`, `appendRule()`,
+  `deleteRule()`, `findRule()` and `CSSKeyframeRule` (case
+  `keyframes-rule-members`; no target page uses them).
 
 ## Consequences
 

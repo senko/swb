@@ -36,6 +36,7 @@
 //!
 //! See `docs/adr/0007-style-system.md` for the design.
 
+pub mod animation;
 mod bloom;
 mod cascade;
 mod color_scheme;

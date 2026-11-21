@@ -1,0 +1,39 @@
+//! The model of CSS animations (ADR 0044, M13 feature 3a): the
+//! `animation-*` properties, the easing functions, the timing model of Web
+//! Animations, the resolved `@keyframes` sets and the interpolation of
+//! computed values.
+//!
+//! Nothing here runs an animation yet: feature 3b adds the animation
+//! records, the document timeline and the animation input of the cascade
+//! (ADR 0044 sections 1 to 3). The API that it uses:
+//!
+//! - [`AnimationStyle`]: the computed `animation-*` lists of an element
+//!   ([`AnimationStyle::of`]).
+//! - [`Timing`] and [`Timing::compute`]: the phase, the current iteration
+//!   and the iteration progress of an effect at a local time.
+//! - [`KeyframeSet`]: the keyframes of one `@keyframes` name, per property
+//!   (`Stylist::keyframes`), and [`KeyframeSet::interval`], the two
+//!   keyframes around an iteration progress and the eased distance between
+//!   them.
+//! - [`interpolate`]: the value of one longhand between two computed
+//!   styles (the two keyframes, computed with the element's context), with
+//!   the computed-value rules of the property applied.
+//!
+//! Specifications: [CSS Animations 1](https://drafts.csswg.org/css-animations-1/),
+//! [CSS Animations 2](https://drafts.csswg.org/css-animations-2/),
+//! [Web Animations 1](https://drafts.csswg.org/web-animations-1/),
+//! [CSS Easing 2](https://drafts.csswg.org/css-easing-2/).
+
+pub mod easing;
+pub mod interpolate;
+pub mod keyframes;
+pub mod properties;
+pub mod time;
+pub mod timing;
+
+pub use easing::{Easing, LinearPoint, MAX_STEPS, StepPosition, parse_easing};
+pub use interpolate::{interpolate, interpolate_custom};
+pub use keyframes::{Interval, Keyframe, KeyframeSet, PropertyKeyframes};
+pub use properties::{AnimationEntry, AnimationName, AnimationStyle, Composition, PlayState};
+pub use time::{Number, Time};
+pub use timing::{ComputedTiming, FillMode, Phase, PlaybackDirection, Timing};

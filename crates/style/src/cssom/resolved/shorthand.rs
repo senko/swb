@@ -84,6 +84,8 @@ pub(super) fn value(name: &str, r: &Resolver<'_>) -> String {
             &get("transition-delay"),
             &get("transition-property"),
         ]),
+        "animation" => crate::animation::properties::computed_shorthand(r.style),
+        "animation-range" => crate::animation::properties::computed_range(r.style),
         "border-radius" => radius(r),
         "border-image" => "none".to_owned(),
         "border-spacing" => pair(

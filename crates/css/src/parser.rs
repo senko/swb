@@ -22,6 +22,8 @@
 //! - Blocks nested deeper than [`MAX_NESTING_DEPTH`] are skipped, so that
 //!   hostile input cannot overflow the stack.
 
+use std::sync::Arc;
+
 use log::{debug, warn};
 
 use crate::container::ContainerCondition;
@@ -398,10 +400,16 @@ impl<'a> RuleParser<'a> {
                     self.skip_block(BlockKind::Curly);
                 }
             }
-            ("keyframes", true) if holds_rules => {
+            // `@-webkit-keyframes` is an alias (Chromium 148).
+            ("keyframes" | "-webkit-keyframes", true) if holds_rules => {
+                let webkit_prefixed = name == "-webkit-keyframes";
                 if let Some(name) = keyframes_name(prelude) {
                     let keyframes = self.consume_keyframe_list();
-                    out.push(CssRule::Keyframes(KeyframesRule { name, keyframes }));
+                    out.push(CssRule::Keyframes(Arc::new(KeyframesRule {
+                        name,
+                        keyframes,
+                        webkit_prefixed,
+                    })));
                 } else {
                     debug!("dropped @keyframes with invalid name");
                     self.skip_block(BlockKind::Curly);
@@ -766,12 +774,14 @@ fn property_name(prelude: &[ComponentValue]) -> Option<String> {
 /// The keyframe selectors of a keyframe rule's prelude: a comma-separated
 /// list of `from`, `to` and percentages from 0% to 100%.
 /// <https://drafts.csswg.org/css-animations-1/#typedef-keyframe-selector>
-fn keyframe_selectors(prelude: &[ComponentValue]) -> Option<Vec<f32>> {
+fn keyframe_selectors(prelude: &[ComponentValue]) -> Option<Vec<f64>> {
     split_on_commas(prelude)
         .map(|part| match trim_whitespace(part) {
             [ComponentValue::Ident(word)] if word.eq_ignore_ascii_case("from") => Some(0.0),
             [ComponentValue::Ident(word)] if word.eq_ignore_ascii_case("to") => Some(100.0),
-            [ComponentValue::Percentage(n)] if (0.0..=100.0).contains(&n.value) => Some(n.value),
+            [ComponentValue::Percentage(n)] if (0.0..=100.0).contains(&n.value_f64) => {
+                Some(n.value_f64)
+            }
             _ => None,
         })
         .collect()
@@ -807,6 +817,7 @@ const RULE_AT_RULES: &[&str] = &[
     "import",
     "font-face",
     "keyframes",
+    "-webkit-keyframes",
     "layer",
     "property",
 ];
@@ -1577,12 +1588,33 @@ mod tests {
             panic!("expected @keyframes");
         };
         assert_eq!(k.name, "q");
-        let keys: Vec<&[f32]> = k.keyframes.iter().map(|f| &f.keys[..]).collect();
+        assert!(!k.webkit_prefixed);
+        let keys: Vec<&[f64]> = k.keyframes.iter().map(|f| &f.keys[..]).collect();
         assert_eq!(keys, vec![&[0.0, 50.0][..], &[100.0][..]]);
         assert_eq!(
             decl_summary(&k.keyframes[1].declarations),
             vec![s("top", "2px", false)]
         );
+    }
+
+    /// `@-webkit-keyframes` is an alias that keeps its prefix; the offsets
+    /// are `f64` (`keyframes-cssom` of `tools/probes/css-animations-3a.json`).
+    #[test]
+    fn webkit_keyframes_and_offsets() {
+        let sheet = parse_stylesheet(
+            "@-WEBKIT-KEYFRAMES Up { 33.3% { top: 0 } 12.345678% { top: 1px } } @-moz-keyframes m {}",
+        );
+        let [CssRule::Keyframes(k)] = &sheet.rules[..] else {
+            panic!("expected one @keyframes: {:?}", sheet.rules);
+        };
+        assert!(k.webkit_prefixed);
+        assert_eq!(k.name, "Up");
+        assert_eq!(k.keyframes[0].keys, vec![33.3]);
+        assert_eq!(k.keyframes[1].keys, vec![12.345_678]);
+        assert!(matches!(
+            parse_rule("@-webkit-keyframes ins { from { top: 0px } }"),
+            Ok(CssRule::Keyframes(_))
+        ));
     }
 
     #[test]

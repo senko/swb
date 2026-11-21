@@ -164,6 +164,12 @@ shorthands! {
         TransitionProperty, TransitionDuration, TransitionTimingFunction, TransitionDelay,
         TransitionBehavior
     ];
+    Animation "animation" [
+        AnimationDuration, AnimationTimingFunction, AnimationDelay, AnimationIterationCount,
+        AnimationDirection, AnimationFillMode, AnimationPlayState, AnimationName,
+        AnimationTimeline, AnimationRangeStart, AnimationRangeEnd
+    ];
+    AnimationRange "animation-range" [AnimationRangeStart, AnimationRangeEnd];
     GridTemplate "grid-template" [GridTemplateRows, GridTemplateColumns, GridTemplateAreas];
     Grid "grid" [
         GridTemplateRows, GridTemplateColumns, GridTemplateAreas, GridAutoRows, GridAutoColumns,
@@ -184,6 +190,7 @@ impl ShorthandId {
             "-webkit-flex" => ShorthandId::Flex,
             "-webkit-flex-flow" => ShorthandId::FlexFlow,
             "-webkit-transition" => ShorthandId::Transition,
+            "-webkit-animation" => ShorthandId::Animation,
             "-webkit-border-radius" | "-moz-border-radius" => ShorthandId::BorderRadius,
             _ => return None,
         })
@@ -266,6 +273,8 @@ impl ShorthandId {
                 | S::WebkitTextStroke
                 | S::CornerShape => parse_paint_shorthand(self, p, cx, out),
                 S::Transition => super::inert::parse_transition(p, out),
+                S::Animation => crate::animation::properties::parse_animation(p, out),
+                S::AnimationRange => crate::animation::properties::parse_animation_range(p, out),
             }
         })
     }

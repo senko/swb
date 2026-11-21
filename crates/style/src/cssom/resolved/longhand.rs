@@ -460,6 +460,8 @@ fn function_matrix(function: &TransformFunction, width: f32, height: f32) -> [f6
             0.0,
             0.0,
         ],
+        // An animated pair with a percentage, made with the layout box.
+        TransformFunction::Interpolated(i) => i.matrix(width, height),
     }
 }
 
@@ -497,6 +499,11 @@ fn multiply(a: [f64; 6], b: [f64; 6]) -> [f64; 6] {
 #[allow(clippy::too_many_lines)] // One line per property.
 fn computed(name: &str, r: &Resolver<'_>) -> String {
     let s = r.style;
+    if name.starts_with("animation-")
+        && let Some(text) = crate::animation::properties::computed_text(name, s)
+    {
+        return text;
+    }
     let color = |c: Color| c.resolved_text(s.color);
     match name {
         "color" => s.color_exact.map_or_else(

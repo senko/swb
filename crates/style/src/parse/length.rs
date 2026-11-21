@@ -3,7 +3,10 @@
 //! - `<length>`, `<percentage>`, `<length-percentage>`:
 //!   <https://www.w3.org/TR/css-values-4/#lengths>
 //! - Math functions `calc()`, `min()`, `max()`, `clamp()`:
-//!   <https://www.w3.org/TR/css-values-4/#math>
+//!   <https://www.w3.org/TR/css-values-4/#math>. One parser serves two
+//!   domains ([`MathDomain`]): lengths, resolved at computed-value or used
+//!   time, and context-free numbers, percentages and times, evaluated at
+//!   parse time with IEEE-754 arithmetic.
 //! - The unitless length quirk (quirky lengths):
 //!   <https://www.w3.org/TR/css-values-4/#quirky-lengths>
 
@@ -122,6 +125,22 @@ pub(crate) enum CalcKind {
     Percentage,
     /// A length mixed with a percentage.
     LengthPercentage,
+    /// A time, in seconds (only in [`MathDomain::ContextFree`]).
+    Time,
+}
+
+/// What a math expression may contain, and how it computes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MathDomain {
+    /// Numbers, lengths and percentages. `infinity` is the largest `f32`
+    /// and a division by zero is 0 (the values resolve later).
+    Lengths,
+    /// Numbers, percentages and times (`s`, `ms`), evaluated at once
+    /// ([`parse_context_free_math`]): `infinity`, `-infinity` and `NaN`
+    /// keep their values, and a division by zero is infinite or NaN
+    /// (CSS Values 4 §10.9,
+    /// <https://www.w3.org/TR/css-values-4/#calc-ieee>).
+    ContextFree,
 }
 
 impl CalcKind {
@@ -130,7 +149,8 @@ impl CalcKind {
         use CalcKind::{Length, LengthPercentage, Number, Percentage};
         match (self, other) {
             (Number, Number) => Some(Number),
-            (Number, _) | (_, Number) => None,
+            (CalcKind::Time, CalcKind::Time) => Some(CalcKind::Time),
+            (Number | CalcKind::Time, _) | (_, Number | CalcKind::Time) => None,
             (Length, Length) => Some(Length),
             (Percentage, Percentage) => Some(Percentage),
             _ => Some(LengthPercentage),
@@ -176,7 +196,7 @@ impl MathExpr {
         allow_percentage: bool,
     ) -> ParseResult<SpecifiedLengthPercentage> {
         match self.kind {
-            CalcKind::Number => Err(ParseError::Invalid),
+            CalcKind::Number | CalcKind::Time => Err(ParseError::Invalid),
             CalcKind::Percentage | CalcKind::LengthPercentage if !allow_percentage => {
                 Err(ParseError::Invalid)
             }
@@ -191,13 +211,60 @@ impl MathExpr {
 
 /// Consumes a math function: `calc()`, `min()`, `max()` or `clamp()`.
 pub(crate) fn parse_math_function(p: &mut Parser<'_>) -> ParseResult<MathExpr> {
+    math_function(p, MathDomain::Lengths)
+}
+
+/// Consumes a math function of numbers, percentages or times and
+/// evaluates it in `f64`: the value (a percentage as a fraction, a time in
+/// seconds; possibly infinite or NaN) and its type. The values of the
+/// animation properties and of the easing functions have no context, so
+/// they compute at parse time.
+pub(crate) fn parse_context_free_math(p: &mut Parser<'_>) -> ParseResult<(f64, CalcKind)> {
+    let expr = math_function(p, MathDomain::ContextFree)?;
+    Ok((evaluate(&expr.node), expr.kind))
+}
+
+/// The value of a context-free expression with IEEE-754 arithmetic; `min()`,
+/// `max()` and `clamp()` propagate NaN.
+fn evaluate(node: &CalcNode) -> f64 {
+    let nan_or = |a: f64, b: f64, f: fn(f64, f64) -> f64| {
+        if a.is_nan() || b.is_nan() {
+            f64::NAN
+        } else {
+            f(a, b)
+        }
+    };
+    match node {
+        CalcNode::Number(v) | CalcNode::Percentage(v) => f64::from(*v),
+        // Not in the domain (`math_function` takes no lengths here).
+        CalcNode::Length(_) => f64::NAN,
+        CalcNode::Sum(items) => items.iter().map(evaluate).sum(),
+        CalcNode::Product(a, b) => evaluate(a) * evaluate(b),
+        CalcNode::Quotient(a, b) => evaluate(a) / evaluate(b),
+        CalcNode::Min(items) => items
+            .iter()
+            .map(evaluate)
+            .fold(f64::INFINITY, |a, b| nan_or(a, b, f64::min)),
+        CalcNode::Max(items) => items
+            .iter()
+            .map(evaluate)
+            .fold(f64::NEG_INFINITY, |a, b| nan_or(a, b, f64::max)),
+        CalcNode::Clamp(lo, v, hi) => {
+            let v = nan_or(evaluate(v), evaluate(hi), f64::min);
+            nan_or(evaluate(lo), v, f64::max)
+        }
+    }
+}
+
+fn math_function(p: &mut Parser<'_>, domain: MathDomain) -> ParseResult<MathExpr> {
+    let sum = |p: &mut Parser<'_>| parse_sum(p, domain);
     p.try_parse(|p| {
         let (name, mut args) = p.expect_function()?;
         let name = name.to_ascii_lowercase();
         match name.as_str() {
-            "calc" | "-webkit-calc" | "-moz-calc" => args.parse_entirely(parse_sum),
+            "calc" | "-webkit-calc" | "-moz-calc" => args.parse_entirely(sum),
             "min" | "max" => {
-                let items = args.parse_comma_separated(parse_sum)?;
+                let items = args.parse_comma_separated(sum)?;
                 let kind = combined_kind(&items)?;
                 let nodes = items.into_iter().map(|e| e.node).collect();
                 let node = if name == "min" {
@@ -208,7 +275,7 @@ pub(crate) fn parse_math_function(p: &mut Parser<'_>) -> ParseResult<MathExpr> {
                 Ok(MathExpr { node, kind })
             }
             "clamp" => {
-                let items = args.parse_comma_separated(parse_sum)?;
+                let items = args.parse_comma_separated(sum)?;
                 let kind = combined_kind(&items)?;
                 let [lo, value, hi]: [MathExpr; 3] =
                     items.try_into().map_err(|_| ParseError::Invalid)?;
@@ -234,8 +301,8 @@ fn combined_kind(items: &[MathExpr]) -> ParseResult<CalcKind> {
 
 /// `<calc-sum> = <calc-product> [ [ '+' | '-' ] <calc-product> ]*`. The
 /// operators must have whitespace on both sides.
-fn parse_sum(p: &mut Parser<'_>) -> ParseResult<MathExpr> {
-    let first = parse_product(p)?;
+fn parse_sum(p: &mut Parser<'_>, domain: MathDomain) -> ParseResult<MathExpr> {
+    let first = parse_product(p, domain)?;
     let mut kind = first.kind;
     let mut terms = vec![first.node];
     while let Ok((negate, rhs)) = p.try_parse(|p| {
@@ -250,7 +317,7 @@ fn parse_sum(p: &mut Parser<'_>) -> ParseResult<MathExpr> {
         if !p.skip_whitespace() {
             return Err(ParseError::Invalid);
         }
-        Ok((negate, parse_product(p)?))
+        Ok((negate, parse_product(p, domain)?))
     }) {
         kind = kind.add(rhs.kind).ok_or(ParseError::Invalid)?;
         terms.push(if negate {
@@ -280,8 +347,8 @@ fn negate_node(node: CalcNode) -> CalcNode {
 }
 
 /// `<calc-product> = <calc-value> [ [ '*' | '/' ] <calc-value> ]*`.
-fn parse_product(p: &mut Parser<'_>) -> ParseResult<MathExpr> {
-    let mut acc = parse_value(p)?;
+fn parse_product(p: &mut Parser<'_>, domain: MathDomain) -> ParseResult<MathExpr> {
+    let mut acc = parse_value(p, domain)?;
     loop {
         let op = p.try_parse(|p| match p.next() {
             Some(v) if v.is_delim('*') => Ok('*'),
@@ -291,7 +358,7 @@ fn parse_product(p: &mut Parser<'_>) -> ParseResult<MathExpr> {
         let Ok(op) = op else {
             break;
         };
-        let rhs = parse_value(p)?;
+        let rhs = parse_value(p, domain)?;
         acc = if op == '*' {
             let ((CalcKind::Number, kind) | (kind, CalcKind::Number)) = (acc.kind, rhs.kind) else {
                 return Err(ParseError::Invalid);
@@ -314,9 +381,12 @@ fn parse_product(p: &mut Parser<'_>) -> ParseResult<MathExpr> {
 }
 
 /// `<calc-value>`: a number, dimension, percentage, constant, nested math
-/// function or parenthesized sum.
-fn parse_value(p: &mut Parser<'_>) -> ParseResult<MathExpr> {
+/// function or parenthesized sum. Literals are `f32` (the tokenizer
+/// saturates them to the `f32` range, as Chromium: `calc(1e999s)` is
+/// `calc(3.40282e+38s)`).
+fn parse_value(p: &mut Parser<'_>, domain: MathDomain) -> ParseResult<MathExpr> {
     let value = p.peek().ok_or(ParseError::EndOfInput)?;
+    let context_free = domain == MathDomain::ContextFree;
     let expr = match value {
         ComponentValue::Number(n) => MathExpr {
             node: CalcNode::Number(n.value),
@@ -326,6 +396,19 @@ fn parse_value(p: &mut Parser<'_>) -> ParseResult<MathExpr> {
             node: CalcNode::Percentage(n.value / 100.0),
             kind: CalcKind::Percentage,
         },
+        ComponentValue::Dimension { number, unit } if context_free => {
+            let seconds = if unit.eq_ignore_ascii_case("s") {
+                number.value
+            } else if unit.eq_ignore_ascii_case("ms") {
+                number.value / 1000.0
+            } else {
+                return Err(ParseError::Unexpected);
+            };
+            MathExpr {
+                node: CalcNode::Number(seconds),
+                kind: CalcKind::Time,
+            }
+        }
         ComponentValue::Dimension { number, unit } => MathExpr {
             node: CalcNode::Length(
                 length_from_dimension(number.value, unit).ok_or(ParseError::Unexpected)?,
@@ -333,11 +416,14 @@ fn parse_value(p: &mut Parser<'_>) -> ParseResult<MathExpr> {
             kind: CalcKind::Length,
         },
         ComponentValue::Ident(name) => {
-            let v = match name.to_ascii_lowercase().as_str() {
-                "e" => std::f32::consts::E,
-                "pi" => std::f32::consts::PI,
-                "infinity" => f32::MAX,
-                "-infinity" => f32::MIN,
+            let v = match (name.to_ascii_lowercase().as_str(), context_free) {
+                ("e", _) => std::f32::consts::E,
+                ("pi", _) => std::f32::consts::PI,
+                ("infinity", false) => f32::MAX,
+                ("-infinity", false) => f32::MIN,
+                ("infinity", true) => f32::INFINITY,
+                ("-infinity", true) => f32::NEG_INFINITY,
+                ("nan", true) => f32::NAN,
                 _ => return Err(ParseError::Unexpected),
             };
             MathExpr {
@@ -345,9 +431,9 @@ fn parse_value(p: &mut Parser<'_>) -> ParseResult<MathExpr> {
                 kind: CalcKind::Number,
             }
         }
-        ComponentValue::Function(_) => return parse_math_function(p),
+        ComponentValue::Function(_) => return math_function(p, domain),
         ComponentValue::Block(b) if b.kind == BlockKind::Paren => {
-            let expr = Parser::new(&b.contents).parse_entirely(parse_sum)?;
+            let expr = Parser::new(&b.contents).parse_entirely(|p| parse_sum(p, domain))?;
             p.next();
             return Ok(expr);
         }

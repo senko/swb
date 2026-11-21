@@ -63,7 +63,7 @@ pub(crate) fn is_monospace(families: &[FontFamily]) -> bool {
 
 /// Snaps a border or outline width as Chromium does at a device pixel ratio
 /// of 1: widths between 0 and 1 become 1, larger widths are floored.
-fn snap_border_width(px: f32) -> f32 {
+pub(crate) fn snap_border_width(px: f32) -> f32 {
     if px <= 0.0 || !px.is_finite() {
         0.0
     } else if px < 1.0 {
@@ -318,6 +318,18 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         | V::ScrollPaddingRight(_)
         | V::ScrollPaddingBottom(_)
         | V::ScrollPaddingLeft(_) => super::inert::apply(value, cx, s),
+        V::AnimationName(_)
+        | V::AnimationDuration(_)
+        | V::AnimationTimingFunction(_)
+        | V::AnimationDelay(_)
+        | V::AnimationIterationCount(_)
+        | V::AnimationDirection(_)
+        | V::AnimationFillMode(_)
+        | V::AnimationPlayState(_)
+        | V::AnimationComposition(_)
+        | V::AnimationTimeline(_)
+        | V::AnimationRangeStart(_)
+        | V::AnimationRangeEnd(_) => crate::animation::properties::apply(value, cx, s),
     }
 }
 

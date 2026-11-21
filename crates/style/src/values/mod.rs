@@ -41,7 +41,7 @@ pub use shape::{
     MAX_SHAPE_POINTS, ShapeClip, ShapePosition, ShapeRadius,
 };
 pub use svg::{ClipPath, SvgPaint};
-pub use transform::{ClipRect, TransformFunction, TransformOrigin};
+pub use transform::{ClipRect, InterpolatedTransform, TransformFunction, TransformOrigin};
 
 /// A generic font family keyword.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

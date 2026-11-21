@@ -1,0 +1,111 @@
+{
+  "hover-colors-after": [
+    "background-color:running:0 | color:running:0",
+    "CSSTransition background-color l1 {\"delay\":0,\"endDelay\":0,\"fill\":\"backwards\",\"iterationStart\":0,\"iterations\":1,\"duration\":20000,\"direction\":\"normal\",\"easing\":\"ease\",\"endTime\":20000,\"activeDuration\":20000}\nCSSTransition color l1 {\"delay\":0,\"endDelay\":0,\"fill\":\"backwards\",\"iterationStart\":0,\"iterations\":1,\"duration\":20000,\"direction\":\"normal\",\"easing\":\"ease\",\"endTime\":20000,\"activeDuration\":20000}",
+    "0 background-color:rgb(243, 231, 210) ; color:rgb(31, 29, 27)\n5000 background-color:rgb(248, 178, 124) ; color:rgb(123, 121, 120)\n10000 background-color:rgb(253, 127, 41) ; color:rgb(211, 210, 210)\n20000 background-color:rgb(255, 102, 0) ; color:rgb(255, 255, 255)",
+    null
+  ],
+  "hover-scale-translate-opacity": [
+    "opacity:running:0 | scale:running:0 | translate:running:0",
+    "0 opacity:1 ; scale:1 ; translate:0px ; transform:none\n5000 opacity:0.616358 ; scale:1.07673 ; translate:7.67284px 4.60371px ; transform:none\n10000 opacity:0.52696 ; scale:1.09461 ; translate:9.46079px 5.67648px ; transform:none\n20000 opacity:0.5 ; scale:1.1 ; translate:10px 6px ; transform:none",
+    "26,78.5,88,33",
+    null
+  ],
+  "focus-visible-colors": [
+    "l1 background-color:running:0 | color:running:0",
+    "0 background-color:rgb(243, 231, 210) ; color:rgb(31, 29, 27)\n10000 background-color:rgb(253, 127, 41) ; color:rgb(211, 210, 210)\n20000 background-color:rgb(255, 102, 0) ; color:rgb(255, 255, 255)"
+  ],
+  "values-by-class": [
+    "backdrop-filter:running:0 | background-color:running:0 | background-size:running:0 | border-bottom-color:running:0 | border-left-color:running:0 | border-right-color:running:0 | border-top-color:running:0 | box-shadow:running:0 | color:running:0 | filter:running:0 | height:running:0 | left:running:0 | opacity:running:0 | outline-color:running:0 | outline-offset:running:0 | top:running:0 | width:running:0",
+    "backdrop-filter background-color background-size border-bottom-color border-left-color border-right-color border-top-color box-shadow color filter height left opacity outline-color outline-offset top width",
+    "0 width:50px ; height:20px ; background-color:rgb(200, 50, 50) ; color:rgb(0, 0, 0) ; border-top-color:rgb(0, 0, 255) ; outline-color:rgb(255, 0, 0) ; outline-offset:0px ; opacity:1 ; filter:blur(0px) brightness(1) ; backdrop-filter:blur(0px) ; left:0px ; top:0px ; box-shadow:rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px ; background-size:calc(0% + 20px) 100%\n2000 width:62.5px ; height:25px ; background-color:rgb(163, 88, 50) ; color:rgb(64, 64, 64) ; border-top-color:rgb(64, 0, 255) ; outline-color:rgb(191, 0, 0) ; outline-offset:1px ; opacity:0.8 ; filter:blur(1px) brightness(0.875) ; backdrop-filter:blur(2px) ; left:7.5px ; top:2.5px ; box-shadow:rgba(0, 0, 0, 0.027) 0px 1px 1.5px -0.25px, rgba(0, 0, 0, 0.027) 0px 0.5px 1px -0.5px ; background-size:calc(12.5% + 15px) 100%\n4000 width:75px ; height:30px ; background-color:rgb(125, 125, 50) ; color:rgb(128, 128, 128) ; border-top-color:rgb(128, 0, 255) ; outline-color:rgb(128, 0, 0) ; outline-offset:3px ; opacity:0.6 ; filter:blur(2px) brightness(0.75) ; backdrop-filter:blur(4px) ; left:15px ; top:5px ; box-shadow:rgba(0, 0, 0, 0.05) 0px 2px 3px -0.5px, rgba(0, 0, 0, 0.05) 0px 1px 2px -1px ; background-size:calc(25% + 10px) 100%\n8000 width:100px ; height:40px ; background-color:rgb(50, 200, 50) ; color:rgb(255, 255, 255) ; border-top-color:rgb(255, 0, 255) ; outline-color:rgb(0, 0, 0) ; outline-offset:6px ; opacity:0.2 ; filter:blur(4px) brightness(0.5) ; backdrop-filter:blur(8px) ; left:30px ; top:10px ; box-shadow:rgba(0, 0, 0, 0.1) 0px 4px 6px -1px, rgba(0, 0, 0, 0.1) 0px 2px 4px -2px ; background-size:50% 100%"
+  ],
+  "individual-transform-properties": [
+    "translate:10% 50% ; scale:0.5 ; rotate:-30deg ; transform:matrix(0.866025, 0.5, -0.5, 0.866025, 0, 0) 114,25,20,10",
+    "rotate:running:0 | scale:running:0 | transform:running:0 | translate:running:0",
+    "rotate scale transform translate",
+    "0 translate:0px ; scale:1 ; rotate:0deg ; transform:matrix(1, 0, 0, 1, 0, 0) 10,10,40,20\n1000 translate:2.5px 5px ; scale:1.25 1.125 ; rotate:22.5deg ; transform:matrix(1, 0, 0, 1, 7.5, 0) 13.76,8.63,54.8,39.92\n2000 translate:5px 10px ; scale:1.5 1.25 ; rotate:45deg ; transform:matrix(1, 0, 0, 1, 15, 0) 20.86,15.86,60.1,60.1\n4000 translate:10px 20px ; scale:2 1.5 ; rotate:90deg ; transform:matrix(1, 0, 0, 1, 30, 0) 25,60,30,80",
+    null
+  ],
+  "inline-style-spring": [
+    "matrix(1, 0, 0, 1, 0, -80) 0",
+    "transform:running:0 | matrix(1, 0, 0, 1, 0, -80)",
+    "transform {\"delay\":0,\"endDelay\":0,\"fill\":\"backwards\",\"iterationStart\":0,\"iterations\":1,\"duration\":600,\"direction\":\"normal\",\"easing\":\"cubic-bezier(0.2, 0.8, 0.2, 1)\",\"endTime\":600,\"activeDuration\":600}",
+    "0 transform:matrix(1, 0, 0, 1, 0, -80)\n60 transform:matrix(1, 0, 0, 1, 0, -48.2645)\n150 transform:matrix(1, 0, 0, 1, 0, -18.6173)\n300 transform:matrix(1, 0, 0, 1, 0, -4.31364)\n600 transform:none",
+    null
+  ],
+  "inline-style-no-style-flush": [
+    "|none",
+    "transform:running:0|matrix(1, 0, 0, 1, 0, 0)"
+  ],
+  "attribute-popup": [
+    "filter:running:0 | opacity:running:0 | scale:running:0 | translate:running:0",
+    "filter {\"delay\":0,\"endDelay\":0,\"fill\":\"backwards\",\"iterationStart\":0,\"iterations\":1,\"duration\":200,\"direction\":\"normal\",\"easing\":\"cubic-bezier(0.4, 0, 0.2, 1)\",\"endTime\":200,\"activeDuration\":200}\nopacity {\"delay\":50,\"endDelay\":0,\"fill\":\"backwards\",\"iterationStart\":0,\"iterations\":1,\"duration\":200,\"direction\":\"normal\",\"easing\":\"cubic-bezier(0.4, 0, 0.2, 1)\",\"endTime\":250,\"activeDuration\":200}\nscale {\"delay\":0,\"endDelay\":0,\"fill\":\"backwards\",\"iterationStart\":0,\"iterations\":1,\"duration\":400,\"direction\":\"normal\",\"easing\":\"cubic-bezier(0.4, 0, 0.2, 1)\",\"endTime\":400,\"activeDuration\":400}\ntranslate {\"delay\":50,\"endDelay\":0,\"fill\":\"backwards\",\"iterationStart\":0,\"iterations\":1,\"duration\":200,\"direction\":\"normal\",\"easing\":\"cubic-bezier(0.4, 0, 0.2, 1)\",\"endTime\":250,\"activeDuration\":200}",
+    "0 opacity:0 ; scale:0.95 ; translate:0px -4px ; filter:blur(2px)\n50 opacity:0 ; scale:0.952148 ; translate:0px -4px ; filter:blur(1.52683px)\n100 opacity:0.236587 ; scale:0.961829 ; translate:0px -3.05365px ; filter:blur(0.448877px)\n200 opacity:0.959368 ; scale:0.988778 ; translate:0px -0.162529px ; filter:blur(0px)\n300 opacity:1 ; scale:0.997968 ; translate:0px ; filter:blur(0px)\n400 opacity:1 ; scale:1 ; translate:0px ; filter:blur(0px)",
+    "transition-property:filter, opacity, scale, translate ; transition-duration:0.2s, 0.2s, 0.4s ; transition-delay:0s, 0.05s ; transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1) ; transition-behavior:normal"
+  ],
+  "reverse-running-transition": [
+    "opacity:running:0",
+    "opacity:0.4",
+    "1 opacity {\"delay\":0,\"endDelay\":0,\"fill\":\"backwards\",\"iterationStart\":0,\"iterations\":1,\"duration\":400,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":400,\"activeDuration\":400} 0 running opacity:0.4",
+    "0 opacity:0.4\n100 opacity:0.3\n200 opacity:0.2\n400 opacity:0",
+    "1 {\"delay\":0,\"endDelay\":0,\"fill\":\"backwards\",\"iterationStart\":0,\"iterations\":1,\"duration\":1000,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":1000,\"activeDuration\":1000}",
+    "0 opacity:0\n500 opacity:0.5\n1000 opacity:1",
+    "opacity:running:0",
+    "opacity:0",
+    "0  opacity:0",
+    "opacity:running:0",
+    "opacity:0.6",
+    "1 {\"delay\":0,\"endDelay\":0,\"fill\":\"backwards\",\"iterationStart\":0,\"iterations\":1,\"duration\":1000,\"direction\":\"normal\",\"easing\":\"linear\",\"endTime\":1000,\"activeDuration\":1000} 0 opacity:0.6",
+    "0 opacity:0.6\n500 opacity:0.75\n1000 opacity:0.9"
+  ],
+  "events-run-start-end": [
+    "transitionrun left 0 - e1 true true TransitionEvent\ntransitionrun opacity 0 - e1 true true TransitionEvent\ntransitionstart opacity 0 - e1 true true TransitionEvent\ntransitionrun left 0 - e2 true true TransitionEvent\ntransitionstart left 0 - e2 true true TransitionEvent\ntransitionrun opacity 0 - e2 true true TransitionEvent\ntransitionstart opacity 0 - e2 true true TransitionEvent\ntransitionstart left 0 - e1 true true TransitionEvent\ntransitionend left 0.06 - e2 true true TransitionEvent\ntransitionend opacity 0.06 - e2 true true TransitionEvent\ntransitionend opacity 0.08 - e1 true true TransitionEvent\ntransitionend left 0.08 - e1 true true TransitionEvent"
+  ],
+  "events-cancel-and-reverse": [
+    "transitionrun opacity ~ - e1 true true TransitionEvent\ntransitionstart opacity ~ - e1 true true TransitionEvent\ntransitionrun opacity ~ - e2 true true TransitionEvent\ntransitionstart opacity ~ - e2 true true TransitionEvent\ntransitionrun opacity ~ - e3 true true TransitionEvent\ntransitionstart opacity ~ - e3 true true TransitionEvent\ntransitioncancel opacity ~ - e2 true true TransitionEvent\ntransitioncancel opacity ~ - e3 true true TransitionEvent\ntransitioncancel opacity ~ - e1 true true TransitionEvent\ntransitionrun opacity ~ - e1 true true TransitionEvent\ntransitionstart opacity ~ - e1 true true TransitionEvent\ntransitionend opacity ~ - e1 true true TransitionEvent",
+    "transitionrun opacity ~ - e1 true true TransitionEvent\ntransitionstart opacity ~ - e1 true true TransitionEvent\ntransitioncancel opacity ~ - e1 true true TransitionEvent\ntransitionrun opacity ~ - e1 true true TransitionEvent\ntransitionstart opacity ~ - e1 true true TransitionEvent\ntransitionend opacity ~ - e1 true true TransitionEvent",
+    "transitionrun opacity ~ - e3 true true TransitionEvent\ntransitionstart opacity ~ - e3 true true TransitionEvent\ntransitionend opacity ~ - e3 true true TransitionEvent"
+  ],
+  "no-transition-on-insert": [
+    "|0.2",
+    "|0.2",
+    "opacity:running:0|1",
+    "|1"
+  ],
+  "transition-behavior-discrete": [
+    "transition-behavior:normal, allow-discrete ; transition-property:opacity, display / transition-behavior:normal, normal / transition-behavior:allow-discrete ; transition-property:all / transition-behavior:normal, allow-discrete ; transition-property:opacity, display",
+    "display:running:0 | opacity:running:0 | content-visibility:running:0 | display:running:0 | opacity:running:0 | display:running:0 | opacity:running:0|a=block/visible b=none/visible c=block/visible d=none/visible e=none/visible f=block/visible",
+    "a display a opacity c content-visibility c display c opacity f display f opacity",
+    "0 #a=block/1/visible #b=none/0/visible #c=block/1/visible #d=none/0/visible #e=none/0/visible #f=block/1/visible\n400 #a=block/0.6/visible #b=none/0/visible #c=block/0.317459/visible #d=none/0/visible #e=none/0/visible #f=block/0.317459/visible\n999 #a=block/0.001/visible #b=none/0/visible #c=block/5.33653e-07/visible #d=none/0/visible #e=none/0/visible #f=block/5.33653e-07/visible\n1000 #a=none/0/visible #b=none/0/visible #c=none/0/hidden #d=none/0/visible #e=none/0/visible #f=none/0/visible",
+    "|a=block b=block c=block d=block e=block f=block",
+    "0 #a=block/1/visible #b=block/1/visible #c=block/1/visible #e=block/1/visible #f=block/1/visible\n1 #a=block/1/visible #b=block/1/visible #c=block/1/visible #e=block/1/visible #f=block/1/visible\n500 #a=block/1/visible #b=block/1/visible #c=block/1/visible #e=block/1/visible #f=block/1/visible\n1000 #a=block/1/visible #b=block/1/visible #c=block/1/visible #e=block/1/visible #f=block/1/visible"
+  ],
+  "interpolate-size": [
+    "interpolate-size:allow-keywords / interpolate-size:numeric-only / interpolate-size:numeric-only",
+    "height:running:0 | width:running:0 | height:running:0 | width:running:0",
+    "a height a width q height q width",
+    "0 #a=0px/40px #b=50px/22.2031px #q=50px/40px\n250 #a=12.5px/35.5469px #b=50px/22.2031px #q=52.5px/35.5469px\n500 #a=25px/31.0938px #b=50px/22.2031px #q=55px/31.0938px\n1000 #a=50px/22.2031px #b=50px/22.2031px #q=60px/22.2031px",
+    "true true true true true true true true"
+  ],
+  "custom-properties": [
+    "--buf:running:0 | --fill:running:0 | --buf --fill",
+    "0 --fill=0% --buf=0% --tw=#0000ff --plain=30px w=0px\n1000 --fill=12.5% --buf=20% --tw=#0000ff --plain=30px w=25px\n2000 --fill=25% --buf=40% --tw=#0000ff --plain=30px w=50px\n4000 --fill=50% --buf=80% --tw=#0000ff --plain=30px w=100px",
+    null
+  ],
+  "linear-overshoot": [
+    "transform:running:0",
+    "{\"delay\":0,\"endDelay\":0,\"fill\":\"backwards\",\"iterationStart\":0,\"iterations\":1,\"duration\":300,\"direction\":\"normal\",\"easing\":\"linear(0 0%, -24 20%, 16 40%, -8 60%, 4 80%, 1 100%)\",\"endTime\":300,\"activeDuration\":300}",
+    "0 transform:matrix(1, 0, 0, 1, 0.25, 0)\n30 transform:matrix(1, 0, 0, 1, -8.75, 0)\n60 transform:matrix(1, 0, 0, 1, -17.75, 0)\n90 transform:matrix(1, 0, 0, 1, -2.75, 0)\n120 transform:matrix(1, 0, 0, 1, 12.25, 0)\n150 transform:matrix(1, 0, 0, 1, 3.25, 0)\n180 transform:matrix(1, 0, 0, 1, -5.75, 0)\n240 transform:matrix(1, 0, 0, 1, 3.25, 0)\n300 transform:matrix(1, 0, 0, 1, 1, 0)"
+  ],
+  "transition-api-finished": [
+    "function 2 CSSTransition opacity true true false running 150 p|CSSTransition scale true true false running 150 p",
+    "no yes true 0 0",
+    "2 rejected AbortError rejected AbortError 0",
+    "false 0",
+    "0  0"
+  ],
+  "events-order-many-properties": [
+    "e1:background-color e1:color e1:font-size e1:left e1:opacity e1:width e2:background-color e2:color e2:font-size e2:left e2:opacity e2:width e1:k\ntransitionrun background-color e1\ntransitionstart background-color e1\ntransitionrun color e1\ntransitionstart color e1\ntransitionrun font-size e1\ntransitionstart font-size e1\ntransitionrun left e1\ntransitionstart left e1\ntransitionrun opacity e1\ntransitionstart opacity e1\ntransitionrun width e1\ntransitionstart width e1\ntransitionrun background-color e2\ntransitionstart background-color e2\ntransitionrun color e2\ntransitionstart color e2\ntransitionrun font-size e2\ntransitionstart font-size e2\ntransitionrun left e2\ntransitionstart left e2\ntransitionrun opacity e2\ntransitionstart opacity e2\ntransitionrun width e2\ntransitionstart width e2\nanimationstart k e1\ntransitionend background-color e1\ntransitionend color e1\ntransitionend font-size e1\ntransitionend left e1\ntransitionend opacity e1\ntransitionend width e1\ntransitionend background-color e2\ntransitionend color e2\ntransitionend font-size e2\ntransitionend left e2\ntransitionend opacity e2\ntransitionend width e2\nanimationend k e1"
+  ]
+}

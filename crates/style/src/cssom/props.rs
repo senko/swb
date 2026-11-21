@@ -79,6 +79,8 @@ pub(crate) enum Ser {
     TouchAction,
     /// `container-name`: names that keep their case, `none` in lower case.
     Names,
+    /// An animation longhand (its name): `animation/properties.rs`.
+    Animation(&'static str),
 }
 
 /// A longhand of a declaration block.
@@ -138,6 +140,10 @@ pub(crate) enum Kind {
     Transition,
     /// `container`: `name [/ type]`.
     Container,
+    /// `animation`: comma-separated layers (`animation/properties.rs`).
+    Animation,
+    /// `animation-range`: start and end pairs.
+    AnimationRange,
 }
 
 /// A shorthand.
@@ -292,6 +298,21 @@ const ALIASES: &[(&str, &str)] = &[
     ("-webkit-background-clip", "background-clip"),
     ("-webkit-perspective", "perspective"),
     ("-webkit-perspective-origin", "perspective-origin"),
+    ("-webkit-animation", "animation"),
+    ("-webkit-animation-name", "animation-name"),
+    ("-webkit-animation-duration", "animation-duration"),
+    (
+        "-webkit-animation-timing-function",
+        "animation-timing-function",
+    ),
+    ("-webkit-animation-delay", "animation-delay"),
+    (
+        "-webkit-animation-iteration-count",
+        "animation-iteration-count",
+    ),
+    ("-webkit-animation-direction", "animation-direction"),
+    ("-webkit-animation-fill-mode", "animation-fill-mode"),
+    ("-webkit-animation-play-state", "animation-play-state"),
 ];
 
 const BORDER_IMAGE: &[&str] = &[
@@ -722,6 +743,16 @@ const SHORTHANDS: &[Shorthand] = &[
         ],
         Kind::Transition,
     ),
+    sh(
+        "animation",
+        &crate::animation::properties::SHORTHAND_LONGHANDS,
+        Kind::Animation,
+    ),
+    sh(
+        "animation-range",
+        &["animation-range-start", "animation-range-end"],
+        Kind::AnimationRange,
+    ),
     sh("gap", &["row-gap", "column-gap"], Kind::Pair),
     sh("columns", &["column-width", "column-count"], Kind::AnyOrder),
     sh("overflow", &["overflow-x", "overflow-y"], Kind::Pair),
@@ -795,8 +826,20 @@ const fn sh(name: &'static str, longhands: &'static [&'static str], kind: Kind) 
 
 /// How each of swb's longhands is written.
 #[allow(clippy::too_many_lines)] // One line per property.
-fn ser_of(name: &str) -> Ser {
+fn ser_of(name: &'static str) -> Ser {
     match name {
+        "animation-name"
+        | "animation-duration"
+        | "animation-timing-function"
+        | "animation-delay"
+        | "animation-iteration-count"
+        | "animation-direction"
+        | "animation-fill-mode"
+        | "animation-play-state"
+        | "animation-composition"
+        | "animation-timeline"
+        | "animation-range-start"
+        | "animation-range-end" => Ser::Animation(name),
         "color"
         | "background-color"
         | "outline-color"

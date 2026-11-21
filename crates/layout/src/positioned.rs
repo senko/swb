@@ -1649,6 +1649,13 @@ pub(crate) fn style_transform(style: &ComputedStyle, reference: Rect) -> Matrix 
                 0.0,
                 0.0,
             ),
+            // An animated pair with a percentage (ADR 0044 section 4).
+            TransformFunction::Interpolated(pair) => {
+                let v = pair
+                    .matrix(reference.width, reference.height)
+                    .map(|v| v as f32);
+                Matrix::new(v[0], v[1], v[2], v[3], v[4], v[5])
+            }
         };
         m = m.multiply(&f);
     }

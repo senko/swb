@@ -7,6 +7,7 @@ use crate::custom::CustomProperties;
 
 use crate::font_settings::{FontFeatureSettings, FontVariationSettings};
 
+use crate::animation::properties::AnimationStyle;
 use crate::properties::inert::InertStyle;
 use crate::values::{
     Alignment, Appearance, AspectRatio, BackgroundAttachment, BackgroundBox,
@@ -342,6 +343,10 @@ pub struct ComputedStyle {
     /// `perspective-origin`; `properties/inert.rs`). `None` while all are
     /// initial, so an element that sets none pays one pointer.
     pub inert: Option<Arc<InertStyle>>,
+    /// The `animation-*` properties (`animation/properties.rs`). `None`
+    /// while all are initial, so an element without animations pays one
+    /// pointer.
+    pub animations: Option<Arc<AnimationStyle>>,
     /// True for the `::details-content` box of a closed `details`. Not a
     /// CSS property: it stands for Chromium's `content-visibility: hidden`
     /// on that box. The box has size, layout, paint and style
@@ -590,6 +595,7 @@ impl ComputedStyle {
             user_select: UserSelect::Auto,
             unicode_bidi: UnicodeBidi::Normal,
             inert: None,
+            animations: None,
             contents_hidden: false,
         }
     }

@@ -4,6 +4,34 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-21: M13 feature 3a, the model of CSS animations
+
+- The first feature 3a (the values of CSS animations) was too large for
+  one session. It is now 3a (the model), 3b (running animations) and 3c
+  (the API and frames).
+- ADR 0044, section 14. The `animation-*` properties exist: twelve
+  longhands, the `animation` and `animation-range` shorthands and the
+  `-webkit-` aliases, with the texts of `element.style`, `cssText` and
+  `getComputedStyle` that Chromium writes. Chromium's shorthand leaves
+  out `animation-composition` but resets the timeline and the range.
+- The easing functions, the timing model of Web Animations and the
+  `@keyframes` sets are plain functions with unit tests from Chromium's
+  rows. The interpolation of computed values covers the table of ADR
+  0044 section 4: a matrix pair with percentages is kept until layout
+  knows the box, and registered custom properties interpolate by their
+  syntax (Tailwind 4 registers its gradient colors, and feature 5 needs
+  them).
+- The review measured more of Chromium: `@keyframes` inside
+  `@container` count, `@-webkit-keyframes` is an alias, offsets are
+  `f64`, literals saturate to the `f32` range and `calc(1s/0)` is a
+  valid time. The math functions of times now go through the one
+  `calc()` parser of the crate, and `@keyframes` rules are shared with
+  the sheet instead of copied.
+- Nothing runs yet, so no page changed: snapshot and compare are equal,
+  the style time is unchanged.
+- Next: feature 3b (running animations: records, timeline, the cascade
+  input, `getAnimations()`).
+
 ## 2026-11-21: M13 feature 2c, text clips and rounded layers
 
 - ADR 0046, section "Feature 2c". `background-clip: text` paints: a

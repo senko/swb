@@ -345,6 +345,18 @@ pub(crate) fn parse_longhand(
             | L::ScrollPaddingRight
             | L::ScrollPaddingBottom
             | L::ScrollPaddingLeft => super::inert::parse_longhand(id, p)?,
+            L::AnimationName
+            | L::AnimationDuration
+            | L::AnimationTimingFunction
+            | L::AnimationDelay
+            | L::AnimationIterationCount
+            | L::AnimationDirection
+            | L::AnimationFillMode
+            | L::AnimationPlayState
+            | L::AnimationComposition
+            | L::AnimationTimeline
+            | L::AnimationRangeStart
+            | L::AnimationRangeEnd => crate::animation::properties::parse_longhand(id, p)?,
         })
     })
 }

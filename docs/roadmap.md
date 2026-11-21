@@ -6164,20 +6164,62 @@ Steps:
         `videojs_static.rs`, `text_clip.rs`, unit tests in
         `raster/tests`, `background.rs`, `svg/tests.rs`; 6 hostile
         cases.
-   3a. CSS animations, values (`implementer-hard`; ADR 0044 sections 2
-      to 5 and 10): the `animation-*` longhands and the shorthand with
-      their CSSOM forms; the timing model (delay, duration, iteration
-      count, direction, fill mode, play state); the easing functions
-      (`cubic-bezier()`, `steps()`, `linear()`, the keywords); the
-      interpolation of the value types of section 4; `@keyframes` in the
-      cascade at the animation origin; the document timeline and the
-      animation step of the rendering update, also without scripts;
-      virtual time; the minimal `getAnimations()`, `pause()` and
-      `currentTime` that seeking needs; the probe value rows as Rust
-      tests. The option `--animations off` with `swb.py` lands in the
-      same commit as the first running animation, so that the scores of
-      the other targets stay as they are.
-   3b. CSS animations, API and frames (`implementer-hard`; sections 6
+   The first plan had one feature 3a for the values of CSS animations;
+   it was too large for one session, so it is split into 3a (the model,
+   without running animations) and 3b (running animations). The API and
+   frames are feature 3c.
+   3a. CSS animations, the model (`implementer-hard`; ADR 0044 sections
+      1, 4 and 5): the `animation-*` longhands and the shorthand with
+      their CSSOM forms (`getComputedStyle`, `element.style`, `cssText`,
+      `CSS.supports`); `@keyframes` parsed into the stylist (resolved,
+      sorted keyframe sets per rule, with keyframe easing); the timing
+      model of Web Animations as plain functions (phases, delay,
+      duration, iteration count, direction, fill mode, the before flag);
+      the easing functions (`cubic-bezier()`, `steps()`, `linear()`, the
+      keywords); the interpolation of the computed value types of
+      section 4 (not `interpolate-size`, feature 5). Unit tests from the
+      probe values. No animation runs yet, so no page changes.
+
+      Done (2026-11-21): ADR 0044, section 14. No page renders
+      differently (snapshot and compare equal; style time unchanged).
+      - The twelve `animation-*` longhands (`animation-composition`,
+        `animation-timeline` and the range parse with no effect), the
+        `animation` and `animation-range` shorthands and the `-webkit-`
+        aliases, with `calc()` in times, in one shared record
+        (`ComputedStyle` 2016 -> 2024 bytes); `element.style`,
+        `cssText`, `getComputedStyle` and `CSS.supports` as in Chromium.
+      - The easing functions (`cubic-bezier()`, `steps()` with the
+        before flag, `linear()` with filled inputs), the timing model of
+        Web Animations, and the `@keyframes` sets in the stylist (winner
+        by layer and order, merged by offset and easing; inside
+        `@container` too; `@-webkit-keyframes` is an alias that loses to
+        any `@keyframes` of the name; `f64` offsets).
+      - Interpolation of lengths, numbers, keywords, colors (sRGB and
+        Oklab), transform lists (2D decomposition, all seven Chromium
+        cases; a matrix pair with percentages keeps both lists until
+        layout, at most 32 nested values), individual transforms,
+        filters, shadows, background lists, and registered custom
+        properties by their syntax.
+      - Numbers follow Chromium's ranges: literals saturate to the `f32`
+        range, an infinite `calc()` computes to the largest `f64`, and
+        every interpolated value is finite. The math functions of times
+        go through the one `calc()` parser of the crate.
+      - Probes: `css-animations-3a.json` (18 cases; three equal Chromium
+        runs); the Chromium data of `css-animations.json` and
+        `css-transitions.json` stored for 3b and 5. Tests:
+        `css_animations.rs`, unit tests in `crates/style/src/animation/`;
+        6 hostile cases.
+   3b. CSS animations, running (`implementer-hard`; sections 2, 3 and
+      10): `DocumentAnimations` and the animation records; the animation
+      input of the cascade at the animation origin; the document
+      timeline and the animation step of the rendering update, also
+      without scripts; virtual time; the minimal `getAnimations()`,
+      `pause()` and `currentTime` that seeking needs; the probe value and
+      pixel rows of `css-animations.json` as Rust tests. The option
+      `--animations off` with `swb.py` lands in the same commit as the
+      first running animation, so that the scores of the other targets
+      stay as they are.
+   3c. CSS animations, API and frames (`implementer-hard`; sections 6
       to 8 and 11): the rest of `Animation`, `KeyframeEffect` and
       `CSSAnimation`; `ready` and `finished` (they must settle, or Base
       UI's popups never close); `AnimationEvent` and the event step; the
@@ -6195,8 +6237,11 @@ Steps:
       diagnosis.
    5. CSS transitions (`implementer-hard`): the `transition-*` longhands
       take effect (they leave `inert.rs`, with `calc()` in times and
-      `linear()` as a timing function); the before- and after-change
-      styles; start, cancel and the reversing of a running transition;
+      `linear()` as a timing function; the `Easing` and time parsing of
+      `inert.rs` and the `Ser::Easing` serialization of the CSSOM give
+      way to those of `animation/` from feature 3a); the before- and
+      after-change styles; start, cancel and the reversing of a running
+      transition;
       `transition-behavior: allow-discrete`; `interpolate-size`;
       `transitionrun`, `transitionstart`, `transitionend`,
       `transitioncancel`; transitions that scripts start through styles,
@@ -6204,7 +6249,7 @@ Steps:
    6. The exit test (`implementer`): an integration test on the fixture
       with the items below, the JS-off check and the `load` budget.
 
-   Features 3b and 5 add the hostile cases that the diagnosis lists
+   Features 3c and 5 add the hostile cases that the diagnosis lists
    (section 7, item 8) to the hostile-page set. Feature 5 also settles
    the order of the cancel events of `events-cancel-and-reverse` (ADR
    0044, section 6); that row's order of `e1` and `e3` varies in
@@ -6430,6 +6475,24 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Layout (feature 2c): an inline block with `overflow` and
   `vertical-align: top` puts the glyphs of the text after it 1 px lower
   than Chromium.
+- CSSOM (feature 3a): `CSSKeyframesRule` has no `cssRules`,
+  `appendRule()`, `deleteRule()` or `findRule()`, and there is no
+  `CSSKeyframeRule`.
+- Style (feature 3a): a registered `<transform-list>` with a 3D function
+  interpolates discretely, and the registration rejects `matrix3d()` and
+  `perspective()` (Chromium accepts them). Number tokens of custom
+  properties are written without an exponent, so a tiny value differs
+  from Chromium's text (`6.12323e-17`).
+- Feature 3b: pass the element's `color` as `current` to
+  `interpolate_custom`; add a hostile case for a registered syntax with
+  many alternatives and a long value (the cost is their product).
+- Style (feature 3a): `animation-trigger` does not parse (Chromium 148
+  parses it).
+- CSSOM (feature 3a): an infinite `cubic-bezier()` or `linear()`
+  argument set with `element.style.setProperty()` computes to
+  3.40282e+38 (Chromium: 1.79769e+308); swb parses the declared text
+  again, which holds the number as a literal. Values from style sheets
+  are right.
 
 ## Backlog from M12
 

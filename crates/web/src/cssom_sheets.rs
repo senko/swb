@@ -1048,7 +1048,7 @@ impl g::css_keyframes_rule::CSSKeyframesRuleImpl for WebState {
     fn set_name(cx: &mut Cx<'_>, this: Platform, value: String) -> b::Result<()> {
         let rule = rule_of(cx.rt, this)?;
         if let RuleKind::Keyframes(keyframes) = &mut rule.borrow_mut().kind {
-            keyframes.name = value;
+            std::sync::Arc::make_mut(keyframes).name = value;
         }
         model::mark_modified(&rule);
         Ok(())

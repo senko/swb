@@ -36,7 +36,7 @@
 //! `::slotted()` rules: they match nothing there.
 
 use std::collections::HashMap;
-use std::sync::{Arc, LazyLock, OnceLock};
+use std::sync::{Arc, LazyLock, Mutex, OnceLock, PoisonError};
 
 use log::trace;
 use swb_css::{
@@ -48,6 +48,7 @@ use url::Url;
 
 use smallvec::SmallVec;
 
+use crate::animation::KeyframeSet;
 use crate::bloom::{AncestorFilter, MAX_ANCESTOR_HASHES, ancestor_hashes};
 use crate::container::Containers;
 use crate::cssom::sheet::{Hold, RuleKind, RuleRef, StyleSheet};
@@ -377,6 +378,34 @@ pub struct Stylist {
     /// The dependencies of the selectors on the element states and the
     /// DOM (ADR 0041, ADR 0042), built at the first targeted restyle.
     invalidation_index: OnceLock<InvalidationIndex>,
+    /// The `@keyframes` rules in document order (ADR 0044, M13 feature
+    /// 3a), with their keyframe sets once built.
+    keyframes: Keyframes,
+}
+
+/// The `@keyframes` rules of a stylist and their resolved sets.
+#[derive(Debug, Default)]
+struct Keyframes {
+    /// The rules in document order.
+    rules: Vec<KeyframesEntry>,
+    /// The rules of each name, in document order; built at the first
+    /// lookup.
+    by_name: OnceLock<HashMap<Arc<str>, Vec<usize>>>,
+    /// The resolved set of each rule that a lookup chose (by index into
+    /// `rules`); built at the first lookup of the rule.
+    sets: Mutex<HashMap<usize, Arc<KeyframeSet>>>,
+}
+
+/// One `@keyframes` rule and where it is.
+#[derive(Debug)]
+struct KeyframesEntry {
+    rule: Arc<swb_css::KeyframesRule>,
+    /// The context to parse its declarations with (the sheet's base URL).
+    cx: ParserContext,
+    /// The node of its layer.
+    layer: u32,
+    /// Its `@media` chain.
+    media: Option<u32>,
 }
 
 /// The estimated bytes of a scoped stylist without its rules, for the
@@ -472,6 +501,7 @@ impl Stylist {
             scoped_targets: 0,
             scope_holds: Vec::new(),
             invalidation_index: OnceLock::new(),
+            keyframes: Keyframes::default(),
         }
     }
 
@@ -629,7 +659,7 @@ impl Stylist {
                 CssRule::FontFace(rule) => self.add_font_face(rule, cx, scope),
                 CssRule::Property(rule) => self.add_registration(rule, scope),
                 CssRule::Import(import) => self.declare_import_layer(import, scope),
-                CssRule::Keyframes(_) => {}
+                CssRule::Keyframes(k) => self.add_keyframes(k, cx, scope),
                 CssRule::Container(c) => {
                     let inner = Scope {
                         container: Some(self.push_container(&c.condition, scope.container)),
@@ -734,7 +764,7 @@ impl Stylist {
                 RuleKind::FontFace(face) => self.add_font_face(face, cx, scope),
                 RuleKind::Property(rule) => self.add_registration(rule, scope),
                 RuleKind::Import(import) => self.declare_import_layer(import, scope),
-                RuleKind::Keyframes(_) => {}
+                RuleKind::Keyframes(k) => self.add_keyframes(k, cx, scope),
                 RuleKind::Container { condition, rules } => {
                     let inner = Scope {
                         container: Some(self.push_container(condition, scope.container)),
@@ -744,6 +774,82 @@ impl Stylist {
                 }
             }
         }
+    }
+
+    /// Adds a `@keyframes` rule (CSS Animations 1 §4), shared with the
+    /// sheet. A rule inside `@container` counts whatever the condition
+    /// (Chromium 148, `keyframes-conditions` of
+    /// `tools/probes/css-animations-3a.json`: a name cannot depend on an
+    /// element).
+    fn add_keyframes(
+        &mut self,
+        rule: &Arc<swb_css::KeyframesRule>,
+        cx: &ParserContext,
+        scope: Scope,
+    ) {
+        self.keyframes.rules.push(KeyframesEntry {
+            rule: Arc::clone(rule),
+            cx: cx.clone(),
+            layer: scope.layer,
+            media: scope.media,
+        });
+    }
+
+    /// The keyframe set of the animation name `name` for the evaluated
+    /// `@media` conditions `media` and the layer ranks `ranks`
+    /// ([`Stylist::evaluate_media`], [`Stylist::layer_ranks`]): the set of
+    /// the rule that wins by layer and then by order. `None` if no rule
+    /// has the name.
+    pub(crate) fn keyframes(
+        &self,
+        name: &str,
+        media: &[bool],
+        ranks: &[u32],
+    ) -> Option<Arc<KeyframeSet>> {
+        let k = &self.keyframes;
+        let by_name = k.by_name.get_or_init(|| {
+            let mut map: HashMap<Arc<str>, Vec<usize>> = HashMap::new();
+            for (i, entry) in k.rules.iter().enumerate() {
+                map.entry(Arc::from(entry.rule.name.as_str()))
+                    .or_default()
+                    .push(i);
+            }
+            map
+        });
+        let applies = |e: &KeyframesEntry| {
+            e.media
+                .is_none_or(|c| media.get(c as usize).copied().unwrap_or(false))
+        };
+        // An `@keyframes` rule beats every `@-webkit-keyframes` rule, then
+        // the highest layer rank wins, then the last rule (Chromium 148,
+        // `keyframes-conditions`: also a layered `@keyframes` against an
+        // unlayered `@-webkit-keyframes`).
+        let key = |e: &KeyframesEntry, i: usize| {
+            let rank = ranks.get(e.layer as usize).copied().unwrap_or(0);
+            (!e.rule.webkit_prefixed, rank, i)
+        };
+        let winner = by_name
+            .get(name)?
+            .iter()
+            .filter_map(|&i| k.rules.get(i).filter(|e| applies(e)).map(|e| key(e, i)))
+            .max()?
+            .2;
+        let mut sets = k.sets.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(set) = sets.get(&winner) {
+            return Some(Arc::clone(set));
+        }
+        let entry = k.rules.get(winner)?;
+        let set = Arc::new(KeyframeSet::new(&entry.rule, &entry.cx));
+        sets.insert(winner, Arc::clone(&set));
+        Some(set)
+    }
+
+    /// The keyframe set of the animation name `name` in the environment
+    /// `env` (see [`Stylist::keyframes`]).
+    pub fn keyframes_in(&self, name: &str, env: &MediaEnvironment) -> Option<Arc<KeyframeSet>> {
+        let media = self.evaluate_media(env);
+        let ranks = self.layer_ranks(&media);
+        self.keyframes(name, &media, &ranks)
     }
 
     /// Adds the media query list of an `@media` rule inside the chain
