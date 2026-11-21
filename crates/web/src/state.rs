@@ -348,6 +348,9 @@ pub(crate) struct DocState {
     /// The wrappers of the style sheets and rules that scripts have seen
     /// (`cssom_sheets.rs`).
     pub(crate) cssom: crate::cssom_sheets::CssomObjects,
+    /// The wrappers of the animations that scripts have seen
+    /// (`animations.rs`).
+    pub(crate) animations: crate::animations::AnimationObjects,
     /// The `adoptedStyleSheets` arrays of the document and its shadow roots
     /// (`adopted.rs`).
     pub(crate) adopted: crate::adopted::AdoptedArrays,
@@ -520,6 +523,7 @@ impl DocState {
         // The module records of the document (ADR 0034 section 5).
         self.scripts.trace(tracer);
         self.cssom.trace(tracer);
+        self.animations.trace(tracer);
         self.adopted.trace(tracer);
         self.messages.trace(tracer);
         for reader in self.readers.values() {

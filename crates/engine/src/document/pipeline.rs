@@ -277,18 +277,24 @@ impl DocumentState {
             base_url: self.base_url.value(),
             sizes: &self.container_sizes,
         };
-        let outcome = match path {
-            RestylePath::State => {
-                swb_style::restyle_states(&inputs, &self.style_states, &self.states, map)
-            }
-            RestylePath::Dom => swb_style::restyle_targeted(
-                &inputs,
-                &self.style_states,
-                &self.states,
-                &self.dom_changes,
-                map,
-            ),
+        // The owners of animations whose values can have changed (ADR 0044
+        // section 3) are restyled with the change. A fallback to a full
+        // restyle restyles them anyway.
+        let marked = self.animations.borrow_mut().take_marked();
+        let none = swb_style::DomChanges::default();
+        let dom = match path {
+            RestylePath::State => &none,
+            RestylePath::Dom => &self.dom_changes,
         };
+        let outcome = swb_style::restyle_animated(
+            &inputs,
+            &self.style_states,
+            &self.states,
+            dom,
+            &marked,
+            Some(&self.animations),
+            map,
+        );
         let (changed, restyled, image_urls) = match outcome {
             swb_style::Restyle::Full(reason) => {
                 log::debug!("style: full restyle after {} ({reason:?})", path.cause());
@@ -358,13 +364,15 @@ impl DocumentState {
         let Some(stylist) = &self.stylist else {
             return;
         };
-        let full = swb_style::compute_styles_with_containers(
+        let full = swb_style::compute_styles_animated(
             &self.dom,
             stylist,
             &self.media_environment(),
             &self.states,
             self.base_url.value(),
             &self.container_sizes,
+            None,
+            &self.animations,
         );
         if let Some(difference) = map.first_difference(&full) {
             panic!(
@@ -392,6 +400,7 @@ impl DocumentState {
     /// changes first. Rendering waits for stylesheets: until they are
     /// loaded, there are no styles.
     pub fn update_style(&mut self) {
+        self.settle_animations();
         self.sync();
         if !self.stylesheets_settled() {
             // A layout kept for a targeted restyle (ADR 0042 section 6) must
@@ -403,9 +412,10 @@ impl DocumentState {
         }
         if self.styles.is_none() {
             self.compute_styles();
-        } else if self.styles_stale {
+        } else if self.styles_stale || self.animations.borrow().has_marked() {
             // A script changed the focus since the styles (ADR 0041
-            // section 5).
+            // section 5), or animated values can have changed (ADR 0044
+            // section 3): a targeted restyle.
             self.restyle();
         }
     }
@@ -430,6 +440,14 @@ impl DocumentState {
         node: swb_dom::NodeId,
     ) -> Option<std::sync::Arc<swb_style::ComputedStyle>> {
         self.process_changes();
+        self.settle_animations();
+        // Animated values that can have changed: the targeted restyle of
+        // their owners (a seek by a script, the timeline).
+        if self.styles.is_some() && self.animations.borrow().has_marked() {
+            let outer = std::mem::replace(&mut self.in_query, true);
+            self.update_style();
+            self.in_query = outer;
+        }
         if !self.styles_stale
             && let Some(style) = self.styles.as_ref().and_then(|s| s.get(node))
         {
@@ -469,7 +487,7 @@ impl DocumentState {
         let stylist = self.stylist.as_ref()?;
         let containers = stylist.has_container_dependence();
         let started = Instant::now();
-        let chain = swb_style::compute_element_styles_with_containers(
+        let chain = swb_style::compute_element_styles_animated(
             &self.dom,
             stylist,
             &env,
@@ -477,6 +495,7 @@ impl DocumentState {
             self.base_url.value(),
             node,
             &self.container_sizes,
+            Some(&self.animations),
         );
         self.flushes.element_style(started.elapsed());
         // An element inside a query container: its style can depend on the
@@ -518,7 +537,7 @@ impl DocumentState {
         let env = self.media_environment();
         let stylist = self.stylist.as_ref()?;
         let started = Instant::now();
-        let chain = swb_style::compute_element_styles_with_containers(
+        let chain = swb_style::compute_element_styles_animated(
             &self.dom,
             stylist,
             &env,
@@ -526,6 +545,7 @@ impl DocumentState {
             self.base_url.value(),
             node,
             &self.container_sizes,
+            Some(&self.animations),
         );
         self.flushes.element_style(started.elapsed());
         let style = chain.last().map(|(_, s)| std::sync::Arc::clone(s));
@@ -770,6 +790,7 @@ impl DocumentState {
         }
         let started = Instant::now();
         let mut stylist = Stylist::new(self.dom.quirks_mode);
+        stylist.set_animations(self.animations_enabled);
         let mut in_shadow_trees = Vec::new();
         for index in 0..self.sheets.len() {
             // The sheets of shadow trees go to their trees' stylists.
@@ -860,25 +881,18 @@ impl DocumentState {
             return;
         };
         let started = Instant::now();
-        let styles = match previous {
-            Some(previous) => swb_style::compute_styles_reusing(
-                &self.dom,
-                stylist,
-                &env,
-                &self.states,
-                self.base_url.value(),
-                &self.container_sizes,
-                previous,
-            ),
-            None => swb_style::compute_styles_with_containers(
-                &self.dom,
-                stylist,
-                &env,
-                &self.states,
-                self.base_url.value(),
-                &self.container_sizes,
-            ),
-        };
+        // A full restyle restyles every owner of an animation.
+        self.animations.borrow_mut().take_marked();
+        let styles = swb_style::compute_styles_animated(
+            &self.dom,
+            stylist,
+            &env,
+            &self.states,
+            self.base_url.value(),
+            &self.container_sizes,
+            previous,
+            &self.animations,
+        );
         self.timings.style = started.elapsed();
         self.flushes.style(self.timings.style, self.in_query);
         log::debug!("style: {:?}", self.timings.style);

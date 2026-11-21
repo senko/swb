@@ -1,0 +1,87 @@
+// Sources:
+// - Web Animations Level 1, W3C Editor's Draft,
+//   https://drafts.csswg.org/web-animations-1/ (§6.4 "The Animation
+//   interface", §6.5 "The AnimationEffect interface", §6.6 "The
+//   KeyframeEffect interface", §6.7 "The Animatable interface mixin", §6.8
+//   "Extensions to the Document interface"), copied on 2026-11-21;
+// - CSS Animations Level 2, W3C Editor's Draft,
+//   https://drafts.csswg.org/css-animations-2/ (§6.1 "The CSSAnimation
+//   interface"), copied on 2026-11-21.
+//
+// This file includes material copied from these documents. Copyright © 2026
+// World Wide Web Consortium. https://www.w3.org/copyright/software-license-2023/
+// (W3C Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb cut and changed this file for feature 3b of M13 (ADR 0044 section 7):
+// only what seeking needs. No `animate()`, no constructors (the interfaces
+// exist for `instanceof`), no `timeline`, `ready`, `finished`, `cancel()`,
+// `finish()`, `reverse()`, `updatePlaybackRate()`, `onfinish`,
+// `oncancel`, `updateTiming()`, `setKeyframes()`, no `AnimationTimeline`
+// (feature 3c adds the rest of section 7). `id` is read-only; the enums
+// are `DOMString`; `EffectTiming.duration` is a number (CSS animations
+// always have one); `Animation` is not `CSSAnimation`'s only kind
+// (transitions: feature 5).
+
+dictionary EffectTiming {
+  double delay = 0;
+  double endDelay = 0;
+  DOMString fill = "auto";
+  double iterationStart = 0.0;
+  unrestricted double iterations = 1.0;
+  unrestricted double duration = 0;
+  DOMString direction = "normal";
+  DOMString easing = "linear";
+};
+
+dictionary ComputedEffectTiming : EffectTiming {
+  unrestricted double endTime = 0;
+  unrestricted double activeDuration = 0;
+  double? localTime = null;
+  double? progress = null;
+  unrestricted double? currentIteration = null;
+};
+
+[Exposed=Window]
+interface AnimationEffect {
+  EffectTiming getTiming();
+  ComputedEffectTiming getComputedTiming();
+};
+
+[Exposed=Window]
+interface KeyframeEffect : AnimationEffect {
+  readonly attribute Element? target;
+  readonly attribute CSSOMString? pseudoElement;
+  readonly attribute DOMString composite;
+  sequence<object> getKeyframes();
+};
+
+[Exposed=Window]
+interface Animation : EventTarget {
+  readonly attribute DOMString id;
+  [SameObject] readonly attribute AnimationEffect? effect;
+  readonly attribute double? startTime;
+  attribute double? currentTime;
+  readonly attribute DOMString playState;
+  readonly attribute DOMString replaceState;
+  readonly attribute boolean pending;
+  undefined play();
+  undefined pause();
+};
+
+[Exposed=Window]
+interface CSSAnimation : Animation {
+  readonly attribute CSSOMString animationName;
+};
+
+dictionary GetAnimationsOptions {
+  boolean subtree = false;
+};
+
+partial interface Element {
+  sequence<Animation> getAnimations(optional GetAnimationsOptions options = {});
+};
+
+partial interface Document {
+  sequence<Animation> getAnimations();
+};

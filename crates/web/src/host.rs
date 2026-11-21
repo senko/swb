@@ -316,6 +316,59 @@ pub struct ImageInfo {
     pub current_src: String,
 }
 
+/// The state of a CSS animation for the bindings (ADR 0044 section 7).
+#[derive(Clone, Debug)]
+pub struct AnimationInfo {
+    /// `animationName`.
+    pub name: String,
+    /// The owning element (the `target` of the effect).
+    pub target: NodeId,
+    /// The pseudo-element of the target (`"::before"`), if any.
+    pub pseudo: Option<&'static str>,
+    /// `playState`.
+    pub play_state: &'static str,
+    /// `pending`.
+    pub pending: bool,
+    /// `currentTime` in ms.
+    pub current_time: Option<f64>,
+    /// True if `current_time` is a hold time (paused or seeked): scripts
+    /// read it unchanged, a running one without float noise.
+    pub held: bool,
+    /// `startTime` in ms.
+    pub start_time: Option<f64>,
+    /// The timing of the effect (`getTiming()`).
+    pub timing: swb_style::animation::Timing,
+    /// The effect's `animation-timing-function` (the default keyframe
+    /// easing), as text.
+    pub keyframe_easing: String,
+    /// The timing at the current time (`getComputedTiming()`).
+    pub computed: swb_style::animation::ComputedTiming,
+}
+
+/// A change of an animation by a script.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum AnimationCommand {
+    /// `play()`.
+    Play,
+    /// `pause()`.
+    Pause,
+    /// `currentTime = ms`.
+    SetCurrentTime(f64),
+}
+
+/// One keyframe of `getKeyframes()`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct KeyframeInfo {
+    /// `offset` (and `computedOffset`).
+    pub offset: f64,
+    /// `easing`.
+    pub easing: String,
+    /// `composite`.
+    pub composite: &'static str,
+    /// The property values: (IDL attribute name, value).
+    pub values: Vec<(String, String)>,
+}
+
 /// The document of a task, as the engine lends it to the bindings.
 pub trait EngineHost: Any {
     /// The user agent string (`navigator.userAgent`, ADR 0030): the one
@@ -937,6 +990,41 @@ pub trait EngineHost: Any {
     ) -> String {
         let _ = (element, pseudo, property);
         String::new()
+    }
+
+    // ----- Animations (ADR 0044 section 7) -----
+
+    /// The relevant animations of the document (`element` `None`) or of
+    /// `element` (with `subtree`, also of its descendants and
+    /// pseudo-elements), in composite order (`getAnimations()`). The styles
+    /// are brought up to date first. The default has none.
+    fn animations(&mut self, element: Option<NodeId>, subtree: bool) -> Vec<u64> {
+        let _ = (element, subtree);
+        Vec::new()
+    }
+
+    /// The state of the animation `id`; `None` once it is gone.
+    fn animation(&mut self, id: u64) -> Option<AnimationInfo> {
+        let _ = id;
+        None
+    }
+
+    /// Changes the animation `id` (`play()`, `pause()`, `currentTime`).
+    fn animation_command(&mut self, id: u64, command: AnimationCommand) {
+        let _ = (id, command);
+    }
+
+    /// The keyframes of the animation `id` (`getKeyframes()`).
+    fn animation_keyframes(&mut self, id: u64) -> Vec<KeyframeInfo> {
+        let _ = id;
+        Vec::new()
+    }
+
+    /// The ids of the animations that went since the last call: the
+    /// bindings drop their wrappers. The first call starts the
+    /// bookkeeping (the engine keeps no ids before: no wrapper exists).
+    fn released_animations(&mut self) -> Vec<u64> {
+        Vec::new()
     }
 
     // ----- Style sheets (CSSOM) -----

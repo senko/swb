@@ -13,6 +13,7 @@
 //! a case that this pass cannot handle exactly ([`FullReason`]) leaves the
 //! map as it was, and the caller restyles the whole document.
 
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -24,6 +25,7 @@ use url::Url;
 use super::Styler;
 use super::use_instances::is_svg_use;
 use crate::ComputedStyle;
+use crate::animation::DocumentAnimations;
 use crate::container::ContainerSizes;
 use crate::dom_changes::{DomChanges, plan_dom};
 use crate::element::{DomElement, ElementStates, StateSet};
@@ -118,6 +120,25 @@ pub fn restyle_targeted(
     dom: &DomChanges,
     map: &mut StyleMap,
 ) -> Restyle {
+    restyle_animated(inputs, old, new, dom, &[], None, map)
+}
+
+/// [`restyle_targeted`] with the document's animations (ADR 0044 section
+/// 3): the elements of `marked` (the owners of animations whose values can
+/// have changed) are restyled too, the restyled elements' animation records
+/// are brought up to date, and their styles take the animated values. The
+/// records of elements without a style or an animation name afterwards are
+/// cancelled ([`super::sweep_animations`]).
+#[allow(clippy::too_many_arguments)]
+pub fn restyle_animated(
+    inputs: &RestyleInputs<'_>,
+    old: &ElementStates,
+    new: &ElementStates,
+    dom: &DomChanges,
+    marked: &[NodeId],
+    animations: Option<&RefCell<DocumentAnimations>>,
+    map: &mut StyleMap,
+) -> Restyle {
     let RestyleInputs {
         doc,
         stylist,
@@ -139,7 +160,7 @@ pub fn restyle_targeted(
     if let Some(reason) = dom.full_reason() {
         return Restyle::Full(reason);
     }
-    if changed.is_empty() && dom.is_empty() {
+    if changed.is_empty() && dom.is_empty() && marked.is_empty() {
         return unchanged;
     }
     // The sizes must be ones that the log holds: after the bound of the
@@ -163,6 +184,14 @@ pub fn restyle_targeted(
     if !dom.is_empty() && !planner.done() {
         plan_dom(&mut planner, dom, old, new, map.has_use_elements());
     }
+    for &node in marked {
+        if planner.done() {
+            break;
+        }
+        if doc.element(node).is_some() && doc.is_connected(node) {
+            planner.mark_one(node);
+        }
+    }
     let plan = planner.finish();
     if plan.everything {
         return Restyle::Full(FullReason::Everything);
@@ -177,11 +206,18 @@ pub fn restyle_targeted(
     // lazy set answers the few elements of a targeted restyle without it.
     let states = StateSet::lazy(doc, new);
     let mut styler = Styler::new(doc, &states, stylist, env, base_url, true, sizes, None);
+    styler.animations = animations.map(|a| (a, true));
     let changes = styler
         .run_targeted(map, &plan)
         .and_then(|changes| styler.collect_stale(map, dom, changes));
     match changes {
-        Ok(changes) => styler.finish_targeted(&changes, &plan, map, sizes),
+        Ok(changes) => {
+            let outcome = styler.finish_targeted(&changes, &plan, map, sizes);
+            if let Some(animations) = animations {
+                super::sweep_animations(map, animations);
+            }
+            outcome
+        }
         Err(reason) => Restyle::Full(reason),
     }
 }

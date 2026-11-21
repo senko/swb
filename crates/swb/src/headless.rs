@@ -38,6 +38,8 @@ pub(crate) struct HeadlessOptions<'a> {
     pub(crate) bench: Option<usize>,
     /// The JavaScript setting.
     pub(crate) javascript: bool,
+    /// The animation setting (`--animations`).
+    pub(crate) animations: bool,
     /// Expressions to evaluate after the load (`--eval`).
     pub(crate) eval: &'a [EvalRequest],
     /// Input steps to send after the load (`--steps`, a JSON list).
@@ -59,13 +61,14 @@ pub(crate) fn serve(
     scale: f32,
     port: u16,
     url: Option<Url>,
-    javascript: bool,
+    (javascript, animations): (bool, bool),
     (mode, now): (ClockMode, Option<f64>),
 ) -> Result<()> {
     // `main` runs this on a page thread (`stack::on_page_thread`).
     let mut browser = HeadlessBrowser::new(fetcher, fonts, viewport, scale, port, true)
         .with_context(|| format!("cannot start the automation server on port {port}"))?;
     browser.page().set_javascript(javascript);
+    browser.page().set_animations(animations);
     browser.page().set_clock(PageClock::new(mode, now));
     crate::print_server_address(browser.port())?;
     if let Some(url) = url {
@@ -86,6 +89,7 @@ pub(crate) fn run(fonts: FontContext, options: &HeadlessOptions<'_>) -> Result<(
     };
     let mut page = Page::new(config, fonts, options.viewport, options.scale);
     page.set_javascript(options.javascript);
+    page.set_animations(options.animations);
     page.set_clock(PageClock::new(options.clock.0, options.clock.1));
     page.navigate(options.url.clone());
     if !page.wait_until_loaded(options.timeout) {

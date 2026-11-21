@@ -70,6 +70,7 @@ fn state_with(
         font_budget: None,
         fonts: Rc::default(),
         node_room: None,
+        animations: super::AnimationSetting::default(),
     });
     doc.run_parser();
     doc

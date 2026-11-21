@@ -48,6 +48,10 @@ pub(crate) struct DocumentMaker {
     pub(crate) styles: Arc<ByteBudget>,
     pub(crate) bodies: Arc<ByteBudget>,
     pub(crate) font_files: Arc<ByteBudget>,
+    /// The page's animation setting for new frame documents.
+    pub(crate) animations: Cell<bool>,
+    /// The page clock (the time origin of new frame documents).
+    pub(crate) clock: RefCell<swb_web::PageClock>,
 }
 
 /// A parsed frame document and what it starts with.
@@ -106,6 +110,10 @@ impl DocumentMaker {
             font_budget: Some(Arc::clone(&self.font_files)),
             fonts: Rc::clone(&self.fonts),
             node_room: Some(init.node_room),
+            animations: crate::document::AnimationSetting {
+                enabled: self.animations.get(),
+                origin: self.clock.borrow().now(),
+            },
         }));
         doc.history = init.history;
         doc.sandboxed_origin = init.sandboxed_origin;

@@ -47,6 +47,8 @@ pub(crate) struct TargetData {
     pub(crate) reader: Option<Box<crate::file_api::ReaderState>>,
     /// The state of a `MessagePort` (`message_port.rs`).
     pub(crate) port: Option<Box<crate::message_port::PortState>>,
+    /// The record of an `Animation` (`animations.rs`).
+    pub(crate) animation: Option<Box<crate::animations::AnimationData>>,
 }
 
 impl GenericData for TargetData {
@@ -67,6 +69,9 @@ impl GenericData for TargetData {
         }
         if let Some(port) = &self.port {
             port.trace(tracer);
+        }
+        if let Some(animation) = &self.animation {
+            animation.trace(tracer);
         }
     }
 

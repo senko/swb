@@ -182,8 +182,50 @@ fn delta(before: &FlushCounters, after: &FlushCounters) -> FlushCounters {
 fn interaction(page: &mut Page, pixmap: &mut Pixmap, runs: usize) -> serde_json::Value {
     let rounds = runs.min(MAX_HOVER_ROUNDS);
     json!({
+        "animation": animation_stage(page, pixmap),
         "hover": hover_stage(page, pixmap, rounds),
         "scroll": scroll_stage(page, pixmap),
+    })
+}
+
+/// The most frames of the animation stage, and its time limit.
+const ANIMATION_FRAMES: usize = 30;
+const ANIMATION_LIMIT: Duration = Duration::from_secs(3);
+
+/// Animation frames (ADR 0044 section 8): with the page's frames painted,
+/// up to [`ANIMATION_FRAMES`] frames of real time, each the page's pump at
+/// its next frame (the rendering update) and a render if the frame is
+/// outdated, as the GUI's frame does. Nothing without a running animation
+/// (`--animations off`). The median time of a frame and of the stages that
+/// ran in it.
+fn animation_stage(page: &mut Page, pixmap: &mut Pixmap) -> serde_json::Value {
+    page.set_paints_frames(true);
+    let mut steps = Vec::new();
+    let mut stages: Vec<StageTimings> = Vec::new();
+    let started = Instant::now();
+    while page.animations_running()
+        && steps.len() < ANIMATION_FRAMES
+        && started.elapsed() < ANIMATION_LIMIT
+    {
+        if let Some(next) = page.pump().next {
+            std::thread::sleep(next.saturating_duration_since(Instant::now()));
+        }
+        let step = Step::run(page, pixmap, |p| p.frame_outdated());
+        if step.restyled() {
+            stages.push(page.timings());
+            steps.push(step);
+        }
+    }
+    page.set_paints_frames(false);
+    let median_of = |f: fn(&StageTimings) -> Duration| ms(median(stages.iter().map(f).collect()));
+    json!({
+        "frames": steps.len(),
+        "median_ms": ms(median(steps.iter().map(|s| s.time).collect())),
+        "style_ms": median_of(|t| t.style),
+        "layout_ms": median_of(|t| t.layout),
+        "display_list_ms": median_of(|t| t.display_list),
+        "raster_ms": median_of(|t| t.raster),
+        "restyled_elements": steps.iter().map(|s| s.flushes.state_restyles.restyled_elements).sum::<u64>(),
     })
 }
 

@@ -106,6 +106,7 @@ pub(crate) fn execute(page: &mut Page, method: &str, params: Value) -> Outcome {
         "page.info" => Ok(info(page)),
         "page.frames" => Ok(frames(page)),
         "page.setJavaScript" => set_javascript(page, params),
+        "page.setAnimations" => set_animations(page, params),
         "page.evaluate" => return evaluate(page, params),
         "page.consoleMessages" => Ok(console_messages(page)),
         "page.setViewport" => set_viewport(page, params),
@@ -432,6 +433,14 @@ struct JavaScriptParams {
 fn set_javascript(page: &mut Page, params: Value) -> MethodResult {
     let params: JavaScriptParams = parse(params)?;
     page.set_javascript(params.enabled);
+    Ok(json!({}))
+}
+
+/// `page.setAnimations`: CSS animations and transitions on or off for the
+/// next document (ADR 0044 section 10).
+fn set_animations(page: &mut Page, params: Value) -> MethodResult {
+    let params: JavaScriptParams = parse(params)?;
+    page.set_animations(params.enabled);
     Ok(json!({}))
 }
 

@@ -217,6 +217,25 @@ Time below.
 > World Wide Web Consortium.
 > https://www.w3.org/copyright/software-license-2023/
 
+## W3C Web Animations 1 and CSS Animations 2: IDL (W3C Software and Document License)
+
+`crates/web/idl/web-animations.idl` contains IDL blocks, copied on
+2026-11-21, from Web Animations Level 1 (W3C Editor's Draft,
+https://drafts.csswg.org/web-animations-1/: `Animation`,
+`AnimationEffect`, `KeyframeEffect`, `Animatable`, the `getAnimations()`
+extension of `Document`, and the timing dictionaries) and CSS Animations
+Level 2 (W3C Editor's Draft, https://drafts.csswg.org/css-animations-2/:
+`CSSAnimation`). swb cut the file to the members that feature 3b of M13
+implements and changed some types (the header of the file lists the
+changes). The license text is in the section of W3C High Resolution Time
+below.
+
+> This software or document includes material copied from or derived
+> from Web Animations Level 1, https://drafts.csswg.org/web-animations-1/,
+> and CSS Animations Level 2, https://drafts.csswg.org/css-animations-2/.
+> Copyright © 2026 World Wide Web Consortium.
+> https://www.w3.org/copyright/software-license-2023/
+
 ## W3C SVG 2: IDL (W3C Software and Document License)
 
 `crates/web/idl/svg.idl` contains IDL blocks from Scalable Vector Graphics

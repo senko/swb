@@ -24,6 +24,8 @@
 
 use std::cell::Cell;
 use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// How a page clock advances.
@@ -50,6 +52,9 @@ struct ClockState {
     start: Instant,
     /// The page time in virtual mode.
     virtual_now: Cell<f64>,
+    /// `virtual_now` as the bits of an `f64`, for other threads (the
+    /// source of the cookie jar's time, [`PageClock::unix_source`]).
+    virtual_shared: Arc<AtomicU64>,
 }
 
 /// The largest time value of ECMAScript (§21.4.1.22, `TimeClip`), in
@@ -67,6 +72,7 @@ impl PageClock {
             fixed_start: start.is_some(),
             start: Instant::now(),
             virtual_now: Cell::new(0.0),
+            virtual_shared: Arc::new(AtomicU64::new(0.0_f64.to_bits())),
         }))
     }
 
@@ -111,6 +117,34 @@ impl PageClock {
     pub fn advance_to(&self, time: f64) {
         if self.0.mode == ClockMode::Virtual && time > self.0.virtual_now.get() {
             self.0.virtual_now.set(time);
+            self.0
+                .virtual_shared
+                .store(time.to_bits(), Ordering::Relaxed);
+        }
+    }
+
+    /// A source of the wall time in whole seconds since the epoch that
+    /// other threads can read (the network threads' cookie checks), or
+    /// `None` for a real-time clock from the system time (the system time
+    /// is then what every thread reads anyway).
+    pub fn unix_source(&self) -> Option<Arc<dyn Fn() -> i64 + Send + Sync>> {
+        let state = &self.0;
+        let start_wall = state.start_wall;
+        let seconds = |ms: f64| (ms / 1000.0).floor() as i64;
+        match state.mode {
+            ClockMode::Real if !state.fixed_start => None,
+            ClockMode::Real => {
+                let start = state.start;
+                Some(Arc::new(move || {
+                    seconds(start_wall + start.elapsed().as_secs_f64() * 1000.0)
+                }))
+            }
+            ClockMode::Virtual => {
+                let shared = Arc::clone(&state.virtual_shared);
+                Some(Arc::new(move || {
+                    seconds(start_wall + f64::from_bits(shared.load(Ordering::Relaxed)))
+                }))
+            }
         }
     }
 
@@ -207,6 +241,19 @@ mod tests {
         clock.advance_to(30.04);
         assert_eq!(document.now(), 4.5);
         assert_eq!(document.time_origin(), 1_000_025.5);
+    }
+
+    #[test]
+    fn the_unix_source_follows_the_page_time() {
+        let clock = PageClock::new(ClockMode::Virtual, Some(5_000_000.0));
+        let source = clock.unix_source().expect("a virtual clock has a source");
+        assert_eq!(source(), 5000);
+        clock.advance_to(2500.0);
+        assert_eq!(source(), 5002);
+        assert!(PageClock::real().unix_source().is_none());
+        let fixed = PageClock::new(ClockMode::Real, Some(7_000_000.0));
+        let source = fixed.unix_source().expect("a fixed start has a source");
+        assert_eq!(source(), 7000);
     }
 
     #[test]

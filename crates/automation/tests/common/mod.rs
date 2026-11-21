@@ -253,8 +253,8 @@ fn fixture_meta(dir: &Path) -> Value {
 }
 
 /// A page of 1280x800 with the test fonts that replays the fixture in
-/// `dir`, with JavaScript on or off, and the URL of the fixture. The
-/// caller navigates.
+/// `dir`, with JavaScript on or off and animations off (as Chromium's
+/// references), and the URL of the fixture. The caller navigates.
 pub(crate) fn replay_page(dir: &Path, javascript: bool) -> (Page, Url) {
     replay_page_with(dir, javascript, Arc::new(ReplayFetcher::load(dir).unwrap()))
 }
@@ -276,6 +276,9 @@ fn replay_page_with(dir: &Path, javascript: bool, fetcher: Arc<dyn Fetcher>) -> 
         1.0,
     );
     page.set_javascript(javascript);
+    // Chromium's references are taken with animations off (ADR 0044
+    // section 10, docs/testing.md "Animations in the references").
+    page.set_animations(false);
     (page, url)
 }
 

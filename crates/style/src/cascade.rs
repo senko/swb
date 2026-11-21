@@ -56,6 +56,9 @@
 //! of the element states or of the DOM, walking only the elements that the
 //! change can affect ([`targeted::restyle_targeted`], ADR 0041 and 0042).
 
+mod animated;
+#[cfg(test)]
+mod animated_tests;
 #[cfg(test)]
 mod container_tests;
 #[cfg(test)]
@@ -78,6 +81,7 @@ pub(crate) mod use_instances;
 
 use scoping::{DOCUMENT_STYLIST, ScopeCascade, ScopedMatch};
 
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -86,6 +90,7 @@ use swb_dom::{Document, ElementData, FlatScopes, NodeId};
 use url::Url;
 
 use crate::ComputedStyle;
+use crate::animation::{AnimationOwner, DocumentAnimations};
 use crate::bloom::AncestorFilter;
 use crate::container::{ContainerSizes, Containers};
 use crate::custom::{
@@ -168,6 +173,54 @@ pub fn compute_styles_reusing(
     )
 }
 
+/// [`compute_styles_with_containers`] (with the maps of `previous` reused,
+/// as [`compute_styles_reusing`]) with the document's animations (ADR 0044
+/// section 3): each element's records are brought up to date with its
+/// computed `animation-*` lists, and the styles take the animated values at
+/// the timeline's time. The records of elements that have no style or no
+/// animation name afterwards are cancelled ([`sweep_animations`]).
+#[allow(clippy::too_many_arguments)]
+pub fn compute_styles_animated(
+    doc: &Document,
+    stylist: &Stylist,
+    env: &MediaEnvironment,
+    states: &ElementStates,
+    base_url: &Url,
+    sizes: &ContainerSizes,
+    previous: Option<&StyleMap>,
+    animations: &RefCell<DocumentAnimations>,
+) -> StyleMap {
+    let state_set = StateSet::new(doc, states);
+    let mut styler = Styler::new(
+        doc, &state_set, stylist, env, base_url, true, sizes, previous,
+    );
+    styler.animations = Some((animations, true));
+    let map = styler.run();
+    sweep_animations(&map, animations);
+    map
+}
+
+/// Cancels the animation records whose owner has no style in `map` or no
+/// animation name (it left the document, an ancestor is `display: none`, a
+/// pseudo-element lost its box): CSS Animations 1 §3. (An element that is
+/// `display: none` itself keeps only animations of `display`, which the
+/// cascade decides.)
+pub fn sweep_animations(map: &StyleMap, animations: &RefCell<DocumentAnimations>) {
+    let Ok(mut animations) = animations.try_borrow_mut() else {
+        return;
+    };
+    if animations.is_empty() {
+        return;
+    }
+    animations.retain_owners(|owner| {
+        let style = match owner.pseudo {
+            None => map.get(owner.node),
+            Some(kind) => map.pseudo(owner.node, kind),
+        };
+        style.is_some_and(|s| crate::animation::AnimationStyle::has_names(s))
+    });
+}
+
 /// [`compute_styles`] with the ancestor Bloom filter optional (tests check
 /// that the filter does not change the result).
 #[allow(clippy::too_many_arguments)]
@@ -224,6 +277,23 @@ pub fn compute_element_styles_with_containers(
     node: NodeId,
     sizes: &ContainerSizes,
 ) -> Vec<(NodeId, Arc<ComputedStyle>)> {
+    compute_element_styles_animated(doc, stylist, env, states, base_url, node, sizes, None)
+}
+
+/// [`compute_element_styles_with_containers`] with the animated values of
+/// the animation records of the elements, brought up to date with their
+/// styles (an element below `display: none` has none).
+#[allow(clippy::too_many_arguments)]
+pub fn compute_element_styles_animated(
+    doc: &Document,
+    stylist: &Stylist,
+    env: &MediaEnvironment,
+    states: &ElementStates,
+    base_url: &Url,
+    node: NodeId,
+    sizes: &ContainerSizes,
+    animations: Option<&RefCell<DocumentAnimations>>,
+) -> Vec<(NodeId, Arc<ComputedStyle>)> {
     let Some(root) = doc.document_element() else {
         return Vec::new();
     };
@@ -252,9 +322,14 @@ pub fn compute_element_styles_with_containers(
     // cost more than the cascade of a few elements.
     let state_set = StateSet::lazy(doc, states);
     let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, false, sizes, None);
+    styler.animations = animations.map(|a| (a, false));
     let mut parent = Arc::clone(&styler.cx.initial);
     let mut layout_parent = None;
     let mut out = Vec::with_capacity(chain.len());
+    // The records of an element are brought up to date with its style
+    // (a script changed `animation-*` and reads the style at once), except
+    // below `display: none`, where an element has no animations.
+    let mut hidden = false;
     for (id, scope) in chain.into_iter().zip(scopes) {
         let Some(el) = DomElement::new(doc, id, &state_set) else {
             // Only elements are between an element and the document
@@ -263,7 +338,9 @@ pub fn compute_element_styles_with_containers(
         };
         let is_root = id == root;
         styler.scope = scope;
+        styler.animations = animations.map(|a| (a, !hidden));
         let style = styler.style_element(&el, &parent, layout_parent, is_root);
+        hidden |= style.display == Display::None;
         if is_root {
             styler.cx.root_font_size = style.font_size;
             styler.cx.root_line_height = style.line_height_px();
@@ -315,9 +392,29 @@ pub fn compute_pseudo_element_style_with_containers(
     kind: PseudoKind,
     sizes: &ContainerSizes,
 ) -> Option<ComputedStyle> {
+    compute_pseudo_element_style_animated(
+        doc, stylist, env, states, base_url, chain, kind, sizes, None,
+    )
+}
+
+/// [`compute_pseudo_element_style_with_containers`] with the animated
+/// values of the pseudo-element's existing animation records (only read).
+#[allow(clippy::too_many_arguments)]
+pub fn compute_pseudo_element_style_animated(
+    doc: &Document,
+    stylist: &Stylist,
+    env: &MediaEnvironment,
+    states: &ElementStates,
+    base_url: &Url,
+    chain: &[(NodeId, Arc<ComputedStyle>)],
+    kind: PseudoKind,
+    sizes: &ContainerSizes,
+    animations: Option<&RefCell<DocumentAnimations>>,
+) -> Option<ComputedStyle> {
     let (node, style) = chain.last()?;
     let state_set = StateSet::lazy(doc, states);
     let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, false, sizes, None);
+    styler.animations = animations.map(|a| (a, false));
     if let Some((_, root)) = chain.first() {
         styler.cx.root_font_size = root.font_size;
         styler.cx.root_line_height = root.line_height_px();
@@ -489,6 +586,10 @@ struct Styler<'a> {
     /// `var()`, and the walk styles ancestors first, so from then on the
     /// elements may use container units like those of the rules.
     attribute_units: bool,
+    /// The document's animations, if the styles take animated values (ADR
+    /// 0044 section 3), and whether this pass creates, updates and cancels
+    /// records (`true`) or only reads them (the styles of queries).
+    animations: Option<(&'a RefCell<DocumentAnimations>, bool)>,
 }
 
 impl<'a> Styler<'a> {
@@ -564,6 +665,7 @@ impl<'a> Styler<'a> {
             containers: Containers::new(sizes, env),
             container_units: stylist.has_container_units(),
             attribute_units: false,
+            animations: None,
         }
     }
 
@@ -693,19 +795,7 @@ impl<'a> Styler<'a> {
         } else {
             self.depth(self.scope)
         };
-        let mut hints = Vec::new();
-        let dimension_source = self
-            .states
-            .dimension_source(el.node_id())
-            .and_then(|source| self.doc.element(source));
-        collect_hints(
-            self.doc,
-            el.node_id(),
-            data,
-            dimension_source,
-            &self.hints,
-            &mut hints,
-        );
+        let hints = self.hints_of(el);
         let style_attribute = self.parse_style_attribute_of(data);
         // Elements with the same parent style, the same rules and nothing
         // element-specific share one style.
@@ -747,7 +837,21 @@ impl<'a> Styler<'a> {
             scoped: &scoped,
             own,
         };
-        let mut style = self.cascade_with_units(&rules, extra, parent, Some(data), is_root);
+        let owner = AnimationOwner {
+            node: el.node_id(),
+            pseudo: None,
+        };
+        let mut style =
+            self.cascade_with_units(&rules, extra, parent, Some(data), is_root, Some(owner));
+        // An element with animation names has a style of its own: its
+        // animations are its own (their play states, the values at their
+        // times). Other `animation-*` values alone (a reduced-motion reset)
+        // make no animation and keep the sharing.
+        let key = if crate::animation::AnimationStyle::has_names(&style) {
+            None
+        } else {
+            key
+        };
         if top_layer {
             top_layer_fixup(&mut style, true);
         }
@@ -777,6 +881,24 @@ impl<'a> Styler<'a> {
         self.matched = matched;
         self.scoped_matched = scoped;
         self.finish_style(style, top_layer, key)
+    }
+
+    /// The presentational hints of the element `el` ([`crate::hints`]).
+    fn hints_of(&self, el: &DomElement<'_>) -> Vec<PropertyDeclaration> {
+        let mut hints = Vec::new();
+        let dimension_source = self
+            .states
+            .dimension_source(el.node_id())
+            .and_then(|source| self.doc.element(source));
+        collect_hints(
+            self.doc,
+            el.node_id(),
+            el.data(),
+            dimension_source,
+            &self.hints,
+            &mut hints,
+        );
+        hints
     }
 
     /// HTML "blocked by a modal dialog" (ADR 0037 section 7): the root starts
@@ -826,6 +948,8 @@ impl<'a> Styler<'a> {
     /// query containers (ADR 0038). Only the second run reads the
     /// containers, so the log records the units of the elements that use
     /// them.
+    /// `owner` is the element or pseudo-element whose animations give
+    /// animated values, if any.
     fn cascade_with_units(
         &mut self,
         rules: &MatchedRules<'_>,
@@ -833,19 +957,34 @@ impl<'a> Styler<'a> {
         parent: &ComputedStyle,
         element: Option<&ElementData>,
         is_root: bool,
+        owner: Option<AnimationOwner>,
     ) -> ComputedStyle {
         let viewport = ContainerBasis {
             width: self.cx.env.viewport_width,
             height: self.cx.env.viewport_height,
         };
+        let target = match (self.animations, owner) {
+            (Some((animations, sync)), Some(owner)) => Some(animated::AnimationTarget {
+                animations,
+                owner,
+                media: &self.media,
+                sync,
+            }),
+            _ => None,
+        };
+        let target = target.as_ref();
         // Without container units in the rules or in the `style` attribute
         // of the element or an ancestor no value can use one: no flag to
         // read.
         if !self.units_possible() || self.containers.nearest().is_none() {
-            return cascade(&self.cx, rules, extra, parent, element, is_root, viewport);
+            return cascade(
+                &self.cx, rules, extra, parent, element, is_root, viewport, target,
+            );
         }
         take_container_units_read();
-        let style = cascade(&self.cx, rules, extra, parent, element, is_root, viewport);
+        let style = cascade(
+            &self.cx, rules, extra, parent, element, is_root, viewport, target,
+        );
         if !take_container_units_read() {
             return style;
         }
@@ -853,7 +992,9 @@ impl<'a> Styler<'a> {
         if units == viewport {
             style
         } else {
-            cascade(&self.cx, rules, extra, parent, element, is_root, units)
+            cascade(
+                &self.cx, rules, extra, parent, element, is_root, units, target,
+            )
         }
     }
 
@@ -996,13 +1137,30 @@ impl<'a> Styler<'a> {
                     scoped: &scoped,
                     own,
                 };
+                // `::before`, `::after` and `::marker` have animations
+                // (ADR 0044 section 6); the style of a query (`always`)
+                // only reads them.
+                let owner = matches!(
+                    kind,
+                    PseudoKind::Before | PseudoKind::After | PseudoKind::Marker
+                )
+                .then_some(AnimationOwner {
+                    node: el.node_id(),
+                    pseudo: Some(kind),
+                });
+                let saved = self.animations;
+                if always && let Some((cell, _)) = saved {
+                    self.animations = Some((cell, false));
+                }
                 let mut pseudo = self.cascade_with_units(
                     &rules,
                     ExtraDeclarations::default(),
                     style,
                     Some(el.data()),
                     false,
+                    owner,
                 );
+                self.animations = saved;
                 // Also the backdrop of an element outside the top layer, for
                 // `getComputedStyle` (measured: `position: absolute` and
                 // `display: block`, case `backdrop-popover`).
@@ -1335,6 +1493,71 @@ impl<'d> Winners<'d> {
     }
 }
 
+/// The `!important` phase of the cascade of one element: the user-agent
+/// and author declarations that win over everything normal. It runs first
+/// ([`ImportantPhase::add_to`]); an element with animations runs it again
+/// alone ([`ImportantPhase::collect`]) to find the winners that the
+/// animations must not change (ADR 0044 section 3), so that other elements
+/// keep no record of it.
+struct ImportantPhase<'a, 'd> {
+    stylist: &'d Stylist,
+    ua: &'a [u32],
+    author: &'a [AuthorRule<'d>],
+    style_attribute: Option<&'d DeclarationBlock>,
+    own: u32,
+    attr_position: Position,
+}
+
+/// The longhands and custom properties whose winner is `!important`.
+pub(crate) struct ImportantWinners<'d> {
+    /// The longhands, one bit each (`LonghandId as usize`).
+    pub(crate) longhands: LonghandSet,
+    /// The custom properties.
+    pub(crate) custom: Vec<&'d str>,
+}
+
+impl<'d> ImportantPhase<'_, 'd> {
+    /// Adds the important declarations to `winners` (before all others).
+    /// `!important`: the inner contexts first. Inside a context, the order
+    /// of the layers is reversed: the rules are sorted by layer rank, so the
+    /// layers run from the first to the last and, inside a layer, the rules
+    /// from the last to the first. The unlayered rules, ranked last, are the
+    /// weakest. The `style` attribute comes before the rules of its context.
+    fn add_to(&self, winners: &mut Winners<'d>) {
+        for &i in self.ua.iter().rev() {
+            winners.add_all(&self.stylist.rule(i).block.important, Level::UserAgent, 0);
+        }
+        let mut attr = self.style_attribute;
+        for context_run in self.author.chunk_by(|a, b| a.context == b.context).rev() {
+            if context_run[0].context <= self.own
+                && let Some(a) = attr.take()
+            {
+                winners.add_all(&a.important, Level::Author, self.attr_position);
+            }
+            for run in context_run.chunk_by(|a, b| a.rank == b.rank) {
+                let position = position(run[0].context, rule_position(run[0].rank));
+                for r in run.iter().rev() {
+                    winners.add_all(&r.rule.block.important, Level::Author, position);
+                }
+            }
+        }
+        if let Some(a) = attr {
+            winners.add_all(&a.important, Level::Author, self.attr_position);
+        }
+    }
+
+    /// The important winners alone: what the first phase of the cascade
+    /// decided, which the normal declarations cannot change.
+    pub(crate) fn collect(&self) -> ImportantWinners<'d> {
+        let mut winners = Winners::new();
+        self.add_to(&mut winners);
+        ImportantWinners {
+            longhands: winners.set,
+            custom: winners.custom.iter().map(|(name, _)| &***name).collect(),
+        }
+    }
+}
+
 /// An author rule in the cascade: its cascade context, the rank of its
 /// layer, and the rule.
 #[derive(Clone, Copy)]
@@ -1355,6 +1578,12 @@ struct AuthorRule<'r> {
 /// the `style` attribute (which belongs to the element's own context) and
 /// before the layers. The presentational hints stay below all author rules
 /// (measured: a host's `align` hint loses to `:host` in its shadow tree).
+///
+/// With an animation `target`, the style computed from the winners (the
+/// base style) brings the target's animation records up to date, and the
+/// style is computed again with the animated values of its animations
+/// ([`animated::input`], ADR 0044 section 3).
+#[allow(clippy::too_many_arguments)]
 fn cascade(
     cx: &CascadeContext<'_>,
     matched: &MatchedRules<'_>,
@@ -1363,6 +1592,7 @@ fn cascade(
     element: Option<&ElementData>,
     is_root: bool,
     units: ContainerBasis,
+    target: Option<&animated::AnimationTarget<'_>>,
 ) -> ComputedStyle {
     let stylist = cx.stylist;
     let document = matched.document;
@@ -1412,32 +1642,16 @@ fn cascade(
     // The `style` attribute stands above every layer of its context.
     let attr_position = position(own, ATTRIBUTE_POSITION);
 
+    let important = ImportantPhase {
+        stylist,
+        ua,
+        author: &author,
+        style_attribute: extra.style_attribute,
+        own,
+        attr_position,
+    };
     let mut winners = Winners::new();
-    for &i in ua.iter().rev() {
-        winners.add_all(&stylist.rule(i).block.important, Level::UserAgent, 0);
-    }
-    // `!important`: the inner contexts first. Inside a context, the order
-    // of the layers is reversed: the rules are sorted by layer rank, so the
-    // layers run from the first to the last and, inside a layer, the rules
-    // from the last to the first. The unlayered rules, ranked last, are the
-    // weakest. The `style` attribute comes before the rules of its context.
-    let mut attr = extra.style_attribute;
-    for context_run in author.chunk_by(|a, b| a.context == b.context).rev() {
-        if context_run[0].context <= own
-            && let Some(a) = attr.take()
-        {
-            winners.add_all(&a.important, Level::Author, attr_position);
-        }
-        for run in context_run.chunk_by(|a, b| a.rank == b.rank) {
-            let position = position(run[0].context, rule_position(run[0].rank));
-            for r in run.iter().rev() {
-                winners.add_all(&r.rule.block.important, Level::Author, position);
-            }
-        }
-    }
-    if let Some(a) = attr {
-        winners.add_all(&a.important, Level::Author, attr_position);
-    }
+    important.add_to(&mut winners);
     // Normal declarations: the outer contexts first; the `style` attribute
     // before the rules of its context.
     let mut attr = extra.style_attribute;
@@ -1463,6 +1677,24 @@ fn cascade(
     for &i in ua.iter().rev() {
         winners.add_all(&stylist.rule(i).block.normal, Level::UserAgent, 0);
     }
+    compute_with_animations(
+        cx, winners, &important, parent, element, is_root, units, target,
+    )
+}
+
+/// The end of [`cascade`]: the font cycles, the style from the winners,
+/// and with an animation target the style with its animated values.
+#[allow(clippy::too_many_arguments)]
+fn compute_with_animations(
+    cx: &CascadeContext<'_>,
+    mut winners: Winners<'_>,
+    important: &ImportantPhase<'_, '_>,
+    parent: &ComputedStyle,
+    element: Option<&ElementData>,
+    is_root: bool,
+    units: ContainerBasis,
+    target: Option<&animated::AnimationTarget<'_>>,
+) -> ComputedStyle {
     // A declaration that a font cycle makes invalid is `unset`: both
     // properties inherit, and the style starts as the parent's.
     if let Some(registry) = cx.registry.as_ref() {
@@ -1473,21 +1705,27 @@ fn cascade(
         }
         winners.font_cycle = names;
     }
-    compute(cx, &winners, parent, element, is_root, units)
+    let base = compute(cx, &winners, parent, element, is_root, units, None);
+    let Some(target) = target.filter(|t| animated::may_animate(t, &base)) else {
+        return base;
+    };
+    match animated::input(cx, target, &base, important) {
+        Some(input) => compute(cx, &winners, parent, element, is_root, units, Some(&input)),
+        None => base,
+    }
 }
 
-/// Computes a style from the winning declarations.
-fn compute(
+/// The lengths that the values of an element with the style `parent` as
+/// its parent's start from (its own font size and line height are not
+/// known yet).
+fn parent_lengths(
     cx: &CascadeContext<'_>,
-    winners: &Winners<'_>,
     parent: &ComputedStyle,
-    element: Option<&ElementData>,
     is_root: bool,
     units: ContainerBasis,
-) -> ComputedStyle {
-    let mut style = ComputedStyle::inherit_from(parent);
+) -> LengthContext {
     let env = cx.env;
-    let lengths = LengthContext {
+    LengthContext {
         font_size: parent.font_size,
         root_font_size: if is_root {
             env.root_font_size
@@ -1504,11 +1742,43 @@ fn compute(
         viewport_width: env.viewport_width,
         viewport_height: env.viewport_height,
         container: units,
-    };
+    }
+}
+
+/// Computes a style from the winning declarations, and with `input` the
+/// animated values of the element's animations at the place of their
+/// properties in the order (ADR 0044 section 3): the custom properties
+/// first, then `font-family`, `font-size` and `line-height`, then the other
+/// longhands in the order of `LonghandId::ALL`.
+fn compute(
+    cx: &CascadeContext<'_>,
+    winners: &Winners<'_>,
+    parent: &ComputedStyle,
+    element: Option<&ElementData>,
+    is_root: bool,
+    units: ContainerBasis,
+    input: Option<&animated::AnimationInput>,
+) -> ComputedStyle {
+    let mut style = ComputedStyle::inherit_from(parent);
+    let lengths = parent_lengths(cx, parent, is_root, units);
     let registry = cx.registry.as_ref();
+    // The animated custom properties replace their winners (ADR 0044
+    // section 3): `var()` in other declarations sees the animated values.
+    let animated_custom = input
+        .map(|input| {
+            let registered = registry.map(|registry| Registered {
+                registry,
+                lengths: &lengths,
+                font_cycle: &winners.font_cycle,
+            });
+            animated::custom_values(input, registered)
+        })
+        .unwrap_or_default();
+    let declared_custom = animated::with_custom_values(&winners.custom, &animated_custom);
+    let declared_custom: &[(&Arc<str>, &CustomDeclaration)] = &declared_custom;
     style.custom_properties = compute_custom_properties(
         parent.custom_properties.as_ref(),
-        &winners.custom,
+        declared_custom,
         registry.map(|registry| Registered {
             registry,
             lengths: &lengths,
@@ -1523,9 +1793,13 @@ fn compute(
         quirks: cx.quirks,
     };
     let mut resolved = ResolvedVariables::default();
+    let mut keyframe_resolved = ResolvedVariables::default();
     let mut apply_winner = |id: LonghandId, ccx: &ComputeContext<'_>, style: &mut ComputedStyle| {
         if let Some(decl) = winners.longhands[id as usize] {
             apply_declaration(id, decl, ccx, style, &cx.initial, &mut resolved);
+        }
+        if let Some(input) = input {
+            animated::animate_longhand(cx, input, id, ccx, style, &mut keyframe_resolved);
         }
     };
     // Font properties first: other values depend on the font size, and
@@ -1541,11 +1815,11 @@ fn compute(
     // size of the element, which is known only now.
     let recompute = |style: &mut ComputedStyle, lengths: &LengthContext| {
         if let Some(registry) = registry
-            && registry.declares_any(winners.custom.iter().map(|(name, _)| *name))
+            && registry.declares_any(declared_custom.iter().map(|(name, _)| *name))
         {
             style.custom_properties = compute_custom_properties(
                 parent.custom_properties.as_ref(),
-                &winners.custom,
+                declared_custom,
                 Some(Registered {
                     registry,
                     lengths,
@@ -1566,12 +1840,19 @@ fn compute(
     ccx.lengths.line_height = style.line_height_px();
     let customs = parent.custom_properties.as_deref();
     if ccx.lengths.line_height != lengths.line_height
-        && crate::font_cycle::depends_on_line_height(&winners.custom, customs)
+        && crate::font_cycle::depends_on_line_height(declared_custom, customs)
     {
         recompute(&mut style, &ccx.lengths);
     }
-    // The other longhands that have a winner, in the order of `ALL`.
-    for (word_index, &word) in winners.set.iter().enumerate() {
+    // The other longhands that have a winner or an animated value, in the
+    // order of `ALL`.
+    let mut set = winners.set;
+    if let Some(input) = input {
+        for (word, animated) in set.iter_mut().zip(input.set) {
+            *word |= animated;
+        }
+    }
+    for (word_index, &word) in set.iter().enumerate() {
         let mut bits = word;
         while bits != 0 {
             let index = word_index * 64 + bits.trailing_zeros() as usize;
@@ -1586,16 +1867,24 @@ fn compute(
             }
         }
     }
-    // `user-select: auto` takes `none` or `all` from the parent. The
-    // specification defines this for the used value; Chromium (and swb)
-    // store it in the computed value.
-    // <https://www.w3.org/TR/css-ui-4/#propdef-user-select>
+    finish_computed(cx, parent, &mut style);
+    style
+}
+
+/// The last steps of [`compute`]: `user-select: auto` takes `none` or `all`
+/// from the parent (the specification defines this for the used value;
+/// Chromium and swb store it in the computed value,
+/// <https://www.w3.org/TR/css-ui-4/#propdef-user-select>), and
+/// `--animations off` resets the animation properties.
+fn finish_computed(cx: &CascadeContext<'_>, parent: &ComputedStyle, style: &mut ComputedStyle) {
     if style.user_select == UserSelect::Auto
         && matches!(parent.user_select, UserSelect::None | UserSelect::All)
     {
         style.user_select = parent.user_select;
     }
-    style
+    if !cx.stylist.animations_enabled() {
+        animated::reset_animation_properties(style, &cx.initial);
+    }
 }
 
 /// Shorthand values with `var()`, substituted and parsed once per element.

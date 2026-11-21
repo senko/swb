@@ -59,7 +59,7 @@ pub(crate) fn run(
     fonts: FontContext,
     start_url: Option<Url>,
     remote_port: Option<u16>,
-    javascript: bool,
+    (javascript, animations): (bool, bool),
     now: Option<f64>,
 ) -> Result<()> {
     let event_loop = EventLoop::<UserEvent>::with_user_event()
@@ -83,6 +83,7 @@ pub(crate) fn run(
     };
     let mut app = App::new(fetcher, fonts, start_url, proxy, javascript);
     app.page.set_clock(PageClock::new(ClockMode::Real, now));
+    app.page.set_animations(animations);
     app.automation = automation;
     event_loop.run_app(&mut app).context("event loop failed")?;
     Ok(())
@@ -197,6 +198,9 @@ impl App {
         };
         let mut page = Page::new(config, fonts, SIZE_WITHOUT_WINDOW, 1.0);
         page.set_javascript(javascript && scripts_allowed);
+        // The window paints frames: running animations get a rendering
+        // update at each frame (ADR 0044 section 8).
+        page.set_paints_frames(true);
         // Scrollbars take no space; overlay indicators show what scrolls.
         page.set_scroll_indicators(true);
         App {

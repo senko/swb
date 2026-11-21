@@ -65,15 +65,16 @@ class Browser:
         test_fonts: bool = True,
         log_file: Path | None = None,
         javascript: bool = False,
+        animations: bool = True,
     ) -> Self:
         """Starts a headless swb and connects to it. `fixture` serves all
         requests from a fixture directory. `log_file` receives swb's stderr
         (default: the terminal). `javascript` starts the session with
-        JavaScript on."""
+        JavaScript on. `animations` false starts it with `--animations off`."""
         binary = swb.find_swb(swb_path)
         if binary is None:
             raise FileNotFoundError("the swb binary does not exist; run `just build`")
-        command = swb.serve_command(binary, viewport, fixture, test_fonts, javascript)
+        command = swb.serve_command(binary, viewport, fixture, test_fonts, javascript, animations)
         log.info("running %s", " ".join(command))
         if log_file is None:
             process = subprocess.Popen(command, stdout=subprocess.PIPE, text=True)

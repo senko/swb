@@ -278,6 +278,20 @@ Fetch's "append a request `Origin` header", including the redirect-tainted
 `fetch` with the default mode sends and stores nothing; with `include` it
 sends the cookies and stores the response's).
 
+**The page clock** (M13 feature 3b, review). The jar compares expiry times
+with the time of its time source: the system time by default, and the page
+clock's wall time after `Page::set_clock` when the clock is fixed (`--now`)
+or virtual (`CookieJar::set_time_source`, `PageClock::unix_source`). The
+source is a `Send + Sync` closure, because the network threads read it for
+`Set-Cookie` and the `Cookie` header; in virtual time it reads a copy of
+the page time that `advance_to` keeps in an atomic. Both paths, `document.cookie`
+and the headers, use the same source. Reason: a script computes an expiry
+from `Date.now()`, which a replay fixes at the capture time; against the
+system time the cookie arrived expired once the capture was 30 days old (the
+Wikipedia test failed from 2026-11-21 on). A real-time page from the system
+time leaves the jar on the system time. A test of the jar uses a source far
+in the past (`the_time_source_decides_expiry_on_both_paths`).
+
 ## Consequences
 
 - Hacker News login can work in live mode. Replays of fixtures never have

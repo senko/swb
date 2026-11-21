@@ -196,6 +196,27 @@ impl Timing {
         }
     }
 
+    /// The before flag that a `steps()` keyframe easing gets, measured in
+    /// Chromium 148 (`keyframe-easing-before-flag` of
+    /// `tools/probes/css-animations-3b.json`): set in the before phase of a
+    /// forwards iteration, and at the start of the active interval of an
+    /// effect with a delay and a backwards fill (the left limit there, as in
+    /// the before phase); never in the after phase (a reversed iteration
+    /// that ends at progress 0 takes the right limit, unlike the effect's
+    /// before flag of Web Animations §4.10).
+    pub fn keyframe_before_flag(&self, computed: &ComputedTiming) -> bool {
+        match computed.phase {
+            Phase::Before => computed.forwards,
+            Phase::Active => {
+                computed.forwards
+                    && self.delay > 0.0
+                    && self.fill.backwards()
+                    && computed.active_time == Some(0.0)
+            }
+            Phase::After | Phase::Idle => false,
+        }
+    }
+
     /// The timing at `local_time` (`None`: no current time).
     pub fn compute(&self, local_time: Option<f64>) -> ComputedTiming {
         let phase = self.phase(local_time);

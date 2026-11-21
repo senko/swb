@@ -44,7 +44,7 @@ mod site;
 mod test_util;
 
 pub use budget::{ByteBudget, Reservation};
-pub use cookies::{Cookie, CookieJar, SameSite};
+pub use cookies::{Cookie, CookieJar, SameSite, TimeSource};
 pub use cors::{
     CorsFailure, ResponseKind, console_message, filter_response, is_cors_safelisted_header,
 };

@@ -4,6 +4,39 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-21: M13 feature 3b, CSS animations run
+
+- ADR 0044, section 15. Each document has a `DocumentAnimations` with
+  the records of its animations. The cascade computes an element's
+  style once from its declarations and again with the values of its
+  animations, so `em`, `var()` and `currentcolor` in keyframes and the
+  inheritance of animated values work as in Chromium.
+- The rendering update advances the timeline, also without scripts.
+  Headless runs update only at the event times of the animations (10 s
+  of an infinite 1 s animation cost 11 updates); the GUI updates at
+  each frame, or at each step of a `steps()` animation.
+- Scripts get `getAnimations()`, `play()`, `pause()`, `currentTime` and
+  the keyframe effect, enough for the probe rows that seek. All of them
+  pass, except the events, promises, `cancel()` and `finish()` of
+  feature 3c and the transitions of feature 5.
+- A probe case measured that Chromium gives a `steps()` keyframe easing
+  the left limit in the before phase, but not in the after phase.
+- The comparisons and the snapshot run with `--animations off`, as
+  Chromium's references do, and give the same numbers as before. With
+  animations on, one videojs frame costs 32 ms, 30 of them raster:
+  features 4a and 4b are for that.
+- The review found three costs that grew with the page: the matching of
+  an element's names to its records (50,000 names: 26 s), a scan of all
+  records for each task (20,000 animations and 20,000 timers: 19 s), and
+  `element.getAnimations()` (20,000 calls: 2.2 s). All are now below
+  1 s, with hostile cases.
+- The Wikipedia test with scripts began to fail on 2026-11-21, 30 days
+  after the capture: the cookie jar compared an expiry that the page
+  computed from its fixed clock with the system time. The jar now takes
+  the page clock.
+- Next: feature 3c (the rest of the API, events, the frame scheduling
+  of offscreen boxes).
+
 ## 2026-11-21: M13 feature 3a, the model of CSS animations
 
 - The first feature 3a (the values of CSS animations) was too large for

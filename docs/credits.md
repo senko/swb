@@ -69,6 +69,14 @@ Format: source, license (for code), what it influenced.
   `TransitionEvent`, `DeviceMotionEvent` and `DeviceOrientationEvent` in
   `crates/web/idl/transition-device-events.idl` (W3C Software and
   Document License 2023; see THIRD_PARTY_NOTICES.md).
+- W3C Web Animations Level 1 and CSS Animations Level 2 —
+  https://drafts.csswg.org/web-animations-1/,
+  https://drafts.csswg.org/css-animations-2/ — the IDL blocks of
+  `Animation`, `AnimationEffect`, `KeyframeEffect`, `CSSAnimation` and
+  `Document.getAnimations()` in `crates/web/idl/web-animations.idl` (W3C
+  Software and Document License 2023; see THIRD_PARTY_NOTICES.md); the
+  play states, the pending play and pause, and the composite order of CSS
+  animations in `swb-style` (`animation/records.rs`).
 - W3C Scalable Vector Graphics (SVG) 2 — https://www.w3.org/TR/SVG2/ —
   the IDL blocks of the element interfaces and `SVGAnimatedString` in
   `crates/web/idl/svg.idl` (W3C Software and Document License 2023; see

@@ -612,16 +612,20 @@ def run_swb(
     screenshot: bool = False,
     extra: list[str] | None = None,
     url: str | None = None,
+    animations: bool = True,
 ) -> SwbRun:
     """Renders the page in swb and returns its box dump, with `screenshot`
     its full-page screenshot, and its stdout. `extra` are additional swb
     options; `url` is the page's URL if it is not the file's (a case served
-    over HTTP). Raises `ProbeError` if swb fails."""
+    over HTTP); without `animations`, swb runs with `--animations off`.
+    Raises `ProbeError` if swb fails."""
     dump_path = directory / f"{page.stem}.swb-boxes.json"
     log_path = directory / f"{page.stem}.swb.log"
     out_path = directory / f"{page.stem}.swb.out"
     shot_path = directory / f"{page.stem}.swb.png" if screenshot else None
-    command = swb.probe_command(binary, url or page.as_uri(), viewport, dump_path, shot_path, extra)
+    command = swb.probe_command(
+        binary, url or page.as_uri(), viewport, dump_path, shot_path, extra, animations
+    )
     status = swb.run(command, log_path, out_path)
     if status != 0 or not dump_path.is_file():
         tail = log_path.read_text(encoding="utf-8", errors="replace").strip().splitlines()[-3:]
@@ -739,7 +743,9 @@ def _compare_with_swb(
         extra += eval_arguments(case.queries)
     wants_ink = any(query.kind in ("ink", "pixels") for query in case.queries)
     try:
-        run = run_swb(binary, path, case.viewport, directory, wants_ink, extra, url)
+        run = run_swb(
+            binary, path, case.viewport, directory, wants_ink, extra, url, case.animations
+        )
         attach_swb(result, run.dump, tolerance, run.image)
         if case.javascript:
             attach_swb_values(result, run.stdout)

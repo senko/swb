@@ -28,6 +28,7 @@ impl Page {
     /// until they are loaded, there is no layout. After the first layout
     /// of a document, scrolls to the fragment or to the restored position.
     pub fn update_layout(&mut self) {
+        self.catch_up_animations();
         if let Some((doc, fonts)) = self.parts() {
             doc.update_layout(fonts);
         }
@@ -115,6 +116,7 @@ impl Page {
     /// documents: a frame's viewport comes from the layout of its parent,
     /// so that the first paint shows the frames (ADR 0031 section 4).
     fn render_in_strips(&mut self, target: &mut Pixmap, strip_rows: u32, what: Rendering) {
+        self.catch_up_animations();
         let Some((doc, fonts)) = self.parts() else {
             swb_paint::fill(target, swb_style::Rgba::WHITE);
             return;

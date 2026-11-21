@@ -643,6 +643,54 @@ drain that did not touch them confirms them), the form controls (rebuilt
 at the next flush or Page-level drain) and the tree order (rebuilt when
 the selection needs it).
 
+## CSS animations
+
+ADR 0044, M13 feature 3b. Each `DocumentState` owns a
+`DocumentAnimations` (`style/src/animation/records.rs`) in a `RefCell`:
+the document timeline's time, the animation records by id and the index
+from each owning element (and `::before`, `::after`, `::marker`) to its
+records in composite order. The data flow of a frame with animations:
+
+1. *The rendering update* (`page/rendering_update.rs`). `Page::frame_time`
+   includes `Page::animation_time`: the next time a record needs an update
+   (`DocumentAnimations::next_time`, a minimum that the document caches
+   until a record changes, so asking at every task costs O(1)), on the 60 Hz
+   grid. Headless pages
+   (nothing paints between steps) need only the event times (the end of a
+   delay, an iteration, the active phase); the GUI (`set_paints_frames`)
+   needs each frame of a continuous easing and each step of `steps()`. The
+   update runs without scripts too: `run_frame` starts with
+   `update_animations`, which sets each document's timeline to the frame
+   time, resolves pending plays and pauses and marks the owners whose
+   values can have changed. A page whose only work is running animations
+   is idle (`frame_work_due` leaves them out).
+2. *Catch-up.* Before a task, a layout flush, a render or a screenshot
+   (`take_document_state`, `parts`, `update_layout`, `render_in_strips`),
+   the page asks that a document whose last update is older than the last
+   grid time at or before now advances to it (`request_catch_up`, O(1)). The
+   advance runs (`DocumentAnimations::settle`) when something reads the
+   styles or the animations (`update_style`, `query_element_style`,
+   `paint_pending`, the animation queries of scripts), so a task that reads
+   nothing costs no pass over the records.
+3. *Style.* A document with marked owners has pending paint
+   (`paint_pending`); the next style flush runs the targeted restyle of ADR
+   0041 with the marked owners (`restyle_animated`), and a full restyle
+   restyles everything (`compute_styles_animated`). In both, the cascade of
+   an element computes the base style, brings the element's records up to
+   date with its `animation-*` lists (create, keep by name, cancel), and
+   computes the style again with the animated values (`cascade/animated.rs`).
+   After a pass, the records of owners without a style or a name go
+   (`sweep_animations`).
+4. *Layout and paint* follow as for any style change (feature 4 adds the
+   paint-only path).
+
+Scripts reach the records through `EngineHost` (`animations`, `animation`,
+`animation_command`, `animation_keyframes`, `released_animations`); the web
+crate keeps one wrapper per live record (`web/src/animations.rs`).
+`--animations off` (`Page::set_animations`, applied to the next document)
+makes the stylist reset the `animation-*` and `transition-*` longhands of
+every element (`Stylist::set_animations`).
+
 ## The JavaScript setting
 
 `Page` holds the setting (`set_javascript`, off by default; command line

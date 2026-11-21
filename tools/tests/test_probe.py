@@ -372,6 +372,24 @@ def test_probe_command_with_a_screenshot():
     assert command[-4:] == ["--full-page", "--screenshot", "s.png", "file:///p.html"]
 
 
+def test_probe_command_turns_animations_off_for_cases_without_them():
+    command = swb.probe_command(Path("swb"), "file:///p.html", (800, 600), Path("b.json"))
+    assert "--animations" not in command
+    command = swb.probe_command(
+        Path("swb"), "file:///p.html", (800, 600), Path("b.json"), animations=False
+    )
+    at = command.index("--animations")
+    assert command[at + 1] == "off"
+
+
+def test_serve_command_turns_animations_off_on_request():
+    command = swb.serve_command(Path("swb"), (800, 600))
+    assert "--animations" not in command
+    command = swb.serve_command(Path("swb"), (800, 600), animations=False)
+    at = command.index("--animations")
+    assert command[at + 1] == "off"
+
+
 def test_time_zone_in_the_case_file():
     text = (
         '{"time_zone": "UTC", "cases": ['

@@ -185,7 +185,9 @@ def run_swb_state(name: str, swb_binary: Path, output: Path, options: Options, s
         (output / stale).unlink(missing_ok=True)
     try:
         log_file = output / named(SWB_LOG, suffix)
-        with Browser.start(swb_binary, fixture, meta.viewport, log_file=log_file) as browser:
+        with Browser.start(
+            swb_binary, fixture, meta.viewport, log_file=log_file, animations=False
+        ) as browser:
             capture_state(
                 browser,
                 meta.url,

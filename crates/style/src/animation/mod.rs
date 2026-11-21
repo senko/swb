@@ -3,9 +3,10 @@
 //! Animations, the resolved `@keyframes` sets and the interpolation of
 //! computed values.
 //!
-//! Nothing here runs an animation yet: feature 3b adds the animation
-//! records, the document timeline and the animation input of the cascade
-//! (ADR 0044 sections 1 to 3). The API that it uses:
+//! Feature 3b runs the animations: [`DocumentAnimations`] holds the
+//! records and the timeline of a document (`records.rs`), and the cascade
+//! takes the animated values from them (`cascade.rs`, "the animation
+//! input"; ADR 0044 sections 1 to 3). The API of the model:
 //!
 //! - [`AnimationStyle`]: the computed `animation-*` lists of an element
 //!   ([`AnimationStyle::of`]).
@@ -28,6 +29,7 @@ pub mod easing;
 pub mod interpolate;
 pub mod keyframes;
 pub mod properties;
+pub mod records;
 pub mod time;
 pub mod timing;
 
@@ -35,5 +37,9 @@ pub use easing::{Easing, LinearPoint, MAX_STEPS, StepPosition, parse_easing};
 pub use interpolate::{interpolate, interpolate_custom};
 pub use keyframes::{Interval, Keyframe, KeyframeSet, PropertyKeyframes};
 pub use properties::{AnimationEntry, AnimationName, AnimationStyle, Composition, PlayState};
+pub use records::{
+    AnimationId, AnimationOwner, AnimationPlayState, AnimationRecord, DocumentAnimations,
+    MAX_RECORDS, round_noise,
+};
 pub use time::{Number, Time};
 pub use timing::{ComputedTiming, FillMode, Phase, PlaybackDirection, Timing};

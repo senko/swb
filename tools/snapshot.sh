@@ -3,7 +3,8 @@
 # fixture, and the layout dump and a screenshot of every layout test, into
 # OUT_DIR. Two snapshots of the same tree are byte-identical, so
 # `diff -r A B` shows every rendering change between two trees (for
-# example before and after a refactoring). Run it from the repository
+# example before and after a refactoring). Animations are off, as in the
+# comparisons with Chromium (`--animations off`). Run it from the repository
 # root after `just build` (`just snapshot OUT_DIR` does both).
 #
 # Usage: tools/snapshot.sh OUT_DIR [SWB_BINARY]
@@ -16,13 +17,13 @@ rm -f "$out/failures"
 dump() { # NAME ARGS...: layout dump
   local name=$1
   shift
-  "$swb" --headless --test-fonts --timeout 60 "$@" --dump-layout >"$out/$name.layout" 2>/dev/null ||
+  "$swb" --headless --test-fonts --animations off --timeout 60 "$@" --dump-layout >"$out/$name.layout" 2>/dev/null ||
     echo "failed: $name layout" >>"$out/failures"
 }
 shot() { # NAME ARGS...: full-page screenshot
   local name=$1
   shift
-  "$swb" --headless --test-fonts --timeout 60 "$@" --full-page --screenshot "$out/$name.png" >/dev/null 2>&1 ||
+  "$swb" --headless --test-fonts --animations off --timeout 60 "$@" --full-page --screenshot "$out/$name.png" >/dev/null 2>&1 ||
     echo "failed: $name screenshot" >>"$out/failures"
 }
 
@@ -34,7 +35,7 @@ for dir in fixtures/pages/*/; do
     shot "page-$name-$size" --replay "$dir" --size "$size" "$url"
   done
   shot "page-$name-1280x800@2" --replay "$dir" --size 1280x800 --scale 2 "$url"
-  "$swb" --headless --test-fonts --replay "$dir" --dump-dom "$url" >"$out/page-$name.dom" 2>/dev/null ||
+  "$swb" --headless --test-fonts --animations off --replay "$dir" --dump-dom "$url" >"$out/page-$name.dom" 2>/dev/null ||
     echo "failed: $name DOM" >>"$out/failures"
 done
 

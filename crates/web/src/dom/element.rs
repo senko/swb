@@ -359,6 +359,15 @@ impl g::element::ElementImpl for WebState {
         crate::cssom_view::get_bounding_client_rect(cx, this)
     }
 
+    /// <https://drafts.csswg.org/web-animations-1/#dom-animatable-getanimations>
+    fn get_animations(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        options: crate::generated::types::GetAnimationsOptions,
+    ) -> b::Result<Vec<swb_js::Gc<swb_js::Object>>> {
+        crate::animations::element_animations(cx, this, &options)
+    }
+
     fn scroll_into_view(
         cx: &mut Cx<'_>,
         this: NodeId,

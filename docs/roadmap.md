@@ -6213,19 +6213,57 @@ Steps:
       10): `DocumentAnimations` and the animation records; the animation
       input of the cascade at the animation origin; the document
       timeline and the animation step of the rendering update, also
-      without scripts; virtual time; the minimal `getAnimations()`,
-      `pause()` and `currentTime` that seeking needs; the probe value and
-      pixel rows of `css-animations.json` as Rust tests. The option
-      `--animations off` with `swb.py` lands in the same commit as the
-      first running animation, so that the scores of the other targets
-      stay as they are.
+      without scripts; virtual time; the next time that each record
+      needs (event times, step boundaries; section 8 without the
+      visibility test), in headless mode and in the GUI; the minimal
+      `getAnimations()`, `pause()`, `currentTime` and `getKeyframes()`
+      that seeking and the probe rows need; the probe value and pixel
+      rows of `css-animations.json` (and the rows of
+      `css-animations-3a.json` that 3a skipped) as Rust tests; the
+      hostile cases of the code it adds. The option `--animations off`
+      with `swb.py` lands in the same commit as the first running
+      animation, so that the scores of the other targets stay as they
+      are.
+
+      Done (2026-11-21): ADR 0044, section 15. With `--animations off`
+      (the comparisons, the snapshot, perf) no page renders differently.
+      - `DocumentAnimations` per document: the records by id with their
+        owners in composite order, created, kept and cancelled from the
+        computed `animation-name` lists; at most 100,000 per document.
+      - The animation input of the cascade: the base style, then the
+        animated values at their place in the order (custom properties
+        first, then font, then the other longhands); `!important`
+        winners are not animated; animated values inherit.
+      - The document timeline and the update step of the rendering
+        update, also without scripts; the catch-up when a script, layout
+        or a paint reads style; the next time that each record needs
+        (event times in headless mode, frames and steps in the GUI), as
+        one cached minimum per document; virtual time jumps to it.
+        10 s of an infinite 1 s animation cost 11 updates in headless
+        mode.
+      - `getAnimations()`, `CSSAnimation` (`play()`, `pause()`,
+        `currentTime`, `playState`, `animationName`, `effect`),
+        `KeyframeEffect` (`target`, `getKeyframes()`, `getTiming()`,
+        `getComputedTiming()`).
+      - `--animations on|off`, `page.setAnimations`; swb.py and the
+        Rust fixture tests pass it.
+      - The cookie jar takes the page clock, so a replay with a fixed
+        clock keeps cookies whose expiry a script computed from
+        `Date.now()` (ADR 0012).
+      - Measured: Chromium gives a `steps()` keyframe easing the left
+        limit in the before phase, not in the after phase
+        (`css-animations-3b.json`, 4 cases). Tests: `css_animations.rs`
+        (all seeking rows of the three probe files but those of 3c and
+        feature 5, two pixel tests), `animation_frames.rs`, unit tests;
+        9 hostile cases.
    3c. CSS animations, API and frames (`implementer-hard`; sections 6
       to 8 and 11): the rest of `Animation`, `KeyframeEffect` and
       `CSSAnimation`; `ready` and `finished` (they must settle, or Base
       UI's popups never close); `AnimationEvent` and the event step; the
-      script overrides; the frame scheduling in the GUI (step
-      boundaries, visibility); the hostile cases. The acceptance checks
-      values, events and the frame loop, not the frame budget.
+      script overrides; the visibility test of the frame scheduling and
+      the GUI budgets; the other hostile cases of the diagnosis. The
+      acceptance checks values, events and the frame loop, not the frame
+      budget.
    4a. Paint-only frames (`implementer`; section 9): the classification
       of paint properties, the refresh of fragment styles, overflow, the
       display list rebuild, and the check mode as the oracle. This comes
@@ -6483,9 +6521,16 @@ Source Extensions, AV1 (dav1d), YouTube.
   `perspective()` (Chromium accepts them). Number tokens of custom
   properties are written without an exponent, so a tiny value differs
   from Chromium's text (`6.12323e-17`).
-- Feature 3b: pass the element's `color` as `current` to
-  `interpolate_custom`; add a hostile case for a registered syntax with
-  many alternatives and a long value (the cost is their product).
+- API (feature 3b, for 3c): `getKeyframes()` gives the specified
+  values in swb's property order; Chromium gives computed values in its
+  own order, the underlying values in implicit keyframes, and empty
+  keyframes (`keyframes-resolution` in `css-animations-3a.json`).
+- Paint (feature 3b): `background-clip: text` with a gradient differs
+  from Chromium by up to 12 per channel, animated or not (the `shimmer`
+  pixel test).
+- Style (feature 3b): the animated value of each longhand clones the
+  whole style once per keyframe (`cascade/animated.rs`); avoiding it
+  needs an interpolation API that takes the computed values alone.
 - Style (feature 3a): `animation-trigger` does not parse (Chromium 148
   parses it).
 - CSSOM (feature 3a): an infinite `cubic-bezier()` or `linear()`

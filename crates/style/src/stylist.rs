@@ -324,6 +324,10 @@ pub(crate) type ScopeIndex = u32;
 #[derive(Debug)]
 pub struct Stylist {
     quirks: bool,
+    /// False for `--animations off` (ADR 0044 section 10): the
+    /// `animation-*` and `transition-*` longhands compute to their initial
+    /// values.
+    animations: bool,
     rules: Vec<Rule>,
     element_rules: RuleMap,
     before_rules: RuleMap,
@@ -474,6 +478,7 @@ impl Stylist {
     pub fn new_scoped(quirks: swb_dom::QuirksMode) -> Self {
         Stylist {
             quirks: quirks == swb_dom::QuirksMode::Quirks,
+            animations: true,
             rules: Vec::new(),
             element_rules: RuleMap::default(),
             before_rules: RuleMap::default(),
@@ -610,6 +615,19 @@ impl Stylist {
     /// True in quirks mode.
     pub(crate) fn quirks(&self) -> bool {
         self.quirks
+    }
+
+    /// Turns the document's animations and transitions on or off
+    /// (`--animations`, ADR 0044 section 10). Off, the `animation-*` and
+    /// `transition-*` longhands of every element and pseudo-element compute
+    /// to their initial values.
+    pub fn set_animations(&mut self, enabled: bool) {
+        self.animations = enabled;
+    }
+
+    /// False if the document's animations are off ([`Stylist::set_animations`]).
+    pub fn animations_enabled(&self) -> bool {
+        self.animations
     }
 
     /// The number of rules (one per selector).

@@ -391,6 +391,10 @@ impl Page {
             font_budget: None,
             fonts: Rc::clone(&self.lent_fonts),
             node_room: None,
+            animations: crate::document::AnimationSetting {
+                enabled: self.animations,
+                origin: self.clock.now(),
+            },
         });
         // Set without a restyle: the styles of the new document are not
         // computed yet.

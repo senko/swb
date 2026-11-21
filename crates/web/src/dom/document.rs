@@ -366,6 +366,11 @@ impl g::document::DocumentImpl for WebState {
         crate::range::create_for_document(cx, this)
     }
 
+    /// <https://drafts.csswg.org/web-animations-1/#dom-document-getanimations>
+    fn get_animations(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Vec<swb_js::Gc<swb_js::Object>>> {
+        crate::animations::document_animations(cx, this)
+    }
+
     /// The document's `Selection`; null for a document without a browsing
     /// context (measured: `createHTMLDocument`, `DOMParser`).
     /// <https://w3c.github.io/selection-api/#dom-document-getselection>

@@ -637,7 +637,8 @@ JavaScript flag).
   (Chromium injects the same sheet there) pass `--animations off`. The
   Rust tests that compare fixtures with Chromium's references (replay and
   step tests) set it through the page configuration. `hostile_command`,
-  `serve_command` and the tests of M13 keep animations on. `js-survey`
+  `serve_command` (with its `animations` flag; `compare --click` passes
+  false) and the tests of M13 keep animations on. `js-survey`
   runs only Chromium.
 - Differences to Chromium's references: Chromium injects its sheet after
   the load, so scripts during the load see animations there; none of the
@@ -917,6 +918,167 @@ differs in the noise digits).
 - *The members of `CSSKeyframesRule`*: `cssRules`, `appendRule()`,
   `deleteRule()`, `findRule()` and `CSSKeyframeRule` (case
   `keyframes-rule-members`; no target page uses them).
+
+### 15. Done in feature 3b
+
+Feature 3b runs the animations: sections 1 (the records), 2, 3, 8 without
+the visibility test and 10, and the part of section 7 that seeking needs.
+Measured in Chromium 148 with the new probe file
+`tools/probes/css-animations-3b.json` (4 cases, three equal runs).
+
+**Where the records live.** `swb_style::animation::DocumentAnimations`
+(`records.rs`), owned by `DocumentState` in a `RefCell`: the style passes
+update the records while they borrow the stylist and the DOM. A record
+holds the name, its position in `animation-name` and its occurrence among
+the entries of that name (a duplicate name makes a second record), the
+`Timing`, the keyframe easing, the start time, the hold time, a pending
+play or pause, the CSS and script play-state flags, the phase, iteration
+and current time of the last update (for 3c's events) and the step period
+for the scheduling. Keyframe sets are not kept in the record: the cascade
+looks them up in the stylist at each sync, so a new stylist takes effect.
+The record limit (100,000 per document, one `warn!`) acts at creation.
+
+**Play states.** Web Animations with a playback rate of 1. A new animation
+plays with a hold time of 0 and a pending play, resolved at the next
+update (start time = the update's timeline time); `animation-play-state:
+paused` at creation holds 0 with a pending pause. `pause()` takes the hold
+time at once (the timeline does not move within a task), the pending flag
+stays until the update; a seek completes a pending pause. `play()` of a
+finished or idle animation starts again at 0. Relevance
+(`getAnimations()`): the before or active phase, or in effect (measured,
+`fill-modes`: a paused animation past its end without a `forwards` fill is
+not listed, though the specification's "not finished" would list it).
+
+**The cascade input.** `cascade()` computes the base style from the
+winners, then (with an animation target) syncs the owner's records with
+the base style's `animation-*` lists and, if an animation has a value now,
+runs `compute()` again with the input (`cascade/animated.rs`). A longhand
+or custom property with an `!important` winner is not animated; an element
+that has animations finds them by running the important phase of its
+cascade again alone (`ImportantPhase::collect`), so other elements keep no
+record of them. The animated custom properties replace their
+winners as declarations of their interpolated values before
+`compute_custom_properties`, so `var()` everywhere follows them; their
+keyframe values are computed against the base style's map with the
+element's font size (`em` of a registered `<length>`), and
+`interpolate_custom` gets the base style's `color` as `currentcolor`. The
+longhands take their animated values at their place in the order
+(`font-family`, `font-size`, `line-height`, then `LonghandId::ALL`): each
+keyframe is computed with the element's `ComputeContext` on a copy of the
+style so far, an implicit keyframe copies the base style's value, then
+`interpolate_longhand`. An element with an animation name is not shared by
+the style sharing cache (`animation-*` values without a name, as in a
+reduced-motion reset, make no animation and keep the sharing). Pseudo-elements: `::before` and `::after`
+with a box, and `::marker`. The style of one element for a query
+(`compute_element_styles_animated`) syncs the records of the chain's
+elements too, so a script that sets `animation-*` and reads the style at
+once sees the new timing; below a `display: none` element it only reads
+them, and a pseudo-element without a box only reads them.
+
+**`display: none`.** Measured (`interp-lengths-numbers`, `ds`): an element
+whose base style is `display: none` keeps the animations whose keyframes
+animate `display` (Chromium shows `block` from `from { display: block }`);
+it has no others. Descendants of a `display: none` element have no style
+and lose their records (`sweep_animations` after each style pass: an owner
+without a style or without an animation name).
+
+**The before flag of a keyframe easing** (section 14, "Not done in 3a"),
+measured in `keyframe-easing-before-flag`: Chromium gives a `steps()`
+keyframe easing the left limit in the before phase of a forwards iteration
+(`steps(2, start)` with a delay and `backwards` is 0 before the delay, not
+0.5), and also at the start of the active interval when the effect has a
+delay and a backwards fill (0 at `currentTime` = delay, while the same
+animation without a fill gives 0.5 there); never in the after phase (a
+reversed or alternate iteration that ends at progress 0 with `forwards` is
+0.5, where the effect's before flag of Web Animations §4.10 would give 0).
+`Timing::keyframe_before_flag` has this rule; the effect's own easing
+(linear for CSS animations) keeps the specification's flag.
+
+**Time.** `DocumentAnimations::update(page time)` sets the timeline to the
+page time minus the document's time origin (the page time when the
+`DocumentState` was made), resolves pending plays and pauses and marks
+the owners whose phase, iteration or (while active) current time changed.
+`run_frame` runs it first in each rendering update, with or without
+scripts. The catch-up (to the last grid time at or before now, when the
+last update is older) is requested in `take_document_state` (each task),
+`Page::parts` (each engine-side layout or query), `update_layout` and
+`render_in_strips`, but runs only when something reads the styles or the
+animations (`DocumentAnimations::settle`, from `update_style`,
+`query_element_style`, `paint_pending` and the animation queries of
+scripts): a task that reads neither costs no pass over the records. Marked owners make `paint_pending` true; the next
+style flush (`update_style`, a script's `getComputedStyle`) runs the
+targeted restyle with them (`restyle_animated`, counted with the state
+restyles).
+
+**Scheduling.** `AnimationRecord::next_time`: the next update for a
+pending play or pause; nothing when paused, idle or finished; the end of
+the delay; then each iteration's end. With painted frames (the GUI calls
+`Page::set_paints_frames(true)`), also the next frame of a continuous
+easing, or the next step boundary when every keyframe interval eases with
+the same `steps(n)` over keyframes at 0% and 100% only (another shape counts
+as continuous), and steps shorter than a frame count as continuous.
+`Page::animation_time` puts that time on the grid, at least one frame
+after the last update; `frame_time` and the next task time include it (so
+the GUI's `WaitUntil` and the jumps of virtual time follow), `frame_work_due`
+does not (a page whose only work is animations is idle). The minimum next time over the records is cached
+per document (for painted and unpainted frames; `update` computes it in its
+loop, a change of a record drops it), so `frame_time` and `next_task_time`
+cost O(1) per document while nothing changes. A record whose next event is
+not after the timeline (float precision, a script's `currentTime` of 1e19)
+asks for the next frame when frames are painted and for nothing otherwise.
+A headless `--settle-ms 10000` with an infinite 1 s animation costs about
+11 updates.
+
+**API.** `getAnimations()` of documents and elements (one element without
+`subtree` reads its own records directly; with `subtree` the owners are
+sorted in tree order),
+`CSSAnimation` (`animationName`, `play()`, `pause()`, `currentTime`,
+`startTime`, `playState`, `pending`, `replaceState`, `id`, `effect`) and
+`KeyframeEffect` (`target`, `pseudoElement`, `composite`, `getTiming()`,
+`getComputedTiming()`, `getKeyframes()`), in `web-animations.idl`. The
+wrapper map of section 1 is `AnimationObjects` in the web crate; the
+engine reports released ids, and keeps them only after the bindings
+asked once (the first `getAnimations()`), so a page without scripts that
+churns animations holds no list. A wrapper whose record went keeps its
+`animationName` and `effect.target` (Chromium, probe `remove-element`).
+`currentTime` of a held animation (paused or seeked) is returned as stored
+(Chromium reads `2500.0004` back); a running animation's is rounded to
+1e-9 ms, which removes the float noise of `timeline - start time` but keeps
+a time that a script set (Chromium reads `2500.0004` back from a running
+animation too; the review's probe `current-time-values`), and `pause()`
+rounds the hold time it takes from a running animation to 1e-9 ms for the
+same reason. `getComputedTiming()` and `getTiming()` came
+along because most seeking rows read them. `getKeyframes()` gives the
+specified values in the order of the properties' first declarations,
+with the implicit keyframes holding the element's current computed value
+(composite `replace`). Departures: Chromium gives computed keyframe values
+(`var()` substituted), the underlying value in implicit keyframes, its own
+property order and empty keyframes (`keyframes-resolution` waits for 3c).
+
+**The period of `steps()`.** The scheduling uses the period `duration / n`
+for every position. The review expected `duration / (n + 1)` for `jump-both`
+and `duration / (n - 1)` for `jump-none`; the function of CSS Easing 2
+(`floor(input * n)`, plus 1 for the positions that jump at the start, over
+n + 1, n or n - 1 levels) jumps at multiples of `1 / n` for all of them, and
+a unit test checks every position.
+
+**Fixes of the review.** The matching of the records of an element with its
+names builds a map once (50,000 names on one element: 25.7 s before, 0.14 s
+after, headless with virtual time); the lazy catch-up and the cached next
+time make 20,000 infinite animations with a chain of 20,000
+`setTimeout(f, 0)` cost 0.42 s (19.4 s before; 0.10 s with
+`--animations off`), 0.34 s paused (6.9 s before); 20,000 `getAnimations()`
+calls of single elements cost 0.46 s with the page (2.2 s before).
+`swb.py`'s `serve_command` and `Browser.start` take `animations`; `compare
+--click` passes false. The cookie jar takes its time from the page clock
+(ADR 0012, "The page clock").
+
+**Not in 3b** (feature 3c): events, `ready` and `finished`, `cancel()`,
+`finish()`, the rest of the script overrides (`script-overrides`; 3b has
+the first: after a script's `play()` or `pause()`, `animation-play-state`
+no longer plays or pauses the animation), `document.timeline`,
+the visibility test of section 8 and the GUI budgets. `transition-*` stay
+inert (feature 5); `getAnimations()` lists no transitions.
 
 ## Consequences
 

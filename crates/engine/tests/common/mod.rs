@@ -293,7 +293,8 @@ pub(crate) fn pump_for(page: &mut Page, duration: Duration) {
 
 /// Loads the fixture `name` (`fixtures/js` if `javascript`, else
 /// `fixtures/pages`) from its replay store into a page with `view`, and
-/// waits for the load. `configure` runs on the page before the navigation.
+/// waits for the load, with animations off as Chromium's references.
+/// `configure` runs on the page before the navigation.
 /// `None` if the fixture is missing (it is not committed for the JS ones).
 pub(crate) fn load_fixture(
     name: &str,
@@ -321,6 +322,9 @@ pub(crate) fn load_fixture(
     let fetcher = Arc::new(ReplayFetcher::load(&dir).expect("a replay store"));
     let mut page = new_page(fetcher, 4, view);
     page.set_javascript(javascript);
+    // Chromium's references are taken with animations off (ADR 0044
+    // section 10).
+    page.set_animations(false);
     configure(&mut page);
     page.navigate(url);
     assert!(page.wait_until_loaded(Duration::from_secs(60)));
@@ -364,9 +368,12 @@ pub(crate) fn finish_loading(page: &mut Page, timeout: Duration) {
 /// Loads `url` with `fetcher` and the bundled test fonts, and returns the
 /// element boxes. Elements with a `data-scroll="X Y"` attribute are
 /// scrolled to that offset first (as `swbtools layout-refs` does in
-/// Chromium).
+/// Chromium). Animations are off, as in Chromium's references.
 pub(crate) fn load_boxes(fetcher: Arc<dyn Fetcher>, url: Url, viewport: Size) -> Vec<ElementBox> {
     let mut page = new_page(fetcher, 4, viewport);
+    // Chromium's references are taken with animations off (ADR 0044
+    // section 10).
+    page.set_animations(false);
     page.navigate(url);
     finish_loading(&mut page, Duration::from_secs(60));
     apply_data_scroll(&mut page);

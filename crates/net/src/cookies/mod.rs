@@ -47,7 +47,7 @@ mod parse;
 mod store;
 
 use std::fmt;
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use log::{Level, debug, log};
@@ -177,7 +177,15 @@ impl SameSiteContext {
 #[derive(Default)]
 pub struct CookieJar {
     store: Mutex<Store>,
+    /// The source of the current time; `None`: the system time.
+    time: Mutex<Option<TimeSource>>,
 }
+
+/// A source of the current time for a [`CookieJar`]: seconds since the Unix
+/// epoch. A page with a fixed or virtual clock gives its jar the page clock
+/// ([`CookieJar::set_time_source`]), so that a cookie whose expiry a script
+/// computed from `Date.now()` expires at the page's time, not the system's.
+pub type TimeSource = Arc<dyn Fn() -> i64 + Send + Sync>;
 
 impl CookieJar {
     /// Creates an empty jar.
@@ -185,10 +193,28 @@ impl CookieJar {
         Self::default()
     }
 
+    /// Sets the source of the current time for the expiry of cookies, on
+    /// both paths (`Set-Cookie` and `Cookie` headers, `document.cookie`).
+    /// `None` returns to the system time.
+    pub fn set_time_source(&self, source: Option<TimeSource>) {
+        *self.time.lock().unwrap_or_else(PoisonError::into_inner) = source;
+    }
+
+    /// The current time in seconds since the Unix epoch: the time source's,
+    /// or the system time.
+    fn now(&self) -> i64 {
+        let source = self
+            .time
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone();
+        source.map_or_else(unix_now, |now| now())
+    }
+
     /// Returns the value of the `Cookie` header for `request`, or `None` if
     /// no cookie applies.
     pub fn cookie_header(&self, request: &Request) -> Option<String> {
-        self.cookie_header_at(request, unix_now())
+        self.cookie_header_at(request, self.now())
     }
 
     /// Stores the cookies of the `Set-Cookie` headers in `headers`, the
@@ -196,7 +222,7 @@ impl CookieJar {
     /// warning; cookies that the request may not set (for example a
     /// cross-site subresource) are ignored with a debug message.
     pub fn store_response_cookies(&self, request: &Request, headers: &Headers) {
-        self.store_response_cookies_at(request, headers, unix_now());
+        self.store_response_cookies_at(request, headers, self.now());
     }
 
     /// Returns the cookies that a script at `url` sees (the getter of
@@ -205,7 +231,7 @@ impl CookieJar {
     /// the document itself (same-site). An empty string if none applies or
     /// if `url` is not an `http:` or `https:` URL.
     pub fn script_cookie_string(&self, url: &Url) -> String {
-        self.script_cookie_string_at(url, unix_now())
+        self.script_cookie_string_at(url, self.now())
     }
 
     /// Stores the cookie of `line`, a string that a script wrote to
@@ -214,7 +240,7 @@ impl CookieJar {
     /// cannot set `HttpOnly` or replace or delete an `HttpOnly` cookie. A
     /// rejected cookie is ignored with a debug message.
     pub fn set_script_cookie(&self, url: &Url, line: &str) {
-        self.set_script_cookie_at(url, line, unix_now());
+        self.set_script_cookie_at(url, line, self.now());
     }
 
     /// [`CookieJar::script_cookie_string`] for a document of a frame: `site_for_cookies`
@@ -225,7 +251,7 @@ impl CookieJar {
         if !has_cookies(url) {
             return String::new();
         }
-        let access = script_access_in(url, site_for_cookies, unix_now());
+        let access = script_access_in(url, site_for_cookies, self.now());
         self.lock().header(&access).unwrap_or_default()
     }
 
@@ -236,7 +262,7 @@ impl CookieJar {
         if !has_cookies(url) {
             return;
         }
-        let access = script_access_in(url, site_for_cookies, unix_now());
+        let access = script_access_in(url, site_for_cookies, self.now());
         if let Err(reason) = self.lock().set(line, &access) {
             debug!("{url}: script cookie {} rejected: {reason}", log_name(line));
         }
@@ -244,7 +270,7 @@ impl CookieJar {
 
     /// Returns all cookies that have not expired, oldest first.
     pub fn cookies(&self) -> Vec<Cookie> {
-        self.lock().all(unix_now())
+        self.lock().all(self.now())
     }
 
     /// Removes all cookies.
@@ -308,7 +334,7 @@ impl fmt::Debug for CookieJar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_struct("CookieJar");
         if let Ok(store) = self.store.try_lock() {
-            debug.field("cookies", &store.len(unix_now()));
+            debug.field("cookies", &store.len(self.now()));
         }
         debug.finish_non_exhaustive()
     }

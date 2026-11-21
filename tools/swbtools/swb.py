@@ -51,7 +51,8 @@ def record_missing_command(swb: Path, fixture: Path, url: str) -> list[str]:
 def replay_options(swb: Path, fixture: Path, viewport: tuple[int, int]) -> list[str]:
     """The start of a command line that serves all requests from the fixture
     and uses the test fonts and the viewport size. `compare` and `perf` use
-    the same settings."""
+    the same settings. Animations are off, as in Chromium's references
+    (docs/testing.md, "Animations in the references")."""
     width, height = viewport
     return [
         str(swb),
@@ -61,6 +62,8 @@ def replay_options(swb: Path, fixture: Path, viewport: tuple[int, int]) -> list[
         "--test-fonts",
         "--size",
         f"{width}x{height}",
+        "--animations",
+        "off",
     ]
 
 
@@ -108,19 +111,24 @@ def probe_command(
     boxes: Path,
     screenshot: Path | None = None,
     extra: list[str] | None = None,
+    animations: bool = True,
 ) -> list[str]:
     """Command line that loads `url` (a local file) with the test fonts and
     writes a box dump and, if `screenshot` is given, a full-page
     screenshot. `extra` are additional swb options (`--js`, `--eval EXPR`).
-    `probe` uses it."""
+    Without `animations`, swb runs with `--animations off`, as Chromium
+    stops the animations of a case without `"animations": true`. `probe`
+    uses it."""
     width, height = viewport
     shot = ["--full-page", "--screenshot", str(screenshot)] if screenshot is not None else []
+    off = [] if animations else ["--animations", "off"]
     return [
         str(swb),
         "--headless",
         "--test-fonts",
         "--size",
         f"{width}x{height}",
+        *off,
         "--dump-boxes",
         str(boxes),
         *shot,
@@ -166,11 +174,14 @@ def serve_command(
     fixture: Path | None = None,
     test_fonts: bool = True,
     javascript: bool = False,
+    animations: bool = True,
 ) -> list[str]:
     """Command line that starts a headless swb with the automation server on
     a free port (swb prints the address on its first output line). With
     `fixture`, all requests are served from it. With `javascript`, the
-    session starts with JavaScript on (`--js`)."""
+    session starts with JavaScript on (`--js`). With `animations` false it
+    passes `--animations off` (the references of Chromium run without
+    animations)."""
     width, height = viewport
     command = [str(swb), "--headless", "--remote-port", "0", "--size", f"{width}x{height}"]
     if fixture is not None:
@@ -179,6 +190,8 @@ def serve_command(
         command.append("--test-fonts")
     if javascript:
         command.append("--js")
+    if not animations:
+        command += ["--animations", "off"]
     return command
 
 

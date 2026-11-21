@@ -132,7 +132,7 @@ impl TreeOrder {
     }
 
     /// The rank of the node after the subtree of `node`.
-    fn end_of(&self, node: NodeId) -> u32 {
+    pub(crate) fn end_of(&self, node: NodeId) -> u32 {
         self.end.get(node.index()).copied().unwrap_or(u32::MAX)
     }
 

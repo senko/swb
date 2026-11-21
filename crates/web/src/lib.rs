@@ -97,6 +97,7 @@
 mod abort;
 mod adopted;
 mod animation_frames;
+mod animations;
 mod base64;
 pub mod bindings;
 mod clipboard;
@@ -162,11 +163,11 @@ mod xhr;
 pub use clock::{ClockMode, PageClock};
 pub use events::{DispatchTarget, EventInterface, TrustedEvent, UserEvent, UserKind, modifiers};
 pub use host::{
-    ControlSnapshot, ControlValidity, ControlWrite, DomRect, EngineHost, EventOrigins,
-    FormDataEntry, FormDataValue, FrameHost, ImageInfo, LentDocuments, NavigationInfo,
-    NavigationKind, NewFrame, ObservedBox, ObservedPosition, OffsetMetrics, RangeTextMode,
-    RetiredFrame, ScrollAlign, ScrollMetrics, ScrollRequest, SelectionKey, SelectionRange,
-    Viewport,
+    AnimationCommand, AnimationInfo, ControlSnapshot, ControlValidity, ControlWrite, DomRect,
+    EngineHost, EventOrigins, FormDataEntry, FormDataValue, FrameHost, ImageInfo, KeyframeInfo,
+    LentDocuments, NavigationInfo, NavigationKind, NewFrame, ObservedBox, ObservedPosition,
+    OffsetMetrics, RangeTextMode, RetiredFrame, ScrollAlign, ScrollMetrics, ScrollRequest,
+    SelectionKey, SelectionRange, Viewport,
 };
 pub use idle_callbacks::IDLE_PERIOD_MS;
 pub use messaging::{Mail, MailTarget};

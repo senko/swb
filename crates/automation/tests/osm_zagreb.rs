@@ -113,6 +113,14 @@ const MATOMO: &str = "https://matomo.openstreetmap.org/matomo.php";
 const STATUS_MESSAGE: &str =
     ",\"statusMessage\":\"disabled by enterprise policy or commandline switch\"";
 
+/// Departure of the console: Matomo's `_pk_ses` cookie has an expiry that the
+/// page computes from `Date.now()`. Chromium's reference reports that it
+/// could not set it (the page's time is fixed at the capture time, and
+/// Chromium's cookie store compares with the system time, so the cookie
+/// arrived expired). swb's cookie jar takes the page clock's time (ADR 0012,
+/// "The page clock"), so the cookie is set and the message may be missing.
+const COOKIE_ERROR: &str = "There was an error setting cookie";
+
 /// The data files of one sequence of step groups.
 struct Sequence {
     /// The number of groups after the load.
@@ -500,7 +508,10 @@ fn console_problems(page: &Page, chromium: &str) -> Vec<String> {
         .into_iter()
         .filter_map(|text| {
             let n = got.get(text).copied().unwrap_or(0);
-            let (low, high) = want.get(text).copied().unwrap_or((0, 0));
+            let (mut low, high) = want.get(text).copied().unwrap_or((0, 0));
+            if text.starts_with(COOKIE_ERROR) {
+                low = 0;
+            }
             if (low..=high).contains(&n) {
                 return None;
             }

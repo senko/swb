@@ -394,6 +394,13 @@ pub struct Page {
     /// ([`Document::scripting`]), so a change applies to the next
     /// document (ADR 0028 section 15).
     javascript: bool,
+    /// The animation setting (`--animations`, ADR 0044 section 10): like
+    /// the JavaScript setting, it applies to the next document.
+    animations: bool,
+    /// True if the page's frames are painted (the GUI): running animations
+    /// then need a rendering update at each frame (or step), not only at
+    /// their event times (ADR 0044 section 8).
+    paints_frames: bool,
     /// The number of the current document: it grows with every committed
     /// document. History entries of the same document can be traversed
     /// without loading.
@@ -481,6 +488,8 @@ impl Page {
             styles: Arc::clone(&frame_styles),
             bodies: Arc::clone(&frame_bodies),
             font_files: Arc::clone(&frame_fonts),
+            animations: std::cell::Cell::new(true),
+            clock: RefCell::new(swb_web::PageClock::real()),
         });
         let view = View {
             viewport,
@@ -517,6 +526,8 @@ impl Page {
             clock: swb_web::PageClock::real(),
             lent: false,
             javascript: false,
+            animations: true,
+            paints_frames: false,
             document_number: 0,
             view,
             input: input::InputState::default(),
@@ -537,6 +548,32 @@ impl Page {
             frame_bodies,
             frame_fonts,
         }
+    }
+
+    // ----- Animation setting -----
+
+    /// The animation setting (on by default).
+    pub fn animations(&self) -> bool {
+        self.animations
+    }
+
+    /// Turns CSS animations and transitions on or off (`--animations`,
+    /// `page.setAnimations`; ADR 0044 section 10). Like the JavaScript
+    /// setting, it applies to the next document (and to the frame
+    /// documents created from then on). Off, the `animation-*` and
+    /// `transition-*` longhands compute to their initial values, so no
+    /// animation runs and `getAnimations()` is empty.
+    pub fn set_animations(&mut self, enabled: bool) {
+        self.animations = enabled;
+        self.maker.animations.set(enabled);
+    }
+
+    /// Says whether the page's frames are painted (the GUI does; headless
+    /// runs do not). With frames, a running animation needs a rendering
+    /// update at each frame of the 60 Hz grid (or at its next step for
+    /// `steps()`); without, only at its event times (ADR 0044 section 8).
+    pub fn set_paints_frames(&mut self, paints: bool) {
+        self.paints_frames = paints;
     }
 
     // ----- JavaScript setting -----
@@ -589,6 +626,8 @@ impl Page {
     /// task use it, [`DocumentState::query_layout`]); the page keeps an
     /// empty one until the return.
     pub fn take_document_state(&mut self) -> Option<Box<DocumentState>> {
+        // A task reads the animations at the time of the frame grid now.
+        self.catch_up_animations();
         let state = self.doc.take()?;
         self.lent = true;
         let fonts = std::mem::replace(&mut self.fonts, FontContext::empty());
@@ -630,6 +669,9 @@ impl Page {
     /// The document state and the font context, for the calls that lay
     /// out.
     fn parts(&mut self) -> Option<(&mut DocumentState, &mut FontContext)> {
+        // What the caller computes sees the animations at the time of the
+        // frame grid now (ADR 0044 section 2).
+        self.catch_up_animations();
         Some((self.doc.as_deref_mut()?, &mut self.fonts))
     }
 

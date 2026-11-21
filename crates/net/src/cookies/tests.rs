@@ -912,3 +912,34 @@ fn script_cookies_obey_the_limits_and_never_panic() {
         }
     }
 }
+
+#[test]
+fn the_time_source_decides_expiry_on_both_paths() {
+    // A page clock in 2001 (well before any system time), 1,000,000,000 s,
+    // which is 2001-09-09T01:46:40Z. A script gives an expiry 30 days
+    // later, computed from its `Date.now()`.
+    let jar = CookieJar::new();
+    jar.set_time_source(Some(Arc::new(|| 1_000_000_000)));
+    let page = url("https://a.test/");
+    jar.set_script_cookie(&page, "s=1; Expires=Tue, 09 Oct 2001 01:46:40 GMT");
+    assert_eq!(jar.script_cookie_string(&page), "s=1");
+    // The same on the network path.
+    jar.store_response_cookies(
+        &navigation("https://a.test/"),
+        &set_cookie_headers(&["n=2; Expires=Tue, 09 Oct 2001 01:46:40 GMT"]),
+    );
+    assert_eq!(
+        jar.cookie_header(&navigation("https://a.test/")).as_deref(),
+        Some("s=1; n=2")
+    );
+    assert_eq!(jar.cookies().len(), 2);
+    // A clock after the expiry drops them.
+    jar.set_time_source(Some(Arc::new(|| 1_100_000_000)));
+    assert_eq!(jar.script_cookie_string(&page), "");
+    // Without a source the jar uses the system time: an expiry in 2001 has
+    // passed, a cookie set with `Max-Age` has not.
+    jar.set_time_source(None);
+    jar.set_script_cookie(&page, "old=1; Expires=Tue, 09 Oct 2001 01:46:40 GMT");
+    jar.set_script_cookie(&page, "new=1; Max-Age=3600");
+    assert_eq!(jar.script_cookie_string(&page), "new=1");
+}

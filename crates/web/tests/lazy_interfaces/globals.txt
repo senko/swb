@@ -473,6 +473,10 @@ URL:dwc
 URLSearchParams:dwc
 PerformanceMark:dwc
 PerformanceMeasure:dwc
+AnimationEffect:dwc
+KeyframeEffect:dwc
+Animation:dwc
+CSSAnimation:dwc
 Crypto:dwc
 DOMException:dwc
 Worker:dwc

@@ -71,6 +71,14 @@ impl DocumentState {
         if self.styles_stale {
             return true;
         }
+        // Animated values changed (ADR 0044 section 8), also by the
+        // catch-up of the timeline that tasks asked for.
+        if self.styles.is_some() {
+            self.settle_animations();
+            if self.animations.borrow().has_marked() {
+                return true;
+            }
+        }
         if self.styles.is_none() {
             return self.stylesheets_settled();
         }

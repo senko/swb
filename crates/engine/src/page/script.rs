@@ -81,7 +81,15 @@ impl Page {
 
     /// Sets the page clock: virtual time and a fixed start time (`swb
     /// --now`). It applies to the documents that commit after the call.
+    /// The cookie jar takes its time from the clock too (a cookie that a
+    /// script gave an expiry computed from `Date.now()` must not arrive
+    /// expired); a real-time clock from the system time leaves the jar on
+    /// the system time.
     pub fn set_clock(&mut self, clock: PageClock) {
+        if let Some(jar) = self.loader.cookie_jar() {
+            jar.set_time_source(clock.unix_source());
+        }
+        *self.maker.clock.borrow_mut() = clock.clone();
         self.clock = clock;
     }
 
@@ -940,7 +948,11 @@ impl Page {
         // JavaScript off).
         let refresh = self.next_frame_refresh();
         if !self.agents.enabled {
-            return refresh;
+            // The animations run without scripts (ADR 0044 section 2).
+            return [refresh, self.frame_time()]
+                .into_iter()
+                .flatten()
+                .reduce(f64::min);
         }
         [
             self.frame_time(),

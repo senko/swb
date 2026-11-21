@@ -122,6 +122,17 @@ part of the times. The result is the key `interaction` of the JSON:
   `style_runs`, `layout_runs` and their time (`*_ms`) are the totals of all
   steps. A scroll changes no style, so style and layout stay 0 unless a
   script's scroll handler changes the page.
+- Animation (since M13 feature 3b, ADR 0044 section 8; first in the
+  JSON): with the page's frames painted (`Page::set_paints_frames`), up to
+  30 frames in at most 3 s of real time; each frame is the page's pump at
+  its next frame (the rendering update moves the animations) and a render
+  if the frame is outdated. `frames` counts the frames that restyled,
+  `median_ms` is their median time, `style_ms`, `layout_ms`,
+  `display_list_ms` and `raster_ms` the medians of the stage times of
+  those frames (the last run of each stage), `restyled_elements` the
+  elements that their restyles restyled. Without a running animation
+  (`--animations off`, as `swbtools perf` runs) the stage does nothing:
+  `{"frames": 0, ...}`.
 
 The stages work with JavaScript on: `--js --virtual-time` (and the
 fixture's `--now` and `--settle-ms`) as for the other JS tools. `swbtools

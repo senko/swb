@@ -104,6 +104,13 @@ struct Args {
     #[arg(long, value_name = "on|off", value_parser = parse_on_off)]
     javascript: Option<bool>,
 
+    /// CSS animations and transitions on or off (default on). Off, the
+    /// `animation-*` and `transition-*` properties of every element compute
+    /// to their initial values, as in the references of the comparisons
+    /// (docs/testing.md, "Animations in the references").
+    #[arg(long, value_name = "on|off", value_parser = parse_on_off)]
+    animations: Option<bool>,
+
     /// Headless: after the page loaded, evaluate EXPR in the page's global
     /// scope and print one JSON line, `{"value": V}` or `{"error": "..."}`
     /// (repeatable; needs `--js`; write `--eval=EXPR` for an EXPR that
@@ -284,6 +291,7 @@ fn main() -> Result<()> {
         .map_err(anyhow::Error::msg)?;
 
     let javascript = args.js || args.javascript == Some(true);
+    let animations = args.animations.unwrap_or(true);
     let mode = if args.virtual_time {
         ClockMode::Virtual
     } else {
@@ -296,7 +304,14 @@ fn main() -> Result<()> {
     {
         return stack::on_page_thread(|| {
             headless::serve(
-                fetcher, fonts, args.size, args.scale, port, url, javascript, clock,
+                fetcher,
+                fonts,
+                args.size,
+                args.scale,
+                port,
+                url,
+                (javascript, animations),
+                clock,
             )
         })?;
     }
@@ -318,6 +333,7 @@ fn main() -> Result<()> {
             dump_boxes: args.dump_boxes.as_deref(),
             bench: args.bench,
             javascript,
+            animations,
             eval: &evals,
             steps: args.steps.as_deref(),
             clock,
@@ -325,7 +341,14 @@ fn main() -> Result<()> {
         };
         return stack::on_page_thread(|| headless::run(fonts, &options))?;
     }
-    gui::run(fetcher, fonts, url, args.remote_port, javascript, args.now)
+    gui::run(
+        fetcher,
+        fonts,
+        url,
+        args.remote_port,
+        (javascript, animations),
+        args.now,
+    )
 }
 
 #[cfg(test)]

@@ -220,20 +220,117 @@ impl Page {
         self.any_runtime(|s| !s.stopped())
     }
 
-    /// The page time of the next frame, if one is needed. None after the
-    /// scripts were stopped: no frame runs then, and a due time in the
-    /// past would keep the event loop from advancing or being idle.
+    /// The page time of the next frame, if one is needed: for scripts
+    /// (none after they were stopped: no frame runs for them then, and a
+    /// due time in the past would keep the event loop from advancing or
+    /// being idle), and for the animations of the documents, also without
+    /// scripts (ADR 0044 section 2).
     pub(super) fn frame_time(&self) -> Option<f64> {
+        let animations = self.animation_time();
         if !self.runs_rendering_updates() {
-            return None;
+            return animations;
         }
         let callbacks = (self.any_runtime(ScriptRuntime::has_animation_frame_callbacks)
             || self.observers_due()
             || self.lazy_due())
         .then(|| self.grid_frame_time());
-        match (self.input.frame_due, callbacks) {
-            (Some(a), Some(b)) => Some(a.min(b)),
-            (a, b) => a.or(b),
+        [self.input.frame_due, callbacks, animations]
+            .into_iter()
+            .flatten()
+            .reduce(f64::min)
+    }
+
+    /// The documents of the page whose animations run: the top-level
+    /// document and the frame documents.
+    fn animated_documents(&self) -> impl Iterator<Item = &DocumentState> {
+        let frames = (self.frames.count() > 0).then(|| self.frames.tree_order());
+        self.doc.as_deref().into_iter().chain(
+            frames
+                .into_iter()
+                .flatten()
+                .skip(1)
+                .filter_map(|id| self.frames.get(id)?.doc.as_deref()),
+        )
+    }
+
+    /// The page time of the next rendering update that an animation needs
+    /// (ADR 0044 section 8): on the frame grid, at least one frame after
+    /// the last update. With painted frames (the GUI) a running animation
+    /// needs each frame (or its next step); without, only its event times.
+    pub(super) fn animation_time(&self) -> Option<f64> {
+        let next = self
+            .animated_documents()
+            .filter_map(|d| d.animations.borrow().next_time(self.paints_frames))
+            .reduce(f64::min)?;
+        Some(grid_at_or_after(next).max(self.grid_frame_time()))
+    }
+
+    /// The step "update animations" of the rendering update (ADR 0044
+    /// section 2; Web Animations 1 §4.3.1): the timeline of each document
+    /// takes the frame time, and the owners of animations whose values can
+    /// have changed wait for a restyle. True if one does.
+    fn update_animations(&mut self, due: f64) -> bool {
+        let mut marked = false;
+        if let Some(doc) = self.doc.as_deref_mut() {
+            let animations = doc.animations.get_mut();
+            if !animations.is_empty() {
+                marked |= animations.update(due);
+            }
+        }
+        if self.frames.count() > 0 {
+            for id in self.frames.tree_order().into_iter().skip(1) {
+                if let Some(doc) = self.frames.get_mut(id).and_then(|f| f.doc.as_deref_mut()) {
+                    let animations = doc.animations.get_mut();
+                    if !animations.is_empty() {
+                        marked |= animations.update(due);
+                    }
+                }
+            }
+        }
+        marked
+    }
+
+    /// True if an animation of the page's documents needs a rendering
+    /// update (one that runs, or waits for its delay or a pending play).
+    pub fn animations_running(&self) -> bool {
+        self.animation_time().is_some()
+    }
+
+    /// The number of animation updates of the page's document so far (the
+    /// rendering updates and catch-ups that advanced its timeline; ADR 0044
+    /// section 8). For the tests of the scheduling.
+    pub fn animation_updates(&self) -> u64 {
+        self.doc
+            .as_deref()
+            .map_or(0, |d| d.animations.borrow().updates())
+    }
+
+    /// The catch-up of the animations before a style computation for a
+    /// paint, a screenshot or a task (ADR 0044 section 2): asks that a
+    /// document whose last animation update is older than the last time of
+    /// the frame grid at or before now advances its timeline to it. The
+    /// advance itself
+    /// ([`swb_style::animation::DocumentAnimations::settle`]) runs when
+    /// something reads the styles or the animations, so a task that reads
+    /// neither costs no pass over the records.
+    pub(super) fn catch_up_animations(&mut self) {
+        let now = self.clock.now();
+        let grid = (now / FRAME_MS + 1e-6).floor() * FRAME_MS;
+        let request = |doc: &mut DocumentState| {
+            let animations = doc.animations.get_mut();
+            if !animations.is_empty() {
+                animations.request_catch_up(grid);
+            }
+        };
+        if let Some(doc) = self.doc.as_deref_mut() {
+            request(doc);
+        }
+        if self.frames.count() > 0 {
+            for id in self.frames.tree_order().into_iter().skip(1) {
+                if let Some(doc) = self.frames.get_mut(id).and_then(|f| f.doc.as_deref_mut()) {
+                    request(doc);
+                }
+            }
         }
     }
 
@@ -265,7 +362,13 @@ impl Page {
         self.input.frame_due = None;
         // The time the frame was due, so that a late pump keeps the grid.
         self.input.last_frame = Some(due);
-        let mut ran = self.refresh_hover();
+        // The animations first: no event of feature 3b depends on the
+        // steps before them (HTML puts them after the media queries).
+        let animated = self.update_animations(due);
+        if !self.runs_rendering_updates() {
+            return animated;
+        }
+        let mut ran = self.refresh_hover() | animated;
         let documents = self.documents_with_realms();
         // A frame's viewport comes from its parent's layout: a size that a
         // change in the parent gave it shows in this update, if the frame's

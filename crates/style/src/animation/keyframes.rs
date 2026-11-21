@@ -56,6 +56,8 @@ pub struct Keyframe {
     pub easing: Option<Easing>,
     /// The declaration of the property (specified, maybe with `var()`).
     pub(crate) declaration: PropertyDeclaration,
+    /// The specified value as Chromium serializes it (`getKeyframes()`).
+    pub text: Arc<str>,
 }
 
 /// The keyframes of one property, sorted by offset.
@@ -63,6 +65,11 @@ pub struct Keyframe {
 pub struct PropertyKeyframes {
     /// The property.
     pub(crate) property: AnimatedProperty,
+    /// The property name (`opacity`, `--x`).
+    pub name: Arc<str>,
+    /// The place of the property's first declaration in the rule (the
+    /// order of the properties in `getKeyframes()`).
+    pub order: usize,
     /// The keyframes (never empty).
     pub keyframes: Vec<Keyframe>,
 }
@@ -102,7 +109,7 @@ impl KeyframeSet {
                 easing.as_ref().map(|e| Arc::from(e.declared_text()));
             for &key in &keyframe.keys {
                 let offset = key / 100.0;
-                for declaration in &declarations {
+                for (declaration, text) in &declarations {
                     let property = match declaration {
                         PropertyDeclaration::Custom(name, _) => {
                             AnimatedProperty::Custom(Arc::clone(name))
@@ -115,8 +122,14 @@ impl KeyframeSet {
                         },
                     };
                     let slot = *index.entry(property.clone()).or_insert_with(|| {
+                        let name: Arc<str> = match &property {
+                            AnimatedProperty::Longhand(id) => Arc::from(id.name()),
+                            AnimatedProperty::Custom(name) => Arc::clone(name),
+                        };
                         let list = PropertyKeyframes {
                             property,
+                            name,
+                            order: properties.len(),
                             keyframes: Vec::new(),
                         };
                         properties.push((list, HashMap::new()));
@@ -129,6 +142,7 @@ impl KeyframeSet {
                     if let Some(existing) = merge.get(&key).and_then(|&i| list.keyframes.get_mut(i))
                     {
                         existing.declaration = declaration.clone();
+                        existing.text = Arc::clone(text);
                         continue;
                     }
                     merge.insert(key, list.keyframes.len());
@@ -136,6 +150,7 @@ impl KeyframeSet {
                         offset,
                         easing: easing.clone(),
                         declaration: declaration.clone(),
+                        text: Arc::clone(text),
                     });
                 }
             }
@@ -153,6 +168,13 @@ impl KeyframeSet {
     /// True if no property has a keyframe.
     pub fn is_empty(&self) -> bool {
         self.properties.is_empty()
+    }
+
+    /// True if the set has keyframes for the longhand `id`.
+    pub(crate) fn animates(&self, id: LonghandId) -> bool {
+        self.properties
+            .iter()
+            .any(|p| p.property == AnimatedProperty::Longhand(id))
     }
 
     /// The interval of the keyframes of property `index` at the iteration
@@ -216,14 +238,15 @@ impl KeyframeSet {
 /// the text of the keyframe's easing.
 type MergeKey = (u64, Option<Arc<str>>);
 
-/// The easing and the declarations of one keyframe: `!important`,
-/// invalid and not animatable declarations dropped.
+/// The easing and the declarations of one keyframe, each with its
+/// specified text: `!important`, invalid and not animatable declarations
+/// dropped.
 fn keyframe_declarations(
     list: &[swb_css::Declaration],
     cx: &ParserContext,
-) -> (Option<Easing>, Vec<PropertyDeclaration>) {
+) -> (Option<Easing>, Vec<(PropertyDeclaration, Arc<str>)>) {
     let mut easing = None;
-    let mut declarations = Vec::new();
+    let mut declarations: Vec<(PropertyDeclaration, Arc<str>)> = Vec::new();
     for d in list {
         if d.important {
             continue;
@@ -239,7 +262,23 @@ fn keyframe_declarations(
         if name == "all" || is_not_animatable(&name) {
             continue;
         }
-        parse_declaration(&d.name, &d.value, cx, &mut declarations);
+        let mut parsed = Vec::new();
+        parse_declaration(&d.name, &d.value, cx, &mut parsed);
+        if parsed.is_empty() {
+            continue;
+        }
+        let block =
+            crate::cssom::StyleDeclarations::from_declarations(std::slice::from_ref(d), cx.quirks);
+        for declaration in parsed {
+            let text = match &declaration {
+                PropertyDeclaration::Custom(name, _) => block.property_value(name),
+                other => other
+                    .longhand()
+                    .map(|id| block.property_value(id.name()))
+                    .unwrap_or_default(),
+            };
+            declarations.push((declaration, Arc::from(text)));
+        }
     }
     (easing, declarations)
 }

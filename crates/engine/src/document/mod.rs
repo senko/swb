@@ -31,6 +31,7 @@
 //! host of the popover algorithms for documents without scripts).
 
 mod adopted_sheets;
+mod animations;
 mod api_fetches;
 mod changes;
 mod cssom;
@@ -57,6 +58,7 @@ mod shadow_styles;
 mod tests;
 pub(crate) mod top_layer;
 
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
@@ -177,6 +179,35 @@ pub(crate) struct DocumentInit {
     /// The nodes that the budget for frame documents has room for; `None`
     /// for the top-level document.
     pub(crate) node_room: Option<Rc<std::cell::Cell<usize>>>,
+    /// The page's animation setting (`--animations`, ADR 0044 section 10)
+    /// and the page time of the document's time origin.
+    pub(crate) animations: AnimationSetting,
+}
+
+/// The animation setting of a new document: on or off, and the page time
+/// of its time origin (the document timeline's zero).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct AnimationSetting {
+    /// False for `--animations off`.
+    pub(crate) enabled: bool,
+    /// The page time of the time origin.
+    pub(crate) origin: f64,
+}
+
+impl AnimationSetting {
+    /// The animations of a new document: none, with its time origin.
+    fn records(self) -> swb_style::animation::DocumentAnimations {
+        swb_style::animation::DocumentAnimations::new(self.origin)
+    }
+}
+
+impl Default for AnimationSetting {
+    fn default() -> Self {
+        AnimationSetting {
+            enabled: true,
+            origin: 0.0,
+        }
+    }
 }
 
 /// The state of one document. See the module documentation.
@@ -320,6 +351,13 @@ pub struct DocumentState {
     /// selection rebuilds the list).
     pub(crate) display_selection: (u64, Option<LiveRange>),
     pub(crate) stylist: Option<Stylist>,
+    /// The CSS animations of the document and its timeline (ADR 0044
+    /// section 1). A cell: the style passes update the records while they
+    /// read the stylist and the DOM.
+    pub(crate) animations: RefCell<swb_style::animation::DocumentAnimations>,
+    /// False for `--animations off` (ADR 0044 section 10): the stylist
+    /// resets the `animation-*` and `transition-*` longhands.
+    pub(crate) animations_enabled: bool,
     pub(crate) styles: Option<StyleMap>,
     /// The styles before the DOM changes in `dom_changes`, kept from the
     /// drain that made `styles` dirty until the next style computation
@@ -421,6 +459,7 @@ impl DocumentState {
     /// ([`swb_web::EngineHost::parse_step`]), or, without one, the page
     /// runs it to the end ([`DocumentState::run_parser`]). The
     /// subresources start to load.
+    #[allow(clippy::too_many_lines)] // One line per field of the state.
     pub(crate) fn new(init: DocumentInit) -> DocumentState {
         let url = init.url;
         let base_fallback = init.fallback_base.unwrap_or_else(|| url.clone());
@@ -481,6 +520,8 @@ impl DocumentState {
             user_activation: None,
             display_selection: (0, None),
             stylist: None,
+            animations: RefCell::new(init.animations.records()),
+            animations_enabled: init.animations.enabled,
             styles: None,
             stale_styles: None,
             dom_changes: swb_style::DomChanges::default(),
@@ -948,6 +989,29 @@ impl swb_web::EngineHost for DocumentState {
 
     fn client_rects(&mut self, element: NodeId) -> Vec<swb_web::DomRect> {
         self.script_client_rects(element)
+    }
+
+    fn animations(&mut self, element: Option<NodeId>, subtree: bool) -> Vec<u64> {
+        if self.retired {
+            return Vec::new();
+        }
+        self.animation_list(element, subtree)
+    }
+
+    fn animation(&mut self, id: u64) -> Option<swb_web::AnimationInfo> {
+        self.animation_info(id)
+    }
+
+    fn animation_command(&mut self, id: u64, command: swb_web::AnimationCommand) {
+        DocumentState::animation_command(self, id, command);
+    }
+
+    fn animation_keyframes(&mut self, id: u64) -> Vec<swb_web::KeyframeInfo> {
+        DocumentState::animation_keyframes(self, id)
+    }
+
+    fn released_animations(&mut self) -> Vec<u64> {
+        DocumentState::released_animations(self)
     }
 
     fn offset_metrics(&mut self, element: NodeId) -> swb_web::OffsetMetrics {
