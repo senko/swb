@@ -366,6 +366,13 @@ impl g::document::DocumentImpl for WebState {
         crate::range::create_for_document(cx, this)
     }
 
+    /// `document.timeline`: the window's `DocumentTimeline` (also for the
+    /// documents that scripts create).
+    /// <https://drafts.csswg.org/web-animations-1/#dom-document-timeline>
+    fn timeline(cx: &mut Cx<'_>, _this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        crate::animations::document_timeline(cx)
+    }
+
     /// <https://drafts.csswg.org/web-animations-1/#dom-document-getanimations>
     fn get_animations(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Vec<swb_js::Gc<swb_js::Object>>> {
         crate::animations::document_animations(cx, this)

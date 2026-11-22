@@ -475,8 +475,12 @@ PerformanceMark:dwc
 PerformanceMeasure:dwc
 AnimationEffect:dwc
 KeyframeEffect:dwc
+AnimationTimeline:dwc
+DocumentTimeline:dwc
 Animation:dwc
 CSSAnimation:dwc
+CSSTransition:dwc
+AnimationEvent:dwc
 Crypto:dwc
 DOMException:dwc
 Worker:dwc

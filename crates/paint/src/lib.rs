@@ -16,6 +16,7 @@
 //! shapes, and `path_cost` is the cost model that bounds the
 //! rasterization of paths (shared with the estimate for SVG images).
 
+mod animation_bounds;
 mod background;
 mod box_shadow;
 mod clip_path;
@@ -37,6 +38,7 @@ mod rope;
 mod scroll_indicator;
 mod svg;
 
+pub use animation_bounds::{Keys, animation_bounds, visual_rect};
 pub use display_list::{
     DisplayItem, DisplayList, Highlights, Hit, ImageRef, ImageSizes, NoHighlights, Radii,
     SELECTION_BACKGROUND, Scrolling, build_display_list,

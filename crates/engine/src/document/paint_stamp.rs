@@ -72,10 +72,12 @@ impl DocumentState {
             return true;
         }
         // Animated values changed (ADR 0044 section 8), also by the
-        // catch-up of the timeline that tasks asked for.
+        // catch-up of the timeline that tasks asked for; only those that
+        // can change visible pixels count (the visibility test), so the
+        // tasks of a page with an offscreen animation draw no frames.
         if self.styles.is_some() {
             self.settle_animations();
-            if self.animations.borrow().has_marked() {
+            if self.animations.borrow().has_shown_marks() {
                 return true;
             }
         }

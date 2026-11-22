@@ -1,14 +1,16 @@
 //! The steps of the event loop that the page drives besides the tasks: the
 //! rendering update (HTML §8.1.7.3,
 //! <https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering>:
-//! animation frame callbacks, media query changes, resize and intersection
-//! observers), idle periods (`requestIdleCallback`) and the flush of `storage`
+//! animation frame callbacks, media query changes, the animation promises
+//! and events, resize and intersection observers), idle periods (`requestIdleCallback`) and the flush of `storage`
 //! events before a commit. The page calls these through `ScriptRuntime` for the
 //! documents of the runtime (ADR 0028 section 7).
 
 use std::time::Instant;
 
 use swb_js::VmError;
+
+use crate::{DispatchTarget, TrustedEvent};
 
 use super::{
     DocState, DocumentKey, MAX_STORAGE_FLUSH, ScriptError, ScriptRuntime, set_listener_checkpoints,
@@ -177,6 +179,54 @@ impl ScriptRuntime {
             result
         });
         true
+    }
+
+    /// The part of Web Animations "update animations and send events"
+    /// (<https://drafts.csswg.org/web-animations-1/#update-animations-and-send-events>)
+    /// that runs script, after the engine updated the timeline: the
+    /// `ready` and `finished` promises that the update settled, as one
+    /// task (its end is the microtask checkpoint, so promise reactions run
+    /// before the events), then `events` (sorted by the engine) as one
+    /// task, each at its target, with a microtask checkpoint after each
+    /// listener. An event type without a listener skips its path
+    /// (`events/listened.rs`). Returns true if a task ran.
+    pub fn update_animations_and_send_events(
+        &mut self,
+        events: &[(DispatchTarget, TrustedEvent)],
+        epoch: u64,
+    ) -> bool {
+        if self.stopped {
+            return false;
+        }
+        let mut ran = false;
+        let promises =
+            crate::state::state(&self.rt).is_ok_and(|s| s.doc.animations.promises_due(epoch));
+        if promises {
+            // Errors are reported.
+            let _ = self.task("the animation promises", |rt| {
+                crate::animations::settle_promises(rt, epoch).map_err(task_error)
+            });
+            ran = true;
+        }
+        if !events.is_empty() && !self.stopped {
+            let _ = self.task("the animation events", |rt| {
+                set_listener_checkpoints(rt, true);
+                let mut result = Ok(());
+                for (target, event) in events {
+                    if let Err(error) = crate::events::fire_trusted(rt, *target, event) {
+                        if matches!(error, VmError::Terminated(_)) {
+                            result = Err(task_error(error));
+                            break;
+                        }
+                        log::debug!("the event '{}' ended early: {error:?}", event.kind);
+                    }
+                }
+                set_listener_checkpoints(rt, false);
+                result
+            });
+            ran = true;
+        }
+        ran
     }
 
     /// HTML "run the animation frame callbacks": the callbacks that wait

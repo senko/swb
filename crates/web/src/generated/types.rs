@@ -4143,6 +4143,61 @@ impl ComputedEffectTiming {
     }
 }
 
+/// The dictionary `AnimationEventInit`.
+#[derive(Clone, Debug)]
+pub struct AnimationEventInit {
+    /// `bubbles`.
+    pub bubbles: bool,
+    /// `cancelable`.
+    pub cancelable: bool,
+    /// `composed`.
+    pub composed: bool,
+    /// `animationName`.
+    pub animation_name: String,
+    /// `elapsedTime`.
+    pub elapsed_time: f64,
+    /// `pseudoElement`.
+    pub pseudo_element: String,
+}
+
+impl AnimationEventInit {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<AnimationEventInit> {
+        let object = b::convert::dictionary_object(value, "AnimationEventInit")?;
+        let v = b::convert::member(rt, object, "bubbles")?;
+        let bubbles = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("bubbles", "EventInit"))? };
+        let v = b::convert::member(rt, object, "cancelable")?;
+        let cancelable = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("cancelable", "EventInit"))? };
+        let v = b::convert::member(rt, object, "composed")?;
+        let composed = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("composed", "EventInit"))? };
+        let v = b::convert::member(rt, object, "animationName")?;
+        let animation_name = if v.is_undefined() { String::new() } else { b::convert::dom_string(rt, v).map_err(|e| e.member("animationName", "AnimationEventInit"))? };
+        let v = b::convert::member(rt, object, "elapsedTime")?;
+        let elapsed_time = if v.is_undefined() { 0.0_f64 } else { b::convert::double(rt, v).map_err(|e| e.member("elapsedTime", "AnimationEventInit"))? };
+        let v = b::convert::member(rt, object, "pseudoElement")?;
+        let pseudo_element = if v.is_undefined() { String::new() } else { b::convert::dom_string(rt, v).map_err(|e| e.member("pseudoElement", "AnimationEventInit"))? };
+        Ok(AnimationEventInit { bubbles, cancelable, composed, animation_name, elapsed_time, pseudo_element })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.bubbles))?;
+        b::to_js::dictionary_member(rt, object, "bubbles", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.cancelable))?;
+        b::to_js::dictionary_member(rt, object, "cancelable", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.composed))?;
+        b::to_js::dictionary_member(rt, object, "composed", value)?;
+        let value = b::to_js::string(rt, &self.animation_name.clone())?;
+        b::to_js::dictionary_member(rt, object, "animationName", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(self.elapsed_time))?;
+        b::to_js::dictionary_member(rt, object, "elapsedTime", value)?;
+        let value = b::to_js::string(rt, &self.pseudo_element.clone())?;
+        b::to_js::dictionary_member(rt, object, "pseudoElement", value)?;
+        Ok(object.into())
+    }
+}
+
 /// The dictionary `GetAnimationsOptions`.
 #[derive(Clone, Debug)]
 pub struct GetAnimationsOptions {

@@ -3,16 +3,27 @@
 //! render gives the same pixels as the last render. A missed invalidation
 //! shows as a difference here. The JavaScript runs use the fixtures in
 //! `fixtures/js/` when they exist (they are not committed).
+//!
+//! The animation cases (ADR 0044 section 16) run in virtual time with
+//! painted frames, as the GUI does: at each step the clock advances, the
+//! page's own frames run, and the oracle compares "a frame is needed" with
+//! "the pixels changed". The visibility test of the frame loop can drop a
+//! frame silently; a changed pixel without a frame fails here.
 
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
 
+use std::sync::Arc;
 use std::time::Duration;
 
-use swb_engine::{Key, Modifiers, MouseButton, Page, Size};
+use swb_engine::{ClockMode, Key, Modifiers, MouseButton, Page, PageClock, Size, Url};
+use swb_net::Fetcher;
 
 mod common;
-use common::{SHIFT, load_fixture, on_page_thread, pump_for, render_viewport};
+use common::{
+    SHIFT, TestSite, finish_loading, load_fixture, new_page, on_page_thread, pump_for,
+    render_viewport,
+};
 
 const VIEW: Size = Size::new(1280.0, 800.0);
 
@@ -22,6 +33,8 @@ struct Oracle {
     last: Option<Vec<u8>>,
     frames: usize,
     checks: usize,
+    /// Frames that were outdated but drew the same pixels (allowed).
+    wasted: usize,
 }
 
 impl Oracle {
@@ -30,6 +43,9 @@ impl Oracle {
         let data = render_viewport(page).data().to_vec();
         if outdated {
             self.frames += 1;
+            if self.last.as_ref() == Some(&data) {
+                self.wasted += 1;
+            }
         } else {
             self.checks += 1;
             if let Some(last) = &self.last {
@@ -125,6 +141,7 @@ fn run_fixture(name: &str, javascript: bool) -> Option<(usize, usize)> {
         last: None,
         frames: 0,
         checks: 0,
+        wasted: 0,
     };
     session(&mut page, &mut oracle);
     eprintln!(
@@ -155,5 +172,281 @@ fn no_stale_frames_on_fixtures_with_javascript() {
     });
     for (frames, checks) in runs.into_iter().flatten() {
         assert!(frames > 5 && checks > 5, "the session must do both");
+    }
+}
+
+// ----- Animations -----
+
+/// What happens before an oracle step of an animation case.
+#[derive(Clone, Copy)]
+enum Act {
+    /// The page's event loop runs for this many milliseconds of virtual time.
+    Wait(u64),
+    /// The viewport scrolls to this offset.
+    Scroll(f32),
+    /// The wheel turns by `dy` at (x, y).
+    Wheel(f32, f32, f32),
+}
+
+/// The counts of one animation case.
+struct Counts {
+    frames: usize,
+    wasted: usize,
+    checks: usize,
+}
+
+/// Runs `actions` on `html` (virtual time, painted frames, 400x300), with
+/// an oracle step after each. Panics if pixels changed without a frame.
+fn run_animation_case(name: &str, html: &str, javascript: bool, actions: &[Act]) -> Counts {
+    const URL: &str = "https://site.test/page.html";
+    let mut site = TestSite::default();
+    site.pages.insert(URL.to_owned(), html.to_owned());
+    let mut page = new_page(
+        Arc::new(site) as Arc<dyn Fetcher>,
+        2,
+        Size::new(400.0, 300.0),
+    );
+    page.set_javascript(javascript);
+    page.set_animations(true);
+    page.set_clock(PageClock::new(ClockMode::Virtual, None));
+    page.set_paints_frames(true);
+    page.navigate(Url::parse(URL).unwrap());
+    finish_loading(&mut page, Duration::from_secs(20));
+    let mut oracle = Oracle {
+        last: None,
+        frames: 0,
+        checks: 0,
+        wasted: 0,
+    };
+    oracle.step(&mut page, &format!("{name}: first"));
+    for (i, act) in actions.iter().enumerate() {
+        match *act {
+            Act::Wait(ms) => {
+                page.run_event_loop(Duration::from_millis(ms), Duration::from_secs(30));
+            }
+            Act::Scroll(y) => page.scroll_to(swb_engine::Point::new(0.0, y)),
+            Act::Wheel(x, y, dy) => {
+                page.wheel(x, y, 0.0, dy);
+            }
+        }
+        oracle.step(&mut page, &format!("{name} (js {javascript}): step {i}"));
+    }
+    eprintln!(
+        "{name} (js {javascript}): {} frames ({} without a pixel change), {} steps without a frame",
+        oracle.frames, oracle.wasted, oracle.checks
+    );
+    Counts {
+        frames: oracle.frames,
+        wasted: oracle.wasted,
+        checks: oracle.checks,
+    }
+}
+
+/// Twelve waits of 130 ms.
+fn waits() -> Vec<Act> {
+    vec![Act::Wait(130); 12]
+}
+
+/// A page with a 5000 px tall body, the style `css` and `body`.
+fn animation_page(css: &str, body: &str) -> String {
+    format!("<!DOCTYPE html><style>body {{ margin: 0; height: 5000px }} {css}</style>{body}")
+}
+
+/// One case of the animation oracle: its name, page, steps and the least
+/// and most frames that the design allows.
+type AnimationCase = (&'static str, String, Vec<Act>, usize, usize);
+
+/// A fading box at the top left (`.a`).
+const FADE: &str = "@keyframes k { to { opacity: 0.2 } } \
+    .a { position: absolute; top: 20px; left: 20px; width: 50px; height: 50px; \
+    background: blue; animation: k 1s linear infinite }";
+
+/// A strip (`.s`) that clips a transform animation (`.t`) out of itself.
+const CLIPPED: &str = "@keyframes k { from { transform: translateX(-400px) } \
+    to { transform: translateX(-300px) } } \
+    .s { position: absolute; top: 20px; left: 20px; width: 100px; height: 20px; \
+    overflow: hidden } \
+    .t { width: 50px; height: 20px; background: red; animation: k 1s linear infinite }";
+
+/// The animation cases. The visible ones must draw; what the visibility
+/// test hides may draw at most at its event times (a frame that changes no
+/// pixel is allowed, and counted).
+fn animation_cases() -> Vec<AnimationCase> {
+    vec![
+        (
+            "visible",
+            animation_page(FADE, "<div class=a></div>"),
+            waits(),
+            6,
+            usize::MAX,
+        ),
+        (
+            // A transform that keeps the element clipped out of a strip
+            // that is in view. The test bounds the animation by the strip
+            // (what a transform can reach), so every frame is asked for and
+            // none changes a pixel: allowed, counted as wasted.
+            "clipped out",
+            animation_page(CLIPPED, "<div class=s><div class=t></div></div>"),
+            waits(),
+            0,
+            usize::MAX,
+        ),
+        (
+            // The same strip out of the viewport: no frames.
+            "clipped out, strip offscreen",
+            animation_page(
+                &format!("{CLIPPED} .s {{ top: 2000px }}"),
+                "<div class=s><div class=t></div></div>",
+            ),
+            waits(),
+            0,
+            3,
+        ),
+        (
+            // An inner scroll container: the animation at its top is in
+            // view, the one at 600 px is not; then the wheel swaps them.
+            "inner scroll",
+            animation_page(
+                "@keyframes k { to { opacity: 0.2 } } \
+                 .box { position: absolute; top: 20px; left: 20px; width: 150px; height: 100px; \
+                 overflow: auto } \
+                 .in { height: 700px; position: relative } \
+                 .m { position: absolute; width: 40px; height: 40px; background: green; \
+                 animation: k 1s linear infinite } \
+                 .m1 { top: 10px } .m2 { top: 600px }",
+                "<div class=box><div class=in><div class='m m1'></div>\
+                 <div class='m m2'></div></div></div>",
+            ),
+            [
+                waits(),
+                vec![Act::Wheel(50.0, 60.0, 590.0)],
+                waits(),
+                vec![Act::Wheel(50.0, 60.0, -590.0)],
+                waits(),
+            ]
+            .concat(),
+            12,
+            usize::MAX,
+        ),
+        (
+            "svg owner",
+            animation_page(
+                "@keyframes k { from { fill: red } to { fill: blue } } \
+                 circle { animation: k 1s linear infinite }",
+                "<svg width=100 height=100><circle cx=50 cy=50 r=40></circle></svg>",
+            ),
+            waits(),
+            6,
+            usize::MAX,
+        ),
+        (
+            "svg owner offscreen",
+            animation_page(
+                "@keyframes k { from { fill: red } to { fill: blue } } \
+                 circle { animation: k 1s linear infinite } \
+                 svg { position: absolute; top: 2000px }",
+                "<svg width=100 height=100><circle cx=50 cy=50 r=40></circle></svg>",
+            ),
+            waits(),
+            0,
+            3,
+        ),
+    ]
+}
+
+/// The cases of fixed and sticky boxes, `visibility`, `display: contents` and
+/// a transform that moves a box into the viewport.
+fn moving_cases() -> Vec<AnimationCase> {
+    vec![
+        (
+            "fixed",
+            animation_page(
+                &format!("{FADE} .a {{ position: fixed }}"),
+                "<div class=a></div>",
+            ),
+            [vec![Act::Scroll(1000.0)], waits()].concat(),
+            6,
+            usize::MAX,
+        ),
+        (
+            // At 1500 px in the flow; sticky at the top of the viewport.
+            "sticky",
+            animation_page(
+                &format!(
+                    "{FADE} .c {{ position: absolute; top: 1000px; height: 2000px; width: 100px }} \
+                     .a {{ position: sticky; top: 10px }}"
+                ),
+                "<div class=c><div style='height: 500px'></div><div class=a></div></div>",
+            ),
+            [vec![Act::Scroll(1400.0)], waits()].concat(),
+            6,
+            usize::MAX,
+        ),
+        (
+            "visibility",
+            animation_page(
+                "@keyframes k { 0%, 50% { visibility: hidden } 100% { visibility: visible } } \
+                 .a { position: absolute; top: 20px; left: 20px; width: 50px; height: 50px; \
+                 background: blue; animation: k 1s step-end infinite }",
+                "<div class=a></div>",
+            ),
+            waits(),
+            1,
+            usize::MAX,
+        ),
+        (
+            // `display: contents` has no box: the paragraph inherits the
+            // animated color.
+            "display contents",
+            animation_page(
+                "@keyframes k { to { color: red } } \
+                 .d { display: contents; animation: k 1s linear infinite } \
+                 p { margin: 20px; font-size: 40px }",
+                "<div class=d><p>Text</p></div>",
+            ),
+            waits(),
+            6,
+            usize::MAX,
+        ),
+        (
+            // Starts at x = -100 (off to the left) and moves in.
+            "transform into view",
+            animation_page(
+                "@keyframes k { from { transform: translateX(0) } \
+                 to { transform: translateX(400px) } } \
+                 .a { position: absolute; top: 20px; left: -100px; width: 50px; height: 50px; \
+                 background: blue; animation: k 2s linear infinite }",
+                "<div class=a></div>",
+            ),
+            waits(),
+            4,
+            usize::MAX,
+        ),
+    ]
+}
+
+#[test]
+fn animation_frames_are_asked_for_when_pixels_change() {
+    for javascript in [false, true] {
+        let results = on_page_thread(move || {
+            animation_cases()
+                .into_iter()
+                .chain(moving_cases())
+                .map(|(name, html, actions, least, most)| {
+                    let c = run_animation_case(name, &html, javascript, &actions);
+                    (name, c, least, most)
+                })
+                .collect::<Vec<_>>()
+        });
+        for (name, c, least, most) in results {
+            assert!(
+                (least..=most).contains(&c.frames),
+                "{name} (js {javascript}): {} frames, expected {least}..={most} \
+                 ({} wasted, {} steps without a frame)",
+                c.frames,
+                c.wasted,
+                c.checks
+            );
+        }
     }
 }

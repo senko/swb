@@ -6,7 +6,11 @@ serializes them in linear time. Feature 3b adds the cases that run animations: 1
 animated elements, an infinite animation of a 30,000 px element in a full-page screenshot,
 animated custom properties through 1,000 levels of inheritance, more than 100,000
 animations in a document (the record limit) and a registered syntax with many alternatives
-and a long animated value."""
+and a long animated value. Feature 3c adds the events, the promises and the visibility test:
+an `animationend` listener that restarts its animation, `animationiteration` listeners on
+10,000 elements with a 1 ms animation, `await` of the `finished` promises of 99,000
+animations, `cancel()` and `play()` in a loop, and 10,000 animated elements outside the
+viewport."""
 
 from swbtools.hostile_cases.core import JS, Page, case, doc, nest
 
@@ -303,3 +307,156 @@ def animation_registered_syntax_many_alternatives() -> Page:
         f"#a{{animation:l 1s linear infinite}}@keyframes l{{from{{--l:{start}}}to{{--l:{end}}}}}"
     )
     return Page(doc("<div id=a>x</div>" + COUNT_ANIMATIONS, css))
+
+
+@case(
+    "An `animationend` listener that sets `animation` again, with a 1 ms animation (M13 feature "
+    "3c; ADR 0044 section 11): events are dispatched only in rendering updates, so the loop "
+    "runs at most once per frame (at most 180 rounds in 3 s of virtual time)",
+    time_limit_s=10,
+    swb_args=RUNNING,
+    expect_log="restart loop bounded",
+)
+def animation_end_restart_loop() -> Page:
+    css = "@keyframes a{to{opacity:.5}}@keyframes b{to{opacity:.6}}#a{animation:a 1ms}"
+    script = (
+        "<script>let n=0;const e=document.querySelector('#a');"
+        "e.addEventListener('animationend',()=>{n++;e.style.animation=(n%2?'b':'a')+' 1ms';});"
+        "setTimeout(()=>console.warn('restart loop '"
+        "+(n>0&&n<=200?'bounded ':'unbounded ')+n),2500);"
+        "</script>"
+    )
+    return Page(doc("<div id=a>x</div>" + script, css))
+
+
+@case(
+    "10,000 elements with an infinite 1 ms animation and an `animationiteration` listener (M13 "
+    "feature 3c; ADR 0044 section 11): at most one `animationiteration` per animation and "
+    "update, one update per frame (the iteration ends of 1 ms are at every frame)",
+    time_limit_s=40,
+    rss_limit_mib=1536,
+    swb_args=("--js", "--virtual-time", "--settle-ms", "1000"),
+    expect_log="iterations",
+)
+def animation_iteration_10000_elements_1ms() -> Page:
+    css = (
+        "div{width:4px;height:4px;display:inline-block;animation:k 1ms linear infinite}"
+        "@keyframes k{to{opacity:.5}}"
+    )
+    script = (
+        "<script>let n=0;document.addEventListener('animationiteration',()=>n++);"
+        "setTimeout(()=>console.warn('iterations '+n+' '+(n<=10000*61?'bounded':'unbounded')),"
+        "900);</script>"
+    )
+    return Page(doc("<div></div>" * 10_000 + script, css))
+
+
+@case(
+    "`document.getAnimations()` with 99,000 animations and an `await` of all their `finished` "
+    "promises (M13 feature 3c; ADR 0044 sections 7 and 11): the promises wait in a list that "
+    "the rendering update settles in one pass",
+    time_limit_s=40,
+    rss_limit_mib=2048,
+    swb_args=("--js", "--virtual-time", "--settle-ms", "2000"),
+    expect_log="all finished 99000",
+)
+def animation_await_finished_99000() -> Page:
+    names = ", ".join(f"k{i % 5}" for i in range(100))
+    css = (
+        f"div{{animation-name:{names};animation-duration:300ms}}"
+        "@keyframes k0{to{opacity:.5}}@keyframes k1{to{opacity:.6}}@keyframes k2{to{opacity:.7}}"
+        "@keyframes k3{to{opacity:.8}}@keyframes k4{to{opacity:.9}}"
+    )
+    script = (
+        "<script>(async()=>{const as=document.getAnimations();"
+        "await Promise.all(as.map((a)=>a.finished));"
+        "console.warn('all finished '+as.length);})();</script>"
+    )
+    return Page(doc("<div></div>" * 990 + script, css))
+
+
+@case(
+    "10,000 infinite animations of 10 ms whose `finished` promise a script read (M13 feature 3c "
+    "fix; ADR 0044 section 16): the promises wait for good, so the rendering updates (500 in "
+    "5 s) must not look at them again while no play state changes",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+    swb_args=("--js", "--virtual-time", "--settle-ms", "5000"),
+    expect_log="finished read 10000",
+)
+def animation_finished_read_10000_infinite() -> Page:
+    css = (
+        "div{width:10px;height:10px;display:inline-block;animation:k 10ms linear infinite}"
+        "@keyframes k{to{opacity:.5}}"
+    )
+    script = (
+        "<script>const as=document.getAnimations();as.forEach((a)=>{a.finished.then(()=>0,"
+        "()=>0);a.ready.then(()=>0);});console.warn('finished read '+as.length);</script>"
+    )
+    return Page(doc("<div></div>" * 10_000 + script, css))
+
+
+@case(
+    "10,000 `<svg>` elements whose `<circle>` has an infinite animation (M13 feature 3c fix; "
+    "ADR 0044 section 16): the owners have no fragment of their own, so the visibility test "
+    "walks the fragment tree a second time for their ancestors",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+    swb_args=RUNNING,
+    expect_log="animations 10000",
+)
+def animation_svg_owners_10000() -> Page:
+    css = (
+        "svg{display:block;width:20px;height:20px}circle{animation:k 1s linear infinite}"
+        "@keyframes k{from{fill:red}to{fill:blue}}"
+    )
+    body = "<svg id=a><circle cx=10 cy=10 r=8></circle></svg>"
+    body += "<svg><circle cx=10 cy=10 r=8></circle></svg>" * 9_999
+    return Page(doc(body + COUNT_ANIMATIONS, css))
+
+
+@case(
+    "`cancel()` and `play()` of 10,000 animations, 20 times in one task (M13 feature 3c): each "
+    "call changes one record; the cancel events and the promises of the wrappers are bounded "
+    "by the calls",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+    swb_args=RUNNING,
+    expect_log="cancel play loop 10000",
+)
+def animation_cancel_play_loop() -> Page:
+    css = (
+        "div{width:4px;height:4px;display:inline-block;animation:k 1s linear infinite}"
+        "@keyframes k{to{opacity:.5}}"
+    )
+    script = (
+        "<script>let c=0;document.addEventListener('animationcancel',()=>c++);"
+        "setTimeout(()=>{const as=document.getAnimations();"
+        "for(let r=0;r<20;r++)for(const a of as){a.finished.catch(()=>{});a.cancel();a.play();}"
+        "console.warn('cancel play loop '+as.length);},100);</script>"
+    )
+    return Page(doc("<div></div>" * 10_000 + script, css))
+
+
+@case(
+    "10,000 animated elements outside the viewport (M13 feature 3c; ADR 0044 section 8): the "
+    "visibility test walks the fragments once per display list and finds none visible",
+    time_limit_s=20,
+    rss_limit_mib=1536,
+    swb_args=RUNNING,
+    expect_log="offscreen animations 10000",
+)
+def animation_visibility_10000_offscreen() -> Page:
+    css = (
+        "body{margin:0}.far{position:absolute;top:20000px}"
+        "span{display:inline-block;width:4px;height:4px;animation:k 1s linear infinite}"
+        ".m{animation-name:m}@keyframes k{to{opacity:.5}}@keyframes m{to{transform:rotate(1turn)}}"
+        ".clip{overflow:hidden;width:100px;height:100px}"
+    )
+    spans = "<span></span><span class=m></span>" * 2_500
+    body = (
+        f"<div class=far>{spans}</div><div class='far clip'>{spans}</div>"
+        "<script>setTimeout(()=>console.warn('offscreen animations '+"
+        "document.getAnimations().length),2500)</script>"
+    )
+    return Page(doc(body, css))

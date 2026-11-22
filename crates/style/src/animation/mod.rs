@@ -3,6 +3,10 @@
 //! Animations, the resolved `@keyframes` sets and the interpolation of
 //! computed values.
 //!
+//! Feature 3c adds the events (`events.rs`), `cancel()`, `finish()` and
+//! `startTime` (ADR 0044 sections 6 and 7), and the reach of an animation
+//! for the visibility test of the frame loop (`visibility.rs`, section 8).
+//!
 //! Feature 3b runs the animations: [`DocumentAnimations`] holds the
 //! records and the timeline of a document (`records.rs`), and the cascade
 //! takes the animated values from them (`cascade.rs`, "the animation
@@ -26,14 +30,17 @@
 //! [CSS Easing 2](https://drafts.csswg.org/css-easing-2/).
 
 pub mod easing;
+pub mod events;
 pub mod interpolate;
 pub mod keyframes;
 pub mod properties;
 pub mod records;
 pub mod time;
 pub mod timing;
+pub mod visibility;
 
 pub use easing::{Easing, LinearPoint, MAX_STEPS, StepPosition, parse_easing};
+pub use events::{AnimationEventKind, PendingAnimationEvent};
 pub use interpolate::{interpolate, interpolate_custom};
 pub use keyframes::{Interval, Keyframe, KeyframeSet, PropertyKeyframes};
 pub use properties::{AnimationEntry, AnimationName, AnimationStyle, Composition, PlayState};
@@ -43,3 +50,4 @@ pub use records::{
 };
 pub use time::{Number, Time};
 pub use timing::{ComputedTiming, FillMode, Phase, PlaybackDirection, Timing};
+pub use visibility::Reach;

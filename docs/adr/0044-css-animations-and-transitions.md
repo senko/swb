@@ -451,7 +451,8 @@ Transitions 2 §6.1):
 - Promises: `ready` resolves when a pending play or pause completes, at the
   next update; `finished` resolves when the animation finishes (at once for
   `finish()`), and `cancel()` rejects it with an `AbortError`
-  `DOMException` and replaces it
+  `DOMException` and replaces it (a `ready` read after `cancel()` stays
+  pending while the animation is idle, as in Chromium; section 16)
   ([§4.5.11](https://drafts.csswg.org/web-animations-1/#the-current-finished-promise)).
   A rejected `finished` is marked as handled, so it reports no
   `unhandledrejection`; `swb_js` gets an operation for that. Base UI's
@@ -500,13 +501,15 @@ output or my events can change" from its timing:
   interval whose steps are shorter than a frame counts as continuous.
 
 **Which animation can change pixels.** An animation needs paint frames
-only if its owning element has a box that intersects the viewport: its
-visual bounds from the last display list (the builder records the bounds
-of the boxes of animated elements, with transforms and filter outsets)
-intersected with the viewport. Elements without a box: not visible, except
-`display: contents` with an animated inherited property (treated as
-visible). Paused and finished animations need nothing; elements under
-`display: none` have no animations.
+only if what it can paint intersects the viewport: the painted bounds of
+its owner's subtree (with transforms, shadows, outlines and filter
+outsets), or of the nearest ancestor that clips it for an animation that
+moves or grows the painted area, found after each display list, scroll
+and resize; an animation of a layout property counts as visible (the rule
+and its implementation: section 16). Elements without a box are not
+visible; a `display: contents` owner has the bounds of its children.
+Paused and finished animations need nothing; elements under `display:
+none` have no animations.
 
 **Scheduling.** `Page::frame_time()` gets the earliest of: the next event
 time of any animation, and, when an animation is visible and continuous,
@@ -1079,6 +1082,243 @@ the first: after a script's `play()` or `pause()`, `animation-play-state`
 no longer plays or pauses the animation), `document.timeline`,
 the visibility test of section 8 and the GUI budgets. `transition-*` stay
 inert (feature 5); `getAnimations()` lists no transitions.
+
+### 16. Done in feature 3c
+
+Feature 3c adds sections 6, 7 (without `getKeyframes()` with computed
+values, below) and 8, and the hostile cases of section 11 for that code.
+Measured in Chromium 148 with the new probe file
+`tools/probes/css-animations-3c.json` (6 cases, 20 rows, three equal
+runs).
+
+**The event queue** is in `DocumentAnimations` (`events.rs`): a
+`PendingAnimationEvent` keeps the type, the id, the owner, the name, the
+position in `animation-name`, `elapsedTime` and the scheduled event time,
+so a record that went still gets its `animationcancel`. `update` compares
+each record's phase and current iteration with the last update (the table
+of CSS Animations 2 §5.1; at most one `animationiteration`, its elapsed
+time from the iteration boundary). The scheduled event time is the
+timeline time of the boundary (the event's local time mapped through the
+start time; for a held animation through the timeline time minus the hold
+time); a cancel is scheduled at the timeline time of the cancel. A cancel
+by a style change (`display: none`, a removed name) or by `cancel()` is
+queued at once when the animation was in its before or active phase at
+the last update (an animation created and cancelled before its first
+update sends nothing, as in Chromium: `ready-promise`). A waiting queue,
+or a record that went while the bindings track records, makes
+`next_time` ask for the next update. A document without a script runtime
+drops its queue in each rendering update: the top-level document with no
+runtime, and a frame document without a realm (a sandboxed frame without
+`allow-scripts`), whose events no task would take and whose waiting queue
+would keep the next update due at once.
+
+**Order.** `send_animation_events` (engine) stable-sorts the queue by
+scheduled event time (unresolved first; none is unresolved today), then by
+the owner's tree order, the pseudo-element (`::marker`, `::before`,
+`::after` after their element) and the position in `animation-name`
+(`events-pseudo-order`: `e1`, `e1::before`, `e1::after`, then `e2`; the
+cancels of one update before the start of the new animation of the same
+element). The scheduled times are placed from the start time as it is
+(not from `timeline - current time`, which carries the 1e-9 ms rounding
+of the current time) and rounded to 1e-6 ms, so two boundaries that are
+one time in exact arithmetic tie, and the stable sort keeps the queue
+order: the `animationstart` that a catch-up queued and the
+`animationend` after `finish()` (which moves the start time back by the
+end) came in either order before (`events-cancel`). A tie between two
+animations goes by composite order: in `finish-and-start-time` the start
+of `#a` (resolved by the catch-up) and the end of `#b` (finished in the
+same task) tie, and swb gives `#a` first; Chromium gives either order
+between runs (departure in `SWB_ROWS_3C`). The web side (`update_animations_and_send_events`) runs two
+tasks: the promises (the end of the task is the microtask checkpoint, so
+reactions run before the events), then the events, with a microtask
+checkpoint after each listener. An event type without a listener skips
+its path (`listened.rs`).
+
+**A style step in the rendering update.** Chromium's frame computes the
+styles; swb's styles are lazy, so a script that sets `animation` and reads
+nothing (the event rows) would start nothing. The rendering update now
+computes the styles of a document that has `@keyframes` rules and stale
+styles (`update_animation_styles`), and a task with DOM changes asks for
+an update when that holds. Pages without `@keyframes`, and `--animations
+off`, are unchanged. One departure follows: swb starts the animations of
+the load before the first frame. Right after the load the animations of
+the page's style sheets have already started (`animation-api` query 2:
+`pending` false; Chromium's wait for their first frame), and
+`animationstart`, `ready` and the first update come earlier than in
+Chromium.
+
+**Float noise at the end.** The update at the scheduled end of an
+iteration computed `timeline - start` as 199.99999999999997 for 200 and
+lost the end until the next update. A running animation's current time is
+now rounded to 1e-9 ms in the model (`round_noise`), as the bindings
+already did.
+
+**The promises** live in the web crate: a wrapper keeps its current
+`ready` and `finished` promises, made at the first read; a pending one puts
+the wrapper on a waiting list. The promise step settles them from
+`EngineHost::animation_states` (the play state and the pending flag of
+each id): `ready` when no task is pending and the animation is not idle,
+`finished` when it is finished; a record that went (a cancel by a style
+change) rejects both with an `AbortError` ("The user aborted a request.",
+as Chromium) marked as handled, and the next read makes new ones. The
+commands (`play()`, `pause()`, `finish()`, `currentTime`, `startTime`)
+settle the wrapper's promises at once (`finish()` resolves `finished` in
+the task, `finish-and-start-time`). `cancel()` rejects a pending `ready` and
+the `finished` promise and drops both; a `ready` read afterwards stays
+pending while the animation is idle (Chromium; Web Animations would
+resolve it). After `cancel()` the record stays, idle, while its name stays
+in `animation-name` (`script-overrides` query 2), and `play()` starts it
+again. `swb_js` got `Runtime::mark_promise_handled`: it sets
+`[[PromiseIsHandled]]` before the rejection, so the rejection tracker never
+sees it. Base UI's `Promise.all(el.getAnimations().map((a) => a.finished))`
+settles when the animations end, on `display: none` and on a removed name,
+with no `unhandledrejection` (`promises-base-ui`). `mark_promise_handled`
+is for promises that are still pending: it does not remove a promise that
+was already reported, and it fires no `rejectionhandled`.
+
+The waiting list is ordered by animation id, which is the order of
+creation, so the promises of one update settle in the same order in
+every run (virtual time repeats). Chromium's order is not a rule that
+derives from creation: with four animations that start in one update it
+settles `ready` as 0 1 3 2 (the same in four runs), `finished` as 0 1 2 3,
+and the rejections of a removed element, a removed name, `display: none`
+and a replaced animation in the order 2 1 3 0 (`promise-order` of
+`css-animations-3c.json`; the rows sort the promise logs and keep the
+event logs). The test `promises_settle_in_the_order_of_creation` pins
+swb's order. The settle step costs nothing when no animation changed:
+`DocumentAnimations::state_epoch` counts the changes of a record's play
+state or `pending` flag (by an update, a command or a style change) and
+of the number of records; the bindings keep the epoch of their last
+settling and the engine runs the promise task only when they differ
+(`has_animation_promises_in`). A page whose scripts read the `finished`
+of 10,000 infinite animations pays the lookups once per change, not once
+per rendering update.
+
+**`document.timeline`**: one `DocumentTimeline` per window (also for the
+documents that scripts create). Measured: its `currentTime` equals the
+timestamp of the animation frame callbacks of the same update, is not
+later than `performance.now()`, does not move within a task, and an
+animation's `currentTime` is `timeline.currentTime - startTime`. The value
+is a multiple of 0.1 ms in both engines (68.5, 85.1, 101.8 in Chromium);
+`Number.isInteger(currentTime * 1000)` is false for about 1 % of such
+values in doubles (16.1 gives 16100.000000000002), so the row of the
+probe tests the distance to the nearest integer. swb gives
+the timeline's time as `performance.now()` gives that page time (coarsened
+to 0.1 ms) and shifts the start times by the same coarsening, so the three
+relations hold. `startTime` can be set (null holds the current time);
+`finish()` of an infinite animation throws `InvalidStateError` with
+Chromium's message. `CSSTransition` exists for `instanceof` (no instance
+before feature 5); `AnimationEvent` has its constructor
+(`document.createEvent('AnimationEvent')` throws, as in Chromium).
+Departures: the constructors of `DocumentTimeline`, `Animation` and
+`KeyframeEffect` throw `TypeError: Illegal constructor` (Chromium makes
+objects); `Element.prototype.animate` does not exist (`animation-api`
+query 0).
+
+**The visibility rule** (`visibility.rs`, `swb_paint::animation_bounds`,
+`DocumentState::update_animation_visibility`). Each record has a reach,
+from the properties of its keyframes:
+
+- `Subtree` (opacity, the colors, `visibility`, the position and size of
+  backgrounds): the animation changes only the pixels of its owner's
+  subtree. The bounds are the painted rectangles of every fragment of the
+  subtree (one walk of the fragment tree, `FragmentTree::walk_painted`:
+  scroll offsets, transforms, fixed and sticky offsets), each grown by its
+  shadows, its outline and its filter output.
+- `Clip` (the transforms, the individual transforms, `transform-origin`,
+  the filters, the shadows, `clip-path`, the outline): the animation can
+  paint anywhere inside the nearest flat-tree ancestor that clips it in
+  both axes; the bounds are that ancestor's painted border box. Without
+  such an ancestor, or with an absolutely positioned or fixed box on the
+  way (its containing block can be outside the clip), it is visible.
+- `Everywhere` (any other property, custom properties included): it can
+  move other boxes, so it counts as visible.
+
+An owner that has no fragment of its own and none below it paints through
+the box of an ancestor: the children of an `<svg>` (the fragment tree has
+one box for the `<svg>` and none for its `<circle>`). Such an owner counts
+with the painted bounds of its nearest flat-tree ancestor that has a
+fragment, so an SVG spinner has frames while its `<svg>` is in view and
+none otherwise (a second walk of the fragment tree, only when such owners
+exist; the walk up from the owners visits each ancestor once). An owner
+with no box and no ancestor box has no bounds and is not visible. This
+over-approximates on purpose: an owner that has a style but never paints
+counts as visible while an ancestor box is in view (the content of a
+closed `<details>`, a shape inside `<defs>`, a circle outside the
+`<svg>` viewport, an empty `display: contents` owner), so it costs
+frames that change no pixel, never a missed one. Frame documents have no
+visibility test: an animation in a frame below the viewport gets every
+frame (backlog).
+
+The rule is safe: it never treats as invisible an animation whose pixels
+can enter the viewport, at the cost of counting some as visible (a
+transform animation without a clipping ancestor). It runs after each
+display list and each scroll or resize (its key: the display list serial,
+the viewport scroll offset, the viewport size).
+`DocumentAnimations::set_visible` keeps the
+visible owners; `next_time` gives an invisible animation its event times
+only, also with painted frames. Departure from the plan of section 8: the
+bounds come from a walk of the fragment tree at the time of the display
+list, not from the builder, which works in local coordinates inside
+transform groups and has no element identity on its items.
+
+**Tests.** `css_animations.rs`: every row of `css-animations.json` but
+`get-animations-order` (transitions, feature 5), with two departures in
+`SWB_ROWS`; every row of `css-animations-3c.json`, with two departures
+(`SWB_ROWS_3C`). `animation_frames.rs`: events without a read of the
+styles, a paused start and a restart (virtual time); offscreen animations
+with painted frames cost only their event times, visible ones each frame,
+and scrolling shows them and hides them again. `frame_outdated.rs`: a
+visible animation outdates the frames, an offscreen one does not until a
+scroll shows it. Unit tests in `events.rs`, `records/tests.rs`,
+`visibility.rs` and `animation_bounds.rs`.
+
+**The frame oracle for animations** (`frame_oracle.rs`,
+`animation_frames_are_asked_for_when_pixels_change`): the pages run in
+virtual time with painted frames, as the GUI does. At each step the clock
+advances by 130 ms through the page's event loop (its own frames run), the
+oracle records `frame_outdated()`, renders, and compares the pixels with
+the last render. A frame that was asked for and drew the same pixels is
+allowed and counted (`wasted`); changed pixels without a frame fail. The
+earlier reason against an oracle for animations (a render catches the
+animations up to now, so a render of a page that asked for no frame can
+differ) does not hold when the event loop advances the clock first: a
+visible animation then has its frames and the render finds nothing new, and
+a missed frame shows. Cases, each with JavaScript off and on: a visible
+owner; a transform clipped out of a strip that is in view (13 frames, 12
+without a pixel change: the bound of a transform is its clip box) and of a
+strip out of view (1 frame); an inner scroll box with an animation in view
+and one out of view, swapped by the wheel (39 frames, 2 wasted); an owner in
+an `<svg>` in view (13) and out of view (1: the event time); `position:
+fixed` after a scroll (14, 1 wasted); `position: sticky` (14); `visibility`
+from hidden to visible (13, 12 wasted: the hidden box is in view, so its bounds are); a
+`display: contents` owner with an inherited `color` (13); a transform that
+moves a box into the viewport (13, 2 wasted). Without the fix for owners
+inside an `<svg>` the SVG case fails (a changed pixel without a frame); the
+oracle found no other case.
+
+**Hostile cases** (headless, virtual time, release): an `animationend` listener that restarts a 1 ms animation runs 75 rounds in 2.5 s (once per update), 0.05 s; 10,000 elements with a 1 ms infinite animation and an `animationiteration` listener, 1 s of page time: 530,000 events, 1.0 s, 150 MiB; `await` of the `finished` promises of 99,000 animations: 0.45 s, 270 MiB; `cancel()` and `play()` of 10,000 animations 20 times: 0.55 s, 296 MiB; 10,000 animated elements outside the viewport: 0.25 s, 157 MiB.
+Added with the review fixes: 10,000 infinite 10 ms animations whose `finished`
+and `ready` a script read, 5 s of virtual time (500 updates): 1.25 s before
+the state epoch, 0.84 s after, 150 MiB (the `await` of 99,000 animations is
+0.45 s in both: it settles once); 10,000 `<svg>` elements with an animated
+`<circle>`: 0.30 s, 163 MiB.
+
+**GUI** (`gui-latency`, release, own Xvfb, `idle-10s`; before 3c, then with 3c): the marquee outside the viewport 60 to 0 frames per second (CPU 5.5 % to 0 %); a `display: none` spinner and paused animations 0 frames; the spinner alone 8 frames per second (0.9 % CPU); the marquee in view 60 frames per second (5.5 %); the videojs fixture at scroll 0 29.3 to 3.6 frames per second (CPU 98 % to 14 % during the trace, 2 % after). The remaining frames on videojs came from the catch-up of the offscreen marquee in the page's tasks; `paint_pending` now counts only the marks of visible owners (`has_shown_marks`). After that change and the review fixes: videojs at scroll 0 2.2 frames per second (CPU 9.7 % during the trace, 0.0 % after); an SVG spinner in view 60 frames per second (6.4 %).
+
+**Not done in 3c**: `getKeyframes()` with computed values (the backlog
+item of 3b). Chromium's `getKeyframes()` of a CSS animation gives computed
+values (`var()` substituted, `currentcolor` as the element's color,
+shorthands as longhands with computed values such as `backgroundSize:
+"auto"`), the underlying value in implicit keyframes (`left: "auto"`),
+keyframes without values (`50%{animation-timing-function:linear}`,
+`to{all:initial}`), and no custom properties. Its property order is not a
+rule that measurements can give: in `keyframes-resolution` (`sh`) the two
+keyframes of one rule list the longhands of `margin` and `background` in
+different orders, so the order would be a departure. The values need a
+serialization of computed values without layout and the element's style
+without its animations; `keyframes-resolution` still waits
+(`WAITS_3A` in the test).
 
 ## Consequences
 

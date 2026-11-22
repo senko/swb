@@ -1,12 +1,15 @@
 //! The other event interfaces that `createEvent` names or that forms
 //! fire: `SubmitEvent` (HTML §4.10.21.3), `HashChangeEvent`,
 //! `MessageEvent`, `StorageEvent`, `BeforeUnloadEvent`,
-//! `TransitionEvent`, `DeviceMotionEvent`, `DeviceOrientationEvent` and
+//! `TransitionEvent`, `AnimationEvent` (CSS Animations 1 §5.1, ADR 0044
+//! section 6), `DeviceMotionEvent`, `DeviceOrientationEvent` and
 //! `ToggleEvent` (HTML §6.5.1, ADR 0037).
 //! <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submitevent>
 //! <https://html.spec.whatwg.org/multipage/interaction.html#the-toggleevent-interface>
+//! <https://www.w3.org/TR/css-animations-1/#interface-animationevent>
 //!
-//! swb fires `submit`, `beforetoggle` and `toggle` of them (and the events
+//! swb fires `submit`, `beforetoggle`, `toggle` and the animation events of
+//! them (and the events
 //! of the modules that name them); scripts can construct them and dispatch
 //! them. The state of each is a variant of [`Other`].
 
@@ -16,9 +19,9 @@ use super::{Extra, base, construct, this_data, this_data_mut};
 use crate::bindings::{self as b, Cx, Exception, Platform};
 use crate::generated as g;
 use crate::generated::types::{
-    DeviceMotionEventInit, DeviceOrientationEventInit, FormDataEventInit, HashChangeEventInit,
-    MessageEventInit, PopStateEventInit, ProgressEventInit, StorageEventInit, SubmitEventInit,
-    ToggleEventInit, TransitionEventInit,
+    AnimationEventInit, DeviceMotionEventInit, DeviceOrientationEventInit, FormDataEventInit,
+    HashChangeEventInit, MessageEventInit, PopStateEventInit, ProgressEventInit, StorageEventInit,
+    SubmitEventInit, ToggleEventInit, TransitionEventInit,
 };
 use crate::state::WebState;
 
@@ -58,6 +61,12 @@ pub(crate) enum Other {
     },
     Transition {
         property_name: String,
+        elapsed_time: f64,
+        pseudo_element: String,
+    },
+    /// `AnimationEvent` (ADR 0044 section 6).
+    Animation {
+        animation_name: String,
         elapsed_time: f64,
         pseudo_element: String,
     },
@@ -626,6 +635,43 @@ impl g::transition_event::TransitionEventImpl for WebState {
     fn pseudo_element(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
         match other(cx, this)? {
             Other::Transition { pseudo_element, .. } => Ok(pseudo_element.clone()),
+            _ => Ok(String::new()),
+        }
+    }
+}
+
+impl g::animation_event::AnimationEventImpl for WebState {
+    fn constructor(
+        cx: &mut Cx<'_>,
+        kind: String,
+        init: AnimationEventInit,
+    ) -> b::Result<Gc<Object>> {
+        let flags = (init.bubbles, init.cancelable, init.composed);
+        let other = Other::Animation {
+            animation_name: init.animation_name,
+            elapsed_time: init.elapsed_time,
+            pseudo_element: init.pseudo_element,
+        };
+        make(cx, kind, flags, other)
+    }
+
+    fn animation_name(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
+        match other(cx, this)? {
+            Other::Animation { animation_name, .. } => Ok(animation_name.clone()),
+            _ => Ok(String::new()),
+        }
+    }
+
+    fn elapsed_time(cx: &mut Cx<'_>, this: Platform) -> b::Result<f64> {
+        match other(cx, this)? {
+            Other::Animation { elapsed_time, .. } => Ok(*elapsed_time),
+            _ => Ok(0.0),
+        }
+    }
+
+    fn pseudo_element(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
+        match other(cx, this)? {
+            Other::Animation { pseudo_element, .. } => Ok(pseudo_element.clone()),
             _ => Ok(String::new()),
         }
     }

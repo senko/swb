@@ -271,23 +271,113 @@ impl Page {
     /// have changed wait for a restyle. True if one does.
     fn update_animations(&mut self, due: f64) -> bool {
         let mut marked = false;
-        if let Some(doc) = self.doc.as_deref_mut() {
+        let update = |doc: &mut DocumentState| {
             let animations = doc.animations.get_mut();
-            if !animations.is_empty() {
-                marked |= animations.update(due);
+            if animations.is_empty() {
+                animations.advance(due);
+                false
+            } else {
+                animations.update(due)
             }
+        };
+        if let Some(doc) = self.doc.as_deref_mut() {
+            marked |= update(doc);
         }
         if self.frames.count() > 0 {
             for id in self.frames.tree_order().into_iter().skip(1) {
                 if let Some(doc) = self.frames.get_mut(id).and_then(|f| f.doc.as_deref_mut()) {
-                    let animations = doc.animations.get_mut();
-                    if !animations.is_empty() {
-                        marked |= animations.update(due);
-                    }
+                    marked |= update(doc);
                 }
             }
         }
         marked
+    }
+
+    /// The script part of "update animations and send events" for the
+    /// document of `frame` (Web Animations 1 §4.3.1; ADR 0044 section 6):
+    /// the `ready` and `finished` promises that the update settled, a
+    /// microtask checkpoint, then the queued animation events in their
+    /// order. True if a task ran.
+    fn send_animation_events(&mut self, frame: FrameId) -> bool {
+        let events = self
+            .doc_of_mut(frame)
+            .map(DocumentState::take_animation_events)
+            .unwrap_or_default();
+        // The promises wait for a change of a play state or a pending flag
+        // (the epoch), not for each update.
+        let epoch = self
+            .doc_of(frame)
+            .map_or(0, |d| d.animations.borrow().state_epoch());
+        let promises = self
+            .frame_runtime(frame)
+            .is_some_and(|(script, key)| script.has_animation_promises_in(key, epoch));
+        if events.is_empty() && !promises {
+            return false;
+        }
+        self.run_task_in(frame, |s| {
+            s.update_animations_and_send_events(&events, epoch)
+        })
+        .unwrap_or(false)
+    }
+
+    /// Drops the queued animation events of the page's documents (no
+    /// script runtime runs them).
+    fn drop_animation_events(&mut self) {
+        if let Some(doc) = self.doc.as_deref_mut() {
+            doc.animations.get_mut().take_events();
+        }
+        for id in self.frames.tree_order().into_iter().skip(1) {
+            if let Some(doc) = self.frames.get_mut(id).and_then(|f| f.doc.as_deref_mut()) {
+                doc.animations.get_mut().take_events();
+            }
+        }
+    }
+
+    /// Drops the queued animation events of the frame documents that have
+    /// no realm (a sandboxed frame without `allow-scripts`): no task takes
+    /// them, and a waiting queue would keep the next update due at once.
+    fn drop_animation_events_without_realm(&mut self) {
+        if self.frames.count() == 0 {
+            return;
+        }
+        for id in self.frames.tree_order().into_iter().skip(1) {
+            if self.frame_runtime(id).is_some() {
+                continue;
+            }
+            if let Some(doc) = self.frames.get_mut(id).and_then(|f| f.doc.as_deref_mut()) {
+                doc.animations.get_mut().take_events();
+            }
+        }
+    }
+
+    /// The style step of the rendering update for animations: the styles
+    /// of the top-level document and of the frame documents in `documents`
+    /// whose style changes can start animations
+    /// ([`DocumentState::animation_styles_due`]). True if one ran.
+    fn update_animation_styles(&mut self, documents: &[FrameId]) -> bool {
+        let mut ran = false;
+        for id in std::iter::once(FrameId::TOP).chain(documents.iter().copied()) {
+            if let Some(doc) = self.doc_of_mut(id)
+                && doc.animation_styles_due()
+            {
+                doc.update_style();
+                ran = true;
+            }
+        }
+        ran
+    }
+
+    /// True if a task left style changes that can start animations: the
+    /// next rendering update computes the styles
+    /// ([`Page::update_animation_styles`]).
+    pub(super) fn note_animation_styles(&mut self) {
+        if self
+            .doc
+            .as_deref()
+            .is_some_and(DocumentState::animation_styles_due)
+        {
+            self.request_frame();
+        }
     }
 
     /// True if an animation of the page's documents needs a rendering
@@ -318,7 +408,10 @@ impl Page {
         let grid = (now / FRAME_MS + 1e-6).floor() * FRAME_MS;
         let request = |doc: &mut DocumentState| {
             let animations = doc.animations.get_mut();
-            if !animations.is_empty() {
+            if animations.is_empty() {
+                // `document.timeline.currentTime` reads it.
+                animations.note_grid_time(grid);
+            } else {
                 animations.request_catch_up(grid);
             }
         };
@@ -362,10 +455,13 @@ impl Page {
         self.input.frame_due = None;
         // The time the frame was due, so that a late pump keeps the grid.
         self.input.last_frame = Some(due);
-        // The animations first: no event of feature 3b depends on the
-        // steps before them (HTML puts them after the media queries).
+        // The timelines first (their update changes no script state); the
+        // promises and events of the animations follow the media queries,
+        // as HTML orders "update animations and send events".
         let animated = self.update_animations(due);
         if !self.runs_rendering_updates() {
+            // No script sees the events.
+            self.drop_animation_events();
             return animated;
         }
         let mut ran = self.refresh_hover() | animated;
@@ -384,6 +480,8 @@ impl Page {
         ran |= self
             .run_task(ScriptRuntime::evaluate_media_queries)
             .unwrap_or(false);
+        ran |= self.send_animation_events(FrameId::TOP);
+        self.drop_animation_events_without_realm();
         if self.has_animation_frames_in(FrameId::TOP) {
             self.run_task(|s| s.run_animation_frame_callbacks(due));
             ran = true;
@@ -394,6 +492,10 @@ impl Page {
             ran |= self.frame_rendering_steps(id, due);
         }
         ran |= self.run_lazy_check();
+        // The style step for animations: a style change of a task can
+        // start or cancel animations (their events come in the next
+        // update).
+        ran |= self.update_animation_styles(&documents);
         // Style and layout, then the observers (HTML "update the
         // rendering"): resize observers, then intersection observers.
         if self.any_runtime(ScriptRuntime::has_observations) {
@@ -467,6 +569,7 @@ impl Page {
         ran |= self
             .run_task_in(id, ScriptRuntime::evaluate_media_queries)
             .unwrap_or(false);
+        ran |= self.send_animation_events(id);
         if self.has_animation_frames_in(id) {
             self.run_task_in(id, |s| s.run_animation_frame_callbacks(due));
             ran = true;

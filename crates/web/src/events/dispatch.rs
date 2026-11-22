@@ -85,6 +85,16 @@ pub enum EventInterface {
         /// `formData`.
         form_data: Gc<Object>,
     },
+    /// `AnimationEvent` (`animationstart`, `animationiteration`,
+    /// `animationend`, `animationcancel`; ADR 0044 section 6).
+    Animation {
+        /// `animationName`.
+        animation_name: String,
+        /// `elapsedTime` in seconds.
+        elapsed_time: f64,
+        /// `pseudoElement` (`""` or `"::before"` and so on).
+        pseudo_element: String,
+    },
     /// `ToggleEvent` (`beforetoggle`, `toggle`; ADR 0037).
     Toggle {
         /// `oldState`.
@@ -213,13 +223,9 @@ pub(crate) fn dispatch_trusted(
                 })),
             )
         }
-        EventInterface::HashChange { old_url, new_url } => (
-            g::HASH_CHANGE_EVENT,
-            Extra::Other(Box::new(super::misc::Other::HashChange {
-                old_url: old_url.clone(),
-                new_url: new_url.clone(),
-            })),
-        ),
+        EventInterface::HashChange { .. } | EventInterface::Animation { .. } => {
+            plain_parts(&event.interface)
+        }
         EventInterface::FormData { form_data } => (
             g::FORM_DATA_EVENT,
             Extra::Other(Box::new(super::misc::form_data(*form_data))),
@@ -261,6 +267,34 @@ pub(crate) fn dispatch_trusted(
         None
     };
     dispatch(rt, realm, target_object, object, target_override)
+}
+
+/// The interface and the data of a trusted `HashChangeEvent` or
+/// `AnimationEvent` (no script value in them); `Event` for the others.
+fn plain_parts(interface: &EventInterface) -> (ClassId, Extra) {
+    let (class, other) = match interface {
+        EventInterface::HashChange { old_url, new_url } => (
+            g::HASH_CHANGE_EVENT,
+            super::misc::Other::HashChange {
+                old_url: old_url.clone(),
+                new_url: new_url.clone(),
+            },
+        ),
+        EventInterface::Animation {
+            animation_name,
+            elapsed_time,
+            pseudo_element,
+        } => (
+            g::ANIMATION_EVENT,
+            super::misc::Other::Animation {
+                animation_name: animation_name.clone(),
+                elapsed_time: *elapsed_time,
+                pseudo_element: pseudo_element.clone(),
+            },
+        ),
+        _ => return (g::EVENT, Extra::None),
+    };
+    (class, Extra::Other(Box::new(other)))
 }
 
 /// [`dispatch_trusted`] in a handle scope of its own, for a native

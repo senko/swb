@@ -126,6 +126,9 @@ pub trait DocumentImpl: b::Host {
     /// `readonly attribute VisibilityState visibilityState`.
     fn visibility_state(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<super::types::VisibilityState>;
 
+    /// `readonly attribute DocumentTimeline timeline`.
+    fn timeline(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `readonly attribute HTMLCollection children`.
     fn children(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
@@ -695,6 +698,14 @@ fn get_visibility_state<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
         let result = <H as DocumentImpl>::visibility_state(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
         Ok(b::to_js::string(rt, result.as_str())?)
+    })
+}
+
+fn get_timeline<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Document", "timeline"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let result = <H as DocumentImpl>::timeline(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
 
@@ -2713,6 +2724,7 @@ pub fn define<H: DocumentImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::
     rt.define_accessor(realm, target, "cookie", (Some(get_cookie::<H> as swb_js::NativeFn), Some(set_cookie::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "hidden", (Some(get_hidden::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "visibilityState", (Some(get_visibility_state::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "timeline", (Some(get_timeline::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "children", (Some(get_children::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "firstElementChild", (Some(get_first_element_child::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "lastElementChild", (Some(get_last_element_child::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;

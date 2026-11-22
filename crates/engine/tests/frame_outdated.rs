@@ -606,3 +606,46 @@ fn frame_documents() {
         });
     });
 }
+
+/// An infinite 10 s animation of `opacity` and one of `transform` in an
+/// `overflow: hidden` strip, at `top`.
+fn animated(top: u32) -> String {
+    format!(
+        "<!DOCTYPE html><style>body {{ margin: 0; height: 5000px }} \
+         .a {{ position: absolute; top: {top}px; width: 50px; height: 50px; background: blue; \
+           animation: f 10s linear infinite }} \
+         .strip {{ position: absolute; top: {top}px; left: 100px; width: 100px; height: 20px; \
+           overflow: hidden }} \
+         .track {{ width: 200px; height: 20px; background: red; animation: m 10s linear infinite }} \
+         @keyframes f {{ to {{ opacity: 0 }} }} \
+         @keyframes m {{ to {{ transform: translateX(-50%) }} }}</style>\
+         <div class=a></div><div class=strip><div class=track></div></div>"
+    )
+}
+
+#[test]
+fn running_animations_outdate_the_frames_while_visible() {
+    on_page_thread(|| {
+        let mut page = load(&animated(50));
+        page.set_paints_frames(true);
+        draw(&mut page);
+        for _ in 0..3 {
+            wait_outdated(&mut page, "a frame of the animation");
+        }
+        // Offscreen: no frame until a scroll shows them.
+        let mut page = load(&animated(2000));
+        page.set_paints_frames(true);
+        draw(&mut page);
+        // The start of the animations is an event time: one more frame.
+        run(&mut page, Duration::from_millis(100));
+        draw(&mut page);
+        run(&mut page, Duration::from_millis(300));
+        assert!(!page.frame_outdated(), "an offscreen animation drew");
+        changes(&mut page, "the scroll to the animations", |p| {
+            p.scroll_to(Point::new(0.0, 1950.0));
+        });
+        for _ in 0..3 {
+            wait_outdated(&mut page, "a frame of the animation in view");
+        }
+    });
+}

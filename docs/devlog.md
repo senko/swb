@@ -4,6 +4,36 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-22: M13 feature 3c, animation events, promises and frames
+
+- ADR 0044, section 16. The animation events (`animationstart`,
+  `animationiteration`, `animationend`, `animationcancel`) are queued per
+  document and dispatched in the rendering update, after the `ready` and
+  `finished` promises, in Chromium's order (time, tree order,
+  pseudo-element, position in `animation-name`).
+- `cancel()`, `finish()`, `startTime`, `ready`, `finished` and
+  `document.timeline`. Base UI waits for `finished` before it closes a
+  popup; the promise now settles in every case, and a rejected one
+  reports no `unhandledrejection`. Promises settle in the order of
+  creation, so virtual-time runs repeat; Chromium's order within one
+  update is different and not explained by a simple rule.
+- Swb's styles are lazy, so a script that set `animation` and read
+  nothing started no animation. The rendering update now computes styles
+  on pages with `@keyframes`.
+- The visibility test of the frame loop: an animation that cannot change
+  pixels in the viewport gets no painted frames, only updates at its
+  event times. videojs.org at rest: 29 -> 2 frames per second, CPU 98 %
+  -> 10 % during the trace and 0 % after.
+- The review found that animations inside an `<svg>` froze in the GUI:
+  the fragment tree has no box for a `<circle>`, so the test found no
+  bounds. A frame oracle now checks that no pixel changes without a
+  frame request; it found only that case.
+- The `js-ars-technica` pixels alternate between 0.9980 and 0.9990 with
+  the same binary: the page picks an A/B group with `Math.random`.
+- Not done: `getKeyframes()` with computed values (backlog; Chromium's
+  property order differs between keyframes of one rule).
+- Next: feature 4a (paint-only frames).
+
 ## 2026-11-21: M13 feature 3b, CSS animations run
 
 - ADR 0044, section 15. Each document has a `DocumentAnimations` with

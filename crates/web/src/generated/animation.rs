@@ -15,8 +15,14 @@ pub trait AnimationImpl: b::Host {
     /// `readonly attribute AnimationEffect? effect`.
     fn effect(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
 
-    /// `readonly attribute double? startTime`.
+    /// `readonly attribute AnimationTimeline? timeline`.
+    fn timeline(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
+
+    /// `attribute double? startTime`.
     fn start_time(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<f64>>;
+
+    /// The setter of `attribute double? startTime`.
+    fn set_start_time(cx: &mut b::Cx<'_>, this: b::Platform, value: Option<f64>) -> b::Result<()>;
 
     /// `attribute double? currentTime`.
     fn current_time(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<f64>>;
@@ -32,6 +38,18 @@ pub trait AnimationImpl: b::Host {
 
     /// `readonly attribute boolean pending`.
     fn pending(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<bool>;
+
+    /// `readonly attribute Promise<Animation> ready`.
+    fn ready(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `readonly attribute Promise<Animation> finished`.
+    fn finished(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `undefined cancel()`.
+    fn cancel(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<()>;
+
+    /// `undefined finish()`.
+    fn finish(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<()>;
 
     /// `undefined play()`.
     fn play(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<()>;
@@ -57,11 +75,29 @@ fn get_effect<H: AnimationImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeC
     })
 }
 
+fn get_timeline<H: AnimationImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Animation", "timeline"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::ANIMATION)?;
+        let result = <H as AnimationImpl>::timeline(&mut b::Cx::new(rt, call, super::ANIMATION), this)?;
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
 fn get_start_time<H: AnimationImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("Animation", "startTime"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::ANIMATION)?;
         let result = <H as AnimationImpl>::start_time(&mut b::Cx::new(rt, call, super::ANIMATION), this)?;
         Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::number(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn set_start_time<H: AnimationImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("Animation", "startTime"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::ANIMATION)?;
+        let v = rt.arg(call, 0);
+        let value = (if v.is_nullish() { Ok(None) } else { b::convert::double(rt, v).map(Some) }).map_err(b::Exception::nested)?;
+        <H as AnimationImpl>::set_start_time(&mut b::Cx::new(rt, call, super::ANIMATION), this, value)?;
+        Ok(swb_js::Value::Undefined)
     })
 }
 
@@ -107,6 +143,38 @@ fn get_pending<H: AnimationImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Native
     })
 }
 
+fn get_ready<H: AnimationImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Animation", "ready"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::ANIMATION)?;
+        let result = <H as AnimationImpl>::ready(&mut b::Cx::new(rt, call, super::ANIMATION), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn get_finished<H: AnimationImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Animation", "finished"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::ANIMATION)?;
+        let result = <H as AnimationImpl>::finished(&mut b::Cx::new(rt, call, super::ANIMATION), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn op_cancel<H: AnimationImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Animation", "cancel"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::ANIMATION)?;
+        <H as AnimationImpl>::cancel(&mut b::Cx::new(rt, call, super::ANIMATION), this)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_finish<H: AnimationImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Animation", "finish"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::ANIMATION)?;
+        <H as AnimationImpl>::finish(&mut b::Cx::new(rt, call, super::ANIMATION), this)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 fn op_play<H: AnimationImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Animation", "play"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::ANIMATION)?;
@@ -131,11 +199,16 @@ pub fn define<H: AnimationImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js:
     let _ = target;
     rt.define_accessor(realm, target, "id", (Some(get_id::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "effect", (Some(get_effect::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
-    rt.define_accessor(realm, target, "startTime", (Some(get_start_time::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "timeline", (Some(get_timeline::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "startTime", (Some(get_start_time::<H> as swb_js::NativeFn), Some(set_start_time::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "currentTime", (Some(get_current_time::<H> as swb_js::NativeFn), Some(set_current_time::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "playState", (Some(get_play_state::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "replaceState", (Some(get_replace_state::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "pending", (Some(get_pending::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "ready", (Some(get_ready::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "finished", (Some(get_finished::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "cancel", 0, op_cancel::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "finish", 0, op_finish::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "pause", 0, op_pause::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "play", 0, op_play::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;

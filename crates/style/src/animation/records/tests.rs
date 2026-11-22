@@ -172,7 +172,8 @@ fn update_marks_owners_whose_output_changes() {
     // A seek marks the owner at once.
     animations.set_current_time(id, 50.0);
     assert!(animations.has_marked());
-    // A paused animation needs no update.
+    // A paused animation needs no update (once its start event went).
+    animations.take_events();
     assert_eq!(animations.next_time(true), None);
 }
 
@@ -273,6 +274,9 @@ fn the_next_time_is_cached_until_a_record_changes() {
         r.play(0.0);
     }
     animations.update(0.0);
+    // The start event waits for the update that dispatches it.
+    assert_eq!(animations.next_time(false), Some(0.0));
+    animations.take_events();
     assert_eq!(animations.next_time(false), Some(1000.0));
     // The cache holds the value of the update: a change behind its back is
     // not seen until something invalidates it.
@@ -313,4 +317,256 @@ fn a_catch_up_runs_when_settled_not_when_requested() {
     assert!(!animations.unsettled());
     animations.settle();
     assert_eq!(animations.updates(), 2);
+}
+
+/// A document with one record of `timing` that plays from the timeline
+/// time 0 (its pending play resolved by a first update at 0).
+fn playing(timing: Timing) -> (DocumentAnimations, AnimationId) {
+    let mut animations = DocumentAnimations::new(0.0);
+    animations.track_released();
+    let id = animations
+        .create(owner(), "a", 0, 0)
+        .expect("below the limit");
+    animations.owners.insert(owner(), vec![id]);
+    if let Some(r) = animations.records.get_mut(&id) {
+        r.timing = timing;
+        r.play(0.0);
+    }
+    animations.update(0.0);
+    (animations, id)
+}
+
+/// The events of the queue as (type, elapsed time, scheduled time).
+fn queued(animations: &mut DocumentAnimations) -> Vec<(&'static str, f64, Option<f64>)> {
+    animations
+        .take_events()
+        .into_iter()
+        .map(|e| (e.kind.as_str(), e.elapsed, e.scheduled))
+        .collect()
+}
+
+#[test]
+fn updates_queue_the_events_of_the_phase_changes() {
+    // `a 80ms linear 40ms 2` (probe `events-single`), updates at the event
+    // times.
+    let (mut animations, _) = playing(timing(40.0, 80.0, 2.0));
+    assert_eq!(queued(&mut animations), vec![]);
+    // The queue asks for the next update, whatever the records need.
+    animations.update(40.0);
+    assert_eq!(animations.next_time(false), Some(40.0));
+    assert_eq!(
+        queued(&mut animations),
+        vec![("animationstart", 0.0, Some(40.0))]
+    );
+    assert_eq!(animations.next_time(false), Some(120.0));
+    animations.update(120.0);
+    assert_eq!(
+        queued(&mut animations),
+        vec![("animationiteration", 0.08, Some(120.0))]
+    );
+    // A late update: the end, scheduled at its own time.
+    animations.update(500.0);
+    assert_eq!(
+        queued(&mut animations),
+        vec![("animationend", 0.16, Some(200.0))]
+    );
+    animations.update(600.0);
+    assert_eq!(queued(&mut animations), vec![]);
+}
+
+#[test]
+fn an_update_that_skips_iterations_sends_one_iteration_event() {
+    let (mut animations, _) = playing(timing(0.0, 1.0, f64::INFINITY));
+    assert_eq!(
+        queued(&mut animations),
+        vec![("animationstart", 0.0, Some(0.0))]
+    );
+    animations.update(1000.5);
+    assert_eq!(
+        queued(&mut animations),
+        vec![("animationiteration", 1.0, Some(1000.0))]
+    );
+}
+
+#[test]
+fn the_update_at_the_end_sees_the_end_despite_float_noise() {
+    // Measured in a run: the timeline at 349.795982 and a start time of
+    // 149.795982 give 199.99999999999997, which would keep a 200 ms
+    // animation active and lose its end.
+    let r = running(timing(0.0, 200.0, 1.0), 149.795_982);
+    assert_eq!(r.current_time(349.795_982), Some(200.0));
+    assert_eq!(r.next_time(349.795_982, false), None);
+    assert_eq!(r.play_state(349.795_982), AnimationPlayState::Finished);
+}
+
+#[test]
+fn a_cancel_by_a_script_queues_its_event_and_stays() {
+    let (mut animations, id) = playing(timing(0.0, 1000.0, 1.0));
+    animations.update(100.0);
+    queued(&mut animations);
+    animations.cancel(id);
+    assert_eq!(
+        queued(&mut animations),
+        vec![("animationcancel", 0.1, Some(100.0))]
+    );
+    let r = animations.record(id).expect("the record stays");
+    assert_eq!(r.play_state(100.0), AnimationPlayState::Idle);
+    assert!(!r.is_relevant(100.0));
+    // Idle: no update, no event; a second cancel does nothing.
+    animations.cancel(id);
+    animations.update(200.0);
+    assert_eq!(queued(&mut animations), vec![]);
+    assert_eq!(animations.next_time(true), None);
+    // `play()` starts it again from 0.
+    animations.play(id);
+    animations.update(300.0);
+    assert_eq!(
+        queued(&mut animations),
+        vec![("animationstart", 0.0, Some(300.0))]
+    );
+}
+
+#[test]
+fn a_cancel_by_a_style_change_queues_its_event_once() {
+    let (mut animations, id) = playing(timing(1000.0, 400.0, 1.0));
+    animations.update(100.0);
+    // In the before phase: cancelled (probe `events-cancel`, `e3`).
+    animations.retain_owners(|_| false);
+    let events = animations.take_events();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].kind, AnimationEventKind::Cancel);
+    assert_eq!(events[0].id, id);
+    assert_eq!(events[0].elapsed, 0.0);
+    assert_eq!(animations.take_released(), vec![id]);
+    assert_eq!(animations.next_time(false), None);
+    // A finished animation that goes has no cancel.
+    let (mut animations, _) = playing(timing(0.0, 100.0, 1.0));
+    animations.update(200.0);
+    queued(&mut animations);
+    animations.retain_owners(|_| false);
+    assert_eq!(queued(&mut animations), vec![]);
+}
+
+#[test]
+fn a_released_record_wakes_the_next_update() {
+    // The bindings settle the promises of its wrapper there.
+    let (mut animations, _) = playing(timing(0.0, 100.0, 1.0));
+    animations.update(200.0);
+    queued(&mut animations);
+    assert_eq!(animations.next_time(false), None);
+    animations.retain_owners(|_| false);
+    assert_eq!(animations.next_time(false), Some(200.0));
+    animations.take_events();
+    assert_eq!(animations.next_time(false), None);
+}
+
+#[test]
+fn finish_jumps_to_the_end_and_refuses_an_infinite_one() {
+    let (mut animations, id) = playing(timing(1000.0, 2000.0, 3.0));
+    animations.pause(id);
+    assert!(animations.finish(id));
+    let r = animations.record(id).expect("kept");
+    assert_eq!(r.current_time(0.0), Some(7000.0));
+    assert!(!r.pending());
+    assert_eq!(r.play_state(0.0), AnimationPlayState::Finished);
+    let (mut animations, id) = playing(timing(0.0, 1000.0, f64::INFINITY));
+    assert!(!animations.finish(id));
+    let r = animations.record(id).expect("kept");
+    assert_eq!(r.play_state(0.0), AnimationPlayState::Running);
+}
+
+#[test]
+fn the_start_and_the_end_after_finish_keep_their_order() {
+    // Probe `events-cancel`: a catch-up update starts `b` and queues its
+    // `animationstart`; `finish()` moves the start time back by the end;
+    // the next frame queues `animationend`. Both boundaries are the time
+    // of the catch-up. With the start time taken from `time - current`
+    // (the current time rounded to 1e-9 ms), the end came 3.3e-10 ms
+    // before the start and the sort put it first.
+    let mut animations = DocumentAnimations::new(0.0);
+    let id = animations
+        .create(owner(), "b", 0, 0)
+        .expect("below the limit");
+    animations.owners.insert(owner(), vec![id]);
+    if let Some(r) = animations.records.get_mut(&id) {
+        r.timing = timing(0.0, 60.0, 1.0);
+        r.play(0.0);
+    }
+    animations.update(100.0137);
+    assert!(animations.finish(id));
+    animations.update(100.0137 + 1000.0 / 60.0);
+    let events = queued(&mut animations);
+    assert_eq!(
+        events,
+        vec![
+            ("animationstart", 0.0, Some(100.0137)),
+            ("animationend", 0.06, Some(100.0137)),
+        ]
+    );
+}
+
+#[test]
+fn setting_the_start_time_ends_a_pending_task() {
+    let mut animations = DocumentAnimations::new(0.0);
+    let id = animations.create(owner(), "a", 0, 0).expect("created");
+    if let Some(r) = animations.records.get_mut(&id) {
+        r.timing = timing(0.0, 1000.0, 1.0);
+        r.play(0.0);
+    }
+    animations.set_start_time(id, Some(-250.0));
+    let r = animations.record(id).expect("kept");
+    assert!(!r.pending());
+    assert_eq!(r.current_time(0.0), Some(250.0));
+    // `null` holds the current time.
+    animations.set_start_time(id, None);
+    let r = animations.record(id).expect("kept");
+    assert_eq!(r.current_time(500.0), Some(250.0));
+    assert_eq!(r.play_state(500.0), AnimationPlayState::Paused);
+}
+
+#[test]
+fn invisible_owners_need_only_their_event_times() {
+    let (mut animations, _) = playing(timing(0.0, 1000.0, f64::INFINITY));
+    animations.take_events();
+    assert_eq!(
+        animations.bounds_requests(),
+        vec![(NodeId::DOCUMENT, Reach::Subtree)]
+    );
+    // Checked and not visible: the iteration end only.
+    let checked: HashSet<NodeId> = [NodeId::DOCUMENT].into_iter().collect();
+    animations.set_visible(checked.clone(), HashSet::new());
+    assert_eq!(animations.next_time(true), Some(1000.0));
+    // Visible: the next frame.
+    animations.set_visible(checked, [NodeId::DOCUMENT].into_iter().collect());
+    let next = animations.next_time(true).expect("a frame");
+    assert!((next - FRAME_MS).abs() < 1e-9);
+    // Not checked (it started to run after the test): visible.
+    animations.set_visible(HashSet::new(), HashSet::new());
+    let next = animations.next_time(true).expect("a frame");
+    assert!((next - FRAME_MS).abs() < 1e-9);
+}
+
+#[test]
+fn the_state_epoch_changes_with_the_play_state_only() {
+    let (mut animations, id) = playing(timing(0.0, 1000.0, f64::INFINITY));
+    let epoch = animations.state_epoch();
+    // Updates of a running animation change no state.
+    animations.update(16.0);
+    animations.update(32.0);
+    animations.set_visible([NodeId::DOCUMENT].into_iter().collect(), HashSet::new());
+    assert_eq!(animations.state_epoch(), epoch);
+    // A command changes it.
+    animations.pause(id);
+    assert_ne!(animations.state_epoch(), epoch);
+    // A finite animation changes it when it ends, in the update.
+    let (mut animations, _) = playing(timing(0.0, 100.0, 1.0));
+    let epoch = animations.state_epoch();
+    animations.update(50.0);
+    assert_eq!(animations.state_epoch(), epoch);
+    animations.update(150.0);
+    assert_ne!(animations.state_epoch(), epoch);
+    // A record that goes changes it.
+    let epoch = animations.state_epoch();
+    animations.retain_owners(|_| false);
+    assert_ne!(animations.state_epoch(), epoch);
 }

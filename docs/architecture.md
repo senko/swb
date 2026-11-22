@@ -662,8 +662,36 @@ records in composite order. The data flow of a frame with animations:
    update runs without scripts too: `run_frame` starts with
    `update_animations`, which sets each document's timeline to the frame
    time, resolves pending plays and pauses and marks the owners whose
-   values can have changed. A page whose only work is running animations
-   is idle (`frame_work_due` leaves them out).
+   values can have changed, and queues the animation events of the phase
+   and iteration changes (`events.rs`; a cancel by a style change or by
+   `cancel()` queues its event at once). A page whose only work is running
+   animations is idle (`frame_work_due` leaves them out).
+   *Update animations and send events* (M13 feature 3c, ADR 0044 section
+   16): after the media queries and before the animation frame callbacks,
+   `send_animation_events` takes each document's queue, sorts it (scheduled
+   event time, then composite order: owners in tree order, pseudo-elements
+   after their element, position in `animation-name`) and runs
+   `ScriptRuntime::update_animations_and_send_events`: one task that
+   settles the `ready` and `finished` promises from the records' states
+   in the order of creation (its end is the microtask checkpoint; it runs
+   only when `DocumentAnimations::state_epoch` changed since the last
+   settling), then one task that dispatches the `AnimationEvent`s. A queue
+   that waits asks for the next update; a document without a runtime
+   (also a frame document without a realm) drops its queue. Late in the
+   update, a style step
+   computes the styles of a document whose style changes can start
+   animations (`update_animation_styles`: it has `@keyframes` rules and
+   stale styles; a task with DOM changes asks for the update), so an
+   animation that a script starts by a class or a style runs and sends its
+   events without a read of the styles.
+   *The visibility test* (section 8): after each display list, scroll or
+   resize, `update_animation_visibility` finds the owners of running
+   animations whose painted area can intersect the viewport
+   (`swb_paint::animation_bounds`, by the `Reach` of the animation's
+   properties; an owner without a box of its own, such as a child of an
+   `<svg>`, counts with its nearest ancestor that has one) and tells the
+   records (`set_visible`); the others need painted frames only at their
+   event times.
 2. *Catch-up.* Before a task, a layout flush, a render or a screenshot
    (`take_document_state`, `parts`, `update_layout`, `render_in_strips`),
    the page asks that a document whose last update is older than the last
@@ -685,8 +713,11 @@ records in composite order. The data flow of a frame with animations:
    paint-only path).
 
 Scripts reach the records through `EngineHost` (`animations`, `animation`,
-`animation_command`, `animation_keyframes`, `released_animations`); the web
-crate keeps one wrapper per live record (`web/src/animations.rs`).
+`animation_command`, `animation_states`, `animation_timeline`,
+`animation_keyframes`, `released_animations`); the web crate keeps one
+wrapper per live record (`web/src/animations.rs`), with its current
+`ready` and `finished` promises and a list of the wrappers whose promises
+wait.
 `--animations off` (`Page::set_animations`, applied to the next document)
 makes the stylist reset the `animation-*` and `transition-*` longhands of
 every element (`Stylist::set_animations`).
@@ -980,8 +1011,9 @@ runtime (ADR 0028 section 15).
   the runtimes besides the top-level one), their budgets, and the hand-over
   of messages between runtimes after a task (ADR 0031 sections 5, 6 and 11).
 - `page/rendering_update.rs`: HTML's rendering update for documents with
-  scripts and its timing (`resize`, `scroll`, media query changes,
-  animation frame callbacks, lazy images, the observers).
+  scripts and its timing (`resize`, `scroll`, media query changes, the
+  animation promises and events, animation frame callbacks, lazy images,
+  the style step for animations, the observers).
 - `document/frames.rs`: what a document tells the page about its frames:
   the `iframe` changes of the drain, the content boxes of the `iframe`
   boxes, the declarative refresh, the used color schemes, and the subresource

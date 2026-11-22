@@ -358,6 +358,10 @@ pub struct DocumentState {
     /// False for `--animations off` (ADR 0044 section 10): the stylist
     /// resets the `animation-*` and `transition-*` longhands.
     pub(crate) animations_enabled: bool,
+    /// What the visibility test of the animations last saw (the display
+    /// list serial, the viewport scroll offset and size; ADR 0044 section
+    /// 8): it runs again when one of them changes.
+    pub(crate) animation_visibility: Option<(u64, Point, Size)>,
     pub(crate) styles: Option<StyleMap>,
     /// The styles before the DOM changes in `dom_changes`, kept from the
     /// drain that made `styles` dirty until the next style computation
@@ -522,6 +526,7 @@ impl DocumentState {
             stylist: None,
             animations: RefCell::new(init.animations.records()),
             animations_enabled: init.animations.enabled,
+            animation_visibility: None,
             styles: None,
             stale_styles: None,
             dom_changes: swb_style::DomChanges::default(),
@@ -1002,8 +1007,16 @@ impl swb_web::EngineHost for DocumentState {
         self.animation_info(id)
     }
 
-    fn animation_command(&mut self, id: u64, command: swb_web::AnimationCommand) {
-        DocumentState::animation_command(self, id, command);
+    fn animation_command(&mut self, id: u64, command: swb_web::AnimationCommand) -> bool {
+        DocumentState::animation_command(self, id, command)
+    }
+
+    fn animation_states(&mut self, ids: &[u64]) -> Vec<Option<(&'static str, bool)>> {
+        DocumentState::animation_states(self, ids)
+    }
+
+    fn animation_timeline(&mut self) -> Option<(f64, f64)> {
+        Some(self.timeline_time())
     }
 
     fn animation_keyframes(&mut self, id: u64) -> Vec<swb_web::KeyframeInfo> {

@@ -722,6 +722,8 @@ impl DocumentState {
             }
         }
         if self.display_list.is_some() || self.fragments.is_none() {
+            // A scroll or a resize keeps the list.
+            self.update_animation_visibility();
             return;
         }
         let page = self.visible_selection();
@@ -761,6 +763,7 @@ impl DocumentState {
         }
         self.list_serial = super::paint_stamp::next_list_serial();
         self.display_list = Some(list);
+        self.update_animation_visibility();
     }
 
     /// The selection in the focused text control, as offsets in its shown

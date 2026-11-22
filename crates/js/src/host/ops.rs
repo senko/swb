@@ -289,6 +289,20 @@ impl Runtime {
         })
     }
 
+    /// Sets `[[PromiseIsHandled]]` of a promise to true (Web IDL "mark as
+    /// handled"): a rejection that follows is not tracked, so it reports no
+    /// `unhandledrejection` (the `finished` promise of a cancelled
+    /// animation). Call it on a promise that is still pending: it does not
+    /// remove a promise that was already reported from the list of unhandled
+    /// rejections, and it fires no `rejectionhandled`. A value that is not a
+    /// promise is left alone.
+    pub fn mark_promise_handled(&mut self, promise: Gc<Object>) {
+        if self.as_promise(promise.into()).ok().flatten().is_some() {
+            // Cannot fail: the object is a promise.
+            let _ = self.set_promise_handled(promise);
+        }
+    }
+
     fn promise_is_pending(&self, promise: Gc<Object>) -> bool {
         self.promise_state(promise)
             .is_ok_and(|state| state.status == crate::vm::PromiseStatus::Pending)

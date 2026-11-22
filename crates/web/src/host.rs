@@ -354,6 +354,12 @@ pub enum AnimationCommand {
     Pause,
     /// `currentTime = ms`.
     SetCurrentTime(f64),
+    /// `startTime = ms` (`None`: `null`).
+    SetStartTime(Option<f64>),
+    /// `cancel()`.
+    Cancel,
+    /// `finish()`; refused when the effect's end is infinite.
+    Finish,
 }
 
 /// One keyframe of `getKeyframes()`.
@@ -1009,9 +1015,26 @@ pub trait EngineHost: Any {
         None
     }
 
-    /// Changes the animation `id` (`play()`, `pause()`, `currentTime`).
-    fn animation_command(&mut self, id: u64, command: AnimationCommand) {
+    /// Changes the animation `id` (`play()`, `pause()`, `currentTime`,
+    /// `startTime`, `cancel()`, `finish()`). False if the command was
+    /// refused (`finish()` of an infinite animation).
+    fn animation_command(&mut self, id: u64, command: AnimationCommand) -> bool {
         let _ = (id, command);
+        true
+    }
+
+    /// The play state and the pending flag of each animation of `ids`
+    /// (`None` for one that is gone), for the `ready` and `finished`
+    /// promises.
+    fn animation_states(&mut self, ids: &[u64]) -> Vec<Option<(&'static str, bool)>> {
+        vec![None; ids.len()]
+    }
+
+    /// The document timeline: its current time in ms from its zero, and
+    /// the page time of its zero (the times of the animations are on it);
+    /// `None` without one.
+    fn animation_timeline(&mut self) -> Option<(f64, f64)> {
+        None
     }
 
     /// The keyframes of the animation `id` (`getKeyframes()`).

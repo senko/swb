@@ -749,6 +749,8 @@ impl Page {
         let generation = doc.dom.generation();
         if std::mem::replace(&mut self.input.frames_seen_generation, generation) != generation {
             self.note_frame_viewports_may_change();
+            // A style change can start or cancel animations.
+            self.note_animation_styles();
             // The content under the pointer may have changed.
             self.note_hover_stale();
         }

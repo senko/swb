@@ -6264,6 +6264,40 @@ Steps:
       the GUI budgets; the other hostile cases of the diagnosis. The
       acceptance checks values, events and the frame loop, not the frame
       budget.
+
+      Done (2026-11-22): ADR 0044, section 16. `getKeyframes()` with
+      computed values is not done (backlog).
+      - Events: `animationstart`, `animationiteration`, `animationend`
+        and `animationcancel` (`AnimationEvent`), queued per document
+        with their scheduled times, sorted by time and composite order,
+        and dispatched in the rendering update after the promises. The
+        rendering update computes styles on pages with `@keyframes`, so
+        an animation that a script starts by a style change runs without
+        a read of the styles.
+      - API: `cancel()`, `finish()`, `startTime`, `ready`, `finished`,
+        `timeline`, `document.timeline`. Base UI's `Promise.all` of the
+        `finished` promises settles when the animations end, on
+        `display: none`, on a removed name and on a removed element, with
+        no `unhandledrejection` (`swb_js::Runtime::mark_promise_handled`).
+        After `cancel()` an animation stays cancelled while its name
+        stays.
+      - The visibility test: an animation gets painted frames only when
+        the pixels it can change (its subtree, or the clipping ancestor
+        for transforms and filters) intersect the viewport. Offscreen,
+        hidden and paused animations cost only their event times. A frame
+        oracle checks that no changed pixel comes without a frame.
+      - GUI (`idle-10s`): the marquee outside the viewport 60 -> 0 frames
+        per second; videojs at scroll 0 29 -> 2 frames per second (CPU
+        98 % -> 10 % during the trace, 0 % after); the spinner 8 frames
+        per second at 0.9 % CPU; the marquee in view 60 frames per second
+        at 5.5 %.
+      - The review found that animations inside an `<svg>` got no frames
+        (no box of their own), that promises settled in hash order, and
+        a promise step that ran at every update; all fixed.
+      - Probes: `css-animations-3c.json` (7 cases; three equal Chromium
+        runs). Tests: `css_animations.rs`, `animation_frames.rs`,
+        `frame_outdated.rs`, `frame_oracle.rs`, unit tests; 7 hostile
+        cases.
    4a. Paint-only frames (`implementer`; section 9): the classification
       of paint properties, the refresh of fragment styles, overflow, the
       display list rebuild, and the check mode as the oracle. This comes
@@ -6521,10 +6555,46 @@ Source Extensions, AV1 (dav1d), YouTube.
   `perspective()` (Chromium accepts them). Number tokens of custom
   properties are written without an exponent, so a tiny value differs
   from Chromium's text (`6.12323e-17`).
-- API (feature 3b, for 3c): `getKeyframes()` gives the specified
-  values in swb's property order; Chromium gives computed values in its
-  own order, the underlying values in implicit keyframes, and empty
-  keyframes (`keyframes-resolution` in `css-animations-3a.json`).
+- API (feature 3b; not done in 3c): `getKeyframes()` gives the specified
+  values in swb's property order; Chromium gives computed values, the
+  underlying values in implicit keyframes, and empty keyframes
+  (`keyframes-resolution` in `css-animations-3a.json`). It needs a
+  serialization of computed values without layout and the element's
+  style without its animations. Chromium's property order differs
+  between the keyframes of one rule, so it would stay a departure (ADR
+  0044 section 16). No target page calls `getKeyframes()`.
+- Frames (feature 3c): a transform or filter animation inside a clipping
+  ancestor that is in view gets every frame, also when the element is
+  clipped out; a `visibility` animation gets frames while its box is in
+  view and hidden (12 of 13 frames without a pixel change in the frame
+  oracle). A tighter test needs the bounds under each keyframe. An owner
+  that has a style but never paints (a closed `<details>`, `<defs>`, a
+  shape outside the `<svg>` viewport, an empty `display: contents`
+  owner) gets frames while an ancestor box is in view. Frame documents
+  have no visibility test: an animation in a frame 3,000 px below the
+  viewport gets 60 frames per second.
+- API (feature 3c, found in the review): setting `playbackRate` has no
+  effect (Chromium: `playbackRate = 1000` runs the animation 1000 times
+  faster and settles `finished`); swb's attribute is read-only 1 (ADR
+  0044 section 7).
+- Frames (feature 3c): a style change by the script of a frame document
+  asks for no rendering update (`note_animation_styles` looks only at the
+  top-level document), so its new animations start when something reads
+  its styles or paints it.
+- Animations (feature 3c): once scripts have animation objects, a
+  released record asks for one extra update (the `wake` flag), also when
+  no promise waits.
+- Animations (feature 3c): Chromium settles the `ready` promises of four
+  animations that start in one update as 0 1 3 2 and the rejections of
+  four cancels as 2 1 3 0; swb settles in the order of creation
+  (`promise-order` in `css-animations-3c.json`). The row
+  `finish-and-start-time` of the same file gives the events of two
+  elements in either order between Chromium runs of the whole file; in
+  swb they tie and go by composite order (a departure in the test).
+- API (feature 3c): the playback events of `Animation` (`finish`,
+  `cancel`, `remove`, `onfinish`, `oncancel`), `Element.animate()`, and
+  the constructors of `Animation`, `KeyframeEffect` and
+  `DocumentTimeline` (ADR 0044 section 7, out of scope for M13).
 - Paint (feature 3b): `background-clip: text` with a gradient differs
   from Chromium by up to 12 per channel, animated or not (the `shimmer`
   pixel test).

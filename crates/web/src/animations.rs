@@ -1,10 +1,22 @@
 //! CSS animations for scripts (Web Animations 1 §6,
 //! <https://drafts.csswg.org/web-animations-1/#programming-interface>; CSS
-//! Animations 2 §6.1; ADR 0044 section 7, M13 feature 3b): `getAnimations()`
-//! of documents and elements, `CSSAnimation` (`play()`, `pause()`,
-//! `currentTime`, `playState`, `animationName`, `effect`) and
-//! `KeyframeEffect` (`target`, `getKeyframes()`, `getTiming()`,
-//! `getComputedTiming()`).
+//! Animations 2 §6.1; ADR 0044 section 7, M13 features 3b and 3c):
+//! `getAnimations()` of documents and elements, `CSSAnimation` (`play()`,
+//! `pause()`, `cancel()`, `finish()`, `currentTime`, `startTime`,
+//! `playState`, `ready`, `finished`, `timeline`, `animationName`,
+//! `effect`), `KeyframeEffect` (`target`, `getKeyframes()`, `getTiming()`,
+//! `getComputedTiming()`), `document.timeline` and `AnimationEvent`.
+//!
+//! The promises. A wrapper keeps its current `ready` and `finished`
+//! promises, made at the first read. A pending one puts the wrapper on
+//! the waiting list ([`AnimationObjects`]); [`settle_promises`] settles
+//! them from the state of the records: at the step "update animations and
+//! send events" of the rendering update (before its microtask checkpoint)
+//! and after each command of a script. `ready` resolves when no play or
+//! pause is pending, `finished` when the play state is `finished`; an
+//! animation whose record went (a cancel by a style change) and `cancel()`
+//! reject both with an `AbortError` marked as handled, and the next read
+//! makes new ones (Web Animations §4.4.14 and §4.4.15).
 //!
 //! The engine keeps the animation records (`swb_style::animation`); the
 //! bindings keep one wrapper per live record ([`AnimationObjects`], traced
@@ -15,10 +27,10 @@
 //! go, and a wrapper that a script still holds answers as an idle
 //! animation that keeps its `animationName` and `effect.target`.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use swb_dom::NodeId;
-use swb_js::{Gc, GenericData, HostData, Object, Tracer, Value, VmError};
+use swb_js::{Gc, GenericData, HostData, Object, Runtime, Tracer, Value, VmError, VmResult};
 
 use crate::bindings::{self as b, Cx, Platform};
 use crate::events::TargetData;
@@ -31,14 +43,34 @@ use crate::{AnimationCommand, AnimationInfo};
 #[derive(Default)]
 pub(crate) struct AnimationObjects {
     wrappers: HashMap<u64, Gc<Object>>,
+    /// The wrappers with a pending `ready` or `finished` promise, by id
+    /// (also after their record went). Promises settle in the order of the
+    /// ids, which is the order of creation, so a run is deterministic.
+    waiting: BTreeMap<u64, Gc<Object>>,
+    /// The state epoch of the engine's records at the last settling of the
+    /// waiting promises ([`swb_style::animation::DocumentAnimations::state_epoch`]):
+    /// while it is the current one, no play state or pending flag changed
+    /// and the promises have nothing to settle.
+    settled_epoch: Option<u64>,
+    /// `document.timeline` (`[SameObject]`).
+    timeline: Option<Gc<Object>>,
 }
 
 impl AnimationObjects {
     /// Reports the wrappers to the collector.
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
-        for object in self.wrappers.values() {
+        for object in self.wrappers.values().chain(self.waiting.values()) {
             tracer.object(*object);
         }
+        if let Some(timeline) = self.timeline {
+            tracer.object(timeline);
+        }
+    }
+
+    /// True if a promise of an animation waits and the records changed
+    /// since the last settling (`epoch` is the engine's state epoch).
+    pub(crate) fn promises_due(&self, epoch: u64) -> bool {
+        !self.waiting.is_empty() && self.settled_epoch != Some(epoch)
     }
 }
 
@@ -48,6 +80,10 @@ impl AnimationObjects {
 pub(crate) struct AnimationData {
     id: u64,
     effect: Option<Gc<Object>>,
+    /// The current ready promise, once read (never a rejected one).
+    ready: Option<Gc<Object>>,
+    /// The current finished promise, once read (never a rejected one).
+    finished: Option<Gc<Object>>,
     /// What stays true after the record went: the name and the target.
     origin: Origin,
 }
@@ -64,8 +100,11 @@ struct Origin {
 
 impl AnimationData {
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
-        if let Some(effect) = self.effect {
-            tracer.object(effect);
+        for object in [self.effect, self.ready, self.finished]
+            .into_iter()
+            .flatten()
+        {
+            tracer.object(object);
         }
     }
 }
@@ -128,6 +167,8 @@ fn wrappers(cx: &mut Cx<'_>, ids: &[u64]) -> b::Result<Vec<Gc<Object>>> {
         data.animation = Some(Box::new(AnimationData {
             id,
             effect: None,
+            ready: None,
+            finished: None,
             origin,
         }));
         let data = cx.rt.alloc_host_data(data)?;
@@ -215,6 +256,256 @@ fn animation_origin(cx: &Cx<'_>, this: Platform) -> b::Result<Origin> {
         .ok_or_else(|| VmError::type_error("Illegal invocation").into())
 }
 
+// ----- The ready and finished promises -----
+
+/// Which promise of an animation.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Which {
+    Ready,
+    Finished,
+}
+
+/// The handle of the event target data of the animation wrapper `object`.
+fn handle_of(rt: &Runtime, object: Gc<Object>) -> VmResult<Gc<swb_js::Generic>> {
+    match rt.host_object(object.into()) {
+        Some((_, HostData::Generic(handle))) => Ok(handle),
+        _ => Err(VmError::type_error("Illegal invocation")),
+    }
+}
+
+/// The id and the current promise `which` of the animation wrapper
+/// `object`.
+fn promise_of(
+    rt: &Runtime,
+    object: Gc<Object>,
+    which: Which,
+) -> VmResult<(u64, Option<Gc<Object>>)> {
+    let handle = handle_of(rt, object)?;
+    let data = rt.heap().generic::<TargetData>(handle)?;
+    let animation = data
+        .animation
+        .as_ref()
+        .ok_or(VmError::type_error("Illegal invocation"))?;
+    let promise = match which {
+        Which::Ready => animation.ready,
+        Which::Finished => animation.finished,
+    };
+    Ok((animation.id, promise))
+}
+
+/// Replaces the current promise `which` of the animation wrapper `object`.
+fn set_promise(
+    rt: &mut Runtime,
+    object: Gc<Object>,
+    which: Which,
+    promise: Option<Gc<Object>>,
+) -> VmResult<()> {
+    let handle = handle_of(rt, object)?;
+    if let Some(animation) = rt
+        .heap_mut()
+        .generic_mut::<TargetData>(handle)?
+        .animation
+        .as_mut()
+    {
+        match which {
+            Which::Ready => animation.ready = promise,
+            Which::Finished => animation.finished = promise,
+        }
+    }
+    Ok(())
+}
+
+/// True if `promise` is pending.
+fn is_pending(rt: &Runtime, promise: Gc<Object>) -> bool {
+    matches!(
+        rt.promise_settlement(promise.into()),
+        Some((swb_js::PromiseStatus::Pending, _))
+    )
+}
+
+/// The state that settles the promises: `Some((play state, pending))`, or
+/// `None` when the record went.
+type PromiseState = Option<(&'static str, bool)>;
+
+/// True if the promise `which` of an animation in `state` is settled
+/// (resolved): `ready` when no play or pause is pending and the animation
+/// is not idle (measured in Chromium 148, `ready-promise` of
+/// `css-animations-3c.json`: the `ready` of a cancelled animation stays
+/// pending), `finished` when the animation is finished.
+fn resolved_in(which: Which, state: PromiseState) -> bool {
+    match (which, state) {
+        (Which::Ready, Some((play_state, pending))) => !pending && play_state != "idle",
+        (Which::Finished, Some((play_state, _))) => play_state == "finished",
+        (_, None) => false,
+    }
+}
+
+/// Rejects `promise` with an `AbortError` and marks it as handled ("cancel
+/// an animation"): no `unhandledrejection` follows.
+fn reject_aborted(rt: &mut Runtime, promise: Gc<Object>) -> VmResult<()> {
+    let realm = crate::state::doc_realm(rt)?;
+    let error = b::dom_exception::create(
+        rt,
+        realm,
+        g::DOM_EXCEPTION,
+        "AbortError",
+        "The user aborted a request.",
+    )?;
+    rt.mark_promise_handled(promise);
+    rt.reject_pending_promise(promise, error.into())
+}
+
+/// Settles the pending promises of the animation wrapper `object` from
+/// `state`; a record that went (`None`) was cancelled, which rejects them
+/// and drops them (the next read makes new ones). Returns true if a
+/// promise still waits (and the animation is not idle: an idle animation's
+/// `finished` waits for a `play()`, which adds it to the list again).
+fn settle_wrapper(rt: &mut Runtime, object: Gc<Object>, state: PromiseState) -> VmResult<bool> {
+    let mut waits = false;
+    for which in [Which::Ready, Which::Finished] {
+        let (_, promise) = promise_of(rt, object, which)?;
+        let Some(promise) = promise.filter(|&p| is_pending(rt, p)) else {
+            continue;
+        };
+        if state.is_none() {
+            reject_aborted(rt, promise)?;
+            set_promise(rt, object, which, None)?;
+        } else if resolved_in(which, state) {
+            rt.resolve_pending_promise(promise, object.into())?;
+        } else {
+            waits = true;
+        }
+    }
+    Ok(waits && state.is_some_and(|(play_state, _)| play_state != "idle"))
+}
+
+/// Settles the promises of the animation wrapper `object` (id `id`) now
+/// and keeps it on the waiting list while one waits.
+fn refresh(rt: &mut Runtime, object: Gc<Object>, id: u64) -> VmResult<()> {
+    let state = engine_mut(rt)?
+        .animation_states(&[id])
+        .first()
+        .copied()
+        .flatten();
+    let waits = settle_wrapper(rt, object, state)?;
+    let objects = &mut state_mut(rt)?.doc.animations;
+    if waits {
+        objects.waiting.insert(id, object);
+    } else {
+        objects.waiting.remove(&id);
+    }
+    Ok(())
+}
+
+/// Settles the `ready` and `finished` promises of the animations that
+/// wait (the step "update animations and send events", before its
+/// microtask checkpoint).
+pub(crate) fn settle_promises(rt: &mut Runtime, epoch: u64) -> VmResult<()> {
+    state_mut(rt)?.doc.animations.settled_epoch = Some(epoch);
+    let waiting: Vec<(u64, Gc<Object>)> = state_mut(rt)?
+        .doc
+        .animations
+        .waiting
+        .iter()
+        .map(|(id, object)| (*id, *object))
+        .collect();
+    if waiting.is_empty() {
+        return Ok(());
+    }
+    let ids: Vec<u64> = waiting.iter().map(|(id, _)| *id).collect();
+    let states = engine_mut(rt)?.animation_states(&ids);
+    let mut done = Vec::new();
+    for ((id, object), state) in waiting.into_iter().zip(states) {
+        if !settle_wrapper(rt, object, state)? {
+            done.push(id);
+        }
+    }
+    let objects = &mut state_mut(rt)?.doc.animations;
+    for id in done {
+        objects.waiting.remove(&id);
+    }
+    Ok(())
+}
+
+/// The current promise `which` of the animation `this`: the stored one
+/// while it is pending, or resolved and still right for the state; else a
+/// new one, resolved at once if the state says so.
+fn current_promise(cx: &mut Cx<'_>, this: Platform, which: Which) -> b::Result<Gc<Object>> {
+    let object = this.object;
+    let (id, stored) = promise_of(cx.rt, object, which)?;
+    let state = engine_mut(cx.rt)?
+        .animation_states(&[id])
+        .first()
+        .copied()
+        .flatten();
+    if let Some(promise) = stored
+        && (is_pending(cx.rt, promise) || resolved_in(which, state))
+    {
+        return Ok(promise);
+    }
+    let realm = cx.realm();
+    let promise = cx.rt.new_pending_promise(realm)?;
+    set_promise(cx.rt, object, which, Some(promise))?;
+    if resolved_in(which, state) {
+        cx.rt.resolve_pending_promise(promise, object.into())?;
+    } else if state.is_some_and(|(play_state, _)| play_state != "idle") {
+        state_mut(cx.rt)?.doc.animations.waiting.insert(id, object);
+    }
+    Ok(promise)
+}
+
+/// After a command of a script: settles the promises of `this` that the
+/// command settled (`finish()`, a seek or a new start time end a pending
+/// task) and keeps the wrapper waiting while one waits.
+fn after_command(cx: &mut Cx<'_>, this: Platform, id: u64) -> b::Result<()> {
+    refresh(cx.rt, this.object, id)?;
+    Ok(())
+}
+
+/// `cancel()`: the record goes idle; a pending `ready` and the `finished`
+/// promise are rejected with an `AbortError`, marked as handled and
+/// dropped. The next read makes new ones, both pending while the animation
+/// is idle (Chromium 148; Web Animations would resolve the new `ready`).
+fn cancel_promises(cx: &mut Cx<'_>, this: Platform, id: u64) -> b::Result<()> {
+    for which in [Which::Ready, Which::Finished] {
+        let (_, promise) = promise_of(cx.rt, this.object, which)?;
+        if let Some(promise) = promise {
+            if is_pending(cx.rt, promise) {
+                reject_aborted(cx.rt, promise)?;
+            }
+            set_promise(cx.rt, this.object, which, None)?;
+        }
+    }
+    state_mut(cx.rt)?.doc.animations.waiting.remove(&id);
+    Ok(())
+}
+
+/// `document.timeline`: one `DocumentTimeline` per window.
+pub(crate) fn document_timeline(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
+    if let Some(timeline) = state_mut(cx.rt)?.doc.animations.timeline {
+        return Ok(timeline);
+    }
+    let realm = cx.realm();
+    let timeline = cx
+        .rt
+        .new_host_object(realm, g::DOCUMENT_TIMELINE, HostData::Word(0))?;
+    state_mut(cx.rt)?.doc.animations.timeline = Some(timeline);
+    Ok(timeline)
+}
+
+/// What a start time of the document timeline gains on the scale of
+/// `document.timeline.currentTime`: the scripts' timeline time minus the
+/// timeline's own time. The scripts' time is coarsened as
+/// `performance.now()` is, so a start time moves with it and
+/// `currentTime` stays `document.timeline.currentTime - startTime`
+/// (Chromium 148, `timeline-time` of `css-animations-3c.json`).
+fn timeline_shift(cx: &mut Cx<'_>) -> b::Result<f64> {
+    let Some((time, zero)) = engine_mut(cx.rt)?.animation_timeline() else {
+        return Ok(0.0);
+    };
+    Ok(crate::state::state(cx.rt)?.doc.clock.at(zero + time) - time)
+}
+
 /// A time for an IDL `double?`: `None` stays. A hold time (`held`: a
 /// seeked or paused animation) is read unchanged (Chromium reads back
 /// `2500.0004` as written); a running animation's time is rounded to
@@ -269,11 +560,23 @@ impl g::animation::AnimationImpl for WebState {
         Ok(Some(effect))
     }
 
+    fn timeline(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Option<Gc<Object>>> {
+        Ok(Some(document_timeline(cx)?))
+    }
+
+    /// The start time on the scale of `document.timeline.currentTime`.
     fn start_time(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<f64>> {
-        Ok(time_value(
-            info(cx, this)?.and_then(|i| i.start_time),
-            false,
-        ))
+        let start = info(cx, this)?.and_then(|i| i.start_time);
+        let shift = timeline_shift(cx)?;
+        Ok(time_value(start.map(|s| s + shift), false))
+    }
+
+    fn set_start_time(cx: &mut Cx<'_>, this: Platform, value: Option<f64>) -> b::Result<()> {
+        let id = animation_id(cx, this)?;
+        let shift = timeline_shift(cx)?;
+        let start = value.map(|v| v - shift);
+        engine_mut(cx.rt)?.animation_command(id, AnimationCommand::SetStartTime(start));
+        after_command(cx, this, id)
     }
 
     fn current_time(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<f64>> {
@@ -291,7 +594,7 @@ impl g::animation::AnimationImpl for WebState {
             .into());
         };
         engine_mut(cx.rt)?.animation_command(id, AnimationCommand::SetCurrentTime(time));
-        Ok(())
+        after_command(cx, this, id)
     }
 
     fn play_state(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
@@ -306,16 +609,63 @@ impl g::animation::AnimationImpl for WebState {
         Ok(info(cx, this)?.is_some_and(|i| i.pending))
     }
 
+    fn ready(cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
+        current_promise(cx, this, Which::Ready)
+    }
+
+    fn finished(cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
+        current_promise(cx, this, Which::Finished)
+    }
+
+    fn cancel(cx: &mut Cx<'_>, this: Platform) -> b::Result<()> {
+        let id = animation_id(cx, this)?;
+        engine_mut(cx.rt)?.animation_command(id, AnimationCommand::Cancel);
+        cancel_promises(cx, this, id)
+    }
+
+    /// An animation whose end is infinite throws `InvalidStateError` (Web
+    /// Animations "finish an animation", step 2).
+    fn finish(cx: &mut Cx<'_>, this: Platform) -> b::Result<()> {
+        let id = animation_id(cx, this)?;
+        if !engine_mut(cx.rt)?.animation_command(id, AnimationCommand::Finish) {
+            return Err(b::Exception::dom(
+                "InvalidStateError",
+                "Cannot finish Animation with an infinite target effect end.",
+            ));
+        }
+        after_command(cx, this, id)
+    }
+
     fn play(cx: &mut Cx<'_>, this: Platform) -> b::Result<()> {
         let id = animation_id(cx, this)?;
         engine_mut(cx.rt)?.animation_command(id, AnimationCommand::Play);
-        Ok(())
+        after_command(cx, this, id)
     }
 
     fn pause(cx: &mut Cx<'_>, this: Platform) -> b::Result<()> {
         let id = animation_id(cx, this)?;
         engine_mut(cx.rt)?.animation_command(id, AnimationCommand::Pause);
-        Ok(())
+        after_command(cx, this, id)
+    }
+}
+
+impl g::css_transition::CSSTransitionImpl for WebState {
+    /// No `CSSTransition` exists before feature 5.
+    fn transition_property(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<String> {
+        Ok(String::new())
+    }
+}
+
+impl g::animation_timeline::AnimationTimelineImpl for WebState {
+    /// The time of the document timeline as `performance.now()` gives it
+    /// for the same page time (so it equals the timestamp of the animation
+    /// frame callbacks of the update, as in Chromium 148:
+    /// `timeline-time` of `css-animations-3c.json`).
+    fn current_time(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Option<f64>> {
+        let Some((time, zero)) = engine_mut(cx.rt)?.animation_timeline() else {
+            return Ok(None);
+        };
+        Ok(Some(crate::state::state(cx.rt)?.doc.clock.at(zero + time)))
     }
 }
 

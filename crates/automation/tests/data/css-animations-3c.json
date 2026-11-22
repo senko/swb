@@ -1,0 +1,41 @@
+{
+  "promises-base-ui": [
+    "rejected AbortError The user aborted a request. 1 idle 0",
+    "rejected AbortError idle 0 0",
+    "2 true true finished,finished 0",
+    "rejected:AbortError,fulfilled 0"
+  ],
+  "ready-promise": [
+    "true true false running true false true paused false paused true false true",
+    "false,false,idle,false | ready AbortError | finished DOMException AbortError The user aborted a request. | pending pending 0 animationstart k 0 - a",
+    "true finished false running pending"
+  ],
+  "finish-and-start-time": [
+    "DOMException InvalidStateError: Failed to execute 'finish' on 'Animation': Cannot finish Animation with an infinite target effect end. running",
+    "finished 1500 false resolved | animationstart k 0 - b | animationend k 1 - b | animationstart k 0 - a",
+    "500 false running paused false 500 ",
+    "true false resolved running 100"
+  ],
+  "timeline-time": [
+    "number true true true true true true true",
+    "true true",
+    "true true true true",
+    "object | TypeError: Failed to construct 'AnimationTimeline': Illegal constructor | object | object | TypeError: Failed to construct 'CSSAnimation': Illegal constructor | TypeError: Failed to construct 'CSSTransition': Illegal constructor"
+  ],
+  "events-pseudo-order": [
+    "animationstart k 0 - e1\nanimationstart k2 0 ::before e1\nanimationstart k 0 ::after e1\nanimationstart k 0 - e2\nanimationstart k2 0 - e2\nanimationend k 0.05 - e1\nanimationend k2 0.05 ::before e1\nanimationend k 0.05 ::after e1\nanimationend k 0.05 - e2\nanimationend k2 0.05 - e2",
+    "animationstart k 0 - e3\nanimationstart k2 0 - e4\nanimationcancel k ~ - e3\nanimationcancel k2 ~ - e4\nanimationstart k 0 - e4",
+    "animationstart k 0 - e3\nanimationiteration k 0.03 - e3\nanimationiteration k 0.06 - e3\nanimationcancel k ~ - e3"
+  ],
+  "animation-event-interface": [
+    "animationstart n 1.5 ::after true false false true 0 true",
+    "DOMException: Failed to execute 'createEvent' on 'Document': The provided event type ('AnimationEvent') is invalid. DOMException: Failed to execute 'createEvent' on 'Document': The provided event type ('WebKitAnimationEvent') is invalid. true true undefined",
+    "true 2 true true false true"
+  ],
+  "promise-order": [
+    "4 f0 f1 f2 f3 r0 r1 r2 r3 | animationstart k 0 - a animationstart k 0 - b animationstart k 0 - c animationstart k 0 - d animationend k 0.05 - a animationend k 0.05 - b animationend k 0.05 - c animationend k 0.05 - d",
+    "4 f3 f2 f1 f0",
+    "4 r0 r1 r2 r3 x0 x1 x3 | animationstart k 0 - a animationstart k 0 - b animationstart k 0 - c animationstart k 0 - d animationcancel k ~ - a animationcancel k ~ - b animationcancel k ~ - d animationstart k2 0 - d | 0",
+    "3 r0 r1 r2 x1 x2 | 0"
+  ]
+}

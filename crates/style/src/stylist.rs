@@ -862,6 +862,12 @@ impl Stylist {
         Some(set)
     }
 
+    /// True if the stylist has an `@keyframes` rule (a style computation
+    /// can create animations).
+    pub fn has_keyframes(&self) -> bool {
+        !self.keyframes.rules.is_empty()
+    }
+
     /// The keyframe set of the animation name `name` in the environment
     /// `env` (see [`Stylist::keyframes`]).
     pub fn keyframes_in(&self, name: &str, env: &MediaEnvironment) -> Option<Arc<KeyframeSet>> {

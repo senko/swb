@@ -125,6 +125,31 @@ fn unhandled_rejections_are_tracked_until_handled() {
     });
 }
 
+/// A promise that the host marks as handled before it rejects it is not
+/// reported (the `finished` promise of a cancelled animation, ADR 0044
+/// section 16); one that is not marked is.
+#[test]
+fn a_promise_marked_as_handled_is_not_reported() {
+    on_big_stack(|| {
+        let mut rt = runtime(false);
+        let marked = rt.new_pending_promise(0).unwrap();
+        let plain = rt.new_pending_promise(0).unwrap();
+        rt.mark_promise_handled(marked);
+        assert_eq!(rt.promise_is_handled(marked.into()), Some(true));
+        rt.reject_pending_promise(marked, Value::number(1.0))
+            .unwrap();
+        rt.reject_pending_promise(plain, Value::number(2.0))
+            .unwrap();
+        rt.run_jobs().unwrap();
+        let rejected = rt.take_unhandled_rejections();
+        assert_eq!(rejected.len(), 1);
+        assert_eq!(
+            rt.promise_settlement(rejected[0]).unwrap().1,
+            Value::number(2.0)
+        );
+    });
+}
+
 /// Many rejections that get handlers later: the tracker prunes its list,
 /// so it does not grow with the handled ones.
 #[test]

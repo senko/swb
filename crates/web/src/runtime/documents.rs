@@ -200,6 +200,18 @@ impl ScriptRuntime {
                 .unwrap_or(false)
     }
 
+    /// True if a `ready` or `finished` promise of an animation of the
+    /// document `key` waits and the engine's records changed since the
+    /// last settling (`epoch` is [`swb_style::animation::DocumentAnimations::state_epoch`]):
+    /// the rendering update then runs the animation step. An update that
+    /// changed no animation costs one comparison.
+    pub fn has_animation_promises_in(&self, key: DocumentKey, epoch: u64) -> bool {
+        !self.stopped
+            && self
+                .read_document(key, |d| d.animations.promises_due(epoch))
+                .unwrap_or(false)
+    }
+
     /// True if the document `key` has an observation.
     pub fn has_observations_in(&self, key: DocumentKey) -> bool {
         !self.stopped

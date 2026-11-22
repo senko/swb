@@ -1,0 +1,127 @@
+{
+ "viewport": [
+  400,
+  300
+ ],
+ "javascript": true,
+ "animations": true,
+ "cases": [
+  {
+   "name": "promises-base-ui",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:10px;height:10px;background:#000}@keyframes k{from{opacity:1}to{opacity:.5}}@keyframes k2{from{width:10px}to{width:20px}}</style></head><body><div class=t id=a></div><div class=t id=b></div><div class=t id=c></div><div class=t id=d></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nwindow.LOG = [];\nfunction lg(e) { LOG.push([e.type, e.animationName, e.type === 'animationcancel' ? '~' : e.elapsedTime, e.pseudoElement === '' ? '-' : e.pseudoElement, e.target.id].join(' ')); }\nfor (const t of ['animationstart', 'animationiteration', 'animationend', 'animationcancel']) document.addEventListener(t, lg);\nwindow.UNHANDLED = 0; addEventListener('unhandledrejection', () => UNHANDLED++);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { const el = $('#a'); el.style.animation = 'k 1s linear'; const as = el.getAnimations(); const p = Promise.all(as.map((x) => x.finished)).then(() => 'resolved', (e) => 'rejected ' + e.name + ' ' + e.message); await wait(50); el.style.display = 'none'; const r = await p; await wait(50); return [r, as.length, as[0].playState, UNHANDLED].join(' '); })()"
+    },
+    {
+     "js": "(async () => { const el = $('#b'); el.style.animation = 'k 1s linear'; const as = el.getAnimations(); const p = Promise.all(as.map((x) => x.finished)).then(() => 'resolved', (e) => 'rejected ' + e.name); await wait(50); el.style.animationName = 'none'; const r = await p; await wait(50); return [r, as[0].playState, el.getAnimations().length, UNHANDLED].join(' '); })()"
+    },
+    {
+     "js": "(async () => { const el = $('#c'); el.style.animation = 'k 60ms linear, k2 90ms linear'; const as = el.getAnimations(); const r = await Promise.all(as.map((x) => x.finished)); return [r.length, r[0] === as[0], r[1] === as[1], as.map((a) => a.playState).join(','), el.getAnimations().length].join(' '); })()"
+    },
+    {
+     "js": "(async () => { const el = $('#d'); el.style.animation = 'k 1s linear, k2 60ms linear'; const as = el.getAnimations(); const f = as.map((x) => x.finished); as[0].cancel(); const r = await Promise.allSettled(f); await wait(20); return r.map((x) => x.status + (x.reason ? ':' + x.reason.name : '')).join(',') + ' ' + UNHANDLED; })()"
+    }
+   ]
+  },
+  {
+   "name": "ready-promise",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:10px;height:10px;background:#000}@keyframes k{from{opacity:1}to{opacity:.5}}@keyframes k2{from{width:10px}to{width:20px}}</style></head><body><div class=t id=a></div><div class=t id=b></div><div class=t id=c></div><div class=t id=d></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nwindow.LOG = [];\nfunction lg(e) { LOG.push([e.type, e.animationName, e.type === 'animationcancel' ? '~' : e.elapsedTime, e.pseudoElement === '' ? '-' : e.pseudoElement, e.target.id].join(' ')); }\nfor (const t of ['animationstart', 'animationiteration', 'animationend', 'animationcancel']) document.addEventListener(t, lg);\nwindow.UNHANDLED = 0; addEventListener('unhandledrejection', () => UNHANDLED++);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { const el = $('#a'); el.style.animation = 'k 1s linear'; const a = el.getAnimations()[0]; const r1 = a.ready; const p1 = a.pending; const x = await r1; const s = [p1, x === a, a.pending, a.playState, r1 === a.ready]; a.pause(); const r2 = a.ready; s.push(r1 === r2, a.pending, a.playState); await r2; s.push(a.pending, a.playState, r2 === a.ready); a.play(); s.push(a.ready === r2, a.pending); return s.join(' '); })()"
+    },
+    {
+     "js": "(async () => { const el = $('#b'); el.style.animation = 'k 1s linear'; const a = el.getAnimations()[0]; const r = a.ready; const f = a.finished; const out = []; r.then(() => out.push('ready resolved'), (e) => out.push('ready ' + e.name)); f.then(() => out.push('finished resolved'), (e) => out.push('finished ' + e.constructor.name + ' ' + e.name + ' ' + e.message)); a.cancel(); const r2 = a.ready; const f2 = a.finished; out.push([r2 === r, f2 === f, a.playState, a.pending].join(',')); await wait(30); let s1 = 'pending'; r2.then(() => (s1 = 'resolved')); let s2 = 'pending'; f2.then(() => (s2 = 'resolved'), () => (s2 = 'rejected')); await wait(30); return out.join(' | ') + ' | ' + s1 + ' ' + s2 + ' ' + UNHANDLED + ' ' + LOG.join(','); })()"
+    },
+    {
+     "js": "(async () => { const el = $('#c'); el.style.animation = 'k 1s linear'; const a = el.getAnimations()[0]; await a.ready; const f1 = a.finished; a.finish(); const f2 = a.finished; await f2; const s = [f1 === f2, a.playState]; a.currentTime = 100; const f3 = a.finished; s.push(f3 === f2, a.playState); let st = 'pending'; f3.then(() => (st = 'resolved')); await wait(20); s.push(st); return s.join(' '); })()"
+    }
+   ]
+  },
+  {
+   "name": "finish-and-start-time",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:10px;height:10px;background:#000}@keyframes k{from{opacity:1}to{opacity:.5}}@keyframes k2{from{width:10px}to{width:20px}}</style></head><body><div class=t id=a></div><div class=t id=b></div><div class=t id=c></div><div class=t id=d></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nwindow.LOG = [];\nfunction lg(e) { LOG.push([e.type, e.animationName, e.type === 'animationcancel' ? '~' : e.elapsedTime, e.pseudoElement === '' ? '-' : e.pseudoElement, e.target.id].join(' ')); }\nfor (const t of ['animationstart', 'animationiteration', 'animationend', 'animationcancel']) document.addEventListener(t, lg);\nwindow.UNHANDLED = 0; addEventListener('unhandledrejection', () => UNHANDLED++);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const el = $('#a'); el.style.animation = 'k 1s linear infinite'; const a = el.getAnimations()[0]; try { a.finish(); return 'no error ' + a.playState; } catch (e) { return e.constructor.name + ' ' + e.name + ': ' + e.message + ' ' + a.playState; } })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; const el = $('#b'); el.style.animation = 'k 1s linear 500ms'; const a = el.getAnimations()[0]; let r = 'pending'; a.finished.then(() => (r = 'resolved')); a.finish(); const s = [a.playState, a.currentTime, a.pending]; await Promise.resolve(); s.push(r); await wait(50); return s.join(' ') + ' | ' + LOG.join(' | '); })()"
+    },
+    {
+     "js": "(async () => { const el = $('#c'); el.style.animation = 'k 10s linear'; const a = el.getAnimations()[0]; await a.ready; const t = document.timeline.currentTime; a.startTime = t - 500; const s = [a.currentTime, a.pending, a.playState]; a.startTime = null; s.push(a.playState, a.pending, a.currentTime, a.startTime); return s.join(' '); })()"
+    },
+    {
+     "js": "(async () => { const el = $('#d'); el.style.animation = 'k 10s linear'; const a = el.getAnimations()[0]; const p = a.pending; let r = 'pending'; a.ready.then(() => (r = 'resolved')); a.startTime = document.timeline.currentTime - 100; await Promise.resolve(); return [p, a.pending, r, a.playState, Math.round(a.currentTime)].join(' '); })()"
+    }
+   ]
+  },
+  {
+   "name": "timeline-time",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:10px;height:10px;background:#000}@keyframes k{from{opacity:1}to{opacity:.5}}@keyframes k2{from{width:10px}to{width:20px}}</style></head><body><div class=t id=a></div><div class=t id=b></div><div class=t id=c></div><div class=t id=d></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nwindow.LOG = [];\nfunction lg(e) { LOG.push([e.type, e.animationName, e.type === 'animationcancel' ? '~' : e.elapsedTime, e.pseudoElement === '' ? '-' : e.pseudoElement, e.target.id].join(' ')); }\nfor (const t of ['animationstart', 'animationiteration', 'animationend', 'animationcancel']) document.addEventListener(t, lg);\nwindow.UNHANDLED = 0; addEventListener('unhandledrejection', () => UNHANDLED++);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { const t0 = document.timeline.currentTime; const n0 = performance.now(); const [ts, tl, pn] = await new Promise((r) => requestAnimationFrame((ts) => r([ts, document.timeline.currentTime, performance.now()]))); return [typeof t0, t0 <= n0, ts === tl, pn >= ts, document.timeline instanceof DocumentTimeline, document.timeline instanceof AnimationTimeline, document.timeline === document.timeline, Object.getPrototypeOf(DocumentTimeline.prototype) === AnimationTimeline.prototype].join(' '); })()"
+    },
+    {
+     "js": "(() => { const a = document.timeline.currentTime; const end = performance.now() + 20; while (performance.now() < end) {} const b = document.timeline.currentTime; return [a === b, performance.now() > a].join(' '); })()"
+    },
+    {
+     "js": "(async () => { const el = $('#a'); el.style.animation = 'k 1s linear'; const a = el.getAnimations()[0]; await a.ready; return [a.timeline === document.timeline, a.startTime <= document.timeline.currentTime, Math.abs(a.currentTime - (document.timeline.currentTime - a.startTime)) < 0.01, Math.abs(document.timeline.currentTime * 1000 - Math.round(document.timeline.currentTime * 1000)) < 1e-6].join(' '); })()"
+    },
+    {
+     "js": "[E(() => typeof new DocumentTimeline()), E(() => typeof new AnimationTimeline()), E(() => typeof new Animation()), E(() => typeof new KeyframeEffect(null, null)), E(() => typeof new CSSAnimation()), E(() => typeof new CSSTransition())].join(' | ')"
+    }
+   ]
+  },
+  {
+   "name": "events-pseudo-order",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:10px;height:10px;background:#000}@keyframes k{from{opacity:1}to{opacity:.5}}@keyframes k2{from{width:10px}to{width:20px}}.go #e1{animation:k 50ms linear}.go #e1::before{content:'';animation:k2 50ms linear}.go #e1::after{content:'';animation:k 50ms linear}.go #e1::marker{animation:k 50ms linear}.go #e2{animation:k 50ms linear,k2 50ms linear}</style></head><body><div class=t id=e1></div><div class=t id=e2></div><div class=t id=e3></div><div class=t id=e4></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nwindow.LOG = [];\nfunction lg(e) { LOG.push([e.type, e.animationName, e.type === 'animationcancel' ? '~' : e.elapsedTime, e.pseudoElement === '' ? '-' : e.pseudoElement, e.target.id].join(' ')); }\nfor (const t of ['animationstart', 'animationiteration', 'animationend', 'animationcancel']) document.addEventListener(t, lg);\nwindow.UNHANDLED = 0; addEventListener('unhandledrejection', () => UNHANDLED++);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { document.body.classList.add('go'); await wait(300); return LOG.join('\\n'); })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; const e3 = $('#e3'); const e4 = $('#e4'); e3.style.animation = 'k 1s linear'; e4.style.animation = 'k2 1s linear'; await wait(100); e4.style.animation = 'k 1s linear'; e3.style.display = 'none'; await wait(100); return LOG.join('\\n'); })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; const e3 = $('#e3'); e3.style.display = ''; e3.style.animation = 'k 30ms linear 3'; e3.addEventListener('animationiteration', (e) => { if (e.elapsedTime > 0.05) e.target.style.animation = 'none'; }); await wait(300); return LOG.join('\\n'); })()"
+    }
+   ]
+  },
+  {
+   "name": "animation-event-interface",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:10px;height:10px;background:#000}@keyframes k{from{opacity:1}to{opacity:.5}}@keyframes k2{from{width:10px}to{width:20px}}</style></head><body><div class=t id=a></div><div class=t id=b></div><div class=t id=c></div><div class=t id=d></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nwindow.LOG = [];\nfunction lg(e) { LOG.push([e.type, e.animationName, e.type === 'animationcancel' ? '~' : e.elapsedTime, e.pseudoElement === '' ? '-' : e.pseudoElement, e.target.id].join(' ')); }\nfor (const t of ['animationstart', 'animationiteration', 'animationend', 'animationcancel']) document.addEventListener(t, lg);\nwindow.UNHANDLED = 0; addEventListener('unhandledrejection', () => UNHANDLED++);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const e = new AnimationEvent('animationstart', {animationName: 'n', elapsedTime: 1.5, pseudoElement: '::after', bubbles: true}); return [e.type, e.animationName, e.elapsedTime, e.pseudoElement, e.bubbles, e.cancelable, e.isTrusted, e instanceof Event, String(new AnimationEvent('x').elapsedTime), new AnimationEvent('x').animationName === ''].join(' '); })()"
+    },
+    {
+     "js": "[E(() => document.createEvent('AnimationEvent').constructor.name), E(() => document.createEvent('WebKitAnimationEvent').constructor.name), 'onanimationstart' in document.body, 'onanimationcancel' in window, typeof AnimationEvent.prototype.initAnimationEvent].join(' ')"
+    },
+    {
+     "js": "(async () => { const el = $('#a'); let got = ''; el.onanimationstart = (e) => { got = [e.isTrusted, e.eventPhase, e.target === el, e.currentTarget === el, e.composed, e.timeStamp > 0].join(' '); }; el.style.animation = 'k 30ms linear'; await wait(100); return got; })()"
+    }
+   ]
+  },
+  {
+   "name": "promise-order",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}.t{width:10px;height:10px;background:#000}@keyframes k{from{opacity:1}to{opacity:.5}}@keyframes k2{from{width:10px}to{width:20px}}</style></head><body><div class=t id=a></div><div class=t id=b></div><div class=t id=c></div><div class=t id=d></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nwindow.LOG = [];\nfunction lg(e) { LOG.push([e.type, e.animationName, e.type === 'animationcancel' ? '~' : e.elapsedTime, e.pseudoElement === '' ? '-' : e.pseudoElement, e.target.id].join(' ')); }\nfor (const t of ['animationstart', 'animationiteration', 'animationend', 'animationcancel']) document.addEventListener(t, lg);\nwindow.UNHANDLED = 0; addEventListener('unhandledrejection', () => UNHANDLED++);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { LOG.length = 0; const els = ['#a', '#b', '#c', '#d'].map($); els.forEach((e) => { e.style.animation = 'k 50ms linear'; }); const as = document.getAnimations(); window.PLOG = []; as.forEach((a, i) => { a.ready.then(() => PLOG.push('r' + i), () => PLOG.push('xr' + i)); a.finished.then(() => PLOG.push('f' + i), () => PLOG.push('x' + i)); }); await wait(300); return as.length + ' ' + PLOG.slice().sort().join(' ') + ' | ' + LOG.join(' '); })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; const els = ['#a', '#b', '#c', '#d'].map($); els.forEach((e) => { e.style.animation = 'none'; }); await wait(50); els.forEach((e, i) => { e.style.animation = 'k ' + (100 - i * 20) + 'ms linear'; }); const list = document.getAnimations(); window.TLOG = []; list.forEach((a, i) => { a.finished.then(() => TLOG.push('f' + i)); }); await wait(300); return list.length + ' ' + TLOG.join(' '); })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; const els = ['#a', '#b', '#c', '#d'].map($); els.forEach((e) => { e.style.animation = 'none'; }); await wait(50); els.forEach((e) => { e.style.animation = 'k 1s linear'; }); const as = document.getAnimations(); window.PLOG = []; as.forEach((a, i) => { a.ready.then(() => PLOG.push('r' + i), () => PLOG.push('xr' + i)); a.finished.then(() => PLOG.push('f' + i), () => PLOG.push('x' + i)); }); await wait(50); els[0].style.display = 'none'; els[1].style.animationName = 'none'; els[3].style.animation = 'k2 1s linear'; await wait(100); return as.length + ' ' + PLOG.slice().sort().join(' ') + ' | ' + LOG.join(' ') + ' | ' + UNHANDLED; })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; const els = ['#b', '#c'].map($); els[0].style.display = ''; els[0].style.animation = 'k 1s linear'; els[1].style.animation = 'k 1s linear'; const as = document.getAnimations(); window.PLOG = []; as.forEach((a, i) => { a.ready.then(() => PLOG.push('r' + i), () => PLOG.push('xr' + i)); a.finished.then(() => PLOG.push('f' + i), () => PLOG.push('x' + i)); }); await wait(50); els[1].remove(); await wait(100); return as.length + ' ' + PLOG.slice().sort().join(' ') + ' | ' + UNHANDLED; })()"
+    }
+   ]
+  }
+ ]
+}

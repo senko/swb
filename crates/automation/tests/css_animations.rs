@@ -9,9 +9,9 @@
 //! Feature 3b runs the animations: the rows that seek (`pause()`, then
 //! `currentTime`) and read computed values, `getAnimations()`, the play
 //! states and `getKeyframes()` are checked, with the tolerances of ADR 0044
-//! section 12 ([`close`]). [`WAITS_FOR_3C`] lists the rows that need what
-//! feature 3c adds (events, `ready` and `finished`, `cancel()`,
-//! `finish()`, the script overrides, the rest of the API), with the
+//! section 12 ([`close`]). Feature 3c adds the events, `ready` and
+//! `finished`, `cancel()`, `finish()`, the script overrides and the rest of
+//! the API. [`WAITS`] lists the rows that need a later feature, with the
 //! reason; [`SWB_ROWS`] the deliberate departures.
 
 // Test helpers outside `#[test]` functions unwrap too.
@@ -27,37 +27,37 @@ use std::sync::Arc;
 use serde_json::Value;
 use swb_engine::{Page, Size, Url};
 
-/// The rows of `css-animations.json` that wait for feature 3c: (case, query
-/// index or `None` for every query of the case, reason).
-const WAITS_FOR_3C: &[(&str, Option<usize>, &str)] = &[
-    // Missing: the animation events (`animationstart`, `animationiteration`,
-    // `animationend`, `animationcancel`) and `AnimationEvent`.
-    ("events-single", None, "events"),
-    ("events-two-elements-two-animations", None, "events"),
-    ("events-cancel", None, "events and cancel()"),
-    ("events-restart-and-pause", None, "events"),
-    // Missing: `Element.prototype.animate`, `CSSTransition`,
-    // `AnimationEvent`, `TransitionEvent`, `document.timeline`,
-    // `AnimationTimeline` and `DocumentTimeline` (the interfaces of 3c).
-    ("animation-api", Some(0), "the interfaces of 3c"),
-    // Missing: `Animation.timeline` (3c) and `transitionProperty` (feature 5).
-    ("animation-api", Some(2), "timeline"),
-    // Missing: `finish()`, `ready` and `finished` (3c).
-    ("animation-api", Some(9), "finish() and promises"),
-    ("animation-api", Some(11), "cancel() and finished"),
-    ("animation-api", Some(12), "finished"),
-    // Missing: `cancel()` (3c); the other rows of the case (`pause()`, `play()` and
-    // `currentTime` against later `animation-play-state` and timing
-    // changes) need only 3b.
-    ("script-overrides", Some(2), "cancel()"),
+/// The rows of `css-animations.json` that wait for a later feature: (case,
+/// query index or `None` for every query of the case, reason).
+const WAITS: &[(&str, Option<usize>, &str)] = &[
     // Missing: CSS transitions (feature 5).
-    ("get-animations-order", None, "transitions"),
+    ("get-animations-order", None, "transitions (feature 5)"),
 ];
 
 /// The rows of `css-animations.json` where swb departs from Chromium on
 /// purpose: (case, query index, part of Chromium's value, swb's part;
 /// every occurrence).
-const SWB_ROWS: &[(&str, usize, &str, &str)] = &[];
+const SWB_ROWS: &[(&str, usize, &str, &str)] = &[
+    // `Element.prototype.animate` does not exist (ADR 0044 section 7: no
+    // target page calls it; feature tests take their fallback).
+    (
+        "animation-api",
+        0,
+        "function function function function function function function function function object function function",
+        "function function undefined function function function function function function object function function",
+    ),
+    // `pending` right after the load: Chromium's animations of the page's
+    // style sheet still wait for its first frame when the probe asks; swb's
+    // rendering updates during the load computed the styles (the style
+    // step for animations) and the next update started them. A race in
+    // Chromium, not a rule: `pending` after `pause()` (row 13) is equal.
+    (
+        "animation-api",
+        2,
+        "k running true true",
+        "k running false true",
+    ),
+];
 
 /// The lines of rows of registered `<transform-list>` properties with a 3D
 /// function (`translate3d()`, `scale3d()`, `rotateX()`, `matrix3d()`,
@@ -145,9 +145,10 @@ const SWB_LINES: &[(&str, usize, &str, &str)] = &[
     ),
 ];
 
-/// The cases of `css-animations-3a.json` that wait for feature 3c, with the
-/// reason.
-const WAITS_FOR_3C_3A: &[(&str, &str)] = &[
+/// The cases of `css-animations-3a.json` that wait for a later change, with
+/// the reason: `getKeyframes()` with computed values, item 4 of feature 3c,
+/// was not done (ADR 0044 section 16, "Not done in 3c").
+const WAITS_3A: &[(&str, &str)] = &[
     // Chromium's `getKeyframes()` of a CSS animation gives computed values
     // (`var()` substituted, `currentcolor` resolved), the underlying value
     // in the implicit keyframes, the properties of a keyframe in its own
@@ -165,10 +166,10 @@ const WAITS_FOR_3C_3A: &[(&str, &str)] = &[
 /// [`SKIP`].
 fn expected(file: &str, name: &str, index: usize, chromium: &Value) -> Value {
     let skipped = match file {
-        "css-animations" => WAITS_FOR_3C
+        "css-animations" => WAITS
             .iter()
             .any(|&(case, query, _)| case == name && query.is_none_or(|q| q == index)),
-        _ => NOT_IMPLEMENTED.contains(&name) || WAITS_FOR_3C_3A.iter().any(|&(c, _)| c == name),
+        _ => NOT_IMPLEMENTED.contains(&name) || WAITS_3A.iter().any(|&(c, _)| c == name),
     };
     if skipped {
         return Value::String(SKIP.to_owned());
@@ -418,6 +419,59 @@ fn animation_probe_rows_3b() {
     on_page_thread(|| {
         let failures =
             run_probe_file_with("css-animations-3b", open, |_, _, value| value.clone(), same);
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    });
+}
+
+/// The rows of `css-animations-3c.json` where swb departs from Chromium on
+/// purpose: (case, query index, Chromium's value, swb's value).
+const SWB_ROWS_3C: &[(&str, usize, &str, &str)] = &[
+    // The constructors of `DocumentTimeline`, `Animation` and
+    // `KeyframeEffect` throw (ADR 0044 section 7: no page of the targets
+    // makes animations by script; `element.animate()` does not exist
+    // either).
+    (
+        "timeline-time",
+        3,
+        "object | TypeError: Failed to construct 'AnimationTimeline': Illegal constructor | object | object |",
+        "TypeError: Failed to construct 'DocumentTimeline': Illegal constructor | TypeError: Failed to construct 'AnimationTimeline': Illegal constructor | TypeError: Failed to construct 'Animation': Illegal constructor | TypeError: Failed to construct 'KeyframeEffect': Illegal constructor |",
+    ),
+    // The `animationstart` of `#a` (its pending play resolved by the
+    // catch-up of the `getAnimations()` of this query) and the
+    // `animationend` of `#b` (finished in the same task) have the same
+    // scheduled time; composite order puts `#a` first. Chromium gives
+    // either order between runs of the whole probe file.
+    (
+        "finish-and-start-time",
+        1,
+        "animationend k 1 - b | animationstart k 0 - a",
+        "animationstart k 0 - a | animationend k 1 - b",
+    ),
+];
+
+/// The rows of `css-animations-3c.json`: the events (order with
+/// pseudo-elements and cancels in one update, a listener that cancels),
+/// the `ready` and `finished` promises (Base UI's `Promise.all` of
+/// `finished` settles on `display: none` and on a removed name, without
+/// an `unhandledrejection`), `finish()`, `startTime`, `document.timeline`
+/// and `AnimationEvent`.
+#[test]
+fn animation_probe_rows_3c() {
+    on_page_thread(|| {
+        let failures = run_probe_file_with(
+            "css-animations-3c",
+            open,
+            |name, index, value| {
+                let mut value = value.clone();
+                for &(case, query, chromium, swb) in SWB_ROWS_3C {
+                    if case == name && query == index {
+                        value = Value::String(value.as_str().unwrap().replace(chromium, swb));
+                    }
+                }
+                value
+            },
+            same,
+        );
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     });
 }
