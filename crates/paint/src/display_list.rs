@@ -56,6 +56,7 @@
 //! is outside the scroll container).
 
 mod builder;
+mod equality;
 mod items;
 
 pub use builder::build_display_list;

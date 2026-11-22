@@ -6339,7 +6339,51 @@ Steps:
    4b. Damage rectangles (`implementer-hard`; section 9): the display
       list diff, the region raster with its bit-exact oracle, the GUI
       path, the content generation of media for M14; the budgets of the
-      diagnosis.
+      diagnosis. Done 2026-11-22 (ADR 0044 section 18). A frame compares
+      its display list with the last one and rasterizes only the
+      rectangles that changed into the kept pixmap; the pixels equal a
+      full raster bit for bit. Headless renders are unchanged (snapshot
+      byte-equal, scores equal).
+      - `paint/src/damage.rs`: the diff in one pass (equal items cost
+        nothing; media keys of images, frames and masks; whole groups
+        where groups differ, except translations; a lookahead of 64
+        items for inserted items and groups, else the common suffix;
+        filters grow the damage by their reach), the merge into at most
+        8 disjoint rectangles, a rectangle that touches a
+        `backdrop-filter` box holds all of it; a full raster for more
+        than half of the viewport, a viewport scroll, a new viewport or
+        scale, the first frame, and after a raster that a budget cut.
+      - Inputs outside the list: the viewport indicators, images (decoded
+        id and content generation), frame documents (a hash of their
+        paint stamps), the budgets (`RasterReport`).
+        `ImageSource::generation` and `Page::bump_image_generation`
+        prepare M14's video frames.
+      - `rasterize_region`: all rectangles in one pass into a scratch
+        pixmap of the target's size (tiny-skia's anti-aliasing depends on
+        the pixmap extent); only items are culled and per-pixel drawing is
+        limited. GUI: the composer keeps the page pixmap; the frame log
+        has `full`, `rects`, `pixels`. `--bench` reports `render`.
+      - Hover, change median (JS off): videojs 30.4 -> 0.2 ms, Hacker News
+        0.71 -> 0.04 ms, Wikipedia 2.3 -> 0.4 ms, github-swb 14.3 -> 11.8
+        ms. GUI `videojs-page`: move to frame median 48.5 -> 1.8 ms, p90
+        68.6 -> 61.0 ms; render p90 30.3 -> 8.6 ms, max 41.0 -> 41.8 ms;
+        CPU 39.9 -> 19.6 %. videojs at the marquee and the bars, idle:
+        60.7 -> 30.0 % CPU at 60 frames per second. Spinner page 1.0 %,
+        marquee page 4.5 % CPU.
+      - Budgets missed: frame max (41.8 ms, budget 33) and move to frame
+        p90 (61 ms, budget 50): the hero reveal and each wheel step are
+        full rasters. Backlog below.
+      - The oracles found the backdrop rule, a merge that broke it, a
+        border that paints 1 px outside its box (backlog) and clips that
+        the builder ended in the wrong order (fixed). The review found
+        that an opacity group whose bounds change gives other
+        anti-aliasing to its equal content (up to 14 px, 9 levels); such
+        groups are now damaged whole (no measurable cost on the hover and
+        animation sessions).
+      - Tests: `region_oracle.rs`, `damage_oracle.rs` (with the
+        reviewer's cases: elements that paint outside their boxes, nested
+        frames), `frame_oracle.rs`, `css_animations.rs`,
+        `damage/random_pairs.rs`, `damage/tests.rs`; 5 hostile cases.
    5. CSS transitions (`implementer-hard`): the `transition-*` longhands
       take effect (they leave `inert.rs`, with `calc()` in times and
       `linear()` as a timing function; the `Easing` and time parsing of
@@ -6647,6 +6691,34 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Paint-only frames (feature 4a): a hover in an iframe repaints right,
   but no test shows that the frame document took the paint-only path (the
   counters are the top-level page's).
+- Damage (feature 4b): two budgets of the diagnosis are missed on
+  videojs (frame max 41.8 ms, budget 33; move to frame p90 61 ms, budget
+  50): the hero reveal (opacity and transform over more than half of the
+  viewport) and each wheel step are full rasters. Options: a raster cache
+  of layers (ADR 0044 section 9) for the reveal; a viewport scroll that
+  shifts the kept pixels and rasterizes the exposed band.
+- Damage (feature 4b): a region frame still pays some drawing in full:
+  transform layers (layer and quad), the coverage of large rounded clips,
+  masks, the blur of large filter layers, anti-aliased paths. videojs at
+  the marquee and the bars idles at 30 % CPU (4.1 ms per frame); on
+  github-swb a region of 19 % of the viewport costs nearly a full raster.
+  Limit these to the parts, or cache layers.
+- Damage (feature 4b): `BorderGeometry::edge` snaps the inner edge to at
+  least 1 px, so a box narrower than its border widths at a fractional
+  scale paints 1 px outside its border box; the region cull has 2 px of
+  slack for it. The +1 px margin of `merge_damage` is not pinned by a
+  test (margin 0 passes every oracle).
+- Damage (feature 4b): a frame item is damaged as a whole (its own list
+  is not diffed); the window buffer is converted in full each frame.
+- Damage (feature 4b): a resampled transform adds a fixed 1 px of damage;
+  a layer capped at 4096 x 1024 px has fewer pixels than the device, and
+  no test proves the margin covers it (a 6000 x 3400 rotated box passes).
+- Damage (feature 4b), code: `merge_overlaps` repeats the loop of
+  `Region::new`; `outset`, `outset_px` and `filter_layer::grow` are one
+  function three times; `Lists::resync_budget` need not be a `Cell`;
+  `paint_generation` hashes the `Debug` text of `View`; `media_keys`,
+  `group_ends` and the scratch pixmap are per-frame work proportional to
+  the page (0.04 to 0.34 ms measured).
 - Paint (feature 3b): `background-clip: text` with a gradient differs
   from Chromium by up to 12 per channel, animated or not (the `shimmer`
   pixel test).

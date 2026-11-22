@@ -174,17 +174,32 @@ mod tests {
     fn no_indicator_without_a_user_scroll_range() {
         let port = Rect::new(0.0, 0.0, 100.0, 100.0);
         let tall = Size::new(100.0, 400.0);
-        assert!(scroll_indicators(port, tall, Point::default(), true, false).is_empty());
-        assert!(scroll_indicators(port, port_size(port), Point::default(), true, true).is_empty());
+        assert_eq!(
+            scroll_indicators(port, tall, Point::default(), true, false),
+            Vec::new()
+        );
+        assert_eq!(
+            scroll_indicators(port, port_size(port), Point::default(), true, true),
+            Vec::new()
+        );
         // 0.4 px more than the port: no range in whole pixels.
         let almost = Size::new(100.0, 100.4);
-        assert!(scroll_indicators(port, almost, Point::default(), true, true).is_empty());
+        assert_eq!(
+            scroll_indicators(port, almost, Point::default(), true, true),
+            Vec::new()
+        );
         // Too small for a thumb.
         let tiny = Rect::new(0.0, 0.0, 10.0, 10.0);
-        assert!(scroll_indicators(tiny, tall, Point::default(), true, true).is_empty());
+        assert_eq!(
+            scroll_indicators(tiny, tall, Point::default(), true, true),
+            Vec::new()
+        );
         // Non-finite sizes draw nothing.
         let nan = Size::new(f32::NAN, f32::NAN);
-        assert!(scroll_indicators(port, nan, Point::default(), true, true).is_empty());
+        assert_eq!(
+            scroll_indicators(port, nan, Point::default(), true, true),
+            Vec::new()
+        );
     }
 
     #[test]

@@ -367,7 +367,7 @@ mod tests {
             false,
             None,
         );
-        assert!(none.is_empty());
+        assert_eq!(none, Vec::new());
     }
 
     #[test]

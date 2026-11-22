@@ -37,12 +37,15 @@ mod changes;
 mod cssom;
 mod derived;
 mod element_events;
+mod frame_damage;
 pub(crate) mod frames;
 mod geometry;
 mod history_api;
 mod inner_text;
 mod lazy;
 mod loads;
+pub use frame_damage::FrameDamage;
+pub(crate) use frame_damage::full_damage;
 #[cfg(debug_assertions)]
 mod paint_check;
 mod paint_stamp;
@@ -107,7 +110,7 @@ pub(crate) struct View {
 /// (ADR 0042 section 6).
 pub(crate) struct KeptLayout {
     pub(crate) fragments: Option<FragmentTree>,
-    pub(crate) display_list: Option<DisplayList>,
+    pub(crate) display_list: Option<Arc<DisplayList>>,
     pub(crate) used_boxes: Option<(u64, resolved::BoxIndex)>,
     pub(crate) geometry: Option<(u64, geometry::GeometryIndex)>,
     pub(crate) client_rects: Option<geometry::RectIndex>,
@@ -407,9 +410,12 @@ pub struct DocumentState {
     /// Counts the layouts: a cache of data derived from the fragments is
     /// valid while this stays the same.
     pub(crate) layout_serial: u64,
-    pub(crate) display_list: Option<DisplayList>,
+    pub(crate) display_list: Option<Arc<DisplayList>>,
     /// The serial of `display_list` (`paint_stamp.rs`).
     list_serial: u64,
+    /// What the last frame of the document drew, for the damage of the next
+    /// one (`frame_damage.rs`).
+    last_frame: Option<Box<frame_damage::LastFrame>>,
     /// [`swb_paint::transform_ends`] of `display_list`, for a frame document
     /// (the rasterizer of its parent uses it; the top-level document's list
     /// gets it in each rasterization).
@@ -550,6 +556,7 @@ impl DocumentState {
             layout_serial: 0,
             display_list: None,
             list_serial: 0,
+            last_frame: None,
             list_ends: Vec::new(),
             page_color_schemes: None,
             timings: StageTimings {

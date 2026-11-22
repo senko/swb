@@ -63,6 +63,7 @@ impl ImageSource for Frames<'_> {
                 children: &doc.children,
                 lookups: self.lookups,
             }),
+            generation: 0,
         })
     }
 }

@@ -6,7 +6,7 @@ use swb_layout::Size;
 use swb_paint::Pixmap;
 
 use super::{FlushCounters, Page, StageTimings};
-use crate::document::{DocumentState, PaintStamp, Rendering};
+use crate::document::{DocumentState, FrameDamage, PaintStamp, Rendering, full_damage};
 use crate::frames::FrameId;
 
 /// The inputs of a render of the page (see [`Page::frame_outdated`]): the
@@ -42,8 +42,67 @@ impl Page {
     /// [`Page::frame_outdated`] compares. A screenshot does not record
     /// them (it is not what the window shows).
     pub fn render(&mut self, target: &mut Pixmap) {
-        self.render_viewport(target);
+        self.render_frame(target, false);
+    }
+
+    /// Renders the viewport into `target` as [`Page::render`] does, but
+    /// rasterizes only what changed since the last render (ADR 0044 section
+    /// 18): `target` must hold the pixels of the last [`Page::render`] or
+    /// `render_update` of this page, at the same size. The first frame of a
+    /// document, a frame after a scroll of the viewport or a change of the
+    /// viewport or the scale, and a frame whose damage covers more than half
+    /// of the viewport rasterize everything. Returns what was rasterized.
+    pub fn render_update(&mut self, target: &mut Pixmap) -> FrameDamage {
+        self.render_frame(target, true)
+    }
+
+    /// Renders a frame: in full, or with `kept` only the damage.
+    fn render_frame(&mut self, target: &mut Pixmap, kept: bool) -> FrameDamage {
+        self.catch_up_animations();
+        let damage = match self.parts() {
+            None => {
+                swb_paint::fill(target, swb_style::Rgba::WHITE);
+                full_damage((target.width(), target.height()))
+            }
+            Some((doc, fonts)) => {
+                doc.update_display_list(fonts);
+                self.prepare_frames();
+                match self.doc.as_deref_mut() {
+                    Some(doc) => doc.render_frame(target, kept, &mut self.fonts, &self.frames),
+                    None => FrameDamage::default(),
+                }
+            }
+        };
         self.drawn = Some(self.frame_record());
+        damage
+    }
+
+    /// Rasterizes the parts `rects` (device px) of the viewport into
+    /// `target`, which holds a rendering of the viewport, and leaves its
+    /// other pixels (`swb_paint::rasterize_region`). A part that touches the
+    /// box of a `backdrop-filter` grows to hold it, as the damage of a frame
+    /// does. Records no frame. For the oracle of the region raster: the
+    /// parts must equal a full render bit for bit.
+    pub fn render_regions(&mut self, target: &mut Pixmap, rects: &[swb_paint::PixelRect]) {
+        self.catch_up_animations();
+        let Some((doc, fonts)) = self.parts() else {
+            return;
+        };
+        doc.update_display_list(fonts);
+        self.prepare_frames();
+        if let Some(doc) = self.doc.as_deref_mut() {
+            doc.render_regions(target, rects, &mut self.fonts, &self.frames);
+        }
+    }
+
+    /// Notes that the pixels of the image of the element `node` changed
+    /// without a new decode (a video frame, M14; tests): its content
+    /// generation goes up, the frame is outdated, and the damage of the next
+    /// frame covers the image.
+    pub fn bump_image_generation(&mut self, node: swb_dom::NodeId) {
+        if let Some(doc) = self.doc.as_deref_mut() {
+            doc.images.bump_generation(swb_paint::ImageRef::Node(node));
+        }
     }
 
     /// Renders the viewport without recording a frame.

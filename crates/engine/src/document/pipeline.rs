@@ -15,10 +15,11 @@
 //! restyles only what the recorded changes affect, or falls back to a full
 //! restyle.
 
+use std::sync::Arc;
 use std::time::Instant;
 
 use swb_css::{MediaEnvironment, MediaQueryList};
-use swb_layout::{BoxContent, FragmentRef, LayoutInput, Point, Rect};
+use swb_layout::{BoxContent, FragmentRef, LayoutInput, Point};
 use swb_net::Url;
 use swb_paint::{DisplayList, NoHighlights, Pixmap, RasterParams, Scrolling};
 use swb_style::Stylist;
@@ -517,7 +518,7 @@ impl DocumentState {
     pub(crate) fn query_element_style(
         &mut self,
         node: swb_dom::NodeId,
-    ) -> Option<std::sync::Arc<swb_style::ComputedStyle>> {
+    ) -> Option<Arc<swb_style::ComputedStyle>> {
         self.process_changes();
         self.settle_animations();
         // Animated values that can have changed: the targeted restyle of
@@ -530,10 +531,10 @@ impl DocumentState {
         if !self.styles_stale
             && let Some(style) = self.styles.as_ref().and_then(|s| s.get(node))
         {
-            return Some(std::sync::Arc::clone(style));
+            return Some(Arc::clone(style));
         }
         if let Some(style) = self.element_styles.get(&node) {
-            return Some(std::sync::Arc::clone(style));
+            return Some(Arc::clone(style));
         }
         if !self.stylesheets_settled() {
             return None;
@@ -546,7 +547,7 @@ impl DocumentState {
             self.update_style();
             self.in_query = outer;
             if let Some(style) = self.styles.as_ref().and_then(|s| s.get(node)) {
-                return Some(std::sync::Arc::clone(style));
+                return Some(Arc::clone(style));
             }
         }
         if self.images.sources_outdated {
@@ -592,7 +593,7 @@ impl DocumentState {
         if inside_container && let Some(style) = self.style_after_layout(node) {
             return Some(style);
         }
-        let style = chain.last().map(|(_, s)| std::sync::Arc::clone(s));
+        let style = chain.last().map(|(_, s)| Arc::clone(s));
         self.element_styles.extend(chain);
         style
     }
@@ -604,14 +605,14 @@ impl DocumentState {
     fn style_after_layout(
         &mut self,
         node: swb_dom::NodeId,
-    ) -> Option<std::sync::Arc<swb_style::ComputedStyle>> {
+    ) -> Option<Arc<swb_style::ComputedStyle>> {
         if !self.script_layout_flush() {
             return None;
         }
         if !self.styles_stale
             && let Some(style) = self.styles.as_ref().and_then(|s| s.get(node))
         {
-            return Some(std::sync::Arc::clone(style));
+            return Some(Arc::clone(style));
         }
         let env = self.media_environment();
         let stylist = self.stylist.as_ref()?;
@@ -627,7 +628,7 @@ impl DocumentState {
             Some(&self.animations),
         );
         self.flushes.element_style(started.elapsed());
-        let style = chain.last().map(|(_, s)| std::sync::Arc::clone(s));
+        let style = chain.last().map(|(_, s)| Arc::clone(s));
         self.element_styles.extend(chain);
         style
     }
@@ -827,7 +828,7 @@ impl DocumentState {
             self.list_ends = swb_paint::transform_ends(&list.items);
         }
         self.list_serial = super::paint_stamp::next_list_serial();
-        self.display_list = Some(list);
+        self.display_list = Some(Arc::new(list));
         #[cfg(debug_assertions)]
         self.check_paint_refresh(fonts, page, control);
         self.update_animation_visibility();
@@ -1063,35 +1064,8 @@ impl DocumentState {
             self.timings.raster = started.elapsed();
         }
         // The viewport indicators belong on a rendering of the viewport.
-        if self.view.indicators && what == Rendering::Viewport {
-            self.render_viewport_indicators(target, fonts);
+        if what == Rendering::Viewport {
+            self.draw_indicators(target, None, fonts);
         }
-    }
-
-    /// Draws the overlay scroll indicators of the viewport over the page
-    /// (the same indicators as those of scroll containers).
-    fn render_viewport_indicators(&mut self, target: &mut Pixmap, fonts: &mut FontContext) {
-        let Some(fragments) = &self.fragments else {
-            return;
-        };
-        if fragments.viewport_scrollbar_hidden {
-            return;
-        }
-        let viewport = self.view.viewport;
-        let port = Rect::new(0.0, 0.0, viewport.width, viewport.height);
-        // No indicator on axes with `overflow: hidden`.
-        let (user_x, user_y) = self.viewport_user_axes();
-        let size = fragments.scroll_size;
-        let items = swb_paint::scroll_indicators(port, size, self.scroll, user_x, user_y);
-        if items.is_empty() {
-            return;
-        }
-        let params = RasterParams {
-            scroll: Point::default(),
-            viewport_scroll: Point::default(),
-            scale: self.view.scale,
-        };
-        let list = DisplayList { items };
-        swb_paint::rasterize(&list, target, params, fonts, &self.images);
     }
 }

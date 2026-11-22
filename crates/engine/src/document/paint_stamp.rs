@@ -5,6 +5,8 @@
 //! render would change the pipeline's state.
 
 use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use swb_dom::NodeId;
@@ -36,6 +38,8 @@ pub(crate) struct PaintStamp {
     offsets: HashMap<NodeId, Point>,
     /// The viewport, the scale, the indicators and the color scheme.
     view: View,
+    /// The generation bumps of the document's images (media frames).
+    media: u64,
 }
 
 impl DocumentState {
@@ -50,7 +54,29 @@ impl DocumentState {
             scroll: self.scroll,
             offsets: self.scrollers.offsets().clone(),
             view: self.view,
+            media: self.images.media_generation,
         }
+    }
+
+    /// A hash of [`DocumentState::paint_stamp`]: equal stamps give equal
+    /// numbers. For the media key of the document's frame in the damage of
+    /// its parent (ADR 0044 section 18).
+    pub(crate) fn paint_generation(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        let stamp = self.paint_stamp();
+        stamp.list.hash(&mut hasher);
+        stamp.scroll.x.to_bits().hash(&mut hasher);
+        stamp.scroll.y.to_bits().hash(&mut hasher);
+        let mut offsets: Vec<(NodeId, u32, u32)> = stamp
+            .offsets
+            .iter()
+            .map(|(node, p)| (*node, p.x.to_bits(), p.y.to_bits()))
+            .collect();
+        offsets.sort_unstable_by_key(|(node, _, _)| *node);
+        offsets.hash(&mut hasher);
+        format!("{:?}", stamp.view).hash(&mut hasher);
+        stamp.media.hash(&mut hasher);
+        hasher.finish()
     }
 
     /// True if a rendering would do work that can change the pixels: the

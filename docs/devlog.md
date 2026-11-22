@@ -4,6 +4,35 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-22: M13 feature 4b, damage rectangles and region raster
+
+- ADR 0044, section 18. A frame compares its display list with the last
+  frame's and rasterizes only the rectangles that changed into the kept
+  pixmap of the window; the pixels equal a full raster bit for bit.
+- The diff walks both lists once: equal items cost nothing, different
+  groups cost their bounds, inserted items are found by a short
+  lookahead. Images and frames compare a media key (the decoded image and
+  its content generation, the frame documents' stamps), which prepares
+  video frames for M14.
+- A smaller pixmap is not exact: tiny-skia's coverage of a path changes up
+  to 10 px inside the pixmap edge. The region raster draws all rectangles
+  in one pass into a scratch pixmap of full size and only culls items and
+  limits per-pixel drawing. For the same reason an opacity group whose
+  bounds change is damaged whole (the review found it with random pairs
+  of lists).
+- Two oracles: random rectangles with garbage on the fixtures, and frame
+  sequences rendered with damage against full renders. They found the
+  `backdrop-filter` rule, a border that paints outside its box, and clips
+  that the builder closed in the wrong order.
+- Hover changes on videojs: 30 ms -> 0.2 ms (median). GUI trace: pointer
+  move to frame median 48.5 -> 1.8 ms; CPU 40 % -> 20 %.
+- Missed: frame max and move-to-frame p90 (full rasters of the hero
+  reveal and of wheel steps), and the idle CPU at the marquee and the
+  bars of videojs (30 %): large layers are still drawn in full once per
+  frame.
+- Next: the owner decides between a layer cache and scroll shifting
+  first, or feature 5 (CSS transitions).
+
 ## 2026-11-22: M13 feature 4a, paint-only frames
 
 - ADR 0044, section 17. A restyle that changes only paint properties

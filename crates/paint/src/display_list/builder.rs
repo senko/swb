@@ -440,8 +440,10 @@ impl Builder<'_> {
         self.list
             .extend(clips.iter().map(|&(r, radii)| clip_item(r, radii)));
         self.box_contents(b, origin, decorations, ancestry, context);
+        // The ends in reverse order: a rounded clip (a group) and a plain
+        // clip must nest, as the damage of a frame needs (`crate::damage`).
         self.list
-            .extend(clips.iter().map(|&(_, radii)| unclip_item(radii)));
+            .extend(clips.iter().rev().map(|&(_, radii)| unclip_item(radii)));
         if viewport_fixed {
             self.list.push(DisplayItem::PopClip);
         }

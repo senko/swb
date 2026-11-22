@@ -5,15 +5,19 @@
 //! times by discarding all results before each render. After them, the
 //! interaction stages move the pointer over a grid (hover) and turn the
 //! wheel (scroll), each step with a render, through the page's input paths
-//! as the GUI's frame does. The output is JSON (format:
-//! docs/performance.md).
+//! as the GUI's frame does. The hover and animation steps render with
+//! damage into the kept pixmap (`Page::render_update`), as the GUI does, so
+//! that their raster times are those of the damage (ADR 0044 section 18).
+//! The output is JSON (format: docs/performance.md).
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 use serde_json::json;
-use swb_engine::{FlushCounters, Page, Pixmap, Point, RestylePaths, StageTimings, Url};
+use swb_engine::{
+    FlushCounters, FrameDamage, Page, Pixmap, Point, RestylePaths, StageTimings, Url,
+};
 use swb_net::{Destination, Fetcher, Request, fetch_following_redirects};
 
 /// Runs the benchmark for the loaded `page` and prints the result.
@@ -138,22 +142,45 @@ const MAX_WHEEL_STEPS: usize = 20;
 struct Step {
     time: Duration,
     flushes: FlushCounters,
+    /// What the render drew, and the times of its raster and of the
+    /// comparison of the lists; `None` without a render.
+    render: Option<(FrameDamage, Duration, Duration)>,
 }
 
 impl Step {
     /// Runs `input` (which returns true if the page needs a repaint), then
-    /// renders if it does, as the GUI does. The GUI's composition of the
-    /// window (toolbar, copies) is not part of the time.
-    fn run(page: &mut Page, pixmap: &mut Pixmap, input: impl FnOnce(&mut Page) -> bool) -> Step {
+    /// renders if it does, as the GUI does: in full with `Render::Full`,
+    /// else only the damage into `pixmap`, which holds the last frame. The
+    /// GUI's composition of the window (toolbar, copies) is not part of the
+    /// time.
+    fn run(
+        page: &mut Page,
+        pixmap: &mut Pixmap,
+        how: Render,
+        input: impl FnOnce(&mut Page) -> bool,
+    ) -> Step {
         let before = page.flush_counters();
         let started = Instant::now();
-        if input(page) {
-            page.render(pixmap);
-        }
+        let render = input(page).then(|| {
+            let damage = match how {
+                Render::Full => {
+                    page.render(pixmap);
+                    FrameDamage {
+                        full: true,
+                        rects: Vec::new(),
+                        viewport_pixels: u64::from(pixmap.width()) * u64::from(pixmap.height()),
+                    }
+                }
+                Render::Damage => page.render_update(pixmap),
+            };
+            let timings = page.timings();
+            (damage, timings.raster, timings.damage)
+        });
         let time = started.elapsed();
         Step {
             time,
             flushes: delta(&before, &page.flush_counters()),
+            render,
         }
     }
 
@@ -162,6 +189,38 @@ impl Step {
     fn restyled(&self) -> bool {
         self.flushes.style_runs > 0
     }
+}
+
+/// How a step renders.
+#[derive(Clone, Copy)]
+enum Render {
+    /// The whole viewport.
+    Full,
+    /// The damage, into the kept pixmap.
+    Damage,
+}
+
+/// The raster of the steps that rendered: the median raster and diff
+/// times, the frames by kind and the median pixels of the region frames.
+fn raster_json(steps: &[&Step]) -> serde_json::Value {
+    let renders: Vec<&(FrameDamage, Duration, Duration)> =
+        steps.iter().filter_map(|s| s.render.as_ref()).collect();
+    let regions: Vec<&FrameDamage> = renders
+        .iter()
+        .map(|r| &r.0)
+        .filter(|d| !d.full && !d.rects.is_empty())
+        .collect();
+    let mut pixels: Vec<u64> = regions.iter().map(|d| d.pixels()).collect();
+    pixels.sort_unstable();
+    json!({
+        "raster_ms": ms(median(renders.iter().map(|r| r.1).collect())),
+        "raster_p90_ms": ms(percentile(renders.iter().map(|r| r.1).collect(), 0.9)),
+        "damage_ms": ms(median(renders.iter().map(|r| r.2).collect())),
+        "full_frames": renders.iter().filter(|r| r.0.full).count(),
+        "region_frames": regions.len(),
+        "empty_frames": renders.iter().filter(|r| !r.0.full && r.0.rects.is_empty()).count(),
+        "region_pixels_median": pixels.get(pixels.len() / 2).copied().unwrap_or(0),
+    })
 }
 
 /// The runs and times between two readings of the counters (only the
@@ -213,7 +272,7 @@ fn animation_stage(page: &mut Page, pixmap: &mut Pixmap) -> serde_json::Value {
         if let Some(next) = page.pump().next {
             std::thread::sleep(next.saturating_duration_since(Instant::now()));
         }
-        let step = Step::run(page, pixmap, |p| p.frame_outdated());
+        let step = Step::run(page, pixmap, Render::Damage, |p| p.frame_outdated());
         if step.restyled() {
             stages.push(page.timings());
             steps.push(step);
@@ -221,7 +280,9 @@ fn animation_stage(page: &mut Page, pixmap: &mut Pixmap) -> serde_json::Value {
     }
     page.set_paints_frames(false);
     let median_of = |f: fn(&StageTimings) -> Duration| ms(median(stages.iter().map(f).collect()));
+    let rendered: Vec<&Step> = steps.iter().collect();
     json!({
+        "render": raster_json(&rendered),
         "frames": steps.len(),
         "median_ms": ms(median(steps.iter().map(|s| s.time).collect())),
         // The style and layout times of the runs in the frame, so a frame
@@ -261,7 +322,9 @@ fn hover_stage(page: &mut Page, pixmap: &mut Pixmap, rounds: usize) -> serde_jso
     let mut steps = Vec::with_capacity(points.len() * rounds);
     for _ in 0..rounds {
         for &(x, y) in &points {
-            steps.push(Step::run(page, pixmap, |p| p.mouse_move(x, y)));
+            steps.push(Step::run(page, pixmap, Render::Damage, |p| {
+                p.mouse_move(x, y)
+            }));
         }
     }
     let changed: Vec<&Step> = steps.iter().filter(|s| s.restyled()).collect();
@@ -270,6 +333,7 @@ fn hover_stage(page: &mut Page, pixmap: &mut Pixmap, rounds: usize) -> serde_jso
     let times = |steps: &[&Step]| steps.iter().map(|s| s.time).collect::<Vec<_>>();
     let all: Vec<&Step> = steps.iter().collect();
     json!({
+        "render": raster_json(&changed),
         "grid": [columns, rows],
         "rounds": rounds,
         "steps": steps.len(),
@@ -305,7 +369,7 @@ fn scroll_stage(page: &mut Page, pixmap: &mut Pixmap) -> serde_json::Value {
     for direction in [1.0, -1.0] {
         for _ in 0..MAX_WHEEL_STEPS {
             let before = page.scroll_position();
-            steps.push(Step::run(page, pixmap, |p| {
+            steps.push(Step::run(page, pixmap, Render::Full, |p| {
                 p.wheel(x, y, 0.0, direction * WHEEL_STEP)
             }));
             if page.scroll_position() == before {

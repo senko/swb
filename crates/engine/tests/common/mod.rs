@@ -4,6 +4,7 @@
 
 #![allow(dead_code)] // Each test binary uses a different subset.
 
+pub(crate) mod damage;
 pub(crate) mod probe_rows;
 
 use std::collections::HashMap;

@@ -1,6 +1,8 @@
 //! Image decoding: raster formats into premultiplied RGBA pixmaps, SVG
 //! into a vector image (see [`crate::svg`]).
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use image::ImageDecoder;
 use swb_layout::NaturalSize;
 use thiserror::Error;
@@ -43,6 +45,9 @@ pub fn is_supported_image_type(essence: &str) -> bool {
 /// A decoded image.
 #[derive(Debug)]
 pub struct DecodedImage {
+    /// A number that no other image of the process has (see
+    /// [`DecodedImage::id`]).
+    id: u64,
     kind: ImageKind,
     /// The reduced levels of a raster image, made when it is drawn small.
     reductions: Reductions,
@@ -77,6 +82,13 @@ impl DecodedImage {
         }
     }
 
+    /// A number that no other decoded image of the process has: the damage
+    /// of a frame (`crate::damage`) tells a newly decoded image from the
+    /// one that the last frame drew.
+    pub fn id(&self) -> u64 {
+        self.id
+    }
+
     pub(crate) fn kind(&self) -> &ImageKind {
         &self.kind
     }
@@ -87,7 +99,10 @@ impl DecodedImage {
     }
 
     fn new(kind: ImageKind) -> Self {
+        /// The id of the next decoded image (0 means "no image").
+        static NEXT_ID: AtomicU64 = AtomicU64::new(1);
         DecodedImage {
+            id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
             kind,
             reductions: Reductions::default(),
         }

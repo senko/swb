@@ -619,6 +619,7 @@ fn rasterizer<'a>(
         vectors,
         translation: Point::default(),
         visible: Rect::new(0.0, 0.0, target_size.0 as f32, target_size.1 as f32),
+        region: None,
         viewport_scroll: Point::default(),
         fixed_origin: Point::default(),
         viewport_clip: None,

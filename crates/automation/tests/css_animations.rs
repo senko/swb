@@ -646,3 +646,50 @@ fn animation_probe_pages_with_the_paint_check() {
         assert!(checked > 0, "no paint-only frame");
     });
 }
+
+/// The damage of frames (ADR 0044 section 18) on the probe pages at their
+/// seek times: after every step and query, the frame is drawn with its
+/// damage into the pixmap of the last frame (`Page::render_update`), which
+/// must equal a full render bit for bit.
+#[test]
+fn animation_probe_pages_with_the_damage_oracle() {
+    on_page_thread(|| {
+        let (mut regions, mut frames) = (0, 0);
+        for file in ["css-animations", "css-animations-3b", "css-animations-3c"] {
+            let text = std::fs::read_to_string(
+                common::repo_root().join(format!("tools/probes/{file}.json")),
+            )
+            .unwrap();
+            let probe: Value = serde_json::from_str(&text).unwrap();
+            for case in probe["cases"].as_array().unwrap() {
+                let name = case["name"].as_str().unwrap_or("?");
+                let mut page = open(case);
+                page.set_animations(true);
+                page.set_paints_frames(true);
+                let steps = case["steps"].as_array().cloned().unwrap_or_default();
+                if swb_automation::run_steps(&mut page, &steps).is_err() {
+                    continue;
+                }
+                let full = page.screenshot(false).unwrap();
+                let mut kept = full.clone();
+                page.render(&mut kept);
+                for (i, query) in case["measure"].as_array().unwrap().iter().enumerate() {
+                    if let Some(source) = query["js"].as_str() {
+                        common::value(&mut page, source);
+                        let damage = page.render_update(&mut kept);
+                        frames += 1;
+                        regions += usize::from(!damage.full && !damage.rects.is_empty());
+                        let full = page.screenshot(false).unwrap();
+                        assert!(
+                            full.data() == kept.data(),
+                            "{file} {name}, query {i}: the frame with the damage {damage:?} \
+                             differs from a full render"
+                        );
+                    }
+                }
+            }
+        }
+        eprintln!("frames compared: {frames}, {regions} with damage rectangles");
+        assert!(regions > 0, "no frame with damage rectangles");
+    });
+}

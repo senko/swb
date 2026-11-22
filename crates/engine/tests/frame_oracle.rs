@@ -20,27 +20,29 @@ use swb_engine::{ClockMode, Key, Modifiers, MouseButton, Page, PageClock, Size, 
 use swb_net::Fetcher;
 
 mod common;
-use common::{
-    SHIFT, TestSite, finish_loading, load_fixture, new_page, on_page_thread, pump_for,
-    render_viewport,
-};
+use common::damage::DamageOracle;
+use common::{SHIFT, TestSite, finish_loading, load_fixture, new_page, on_page_thread, pump_for};
 
 const VIEW: Size = Size::new(1280.0, 800.0);
 
 /// Renders when the frame is outdated, else renders again and compares
 /// with the last pixels. Returns the number of frames that were outdated.
+#[derive(Default)]
 struct Oracle {
     last: Option<Vec<u8>>,
     frames: usize,
     checks: usize,
     /// Frames that were outdated but drew the same pixels (allowed).
     wasted: usize,
+    /// Every frame is also drawn with its damage into a kept pixmap, which
+    /// must equal the full render (ADR 0044 section 18).
+    damage: DamageOracle,
 }
 
 impl Oracle {
     fn step(&mut self, page: &mut Page, label: &str) {
         let outdated = page.frame_outdated();
-        let data = render_viewport(page).data().to_vec();
+        let data = self.damage.step(page, label).data().to_vec();
         if outdated {
             self.frames += 1;
             if self.last.as_ref() == Some(&data) {
@@ -137,16 +139,13 @@ fn run_fixture(name: &str, javascript: bool) -> Option<(usize, usize)> {
     let mut page = load_fixture(name, javascript, VIEW, |page| {
         page.set_scroll_indicators(true);
     })?;
-    let mut oracle = Oracle {
-        last: None,
-        frames: 0,
-        checks: 0,
-        wasted: 0,
-    };
+    let mut oracle = Oracle::default();
     session(&mut page, &mut oracle);
     eprintln!(
-        "{name} (js {javascript}): {} outdated frames, {} frames checked as current",
-        oracle.frames, oracle.checks
+        "{name} (js {javascript}): {} outdated frames, {} frames checked as current; {}",
+        oracle.frames,
+        oracle.checks,
+        oracle.damage.summary()
     );
     Some((oracle.frames, oracle.checks))
 }
@@ -212,12 +211,7 @@ fn run_animation_case(name: &str, html: &str, javascript: bool, actions: &[Act])
     page.set_paints_frames(true);
     page.navigate(Url::parse(URL).unwrap());
     finish_loading(&mut page, Duration::from_secs(20));
-    let mut oracle = Oracle {
-        last: None,
-        frames: 0,
-        checks: 0,
-        wasted: 0,
-    };
+    let mut oracle = Oracle::default();
     oracle.step(&mut page, &format!("{name}: first"));
     for (i, act) in actions.iter().enumerate() {
         match *act {
@@ -232,8 +226,12 @@ fn run_animation_case(name: &str, html: &str, javascript: bool, actions: &[Act])
         oracle.step(&mut page, &format!("{name} (js {javascript}): step {i}"));
     }
     eprintln!(
-        "{name} (js {javascript}): {} frames ({} without a pixel change), {} steps without a frame",
-        oracle.frames, oracle.wasted, oracle.checks
+        "{name} (js {javascript}): {} frames ({} without a pixel change), {} steps without a \
+         frame; {}",
+        oracle.frames,
+        oracle.wasted,
+        oracle.checks,
+        oracle.damage.summary()
     );
     Counts {
         frames: oracle.frames,

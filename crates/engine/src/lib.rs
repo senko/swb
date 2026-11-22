@@ -22,10 +22,10 @@ mod selection;
 mod web_fonts;
 
 pub use boxes::{ElementBox, element_boxes};
-pub use document::DocumentState;
 #[cfg(debug_assertions)]
 #[doc(hidden)]
 pub use document::restyle_check::{paint_checks, restyle_checks, set_restyle_check};
+pub use document::{DocumentState, FrameDamage};
 pub use edit::TextEdit;
 pub use frames::{
     DEFAULT_FRAME_VIEWPORT, FrameId, MAX_DEPTH, MAX_FONT_BYTES, MAX_FRAMES, MAX_IMAGE_BYTES,

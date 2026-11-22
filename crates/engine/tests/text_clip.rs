@@ -182,7 +182,7 @@ fn a_box_without_text_paints_no_text_layer() {
                background-clip:text,border-box}";
     let list = list_of("text-clip-empty", css, "<div class='t e'></div>");
     // The empty box paints the border-box layer only.
-    assert!(masks(&list).is_empty());
+    assert_eq!(masks(&list), Vec::<Vec<DisplayItem>>::new());
     assert_eq!(count(&list, is_gradient), 1);
 }
 
@@ -194,7 +194,7 @@ fn too_many_glyphs_paint_the_border_box() {
     let css = ".w{font:1px/1px Arial;height:auto;width:100px;overflow-wrap:anywhere}";
     let body = format!("<div class='t w'>{text}</div>");
     let list = list_of("text-clip-glyphs", css, &body);
-    assert!(masks(&list).is_empty());
+    assert_eq!(masks(&list), Vec::<Vec<DisplayItem>>::new());
     assert_eq!(count(&list, is_gradient), 1);
 }
 

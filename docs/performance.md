@@ -143,6 +143,15 @@ part of the times. The result is the key `interaction` of the JSON:
   styles), `paint_fallbacks` (those whose refresh gave up and laid out
   again) and `paint_ms_per_change`. `swbtools perf` prints
   `paint_only_changes` as a column of the interaction table.
+- Damage (since M13 feature 4b, ADR 0044 section 18): the hover and
+  animation steps render with `Page::render_update` into the pixmap of the
+  last frame, as the GUI does, so their raster is that of the damage; the
+  scroll steps render in full (each scrolls the viewport). Both stages
+  report `render` for the steps that rendered: `raster_ms` and
+  `raster_p90_ms` (the raster of the damage), `damage_ms` (the median time
+  of the diff of the display lists), `full_frames`, `region_frames` and
+  `empty_frames` (frames without damage), and `region_pixels_median` (the
+  device pixels of a region frame).
 
 The stages work with JavaScript on: `--js --virtual-time` (and the
 fixture's `--now` and `--settle-ms`) as for the other JS tools. `swbtools
@@ -159,7 +168,7 @@ standard error, with times in seconds of `CLOCK_MONOTONIC` (six decimals):
 
 ```
 batch start=12.500000 end=12.562500 moves=3 wheels=1 presses=0 releases=2 keys=4 frame=1
-frame at=100.250000 render=0.010000 compose=0.003000 present=0.001500
+frame at=100.250000 render=0.010000 compose=0.003000 present=0.001500 full=0 rects=2 pixels=31500
 ```
 
 - `batch`: one per batch of window events that had input, from the start of
@@ -175,7 +184,12 @@ frame at=100.250000 render=0.010000 compose=0.003000 present=0.001500
   other three are durations: from the start of the redraw to the end of
   the page render (the surface resize and the allocation of the pixmaps
   included), the composition (the copy of the page into the frame, the
-  toolbar, the conversion into the window buffer), and `present`.
+  toolbar, the conversion into the window buffer), and `present`. Since
+  M13 feature 4b the damage of the page raster follows (ADR 0044 section
+  18): `full` 1 for a full raster, `rects` the rectangles of damage that
+  were rasterized and `pixels` the device pixels rasterized; all 0 when the
+  page was not drawn (a frame for the toolbar or the bubble only, or a frame
+  without damage).
 
 The log costs a few counters per event; the clock reads and the lines exist
 only at the debug level. `swbtools gui-latency` (docs/testing.md) reads

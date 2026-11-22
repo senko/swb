@@ -3,8 +3,10 @@
 //!
 //! A [`Composer`] holds two pixmaps for one window size and scale:
 //!
-//! - `page`: the page area, rasterized by `Page::render` only when the page
-//!   is outdated (or the window changed);
+//! - `page`: the page area, rasterized by `Page::render` when the layers
+//!   are new (or the window changed), else by `Page::render_update` when
+//!   the page is outdated: then only the damage of the frame is rasterized
+//!   into the kept pixels (ADR 0044 section 18);
 //! - `chrome`: window-sized, but only the rows of the toolbar and the
 //!   rectangle of the status bubble are used.
 //!
@@ -22,7 +24,7 @@
 use std::time::Instant;
 
 use anyhow::{Context, Result};
-use swb_engine::{Page, Pixmap, Size, TextEdit};
+use swb_engine::{FrameDamage, Page, Pixmap, Size, TextEdit};
 use swb_layout::{Point, Rect};
 use swb_paint::{DecodedImage, ImageRef, ImageSource, RasterParams, VectorCache};
 
@@ -106,6 +108,9 @@ pub(super) struct Composer {
     toolbar_key: Option<ToolbarKey>,
     bubble: Option<Bubble>,
     pub(super) rasters: Rasters,
+    /// What the page raster of the last composition drew (`None`: the page
+    /// was not drawn), for the frame log.
+    pub(super) damage: Option<FrameDamage>,
 }
 
 /// The toolbar's height in device pixels.
@@ -138,6 +143,7 @@ impl Composer {
             toolbar_key: None,
             bubble: None,
             rasters: Rasters::default(),
+            damage: None,
         })
     }
 
@@ -163,8 +169,23 @@ impl Composer {
     /// the time at which the page raster ended (for the frame log).
     pub(super) fn compose(&mut self, page: &mut Page, toolbar: &Toolbar) -> Instant {
         let page_drawn = !self.page_current || page.frame_outdated();
+        self.damage = None;
         if page_drawn {
-            page.render(&mut self.page);
+            // The page's pixels hold its last frame once they were drawn:
+            // the next frames draw only their damage. A new composer (a new
+            // window size or scale) draws everything; so does the page on
+            // the first frame of a document.
+            if self.page_current {
+                self.damage = Some(page.render_update(&mut self.page));
+            } else {
+                page.render(&mut self.page);
+                let pixels = u64::from(self.page.width()) * u64::from(self.page.height());
+                self.damage = Some(FrameDamage {
+                    full: true,
+                    rects: Vec::new(),
+                    viewport_pixels: pixels,
+                });
+            }
             self.page_current = true;
             self.rasters.page += 1;
         }

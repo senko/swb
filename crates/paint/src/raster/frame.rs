@@ -42,6 +42,11 @@ pub struct FrameContent<'a> {
     pub canvas: Option<Rgba>,
     /// The images and the frames of the document.
     pub source: Box<dyn ImageSource + 'a>,
+    /// A number that changes when what the frame draws changes without a
+    /// change of the item of the frame (its list, its scroll offsets, its
+    /// images): the damage of a frame of the page (`crate::damage`)
+    /// covers the frame's rectangle when it changes.
+    pub generation: u64,
 }
 
 /// The most items of the display lists of frames that one strip draws (a

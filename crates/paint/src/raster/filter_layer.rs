@@ -18,6 +18,7 @@ use swb_layout::Rect;
 use swb_style::{FilterFunction, Rgba};
 use tiny_skia::{Pixmap, PixmapPaint, Transform};
 
+use super::region::Region;
 use super::{Layer, LayerKind, Rasterizer, snap_out};
 use crate::filter::{self, Margins, Op};
 
@@ -30,6 +31,8 @@ pub(super) struct FilterLayer {
     /// The area of the rasterizer that culls the items of the group, before
     /// the group.
     visible: Rect,
+    /// The region of the rasterizer before the group.
+    region: Option<Region>,
     /// True if the group contains content fixed to the viewport, which the
     /// enclosing clips do not clip.
     escapes_clips: bool,
@@ -88,14 +91,33 @@ impl Rasterizer<'_> {
             .unwrap_or(shown);
         match self.filter_layer(&ops, area) {
             Some((pixmap, scratch)) => {
+                // In a raster of parts, the content is drawn where the
+                // steps read it for the part.
+                let content = self
+                    .region
+                    .as_ref()
+                    .map(|r| r.grown(filter::backward_reach(&ops), area));
+                let content_area = match &content {
+                    None => area,
+                    Some(Some(region)) => region.bounds(),
+                    Some(None) => Rect::new(area.x, area.y, 0.0, 0.0),
+                };
                 let layer = FilterLayer {
                     ops,
                     clips: std::mem::take(&mut self.clips),
                     visible: self.visible,
+                    region: self.region.take(),
                     escapes_clips,
                     scratch,
                 };
-                self.visible = self.visible_for(area);
+                self.visible = self.visible_for(content_area);
+                self.region = match content {
+                    None => None,
+                    Some(Some(region)) => Some(region),
+                    // Nothing of the content can reach the region: the
+                    // layer draws nothing that matters.
+                    Some(None) => Region::new(vec![Rect::new(area.x, area.y, 1.0, 1.0)]),
+                };
                 self.layers.push(Layer {
                     pixmap: Some(pixmap),
                     direct: false,
@@ -159,10 +181,12 @@ impl Rasterizer<'_> {
             ops,
             clips,
             visible,
+            region,
             escapes_clips,
             scratch,
         } = filter;
         self.visible = visible;
+        self.region = region;
         let Some(mut pixmap) = layer.pixmap.take() else {
             self.clips = clips;
             return;
@@ -181,19 +205,22 @@ impl Rasterizer<'_> {
             self.clips.clear();
             self.clips.extend(self.viewport_clip);
             self.mask = None;
-            self.composite_filtered(&pixmap, layer.origin);
+            self.composite_filtered(pixmap, layer.origin);
             self.clips = clips;
         } else {
             self.clips = clips;
-            self.composite_filtered(&pixmap, layer.origin);
+            self.composite_filtered(pixmap, layer.origin);
         }
         self.mask = None;
     }
 
     /// Draws the layer `pixmap` at `origin` (target device px) into the
     /// surface, inside the open clip.
-    fn composite_filtered(&mut self, pixmap: &Pixmap, origin: (i32, i32)) {
+    fn composite_filtered(&mut self, pixmap: Pixmap, origin: (i32, i32)) {
         let Some(parent) = self.surface_rect() else {
+            return;
+        };
+        let Some((pixmap, origin)) = self.crop(pixmap, origin) else {
             return;
         };
         let device = Rect::new(

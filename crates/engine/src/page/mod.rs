@@ -107,8 +107,11 @@ pub struct StageTimings {
     pub layout: Duration,
     /// Building the display list.
     pub display_list: Duration,
-    /// Rasterizing the viewport.
+    /// Rasterizing the viewport (in a frame with damage: the damage).
     pub raster: Duration,
+    /// Finding the damage of a frame: the comparison of its display list
+    /// with the last frame's (ADR 0044 section 18).
+    pub damage: Duration,
 }
 
 /// The style and layout runs of a document since it was created, and their

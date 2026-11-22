@@ -5,7 +5,7 @@ The GUI prints two kinds of lines at the debug level of the target
 `crates/swb/src/gui/framelog.rs`). Times are seconds of `CLOCK_MONOTONIC`:
 
     batch start=T end=T moves=N wheels=N presses=N releases=N keys=N frame=F
-    frame at=T render=D compose=D present=D
+    frame at=T render=D compose=D present=D [full=F rects=N pixels=N]
 
 A `batch` is one batch of window events that had input (from `new_events`
 to the end of `about_to_wait`) with the number of input events by kind;
@@ -13,7 +13,8 @@ to the end of `about_to_wait`) with the number of input events by kind;
 the field has none). A
 `frame` is one presented frame: `at` is the time after `present`; the
 other times are durations of the page render, the composition and
-`present`.
+`present`; since M13 feature 4b the damage of the page raster follows
+(ignored here).
 
 `map_events` gives each injected event the batch that handled it, by order
 within its kind: the k-th event of a kind belongs to the batch in which the

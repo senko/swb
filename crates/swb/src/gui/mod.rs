@@ -460,7 +460,8 @@ impl App {
         buffer
             .present()
             .map_err(|e| anyhow::anyhow!("present failed: {e}"))?;
-        self.frame_log.frame(started, rendered, composed);
+        self.frame_log
+            .frame(started, rendered, composed, composer.damage.as_ref());
         self.drawn = self.frame_key();
         Ok(())
     }

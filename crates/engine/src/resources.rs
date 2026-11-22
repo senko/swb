@@ -570,9 +570,25 @@ pub(crate) struct Images {
     /// What the loaded raster images hold of `budget`; the bytes return
     /// when the images go with the document.
     held: Vec<Arc<Reservation>>,
+    /// The content generation of each image whose pixels changed without a
+    /// new decode ([`Images::bump_generation`]; the frames of a video in
+    /// M14). The damage of a frame covers an image whose generation changed
+    /// (ADR 0044 section 18).
+    generations: HashMap<ImageRef, u64>,
+    /// The number of generation bumps in the document: the paint stamp
+    /// holds it, so that a bump makes the frame outdated.
+    pub(crate) media_generation: u64,
 }
 
 impl Images {
+    /// Notes that the pixels of `image` changed without a new decode: its
+    /// content generation goes up.
+    pub(crate) fn bump_generation(&mut self, image: ImageRef) {
+        let generation = self.generations.entry(image).or_insert(0);
+        *generation = generation.wrapping_add(1);
+        self.media_generation = self.media_generation.wrapping_add(1);
+    }
+
     /// Puts the images under the page's `budget` for the decoded pixels of
     /// frame documents, and their renderings of SVG images into the page's
     /// `vectors`; the images that are loaded already take their share (those
@@ -744,6 +760,10 @@ impl ImageSource for Images {
 
     fn vector_cache(&self) -> Option<&VectorCache> {
         Some(&self.vector_cache)
+    }
+
+    fn generation(&self, image: &ImageRef) -> u64 {
+        self.generations.get(image).copied().unwrap_or(0)
     }
 }
 

@@ -624,6 +624,16 @@ measurement of feature 4 misses them.
 `ImageRef::Node`; the list stays, the damage is the item's bounds, and the
 region raster draws the frame with its clips.
 
+**As implemented** (feature 4b, section 18): the diff also looks ahead (at
+most 64 items per side) for the place where the lists meet again before it
+falls back to the common suffix; a rectangle of damage that touches a
+`backdrop-filter` box holds all of it; the region raster does not shrink the
+target or the layers to the rectangle (tiny-skia's anti-aliasing depends on
+the extent of the pixmap) but draws all rectangles in one pass into a
+scratch pixmap of the target's size, culling the items and limiting only the
+drawing that is the same for each pixel; an incomplete raster (a budget)
+makes the next frame full.
+
 ### 10. `--animations off`
 
 Meaning: from the start of each document, as if a style sheet
@@ -1507,6 +1517,297 @@ and the SVG structure changes lay out again; `visibility`,
 `background-image` and the border styles are not paint properties here
 (backlog: `visibility` needs the hit-test and focus caches, the border
 styles the collapsed-border and native-look checks).
+
+### 18. Done in feature 4b
+
+Feature 4b does the second half of section 9: a frame compares its display
+list with the one of the last frame, gets damage rectangles, and rasterizes
+only those into the kept pixmap of the window. The result is bit-exact with
+a full raster; two oracles show it.
+
+**The diff** (`paint/src/damage.rs`, `list_damage`). Both lists are walked
+in paint order with one state (the matrix from the current coordinates to
+device px, the clip in device px, whether a resampled transform is open):
+the walk only goes into groups that are equal on both sides, so both sides
+are in the same state. The rules:
+
+- equal items add nothing; `DisplayItem` has an equality
+  (`display_list/equality.rs`) that compares shared values (`Arc`) by
+  pointer first, then by value. `Image`, `Frame` and `PushMask` items also
+  compare their *media keys* (`media_keys`): the id of the decoded image
+  (`DecodedImage::id`, unique in the process) and its content generation
+  (`ImageSource::generation`), the generation of a frame's documents
+  (`FrameContent::generation`), the keys of the images of a mask;
+- different drawing items add their device bounds (the item's bounds mapped
+  by the state, clipped by the clip, rounded out, plus 1 px);
+- two different groups of one kind add the bounds of both whole groups (the
+  bounds of `finish_groups`; a filter's grown by `css_output`; content fixed
+  to the viewport at the viewport scroll offset, not clipped) and the walk
+  goes on after both. One exception is entered instead: transform groups
+  with an equal translation (a fixed or sticky box, or a translation
+  matrix); their bounds only follow their content and cull it, and their
+  pixels are the same for each pixel of equal content. Opacity groups with
+  equal opacity and blend mode but other bounds are not entered: the layer
+  of an opacity group has the extent of its bounds, and tiny-skia's
+  anti-aliasing of equal content changes with that extent (the review found
+  it with random list pairs: up to 14 px, 9 levels);
+- where the items differ otherwise (a group starts on one side only, a clip
+  differs, items were inserted), a lookahead of at most 64 items per side
+  looks for the place where the lists meet again: two equal items in a row,
+  with only whole groups and clips skipped on each side. The skipped items
+  are damage (whole groups for the groups among them). The lookahead has a
+  budget of 200,000 tested places per diff; without a meeting place (or
+  budget), the longest common suffix of the enclosing group's interior is
+  kept, cut to a place at the depth of the difference, and everything between
+  is damage. Section 9 named only the prefix and suffix; the first traces
+  showed why the lookahead is needed: on videojs.org the marquee changes in
+  every frame near the end of the list, so a common suffix ends there, and a
+  hover that adds an opacity group damaged everything between (a full raster);
+- inside a filter group the content is not clipped by the enclosing clips
+  (as the rasterizer draws it), and its damage grows by the filter's reach
+  (the `css_output` of an empty rectangle, times the device scale of the
+  group) and is clipped when the group ends;
+- `HitRegion` and `HitShape` items are skipped.
+
+The walk keeps its own stack, skips whole groups by their ends (`group_ends`,
+one pass) and scans the suffix of a group's interior once (the walk then goes
+through it without a difference), so it is linear in the lengths of the lists
+(the lookahead is bounded per difference and in total). The groups must nest;
+a list whose groups and clips do not nest gives a full raster. The builder did
+not nest them in one case: a positioned box that repeats a rounded clip (a
+group) and a plain clip of its ancestors ended them in the order it started
+them (`display_list/builder.rs`, the repeated clips of a deferred box); the
+ends are now in reverse order. The rasterizer keeps clips and groups on two
+stacks, so the pixels are the same (snapshot equal).
+
+**The merge** (`merge_damage`). The rectangles are rounded out to whole
+pixels plus 1 px and clamped to the target; more than 64 are first merged by
+the cell of their center on an 8 x 8 grid; then the pair whose bounding box
+adds the least area is merged (overlapping pairs first) until none overlap
+and at most 8 remain. A `backdrop-filter` reads the whole box (it mirrors at
+the box's edges), so each rectangle that touches the box of a
+`backdrop-filter` item (`backdrop_boxes`: device boxes of all of them, grown
+by the reach of the filters around them and by 4 px inside a resampled
+transform; and the rectangle of a frame whose list has a `backdrop-filter`
+or a frame) grows to hold all of it, then the merge runs again; after 8
+rounds, a full raster. A full raster also runs when the rectangles cover
+more than half of the target (section 9).
+
+**The inputs outside the list, and their rules** (`engine/src/document/frame_damage.rs`):
+
+| Input | Rule |
+|---|---|
+| Scroll offset of the viewport, viewport size, scale | in the raster parameters of the last frame; a change gives a full raster |
+| Scroll offsets of scroll containers | in the list (the builder moves the content inside the clip): the diff sees the moved items, clipped to the container |
+| Caret, selection highlight, focus ring, scroll indicators of scroll containers | in the list (the builder draws them) |
+| Viewport scroll indicators (drawn over the page after the raster) | their items are a second list, compared in viewport coordinates; their damage joins the page's, and they are drawn again in every rectangle of damage (`rasterize_region` with no background) |
+| Images: a load, a decode, a new source of the same element | the media key (decoded id): an `Image` item whose key changed is damage, also when the list stays equal |
+| Media frames (M14) | the content generation of the image (`Images::bump_generation`, `Page::bump_image_generation`); the paint stamp holds the document's count of bumps, so `frame_outdated()` sees a bump without a new list |
+| Frame documents | the media key of the `Frame` item: a hash of the paint stamps of the frame's document and of the documents inside it, of their viewports and canvases (`frames/paint.rs`, `subtree_generation`); a change damages the frame's rectangle |
+| Work that a budget skipped or coarsened (`Skipped`, the SVG rendering budget, `reduce.skipped()`) | the rasterizers return a `RasterReport`; an incomplete raster makes the next frame a full raster |
+| The pixels of the target | the caller says they hold the last frame of this page (`Page::render_update`); a new document has no last frame; the composer draws in full when its layers are new |
+
+**The region raster** (`paint/src/raster.rs`, `rasterize_region`; section 9
+said "the visible area set to the rectangle and a hard device clip"; that is
+not exact). What makes it exact:
+
+- The parts are made disjoint (`raster/region.rs`; overlapping parts become
+  their bounding box) and drawn in one pass into a scratch pixmap of the
+  target's size; each part is filled with the background first (or copied
+  from the target, for the viewport indicators), and copied to the target at
+  the end. So every pixmap that the rasterizer uses, the target and the
+  layers of groups, has the size and place it has in a full raster: tiny-skia
+  clips paths at the edges of the pixmap, and a path cut by a smaller pixmap
+  gets other coverage up to 10 px inside (measured: up to 11 levels), and a
+  draw through a clip mask is 1 level off for opaque colors (measured). The
+  layers of opacity, mask, clip path and filter groups keep their full-raster
+  extent; transform layers keep their full-raster plan (the pixel grid of
+  section 9).
+- Only the items are culled to the parts (their bounding box, with 3 device
+  px of slack), and the drawing whose pixels do not depend on its extent is
+  limited to the parts: rectangles without anti-aliasing, images and
+  gradients (fills of whole pixels with a shader that is computed per pixel),
+  glyphs (`blit_mask`) and the composite of a layer (cropped). Anti-aliased
+  paths, borders, clip paths and masks are drawn as in a full raster.
+- A filter draws its content in the parts grown by the filter's backward
+  reach (the blur at a pixel reads only that far), inside its layer.
+- A transform layer draws its content only where the resampling of the parts
+  reads it: the parts' bounding box grown by 2 device px, mapped into the
+  group, grown by 2 layer px.
+- A part that touches a `backdrop-filter` box holds all of it (the merge
+  above; `Page::render_regions`, the oracle's entry point, applies the same
+  rule with `hold_backdrop_boxes`).
+- The budgets are those of a full raster of the target (the pass draws fewer
+  items, so it draws everything a full raster draws). The converse is not
+  true: near a budget limit, a region can draw a group that a full raster of
+  the same list drops, and `incomplete` stays false. This errs on the side
+  of drawing more.
+- Equal items in a group that is entered are drawn with the same pixels
+  only if the layers around them keep their extent; the diff enters only
+  transform groups with an equal translation (above), which make no layer.
+- Slack: a border of a box narrower than its border widths snaps its inner
+  edge to at least one pixel, which can lie one pixel outside the outer edge
+  (a pre-existing imprecision, backlog); the cull has 2 px of slack for it.
+
+The cost follows the damage except for the drawing that keeps its full
+extent: the coverage of large clip paths (rounded `overflow` clips of large
+boxes), masks, the blur of large filter layers, anti-aliased paths
+(rounded rectangles, SVG) and transform layers are paid once per frame in
+full. On github-swb (rounded boxes of the file list) a frame of 19 % of the
+viewport costs 10.6 ms against 11.5 ms for a full raster (3.7 ms of it are
+the clip coverage of 0.93 Mpx of rounded boxes); a first version drew each
+part in its own pass and paid these once per part (52 ms).
+
+**The GUI** (`swb/src/gui/compose.rs`). The composer keeps the page pixmap;
+a new composer (new window size or scale) renders in full with
+`Page::render`, later frames with `Page::render_update`. A navigation gives a
+new document, whose first frame is full. The status bubble is drawn again
+whenever the page was drawn (it copies the page's pixels under it first), as
+before. The window buffer is still written in full (softbuffer's buffer age
+can be 0). The frame log has three more fields: `full=F rects=N pixels=N`.
+Headless screenshots keep the full raster (`Page::screenshot` does not touch
+the last frame).
+
+**`--bench`.** The hover and animation stages render with
+`Page::render_update` into the kept pixmap and report `render`: the median
+and p90 raster time, the median time of the diff (`StageTimings::damage`),
+the frames by kind (full, region, empty) and the median pixels of a region
+frame. The scroll stage keeps the full render (each step scrolls the
+viewport).
+
+**The oracles.** `engine/tests/region_oracle.rs`: full render into A, copy
+to B, random parts of B filled with garbage, `Page::render_regions`, B must
+equal A; the nine page fixtures and the JS fixtures (when present), at scales
+1 and 1.5, at three scroll offsets, and a page of effects (rounded images,
+shadows, tiled gradients and images, blur and drop shadow, backdrop filters,
+masks, rotation with scale, skew, inline SVG, a blend mode, a frame, text
+strokes and shadows, dashed rounded borders, outlines, clip paths) at scales
+1, 1.5 and 2. 200 rounds of up to six parts each passed (about 70,000 parts);
+the default is 12 rounds per configuration (40 for the effects page).
+`engine/tests/damage_oracle.rs` and the damage check in `frame_oracle.rs`
+(`tests/common/damage.rs`): sequences of frames, each rendered with its
+damage into the pixmap of the last one and compared with a full render: the
+videojs fixture with its animations in virtual time (130 ticks, scrolled to
+the marquee and the bars; JavaScript off and on), the hover and press grid on
+eight page fixtures and the JS fixtures, scrolls of scroll containers, a frame
+whose document animates, hovers and scrolls, an image that arrives after the
+first frames, the caret and the selection, a new content generation, and the
+sessions and animation cases of `frame_oracle.rs`.
+`automation/tests/css_animations.rs`: the probe pages of `css-animations`,
+`-3b` and `-3c` at their seek times (134 frames, 64 with damage rectangles).
+`paint/src/damage/random_pairs.rs`: random pairs of lists (rectangles,
+lines, hit regions, backdrop filters, clips, opacity and blend groups,
+transforms, filters; insertions, removals, wraps, unwraps, copies, swaps),
+the region raster of the damage over the old raster against a full raster.
+What the oracles found: the backdrop rule (a part that cut a
+`backdrop-filter` box), the merge of overlapping parts that made a part touch
+a box it did not hold, the border that reaches one pixel beyond its outer
+edge, and the clip order of the builder. The review's random pairs found
+that an opacity group whose bounds change gives other anti-aliasing to its
+equal content (the rule above).
+
+**Measurements** (release; before is the commit of feature 4a):
+
+Hover (`swb --bench 3`, 8 x 6 grid, 3 rounds, the steps that changed the
+state; before / after; `render` is new):
+
+| Fixture | Change median ms | Change p90 ms | Region frames | Region px (median) | Diff ms |
+|---|---|---|---|---|---|
+| videojs (JS on) | 29.85 / 0.72 | 51.13 / 20.36 | 12 (21 empty) | 6,624 | 0.05 |
+| videojs (JS off) | 30.38 / 0.22 | 31.44 / 13.47 | 12 (18 empty) | 6,660 | 0.04 |
+| hacker-news | 0.71 / 0.04 | 0.93 / 0.37 | 30 (52 empty) | 171 | 0.03 |
+| wikipedia-web-browser | 2.32 / 0.36 | 3.91 / 2.43 | 18 (54 empty) | 10,001 | 0.28 |
+| github-swb | 14.32 / 11.82 | 21.23 / 18.25 | 69 (3 empty) | 194,428 | 0.16 |
+
+"Empty" frames are hover changes whose list changed no pixel (a hit region,
+the cursor). On github-swb every hover change also has the page's animation
+in its frame, and a region of 19 % of the viewport costs 10.6 ms against 11.5
+ms for a full raster: the coverage of the rounded clips of the file list
+(0.93 Mpx, 3.7 ms) and the anti-aliased rounded boxes are drawn in full.
+
+Animation frames (`--bench`, real time, animations on): videojs with
+JavaScript on: 23 of 25 frames are full rasters (the hero reveal covers more
+than half of the viewport), median 37.2 / 37.8 ms (raster 36.0 / 36.6 ms,
+diff 0.06 ms); style 0.67 ms, display list 0.31 ms, layout 0. github-swb (JS
+off): median 14.6 / 13.7 ms, raster 11.6 / 10.7 ms, every frame a region of
+194,428 px. With JavaScript off no animation of videojs runs in the bench.
+In virtual time (`damage_oracle.rs`), the videojs frames at the marquee are
+regions of 1,232 x 117 px, and those of the hero at the top after the reveal
+are empty or a few small rectangles.
+
+GUI (release, own Xvfb, `gui-latency`, before / after):
+
+| Trace | Move to frame median / p90 ms | Frames/s | Render median / p90 / max ms | CPU trace / idle % | Frames full / region / empty |
+|---|---|---|---|---|---|
+| videojs `--js`, `videojs-page`, 1280 x 840 | 48.5 / 68.6 → 1.8 / 61.0 | 19.9 → 23.4 | 9.2 / 30.3 / 41.0 → 5.1 / 8.6 / 41.8 | 39.9 / 0.7 → 19.6 / 0.0 | – → 61 (28 ms) / 218 (5.2 ms) / 184 |
+| videojs `--js`, 12 wheel notches to the marquee and the bars, then 10 s idle | – | 58.6 → 58.8 | 9.0 / 9.3 / 42.7 → 4.2 / 5.3 / 41.1 | 65.5 / 60.7 → 40.0 / 30.0 | – → 26 / 831 (4.1 ms) / 5 |
+| spinner page, `idle-10s` | – | 8.0 → 8.0 | 0.5 / 0.6 / 0.8 → 0.5 / 0.6 / 0.7 | 0.9 / 1.0 → 1.0 / 0.7 | – → 3 / 112 / 1 |
+| marquee page, `idle-10s` | – | 60 → 60 | 0.2 / 0.4 / 0.6 → 0.3 / 0.4 / 0.8 | 4.4 / 4.3 → 4.5 / 4.7 | – → 3 / 841 / 1 |
+
+Against the budgets of the diagnosis (section 5):
+
+- frame time p90 at most 16 ms with the hero in view: met (render p90 8.6
+  ms plus 0.5 ms of composition);
+- frame time max at most 33 ms: missed by 9 ms (41.8 ms). The longest frames
+  are full rasters (28 ms median, up to 42 ms): the hero reveal right after
+  the load (about 28 frames of 40 ms in one second: opacity and transform of
+  the hero's content, more than half of the viewport each frame) and every
+  wheel step (a scroll of the viewport is a full raster);
+- pointer move to frame p90 at most 50 ms: missed by 11 ms (61.0 ms). The
+  moves that wait are those during the reveal and behind the full rasters of
+  the wheel steps; the median fell from 48.5 to 1.8 ms;
+- spinner at most 5 % CPU: met (1.0 %); marquee page at most 15 %: met
+  (4.5 %); 60 frames per second while an animation runs: met on the
+  marquee page and on videojs at the marquee and the bars (58.8 frames per
+  second, the trace's frame pacing);
+- videojs at the marquee and the bars, idle: 30 % CPU (60.7 % before). A
+  region frame there costs 4.1 ms in release: the parts are small (the
+  marquee strip and the bars), but the drawing that keeps its full extent is
+  paid once per frame. Measured in the test build on these frames (relative
+  shares): the layers of transformed groups (their full-raster layer and
+  quad) about 60 %, the coverage of 2.1 Mpx of rounded clip layers about 18
+  %, a backdrop filter about 11 %, filter layers about 10 %. A raster cache
+  of layers (section 9, the next step) or limiting these operations to the
+  parts would meet the budget; neither is done here.
+
+Hostile cases (release, `just hostile`, through `--bench 1`; time and peak
+memory, before / after; before has no damage, so its bench renders every
+step in full):
+
+| Case | Time | Memory |
+|---|---|---|
+| `damage-one-change-in-100000-items` | 3.97 s / 4.02 s | 289 / 289 MiB |
+| `damage-10000-scattered-color-changes` | 12.25 s / 12.25 s | 169 / 168 MiB |
+| `damage-large-blur-over-small-change` | 1.25 s / 1.26 s | 76 / 86 MiB |
+| `damage-many-backdrop-filters` | 1.76 s / 1.25 s | 85 / 81 MiB |
+| `damage-kind-change-every-item` | 5.32 s / 5.37 s | 112 / 115 MiB |
+
+The cases cost what the load and the stages of the bench cost; the diff and
+the merge add no visible time (the unit tests bound 100,000 items, 10,000
+nested groups and groups at every item to well under a second). The whole
+set: 591 cases pass, one known failure (`nest-div-100000`).
+
+The load stages of `perf videojs` and `perf hacker-news` (5 runs) are
+unchanged (videojs total 50.0 / 49.9 ms, Hacker News 4.84 / 4.90 ms); the
+perf hover numbers now use the damage (videojs change median 30.1 → 0.15 ms,
+p90 31.1 → 12.6 ms). The snapshot of the page fixtures and layout tests is
+byte-equal, and the scores of `compare --all` and `compare --js --all` are
+equal.
+
+**Departures and what is not done.**
+
+- Section 9 said damage under a filter grows by the filter's reach: it also
+  makes the region draw the filter's content where the filter reads it.
+- The coverage of clip paths and masks, anti-aliased paths, filter layers and
+  transform layers cost their full extent once per frame (above); the
+  multiply of a clip path's coverage could be limited to the parts with an
+  exact reimplementation of tiny-skia's `apply_mask` (not done).
+- The window buffer is converted and presented in full.
+- A frame item is damaged as a whole when its documents change (no diff of
+  the frame's own list).
+- Budgets: a page whose full raster runs out of a budget gets a full raster in
+  every frame after it (no frame is asked for by the budget itself, as
+  before).
 
 ## Consequences
 

@@ -42,7 +42,7 @@ use crate::group_bounds::union_areas;
 use crate::image::mul_255;
 
 /// One layer of a mask, in document coordinates (CSS px).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MaskLayer {
     /// What the layer paints. Outside of it, the layer is transparent
     /// black.
@@ -56,7 +56,7 @@ pub struct MaskLayer {
 }
 
 /// The image of a mask layer.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum MaskLayerImage {
     /// Transparent black: `none`, or an image that is not available.
     Empty,

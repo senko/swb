@@ -12,10 +12,12 @@
 //!   batch requested a redraw (the frame decision at the end of
 //!   `about_to_wait`, ADR 0040), else 0: a batch with `frame=0` changed
 //!   nothing that a frame shows, so no frame follows it.
-//! - `frame at=T render=D compose=D present=D`: one per presented frame:
-//!   the time after `present`, and the durations of the page render, of
-//!   the composition (toolbar, copy into the window buffer) and of
-//!   `present`.
+//! - `frame at=T render=D compose=D present=D full=F rects=N pixels=N`:
+//!   one per presented frame: the time after `present`, and the durations
+//!   of the page render, of the composition (toolbar, copy into the window
+//!   buffer) and of `present`; then the damage of the page raster (ADR 0044
+//!   section 18): `full` 1 for a full raster, the number of rectangles and
+//!   the device pixels rasterized (all 0 when the page was not drawn).
 //!
 //! The cost without the debug level is a few counters per event and three
 //! `Instant` reads per frame (the start, the end of the page render and the
@@ -23,6 +25,8 @@
 //! exist only at the debug level.
 
 use std::time::{Duration, Instant};
+
+use swb_engine::FrameDamage;
 
 /// The target of the log lines.
 const TARGET: &str = "swb::gui";
@@ -93,8 +97,15 @@ impl FrameLog {
 
     /// The durations of the parts of one redraw, since `started` (the
     /// start of the redraw): the page render ended at `rendered`, the
-    /// composition at `composed`, and `present` ended now.
-    pub(crate) fn frame(&self, started: Instant, rendered: Instant, composed: Instant) {
+    /// composition at `composed`, and `present` ended now. `damage` is what
+    /// the page raster drew (`None`: the page was not drawn).
+    pub(crate) fn frame(
+        &self,
+        started: Instant,
+        rendered: Instant,
+        composed: Instant,
+        damage: Option<&FrameDamage>,
+    ) {
         if !self.enabled {
             return;
         }
@@ -104,6 +115,7 @@ impl FrameLog {
             rendered.duration_since(started),
             composed.duration_since(rendered),
             presented.duration_since(composed),
+            damage,
         );
         log::debug!(target: TARGET, "{line}");
     }
@@ -123,18 +135,25 @@ pub(crate) fn batch_line(start: f64, end: f64, counts: &InputCounts, frame: bool
     )
 }
 
-/// The text of a frame line.
+/// The text of a frame line: the times, then the damage of the page raster
+/// (`full` 1 for a full raster, the number of rectangles and the device
+/// pixels rasterized; all 0 when the page was not drawn).
 pub(crate) fn frame_line(
     at: f64,
     render: Duration,
     compose: Duration,
     present: Duration,
+    damage: Option<&FrameDamage>,
 ) -> String {
+    let (full, rects, pixels) =
+        damage.map_or((false, 0, 0), |d| (d.full, d.rects.len(), d.pixels()));
     format!(
-        "frame at={at:.6} render={:.6} compose={:.6} present={:.6}",
+        "frame at={at:.6} render={:.6} compose={:.6} present={:.6} full={} rects={rects} \
+         pixels={pixels}",
         render.as_secs_f64(),
         compose.as_secs_f64(),
-        present.as_secs_f64()
+        present.as_secs_f64(),
+        u8::from(full)
     )
 }
 
@@ -180,8 +199,18 @@ mod tests {
     fn frame_line_format() {
         let ms = Duration::from_millis;
         assert_eq!(
-            frame_line(100.25, ms(10), ms(3), Duration::from_micros(1500)),
-            "frame at=100.250000 render=0.010000 compose=0.003000 present=0.001500"
+            frame_line(100.25, ms(10), ms(3), Duration::from_micros(1500), None),
+            "frame at=100.250000 render=0.010000 compose=0.003000 present=0.001500 full=0 \
+             rects=0 pixels=0"
+        );
+        let damage = FrameDamage {
+            full: false,
+            rects: vec![swb_paint::PixelRect::from_edges(0, 0, 10, 20)],
+            viewport_pixels: 1000,
+        };
+        assert!(
+            frame_line(1.0, ms(1), ms(1), ms(1), Some(&damage))
+                .ends_with(" full=0 rects=1 pixels=200")
         );
     }
 

@@ -11,6 +11,11 @@
 //! media controls (`media`) have their own look. `group_bounds` finds the
 //! bounds of the transform, opacity and mask groups of a finished list.
 //!
+//! Frames that change little (ADR 0044 section 18): `damage` compares the
+//! display list of a frame with the last one and gives the device
+//! rectangles that changed; [`rasterize_region`] draws only those, with the
+//! pixels of a full raster.
+//!
 //! Inline SVG (ADR 0023): `inline_svg` turns the layout of an `<svg>`
 //! element into drawing commands, `hit_path` tests points against its
 //! shapes, and `path_cost` is the cost model that bounds the
@@ -22,6 +27,7 @@ mod box_shadow;
 mod clip_path;
 mod control;
 mod corner_shape;
+mod damage;
 mod display_list;
 mod filter;
 mod group_bounds;
@@ -39,6 +45,10 @@ mod scroll_indicator;
 mod svg;
 
 pub use animation_bounds::{Keys, animation_bounds, visual_rect};
+pub use damage::{
+    Damage, ListDamage, MAX_RECTS, MediaKeys, Side, backdrop_boxes, hold_backdrop_boxes,
+    list_damage, media_keys, merge_damage,
+};
 pub use display_list::{
     DisplayItem, DisplayList, Highlights, Hit, ImageRef, ImageSizes, NoHighlights, Radii,
     SELECTION_BACKGROUND, Scrolling, build_display_list,
@@ -50,7 +60,10 @@ pub use image::{
     is_supported_image_type, raster_size,
 };
 pub use mask::{MaskLayer, MaskLayerImage};
-pub use raster::{FrameContent, ImageSource, RasterParams, rasterize, rasterize_in_strips};
+pub use raster::{
+    FrameContent, ImageSource, PixelRect, RasterParams, RasterReport, rasterize,
+    rasterize_in_strips, rasterize_region,
+};
 pub use scroll_indicator::scroll_indicators;
 pub use svg::{CountBudget, VectorCache};
 pub use tiny_skia::Pixmap;
