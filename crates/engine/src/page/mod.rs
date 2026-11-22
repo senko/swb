@@ -156,6 +156,14 @@ pub struct FlushCounters {
     pub sheet_changes: u32,
     /// Builds of the display list.
     pub display_list_runs: u32,
+    /// Restyles that changed paint properties only and kept the layout
+    /// (ADR 0044 section 9): the fragments got the new styles.
+    pub paint_refreshes: u32,
+    /// The time of the refreshes of the fragments.
+    pub paint_time: Duration,
+    /// Restyles that changed paint properties only but whose refresh could
+    /// not keep the layout.
+    pub paint_fallbacks: u32,
     /// The extra style and layout runs of container queries: a layout gave
     /// query containers sizes that change a query result or a container
     /// unit (ADR 0038). Zero on a page without container rules and units.
@@ -272,6 +280,12 @@ impl FlushCounters {
             self.forced_layout_runs = self.forced_layout_runs.saturating_add(1);
             self.forced_layout_time += time;
         }
+    }
+
+    /// Records a paint-only refresh of the fragments of `time`.
+    pub(crate) fn paint(&mut self, time: Duration) {
+        self.paint_refreshes = self.paint_refreshes.saturating_add(1);
+        self.paint_time += time;
     }
 
     /// Records a style run of one element and its ancestors.

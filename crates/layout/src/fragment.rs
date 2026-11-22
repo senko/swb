@@ -409,6 +409,8 @@ pub struct CellPaint {
 /// The background of a table part, painted in a cell.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PartBackground {
+    /// The element of the part (`None` for an anonymous part).
+    pub node: Option<NodeId>,
     /// The style with the background.
     pub style: Arc<ComputedStyle>,
     /// The part's border box (the background positioning area), relative
@@ -536,6 +538,11 @@ pub struct BoxFragment {
     /// to the border-box origin, if the box is a scroll container. It
     /// starts at the padding box (see `scroll.rs`).
     pub scrollable_overflow: Option<Rect>,
+    /// The edges (left, top, right, bottom) of the scrollable overflow
+    /// before the contributions of the descendants, if the box is a scroll
+    /// container: what a paint-only restyle needs to compute the overflow
+    /// again (`scroll::refresh_scrollable_overflow`).
+    pub(crate) overflow_base: Option<[f32; 4]>,
     /// True for a block-level box inside a positioned inline box (block in
     /// inline): that inline box is the containing block of the absolutely
     /// positioned boxes in it, but it is not an ancestor in the fragment

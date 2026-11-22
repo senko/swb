@@ -109,7 +109,7 @@ pub(crate) const MAX_CLIP_DEPTH: usize = 8;
 
 /// What the descendants of one outer `<svg>` element draw, in the
 /// element's user space.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SvgContent {
     /// The `viewBox`, if valid.
     pub(crate) view_box: Option<crate::geom::Rect>,
@@ -119,8 +119,70 @@ pub struct SvgContent {
     nodes: Vec<Node>,
 }
 
+/// A function that gives the new style of a group or shape of the content
+/// (its element, `None` in the copy of a `use`, and its style), if it has one.
+pub(crate) type StyleReplacer<'a> =
+    dyn FnMut(Option<NodeId>, &Arc<ComputedStyle>) -> Option<Arc<ComputedStyle>> + 'a;
+
+impl SvgContent {
+    /// Calls `f` for the style of each group and shape; if it gives a new
+    /// style, that replaces the old one (a paint-only restyle, ADR 0044
+    /// section 9). Fails, with the content in an unspecified state, if a new
+    /// style changes what [`build`] derived from the old one: the opacity
+    /// layers, whether a shape has two paints, the clip path, whether the
+    /// transform rotates.
+    pub(crate) fn replace_styles(&mut self, f: &mut StyleReplacer<'_>) -> Result<(), &'static str> {
+        for node in &mut self.nodes {
+            let (element, slot) = match node {
+                Node::BeginGroup(group) => (group.node, group.style.as_mut()),
+                Node::Shape(shape) => (shape.node, Some(&mut shape.style)),
+                Node::EndGroup => (None, None),
+            };
+            let Some(slot) = slot else {
+                continue;
+            };
+            if let Some(new) = f(element, slot) {
+                if structure(slot) != structure(&new) || slot.clip_path != new.clip_path {
+                    return Err("an SVG style changes the structure of the content");
+                }
+                *slot = new;
+            }
+        }
+        Ok(())
+    }
+
+    /// True if one of the styles of the content satisfies `pred`, which
+    /// gets the element of the group or shape (`None` in the copy of a
+    /// `use`) and its style.
+    pub(crate) fn any_style(
+        &self,
+        mut pred: impl FnMut(Option<NodeId>, &Arc<ComputedStyle>) -> bool,
+    ) -> bool {
+        self.nodes.iter().any(|node| match node {
+            Node::BeginGroup(group) => group
+                .style
+                .as_ref()
+                .is_some_and(|style| pred(group.node, style)),
+            Node::Shape(shape) => pred(shape.node, &shape.style),
+            Node::EndGroup => false,
+        })
+    }
+}
+
+/// What [`build`] derives from a style besides its drawing values: whether
+/// the opacity needs a layer, whether a shape may have two paints, a blend
+/// mode, a rotating transform.
+fn structure(style: &ComputedStyle) -> (bool, bool, bool, bool) {
+    (
+        style.opacity < 1.0,
+        has_two_paints(style),
+        style.has_blend_mode(),
+        rotates(style),
+    )
+}
+
 /// One entry of [`SvgContent::nodes`].
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 enum Node {
     /// The start of a group.
     BeginGroup(Box<Group>),
@@ -131,7 +193,7 @@ enum Node {
 }
 
 /// A group: `g`, `a`, `use`, and the translation inside a `use`.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct Group {
     /// The style of the group (`opacity`, `transform`); `None` for the
     /// translation of a `use` element.
@@ -149,7 +211,7 @@ struct Group {
 }
 
 /// The special kinds of group: a group has at most one of them.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 enum GroupKind {
     /// A plain group (`g`, `a`, the copy of an element that a `use` draws).
     Plain,
@@ -164,7 +226,7 @@ enum GroupKind {
 /// new viewport at the origin of its group (the translation by the `x` and
 /// `y` of the `use` element is the group around it), with the `viewBox` and
 /// `preserveAspectRatio` of the symbol.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct SymbolView {
     /// The size of the viewport: the `width` and `height` of the `use`
     /// element, else those of the `symbol`, else `100%` (of the viewport
@@ -185,7 +247,7 @@ struct SymbolView {
 }
 
 /// A shape element.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct Shape {
     style: Arc<ComputedStyle>,
     /// False if the shape must not use a layer for its `opacity` (the

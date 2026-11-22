@@ -1329,6 +1329,7 @@ pub(crate) fn finish_fragment(
         last_baseline: baselines.last,
         is_inline: false,
         scrollable_overflow: None,
+        overflow_base: None,
         in_positioned_inline: false,
         hanging_from: None,
         is_root: false,
@@ -1490,7 +1491,7 @@ pub(crate) fn layout_sized(
             (None, None) => BoxContent::Image(r.node),
         };
     } else if crate::scroll::is_scroll_container(style) {
-        fragment.scrollable_overflow = Some(crate::scroll::scrollable_overflow(&fragment, inflow));
+        crate::scroll::set_scrollable_overflow(&mut fragment, inflow);
     }
     fragment
 }

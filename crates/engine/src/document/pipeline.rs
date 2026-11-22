@@ -91,6 +91,17 @@ impl RestylePath {
     }
 }
 
+/// What a targeted restyle leaves of the layout (ADR 0044 section 9).
+enum LayoutAfter {
+    /// No style changed: the layout stays as it is.
+    Keep,
+    /// A style changed in a way that can change the layout: it goes.
+    Drop,
+    /// Only paint properties changed: the layout stays, the fragments get
+    /// the new styles and the display list is built again.
+    Paint(swb_style::PaintChanges),
+}
+
 /// What [`DocumentState::render_in_strips`] draws.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Rendering {
@@ -200,6 +211,7 @@ impl DocumentState {
     pub(crate) fn invalidate_layout(&mut self) {
         self.kept_layout = None;
         self.fragments = None;
+        self.paint_refreshed = false;
         self.display_list = None;
         self.used_boxes = None;
         self.geometry = None;
@@ -224,9 +236,9 @@ impl DocumentState {
         let Some(mut old) = self.styles.take() else {
             return;
         };
-        if let Some(changed) = self.run_targeted(&mut old, RestylePath::State) {
+        if let Some(layout) = self.run_targeted(&mut old, RestylePath::State) {
             self.styles = Some(old);
-            self.after_targeted(changed, RestylePath::State);
+            self.after_targeted(layout, RestylePath::State);
             return;
         }
         self.compute_styles_from(Some(&old));
@@ -250,11 +262,16 @@ impl DocumentState {
     /// The targeted restyle of `path` on `map`, the styles for
     /// [`DocumentState::style_states`] (before the recorded DOM changes for
     /// [`RestylePath::Dom`], ADR 0042; ADR 0041 for [`RestylePath::State`]).
-    /// `Some(drop_layout)` if it brought `map` up to date for the current
-    /// states and DOM (`drop_layout` if a style changed or, after DOM
-    /// changes, a change can change the layout), `None` if the whole
-    /// document must be restyled (then `map` is unchanged).
-    fn run_targeted(&mut self, map: &mut swb_style::StyleMap, path: RestylePath) -> Option<bool> {
+    /// `Some(layout)` if it brought `map` up to date for the current
+    /// states and DOM (`layout` says what stays of the layout: it goes if a
+    /// style changed in a way that can change the layout or, after DOM
+    /// changes, a change can), `None` if the whole document must be
+    /// restyled (then `map` is unchanged).
+    fn run_targeted(
+        &mut self,
+        map: &mut swb_style::StyleMap,
+        path: RestylePath,
+    ) -> Option<LayoutAfter> {
         if path == RestylePath::Dom {
             self.refresh_forms();
         }
@@ -295,7 +312,7 @@ impl DocumentState {
             Some(&self.animations),
             map,
         );
-        let (changed, restyled, image_urls) = match outcome {
+        let (changed, restyled, image_urls, paint) = match outcome {
             swb_style::Restyle::Full(reason) => {
                 log::debug!("style: full restyle after {} ({reason:?})", path.cause());
                 self.restyle_counts(path).fallback(reason);
@@ -305,7 +322,8 @@ impl DocumentState {
                 changed,
                 restyled,
                 image_urls,
-            } => (changed, restyled, image_urls),
+                paint,
+            } => (changed, restyled, image_urls, paint),
         };
         self.timings.style = started.elapsed();
         self.flushes.style(self.timings.style, self.in_query);
@@ -335,21 +353,82 @@ impl DocumentState {
                 self.start_image(url);
             }
         }
-        Some(changed || (path == RestylePath::Dom && !layout_free))
+        Some(if path == RestylePath::Dom && !layout_free {
+            LayoutAfter::Drop
+        } else if !changed {
+            LayoutAfter::Keep
+        } else if let Some(paint) = paint {
+            LayoutAfter::Paint(paint)
+        } else {
+            LayoutAfter::Drop
+        })
     }
 
     /// After a targeted restyle of `path` that left its map in `styles`:
     /// the canvas text color may have changed (a full restyle follows),
-    /// else the layout is dropped if `drop_layout` and, after DOM changes,
-    /// put back otherwise.
-    fn after_targeted(&mut self, drop_layout: bool, path: RestylePath) {
+    /// else the layout goes if `layout` says so, is refreshed for paint
+    /// properties, and after DOM changes is put back otherwise.
+    fn after_targeted(&mut self, layout: LayoutAfter, path: RestylePath) {
         if self.frame && self.update_canvas_text() {
             self.compute_styles();
             self.invalidate_layout();
-        } else if drop_layout {
-            self.invalidate_layout();
-        } else if path == RestylePath::Dom {
+            return;
+        }
+        match layout {
+            LayoutAfter::Drop => self.invalidate_layout(),
+            LayoutAfter::Keep => {
+                if path == RestylePath::Dom {
+                    self.restore_layout();
+                }
+            }
+            LayoutAfter::Paint(changes) => self.refresh_for_paint(&changes, path),
+        }
+    }
+
+    /// The paint-only path (ADR 0044 section 9): the styles of the layout's
+    /// fragments are replaced by the new styles, the display list goes (it
+    /// is built again in full), and the caches of geometry go if a
+    /// transform changed. The layout goes if the refresh cannot keep it.
+    fn refresh_for_paint(&mut self, changes: &swb_style::PaintChanges, path: RestylePath) {
+        if path == RestylePath::Dom {
             self.restore_layout();
+        }
+        let (Some(styles), Some(fragments)) = (&self.styles, &mut self.fragments) else {
+            // No layout: the next one uses the new styles.
+            return;
+        };
+        let started = Instant::now();
+        match fragments.apply_paint_changes(changes, &self.dom, styles) {
+            Ok(moved) => {
+                log::debug!(
+                    "paint-only refresh of {} styles: {:?}",
+                    changes.styles.len(),
+                    started.elapsed()
+                );
+                self.flushes.paint(started.elapsed());
+                self.display_list = None;
+                self.paint_refreshed = true;
+                if moved {
+                    self.geometry_moved();
+                }
+            }
+            Err(reason) => {
+                log::debug!("paint-only refresh not possible ({reason}): layout again");
+                self.flushes.paint_fallbacks = self.flushes.paint_fallbacks.saturating_add(1);
+                self.invalidate_layout();
+            }
+        }
+    }
+
+    /// A transform changed in the layout: the caches of the geometry that
+    /// scripts read, of hit testing and of observers are outdated (they
+    /// are keyed by the layout serial), and so are the ranges of the
+    /// scroll containers.
+    fn geometry_moved(&mut self) {
+        self.layout_serial += 1;
+        self.client_rects = None;
+        if let Some(fragments) = &self.fragments {
+            self.scrollers.update(fragments);
         }
     }
 
@@ -733,27 +812,13 @@ impl DocumentState {
             // Built before the borrows below.
             self.tree_order();
         }
-        let Some(fragments) = &self.fragments else {
-            return;
-        };
         let started = Instant::now();
-        let order = self.tree_order.value();
-        let page = page.map(|r| order.keys(&self.dom, r.start, r.end));
-        let scrolling = Scrolling {
-            offsets: self.scrollers.offsets(),
-            indicators: self.view.indicators,
-            scale: self.view.scale,
-        };
-        let list = if page.is_some() || control.is_some() {
-            let highlight = Highlight {
-                page,
-                control,
-                order,
-                doc: &self.dom,
-            };
-            swb_paint::build_display_list(fragments, &self.images, &highlight, &scrolling)
-        } else {
-            swb_paint::build_display_list(fragments, &self.images, &NoHighlights, &scrolling)
+        let Some(list) = self
+            .fragments
+            .as_ref()
+            .map(|fragments| self.display_list_of(fragments, page, control))
+        else {
+            return;
         };
         self.timings.display_list = started.elapsed();
         self.flushes.display_list_runs = self.flushes.display_list_runs.saturating_add(1);
@@ -763,7 +828,39 @@ impl DocumentState {
         }
         self.list_serial = super::paint_stamp::next_list_serial();
         self.display_list = Some(list);
+        #[cfg(debug_assertions)]
+        self.check_paint_refresh(fonts, page, control);
         self.update_animation_visibility();
+    }
+
+    /// The display list of `fragments` with the document's selection
+    /// highlight (`page`, the range of the page selection, and `control`,
+    /// that of the focused control), the scroll offsets and the images. The
+    /// tree order must be built when there is a page selection.
+    pub(crate) fn display_list_of(
+        &self,
+        fragments: &swb_layout::FragmentTree,
+        page: Option<swb_dom::LiveRange>,
+        control: Option<(swb_dom::NodeId, u32, u32)>,
+    ) -> DisplayList {
+        let order = self.tree_order.value();
+        let page = page.map(|r| order.keys(&self.dom, r.start, r.end));
+        let scrolling = Scrolling {
+            offsets: self.scrollers.offsets(),
+            indicators: self.view.indicators,
+            scale: self.view.scale,
+        };
+        if page.is_some() || control.is_some() {
+            let highlight = Highlight {
+                page,
+                control,
+                order,
+                doc: &self.dom,
+            };
+            swb_paint::build_display_list(fragments, &self.images, &highlight, &scrolling)
+        } else {
+            swb_paint::build_display_list(fragments, &self.images, &NoHighlights, &scrolling)
+        }
     }
 
     /// The selection in the focused text control, as offsets in its shown
@@ -858,9 +955,9 @@ impl DocumentState {
             return;
         }
         match self.run_targeted(&mut map, RestylePath::Dom) {
-            Some(drop_layout) => {
+            Some(layout) => {
                 self.styles = Some(map);
-                self.after_targeted(drop_layout, RestylePath::Dom);
+                self.after_targeted(layout, RestylePath::Dom);
             }
             None => self.compute_styles_from(Some(&map)),
         }

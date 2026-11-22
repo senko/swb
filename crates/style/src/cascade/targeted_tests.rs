@@ -610,3 +610,72 @@ fn hostile_many_rules() {
     });
     assert!(st.invalidation_index().len() >= 20_000);
 }
+
+/// The `paint` of the result of hovering `#p` of `LIST` with `css`: `None`
+/// if the restyle changed more than paint properties.
+fn paint_of(css: &str) -> Option<targeted::PaintChanges> {
+    let doc = parse_html(LIST);
+    match change(&doc, css, &hover(None), &hover(Some(node(&doc, "p")))) {
+        Restyle::Done { paint, .. } => paint,
+        Restyle::Full(reason) => panic!("a full restyle: {reason:?}"),
+    }
+}
+
+#[test]
+fn paint_properties_make_a_paint_change() {
+    let paint = paint_of(".p:hover { background: red; opacity: .5; outline-color: blue }")
+        .expect("a paint change");
+    // `#p` only: its children do not inherit these.
+    assert_eq!(paint.styles.len(), 1);
+    assert!(!paint.styles[0].delta.inherited && !paint.styles[0].delta.geometry);
+    let paint = paint_of(".p:hover { color: red }").expect("a paint change");
+    // `color` inherits: `#p` and its three descendants.
+    assert_eq!(paint.styles.len(), 4);
+    assert!(
+        paint
+            .styles
+            .iter()
+            .all(|s| s.delta.inherited && s.delta.colors)
+    );
+}
+
+#[test]
+fn a_layout_property_is_not_a_paint_change() {
+    assert!(paint_of(".p:hover { color: red; width: 100px }").is_none());
+    assert!(paint_of(".p:hover { display: flex; background: red }").is_none());
+    assert!(paint_of(".p:hover { padding-left: 1px }").is_none());
+    assert!(paint_of(".p:hover { visibility: hidden }").is_none());
+}
+
+#[test]
+fn a_transform_between_none_and_a_value_is_not_a_paint_change() {
+    assert!(paint_of(".p:hover { transform: translateX(3px) }").is_none());
+    assert!(paint_of(".p:hover { filter: blur(1px) }").is_none());
+    assert!(paint_of(".p:hover { translate: 1px }").is_none());
+    // From one value to another it is.
+    let css = ".p { transform: translateX(1px); filter: blur(1px) } \
+               .p:hover { transform: translateX(3px); filter: blur(2px) }";
+    let paint = paint_of(css).expect("a paint change");
+    assert!(paint.styles[0].delta.geometry);
+}
+
+#[test]
+fn an_element_that_appears_is_not_a_paint_change() {
+    assert!(paint_of(".p:hover > .c { display: none } .p > .c { display: inline }").is_none());
+    assert!(paint_of("#s1 { display: none } .p:hover ~ #s1 { display: block }").is_none());
+}
+
+#[test]
+fn a_pseudo_element_change_is_a_paint_change_only_if_it_keeps_its_box() {
+    let css = ".p::before { content: 'x'; color: green } .p:hover::before { color: red }";
+    let paint = paint_of(css).expect("a paint change");
+    assert_eq!(
+        paint
+            .styles
+            .iter()
+            .filter(|s| s.pseudo == Some(PseudoKind::Before))
+            .count(),
+        1
+    );
+    assert!(paint_of(".p:hover::before { content: 'x' }").is_none());
+}

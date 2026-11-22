@@ -36,13 +36,20 @@ pub enum PathSegment {
 
 /// A path in user units with the box of its points (control points
 /// included, so it contains the curves).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct SvgPath {
     segments: Vec<PathSegment>,
     bounds: Rect,
     /// [`SvgPath::fill_bounds`], computed on first use: it walks all
     /// segments, and every element that refers to a clip path asks for it.
     fill_bounds: OnceLock<Option<Rect>>,
+}
+
+/// Two paths are equal if their segments are: `fill_bounds` is a cache.
+impl PartialEq for SvgPath {
+    fn eq(&self, other: &SvgPath) -> bool {
+        self.segments == other.segments && self.bounds == other.bounds
+    }
 }
 
 impl SvgPath {

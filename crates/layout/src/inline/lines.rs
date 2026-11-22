@@ -1200,6 +1200,7 @@ impl LineBuilder<'_, '_> {
             last_baseline: None,
             is_inline: true,
             scrollable_overflow: None,
+            overflow_base: None,
             in_positioned_inline: false,
             hanging_from: None,
             is_root: false,

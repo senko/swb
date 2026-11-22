@@ -606,3 +606,43 @@ fn shimmer_pixels_at_seek_times() {
         assert_eq!(wrapped, colors(&mut page, "#s", &points));
     });
 }
+
+/// The check mode of the paint-only path (ADR 0044 section 9, feature 4a)
+/// on the probe pages at their seek times: every query of `css-animations`,
+/// `css-animations-3b` and `css-animations-3c` runs (it pauses the
+/// animations and seeks them), then the page renders. A frame that took the
+/// paint-only path is compared with a full layout and display list, and a
+/// difference panics.
+#[cfg(debug_assertions)]
+#[test]
+fn animation_probe_pages_with_the_paint_check() {
+    on_page_thread(|| {
+        swb_engine::set_restyle_check(true);
+        let before = swb_engine::paint_checks();
+        for file in ["css-animations", "css-animations-3b", "css-animations-3c"] {
+            let text = std::fs::read_to_string(
+                common::repo_root().join(format!("tools/probes/{file}.json")),
+            )
+            .unwrap();
+            let probe: Value = serde_json::from_str(&text).unwrap();
+            for case in probe["cases"].as_array().unwrap() {
+                let mut page = open(case);
+                page.set_animations(true);
+                let steps = case["steps"].as_array().cloned().unwrap_or_default();
+                if swb_automation::run_steps(&mut page, &steps).is_err() {
+                    continue;
+                }
+                page.screenshot(false).unwrap();
+                for query in case["measure"].as_array().unwrap() {
+                    if let Some(source) = query["js"].as_str() {
+                        common::value(&mut page, source);
+                        page.screenshot(false).unwrap();
+                    }
+                }
+            }
+        }
+        let checked = swb_engine::paint_checks() - before;
+        eprintln!("paint-only frames compared with a full layout: {checked}");
+        assert!(checked > 0, "no paint-only frame");
+    });
+}

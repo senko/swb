@@ -307,11 +307,14 @@ pub(crate) fn viewport_scroll_size<'a>(
     Size::new(clamp_length(width), clamp_length(height))
 }
 
-/// The scrollable overflow rectangle of scroll container `b`, relative to
-/// its border-box origin (see the module documentation). `inflow` is the
-/// extent of its in-flow content from the content-box origin
-/// ([`crate::block::ChildrenLayout::inflow`]).
-pub(crate) fn scrollable_overflow(b: &BoxFragment, inflow: Size) -> Rect {
+/// Sets the scrollable overflow rectangle of scroll container `b`,
+/// relative to its border-box origin (see the module documentation).
+/// `inflow` is the extent of its in-flow content from the content-box
+/// origin ([`crate::block::ChildrenLayout::inflow`]). The extent without
+/// the descendants is kept in [`BoxFragment::overflow_base`], so that a
+/// paint-only restyle can compute the rectangle again when a transform of
+/// a descendant changed ([`refresh_scrollable_overflow`]).
+pub(crate) fn set_scrollable_overflow(b: &mut BoxFragment, inflow: Size) {
     let padding_box = b.scrollport();
     // The in-flow content starts at the content box; with the padding
     // around it, at the padding box.
@@ -325,7 +328,24 @@ pub(crate) fn scrollable_overflow(b: &BoxFragment, inflow: Size) -> Rect {
             .bottom()
             .max(padding_box.y + b.padding.vertical() + inflow.height),
     };
-    with_descendants(b, extent)
+    b.overflow_base = Some([extent.left, extent.top, extent.right, extent.bottom]);
+    b.scrollable_overflow = Some(with_descendants(b, extent));
+}
+
+/// Computes the scrollable overflow rectangle of scroll container `b`
+/// again from its kept base extent and the current descendants (ADR 0044
+/// section 9). Equal to the rectangle that layout makes, up to rounding
+/// at the last digit.
+pub(crate) fn refresh_scrollable_overflow(b: &mut BoxFragment) {
+    if let (Some([left, top, right, bottom]), Some(_)) = (b.overflow_base, b.scrollable_overflow) {
+        let extent = Extent {
+            left,
+            top,
+            right,
+            bottom,
+        };
+        b.scrollable_overflow = Some(with_descendants(b, extent));
+    }
 }
 
 /// The size of the scrolling area of box `b` (CSSOM View `scrollWidth` and
@@ -982,5 +1002,65 @@ mod tests {
         let scrolled = l.tree.element_boxes_scrolled(&offsets, Point::default());
         assert_eq!(scrolled[&l.node("in")].y, -200.0);
         assert_eq!(scrolled[&l.node("in")].x, 0.0);
+    }
+
+    /// Visits `b` and every box below it.
+    fn each_box(b: &BoxFragment, f: &mut impl FnMut(&BoxFragment)) {
+        f(b);
+        for child in b.children.iter() {
+            if let Fragment::Box(child) = child {
+                each_box(child, f);
+            }
+        }
+    }
+
+    /// The paint-only refresh adds the descendants to the kept base extent
+    /// again (ADR 0044 section 9): on an unchanged tree it gives the
+    /// rectangle that layout made, for nested containers, floats, relative,
+    /// absolute and fixed boxes, transforms, grid and flex containers and
+    /// hanging white space.
+    #[test]
+    fn refreshing_the_overflow_gives_the_layout_result() {
+        let l = layout_html(&body(
+            "<div id=s style='overflow:auto;width:100px;height:100px;padding:5px'>\
+             <div style='float:left;width:150px;height:20px;margin:3px'></div>\
+             <div style='position:relative;left:30px;top:10px;width:90px;height:90px'>\
+             <div style='position:absolute;right:-50px;bottom:-40px;width:20px;height:20px'></div>\
+             <div style='transform:translate(40px,30px) rotate(10deg);width:30px;height:30px'>\
+             </div></div>\
+             <div style='position:fixed;width:10px;height:10px'></div>\
+             <div style='overflow:hidden;width:50px;height:50px'>\
+             <div style='width:200px;height:10px'></div></div>\
+             <div style='display:flex;overflow:auto;width:80px;height:40px'>\
+             <div style='flex:none;width:200px;margin-right:10px'>x</div></div>\
+             <div style='display:grid;overflow:scroll;width:80px;height:40px;\
+             grid-template-columns:100px 100px'><div>a</div><div>b</div></div>\
+             <pre style='white-space:pre-wrap;width:60px'>a        b          </pre></div>\
+             <div style='overflow:auto;width:50px;height:50px'>\
+             <div style='position:absolute;left:100px;top:100px;width:10px;height:10px'></div>\
+             <span style='display:inline-block;transform:scale(3)'>t</span></div>",
+        ));
+        let mut containers = 0;
+        for root in l.tree.roots() {
+            each_box(root, &mut |b| {
+                let Some(laid_out) = b.scrollable_overflow else {
+                    return;
+                };
+                let mut copy = b.clone();
+                refresh_scrollable_overflow(&mut copy);
+                let again = copy.scrollable_overflow.expect("still a scroll container");
+                let near = |a: f32, b: f32| (a - b).abs() < 0.01;
+                assert!(
+                    near(again.x, laid_out.x)
+                        && near(again.y, laid_out.y)
+                        && near(again.width, laid_out.width)
+                        && near(again.height, laid_out.height),
+                    "{:?}: {again:?} against {laid_out:?}",
+                    b.node
+                );
+                containers += 1;
+            });
+        }
+        assert!(containers >= 5, "{containers} scroll containers");
     }
 }

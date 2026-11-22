@@ -10,6 +10,7 @@
 
 use std::sync::Arc;
 
+use swb_dom::NodeId;
 use swb_style::{CaptionSide, ComputedStyle, EmptyCells};
 
 use super::cells::{align_cell, has_content, has_definite_height, layout_cell};
@@ -231,7 +232,7 @@ struct Columns {
     fragments: Vec<BoxFragment>,
     /// The column groups and columns with a background: style, area in
     /// table coordinates, and whether it is a group.
-    parts: Vec<(Arc<ComputedStyle>, Rect, bool)>,
+    parts: Vec<(Option<NodeId>, Arc<ComputedStyle>, Rect, bool)>,
     /// The parts (indices of `parts`) of each column.
     by_column: Vec<Vec<usize>>,
 }
@@ -310,8 +311,12 @@ impl Columns {
             return;
         }
         let index = self.parts.len();
-        self.parts
-            .push((Arc::clone(&column.base.style), rect, column.is_group));
+        self.parts.push((
+            column.base.node,
+            Arc::clone(&column.base.style),
+            rect,
+            column.is_group,
+        ));
         for parts in self.by_column.iter_mut().skip(start).take(span) {
             parts.push(index);
         }
@@ -319,7 +324,11 @@ impl Columns {
 
     /// The column group and column backgrounds of the columns that a cell
     /// spans, each once: groups below columns.
-    fn backgrounds(&self, column: usize, colspan: usize) -> Vec<(&Arc<ComputedStyle>, Rect)> {
+    fn backgrounds(
+        &self,
+        column: usize,
+        colspan: usize,
+    ) -> Vec<(Option<NodeId>, &Arc<ComputedStyle>, Rect)> {
         let mut indices: Vec<usize> = self
             .by_column
             .iter()
@@ -330,10 +339,10 @@ impl Columns {
             .collect();
         indices.sort_unstable();
         indices.dedup();
-        indices.sort_by_key(|&i| !self.parts[i].2);
+        indices.sort_by_key(|&i| !self.parts[i].3);
         indices
             .into_iter()
-            .map(|i| (&self.parts[i].0, self.parts[i].1))
+            .map(|i| (self.parts[i].0, &self.parts[i].1, self.parts[i].2))
             .collect()
     }
 }
@@ -501,8 +510,12 @@ fn cell_fragment(
     let area = Rect::new(row_rect.x + x, row_rect.y, width, height);
     let backgrounds = Backgrounds {
         columns: columns.backgrounds(cell.column, cell.colspan),
-        section: (&grid.sections[row.section].section.base.style, section_rect),
-        row: (&row.row.base.style, row_rect),
+        section: (
+            grid.sections[row.section].section.base.node,
+            &grid.sections[row.section].section.base.style,
+            section_rect,
+        ),
+        row: (row.row.base.node, &row.row.base.style, row_rect),
     };
     fragment.content = cell_content(prepared, &fragment, area, backgrounds);
     let cb = ContainingBlock {
@@ -516,9 +529,9 @@ fn cell_fragment(
 /// The table parts whose backgrounds a cell paints, with their areas in
 /// table coordinates.
 struct Backgrounds<'a> {
-    columns: Vec<(&'a Arc<ComputedStyle>, Rect)>,
-    section: (&'a Arc<ComputedStyle>, Rect),
-    row: (&'a Arc<ComputedStyle>, Rect),
+    columns: Vec<(Option<NodeId>, &'a Arc<ComputedStyle>, Rect)>,
+    section: (Option<NodeId>, &'a Arc<ComputedStyle>, Rect),
+    row: (Option<NodeId>, &'a Arc<ComputedStyle>, Rect),
 }
 
 /// The paint data of a cell at `cell` (table coordinates): the
@@ -534,9 +547,10 @@ fn cell_content(
 ) -> BoxContent {
     let mut backgrounds = Vec::new();
     let local = |r: Rect| r.relative_to(cell.origin());
-    for (style, area) in parts.columns {
+    for (node, style, area) in parts.columns {
         if let Some(clip) = area.intersection(&cell) {
             backgrounds.push(PartBackground {
+                node,
                 style: Arc::clone(style),
                 area: local(area),
                 clip: local(clip),
@@ -544,9 +558,10 @@ fn cell_content(
         }
     }
     let whole = local(cell);
-    for (style, area) in [parts.section, parts.row] {
+    for (node, style, area) in [parts.section, parts.row] {
         if has_background(style) {
             backgrounds.push(PartBackground {
+                node,
                 style: Arc::clone(style),
                 area: local(area),
                 clip: whole,

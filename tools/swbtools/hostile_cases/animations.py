@@ -10,7 +10,9 @@ and a long animated value. Feature 3c adds the events, the promises and the visi
 an `animationend` listener that restarts its animation, `animationiteration` listeners on
 10,000 elements with a 1 ms animation, `await` of the `finished` promises of 99,000
 animations, `cancel()` and `play()` in a loop, and 10,000 animated elements outside the
-viewport."""
+viewport. Feature 4a adds the paint-only path (`paint-only-*`): a color animation on 10,000
+elements, an inherited `color` animation on a tree of 100,000 text fragments, a transform
+animation inside 1,000 nested scroll containers, and `opacity` toggled on 10,000 elements."""
 
 from swbtools.hostile_cases.core import JS, Page, case, doc, nest
 
@@ -460,3 +462,83 @@ def animation_visibility_10000_offscreen() -> Page:
         "document.getAnimations().length),2500)</script>"
     )
     return Page(doc(body, css))
+
+
+def _frame_loop(rounds: int, step: str, label: str) -> str:
+    """A script that runs `rounds` tasks 16 ms apart; each runs `step(i)`, reads the computed
+    style of `#a` (the catch-up of the animation timeline and the restyle) and the box of
+    the body (a layout flush), then logs `label rounds`."""
+    return (
+        f"<script>let i=0;const a=document.querySelector('#a');function f(){{{step};"
+        "getComputedStyle(a).color;document.body.getBoundingClientRect();"
+        f"if(++i<{rounds})setTimeout(f,16);else console.warn('{label} '+i);}}"
+        "setTimeout(f,16);</script>"
+    )
+
+
+@case(
+    "A color animation on 10,000 elements, 150 frames (M13 feature 4a; ADR 0044 section 9): "
+    "10,000 changed fragments per frame take the paint-only path; the layout stays and the "
+    "walk of the fragment tree is O(fragments)",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+    swb_args=RUNNING,
+    expect_log="paint-only color 150",
+)
+def paint_only_color_animation_10000_elements() -> Page:
+    css = (
+        "div{width:10px;height:10px;display:inline-block;animation:k 1s linear infinite}"
+        "@keyframes k{from{color:red;background-color:#eee;outline-color:red}"
+        "to{color:blue;background-color:#333;outline-color:blue}}"
+    )
+    body = "<div id=a>x</div>" + "<div>y</div>" * 9_999
+    return Page(doc(body + _frame_loop(150, "", "paint-only color"), css))
+
+
+@case(
+    "An inherited `color` animation on the root of a tree of 100,000 text fragments, 8 frames "
+    "(M13 feature 4a; ADR 0044 section 9): every element restyles, every fragment gets a new "
+    "style, the layout stays",
+    time_limit_s=30,
+    rss_limit_mib=2048,
+    swb_args=RUNNING,
+    expect_log="paint-only inherited 8",
+)
+def paint_only_inherited_color_100000_text_fragments() -> Page:
+    css = "#a{animation:k 1s linear infinite}@keyframes k{from{color:red}to{color:blue}}"
+    body = "<div id=a>" + "<p>text</p>" * 100_000 + "</div>"
+    return Page(doc(body + _frame_loop(8, "", "paint-only inherited"), css))
+
+
+@case(
+    "A transform animation inside 1,000 nested scroll containers, 150 frames (M13 feature 4a; "
+    "ADR 0044 section 9): each frame computes the scrollable overflow of the 1,000 containers "
+    "again, each from its own children",
+    time_limit_s=30,
+    swb_args=RUNNING,
+    expect_log="paint-only overflow chain 150",
+)
+def paint_only_transform_in_1000_scroll_containers() -> Page:
+    css = (
+        ".s{overflow:auto;width:300px;height:100px}"
+        "#a{width:10px;height:10px;background:red;animation:k 1s linear infinite}"
+        "@keyframes k{from{transform:translateX(0)}to{transform:translateX(900px)}}"
+    )
+    body = nest("<div class=s>", "</div>", 1_000, "<div id=a></div>")
+    return Page(doc(body + _frame_loop(150, "", "paint-only overflow chain"), css))
+
+
+@case(
+    "`opacity` toggled between 1 and 0.5 on 10,000 elements by a script, 100 times (M13 "
+    "feature 4a; ADR 0044 section 9): every toggle adds or removes a stacking context, which "
+    "layout never reads, so the layout stays",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+    swb_args=RUNNING,
+    expect_log="paint-only opacity 100",
+)
+def paint_only_opacity_toggle_10000_elements() -> Page:
+    css = "div{width:10px;height:10px;display:inline-block;background:blue}"
+    step = "for(const d of document.querySelectorAll('div'))d.style.opacity=i%2?'1':'.5'"
+    body = "<div id=a></div>" + "<div></div>" * 9_999
+    return Page(doc(body + _frame_loop(100, step, "paint-only opacity"), css))

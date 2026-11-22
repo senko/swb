@@ -6302,7 +6302,40 @@ Steps:
       of paint properties, the refresh of fragment styles, overflow, the
       display list rebuild, and the check mode as the oracle. This comes
       before the transitions: every hover on the page repaints the hero
-      (30 ms).
+      (30 ms). Done 2026-11-22 (ADR 0044 section 17). The layout stays
+      when a restyle changes paint properties only; no page renders
+      differently (snapshot byte-equal, scores equal).
+      - `style/src/paint.rs`: the table (section 9's list plus the
+        outline and the decoration lines of text) and `paint_change`: the
+        old style with the paint properties of the new one equals the new
+        one, and `has_transform` and the filter containing block stay.
+        `Restyle::Done` carries the pairs of old and new styles, or `None`
+        for elements that appear or go, counters, `use` instances and the
+        SVG elements that layout bakes in.
+      - `layout/src/paint_restyle.rs`: one walk replaces the styles of the
+        fragments by owner and style object (equal styles share one
+        object), derives anonymous boxes, control text, control looks, the
+        canvas background and the backgrounds of table rows again, and
+        computes the scrollable overflow again from a kept base extent
+        where a transform changed. What it cannot follow (`::placeholder`,
+        collapsed borders with new colors, a row group's background, SVG
+        structure) lays out as before.
+      - The check mode compares each paint-only frame with a full layout
+        and display list (trees box by box, lists item by item): the
+        hover sessions of the fixtures, the videojs animations, the probe
+        pages, `paint_only.rs`. It found the shared style objects.
+      - Hover, change p90 (JS off): Hacker News 2.6 -> 0.9 ms, Wikipedia
+        15.8 -> 3.9 ms, github-swb 18.9 -> 13.4 ms; layout runs per change
+        to 0 on all four fixtures. videojs: layout 1.4 ms -> 0 per
+        animation frame, the frame stays about 31 ms of raster (feature
+        4b). Hostile: 10,000 color animations 14.6 -> 11.7 s, inherited
+        color on 100,000 text fragments 3.1 -> 1.6 s.
+      - Review: no wrong frame found (41 more hover cases, all equal to a
+        full layout); a misplaced `cfg` that made the check module dead
+        code in release builds; tests that did not assert their path.
+      - Tests: `paint_only.rs`, `paint_only_fixtures.rs`,
+        `restyle_oracle.rs` (videojs added), `css_animations.rs`, unit
+        tests; 4 hostile cases.
    4b. Damage rectangles (`implementer-hard`; section 9): the display
       list diff, the region raster with its bit-exact oracle, the GUI
       path, the content generation of media for M14; the budgets of the
@@ -6595,6 +6628,25 @@ Source Extensions, AV1 (dav1d), YouTube.
   `cancel`, `remove`, `onfinish`, `oncancel`), `Element.animate()`, and
   the constructors of `Animation`, `KeyframeEffect` and
   `DocumentTimeline` (ADR 0044 section 7, out of scope for M13).
+- Paint-only frames (feature 4a): these changes still lay out: a row
+  group or column group whose background appears or goes, `::placeholder`
+  changes, colors of a collapsed table, SVG style changes that change the
+  opacity layers, two paints, a clip path or a rotation (the structure
+  check could derive `layered` again instead). Not in the paint table:
+  `visibility` (hit testing and focus caches), `background-image` layers
+  (image loads), `border-*-style` (collapsed borders, the native look).
+- Paint-only frames (feature 4a): `paint_change` clones the style per
+  changed element (about 6 ms per 10,000 changed styles); a per-field
+  compare would avoid it. The fragment walk is proportional to the tree
+  (one binary search per fragment), not to the changes. `visit_box` calls
+  `Arc::make_mut` on every children vector: free while the tree is
+  unshared, a copy of every vector if a clone of the tree is ever kept.
+  `BoxFragment::overflow_base` (20 bytes) is in every box fragment,
+  although only scroll containers use it. The debug-only compare helpers
+  of `paint_restyle.rs` (about 175 lines) could move to their own file.
+- Paint-only frames (feature 4a): a hover in an iframe repaints right,
+  but no test shows that the frame document took the paint-only path (the
+  counters are the top-level page's).
 - Paint (feature 3b): `background-clip: text` with a gradient differs
   from Chromium by up to 12 per channel, animated or not (the `shimmer`
   pixel test).

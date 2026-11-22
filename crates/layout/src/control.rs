@@ -949,7 +949,7 @@ fn options_width(
 /// the user-agent defaults (Chromium uses the native look unless the
 /// author styles the border or the background). swb compares the computed
 /// values: border styles and widths, background color and image, radius.
-fn has_native_look(kind: ControlKind, style: &ComputedStyle) -> bool {
+pub(crate) fn has_native_look(kind: ControlKind, style: &ComputedStyle) -> bool {
     // `appearance: none` takes the native look away from every control.
     if style.appearance == Appearance::None {
         return false;

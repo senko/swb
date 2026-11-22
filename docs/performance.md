@@ -127,12 +127,22 @@ part of the times. The result is the key `interaction` of the JSON:
   30 frames in at most 3 s of real time; each frame is the page's pump at
   its next frame (the rendering update moves the animations) and a render
   if the frame is outdated. `frames` counts the frames that restyled,
-  `median_ms` is their median time, `style_ms`, `layout_ms`,
-  `display_list_ms` and `raster_ms` the medians of the stage times of
-  those frames (the last run of each stage), `restyled_elements` the
-  elements that their restyles restyled. Without a running animation
+  `median_ms` is their median time, `style_ms` and `layout_ms` the
+  medians of the style and layout time that the frames ran (0 for a frame
+  without a layout; since M13 feature 4a), `display_list_ms` and
+  `raster_ms` the medians of the stage times of those frames (the last run
+  of each stage), `restyled_elements` the elements that their restyles
+  restyled. Since feature 4a also `paint_only_frames` (frames whose layout
+  stayed: ADR 0044 section 9), `layout_runs` and `paint_ms` (the time of
+  the refresh of the fragments). Without a running animation
   (`--animations off`, as `swbtools perf` runs) the stage does nothing:
   `{"frames": 0, ...}`.
+- Paint-only changes (since M13 feature 4a): the hover stage also reports
+  `paint_only_changes` (the changing steps whose restyle changed paint
+  properties only, so that the layout stayed and the fragments got the new
+  styles), `paint_fallbacks` (those whose refresh gave up and laid out
+  again) and `paint_ms_per_change`. `swbtools perf` prints
+  `paint_only_changes` as a column of the interaction table.
 
 The stages work with JavaScript on: `--js --virtual-time` (and the
 fixture's `--now` and `--settle-ms`) as for the other JS tools. `swbtools
@@ -526,6 +536,54 @@ off 38.4 against 28 ms, Wikipedia 29.1 against 27 ms). The Ars Technica
 JS-on fixture has 2,698 elements against 1,943 with JavaScript off. On BBC
 with JavaScript on, only 1 of 240 grid steps changed the hover state (65
 with JavaScript off); the cause is not examined (backlog).
+
+### Paint-only frames (M13 feature 4a)
+
+ADR 0044 section 17. A restyle that changes paint properties only keeps the
+layout; the fragments get the new styles and the display list is built
+again. Release build, `swb --bench 3` (JavaScript off, animations off,
+`--replay` of the page fixtures at 1280 x 800), one run each; before is the
+commit of feature 3c. The hover stage, the steps that changed the state; each
+cell is before / after:
+
+| Fixture | Steps | Changed | Change median ms | Change p90 ms | Layout runs per change | Layout ms per change | Paint-only changes |
+|---|---|---|---|---|---|---|---|
+| videojs | 144 | 30 | 30.15 / 30.48 | 32.51 / 31.23 | 0.40 / 0.00 | 0.63 / 0.00 | 0 / 12 |
+| hacker-news | 144 | 82 | 0.71 / 0.70 | 2.62 / 0.92 | 0.37 / 0.00 | 0.56 / 0.00 | 0 / 30 |
+| wikipedia-web-browser | 144 | 72 | 2.31 / 2.28 | 15.80 / 3.85 | 0.33 / 0.00 | 3.72 / 0.00 | 0 / 24 |
+| github-swb | 144 | 72 | 18.05 / 12.75 | 18.87 / 13.42 | 0.58 / 0.00 | 2.89 / 0.00 | 0 / 42 |
+
+The hover time includes the render. On videojs it stays at 30 ms because the
+raster of the hero takes 30 ms (feature 4b). With JavaScript on (videojs
+JS fixture, `--js`): layout runs per change 1.4 to 0.13 (39 of 45 changing
+steps paint-only), median 31.7 to 30.1 ms, p90 51.7 to 50.7 ms.
+
+Animation frames (videojs JS fixture, `--js`, real time, animations on, 25
+frames): layout 1.39 ms to 0 (24 of 25 frames paint-only, the refresh of the
+fragments 0.05 ms a frame); style 0.65 ms, display list 0.33 ms, raster
+36 ms; frame median 38.9 to 37.4 ms. The JS-off page runs no animation in
+the bench.
+
+`gui-latency videojs --js --trace videojs-page --window 1280x840`: pointer
+move to frame median 50 to 49 ms and p90 70 to 68 ms, frames per second 19.5
+to 19.7, CPU during the trace 40.5 % to 40.2 %, layout runs in the trace 430
+(650 ms) to 233 (348 ms).
+
+Hostile cases, before / after:
+
+| Case | Time | Peak memory |
+|---|---|---|
+| `paint-only-color-animation-10000-elements` (150 frames) | 14.6 s / 11.7 s | 187 / 167 MiB |
+| `paint-only-inherited-color-100000-text-fragments` (8 frames) | 3.11 s / 1.61 s | 425 / 418 MiB |
+| `paint-only-transform-in-1000-scroll-containers` (150 frames) | 0.10 s / 0.05 s | 79 / 79 MiB |
+| `paint-only-opacity-toggle-10000-elements` (100 toggles) | 5.7 s / 5.3 s | 153 / 152 MiB |
+
+The refresh of 10,000 changed styles takes 0.9 ms; the classification of
+10,000 changed styles about 6 ms; both run only on frames that restyle. In the
+first case a frame costs 95 ms before (style 69, layout 26) and 76 ms after
+(style 75 with the classification, refresh 0.9): the cascade of the animated
+elements dominates. The load stages of `perf videojs` and `perf hacker-news`
+(5 runs) are the same within noise.
 
 ### GUI: input latency on Xvfb, 1280 x 900
 

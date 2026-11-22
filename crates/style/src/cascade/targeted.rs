@@ -30,6 +30,7 @@ use crate::container::ContainerSizes;
 use crate::dom_changes::{DomChanges, plan_dom};
 use crate::element::{DomElement, ElementStates, StateSet};
 use crate::invalidation::{KeySet, Plan, Planner, TARGETED_STATES, flipped};
+use crate::paint::{PaintDelta, paint_change};
 use crate::style_map::{PseudoKind, PseudoStyles, StyleMap, image_urls_of};
 use crate::stylist::Stylist;
 use crate::values::{Content, ContentItem, Display};
@@ -60,6 +61,30 @@ pub enum FullReason {
     Structure,
 }
 
+/// A style that a restyle replaced: the style of one element or of one
+/// of its pseudo-elements, before and after.
+#[derive(Clone, Debug, PartialEq)]
+pub struct StylePair {
+    /// The element.
+    pub node: NodeId,
+    /// The pseudo-element, or `None` for the element itself.
+    pub pseudo: Option<PseudoKind>,
+    /// The style before the restyle (the object that the layout holds).
+    pub old: Arc<ComputedStyle>,
+    /// The style after it.
+    pub new: Arc<ComputedStyle>,
+    /// What the change touches.
+    pub delta: PaintDelta,
+}
+
+/// The changes of a restyle that changed paint properties only (ADR 0044
+/// section 9).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PaintChanges {
+    /// The replaced styles.
+    pub styles: Vec<StylePair>,
+}
+
 /// The inputs of a restyle that stay the same between the old and the new
 /// styles: they must be those of the style map that is brought up to date
 /// (the container sizes may be those of a later layout whose log held).
@@ -88,6 +113,10 @@ pub enum Restyle {
         restyled: usize,
         /// The image URLs of the new styles (the others were seen before).
         image_urls: Vec<Arc<str>>,
+        /// `Some` if `changed` and every change is a change of paint
+        /// properties only (ADR 0044 section 9): the layout stays, and the
+        /// pairs say which styles to replace in it.
+        paint: Option<PaintChanges>,
     },
     /// The map is unchanged; restyle the whole document.
     Full(FullReason),
@@ -150,6 +179,7 @@ pub fn restyle_animated(
         changed: false,
         restyled: 0,
         image_urls: Vec::new(),
+        paint: None,
     };
     let changed = old.changes(new) & stylist.state_dependencies();
     let same_sources = Arc::ptr_eq(&old.dimension_sources, &new.dimension_sources)
@@ -247,6 +277,9 @@ struct Visit {
 struct Changes {
     /// The new styles of the elements whose style changed.
     elements: Vec<(NodeId, Arc<ComputedStyle>)>,
+    /// The elements of `elements` that had a style before: the old and the
+    /// new style (an element that appears is not a paint change).
+    replaced: Vec<(NodeId, Arc<ComputedStyle>, Arc<ComputedStyle>)>,
     /// Elements that became `display: none`: their descendants lose their
     /// styles.
     cleared: Vec<NodeId>,
@@ -620,6 +653,9 @@ impl Styler<'_> {
         }
         changes.counter_inputs |= counter_inputs_differ(Some(old), Some(&new));
         changes.elements.push((node, Arc::clone(&new)));
+        changes
+            .replaced
+            .push((node, Arc::clone(old), Arc::clone(&new)));
         Ok((new, true))
     }
 
@@ -716,6 +752,12 @@ impl Styler<'_> {
         let mut changed = !changes.elements.is_empty()
             || !changes.cleared.is_empty()
             || !changes.stale.is_empty();
+        // True if something other than the styles of existing elements and
+        // pseudo-elements changed: the layout cannot stay (ADR 0044
+        // section 9).
+        let mut structural = !changes.cleared.is_empty()
+            || !changes.stale.is_empty()
+            || changes.replaced.len() != changes.elements.len();
         map.fit(self.doc.len());
         for &node in &changes.stale {
             map.clear_element(node);
@@ -753,46 +795,67 @@ impl Styler<'_> {
         if let Some(before) = before {
             map.reset_ordinals();
             crate::counters::resolve(self.doc, map);
-            changed |= *map.ordinals() != before;
+            let ordinals_changed = *map.ordinals() != before;
+            changed |= ordinals_changed;
+            structural |= ordinals_changed;
         }
-        for (node, old) in old_pseudos {
-            let mut new = map.pseudos_of(node);
-            let mut kept = false;
-            for (old, new) in old.iter().zip(new.iter_mut()) {
-                match (old, &*new) {
-                    (Some(a), Some(b)) if same(a, b) => {
-                        // Keep the old object.
-                        *new = Some(Arc::clone(a));
-                        kept = true;
-                    }
-                    (None, None) => {}
-                    _ => {
-                        changed = true;
-                        if let Some(b) = &*new {
-                            image_urls.extend(image_urls_of(std::iter::once(b)));
-                        }
-                    }
-                }
-            }
-            if kept {
-                map.replace_pseudos(node, new);
-            }
-        }
+        let pseudo_changes = compare_pseudos(map, old_pseudos, &mut image_urls);
+        changed |= pseudo_changes.changed;
+        structural |= pseudo_changes.structural;
         if plan.uses || self.uses_outdated(changes, map) {
             let (instances, root_uses) = map.take_instances();
             self.expand_uses(map);
-            changed |= !map.same_instances(&instances, &root_uses);
+            let instances_changed = !map.same_instances(&instances, &root_uses);
+            changed |= instances_changed;
+            structural |= instances_changed;
         }
         refresh_container_sizes(map, sizes);
         if changed {
             map.recompute_hidden_contents();
         }
         image_urls.dedup();
+        let paint = (changed && !structural)
+            .then(|| self.paint_changes(changes, pseudo_changes.pairs))
+            .flatten();
         Restyle::Done {
             changed,
             restyled: changes.restyled,
             image_urls,
+            paint,
         }
+    }
+
+    /// The paint changes of the walk if every replaced style differs from
+    /// its old style in paint properties only (ADR 0044 section 9), else
+    /// `None`. The comparison runs only for styles that changed.
+    fn paint_changes(&self, changes: &Changes, pseudos: Vec<PseudoPair>) -> Option<PaintChanges> {
+        let mut styles = Vec::with_capacity(changes.replaced.len() + pseudos.len());
+        for (node, old, new) in &changes.replaced {
+            // A hazard of the SVG content that layout bakes in (clip
+            // paths, `use` copies, symbols).
+            if svg_content_hazard(self.doc, *node) {
+                return None;
+            }
+            let delta = paint_change(old, new)?;
+            styles.push(StylePair {
+                node: *node,
+                pseudo: None,
+                old: Arc::clone(old),
+                new: Arc::clone(new),
+                delta,
+            });
+        }
+        for (node, kind, old, new) in pseudos {
+            let delta = paint_change(&old, &new)?;
+            styles.push(StylePair {
+                node,
+                pseudo: Some(kind),
+                old,
+                new,
+                delta,
+            });
+        }
+        Some(PaintChanges { styles })
     }
 
     /// True if the instance trees of `use` elements may differ from those
@@ -818,6 +881,106 @@ impl Styler<'_> {
         let nodes = map.instance_nodes();
         changes.touched.iter().any(|n| nodes.contains(n))
     }
+}
+
+/// A pseudo-element style that a restyle replaced: the element, the kind,
+/// the old and the new style.
+type PseudoPair = (NodeId, PseudoKind, Arc<ComputedStyle>, Arc<ComputedStyle>);
+
+/// What the comparison of the pseudo-element styles found.
+#[derive(Default)]
+struct PseudoChanges {
+    /// A pseudo-element style changed, appeared or went.
+    changed: bool,
+    /// One appeared or went (a box appears or goes).
+    structural: bool,
+    /// The styles that changed.
+    pairs: Vec<PseudoPair>,
+}
+
+/// Compares the pseudo-element styles of the restyled elements with the
+/// old ones `old_pseudos`, after the counter pass. An equal style keeps the
+/// old object. The image URLs of changed styles go to `image_urls`.
+fn compare_pseudos(
+    map: &mut StyleMap,
+    old_pseudos: Vec<(NodeId, PseudoStyles)>,
+    image_urls: &mut Vec<Arc<str>>,
+) -> PseudoChanges {
+    let mut found = PseudoChanges::default();
+    for (node, old) in old_pseudos {
+        let mut new = map.pseudos_of(node);
+        let mut kept = false;
+        for (kind, (old, new)) in PseudoKind::ALL
+            .into_iter()
+            .zip(old.iter().zip(new.iter_mut()))
+        {
+            match (old, &*new) {
+                (Some(a), Some(b)) if same(a, b) => {
+                    // Keep the old object.
+                    *new = Some(Arc::clone(a));
+                    kept = true;
+                }
+                (None, None) => {}
+                (Some(a), Some(b)) => {
+                    found.changed = true;
+                    found.pairs.push((node, kind, Arc::clone(a), Arc::clone(b)));
+                    image_urls.extend(image_urls_of(std::iter::once(b)));
+                }
+                _ => {
+                    found.changed = true;
+                    found.structural = true;
+                    if let Some(b) = &*new {
+                        image_urls.extend(image_urls_of(std::iter::once(b)));
+                    }
+                }
+            }
+        }
+        if kept {
+            map.replace_pseudos(node, new);
+        }
+    }
+    found
+}
+
+/// True if `node` is an SVG element whose style layout bakes into content
+/// other than the drawing of a shape or a group: a clip path, a symbol,
+/// a `use` element or something inside one (`layout/src/svg/mod.rs`). A
+/// change of its style is not a paint change. Elements outside SVG and
+/// plain shapes and groups below an `<svg>` are not hazards.
+fn svg_content_hazard(doc: &Document, node: NodeId) -> bool {
+    let plain = |n: NodeId| {
+        doc.element(n).is_some_and(|e| {
+            e.name.ns == swb_dom::ns!(svg)
+                && matches!(
+                    &**e.local_name(),
+                    "svg"
+                        | "g"
+                        | "a"
+                        | "path"
+                        | "rect"
+                        | "circle"
+                        | "ellipse"
+                        | "line"
+                        | "polyline"
+                        | "polygon"
+                )
+        })
+    };
+    let in_svg = |n: NodeId| {
+        doc.element(n)
+            .is_some_and(|e| e.name.ns == swb_dom::ns!(svg))
+    };
+    if !in_svg(node) {
+        return false;
+    }
+    let mut at = Some(node);
+    while let Some(n) = at.filter(|&n| in_svg(n)) {
+        if !plain(n) {
+            return true;
+        }
+        at = doc.parent(n);
+    }
+    false
 }
 
 /// Sets the size of each container of the log to its current size: what a

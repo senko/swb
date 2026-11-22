@@ -43,6 +43,8 @@ mod history_api;
 mod inner_text;
 mod lazy;
 mod loads;
+#[cfg(debug_assertions)]
+mod paint_check;
 mod paint_stamp;
 mod pipeline;
 mod queries;
@@ -398,6 +400,10 @@ pub struct DocumentState {
     /// `change` fires when the control commits, if the value differs.
     pub(crate) commit_baseline: Option<(NodeId, String)>,
     pub(crate) fragments: Option<FragmentTree>,
+    /// True if `fragments` went through a paint-only refresh since its
+    /// layout and the check mode (debug builds) has not compared it with a
+    /// full layout yet (`paint_check.rs`).
+    pub(crate) paint_refreshed: bool,
     /// Counts the layouts: a cache of data derived from the fragments is
     /// valid while this stays the same.
     pub(crate) layout_serial: u64,
@@ -540,6 +546,7 @@ impl DocumentState {
             navigation: swb_web::NavigationInfo::default(),
             commit_baseline: None,
             fragments: None,
+            paint_refreshed: false,
             layout_serial: 0,
             display_list: None,
             list_serial: 0,

@@ -49,6 +49,7 @@ mod inline;
 mod intrinsic;
 mod list_marker;
 mod media;
+mod paint_restyle;
 mod positioned;
 mod replaced;
 mod scroll;
@@ -80,6 +81,7 @@ pub use fragment::{
     PartBackground, PositionedGlyph, TablePaint, TextFragment,
 };
 pub use geom::{Edges, KAPPA, Matrix, Point, Rect, Size};
+pub use paint_restyle::Unsupported;
 pub use positioned::{
     Ancestry, GroupTransform, Placeholder, StickyCache, StickyConstraints, clip_property_area,
     forms_stacking_context, has_transform, is_absolute_containing_block, is_fixed_containing_block,

@@ -97,6 +97,10 @@ fn check(runs: Vec<Option<(String, RestylePaths)>>) {
         return;
     }
     assert!(swb_engine::restyle_checks() > 0);
+    eprintln!(
+        "paint-only frames compared with a full layout: {}",
+        swb_engine::paint_checks()
+    );
 }
 
 #[test]
@@ -110,6 +114,7 @@ fn targeted_restyles_equal_full_restyles_on_page_fixtures() {
             "github-swb",
             "hacker-news",
             "senko-net",
+            "videojs",
             "wikipedia-web-browser",
         ]
         .map(|name| move || run_fixture(name, false)),
@@ -120,14 +125,22 @@ fn targeted_restyles_equal_full_restyles_on_page_fixtures() {
         "a page fixture is missing"
     );
     check(runs);
+    // Hovers that change colors take the paint-only path (ADR 0044
+    // section 9); the check mode compared each of them with a full layout.
+    assert!(swb_engine::paint_checks() > 0, "no paint-only frame");
 }
 
 #[test]
 fn targeted_restyles_equal_full_restyles_on_js_fixtures() {
     swb_engine::set_restyle_check(true);
     let runs = on_page_threads(
-        ["github-swb", "ars-technica", "wikipedia-web-browser"]
-            .map(|name| move || run_fixture(name, true)),
+        [
+            "github-swb",
+            "ars-technica",
+            "wikipedia-web-browser",
+            "videojs",
+        ]
+        .map(|name| move || run_fixture(name, true)),
     );
     check(runs);
 }

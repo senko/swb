@@ -200,7 +200,20 @@ Rules:
   take the same path (ADR 0042): the drain records them in a
   `swb_style::DomChanges` set and keeps the old map (`stale_styles`) until
   the next style computation, and `style/src/dom_changes.rs` marks what they
-  can affect.
+  can affect. A targeted restyle (states, DOM changes and animation ticks,
+  ADR 0044 section 9 and 17) also reports whether every changed style
+  differs from its old one in *paint properties* only
+  (`style/src/paint.rs`, `Restyle::Done::paint`). The layout then stays:
+  `layout/src/paint_restyle.rs` (`FragmentTree::apply_paint_changes`)
+  replaces the styles in the fragments, derives the styles of anonymous
+  boxes and control text again, and, where a transform changed, computes the
+  scrollable overflow of the containers above it again; the display list is
+  built again in full. In debug builds the check mode compares the result
+  with a full layout and display list (`engine/src/document/paint_check.rs`).
+  What layout bakes from styles in a way that the refresh cannot follow
+  (placeholder text, collapsed borders with changed colors, SVG content
+  whose structure depends on a style, a row group's background) makes it
+  give up, and the layout runs as before.
 - **Scroll offsets** (`engine`, ADR 0019): one per scroll container,
   keyed by `NodeId`, in whole CSS px, clamped after each layout. Layout
   stores each scroll container's scrollable overflow in

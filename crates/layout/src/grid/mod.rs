@@ -907,10 +907,7 @@ pub(crate) fn layout(
         contents.baselines.offset(edges.sum().top),
     );
     if crate::scroll::is_scroll_container(style) {
-        fragment.scrollable_overflow = Some(crate::scroll::scrollable_overflow(
-            &fragment,
-            contents.tracks_end,
-        ));
+        crate::scroll::set_scrollable_overflow(&mut fragment, contents.tracks_end);
     }
     fragment
 }

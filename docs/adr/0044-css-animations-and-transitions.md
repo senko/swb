@@ -532,30 +532,36 @@ restyled element, a display list and a damage raster of a 1158 x 15 strip
 
 **Classification.** The restyle (tick or change) reports, per changed
 element, whether only *paint properties* changed. A table in the style
-crate lists them: `opacity`; `transform`, `translate`, `rotate`, `scale`,
-`transform-origin`; `filter`, `backdrop-filter`; the color properties
-(`color`, `background-color`, the border, outline, text decoration,
-`fill`, `stroke`, `-webkit-text-stroke-color`, `-webkit-text-fill-color`);
-`box-shadow`, `text-shadow`; `background-position`, `background-size`;
-`clip-path`, `mask-position`; `visibility` is not in it. A change between
-`none` and a value of `transform` (and the individual transforms),
-`filter` or `backdrop-filter` is not a paint change: it changes the
-containing block of fixed and absolute descendants. Any other change drops
-the layout as today.
+crate lists them (the table as implemented, and what the check mode took
+out of it, is in section 17): `opacity`; `transform`, `translate`,
+`rotate`, `scale`, `transform-origin`; `filter`, `backdrop-filter`; the
+color properties (`color`, `background-color`, the border, outline, text
+decoration, `fill`, `stroke`, `-webkit-text-stroke-color`,
+`-webkit-text-fill-color`); `box-shadow`, `text-shadow`;
+`background-position`, `background-size`; `clip-path`, `mask-position`;
+the outline and the decoration lines of text. `visibility` is not in it.
+A change that moves an element between "has a transform" (`transform`,
+`translate`, `rotate` or `scale` is not `none`) and "has none", or
+between "has a filter or backdrop filter" and "has none", is not a paint
+change: it changes the containing block of fixed and absolute
+descendants. Any other change drops the layout as today.
 
 **Paint-only path.** When every change is a paint change, the layout
 stays:
 
-1. *Fragment styles.* Fragments hold their own `Arc<ComputedStyle>`. One
-   walk of the fragment tree replaces the style of each fragment whose
-   element's style changed, copying only the changed paths
-   (`Arc::make_mut`). Anonymous boxes and text fragments inherit: when an
-   inherited paint property changed (`color`, the text colors and shadows),
-   their styles are derived again from the new parent style.
+1. *Fragment styles.* Fragments hold their own `Arc<ComputedStyle>`, and
+   elements with equal values share one object, so a fragment is matched
+   to a changed style by its owner element (or pseudo-element) and the
+   old object together. One walk of the fragment tree replaces the style
+   of each fragment whose owner's style changed. Anonymous boxes and the
+   text of controls inherit: when an inherited paint property changed
+   (`color`, the text colors and shadows), their styles are derived again
+   from the new parent style.
 2. *Overflow.* A transform change moves the scrollable overflow (layout
    includes transformed bounds, `scroll.rs`): the stored overflow of the
    scroll containers above the changed box and of the root is computed
-   again from the fragments; the geometry caches that include transforms
+   again from the extent that layout kept of each container and its
+   descendants; the geometry caches that include transforms
    (`getBoundingClientRect`, client rects, hit testing) are dropped.
 3. *Display list.* Built again in full from the fragment tree (0.2 ms on
    the videojs JS-off page, `perf`). Patching items in place is not done:
@@ -563,8 +569,9 @@ stays:
    values (opacity 1 to 0.5 adds a `PushOpacity`).
 
 The check mode (debug assertions, as `restyle_check.rs`) runs a full layout
-and display list after each paint-only frame and compares the lists item
-by item; it is the oracle for the table above.
+and display list when the display list of a paint-only frame is built, and
+compares the fragment trees box by box and the lists item by item; it is
+the oracle for the table above.
 
 **Damage rectangles.** The new display list is compared with the one of
 the last rendered frame, in paint order, with the transform and clip
@@ -1319,6 +1326,187 @@ different orders, so the order would be a departure. The values need a
 serialization of computed values without layout and the element's style
 without its animations; `keyframes-resolution` still waits
 (`WAITS_3A` in the test).
+
+### 17. Done in feature 4a
+
+Feature 4a does the first half of section 9: the classification, the
+paint-only path for fragments and the check mode. The damage rectangles
+and the region raster (feature 4b) are not done; every frame still rasters
+the whole viewport.
+
+**The table, as implemented** (`style/src/paint.rs`, `PAINT`, by longhand):
+`opacity`; `transform`, `translate`, `rotate`, `scale`, `transform-origin`;
+`filter`, `backdrop-filter`; `color`, `background-color`, the four border
+colors, `outline-color`, `text-decoration-color`, `fill`, `stroke`,
+`-webkit-text-stroke-color`, `-webkit-text-fill-color`; `box-shadow`,
+`text-shadow`; `background-position-x` and `-y`, `background-size`;
+`clip-path`, `mask-position-x` and `-y`. Two groups are new against the
+list of section 9: `outline-style`, `-width` and `-offset`, and
+`text-decoration-line` and `-style`. The first hover traces on the page
+fixtures showed why: most hover changes that the table of section 9
+refused changed the outline (the focus ring) or the decoration line (the
+underline of a link), and nothing in layout, scroll or the engine reads
+them (no ink overflow in swb; decorations propagate to the text of
+descendants in paint, from the fragment styles). With the two groups in
+the table, no hover change on the four measured fixtures lays out (table
+below). Not in the table: `visibility`
+(hit testing and focus), `background-image` and the other layers (image
+loads), the border styles and radii (collapsed borders and the native look
+of controls read them), the stroke width and the opacities of SVG.
+
+**Classification** (`paint_change` in `style/src/paint.rs`): a change is a
+paint change if the old style with the paint properties of the new one
+(`copy_paint_properties`) equals the new style, that is, every other field
+agrees, also the fields that no table lists; the custom properties are
+ignored (no layout code reads them, a changed value that a longhand
+resolved shows in that longhand). Two more conditions keep the
+containing-block cases out: `has_transform` (any of `transform`,
+`translate`, `rotate`, `scale` is not `none`) and `is_filter_containing_block`
+(`filter` or `backdrop-filter`, also `will-change`) must be equal in the
+old and new style. A change of `transform: none` to a value while
+`translate` is set is a paint change, as the box was a containing block
+before. `opacity` is a paint change between 1 and a smaller value: layout
+never reads the stacking contexts (`forms_stacking_context` is paint and
+selection only), a search of the layout and engine crates for the table's
+properties found no other reader than the ones listed below. The
+comparison is a clone and a compare of the style (about 0.6 us), and runs
+only for the styles that changed.
+
+`Restyle::Done` has a new field `paint: Option<PaintChanges>` (`cascade/targeted.rs`,
+`finish_targeted`): `Some` if something changed and every change is the
+style of an existing element or pseudo-element that passed `paint_change`;
+the pairs (`StylePair`: node, pseudo-element, the old and the new style
+object, a `PaintDelta` with `geometry`, `inherited`, `colors`) are what
+the fragment walk needs. It is `None` when an element appeared or went
+(`display: none` both ways, DOM changes), when the counter ordinals or the
+`use` instances changed, when a pseudo-element appeared or went, and for
+the SVG elements whose styles layout bakes in a way other than a shape or
+group below an `<svg>` (`use`, `symbol`, `clipPath`, `defs`; `svg_content_hazard`).
+
+**The fragment walk** (`layout/src/paint_restyle.rs`,
+`FragmentTree::apply_paint_changes`): one walk over the root, the top layer
+and the hidden contents. Equal styles share one `Arc` (two `details` with
+the same values), so matching by the old object alone replaced the style of
+an element that had not changed; the first run of the check mode found it.
+A fragment is matched by its owner and the object together: a box by
+`(node, pseudo)`; a text fragment by its owner, which is the element of its
+text node (the flat parent) or, for generated text, the element of the
+pseudo-element; the text in an anonymous or generated box by the box's own
+(unshared) style object. The root and body fragments can hold a modified
+copy of the style (the `overflow` of the viewport propagation): the paint
+properties are copied into the copy. Anonymous boxes and the text of
+controls derive their style from the parent box (`anonymous_from`): when an
+inherited paint property of the parent changed (`PaintDelta::inherited`),
+`copy_inherited_paint_properties` copies the inherited paint properties of
+the new parent style. The walk cost is one lookup (a binary search over
+the pairs sorted by node) per fragment; 10,000 changed styles take 0.9 ms.
+
+What layout bakes from styles, and what the refresh does about it:
+
+| Baked value | Refresh |
+|---|---|
+| `ControlContent::native` (the look of a control, from the background, borders and radius) | derived again from the new style (`has_native_look`) |
+| `CanvasBackground` (which of the root and the body paints the canvas, with the style) | made again (`canvas_background`) |
+| Backgrounds of table parts in the cells (`PartBackground`, now with the element) | the style replaced by the part's element; a row that gets or loses a background is added to or taken out of each cell of the row (`toggle_row_background`: the area is the row's box relative to the cell, the clip the cell); a row group or column that gets or loses a background: layout again |
+| Collapsed table borders (resolved colors) | layout again if a color of the table or one of its parts changed |
+| `<svg>` content (`SvgContent`: styles of groups and shapes) | the styles replaced by the element; layout again if a new style changes what the build derived (an opacity layer, a shape with two paints, a clip path, a rotating transform) |
+| The text of a `::placeholder` (derived from the pseudo-element) | layout again |
+| An anonymous `inline-table` (derived from an inline box that is not its parent) | layout again |
+
+**Overflow and caches.** A change of a transform property moves the
+transformed bounds that scrollable overflow includes (`scroll.rs`). Layout
+now keeps, for each scroll container, the extent before the contributions
+of the descendants (`BoxFragment::overflow_base`, set by
+`set_scrollable_overflow`); `refresh_scrollable_overflow` adds the
+descendants again, after the walk has replaced the styles below a container
+(bottom-up, only for containers with a changed transform below). The
+viewport's scroll size is computed again from the roots. The result equals
+layout's up to the last float digit (the check compares within 0.01 px). A
+changed transform also bumps `layout_serial` and drops the client rectangles
+(`geometry`, `used_boxes`, `svg_geometry`, the observers, lazy images and
+frame positions are keyed by the serial) and updates the ranges of the scroll
+containers (`scrollers`). Colors and effects keep all caches.
+`getBoundingClientRect` after a transform change gives the new value
+(`script_geometry_follows_a_transform`).
+
+**Paths.** The state restyle, the animation ticks (marked owners) and the
+DOM restyle all go through `run_targeted`, which now returns what stays of
+the layout (`LayoutAfter`: keep, drop, or paint with the pairs). After DOM
+changes the kept layout is restored first (the changes were layout-free,
+section 6 of ADR 0042), then refreshed. Frame documents run their own
+pipeline. A full restyle keeps its behavior (the layout goes unless the
+styles are equal).
+
+**The check mode** (`engine/src/document/paint_check.rs`, debug builds,
+on with `set_restyle_check(true)`): when the display list of a frame whose
+fragments went through a refresh is built (the check needs the fonts, which
+the restyle does not have), the document is laid out in full from the same
+styles and `first_difference` compares the two fragment trees box by box
+(owner, style, border and padding boxes, content, baselines, scrollable
+overflow, scroll size, canvas background, viewport state) and the display
+lists item by item; a difference panics with the path and the first
+difference. `swb_engine::paint_checks()` counts the frames compared. The
+equality of `SvgPath` ignores its lazy `fill_bounds` (a cache). What the
+check found: the shared style objects above, and one false difference (the
+cache). No property had to leave the table. Frames compared: 249 to 273
+in the hover and press sessions of the page and JS fixtures (8 x 6 grid), 844
+with a grid of 20 x 16, 90 and 90 in the videojs animation runs, 33
+in the probe pages of `css-animations` at their seek times, and the cases of
+`paint_only.rs`.
+
+**Measurements** (release, one run each, `swb --bench 3`, JavaScript off
+unless it says on; before is the commit of feature 3c). Hover, 8 x 6 grid, 3
+rounds; the steps that changed the state; each cell is before / after:
+
+| Fixture | Steps | Changed | Change median ms | Change p90 ms | Layout runs per change | Layout ms per change | Paint-only changes |
+|---|---|---|---|---|---|---|---|
+| videojs | 144 | 30 | 30.15 / 30.48 | 32.51 / 31.23 | 0.40 / 0.00 | 0.63 / 0.00 | 0 / 12 |
+| hacker-news | 144 | 82 | 0.71 / 0.70 | 2.62 / 0.92 | 0.37 / 0.00 | 0.56 / 0.00 | 0 / 30 |
+| wikipedia-web-browser | 144 | 72 | 2.31 / 2.28 | 15.80 / 3.85 | 0.33 / 0.00 | 3.72 / 0.00 | 0 / 24 |
+| github-swb | 144 | 72 | 18.05 / 12.75 | 18.87 / 13.42 | 0.58 / 0.00 | 2.89 / 0.00 | 0 / 42 |
+
+On videojs the hover frame stays at 30 ms because the raster of the hero
+takes 30 ms (feature 4b); layout was 0.6 ms there. The p90 of Wikipedia
+falls from 15.8 to 3.9 ms and of Hacker News from 2.6 to 0.9 ms (the
+changes that laid out), GitHub from 18.9 to 13.4. With JavaScript on,
+videojs: layout runs per change 1.4 to 0.13, 39 of 45 changing steps
+paint-only, median 31.7 to 30.1 ms, p90 51.7 to 50.7 ms. Animation frames
+on the videojs JS fixture (real time, animations on, 25 frames): layout
+1.39 ms to 0 (24 of 25 frames paint-only; the refresh takes 0.05 ms a frame),
+style 0.65 ms, display list 0.33 ms, raster 36 ms, frame median 38.9 to
+37.4 ms. With JavaScript off no animation of the page runs in the bench.
+
+GUI (`gui-latency videojs --js --trace videojs-page --window 1280x840`,
+release, own Xvfb): pointer move to frame median 50 to 49 ms, p90 70 to
+68 ms; frames per second 19.5 to 19.7; CPU during the trace 40.5 % to
+40.2 %; layout runs in the trace 430 (650 ms) to 233 (348 ms). The frame
+time is the raster, as predicted; the budget of 50 ms at p90 needs
+feature 4b.
+
+Hostile cases (release, `just hostile`; time and peak memory, before /
+after):
+
+| Case | Time | Memory |
+|---|---|---|
+| `paint-only-color-animation-10000-elements` (150 frames) | 14.6 s / 11.7 s | 187 / 167 MiB |
+| `paint-only-inherited-color-100000-text-fragments` (8 frames) | 3.11 s / 1.61 s | 425 / 418 MiB |
+| `paint-only-transform-in-1000-scroll-containers` (150 frames) | 0.10 s / 0.05 s | 79 / 79 MiB |
+| `paint-only-opacity-toggle-10000-elements` (100 toggles) | 5.7 s / 5.3 s | 153 / 152 MiB |
+
+A frame of the first case costs 95 ms before (69 ms style, 26 ms layout) and
+76 ms after (75 ms style including 6 ms of classification, 0.9 ms
+refresh): the cascade of 10,000 animated elements now dominates. The load
+stages of `perf videojs` and `perf hacker-news` (5 runs) are unchanged, the
+snapshot of the page fixtures and layout tests is byte-equal, and the
+scores of `compare --all` and `compare --js --all` are equal (`js-ars-technica`
+alternates between two pixel scores with one binary).
+
+**Not done**: the damage rectangles and the region raster (4b); a row
+group or column that gets or loses a background, a `::placeholder` change
+and the SVG structure changes lay out again; `visibility`,
+`background-image` and the border styles are not paint properties here
+(backlog: `visibility` needs the hit-test and focus caches, the border
+styles the collapsed-border and native-look checks).
 
 ## Consequences
 

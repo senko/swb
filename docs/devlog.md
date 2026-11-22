@@ -4,6 +4,28 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-22: M13 feature 4a, paint-only frames
+
+- ADR 0044, section 17. A restyle that changes only paint properties
+  (colors, opacity, transforms, shadows, outlines, text decoration lines,
+  ...) keeps the layout: the fragments get the new styles, the scrollable
+  overflow is computed again where a transform changed, and the display
+  list is built again. The classification is a table in the style crate
+  plus two conditions (the containing blocks of fixed and absolute boxes
+  stay).
+- Equal styles share one `Arc`, so the refresh matches fragments by owner
+  and style object. The check mode (a full layout and display list next
+  to each paint-only frame, debug builds) found this in its first run: an
+  unchanged element got the new style of another.
+- What layout bakes from styles (placeholder text, collapsed border
+  colors, SVG structure, the backgrounds of row groups) lays out again.
+- Hover layouts on the fixtures go to 0 runs per change; Wikipedia hover
+  p90 15.8 -> 3.9 ms. The videojs frame is still about 31 ms of raster
+  (feature 4b).
+- The review found no wrong frame; a misplaced `cfg` had made the check
+  module dead code in release builds (12 warnings).
+- Next: feature 4b (damage rectangles, region raster).
+
 ## 2026-11-22: M13 feature 3c, animation events, promises and frames
 
 - ADR 0044, section 16. The animation events (`animationstart`,

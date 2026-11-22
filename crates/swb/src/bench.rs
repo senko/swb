@@ -173,6 +173,9 @@ fn delta(before: &FlushCounters, after: &FlushCounters) -> FlushCounters {
         layout_runs: after.layout_runs - before.layout_runs,
         layout_time: after.layout_time.saturating_sub(before.layout_time),
         display_list_runs: after.display_list_runs - before.display_list_runs,
+        paint_refreshes: after.paint_refreshes - before.paint_refreshes,
+        paint_time: after.paint_time.saturating_sub(before.paint_time),
+        paint_fallbacks: after.paint_fallbacks - before.paint_fallbacks,
         state_restyles: after.state_restyles.since(&before.state_restyles),
         ..FlushCounters::default()
     }
@@ -221,11 +224,16 @@ fn animation_stage(page: &mut Page, pixmap: &mut Pixmap) -> serde_json::Value {
     json!({
         "frames": steps.len(),
         "median_ms": ms(median(steps.iter().map(|s| s.time).collect())),
-        "style_ms": median_of(|t| t.style),
-        "layout_ms": median_of(|t| t.layout),
+        // The style and layout times of the runs in the frame, so a frame
+        // without a layout shows 0 (the stage timings keep the last run).
+        "style_ms": ms(median(steps.iter().map(|s| s.flushes.style_time).collect())),
+        "layout_ms": ms(median(steps.iter().map(|s| s.flushes.layout_time).collect())),
         "display_list_ms": median_of(|t| t.display_list),
         "raster_ms": median_of(|t| t.raster),
         "restyled_elements": steps.iter().map(|s| s.flushes.state_restyles.restyled_elements).sum::<u64>(),
+        "paint_only_frames": steps.iter().filter(|s| s.flushes.paint_refreshes > 0).count(),
+        "layout_runs": steps.iter().map(|s| s.flushes.layout_runs).sum::<u32>(),
+        "paint_ms": ms(steps.iter().map(|s| s.flushes.paint_time).sum()),
     })
 }
 
@@ -274,6 +282,9 @@ fn hover_stage(page: &mut Page, pixmap: &mut Pixmap, rounds: usize) -> serde_jso
         "layout_runs_per_change": per_change(sum(|s| f64::from(s.flushes.layout_runs))),
         "style_ms_per_change": per_change(sum(|s| s.flushes.style_time.as_secs_f64() * 1e3)),
         "layout_ms_per_change": per_change(sum(|s| s.flushes.layout_time.as_secs_f64() * 1e3)),
+        "paint_only_changes": changed.iter().filter(|s| s.flushes.paint_refreshes > 0).count(),
+        "paint_fallbacks": changed.iter().map(|s| u64::from(s.flushes.paint_fallbacks)).sum::<u64>(),
+        "paint_ms_per_change": per_change(sum(|s| s.flushes.paint_time.as_secs_f64() * 1e3)),
         "state_restyles": restyle_paths_json(&steps.iter().fold(
             RestylePaths::default(),
             |total, s| total.plus(&s.flushes.state_restyles)

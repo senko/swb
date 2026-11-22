@@ -117,7 +117,10 @@ fn hover_without_style_changes_keeps_the_layout() {
     assert_eq!(layout_identity(&mut page), before);
     let (x, y) = center(rect(&mut page, "a"));
     page.mouse_move(x, y);
-    assert_ne!(layout_identity(&mut page), before);
+    // The hover changes the color and the underline, which are paint
+    // properties (ADR 0044 section 9): the fragments get the new styles and
+    // the layout stays.
+    assert_eq!(layout_identity(&mut page), before);
 }
 
 #[test]
