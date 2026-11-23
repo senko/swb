@@ -113,6 +113,12 @@ impl DocumentState {
         if self.fragments.is_none() || self.display_list.is_none() {
             return true;
         }
+        // An animation of `transform` or `opacity` started or stopped
+        // running: its group is composited or no longer (ADR 0044 section
+        // 19).
+        if self.animations.borrow().composited_owners() != self.list_composited {
+            return true;
+        }
         self.dom.selection_generation() != self.display_selection.0
     }
 }

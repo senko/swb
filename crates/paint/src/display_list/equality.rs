@@ -220,14 +220,22 @@ impl PartialEq for DisplayItem {
                     bounds,
                     hit_bounds,
                     fixed_bounds,
+                    composited,
                 },
                 D::PushTransform {
                     transform: t2,
                     bounds: b2,
                     hit_bounds: h2,
                     fixed_bounds: f2,
+                    composited: c2,
                 },
-            ) => transform == t2 && bounds == b2 && hit_bounds == h2 && fixed_bounds == f2,
+            ) => {
+                transform == t2
+                    && bounds == b2
+                    && hit_bounds == h2
+                    && fixed_bounds == f2
+                    && composited == c2
+            }
             (
                 D::Polyline {
                     points,

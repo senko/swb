@@ -38,6 +38,10 @@ impl ImageSource for FrameSource<'_> {
         self.images.vector_cache()
     }
 
+    fn raster_cache(&self) -> Option<&swb_paint::RasterCache> {
+        self.images.raster_cache()
+    }
+
     fn frame(&self, node: NodeId) -> Option<FrameContent<'_>> {
         let child = self.frames.by_container(self.frame, node)?;
         let record = self.frames.get(child)?;

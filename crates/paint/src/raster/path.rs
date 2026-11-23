@@ -302,6 +302,9 @@ impl Rasterizer<'_> {
             return false;
         }
         self.budget.path_work = total;
+        if let Some(log) = &mut self.budget.path_log {
+            log.push(work);
+        }
         true
     }
 }

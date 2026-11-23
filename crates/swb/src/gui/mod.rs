@@ -450,16 +450,22 @@ impl App {
             .surface
             .buffer_mut()
             .map_err(|e| anyhow::anyhow!("buffer failed: {e}"))?;
-        // The buffer's old contents are not used (its age may be 0), so
-        // every pixel is written.
-        composer.write_buffer(&mut buffer);
+        // A buffer that holds the last frame (age 1) gets only the rows that
+        // changed; any other gets every pixel.
+        let changed = composer.take_changed_rows().filter(|_| buffer.age() == 1);
+        match &changed {
+            Some(rows) => composer.write_rows(&mut buffer, rows),
+            None => composer.write_buffer(&mut buffer),
+        }
         let composed = Instant::now();
         // The compositor's frame callback paces the next frame (ADR 0040
         // section 3).
         gfx.window.pre_present_notify();
-        buffer
-            .present()
-            .map_err(|e| anyhow::anyhow!("present failed: {e}"))?;
+        let presented = match changed {
+            Some(rows) => buffer.present_with_damage(&damage_rects(&rows, w)),
+            None => buffer.present(),
+        };
+        presented.map_err(|e| anyhow::anyhow!("present failed: {e}"))?;
         self.frame_log
             .frame(started, rendered, composed, composer.damage.as_ref());
         self.drawn = self.frame_key();
@@ -1057,4 +1063,20 @@ impl ApplicationHandler<UserEvent> for App {
             _ => {}
         }
     }
+}
+
+/// The window rows `rows` as rectangles of the window's width `width`, for
+/// `present_with_damage`.
+fn damage_rects(rows: &[std::ops::Range<usize>], width: NonZeroU32) -> Vec<softbuffer::Rect> {
+    rows.iter()
+        .filter_map(|r| {
+            let height = NonZeroU32::new(u32::try_from(r.len()).ok()?)?;
+            Some(softbuffer::Rect {
+                x: 0,
+                y: u32::try_from(r.start).ok()?,
+                width,
+                height,
+            })
+        })
+        .collect()
 }

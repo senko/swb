@@ -14,7 +14,10 @@
 //! Frames that change little (ADR 0044 section 18): `damage` compares the
 //! display list of a frame with the last one and gives the device
 //! rectangles that changed; [`rasterize_region`] draws only those, with the
-//! pixels of a full raster.
+//! pixels of a full raster. A [`RasterCache`] keeps the coverage of clips
+//! and the layers of composited groups (the transform groups of running
+//! `transform` and `opacity` animations) between rasters (ADR 0044 section
+//! 19).
 //!
 //! Inline SVG (ADR 0023): `inline_svg` turns the layout of an `<svg>`
 //! element into drawing commands, `hit_path` tests points against its
@@ -61,8 +64,8 @@ pub use image::{
 };
 pub use mask::{MaskLayer, MaskLayerImage};
 pub use raster::{
-    FrameContent, ImageSource, PixelRect, RasterParams, RasterReport, rasterize,
-    rasterize_in_strips, rasterize_region,
+    CacheStats, FrameContent, ImageSource, PixelRect, RasterCache, RasterParams, RasterReport,
+    rasterize, rasterize_in_strips, rasterize_region,
 };
 pub use scroll_indicator::scroll_indicators;
 pub use svg::{CountBudget, VectorCache};

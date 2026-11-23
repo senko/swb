@@ -41,15 +41,30 @@ impl Builder<'_> {
     /// Starts the transform groups `groups` of a box (see
     /// [`Ancestry::group_transforms`]). Returns the indices of the
     /// `PushTransform` items.
-    pub(super) fn open_transforms(&mut self, groups: &[GroupTransform]) -> std::ops::Range<usize> {
+    /// The box's own transform (the last group, a matrix) is composited if
+    /// `composited` (ADR 0044 section 19).
+    pub(super) fn open_transforms(
+        &mut self,
+        groups: &[GroupTransform],
+        composited: bool,
+    ) -> std::ops::Range<usize> {
         let start = self.list.len();
+        let last = groups.len().saturating_sub(1);
         self.list
-            .extend(groups.iter().map(|transform| DisplayItem::PushTransform {
-                transform: transform.clone(),
-                bounds: Rect::default(),
-                hit_bounds: Rect::default(),
-                fixed_bounds: None,
-            }));
+            .extend(
+                groups
+                    .iter()
+                    .enumerate()
+                    .map(|(i, transform)| DisplayItem::PushTransform {
+                        transform: transform.clone(),
+                        bounds: Rect::default(),
+                        hit_bounds: Rect::default(),
+                        fixed_bounds: None,
+                        composited: composited
+                            && i == last
+                            && matches!(transform, GroupTransform::Matrix(_)),
+                    }),
+            );
         start..self.list.len()
     }
 

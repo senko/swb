@@ -96,38 +96,43 @@ impl MediaKeys {
 
 /// The media keys of `list` with the images and frames of `images`.
 pub fn media_keys(list: &DisplayList, images: &dyn ImageSource) -> MediaKeys {
-    let mut keys = Vec::new();
-    for (i, item) in list.items.iter().enumerate() {
-        let key = match item {
-            DisplayItem::Image { image, .. } => Some(image_key(image, images)),
-            DisplayItem::Frame { node, .. } => Some(images.frame(*node).map_or([0, 0], |f| {
-                [
-                    f.generation,
-                    if has_readers(f.list) {
-                        FRAME_READS_PIXELS
-                    } else {
-                        FRAME_DRAWN
-                    },
-                ]
-            })),
-            DisplayItem::PushMask { layers, .. } => {
-                let mut hasher = DefaultHasher::new();
-                let mut any = false;
-                for layer in layers.iter() {
-                    if let MaskLayerImage::Image { image, .. } = &layer.image {
-                        image_key(image, images).hash(&mut hasher);
-                        any = true;
-                    }
-                }
-                any.then(|| [hasher.finish(), 0])
-            }
-            _ => None,
-        };
-        if let Some(key) = key {
-            keys.push((i, key));
-        }
-    }
+    let keys = list
+        .items
+        .iter()
+        .enumerate()
+        .filter_map(|(i, item)| item_media_key(item, images).map(|key| (i, key)))
+        .collect();
     MediaKeys(keys)
+}
+
+/// The media key of `item` (images, frames and masks with images), if it
+/// has one.
+pub(crate) fn item_media_key(item: &DisplayItem, images: &dyn ImageSource) -> Option<[u64; 2]> {
+    match item {
+        DisplayItem::Image { image, .. } => Some(image_key(image, images)),
+        DisplayItem::Frame { node, .. } => Some(images.frame(*node).map_or([0, 0], |f| {
+            [
+                f.generation,
+                if has_readers(f.list) {
+                    FRAME_READS_PIXELS
+                } else {
+                    FRAME_DRAWN
+                },
+            ]
+        })),
+        DisplayItem::PushMask { layers, .. } => {
+            let mut hasher = DefaultHasher::new();
+            let mut any = false;
+            for layer in layers.iter() {
+                if let MaskLayerImage::Image { image, .. } = &layer.image {
+                    image_key(image, images).hash(&mut hasher);
+                    any = true;
+                }
+            }
+            any.then(|| [hasher.finish(), 0])
+        }
+        _ => None,
+    }
 }
 
 /// The media key of an image: the decoded image (0 if it is not loaded)

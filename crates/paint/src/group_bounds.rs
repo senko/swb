@@ -139,6 +139,7 @@ fn close(item: &mut DisplayItem, areas: Areas, sticky: &mut StickyCache) -> Area
             bounds,
             hit_bounds,
             fixed_bounds,
+            ..
         } => {
             let moved = |f: &dyn Fn(Rect) -> Rect| Areas {
                 paint: areas.paint.map(f),
@@ -302,6 +303,7 @@ mod tests {
             bounds: Rect::default(),
             hit_bounds: Rect::default(),
             fixed_bounds: None,
+            composited: false,
         }
     }
 

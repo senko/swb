@@ -768,6 +768,7 @@ fn transformed_and_fixed_groups() -> DisplayList {
             bounds: Rect::new(20.0, 20.0, 50.0, 100.0),
             hit_bounds: Rect::default(),
             fixed_bounds: None,
+            composited: false,
         },
         rect(30.0, 40.0, 30.0, 80.0, BLUE),
         DisplayItem::PushOpacity {
@@ -790,6 +791,7 @@ fn transformed_and_fixed_groups() -> DisplayList {
             bounds: Rect::new(10.0, 70.0, 20.0, 40.0),
             hit_bounds: Rect::default(),
             fixed_bounds: None,
+            composited: false,
         },
         rect(10.0, 70.0, 20.0, 40.0, Rgba::rgb(0, 128, 0)),
         DisplayItem::PopTransform,
@@ -891,6 +893,7 @@ fn rotated_square() -> Vec<DisplayItem> {
             bounds: rect,
             hit_bounds: Rect::default(),
             fixed_bounds: None,
+            composited: false,
         },
         DisplayItem::PushOpacity {
             opacity: 1.0,
@@ -954,6 +957,7 @@ fn transform_layers_nest_up_to_a_depth() {
                 bounds: rect,
                 hit_bounds: Rect::default(),
                 fixed_bounds: None,
+                composited: false,
             })
             .collect();
         items.push(DisplayItem::Rect {
@@ -1243,6 +1247,7 @@ fn opaque_layers_are_opaque_for_luminance() {
 mod backdrop;
 mod blend;
 mod border;
+mod cache;
 mod frame;
 mod gradient;
 mod svg;

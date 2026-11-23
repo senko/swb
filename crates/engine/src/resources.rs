@@ -13,7 +13,9 @@ use swb_css::MediaQueryList;
 use swb_dom::NodeId;
 use swb_layout::NaturalSize;
 use swb_net::{ByteBudget, NetError, RequestId, Reservation, Response, Url};
-use swb_paint::{CountBudget, DecodedImage, ImageRef, ImageSizes, ImageSource, VectorCache};
+use swb_paint::{
+    CountBudget, DecodedImage, ImageRef, ImageSizes, ImageSource, RasterCache, VectorCache,
+};
 use swb_style::Length;
 use swb_style::cssom::sheet::{SheetRef, StyleMemory, StyleSheet};
 
@@ -562,6 +564,10 @@ pub(crate) struct Images {
     /// Renderings of the document's SVG images. The frame documents of a page
     /// share one cache (ADR 0031 section 11).
     vector_cache: Arc<VectorCache>,
+    /// Pixels of the document's rasters kept for the next one (the coverage
+    /// of clips, composited layers; ADR 0044 section 19). The frame
+    /// documents of a page share one cache.
+    raster_cache: Arc<RasterCache>,
     /// What counting spans may still take for the page's SVG images.
     pub(crate) counting: CountBudget,
     /// The page-wide budget for the decoded pixels of frame documents'
@@ -581,6 +587,23 @@ pub(crate) struct Images {
 }
 
 impl Images {
+    /// Drops the pixels kept for the next raster (a new viewport or scale:
+    /// none of them can be used again).
+    pub(crate) fn clear_raster_cache(&self) {
+        self.raster_cache.clear();
+    }
+
+    /// Switches the raster cache on or off (see
+    /// [`swb_paint::RasterCache::set_enabled`]).
+    pub(crate) fn enable_raster_cache(&self, enabled: bool) {
+        self.raster_cache.set_enabled(enabled);
+    }
+
+    /// The counts of the raster cache (for `--bench` and tests).
+    pub(crate) fn raster_cache_stats(&self) -> swb_paint::CacheStats {
+        self.raster_cache.stats()
+    }
+
     /// Notes that the pixels of `image` changed without a new decode: its
     /// content generation goes up.
     pub(crate) fn bump_generation(&mut self, image: ImageRef) {
@@ -593,9 +616,15 @@ impl Images {
     /// frame documents, and their renderings of SVG images into the page's
     /// `vectors`; the images that are loaded already take their share (those
     /// that do not fit fail).
-    pub(crate) fn attach_budget(&mut self, budget: Arc<ByteBudget>, vectors: Arc<VectorCache>) {
+    pub(crate) fn attach_budget(
+        &mut self,
+        budget: Arc<ByteBudget>,
+        vectors: Arc<VectorCache>,
+        raster: Arc<RasterCache>,
+    ) {
         self.budget = Some(budget);
         self.vector_cache = vectors;
+        self.raster_cache = raster;
         let loaded: Vec<Url> = self
             .by_url
             .iter()
@@ -764,6 +793,10 @@ impl ImageSource for Images {
 
     fn generation(&self, image: &ImageRef) -> u64 {
         self.generations.get(image).copied().unwrap_or(0)
+    }
+
+    fn raster_cache(&self) -> Option<&RasterCache> {
+        Some(&self.raster_cache)
     }
 }
 
@@ -1024,8 +1057,8 @@ mod tests {
         let budget = ByteBudget::new(60);
         let mut first = Images::default();
         let mut second = Images::default();
-        first.attach_budget(Arc::clone(&budget), Arc::default());
-        second.attach_budget(Arc::clone(&budget), Arc::default());
+        first.attach_budget(Arc::clone(&budget), Arc::default(), Arc::default());
+        second.attach_budget(Arc::clone(&budget), Arc::default(), Arc::default());
         let urls: Vec<Url> = ["a", "b", "c"]
             .iter()
             .map(|n| Url::parse(&format!("https://example.com/{n}.png")).unwrap())
@@ -1056,7 +1089,7 @@ mod tests {
     fn svg_images_of_frame_documents_count_by_their_source() {
         let budget = ByteBudget::new(1000);
         let mut images = Images::default();
-        images.attach_budget(Arc::clone(&budget), Arc::default());
+        images.attach_budget(Arc::clone(&budget), Arc::default(), Arc::default());
         let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>"#;
         let decode = || {
             let image = swb_paint::decode_with_type(svg, Some("image/svg+xml")).unwrap();

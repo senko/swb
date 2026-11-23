@@ -502,6 +502,7 @@ impl Page {
             fonts: Rc::clone(&lent_fonts),
             images: Arc::clone(&frame_images),
             vectors: Arc::clone(&frame_vectors),
+            raster: Arc::default(),
             styles: Arc::clone(&frame_styles),
             bodies: Arc::clone(&frame_bodies),
             font_files: Arc::clone(&frame_fonts),

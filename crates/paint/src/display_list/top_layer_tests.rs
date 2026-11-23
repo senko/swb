@@ -89,6 +89,7 @@ fn paint(html: &str, open: &[&str]) -> (Document, DisplayList) {
         offsets: &NoScroll,
         indicators: false,
         scale: 1.0,
+        composited: None,
     };
     let list = build_display_list(&tree, &NoSizes, &NoHighlights, &scrolling);
     (doc, list)

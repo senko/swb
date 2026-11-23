@@ -51,6 +51,7 @@ MODULES = (
     "static_css",
     "animations",
     "damage",
+    "raster_cache",
 )
 for _module in MODULES:
     importlib.import_module(f"{__name__}.{_module}")

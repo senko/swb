@@ -6384,6 +6384,61 @@ Steps:
         reviewer's cases: elements that paint outside their boxes, nested
         frames), `frame_oracle.rs`, `css_animations.rs`,
         `damage/random_pairs.rs`, `damage/tests.rs`; 5 hostile cases.
+   4c. Frame budgets (`implementer-hard`; section 9, "Reuse"; owner's
+      choice of 2026-11-22: before feature 5): the two budgets that 4b
+      missed on videojs (frame max 33 ms, move to frame p90 50 ms) and
+      the idle CPU with the marquee in view (15 %). First a profile of
+      the slow frames (the first and later frames of the hero reveal, a
+      wheel step, a marquee frame); then, in this order: caches across
+      frames that are exact by construction (equal inputs give equal
+      pixels: the content of transform layers, clip and mask coverage,
+      filter layers) with the per-pixel composites limited to the
+      damage; composited layers for groups with a running `transform` or
+      `opacity` animation (content drawn once at a fixed raster scale,
+      composited with the animated values; the pixels at rest stay); a
+      viewport scroll that shifts the kept pixels and draws the exposed
+      band (bit-exact, or behind a switch with measured differences for
+      the owner). The oracles of 4b stay bit-exact.
+
+      Done 2026-11-23 (ADR 0044 section 19). The budgets are met on
+      videojs (GUI, release): frame time max after the first paint 42.5
+      -> 27.3 ms, pointer move to frame p90 60 -> 12 to 28 ms, frame p90
+      10.1 -> 8.7 ms; at the marquee and the bars 30 -> 12.3 % CPU at 61
+      frames per second; spinner page 0.0 %, marquee page 1.3 %. A page at
+      rest renders as before (snapshot byte-equal, scores equal).
+      - Profile first: the reveal's layer changes scale and opacity every
+        frame, so no exact cache helps it; the marquee frame paid the
+        coverage and product of three rounded clips over their whole
+        extent.
+      - `paint/src/raster/cache.rs`: the raster cache, exact by key (the
+        budgets' charges are recorded and replayed; 48 MiB and 256 entries
+        with keys counted, LRU; cleared on a new viewport or scale): the
+        coverage of clips (kept on the second miss) and the layers of
+        composited groups.
+      - Composited groups (`raster/composited.rs`): the transform group of
+        an element with a running animation of `transform`, `translate`,
+        `rotate`, `scale` or `opacity` draws its content once into a layer
+        at the device scale times a power of two, and draws it with the
+        animated transform and the element's opacity; translations stay
+        exact. The box's inside equals Chromium's sample of the reveal at
+        850 ms; only its edges differ from the static frame (400 pixels,
+        up to 69 levels). The reveal frames went from about 40 to 9 ms.
+      - Exact pointwise shortcuts: the product of a clip and its coverage
+        (255 keeps, 0 clears), the composite of translucent pixels in one
+        gathered draw, region rasters multiply only their part; the GUI
+        writes only the changed rows into a window buffer of age 1.
+      - Not needed: the scroll that shifts the kept pixels.
+      - Review: a layer made after an earlier item had set a skip flag was
+        kept although its own content was left out (fixed: the flags are
+        reset per entry; the SVG fallback of more than 16 sizes counts
+        too); the limit did not count the copies of the items in the keys
+        (fixed); a test for sticky content in a composited layer and
+        bounds on the edge differences were added.
+      - Tests: `damage_oracle.rs` (every frame also without the caches;
+        composited groups at scales 1 and 1.5; sticky content; the delay
+        and the end of an animation equal the static render),
+        `css_animations.rs` (the running reveal against Chromium),
+        `raster/tests/cache.rs`, unit tests; 4 hostile cases.
    5. CSS transitions (`implementer-hard`): the `transition-*` longhands
       take effect (they leave `inert.rs`, with `calc()` in times and
       `linear()` as a timing function; the `Easing` and time parsing of
@@ -6713,6 +6768,31 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Damage (feature 4b): a resampled transform adds a fixed 1 px of damage;
   a layer capped at 4096 x 1024 px has fewer pixels than the device, and
   no test proves the margin covers it (a 6000 x 3400 rotated box passes).
+- Frame budgets (feature 4c): composited groups draw the layer's edges
+  with another resampling than the static path (up to 69 levels on the
+  edges of the hero box mid-reveal); Chromium has no sample of a running
+  animation to compare with.
+- Frame budgets (feature 4c): the first paint of videojs draws the hero's
+  layer while it waits at opacity 0 (GUI 33 -> 51 ms; the budget excludes
+  the first paint). Drawing it in the next frame moves the cost there
+  (about 33 ms); every frame below 33 ms needs layers drawn in tiles over
+  several frames. The end of the reveal is a full static raster (24 to 27
+  ms).
+- Frame budgets (feature 4c): at the marquee each frame still draws the
+  page's background image under the opaque card (0.4 ms), restyles (0.35
+  ms) and builds the whole display list (0.35 ms).
+- Frame budgets (feature 4c): a composited layer that misses in a region
+  raster is drawn whole until it misses three times in a row (`--bench`
+  hover p90 of videojs with JS 20.5 -> 29.1 ms); more than 256 composited
+  groups thrash the cache; mask layers are not cached; the frame
+  documents' cache lives as long as the page; Wayland buffers of age 2
+  get full writes; a hit does not touch the `VectorCache` entries of its
+  SVG images.
+- Frame budgets (feature 4c), code: `composited.rs` repeats the set-up of
+  the nested `Rasterizer` and the loop that ends its layers from
+  `transform_layer` (about 35 lines).
+- Frame budgets (feature 4c): the viewport scroll is still a full raster
+  (not needed for the budgets).
 - Damage (feature 4b), code: `merge_overlaps` repeats the loop of
   `Region::new`; `outset`, `outset_px` and `filter_layer::grow` are one
   function three times; `Lists::resync_budget` need not be a `Cell`;

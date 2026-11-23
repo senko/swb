@@ -153,6 +153,7 @@ fn group(r: &mut Rng) -> (DisplayItem, DisplayItem) {
                     bounds: Rect::default(),
                     hit_bounds: Rect::default(),
                     fixed_bounds: None,
+                    composited: false,
                 },
                 DisplayItem::PopTransform,
             )

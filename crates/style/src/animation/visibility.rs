@@ -87,6 +87,17 @@ fn reach_of_property(name: &str) -> Reach {
     }
 }
 
+/// The properties whose animation makes paint composite the owner's group
+/// (ADR 0044 section 19).
+const COMPOSITED: &[&str] = &["transform", "translate", "rotate", "scale", "opacity"];
+
+/// True if the keyframes `set` animate a property of [`COMPOSITED`].
+pub(crate) fn is_composited(set: &KeyframeSet) -> bool {
+    set.properties
+        .iter()
+        .any(|p| COMPOSITED.contains(&p.name.as_ref()))
+}
+
 /// The reach of an animation with the keyframes `set`: the widest of its
 /// properties.
 pub(crate) fn reach_of(set: &KeyframeSet) -> Reach {

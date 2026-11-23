@@ -17,6 +17,12 @@
 //! converts them in one pass. When the bubble goes away, the page's pixels
 //! under it are in `page` and need no new raster.
 //!
+//! The composer also keeps the window rows that changed since the window
+//! buffer was last written ([`Composer::take_changed_rows`]): the damage of
+//! the page, the toolbar's rows, the bubble's old and new rows. A window
+//! buffer that still holds the last frame (softbuffer's buffer age 1) gets
+//! only those rows ([`Composer::write_rows`], ADR 0044 section 19).
+//!
 //! [`compose_window`] is the simple path (headless `--with-chrome`
 //! screenshots): fresh pixmaps, the page copied with `draw_pixmap`. The tests
 //! compare the two.
@@ -111,6 +117,9 @@ pub(super) struct Composer {
     /// What the page raster of the last composition drew (`None`: the page
     /// was not drawn), for the frame log.
     pub(super) damage: Option<FrameDamage>,
+    /// The window rows that changed since the window buffer was last
+    /// written, as ranges (`None`: all of them).
+    changed: Option<Vec<std::ops::Range<usize>>>,
 }
 
 /// The toolbar's height in device pixels.
@@ -144,6 +153,7 @@ impl Composer {
             bubble: None,
             rasters: Rasters::default(),
             damage: None,
+            changed: None,
         })
     }
 
@@ -194,8 +204,57 @@ impl Composer {
             self.toolbar_key = None;
         }
         let toolbar_drawn = self.draw_toolbar(page, toolbar, page_drawn);
+        let (old_bubble, bubbles) = (self.bubble.as_ref().map(|b| b.rect), self.rasters.bubble);
         self.draw_bubble(page, page_drawn || toolbar_drawn);
+        // The rows that changed.
+        if let Some(damage) = self.damage.clone() {
+            if damage.full {
+                self.note_changed(self.toolbar_rows..self.height());
+            }
+            for r in &damage.rects {
+                let top = self.toolbar_rows + r.y as usize;
+                self.note_changed(top..top + r.height as usize);
+            }
+        }
+        if toolbar_drawn {
+            self.note_changed(0..self.chrome_rows());
+        }
+        let new_bubble = self.bubble.as_ref().map(|b| b.rect);
+        if self.rasters.bubble != bubbles
+            || old_bubble.map(|r| (r.x1, r.y0)) != new_bubble.map(|r| (r.x1, r.y0))
+        {
+            for r in [old_bubble, new_bubble].into_iter().flatten() {
+                self.note_changed(r.y0..r.y1);
+            }
+        }
         rendered
+    }
+
+    /// Adds the window rows `rows` to the rows that changed.
+    fn note_changed(&mut self, rows: std::ops::Range<usize>) {
+        let rows = rows.start.min(self.height())..rows.end.min(self.height());
+        if let Some(changed) = &mut self.changed
+            && !rows.is_empty()
+        {
+            changed.push(rows);
+        }
+    }
+
+    /// The window rows that changed since the last call (merged, in
+    /// order), or `None` if all of them may have (new layers); the next
+    /// call starts from an empty set.
+    pub(super) fn take_changed_rows(&mut self) -> Option<Vec<std::ops::Range<usize>>> {
+        let changed = self.changed.replace(Vec::new())?;
+        let mut rows = changed;
+        rows.sort_by_key(|r| r.start);
+        let mut merged: Vec<std::ops::Range<usize>> = Vec::new();
+        for r in rows {
+            match merged.last_mut() {
+                Some(last) if r.start <= last.end => last.end = last.end.max(r.end),
+                _ => merged.push(r),
+            }
+        }
+        Some(merged)
     }
 
     /// True if the bubble that is shown reaches into the toolbar's rows (a
@@ -331,7 +390,7 @@ impl Composer {
     /// Calls `put(row, first_column, premultiplied RGBA bytes)` for the
     /// window's pixels: each row, then the bubble's rows again (its
     /// columns), which go over the first.
-    fn write_rows(&self, mut put: impl FnMut(usize, usize, &[u8])) {
+    fn each_row(&self, mut put: impl FnMut(usize, usize, &[u8])) {
         let row_bytes = self.width() * BYTES_PER_PIXEL;
         let chrome_rows = self.chrome_rows();
         let chrome = self.chrome.data();
@@ -359,8 +418,21 @@ impl Composer {
     /// Converts the window's pixels into a softbuffer buffer (`0RGB`), one
     /// pass over the rows. `out` has one `u32` per window pixel.
     pub(super) fn write_buffer(&self, out: &mut [u32]) {
+        self.write_rows_into(out, None);
+    }
+
+    /// [`Composer::write_buffer`] for the window rows `rows` only: `out`
+    /// holds the window's pixels of the last frame in the other rows.
+    pub(super) fn write_rows(&self, out: &mut [u32], rows: &[std::ops::Range<usize>]) {
+        self.write_rows_into(out, Some(rows));
+    }
+
+    fn write_rows_into(&self, out: &mut [u32], rows: Option<&[std::ops::Range<usize>]>) {
         let width = self.width();
-        self.write_rows(|y, x0, bytes| {
+        self.each_row(|y, x0, bytes| {
+            if rows.is_some_and(|rows| !rows.iter().any(|r| r.contains(&y))) {
+                return;
+            }
             let (pixels, _) = bytes.as_chunks::<4>();
             let start = y * width + x0;
             if let Some(dst) = out.get_mut(start..start + pixels.len()) {
@@ -377,7 +449,7 @@ impl Composer {
         let mut pixmap = Pixmap::new(self.size.0, self.size.1).expect("the layers fit");
         let row_bytes = self.width() * BYTES_PER_PIXEL;
         let data = pixmap.data_mut();
-        self.write_rows(|y, x0, bytes| {
+        self.each_row(|y, x0, bytes| {
             let from = y * row_bytes + x0 * BYTES_PER_PIXEL;
             data[from..from + bytes.len()].copy_from_slice(bytes);
         });
@@ -458,6 +530,17 @@ mod tests {
     /// A page for `HTML` in a window of `window` CSS px at `scale`, with
     /// the toolbar that the window starts with.
     fn with_window(window: Size, scale: f32, test: impl FnOnce(&mut Page, &mut Toolbar) + Send) {
+        with_page(HTML, window, scale, test);
+    }
+
+    /// A page for `html` in a window of `window` CSS px at `scale`, with
+    /// the toolbar that the window starts with.
+    fn with_page(
+        html: &str,
+        window: Size,
+        scale: f32,
+        test: impl FnOnce(&mut Page, &mut Toolbar) + Send,
+    ) {
         // One file per call: tests run in parallel, and a test removes its
         // file at the end (a name per scale let one test remove the file
         // of another before it loaded).
@@ -465,7 +548,7 @@ mod tests {
         let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let path =
             std::env::temp_dir().join(format!("swb-compose-{}-{call}.html", std::process::id()));
-        std::fs::write(&path, HTML).expect("the temporary directory is writable");
+        std::fs::write(&path, html).expect("the temporary directory is writable");
         let url = Url::from_file_path(&path).expect("an absolute path");
         crate::stack::on_page_thread(|| {
             let config = PageConfig {
@@ -508,6 +591,24 @@ mod tests {
             .map(|p| (u32::from(p[0]) << 16) | (u32::from(p[1]) << 8) | u32::from(p[2]))
             .collect();
         assert!(buffer == converted, "the buffers differ");
+        // A window buffer kept from the last frame and given only the rows
+        // that changed (as the GUI does with a buffer of age 1) holds the
+        // same pixels.
+        thread_local! {
+            static KEPT: std::cell::RefCell<Vec<u32>> = const { std::cell::RefCell::new(Vec::new()) };
+        }
+        let changed = composer.take_changed_rows();
+        KEPT.with(|kept| {
+            let mut kept = kept.borrow_mut();
+            match changed {
+                Some(rows) if kept.len() == buffer.len() => composer.write_rows(&mut kept, &rows),
+                _ => {
+                    *kept = vec![0xDEAD_BEEF_u32; buffer.len()];
+                    composer.write_buffer(&mut kept);
+                }
+            }
+            assert!(*kept == converted, "the kept buffer differs");
+        });
     }
 
     fn rasters(page: u32, toolbar: u32, bubble: u32) -> Rasters {
@@ -568,6 +669,39 @@ mod tests {
             compose_and_check(&mut composer, page, toolbar);
             assert_eq!(composer.rasters.page, 2);
             assert_eq!(composer.rasters.bubble, 3);
+        });
+    }
+
+    #[test]
+    fn a_kept_window_buffer_gets_the_rows_that_changed() {
+        let html = "<!doctype html><style>body{margin:0;font:16px sans-serif}\
+            a{display:block;height:40px;margin-top:100px;background:#9cf}\
+            a:hover{background:#fc9}</style><a href='https://example.test/t'>link</a>\
+            <div style='height:2000px'></div>";
+        let window = Size::new(400.0, 300.0);
+        with_page(html, window, 1.0, |page, toolbar| {
+            let mut composer =
+                Composer::new(device_size(window, 1.0), 1.0).expect("a small window");
+            compose_and_check(&mut composer, page, toolbar);
+            // The hover: the link's rows (with the bubble's).
+            page.mouse_move(20.0, 120.0);
+            composer.compose(page, toolbar);
+            let rows = composer.changed.clone().expect("rows");
+            let top = composer.toolbar_rows + 100;
+            assert!(
+                rows.iter().any(|r| r.start <= top && r.end >= top + 40),
+                "{rows:?}"
+            );
+            assert!(
+                !rows
+                    .iter()
+                    .any(|r| r.contains(&(composer.toolbar_rows + 60)))
+            );
+            compose_and_check(&mut composer, page, toolbar);
+            page.mouse_move(20.0, 250.0);
+            compose_and_check(&mut composer, page, toolbar);
+            page.wheel(20.0, 250.0, 0.0, 30.0);
+            compose_and_check(&mut composer, page, toolbar);
         });
     }
 

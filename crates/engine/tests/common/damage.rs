@@ -56,6 +56,17 @@ impl DamageOracle {
                  render gives {want:?}"
             );
         }
+        // The raster caches (ADR 0044 section 19) give the pixels of a raster
+        // without them.
+        page.set_raster_cache(false);
+        let cold = page.screenshot(false).expect("a viewport screenshot");
+        page.set_raster_cache(true);
+        if let Some((x, y, want, got)) = first_difference(&cold, &full) {
+            panic!(
+                "{label}: pixel ({x}, {y}) is {got:?} with the raster caches, {want:?} \
+                 without them"
+            );
+        }
         self.last = Some(damage);
         full
     }

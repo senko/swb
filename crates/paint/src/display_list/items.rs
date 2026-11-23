@@ -3,6 +3,7 @@
 //! ([`Highlights`]), the natural image sizes ([`ImageSizes`]) and the scroll
 //! offsets ([`Scrolling`]). The builder is in `builder.rs`.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::hit_path::HitWork;
@@ -12,6 +13,7 @@ use swb_layout::{
     GroupTransform, Matrix, NaturalSize, NoScroll, Point, PositionedGlyph, Rect, ScrollOffsets,
     StickyCache,
 };
+use swb_style::animation::AnimationOwner;
 use swb_style::{BorderStyle, FillRule, Rgba, StrokeLinejoin};
 use swb_text::FontId;
 
@@ -239,6 +241,12 @@ pub enum DisplayItem {
         /// moves with the scroll offset); `None` without such content and
         /// for a [`GroupTransform::Fixed`] group.
         fixed_bounds: Option<Rect>,
+        /// True if the group is composited (ADR 0044 section 19): its
+        /// element's transform or opacity is animated, so the rasterizer
+        /// draws the content once into a layer at a fixed scale and draws
+        /// that layer with the group's transform (and the opacity of the
+        /// element's own opacity group) in each frame. False at rest.
+        composited: bool,
     },
     /// End the most recent transform group.
     PopTransform,
@@ -716,6 +724,11 @@ pub struct Scrolling<'a> {
     /// Device pixels per CSS px. Inline SVG content is placed at a whole
     /// device pixel, as Chromium does.
     pub scale: f32,
+    /// The elements (and pseudo-elements) whose transform groups are
+    /// composited: they have a running animation of `transform`,
+    /// `translate`, `rotate`, `scale` or `opacity` (ADR 0044 section 19).
+    /// `None` or an empty set at rest.
+    pub composited: Option<&'a HashSet<AnimationOwner>>,
 }
 
 impl Scrolling<'_> {
@@ -724,5 +737,6 @@ impl Scrolling<'_> {
         offsets: &NoScroll,
         indicators: false,
         scale: 1.0,
+        composited: None,
     };
 }

@@ -614,11 +614,14 @@ random damage rectangles and with the frames of the probe animations.
 
 **Reuse.** The GUI keeps the page pixmap (`Composer`, ADR 0040); a frame
 rasterizes only the damage into it, so unchanged regions keep their pixels.
-Headless screenshots keep the full raster. A raster cache of layers
-(drawing a transformed or translucent group once and compositing it per
-frame) is not part of M13: damage rectangles meet the budgets on the
-traces of the diagnosis by estimate; the cache is the next step if a
-measurement of feature 4 misses them.
+Headless screenshots keep the full raster. Damage rectangles alone missed
+two budgets (section 18); feature 4c (section 19) adds a raster cache whose
+entries are exact by construction (the coverage of clips, kept between
+frames), composited groups for running animations of `transform` and
+`opacity` (their content is drawn once into a layer at a fixed scale and
+drawn with the animated transform and opacity in each frame, the one rule
+that changes pixels while an animation runs), and a window buffer that gets
+only the rows that changed.
 
 **Video (M14).** A video frame changes the content generation of one
 `ImageRef::Node`; the list stays, the damage is the item's bounds, and the
@@ -1808,6 +1811,204 @@ equal.
 - Budgets: a page whose full raster runs out of a budget gets a full raster in
   every frame after it (no frame is asked for by the budget itself, as
   before).
+
+### 19. Done in feature 4c
+
+Feature 4c meets the frame budgets of the diagnosis (section 5) on videojs:
+the frame time maximum, the pointer move to frame p90 and the idle CPU with
+the marquee in view. A page at rest renders as before (snapshot byte-equal,
+scores equal); pixels change only while a `transform` or `opacity` animation
+runs, by the rule of composited groups below.
+
+**The profile** (release, a temporary profiler of self time per kind of
+work, not in the code; `fixtures/js/videojs` with the real clock, 1280 x 800,
+scale 1; "in T" = inside a transform layer):
+
+| Frame | Total | Where the time goes |
+|---|---|---|
+| First paint (the hero at its 0 % keyframe, opacity 0) | 8 ms | the quad of the hero's transform layer 6.4 ms: the layer is transparent (its opacity group is 0), but the quad is drawn over 1169 x 565 px |
+| Reveal, first and later frames (full: the hero is 76 % of the viewport) | 31 ms | in T: images 6.4, coverage and product of 10 rounded clips 5.7, opacity composite 3.1, clip composites 2.9, `backdrop-filter` 2.2, gradients 2.2, filters 2.1; the quad 2.9 to 4.4 |
+| Wheel step at the hero, at rest (full) | 23.5 ms | images 6.6, clips 5.6 + 2.8, gradients 2.2, backdrop 2.2, filters 2.1 |
+| Wheel step at 1600 (full) | 8 ms | images 3.3, SVG paths 1.5, clips 2.0 |
+| Region frame at the marquee and the bars (84,826 px) | 3.7 ms | raster 2.8: three rounded clips 1.4 (coverage and product over the whole layer) and 0.4 (composites), the page's background image under the strip 0.4, scratch pixmaps 0.3, SVG paths 0.2; restyle 0.3, display list 0.3 |
+
+Every pixel of the hero's layer depends on its scale (`s` times the
+animated scale) and on the opacity of the group inside it, both new in each
+frame, so no cache that is exact can help the reveal: it needs composited
+groups (below). The 4b shares of the region frame (transform layers 60 %)
+were measured in a debug build; in release no transform layer is in it.
+
+**The raster cache** (`paint/src/raster/cache.rs`, `RasterCache`). The
+rasterizer gets it from its `ImageSource` (`raster_cache`); `Images` holds
+it, the top-level document one, the page's frame documents one shared
+(`DocumentMaker::raster`). An entry is used only when all inputs of its
+pixels are equal:
+
+| Entry | Key | Kept when | Invalidation |
+|---|---|---|---|
+| Coverage of a clip path (`svg_clip.rs`) | the clip path (by value), the matrix to layer px (bits), the layer size | on its second miss (a fingerprint among the last 64 misses): a clip that moves every frame keeps nothing | a new key misses; LRU |
+| Content of a composited layer (`composited.rs`) | the content items (by value), their media keys (images, frames, masks), the area and scale of the layer, the viewport scroll and fixed origin if the content has fixed or sticky boxes, the nesting of layers and frames | at once, in place of the entry of its slot (area, scale, nesting): changing content keeps one entry | a new key misses; LRU |
+
+- The budgets: making an entry records what it charged (`Charges`: the
+  peak of layer pixels, the mask, filter, transform and frame work, the path
+  work charges in order) and is kept only if no budget left anything out
+  and no SVG image was rendered or image level reduced in it. The skip
+  flags of the strip are reset while an entry is made and merged back
+  after, so a skip inside the entry shows even when an earlier item had set
+  the same flag (the review found that hole); the SVG and reduction budgets
+  count every rendering they drew from another size or left out
+  (`FrameBudget::inexact`), including the closest rendering that
+  `VectorCache::get` gives when one frame draws an SVG at more than 16
+  sizes. A hit charges
+  the same amounts, in the same order, and is used only if all of them fit
+  into what is left; else the entry is made again. So the later items of a
+  raster meet the budgets that they meet without the cache.
+- Limits: 48 MiB and 256 entries per cache (the page: the top-level
+  document's and the frame documents' together, 96 MiB). An entry counts
+  its pixels, the copy of its layer's items in the key (88 bytes per item)
+  and its charges; an entry larger than half the limit is not kept; the least recently used entries make
+  room. The cache goes with the document, and is cleared on a change of
+  the viewport or the scale (`DocumentState::set_view`).
+- `RasterCache::set_enabled` (`Page::set_raster_cache`) switches it off for
+  the oracle: the damage oracle (`tests/common/damage.rs`, so every session
+  of `damage_oracle.rs` and `frame_oracle.rs`) and the probe pages of
+  `css_animations.rs` compare each frame with a full render without the
+  caches, bit for bit.
+
+**Exact drawing limited to what matters.** Three pointwise operations now
+skip the pixels whose result is known, with tiny-skia drawing the rest
+gathered into one row (the operations are the same for each pixel):
+
+- the product of a clip layer and its coverage (`raster/coverage.rs`):
+  coverage 255 keeps the pixel, 0 clears it (a test checks every
+  premultiplied value), other values go through `Pixmap::apply_mask`; in a
+  region raster only the part of the layer inside the region's bounds is
+  multiplied and composited;
+- the composite of a layer with source-over and opacity 1
+  (`raster/composite.rs`): opaque pixels are copied, transparent ones skipped
+  (as before), the translucent ones are blended in one draw instead of runs
+  of at most four per row; a layer with more than half translucent pixels
+  is drawn whole, and so is a layer with more than 2^20 translucent pixels
+  (the gathered copy stays small); the coverage product gathers at most
+  2^20 pixels at a time;
+- the scratch pixmap of a region raster is kept for the next one (its
+  pixels outside the parts do not matter).
+
+**Composited groups (item 3).** Needed for the reveal (above). The rule:
+
+- *Which groups.* The transform group of an element (or pseudo-element)
+  that has an animation of `transform`, `translate`, `rotate`, `scale` or
+  `opacity` whose play state is `running` (also in its delay; not paused,
+  finished or idle): `DocumentAnimations::composited_owners`. The builder
+  sets `PushTransform::composited` on the element's own matrix group
+  (`Scrolling::composited`). A page at rest has no such group, so its list
+  is unchanged. A transition (feature 5) joins the same set. The display
+  list is built again when the set changes, also when no style changes (an
+  animation that ends on its held step); `paint_pending` sees the change.
+- *Translations* stay on the exact path (a translation draws its items
+  moved, without a layer), so the marquee is not composited.
+- *The layer.* It covers the whole group (its bounds) at the device scale
+  times the group's largest scale factor rounded up to a power of two (1
+  for scales up to 1, at most 8), so that neither the animated transform
+  nor the scroll offset changes it. A layer over the limits of transform
+  layers (4 Mpx, 16,384 px a side) is drawn as a transform layer instead; so
+  is a group with content fixed to the viewport or nested deeper than 8.
+- *The opacity.* The element's own opacity group (the group's first item,
+  ending with its last, without a blend mode or fixed content) is not drawn
+  into the layer: its opacity applies when the layer is drawn. At opacity 0
+  the layer is made and kept but not drawn: the first visible frame of a
+  fade-in after a delay draws only the layer.
+- *The draw.* As the layer of a transform group: bilinear filtering,
+  anti-aliased edges, the enclosing clips; no snapping of the translation.
+- *Misses.* A layer that the cache does not have is drawn whole and kept,
+  also in a region raster: the frames after a change of the content (also
+  while the group is invisible, before a fade-in) draw only the layer. A
+  region raster whose layer missed in the last 3 rasters (content that
+  changes in every frame, a spinner in a fading group) draws only the part
+  that the parts read, as a transform layer, and keeps nothing.
+- *Backdrop filters* in the group read the layer (a transform layer is a
+  backdrop root already, ADR 0033; the folded opacity group was the root
+  before, with the same content).
+- *Start and end.* The first frame with the flag draws the content (for
+  the hero: the first paint, while it waits at opacity 0). The frame after
+  the end is the static render: the group has no flag then
+  (`the_frame_after_a_composited_animation_is_the_static_render`).
+- *Pixels against the exact path and Chromium.* The reveal of
+  `hero-reveal-pixels-850` while it runs (virtual time, 850 ms;
+  `hero_reveal_pixels_while_the_reveal_runs`): the box's inside equals
+  Chromium's sample (196, 5, 8) exactly, the title's points are as on the
+  static path (within 3); against the static frame of the same time, 400
+  pixels differ, all on the box's edges (up to 69 levels: the layer is drawn
+  at scale 1 and shrunk by 0.9995, where the static layer is drawn at
+  0.9995). Chromium's samples are of paused animations (`seek()`), which are
+  not composited in swb either, so `hero_reveal_pixels_at_seek_times` and the
+  probe pages of `css-animations`, `-3b`, `-3c` are unchanged.
+
+**The window buffer.** A softbuffer buffer of age 1 (it holds the last
+frame: always on X11) gets only the window rows that changed (the page's
+damage, the toolbar's rows, the bubble's old and new rows;
+`Composer::take_changed_rows`) and is presented with that damage; other
+buffers get every pixel, as before. Composition at the marquee: 0.41 ->
+0.04 ms per frame.
+
+**The scroll shift (item 4)** is not done: the budgets are met without it
+(wheel steps at the hero 23 to 28 ms, the frame maximum).
+
+**Measurements** (release, own Xvfb; before is e17203b):
+
+| Budget | Before | After | Target |
+|---|---|---|---|
+| Frame time p90 (render + compose), `videojs-page` | 10.1 ms | 8.6 / 8.7 ms | 16 |
+| Frame time max after the first paint | 42.5 ms | 27.2 / 27.3 ms | 33 |
+| Pointer move to frame p90 | 60 ms | 28 / 12 ms (median 2 / 1) | 50 |
+| videojs at the marquee and the bars, 10 s idle (`scroll12-idle10`) | 30.0 % CPU | 12.3 % | 15 |
+| Spinner page / marquee page idle | 0.7 % / 4.7 % | 0.0 % / 1.3 % | 5 / 15 |
+| Frames per second at the marquee | 58.9 | 61.1 | 60 |
+
+Two runs of `videojs-page` (after): CPU 13.8 / 12.8 % (19.7 % before); full
+frames 97 (render median 8.3 ms; 59 of 28 ms before: the reveal frames are
+now 8 to 9 ms); the longest frames are the end of the reveal (24 to 27 ms,
+the static render of the hero), wheel steps at the hero (23 to 28 ms) and
+two region frames after the load (24 ms: the hero's player changes while the
+hero waits at opacity 0, and its layer is drawn again). Region frames at the
+marquee: 4.0 -> 1.6 ms (render median).
+
+`--bench 3` (hover change median / p90 ms; animation frame median ms):
+videojs with JavaScript in real time: hover 0.72 / 20.5 -> 0.75 / 29.1 (the
+hovers over the player during the reveal draw its layer again), animation
+37.8 -> 8.8 (raster 36.6 -> 7.7); videojs (JS off) hover 0.15 / 14.2 -> 0.15
+/ 3.2; github-swb hover 11.6 / 17.6 -> 5.1 / 16.5, animation 13.5 -> 9.4
+(raster 10.5 -> 6.5: the rounded boxes' clips are kept); Wikipedia 0.37 /
+2.5 -> 0.37 / 2.1; Hacker News 0.04 / 0.35 -> 0.05 / 0.28. Peak cache size:
+videojs 5.5 MB without JavaScript (8.2 MB with JavaScript and the
+reveal), github-swb 5.3 MB (pixels only; since the review the limit also
+counts the keys).
+
+The load stages of `perf videojs` and `perf hacker-news` (5 runs) are the
+same except the raster stage of videojs, 30.1 -> 23.3 ms (the bench
+rasterizes the same viewport again, which finds the clips' coverage, and the
+product of clips skips their inside).
+
+Hostile cases (`raster_cache.py`, through `--bench 1`; time and peak RSS,
+before / after; the peak of the cache): 2,000 composited groups (more than
+the cache keeps: every lookup misses) 3.52 / 3.42 s, 94 / 96 MiB, 0.4 MB; a
+composited group of 20,000 x 20,000 px (drawn as a transform layer) 1.36 /
+1.35 s, 84 / 86 MiB; 1,000 rounded clips that move (no coverage kept) 3.16 /
+2.41 s, 89 / 87 MiB, 0; a composited layer whose content changes every frame
+1.10 / 1.10 s, 74 / 73 MiB, 2.6 MB (one entry).
+
+**Departures and what is not done.**
+
+- Composited groups change pixels while their animations run (above); a
+  translation is not composited, and nor is an opacity animation without a
+  transform (its layer is exact and drawn each frame).
+- The coverage of masks and of clip paths inside a mask layer is not kept;
+  mask layers (`raster/masks.rs`) are made in every raster.
+- The end of a reveal is a full raster of the hero (24 to 27 ms in the GUI):
+  the static render draws its rounded clips and images again.
+- A layer that misses in a region raster is drawn whole (up to the cost of
+  its content once), until it misses three times in a row.
+- The scroll of the viewport is still a full raster (item 4 not needed).
 
 ## Consequences
 

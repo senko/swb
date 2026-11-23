@@ -650,7 +650,8 @@ fn animation_probe_pages_with_the_paint_check() {
 /// The damage of frames (ADR 0044 section 18) on the probe pages at their
 /// seek times: after every step and query, the frame is drawn with its
 /// damage into the pixmap of the last frame (`Page::render_update`), which
-/// must equal a full render bit for bit.
+/// must equal a full render bit for bit, and so must a full render without
+/// the raster caches (section 19).
 #[test]
 fn animation_probe_pages_with_the_damage_oracle() {
     on_page_thread(|| {
@@ -685,11 +686,134 @@ fn animation_probe_pages_with_the_damage_oracle() {
                             "{file} {name}, query {i}: the frame with the damage {damage:?} \
                              differs from a full render"
                         );
+                        // Without the raster caches (ADR 0044 section 19).
+                        page.set_raster_cache(false);
+                        let cold = page.screenshot(false).unwrap();
+                        page.set_raster_cache(true);
+                        assert!(
+                            cold.data() == full.data(),
+                            "{file} {name}, query {i}: the raster caches change the frame"
+                        );
                     }
                 }
             }
         }
         eprintln!("frames compared: {frames}, {regions} with damage rectangles");
         assert!(regions > 0, "no frame with damage rectangles");
+    });
+}
+
+/// The page of `case` with a virtual clock and painted frames, so that its
+/// animations run (and their transform groups are composited, ADR 0044
+/// section 19) instead of being paused by `seek()`.
+fn open_running(case: &Value) -> Page {
+    let url = "file:///case.html";
+    let fetcher = DataUrls(OnePage {
+        url,
+        html: case["html"].as_str().unwrap().to_owned(),
+    });
+    let config = swb_engine::PageConfig {
+        fetcher: Arc::new(fetcher),
+        notify: Arc::new(|| {}),
+        network_threads: 2,
+        scripts_allowed: true,
+    };
+    let mut page = Page::new(
+        config,
+        swb_engine::FontContext::for_tests(),
+        Size::new(400.0, 300.0),
+        1.0,
+    );
+    page.set_javascript(true);
+    page.set_animations(true);
+    page.set_paints_frames(true);
+    page.set_clock(swb_engine::PageClock::new(
+        swb_engine::ClockMode::Virtual,
+        None,
+    ));
+    page.navigate(Url::parse(url).unwrap());
+    assert!(page.wait_until_loaded(std::time::Duration::from_secs(30)));
+    page
+}
+
+/// The hero reveal of `hero_reveal_pixels_at_seek_times` while it runs: the
+/// video box's group is composited (drawn once into a layer, then drawn
+/// with the animated transform and opacity). At the time of Chromium's
+/// sample (850 ms) its pixels are Chromium's within the tolerance of the
+/// static path (3; the box's inside within 1).
+#[test]
+fn hero_reveal_pixels_while_the_reveal_runs() {
+    on_page_thread(|| {
+        let case = probe_case("css-animations-3b", "hero-reveal-pixels-850");
+        let mut page = open_running(&case);
+        common::value(&mut page, "ready('300ms')");
+        // The animations start at the next frame of the 60 Hz grid: 51
+        // frames later they are at 850 ms.
+        page.run_event_loop(
+            std::time::Duration::from_millis(867),
+            std::time::Duration::from_secs(10),
+        );
+        let values = common::value(&mut page, "val(VID, ['opacity','transform'])");
+        assert_eq!(
+            values,
+            "opacity:0.946079 ; transform:matrix(0.999461, 0, 0, 0.999461, 0, 0.647046)"
+        );
+        let points = [(30, 20), (100, 60), (210, 105), (40, 175), (300, 175)];
+        let got = colors(&mut page, "header", &points);
+        let want = [
+            [196, 5, 8],
+            [196, 5, 8],
+            [196, 5, 8],
+            [171, 153, 165],
+            [120, 90, 150],
+        ];
+        assert!(near(&got[..3], &want[..3], 0), "{got:?}");
+        // How far the composited frame is from the static one (the seek
+        // pauses the animations: no group is composited).
+        let running = page.screenshot(false).unwrap();
+        common::value(&mut page, "seek(850)");
+        let paused = page.screenshot(false).unwrap();
+        let (mut count, mut most) = (0, 0u8);
+        let mut inside_most = 0u8;
+        let width = running.width() as usize;
+        for (i, (a, b)) in running
+            .data()
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .zip(paused.data().as_chunks::<4>().0)
+            .enumerate()
+        {
+            let d = a
+                .iter()
+                .zip(b)
+                .map(|(x, y)| x.abs_diff(*y))
+                .max()
+                .unwrap_or(0);
+            let (x, y) = (i % width, i / width);
+            count += usize::from(d > 0);
+            most = most.max(d);
+            // The box is at (20, 10.6) to (220, 110.6) (device px).
+            let edge = x <= 21 || x >= 218 || y <= 12 || y >= 109;
+            let in_box = (18..223).contains(&x) && (8..113).contains(&y);
+            if !in_box || !edge {
+                inside_most = inside_most.max(d);
+            }
+        }
+        eprintln!(
+            "running at 850 ms: {got:?}; {count} pixels differ from the static frame, by at \
+             most {most} (away from the box's edges {inside_most})"
+        );
+        assert!(
+            inside_most <= 1,
+            "{count} pixels differ, by at most {inside_most}"
+        );
+        // The edges: 400 pixels by at most 69 levels when the rule was made
+        // (ADR 0044 section 19); a change of the resampling shows here.
+        assert!(
+            count <= 450 && most <= 80,
+            "{count} pixels differ, by at most {most}"
+        );
+        assert!(near(&got, &want, 3), "{got:?}");
     });
 }

@@ -104,6 +104,7 @@ fn scene(setup: Setup, tile: Rect, general: bool) -> Vec<DisplayItem> {
             bounds: Rect::new(0.0, 0.0, 100.0, 100.0),
             hit_bounds: Rect::default(),
             fixed_bounds: None,
+            composited: false,
         });
     }
     items.push(DisplayItem::PushOpacity {

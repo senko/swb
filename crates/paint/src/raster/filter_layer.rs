@@ -155,7 +155,7 @@ impl Rasterizer<'_> {
             return None;
         }
         let pixmap = self.layer_pixmap(area.width as u32, area.height as u32)?;
-        self.budget.layer_pixels += reserve;
+        self.add_layer_pixels(reserve);
         self.budget.filter_pixels += work;
         Some((pixmap, needs_scratch))
     }

@@ -85,7 +85,10 @@ use crate::svg::{FrameBudget, MAX_RENDER_PIXELS, VectorCache};
 mod backdrop;
 mod blend;
 mod border;
+mod cache;
 mod composite;
+mod composited;
+mod coverage;
 mod filter_layer;
 mod frame;
 mod gradient;
@@ -95,6 +98,8 @@ mod region;
 mod svg_clip;
 
 use blend::blend_mode;
+pub use cache::{CacheStats, RasterCache};
+use composited::Composited;
 use filter_layer::FilterLayer;
 pub use frame::FrameContent;
 use gradient::{degenerate_color, gradient_line, gradient_shader, gradient_tile};
@@ -153,6 +158,13 @@ pub trait ImageSource {
     /// covers the image (`crate::damage`).
     fn generation(&self, _image: &ImageRef) -> u64 {
         0
+    }
+
+    /// The cache of the pixels of earlier rasters of the document
+    /// (`raster/cache.rs`, ADR 0044 section 19). Without one, everything is
+    /// drawn in every raster. The default has none.
+    fn raster_cache(&self) -> Option<&RasterCache> {
+        None
     }
 }
 
@@ -450,13 +462,23 @@ pub fn rasterize_region(
     if parts.is_empty() {
         return RasterReport::default();
     }
-    let Some(mut scratch) = Pixmap::new(width, height) else {
+    // The pixmap of the last raster of parts, if it has this size: its
+    // pixels outside the parts do not matter.
+    let cache = images.raster_cache();
+    let scratch = match cache {
+        Some(cache) => cache.take_scratch(width, height),
+        None => Pixmap::new(width, height),
+    };
+    let Some(mut scratch) = scratch else {
         return RasterReport { incomplete: true };
     };
     // One pass for all parts, so that the work of a drawing that does not
     // depend on the parts (a layer's clip path, a filter) is done once. The
     // parts are made disjoint, so that each pixel is drawn once.
     let Some(region) = Region::new(parts.iter().map(|p| p.to_rect()).collect()) else {
+        if let Some(cache) = cache {
+            cache.put_scratch(scratch);
+        }
         return RasterReport::default();
     };
     let parts: Vec<PixelRect> = region
@@ -491,6 +513,9 @@ pub fn rasterize_region(
     );
     for &part in &parts {
         copy_part(&scratch, target, part);
+    }
+    if let Some(cache) = cache {
+        cache.put_scratch(scratch);
     }
     finish_report(&vectors, skipped)
 }
@@ -564,7 +589,7 @@ struct Strip<'a> {
 }
 
 /// What the budgets of a strip left out.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 struct Skipped {
     /// A group layer did not fit into [`MAX_GROUP_LAYER_PIXELS`].
     layers: bool,
@@ -683,6 +708,12 @@ struct Budget {
     frame_items: u64,
     /// What the budgets left out.
     skipped: Skipped,
+    /// The most `layer_pixels` since the last mark of a raster cache entry
+    /// (`raster/cache.rs`).
+    layer_high: u64,
+    /// The path work charges since the last mark of a raster cache entry,
+    /// in order; `None` when no entry is being made.
+    path_log: Option<Vec<f64>>,
 }
 
 /// Rasterizes one strip of the target. `ends` comes from [`transform_ends`].
@@ -1036,6 +1067,7 @@ impl Rasterizer<'_> {
                 transform,
                 bounds,
                 fixed_bounds,
+                composited,
                 ..
             } = item
             {
@@ -1062,7 +1094,21 @@ impl Rasterizer<'_> {
                         self.translation = Point::new(m.e, m.f);
                         self.run(items, i + 1..end, ends, fonts, images);
                         self.translation = saved;
-                    } else {
+                    } else if !*composited
+                        || fixed_bounds.is_some()
+                        || matches!(
+                            self.composited_layer(
+                                items,
+                                i + 1..end,
+                                ends,
+                                &m,
+                                *bounds,
+                                fonts,
+                                images
+                            ),
+                            Composited::Fallback
+                        )
+                    {
                         self.transform_layer(items, i + 1..end, ends, &m, *bounds, fonts, images);
                     }
                     self.leave_group();
@@ -1173,7 +1219,7 @@ impl Rasterizer<'_> {
         // Layer px to target device px.
         let to_target =
             to_device.multiply(&Matrix::new(1.0 / k, 0.0, 0.0, 1.0 / k, area.x, area.y));
-        self.draw_transformed(&layer, &to_target);
+        self.draw_transformed(&layer, &to_target, 1.0);
         self.release(&layer);
     }
 
@@ -1215,8 +1261,8 @@ impl Rasterizer<'_> {
 
     /// Draws `layer` with the transform `to_target` (layer px to target
     /// device px), bilinear filtering and anti-aliased edges
-    /// (`draw_pixmap` does not anti-alias them).
-    fn draw_transformed(&mut self, layer: &Pixmap, to_target: &Matrix) {
+    /// (`draw_pixmap` does not anti-alias them), with the opacity `alpha`.
+    fn draw_transformed(&mut self, layer: &Pixmap, to_target: &Matrix, alpha: f32) {
         let (width, height) = (layer.width() as f32, layer.height() as f32);
         let Some(rect) = tiny_skia::Rect::from_xywh(0.0, 0.0, width, height) else {
             return;
@@ -1227,7 +1273,7 @@ impl Rasterizer<'_> {
                 layer.as_ref(),
                 SpreadMode::Pad,
                 FilterQuality::Bilinear,
-                1.0,
+                alpha,
                 Transform::identity(),
             ),
             anti_alias: true,
@@ -1674,13 +1720,20 @@ impl Rasterizer<'_> {
             }
             return;
         };
+        // The budget gets the layer's pixels back after its pixels are
+        // final (a clip can crop the layer to a region).
+        let layer_pixels = u64::from(pixmap.width()) * u64::from(pixmap.height());
+        let mut origin = layer.origin;
         let visible = match &layer.kind {
             LayerKind::Opacity | LayerKind::Blend(_) | LayerKind::Filter(_) => true,
             LayerKind::Mask(layers) => {
                 self.apply_mask(&mut pixmap, layer.origin, layers, images, fonts)
             }
             LayerKind::SvgClip(c) => {
-                match self.apply_svg_clip(&mut pixmap, layer.origin, &c.clip, &c.transform) {
+                let (result, clipped, at) =
+                    self.apply_svg_clip(pixmap, layer.origin, &c.clip, &c.transform, images);
+                (pixmap, origin) = (clipped, at);
+                match result {
                     ClipResult::Applied => true,
                     ClipResult::Hidden => false,
                     // The content stays inside the layer, which is the
@@ -1689,11 +1742,11 @@ impl Rasterizer<'_> {
                 }
             }
         };
-        self.release(&pixmap);
+        self.budget.layer_pixels = self.budget.layer_pixels.saturating_sub(layer_pixels);
         let Some(parent) = self.surface_rect().filter(|_| visible) else {
             return;
         };
-        let Some((pixmap, origin)) = self.crop(pixmap, layer.origin) else {
+        let Some((pixmap, origin)) = self.crop(pixmap, origin) else {
             return;
         };
         let x = origin.0 - parent.x as i32;
@@ -1759,8 +1812,14 @@ impl Rasterizer<'_> {
             return None;
         }
         let pixmap = Pixmap::new(width, height)?;
-        self.budget.layer_pixels += pixels;
+        self.add_layer_pixels(pixels);
         Some(pixmap)
+    }
+
+    /// Adds `pixels` to the open layer pixels of the budget.
+    fn add_layer_pixels(&mut self, pixels: u64) {
+        self.budget.layer_pixels += pixels;
+        self.budget.layer_high = self.budget.layer_high.max(self.budget.layer_pixels);
     }
 
     /// Returns the pixels of a layer's pixmap to the budget.

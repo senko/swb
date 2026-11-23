@@ -4,34 +4,22 @@
 //!
 //! A pixel with alpha 255 replaces the surface's pixel, and a pixel with
 //! alpha 0 leaves it: both are exact for premultiplied source-over. Only
-//! the pixels between are blended, by tiny-skia, so the result equals a
-//! draw of the whole layer pixel by pixel. A layer that is mostly opaque or
-//! empty (the isolating layer of a stacking context with a blended box,
-//! the tiles of a map) then costs one pass over its bytes instead of a
-//! blend pipeline run over every pixel.
+//! the pixels between are blended, by tiny-skia: gathered into one row with
+//! the surface's pixels under them, blended in one draw, and put back (the
+//! blend is the same for each pixel, so the result equals a draw of the
+//! whole layer). A layer that is mostly opaque or empty (the isolating
+//! layer of a stacking context with a blended box, the tiles of a map, a
+//! clip's layer of text over a box) then costs one pass over its bytes
+//! instead of a blend pipeline run over every pixel.
 
-use tiny_skia::{Pixmap, PixmapMut, PixmapPaint, PixmapRef, Transform};
-
-/// The most runs of translucent pixels that [`source_over`] draws one by
-/// one, per layer row: a layer with more draws as a whole.
-const MAX_RUNS_PER_ROW: usize = 4;
-
-/// A run of translucent pixels in a row of a layer.
-#[derive(Clone, Copy, Debug)]
-struct Run {
-    row: usize,
-    first: usize,
-    len: usize,
-}
+use tiny_skia::{Pixmap, PixmapMut, PixmapPaint, Transform};
 
 /// Draws `src` over `dst` with its top-left pixel at `at`, with source-over
 /// and opacity 1, and no mask. Returns false, with `dst` changed only
 /// where `src` is opaque (the same pixels that a full draw gives), if the
-/// layer lies outside `dst`, has too many translucent runs, or more than a
-/// quarter of its pixels are translucent: the caller then draws the whole
-/// layer. (Drawn run by run, translucent pixels cost more than in one draw
-/// of the layer: a 1280 x 800 layer at alpha 128 took 5.2 ms by runs and
-/// 3.4 ms as a whole.)
+/// layer lies outside `dst`, or more than half of its pixels (or more than
+/// 1 Mi pixels) are translucent: the caller then draws the whole layer
+/// (one blend of every pixel costs less then than gathering them).
 pub(super) fn source_over(dst: &mut PixmapMut<'_>, at: (i32, i32), src: &Pixmap) -> bool {
     let (sw, sh) = (src.width() as usize, src.height() as usize);
     let dw = dst.width() as usize;
@@ -41,90 +29,80 @@ pub(super) fn source_over(dst: &mut PixmapMut<'_>, at: (i32, i32), src: &Pixmap)
     if x + sw > dw || y + sh > dst.height() as usize {
         return false;
     }
-    let mut runs = Vec::new();
-    let max_runs = MAX_RUNS_PER_ROW * sh + 16;
-    let max_translucent = sw * sh / 4;
-    let mut translucent = 0;
-    let src_data = src.data();
+    // At most half of the pixels, and at most 1 Mi of them, so the gathered
+    // copy stays small for any layer.
+    let max_translucent = (sw * sh / 2).min(1 << 20);
+    // The translucent pixels: their index in `src` and in `dst`.
+    let mut places: Vec<(usize, usize)> = Vec::new();
+    let src_pixels = src.data().as_chunks::<4>().0;
     let dst_data = dst.data_mut();
     for row in 0..sh {
-        let at_row = ((y + row) * dw + x) * 4;
+        let at_row = (y + row) * dw + x;
         let (Some(line), Some(out)) = (
-            src_data.get(row * sw * 4..(row + 1) * sw * 4),
-            dst_data.get_mut(at_row..at_row + sw * 4),
+            src_pixels.get(row * sw..(row + 1) * sw),
+            dst_data.get_mut(at_row * 4..(at_row + sw) * 4),
         ) else {
             return false;
         };
-        translucent += copy_opaque_row(line, out, row, &mut runs);
-        if runs.len() > max_runs || translucent > max_translucent {
+        copy_opaque_row(line, out.as_chunks_mut::<4>().0, |column| {
+            places.push((row * sw + column, at_row + column));
+        });
+        if places.len() > max_translucent {
             return false;
         }
     }
-    for run in runs {
-        draw_run(dst, (x, y), src_data, sw, run);
-    }
+    blend_gathered(src_pixels, dst_data, &places);
     true
 }
 
-/// Copies the opaque pixels of row `row` of a layer (`line`) over `out`,
-/// and appends its runs of translucent pixels to `runs`. Returns the number
-/// of translucent pixels in the row.
-fn copy_opaque_row(line: &[u8], out: &mut [u8], row: usize, runs: &mut Vec<Run>) -> usize {
-    let (pixels, _) = line.as_chunks::<4>();
-    let (out_pixels, _) = out.as_chunks_mut::<4>();
-    let mut start = None;
-    let mut count = 0;
-    for (i, (s, d)) in pixels.iter().zip(out_pixels.iter_mut()).enumerate() {
-        let partial = match s[3] {
-            255 => {
-                *d = *s;
-                false
-            }
-            0 => false,
-            _ => true,
-        };
-        count += usize::from(partial);
-        match (start, partial) {
-            (None, true) => start = Some(i),
-            (Some(first), false) => {
-                runs.push(Run {
-                    row,
-                    first,
-                    len: i - first,
-                });
-                start = None;
-            }
-            _ => {}
+/// Copies the opaque pixels of a row of a layer (`line`) over `out`, and
+/// calls `translucent` with the column of each translucent pixel.
+fn copy_opaque_row(line: &[[u8; 4]], out: &mut [[u8; 4]], mut translucent: impl FnMut(usize)) {
+    for (column, (s, d)) in line.iter().zip(out.iter_mut()).enumerate() {
+        match s[3] {
+            255 => *d = *s,
+            0 => {}
+            _ => translucent(column),
         }
     }
-    if let Some(first) = start {
-        runs.push(Run {
-            row,
-            first,
-            len: pixels.len() - first,
-        });
-    }
-    count
 }
 
-/// Draws one run of translucent pixels of a layer whose rows are `width`
-/// pixels long (`src`) at its place over `dst` (the layer at `at`).
-fn draw_run(dst: &mut PixmapMut<'_>, at: (usize, usize), src: &[u8], width: usize, run: Run) {
-    let offset = (run.row * width + run.first) * 4;
-    let Some(bytes) = src.get(offset..offset + run.len * 4) else {
+/// Blends the pixels of `src` at `places` (index in `src`, index in `dst`)
+/// over those of `dst`, in one draw of a row of them.
+fn blend_gathered(src: &[[u8; 4]], dst: &mut [u8], places: &[(usize, usize)]) {
+    let Ok(count) = u32::try_from(places.len()) else {
         return;
     };
-    let Some(part) = PixmapRef::from_bytes(bytes, run.len as u32, 1) else {
+    let (Some(mut over), Some(mut under)) = (Pixmap::new(count, 1), Pixmap::new(count, 1)) else {
         return;
     };
-    dst.draw_pixmap(
-        (at.0 + run.first) as i32,
-        (at.1 + run.row) as i32,
-        part,
+    let dst = dst.as_chunks_mut::<4>().0;
+    for ((o, u), &(from, to)) in over
+        .data_mut()
+        .as_chunks_mut::<4>()
+        .0
+        .iter_mut()
+        .zip(under.data_mut().as_chunks_mut::<4>().0.iter_mut())
+        .zip(places)
+    {
+        if let (Some(s), Some(d)) = (src.get(from), dst.get(to)) {
+            *o = *s;
+            *u = *d;
+        }
+    }
+    under.draw_pixmap(
+        0,
+        0,
+        over.as_ref(),
         &PixmapPaint::default(),
         Transform::identity(),
         None,
     );
+    for (u, &(_, to)) in under.data().as_chunks::<4>().0.iter().zip(places) {
+        if let Some(d) = dst.get_mut(to) {
+            *d = *u;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -170,7 +148,7 @@ mod tests {
 
     #[test]
     fn rows_equal_a_full_draw() {
-        for (seed, translucent) in [(1, 0), (2, 6), (3, 40), (4, 255)] {
+        for (seed, translucent) in [(1, 0), (2, 6), (3, 40), (4, 120), (5, 255)] {
             let src = noise(37, 23, seed, translucent);
             let backdrop = noise(60, 50, seed + 100, 0);
             let mut want = backdrop.clone();
@@ -185,8 +163,8 @@ mod tests {
     }
 
     #[test]
-    fn a_layer_with_many_runs_falls_back_to_a_full_draw() {
-        // Every other pixel translucent: more runs than the cap.
+    fn a_layer_with_many_runs_is_blended_in_one_draw() {
+        // Every other pixel translucent: text over a transparent layer.
         let mut src = noise(40, 8, 7, 0);
         for (i, px) in src.data_mut().as_chunks_mut::<4>().0.iter_mut().enumerate() {
             if i % 2 == 0 {
@@ -195,10 +173,7 @@ mod tests {
         }
         let backdrop = noise(40, 8, 9, 0);
         let mut got = backdrop.clone();
-        assert!(!source_over(&mut got.as_mut(), (0, 0), &src));
-        // The pixels that it changed are those that a full draw sets alike,
-        // so the full draw after it gives the same result.
-        reference(&mut got, (0, 0), &src);
+        assert!(source_over(&mut got.as_mut(), (0, 0), &src));
         let mut want = backdrop;
         reference(&mut want, (0, 0), &src);
         assert_eq!(got.data(), want.data());

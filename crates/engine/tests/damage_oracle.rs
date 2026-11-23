@@ -526,3 +526,161 @@ fn nested_frames_with_animation_and_scrolls() {
         eprintln!("nested frames: {summary}");
     });
 }
+
+/// Composited groups (ADR 0044 section 19): a reveal of a rounded box with
+/// a gradient, text, an SVG image, a `backdrop-filter` bar and a spinning
+/// box inside (the spinner's own composited group in the revealed one), a
+/// scale animation that grows past 2 (a layer at twice the device scale),
+/// an animation that ends on a held step, a paused animation; a hover in
+/// the revealed box and a wheel step while they run. Each frame: the damage
+/// over the kept pixels, a full render, and a render without the raster
+/// caches are equal.
+fn composited(scale: f32) {
+    let svg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' \
+               height='40'%3E%3Ccircle cx='20' cy='20' r='17' fill='%23fd0'/%3E%3C/svg%3E";
+    let html = format!(
+        "<!DOCTYPE html><style>body{{margin:0;font:16px sans-serif;height:1600px}}\
+         @keyframes reveal{{from{{opacity:0;transform:translateY(12px) scale(.99)}}\
+         to{{opacity:1;transform:none}}}}\
+         @keyframes spin{{to{{transform:rotate(360deg)}}}}\
+         @keyframes pop{{from{{transform:scale(.2)}}to{{transform:scale(2.5)}}}}\
+         @keyframes hold{{to{{transform:rotate(30deg)}}}}\
+         #hero{{position:absolute;left:40px;top:30px;width:500px;height:300px;\
+         border-radius:24px;overflow:hidden;background:linear-gradient(45deg,#c33,#36c);\
+         animation:reveal 1s cubic-bezier(.2,.8,.2,1) .2s both}}\
+         #bar{{position:absolute;left:0;right:0;bottom:0;height:50px;\
+         backdrop-filter:blur(6px);background:rgba(255,255,255,.3)}}\
+         #hero a{{display:block;margin:20px;color:#fff}}\
+         #hero a:hover{{color:#ff0;background:#0004}}\
+         #spin{{position:absolute;left:300px;top:40px;width:60px;height:60px;\
+         border-radius:12px;background:#0c8;animation:spin 2s linear infinite}}\
+         #pop{{position:absolute;left:600px;top:80px;width:80px;height:40px;\
+         background:#fa0;border-radius:50%;animation:pop .8s ease-in both}}\
+         #hold{{position:absolute;left:600px;top:300px;width:100px;height:30px;\
+         background:#38f;animation:hold .6s steps(2,jump-start) forwards}}\
+         #paused{{position:absolute;left:40px;top:400px;width:100px;height:30px;\
+         background:#93f;animation:spin 1s linear infinite paused}}</style>\
+         <div id=hero><a href=#x>a link in the hero</a><img src=\"{svg}\">\
+         <div id=spin></div><div id=bar>bar</div></div>\
+         <div id=pop>pop</div><div id=hold>hold</div><div id=paused></div>"
+    );
+    let mut page = open_at(&html, false, scale);
+    let mut oracle = DamageOracle::default();
+    let label = format!("composited (scale {scale})");
+    oracle.step(&mut page, &format!("{label}: first"));
+    for tick in 0..32 {
+        match tick {
+            10 => {
+                page.mouse_move(100.0, 60.0);
+            }
+            14 => {
+                page.mouse_move(100.0, 500.0);
+            }
+            20 => {
+                page.wheel(100.0, 500.0, 0.0, 40.0);
+            }
+            _ => {}
+        }
+        page.run_event_loop(Duration::from_millis(50), Duration::from_secs(10));
+        oracle.step(&mut page, &format!("{label}: tick {tick}"));
+    }
+    let stats = page.raster_cache_stats();
+    assert!(stats.hits > 0, "{label}: {stats:?}");
+    eprintln!("{label}: {}; cache {stats:?}", oracle.summary());
+}
+
+#[test]
+fn composited_groups_of_running_animations() {
+    on_page_thread(|| {
+        composited(1.0);
+        composited(1.5);
+    });
+}
+
+/// An animation that ends on the value it held for its last step: the
+/// style does not change at the end, but the group stops being composited
+/// (ADR 0044 section 19), and the frame after the end equals the render of
+/// the same page at rest.
+#[test]
+fn the_frame_after_a_composited_animation_is_the_static_render() {
+    on_page_thread(|| {
+        let style = "body{margin:0}div{position:absolute;left:50px;top:40px;width:120px;\
+                     height:50px;background:#38f;border-radius:9px}";
+        let animated = format!(
+            "<!DOCTYPE html><style>{style}@keyframes hold{{to{{transform:rotate(30deg);\
+             opacity:.5}}}}div{{animation:hold .6s steps(2,jump-start) forwards}}</style>\
+             <div></div>"
+        );
+        let still = format!(
+            "<!DOCTYPE html><style>{style}div{{transform:rotate(30deg);opacity:.5}}</style>\
+             <div></div>"
+        );
+        let mut page = open(&animated, false);
+        let mut oracle = DamageOracle::default();
+        oracle.step(&mut page, "hold: first");
+        page.run_event_loop(Duration::from_millis(400), Duration::from_secs(10));
+        let held = oracle.step(&mut page, "hold: the last step");
+        page.run_event_loop(Duration::from_millis(400), Duration::from_secs(10));
+        assert!(!page.animations_running());
+        let after = oracle.step(&mut page, "hold: after the end");
+        let mut rest = open(&still, false);
+        let static_render = rest.screenshot(false).expect("a screenshot");
+        assert!(
+            common::damage::first_difference(&after, &static_render).is_none(),
+            "the frame after the end is the static render"
+        );
+        // While it ran, the group was composited: other pixels.
+        assert!(common::damage::first_difference(&held, &static_render).is_some());
+    });
+}
+
+/// A sticky box inside a rotating (composited) group while the page
+/// scrolls: the layer's key holds the viewport scroll offset (found in the
+/// review of feature 4c: no other test covered that part of the key).
+#[test]
+fn a_sticky_box_inside_a_composited_group() {
+    on_page_thread(|| {
+        for scale in [1.0, 1.5] {
+            let html = "<!DOCTYPE html><style>body{margin:0;height:4000px;\
+                font:16px sans-serif}#rot{position:absolute;left:100px;top:100px;\
+                width:300px;height:2400px;background:linear-gradient(#cde,#edc);\
+                animation:spin 20s linear infinite}@keyframes spin{to{transform:rotate(3deg)}}\
+                #s{position:sticky;top:10px;height:30px;margin:0 20px;background:#c33;\
+                color:#fff}</style><div id=rot><p>top</p><div id=s>sticky</div>\
+                <p>after</p><p style='margin-top:1500px'>far</p></div>";
+            let mut page = open_at(html, false, scale);
+            let mut oracle = DamageOracle::default();
+            oracle.step(&mut page, "sticky: first");
+            for tick in 0..24 {
+                if tick % 3 == 0 {
+                    page.scroll_to(Point::new(0.0, 40.0 * tick as f32));
+                }
+                page.run_event_loop(Duration::from_millis(50), Duration::from_secs(10));
+                oracle.step(&mut page, &format!("sticky (scale {scale}): tick {tick}"));
+            }
+            eprintln!("sticky (scale {scale}): {}", oracle.summary());
+        }
+    });
+}
+
+/// In the delay of an animation of `transform` (no fill), the element
+/// renders as without the animation: the composited path is only for
+/// running animations.
+#[test]
+fn the_delay_of_an_animation_is_the_static_render() {
+    on_page_thread(|| {
+        let style = "body{margin:0}div{position:absolute;left:50px;top:40px;width:120px;\
+                     height:50px;background:#38f;border-radius:9px;transform:rotate(7deg)}";
+        let delayed = format!(
+            "<!DOCTYPE html><style>{style}@keyframes a{{to{{transform:rotate(90deg)}}}}\
+             div{{animation:a 1s linear 100s}}</style><div></div>"
+        );
+        let still = format!("<!DOCTYPE html><style>{style}</style><div></div>");
+        let mut page = open_at(&delayed, false, 1.0);
+        let delay = page.screenshot(false).unwrap();
+        let mut rest = open_at(&still, false, 1.0);
+        let static_render = rest.screenshot(false).unwrap();
+        let difference = common::damage::first_difference(&delay, &static_render);
+        assert!(difference.is_none(), "{difference:?}");
+    });
+}

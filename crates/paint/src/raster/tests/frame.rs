@@ -217,6 +217,7 @@ fn fixed(items: Vec<DisplayItem>) -> Vec<DisplayItem> {
             bounds: Rect::new(0.0, 0.0, 100.0, 100.0),
             hit_bounds: Rect::new(0.0, 0.0, 100.0, 100.0),
             fixed_bounds: None,
+            composited: false,
         },
     ];
     all.extend(items);
@@ -357,6 +358,7 @@ fn deep_groups_in_nested_frames_stop_at_the_limit() {
         bounds: Rect::new(0.0, 0.0, 100.0, 100.0),
         hit_bounds: Rect::new(0.0, 0.0, 100.0, 100.0),
         fixed_bounds: None,
+        composited: false,
     };
     let mut doc = Doc::new(vec![rect(0.0, 0.0, 100.0, 100.0, RED)]);
     for _ in 0..30 {

@@ -88,6 +88,10 @@ pub(crate) struct FrameBudget {
     work: f64,
     frame: u64,
     skipped: bool,
+    /// The renderings that the frame drew from another size or left out
+    /// (skips and the fallback of more than [`MAX_PER_IMAGE`] sizes): a
+    /// raster cache keeps no entry whose content raised it.
+    inexact: u32,
 }
 
 impl FrameBudget {
@@ -98,12 +102,26 @@ impl FrameBudget {
             work: MAX_FRAME_WORK,
             frame: NEXT_FRAME.fetch_add(1, Ordering::Relaxed),
             skipped: false,
+            inexact: 0,
         }
+    }
+
+    /// How many renderings the frame (or its level reductions) drew from
+    /// another size or left out so far.
+    pub(crate) fn inexact(&self) -> u32 {
+        self.inexact.saturating_add(self.reduce.skips())
     }
 
     /// True if the frame skipped a rendering.
     pub(crate) fn skipped(&self) -> bool {
         self.skipped
+    }
+
+    /// The rendering work that the frame may still do, and the pixels it
+    /// may still reduce: a raster cache keeps no entry whose content used
+    /// either (`raster/cache.rs`).
+    pub(crate) fn left(&self) -> (f64, u64) {
+        (self.work, self.reduce.left())
     }
 
     /// Takes `work` from the budget, or records a skipped rendering and
@@ -114,6 +132,7 @@ impl FrameBudget {
             true
         } else {
             self.skipped = true;
+            self.inexact = self.inexact.saturating_add(1);
             false
         }
     }
@@ -159,6 +178,7 @@ impl VectorCache {
                 .filter(|(k, e)| k.image == key.image && e.frame == frame.frame)
                 .count();
             if used >= MAX_PER_IMAGE {
+                frame.inexact = frame.inexact.saturating_add(1);
                 return state.closest(key, frame.frame);
             }
         }

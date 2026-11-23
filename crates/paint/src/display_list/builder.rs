@@ -15,6 +15,7 @@ use swb_layout::{
     forms_stacking_context, has_rounded_corner, has_transform, is_absolute_containing_block,
     is_fixed_containing_block, rounded_path,
 };
+use swb_style::animation::AnimationOwner;
 use swb_style::{
     BackgroundBox, BorderStyle, ComputedStyle, Display, FillRule, Image, Position, Rgba,
     TextDecorationLine, Visibility, ZIndex,
@@ -64,6 +65,7 @@ pub fn build_display_list(
         scroll: ScrollState::default(),
         indicators: scrolling.indicators,
         scale: scrolling.scale,
+        composited: scrolling.composited,
         text_clip_shapes: 0,
         text_clip_warned: false,
         pieces: Vec::new(),
@@ -351,6 +353,9 @@ struct Builder<'a> {
     indicators: bool,
     /// Device pixels per CSS px.
     scale: f32,
+    /// The owners of the composited transform groups (see
+    /// [`Scrolling::composited`]).
+    composited: Option<&'a HashSet<AnimationOwner>>,
     /// The shapes that `background-clip: text` groups clip by so far (see
     /// [`text_clip::MAX_SHAPES_TOTAL`]).
     text_clip_shapes: usize,
@@ -496,7 +501,15 @@ impl Builder<'_> {
         // A blend must apply to the transformed box: its group encloses the
         // transform layer, which is transparent around the box.
         let early = blends_outside_transform(b, &groups).then(|| self.push_opacity(b));
-        let transforms = self.open_transforms(&groups);
+        let composited = self.composited.is_some_and(|set| {
+            b.node.is_some_and(|node| {
+                set.contains(&AnimationOwner {
+                    node,
+                    pseudo: b.pseudo,
+                })
+            })
+        });
+        let transforms = self.open_transforms(&groups, composited);
         let group = self.open_group(b, origin, stacking_context, early);
         let is_root = group.outer_depth == 0;
         // The clips of a stacking context root belong to the context: its

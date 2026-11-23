@@ -243,10 +243,23 @@ fn delta(before: &FlushCounters, after: &FlushCounters) -> FlushCounters {
 /// The interaction stages (JSON: docs/performance.md, "Measuring").
 fn interaction(page: &mut Page, pixmap: &mut Pixmap, runs: usize) -> serde_json::Value {
     let rounds = runs.min(MAX_HOVER_ROUNDS);
+    let animation = animation_stage(page, pixmap);
+    let hover = hover_stage(page, pixmap, rounds);
+    let scroll = scroll_stage(page, pixmap);
+    let cache = page.raster_cache_stats();
     json!({
-        "animation": animation_stage(page, pixmap),
-        "hover": hover_stage(page, pixmap, rounds),
-        "scroll": scroll_stage(page, pixmap),
+        "animation": animation,
+        "hover": hover,
+        "scroll": scroll,
+        // The raster cache of the document after the stages (ADR 0044
+        // section 19).
+        "raster_cache": {
+            "peak_bytes": cache.peak_bytes,
+            "bytes": cache.bytes,
+            "entries": cache.entries,
+            "hits": cache.hits,
+            "misses": cache.misses,
+        },
     })
 }
 

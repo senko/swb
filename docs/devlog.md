@@ -4,6 +4,30 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-23: M13 feature 4c, frame budgets
+
+- ADR 0044, section 19. The two budgets that feature 4b missed are met,
+  and so is the idle CPU at the marquee: videojs frame max 42.5 -> 27.3
+  ms, move to frame p90 60 -> 12 to 28 ms, the marquee at rest 30 -> 12 %
+  CPU.
+- A profile came first. The hero reveal draws its content into a transform
+  layer whose scale and opacity change in every frame, so no exact cache
+  can help it; the marquee frame paid the coverage of three rounded clips
+  over their whole extent.
+- The raster cache keeps the coverage of clips and the layers of
+  composited groups, keyed by all inputs of their pixels; the budgets'
+  charges are recorded and replayed, so a hit draws what a raster without
+  the cache draws. The oracles render every frame also without the caches.
+- Composited groups are the one rule that changes pixels: an element with
+  a running `transform` or `opacity` animation draws its content once into
+  a layer and then only draws that layer with the animated values. Only
+  the layer's edges differ from the static path. The reveal frames went
+  from 40 to 9 ms; the first paint pays for it (33 -> 51 ms).
+- The review found a cache entry kept as complete although a budget had
+  left part of it out (the skip flags were already set by an earlier
+  item), and keys that the memory limit did not count. Both fixed.
+- Next: feature 5 (CSS transitions).
+
 ## 2026-11-22: M13 feature 4b, damage rectangles and region raster
 
 - ADR 0044, section 18. A frame compares its display list with the last

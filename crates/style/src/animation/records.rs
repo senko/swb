@@ -150,6 +150,10 @@ pub struct AnimationRecord {
     /// The painted area that the animation can change (the visibility
     /// test).
     reach: Reach,
+    /// True if the keyframes animate `transform`, `translate`, `rotate`,
+    /// `scale` or `opacity`: while the animation runs, paint composites the
+    /// owner's group (ADR 0044 section 19).
+    composited: bool,
     /// The play state and the pending flag at the last update (for
     /// [`DocumentAnimations::state_epoch`]).
     observed: Option<(AnimationPlayState, bool)>,
@@ -183,6 +187,7 @@ impl AnimationRecord {
             step_period: None,
             step_key: (0, Easing::Linear, f64::NAN),
             reach: Reach::default(),
+            composited: false,
             observed: None,
         }
     }
@@ -747,6 +752,19 @@ impl DocumentAnimations {
         self.visible.as_ref().is_none_or(|v| v.shows(node))
     }
 
+    /// The owners of the animations that run (play state `running` at the
+    /// current timeline time: also in their delay, not paused, finished or
+    /// idle) and animate `transform`, `translate`, `rotate`, `scale` or
+    /// `opacity`: paint composites their groups (ADR 0044 section 19). A
+    /// running transition will join them (feature 5).
+    pub fn composited_owners(&self) -> HashSet<AnimationOwner> {
+        self.records
+            .values()
+            .filter(|r| r.composited && r.play_state(self.time) == AnimationPlayState::Running)
+            .map(|r| r.owner)
+            .collect()
+    }
+
     /// The owners of the animations that run (or wait for a pending play),
     /// each once with the widest [`Reach`] of its animations: the engine
     /// finds their painted bounds for [`DocumentAnimations::set_visible`].
@@ -1086,6 +1104,7 @@ impl DocumentAnimations {
             );
             record.step_key = key;
             record.reach = reach_of(set);
+            record.composited = super::visibility::is_composited(set);
             changed = true;
         }
         if changed {

@@ -42,7 +42,7 @@ pub use selection::{Selection, TextPosition};
 pub use swb_dom::NodeId;
 pub use swb_layout::{Point, Rect, Size};
 pub use swb_net::Url;
-pub use swb_paint::Pixmap;
+pub use swb_paint::{CacheStats, Pixmap};
 pub use swb_style::Cursor;
 pub use swb_text::FontContext;
 pub use swb_web::{

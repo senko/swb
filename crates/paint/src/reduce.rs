@@ -47,6 +47,8 @@ struct State {
 pub(crate) struct ReduceBudget {
     pixels: u64,
     skipped: bool,
+    /// How many levels the frame left out.
+    skips: u32,
 }
 
 impl ReduceBudget {
@@ -55,6 +57,7 @@ impl ReduceBudget {
         ReduceBudget {
             pixels: FRAME_PIXELS,
             skipped: false,
+            skips: 0,
         }
     }
 
@@ -63,11 +66,22 @@ impl ReduceBudget {
         self.skipped
     }
 
+    /// How many levels the frame left out so far.
+    pub(crate) fn skips(&self) -> u32 {
+        self.skips
+    }
+
+    /// The pixels that the frame may still reduce.
+    pub(crate) fn left(&self) -> u64 {
+        self.pixels
+    }
+
     #[cfg(test)]
     pub(crate) fn with_pixels(pixels: u64) -> Self {
         ReduceBudget {
             pixels,
             skipped: false,
+            skips: 0,
         }
     }
 
@@ -77,6 +91,7 @@ impl ReduceBudget {
             true
         } else {
             self.skipped = true;
+            self.skips = self.skips.saturating_add(1);
             false
         }
     }

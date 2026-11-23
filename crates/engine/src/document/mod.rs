@@ -367,6 +367,10 @@ pub struct DocumentState {
     /// list serial, the viewport scroll offset and size; ADR 0044 section
     /// 8): it runs again when one of them changes.
     pub(crate) animation_visibility: Option<(u64, Point, Size)>,
+    /// The owners of the composited groups of the display list (ADR 0044
+    /// section 19): the running animations of `transform` and `opacity`
+    /// when the list was built. A change drops the list.
+    pub(crate) list_composited: std::collections::HashSet<swb_style::animation::AnimationOwner>,
     pub(crate) styles: Option<StyleMap>,
     /// The styles before the DOM changes in `dom_changes`, kept from the
     /// drain that made `styles` dirty until the next style computation
@@ -539,6 +543,7 @@ impl DocumentState {
             animations: RefCell::new(init.animations.records()),
             animations_enabled: init.animations.enabled,
             animation_visibility: None,
+            list_composited: std::collections::HashSet::new(),
             styles: None,
             stale_styles: None,
             dom_changes: swb_style::DomChanges::default(),
@@ -1517,6 +1522,9 @@ impl DocumentState {
         let restyle = view.viewport != self.view.viewport
             || view.scale != self.view.scale
             || view.color_scheme != self.view.color_scheme;
+        if view.viewport != self.view.viewport || view.scale != self.view.scale {
+            self.images.clear_raster_cache();
+        }
         self.view = view;
         if restyle {
             self.images.sources_outdated = true;

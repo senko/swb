@@ -95,6 +95,28 @@ impl Page {
         }
     }
 
+    /// Switches the raster caches of the page's documents on or off (ADR
+    /// 0044 section 19): while they are off, renders draw everything, as
+    /// without them. For the oracle that compares frames drawn with and
+    /// without them.
+    pub fn set_raster_cache(&mut self, enabled: bool) {
+        if let Some(doc) = self.doc.as_deref() {
+            doc.images.enable_raster_cache(enabled);
+        }
+        self.maker.raster.set_enabled(enabled);
+    }
+
+    /// The counts of the raster cache of the page's document (ADR 0044
+    /// section 19): its bytes, the most bytes it held, its entries, hits and
+    /// misses. Zero without a document.
+    pub fn raster_cache_stats(&self) -> swb_paint::CacheStats {
+        self.doc
+            .as_deref()
+            .map_or_else(swb_paint::CacheStats::default, |d| {
+                d.images.raster_cache_stats()
+            })
+    }
+
     /// Notes that the pixels of the image of the element `node` changed
     /// without a new decode (a video frame, M14; tests): its content
     /// generation goes up, the frame is outdated, and the damage of the next

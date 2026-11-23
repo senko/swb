@@ -83,6 +83,7 @@ fn translate(x: f32, y: f32) -> DisplayItem {
         bounds: Rect::default(),
         hit_bounds: Rect::default(),
         fixed_bounds: None,
+        composited: false,
     }
 }
 

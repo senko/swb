@@ -791,6 +791,7 @@ impl DocumentState {
     /// Brings the display list up to date.
     pub(crate) fn update_display_list(&mut self, fonts: &mut FontContext) {
         self.update_layout(fonts);
+
         // A change of the selection (also a script's) shows when the page
         // selection that the list shows changed.
         let generation = self.dom.selection_generation();
@@ -800,6 +801,14 @@ impl DocumentState {
             } else {
                 self.display_list = None;
             }
+        }
+        // The groups of the animations of `transform` and `opacity` that
+        // start or stop running are composited or no longer (ADR 0044
+        // section 19).
+        let composited = self.animations.borrow().composited_owners();
+        if composited != self.list_composited {
+            self.display_list = None;
+            self.list_composited = composited;
         }
         if self.display_list.is_some() || self.fragments.is_none() {
             // A scroll or a resize keeps the list.
@@ -850,6 +859,7 @@ impl DocumentState {
             offsets: self.scrollers.offsets(),
             indicators: self.view.indicators,
             scale: self.view.scale,
+            composited: Some(&self.list_composited),
         };
         if page.is_some() || control.is_some() {
             let highlight = Highlight {

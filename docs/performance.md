@@ -152,6 +152,10 @@ part of the times. The result is the key `interaction` of the JSON:
   of the diff of the display lists), `full_frames`, `region_frames` and
   `empty_frames` (frames without damage), and `region_pixels_median` (the
   device pixels of a region frame).
+- Raster cache (since M13 feature 4c, ADR 0044 section 19): `raster_cache`
+  has the counts of the document's raster cache after the stages:
+  `peak_bytes` (the most bytes it held), `bytes`, `entries`, `hits` and
+  `misses`.
 
 The stages work with JavaScript on: `--js --virtual-time` (and the
 fixture's `--now` and `--settle-ms`) as for the other JS tools. `swbtools
@@ -598,6 +602,50 @@ first case a frame costs 95 ms before (style 69, layout 26) and 76 ms after
 (style 75 with the classification, refresh 0.9): the cascade of the animated
 elements dominates. The load stages of `perf videojs` and `perf hacker-news`
 (5 runs) are the same within noise.
+
+### Frame budgets (M13 feature 4c)
+
+ADR 0044 section 19: a raster cache (the coverage of clips, the layers of
+composited groups), composited groups for running `transform` and `opacity`
+animations, pointwise operations that skip known pixels, and a window
+buffer that gets only the rows that changed. Release build, own Xvfb;
+before is the commit of feature 4b. Against the budgets of the diagnosis
+(`videojs-diagnosis.md` section 5):
+
+| Budget | Before | After | Target |
+|---|---|---|---|
+| Frame time p90 (render + compose), `videojs-page` | 10.1 ms | 8.6 / 8.7 ms | 16 |
+| Frame time max after the first paint | 42.5 ms | 27.2 / 27.3 ms | 33 |
+| Pointer move to frame p90 | 60 ms | 28 / 12 ms | 50 |
+| videojs at the marquee and the bars, 10 s idle | 30.0 % CPU | 12.3 % | 15 |
+| Spinner page / marquee page idle | 0.7 % / 4.7 % | 0.0 % / 1.3 % | 5 / 15 |
+| Frames per second at the marquee | 58.9 | 61.1 | 60 |
+
+(`gui-latency videojs --js --trace videojs-page --window 1280x840`, two runs
+after; `scroll12-idle10`: 12 wheel notches, then 10 s at rest; `idle-10s` on
+a page with only the spinner or only the marquee.) The reveal frames cost
+8 to 9 ms (37 to 42 ms before); the longest frames now are the end of the
+reveal (the static render of the hero, 24 to 27 ms) and wheel steps at the
+hero (23 to 28 ms). At the marquee a region frame costs 1.6 ms (4.0 ms
+before) and the composition 0.04 ms (0.41 ms).
+
+`--bench 3` (animations on; hover change median / p90, animation frame
+median, in ms; before / after):
+
+| Fixture | Hover change median | Hover change p90 | Animation frame median | Raster cache peak |
+|---|---|---|---|---|
+| videojs (`--js`, real time) | 0.72 / 0.75 | 20.5 / 29.1 | 37.8 / 8.8 | 8.2 MB |
+| videojs | 0.15 / 0.15 | 14.2 / 3.2 | – | 5.5 MB |
+| github-swb | 11.6 / 5.1 | 17.6 / 16.5 | 13.5 / 9.4 | 5.3 MB |
+| wikipedia-web-browser | 0.37 / 0.37 | 2.5 / 2.1 | – | 0.05 MB |
+| hacker-news | 0.04 / 0.05 | 0.35 / 0.28 | – | 0 |
+
+The hover p90 of videojs with JavaScript is higher: hovers over the player
+during the reveal change the content of its composited layer, which is drawn
+again whole. `perf videojs` and `perf hacker-news` (5 runs): the load stages
+are the same, except the raster stage of videojs, 30.1 to 23.3 ms (the bench
+rasterizes the same viewport again and finds the clips' coverage; the
+product of a clip skips its inside).
 
 ### GUI: input latency on Xvfb, 1280 x 900
 

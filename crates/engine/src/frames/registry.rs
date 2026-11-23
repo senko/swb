@@ -45,6 +45,8 @@ pub(crate) struct DocumentMaker {
     pub(crate) fonts: Rc<LentFonts>,
     pub(crate) images: Arc<ByteBudget>,
     pub(crate) vectors: Arc<swb_paint::VectorCache>,
+    /// The raster cache of the page's frame documents.
+    pub(crate) raster: Arc<swb_paint::RasterCache>,
     pub(crate) styles: Arc<ByteBudget>,
     pub(crate) bodies: Arc<ByteBudget>,
     pub(crate) font_files: Arc<ByteBudget>,
@@ -86,7 +88,11 @@ impl DocumentMaker {
             .fragment()
             .map(|f| ScrollTarget::Fragment(f.to_owned()));
         let mut images = init.images;
-        images.attach_budget(Arc::clone(&self.images), Arc::clone(&self.vectors));
+        images.attach_budget(
+            Arc::clone(&self.images),
+            Arc::clone(&self.vectors),
+            Arc::clone(&self.raster),
+        );
         let mut doc = Box::new(DocumentState::new(DocumentInit {
             dom: init.dom,
             parser: init.parser,

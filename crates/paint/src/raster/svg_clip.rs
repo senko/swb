@@ -11,13 +11,17 @@
 //! budget, [`BLEND`] per pixel. A clip whose coverage cannot be made (over
 //! budget) hides the group.
 
+use std::sync::Arc;
+
 use swb_layout::svg::{ClipPath, ClipRegion, SvgPath};
 use swb_layout::{Matrix, Rect};
 use swb_style::{FillRule, Rgba};
-use tiny_skia::{IntSize, Mask, Pixmap, PixmapPaint, Transform};
+use tiny_skia::{IntRect, IntSize, Mask, Pixmap, PixmapPaint, Transform};
 
+use super::cache::{Coverage, CoverageKey};
+use super::coverage::multiply;
 use super::path::{Scan, skia_path, skia_rule, skia_transform};
-use super::{Rasterizer, skia_rect, solid_paint};
+use super::{ImageSource, Rasterizer, skia_rect, solid_paint};
 use crate::display_list::path_bounds;
 use crate::image::mul_255;
 use crate::path_cost::BLEND;
@@ -37,32 +41,113 @@ pub(super) enum ClipResult {
 }
 
 impl Rasterizer<'_> {
-    /// Multiplies the pixels of a clip group's layer (at `origin` on the
-    /// target) by the coverage of `clip`, whose coordinates are mapped to
-    /// the display list's by `list`.
+    /// Multiplies the pixels of a clip group's layer `pixmap` (at `origin` on
+    /// the target) by the coverage of `clip`, whose coordinates are mapped to
+    /// the display list's by `list`. Returns the result with the layer, and
+    /// its origin: in a raster of parts, only the part of the layer inside
+    /// the region's bounds (the multiplication is the same for each pixel;
+    /// the coverage is that of the whole layer, which can come from the
+    /// raster cache).
     pub(super) fn apply_svg_clip(
         &mut self,
-        pixmap: &mut Pixmap,
+        pixmap: Pixmap,
         origin: (i32, i32),
-        clip: &ClipPath,
+        clip: &Arc<ClipPath>,
         list: &Matrix,
-    ) -> ClipResult {
+        images: &dyn ImageSource,
+    ) -> (ClipResult, Pixmap, (i32, i32)) {
         let Some(size) = IntSize::from_wh(pixmap.width(), pixmap.height()) else {
-            return ClipResult::Hidden;
+            return (ClipResult::Hidden, pixmap, origin);
         };
         let device = self.device_matrix(list);
         let to_layer = Matrix::translate(-(origin.0 as f32), -(origin.1 as f32)).multiply(&device);
-        let Some(values) = self.path_coverage(clip, &to_layer, size, 0) else {
-            return ClipResult::OverBudget;
+        let Some(coverage) = self.whole_coverage(clip, &to_layer, size, images) else {
+            return (ClipResult::OverBudget, pixmap, origin);
         };
-        if values.iter().all(|&a| a == 0) {
-            return ClipResult::Hidden;
+        if coverage.hidden {
+            return (ClipResult::Hidden, pixmap, origin);
         }
-        let Some(coverage) = Mask::from_vec(values, size) else {
-            return ClipResult::Hidden;
+        match self.region_part(&pixmap, origin) {
+            Part::Whole => {
+                let mut pixmap = pixmap;
+                if let Some(all) = IntRect::from_xywh(0, 0, size.width(), size.height()) {
+                    multiply(&mut pixmap, coverage.mask.data(), size.width(), all);
+                }
+                (ClipResult::Applied, pixmap, origin)
+            }
+            // Nothing of the layer is in the region: its pixels do not
+            // matter.
+            Part::Outside => (ClipResult::Applied, pixmap, origin),
+            Part::Inside(within) => {
+                let Some(mut part) = pixmap.clone_rect(within) else {
+                    return (ClipResult::Applied, pixmap, origin);
+                };
+                multiply(&mut part, coverage.mask.data(), size.width(), within);
+                let at = (origin.0 + within.x(), origin.1 + within.y());
+                (ClipResult::Applied, part, at)
+            }
+        }
+    }
+
+    /// The part of a layer (at `origin` on the target) inside the bounds of
+    /// the region of a raster of parts, in layer px.
+    fn region_part(&self, pixmap: &Pixmap, origin: (i32, i32)) -> Part {
+        let Some(region) = &self.region else {
+            return Part::Whole;
         };
-        pixmap.apply_mask(&coverage);
-        ClipResult::Applied
+        let layer = Rect::new(
+            origin.0 as f32,
+            origin.1 as f32,
+            pixmap.width() as f32,
+            pixmap.height() as f32,
+        );
+        let Some(part) = region.bounds().intersection(&layer) else {
+            return Part::Outside;
+        };
+        if part == layer {
+            return Part::Whole;
+        }
+        match IntRect::from_xywh(
+            part.x as i32 - origin.0,
+            part.y as i32 - origin.1,
+            part.width as u32,
+            part.height as u32,
+        ) {
+            Some(within) => Part::Inside(within),
+            None => Part::Outside,
+        }
+    }
+
+    /// The coverage of `clip` for a whole layer of `size` (see
+    /// [`Rasterizer::path_coverage`]): from the raster cache if it has the
+    /// same clip, matrix and size and the charges of the coverage fit into
+    /// the budgets, else computed (and kept, if no budget left anything
+    /// out).
+    fn whole_coverage(
+        &mut self,
+        clip: &Arc<ClipPath>,
+        to_layer: &Matrix,
+        size: IntSize,
+        images: &dyn ImageSource,
+    ) -> Option<Arc<Coverage>> {
+        let Some(cache) = images.raster_cache() else {
+            let values = self.path_coverage(clip, to_layer, size, 0)?;
+            return Coverage::new(values, size).map(Arc::new);
+        };
+        let key = CoverageKey::new(clip, to_layer, (size.width(), size.height()));
+        if let Some((coverage, charges)) = cache.coverage(&key)
+            && self.replay_charges(&charges)
+        {
+            return Some(coverage);
+        }
+        let mark = self.mark_charges();
+        let values = self.path_coverage(clip, to_layer, size, 0);
+        let charges = self.end_charges(mark);
+        let coverage = Arc::new(Coverage::new(values?, size)?);
+        if let Some(charges) = charges {
+            cache.keep_coverage(key, Arc::clone(&coverage), charges);
+        }
+        Some(coverage)
     }
 
     /// The coverage (one byte per layer pixel) of `clip` for a layer of
@@ -243,6 +328,16 @@ impl Rasterizer<'_> {
             None,
         );
     }
+}
+
+/// Where a layer is in the region of a raster of parts.
+enum Part {
+    /// All of it is inside the region's bounds (or there is no region).
+    Whole,
+    /// None of it.
+    Outside,
+    /// This part of it (layer px).
+    Inside(IntRect),
 }
 
 /// The rectangle as a tiny-skia path, or `None` if it is empty.
