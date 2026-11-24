@@ -97,11 +97,6 @@ def output_dir(name: str, javascript: bool = False) -> Path:
     return paths.out_dir() / "compare" / name
 
 
-def fixture_path(name: str, javascript: bool = False) -> Path:
-    """Returns the directory of a page fixture or JavaScript fixture."""
-    return paths.js_fixture_dir(name) if javascript else paths.fixture_dir(name)
-
-
 def reference_path(name: str, javascript: bool = False) -> Path:
     """Returns the directory of Chromium's reference output."""
     if javascript:
@@ -145,7 +140,7 @@ def run_swb(
     """Runs swb on the fixture. Returns True if it wrote a box dump. With
     `full_page`, a second run writes the full-page screenshot. With
     `javascript`, swb gets `--js` and the clock options."""
-    fixture = fixture_path(name, javascript)
+    fixture = paths.fixture_directory(name, javascript)
     meta = read_meta(fixture)
     extra = swb_js_options(javascript, meta.captured)
     for stale in (SWB_BOXES, SWB_SCREENSHOT, SWB_FULL_PAGE):
@@ -178,7 +173,7 @@ def run_swb(
 def run_swb_state(name: str, swb_binary: Path, output: Path, options: Options, suffix: str) -> bool:
     """Runs swb through the automation API: load, click, then write the box
     dump and the screenshots of the state. Returns True on success."""
-    fixture = fixture_path(name)
+    fixture = paths.fixture_directory(name, False)
     meta = read_meta(fixture)
     files = [named(f, suffix) for f in (SWB_BOXES, SWB_SCREENSHOT, SWB_FULL_PAGE)]
     for stale in files:
@@ -211,7 +206,7 @@ def run_chromium_state(name: str, output: Path, options: Options, suffix: str) -
     """Captures the live Chromium output of a run: the boxes, the viewport
     screenshot of a state and the full-page screenshot. Returns True on
     success."""
-    fixture = fixture_path(name)
+    fixture = paths.fixture_directory(name, False)
     meta = read_meta(fixture)
     live = LiveOutput(
         boxes=output / named(REFERENCE_LIVE_BOXES, suffix),
@@ -242,7 +237,7 @@ def compare_fixture(
     `--click`, Chromium's). Returns None on failure."""
     options = options or Options()
     js = options.javascript
-    fixture = fixture_path(name, js)
+    fixture = paths.fixture_directory(name, js)
     reference_dir = reference_path(name, js)
     suffix = state_suffix(options.clicks)
     if js and (options.full_page or options.clicks):

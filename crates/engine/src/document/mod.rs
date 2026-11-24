@@ -45,7 +45,6 @@ mod inner_text;
 mod lazy;
 mod loads;
 pub use frame_damage::FrameDamage;
-pub(crate) use frame_damage::full_damage;
 #[cfg(debug_assertions)]
 mod paint_check;
 mod paint_stamp;

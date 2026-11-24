@@ -535,7 +535,7 @@ Technica the cascade of `::before` and `::after` of every element was 36 %.
   result changes, and the check costs one flag read per matched rule.
 - **Not changed.** Markers, placeholders, backdrops and the `details`
   pseudo-elements keep their paths. `getComputedStyle(el, '::before')` uses
-  `compute_pseudo_element_style` (`always`), which runs the cascade whatever
+  `compute_pseudo_element_style_animated` (`always`), which runs the cascade whatever
   the rules are.
 - Cost: see `docs/performance.md`, "Cheaper style comparison and
   pseudo-elements (M11 feature 4)".

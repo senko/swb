@@ -19,6 +19,7 @@ pub(crate) mod inert;
 pub(crate) mod longhand;
 pub(crate) mod mask;
 pub(crate) mod path_data;
+pub(crate) mod set;
 pub(crate) mod shorthand;
 pub(crate) mod specified;
 pub(crate) mod svg;

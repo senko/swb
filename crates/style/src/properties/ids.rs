@@ -523,6 +523,46 @@ longhands! {
     TransitionBehavior "transition-behavior": Arc<[bool]>;
 }
 
+impl LonghandId {
+    /// True for the `animation-*` longhands.
+    pub(crate) fn is_animation(self) -> bool {
+        use LonghandId as L;
+        matches!(
+            self,
+            L::AnimationName
+                | L::AnimationDuration
+                | L::AnimationTimingFunction
+                | L::AnimationDelay
+                | L::AnimationIterationCount
+                | L::AnimationDirection
+                | L::AnimationFillMode
+                | L::AnimationPlayState
+                | L::AnimationComposition
+                | L::AnimationTimeline
+                | L::AnimationRangeStart
+                | L::AnimationRangeEnd
+        )
+    }
+
+    /// True for the `animation-*` and `transition-*` longhands.
+    pub(crate) fn is_animation_or_transition(self) -> bool {
+        self.is_animation() || self.is_transition()
+    }
+
+    /// True for the `transition-*` longhands.
+    pub(crate) fn is_transition(self) -> bool {
+        use LonghandId as L;
+        matches!(
+            self,
+            L::TransitionProperty
+                | L::TransitionDuration
+                | L::TransitionDelay
+                | L::TransitionTimingFunction
+                | L::TransitionBehavior
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -537,5 +577,13 @@ mod tests {
         assert!(LonghandId::FontVariationSettings.is_inherited());
         assert!(LonghandId::FontFeatureSettings.is_inherited());
         assert!(!LonghandId::Display.is_inherited());
+    }
+
+    #[test]
+    fn animation_and_transition_longhands_match_their_names() {
+        for &id in LonghandId::ALL {
+            assert_eq!(id.is_animation(), id.name().starts_with("animation-"));
+            assert_eq!(id.is_transition(), id.name().starts_with("transition-"));
+        }
     }
 }

@@ -1,13 +1,21 @@
 //! Helpers that the unit tests of the cascade modules share: the base URL,
 //! element lookup by id, a stylist of one author sheet, the size of a
-//! targeted result and a time bound.
+//! targeted result, a time bound and the style entry points without
+//! animations (the engine calls the `_animated` forms).
 
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use swb_css::MediaEnvironment;
 use swb_dom::{Document, NodeId};
 use url::Url;
 
 use super::targeted::Restyle;
+use super::{compute_element_styles_animated, compute_pseudo_element_style_animated};
+use crate::ComputedStyle;
+use crate::container::ContainerSizes;
+use crate::element::ElementStates;
+use crate::style_map::PseudoKind;
 use crate::stylist::Stylist;
 
 /// The base URL of the test documents.
@@ -42,4 +50,66 @@ pub(super) fn within(limit: Duration, what: &str, f: impl FnOnce()) {
     f();
     let took = started.elapsed();
     assert!(took < limit, "{what}: {took:?}");
+}
+
+/// [`compute_element_styles_animated`] without animations and with no
+/// query container sizes.
+pub(super) fn compute_element_styles(
+    doc: &Document,
+    stylist: &Stylist,
+    env: &MediaEnvironment,
+    states: &ElementStates,
+    base_url: &Url,
+    node: NodeId,
+) -> Vec<(NodeId, Arc<ComputedStyle>)> {
+    let sizes = ContainerSizes::new();
+    compute_element_styles_with_containers(doc, stylist, env, states, base_url, node, &sizes)
+}
+
+/// [`compute_element_styles_animated`] without animations.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn compute_element_styles_with_containers(
+    doc: &Document,
+    stylist: &Stylist,
+    env: &MediaEnvironment,
+    states: &ElementStates,
+    base_url: &Url,
+    node: NodeId,
+    sizes: &ContainerSizes,
+) -> Vec<(NodeId, Arc<ComputedStyle>)> {
+    compute_element_styles_animated(doc, stylist, env, states, base_url, node, sizes, None)
+}
+
+/// [`compute_pseudo_element_style_animated`] without animations and with
+/// no query container sizes.
+pub(super) fn compute_pseudo_element_style(
+    doc: &Document,
+    stylist: &Stylist,
+    env: &MediaEnvironment,
+    states: &ElementStates,
+    base_url: &Url,
+    chain: &[(NodeId, Arc<ComputedStyle>)],
+    kind: PseudoKind,
+) -> Option<ComputedStyle> {
+    let sizes = ContainerSizes::new();
+    compute_pseudo_element_style_with_containers(
+        doc, stylist, env, states, base_url, chain, kind, &sizes,
+    )
+}
+
+/// [`compute_pseudo_element_style_animated`] without animations.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn compute_pseudo_element_style_with_containers(
+    doc: &Document,
+    stylist: &Stylist,
+    env: &MediaEnvironment,
+    states: &ElementStates,
+    base_url: &Url,
+    chain: &[(NodeId, Arc<ComputedStyle>)],
+    kind: PseudoKind,
+    sizes: &ContainerSizes,
+) -> Option<ComputedStyle> {
+    compute_pseudo_element_style_animated(
+        doc, stylist, env, states, base_url, chain, kind, sizes, None,
+    )
 }

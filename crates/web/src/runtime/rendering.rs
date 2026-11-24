@@ -2,9 +2,10 @@
 //! rendering update (HTML §8.1.7.3,
 //! <https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering>:
 //! animation frame callbacks, media query changes, the animation promises
-//! and events, resize and intersection observers), idle periods (`requestIdleCallback`) and the flush of `storage`
-//! events before a commit. The page calls these through `ScriptRuntime` for the
-//! documents of the runtime (ADR 0028 section 7).
+//! and events, resize and intersection observers), idle periods
+//! (`requestIdleCallback`) and the flush of `storage` events before a
+//! commit. The page calls these through `ScriptRuntime` for the documents
+//! of the runtime (ADR 0028 section 7).
 
 use std::time::Instant;
 

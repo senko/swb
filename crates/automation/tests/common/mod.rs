@@ -9,6 +9,7 @@
 pub(crate) mod animation_values;
 pub(crate) mod console;
 pub(crate) mod departures;
+pub(crate) mod records;
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -100,7 +101,6 @@ pub(crate) fn open_script_page(fetcher: Arc<dyn Fetcher>, url: Url, size: Size) 
 
 /// The expected value that skips a query in [`run_probe_file_with`]: the
 /// query does not run (a test of a feature that comes later).
-#[allow(dead_code)] // Not every test binary that includes `common` uses it.
 pub(crate) const SKIP_QUERY: &str = "\u{0}skip";
 
 /// Runs the cases of the probe file `tools/probes/{name}.json` and compares

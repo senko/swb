@@ -10,11 +10,9 @@
 //! bug of the table or of the refresh.
 
 use swb_dom::{LiveRange, NodeId};
-use swb_layout::LayoutInput;
 use swb_text::FontContext;
 
 use super::DocumentState;
-use crate::forms::LayoutControls;
 
 impl DocumentState {
     /// Compares the refreshed fragments and the display list that was just
@@ -34,19 +32,7 @@ impl DocumentState {
         else {
             return;
         };
-        let controls = LayoutControls {
-            doc: &self.dom,
-            forms: self.forms.value(),
-            focus: self.states.focus,
-        };
-        let input = LayoutInput {
-            document: &self.dom,
-            styles,
-            viewport: self.view.viewport,
-            replaced: &self.images,
-            controls: &controls,
-        };
-        let full = swb_layout::layout(&input, fonts);
+        let full = self.layout_with(styles, fonts);
         let difference = refreshed.first_difference(&full);
         assert!(
             difference.is_none(),

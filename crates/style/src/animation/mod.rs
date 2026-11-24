@@ -33,6 +33,7 @@ pub mod easing;
 pub mod events;
 pub mod interpolate;
 pub mod keyframes;
+mod list_support;
 pub mod properties;
 pub mod records;
 pub mod time;

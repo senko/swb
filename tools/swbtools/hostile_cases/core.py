@@ -16,6 +16,12 @@ REPLAY = ("--js", "--replay", "{dir}")
 """Scripts, and the files of the case as a replayed site."""
 
 
+def virtual_run(settle_ms: int) -> tuple[str, ...]:
+    """The swb options of a page with scripts on the virtual clock, settled
+    for `settle_ms` of virtual time."""
+    return ("--js", "--virtual-time", "--settle-ms", str(settle_ms))
+
+
 @dataclass(frozen=True)
 class Page:
     """The generated page: `index.html` and files written next to it."""

@@ -115,7 +115,7 @@ impl KeyframeSet {
                             AnimatedProperty::Custom(Arc::clone(name))
                         }
                         other => match other.longhand() {
-                            Some(id) if !is_animation_longhand(id) => {
+                            Some(id) if !id.is_animation_or_transition() => {
                                 AnimatedProperty::Longhand(id)
                             }
                             _ => continue,
@@ -288,11 +288,6 @@ fn keyframe_declarations(
 fn is_not_animatable(name: &str) -> bool {
     let name = name.strip_prefix("-webkit-").unwrap_or(name);
     name.starts_with("transition") || name.starts_with("animation")
-}
-
-/// True for the animation longhands.
-fn is_animation_longhand(id: LonghandId) -> bool {
-    id.name().starts_with("animation-") || id.name().starts_with("transition-")
 }
 
 /// The keyframes of a property with the implicit 0% and 100% keyframes

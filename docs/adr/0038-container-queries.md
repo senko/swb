@@ -181,8 +181,8 @@ condition is true: the lookup (item 3) walks the stack from the top; its
 result is memoized per (stack entry, lookup key), where the lookup key is
 (name, axes needed); real pages have few keys (GitHub: 4). The evaluation
 is memoized per (container, condition). A pseudo-element sees its
-originating element on top of the stack. `compute_element_styles` and
-`compute_pseudo_element_style` (the chains of `getComputedStyle`) build the
+originating element on top of the stack. `compute_element_styles_animated` and
+`compute_pseudo_element_style_animated` (the chains of `getComputedStyle`) build the
 same stack along their chain.
 
 **Sizes.** The walk takes `ContainerSizes`: the content box of each

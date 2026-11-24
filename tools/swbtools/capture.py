@@ -242,7 +242,7 @@ def capture(
         max_responses = DEFAULT_MAX_RESPONSES
     if javascript and with_swb is None:
         with_swb = False
-    directory = paths.js_fixture_dir(name) if javascript else paths.fixture_dir(name)
+    directory = paths.fixture_directory(name, javascript)
     if (directory / MANIFEST_FILE).exists():
         if not force:
             log.error("%s exists; use --force to capture it again", directory)

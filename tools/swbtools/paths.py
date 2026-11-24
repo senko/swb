@@ -56,6 +56,12 @@ def js_fixture_dir(name: str) -> Path:
     return js_fixtures_dir() / name
 
 
+def fixture_directory(name: str, javascript: bool) -> Path:
+    """Returns the directory of the JavaScript fixture `name` with
+    `javascript`, else of the page fixture `name`."""
+    return js_fixture_dir(name) if javascript else fixture_dir(name)
+
+
 NO_SHARED_WORKER_ENV = "SWB_NO_SHARED_WORKER"
 """Set (to `1`) by the global option `--no-shared-worker`: Chromium runs
 without `window.SharedWorker`, as swb does (M8 feature 11)."""

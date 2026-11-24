@@ -9,7 +9,6 @@ OpenStreetMap target of M12 (`fixtures/js/osm-zagreb`; docs/testing.md,
     uv run --project tools python tools/osm_zagreb_records.py points [--sequence S] \\
         [--out DIR] [--work DIR]
     uv run --project tools python tools/osm_zagreb_records.py summary [--sequence S] [--out DIR]
-    uv run --project tools python tools/osm_zagreb_records.py merge-node --from FIXTURE_DIR
     uv run --project tools python tools/osm_zagreb_records.py swb [--sequence S] [--fixture NAME] \\
         [--groups N] [--skip N...] [--out DIR] [--chromium FILE] [--binary FILE]
     uv run --project tools python tools/osm_zagreb_records.py pixel-diff [--sequence S] \\
@@ -35,8 +34,6 @@ usage policy of tile.openstreetmap.org forbids bulk downloads):
         'https://www.openstreetmap.org/?mlat=45.813114&mlon=15.976390#map=16/45.81308/15.97721' \\
         osm-zagreb
 
-`merge-node` adds the two responses of one node page from an earlier
-recording (the last live run could not open a node, see `merge_node`).
 `records` runs `swbtools replay osm-zagreb` three times with those files (no
 network) in Chromium without WebGL (`--chromium-arg=--disable-3d-apis`, the
 owner decision of 2026-11-18: the Transport Map and the thumbnails of the
@@ -70,7 +67,6 @@ input for the departures file of the test.
 """
 
 import argparse
-import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -80,20 +76,19 @@ import numpy as np
 from swbtools import exit_records
 from swbtools.exit_records import (
     FLAT_RADIUS,
+    compare_swb_run,
     console_counts,
     differences,
     edge_mask,
-    field_differences,
+    group,
     inside,
-    labelled,
-    parse_answers,
-    run_swb_steps,
     scan,
     screenshot_name,
-    split_log,
     spread,
     stable_flat,
+    swb_replay_command,
     thin,
+    wait,
 )
 from swbtools.records import ROOT, load_json, run_replay, write_json
 from swbtools.replay import DEFAULT_PAUSE_MS
@@ -148,14 +143,6 @@ CLOSE_LEFT = {
     " b.getBoundingClientRect().width > 0 && !b.classList.contains('invisible'))"
     " || {click() {}}).click()"
 }
-
-
-def group(name: str, *steps: dict[str, Any]) -> dict[str, Any]:
-    return {"name": name, "steps": list(steps)}
-
-
-def wait(ms: int) -> dict[str, Any]:
-    return {"wait": ms}
 
 
 def reset_view(item: str, hash_: str = "#map=16/45.81308/15.97721") -> dict[str, Any]:
@@ -282,7 +269,8 @@ def all_step_groups() -> list[dict[str, Any]]:
         # The node: back to the list of the query (two `back`; the two
         # requests of the query are in the fixture, and the replay answers
         # them), then the first node of "Nearby features". The live run of
-        # these steps had no such group (see `merge_node`).
+        # these steps had no such group; the fixture got the node's responses
+        # from an earlier recording.
         group(
             "object node",
             {"back": True},
@@ -678,33 +666,6 @@ window.__o = () => {
 """
 
 
-NODE_URLS = (
-    "https://www.openstreetmap.org/node/1013329474",
-    "https://www.openstreetmap.org/api/0.6/node/1013329474",
-)
-
-
-def merge_node(source: Path) -> None:
-    """Copies the two responses of the page of node 1013329474 (the first
-    node of the query list) from an earlier recording of the same steps
-    (`source`, a fixture directory) into `fixtures/js/osm-zagreb`. The third
-    live run, which had no repeated query because the service answers a
-    repeat with 429, did not open a node. The responses are `GET`s without a
-    token, recorded by the same tool in the first live run."""
-    from swbtools import paths
-    from swbtools.manifest import Fixture
-
-    earlier = Fixture(source)
-    target = Fixture(paths.js_fixture_dir(FIXTURE))
-    for url in NODE_URLS:
-        entry = earlier.get(url)
-        if entry is None:
-            sys.exit(f"{url} is not in {source}")
-        target.record(entry.method, url, entry.status, entry.headers, earlier.read_body(entry))
-    target.save()
-    print(f"{len(NODE_URLS)} entries merged from {source}")
-
-
 def step_groups(sequence: str = "full") -> list[dict[str, Any]]:
     """The groups of a sequence (`all_step_groups` without the groups that the
     sequence leaves out)."""
@@ -838,23 +799,6 @@ def swb_steps(
     return steps
 
 
-def swb_command(binary: Path, fixture: Path, steps: list[dict[str, Any]]) -> list[str]:
-    """The command line of one run (the options of `compare --js`)."""
-    from swbtools.compare import swb_js_options
-    from swbtools.pages import read_meta
-    from swbtools.swb import replay_options
-
-    meta = read_meta(fixture)
-    width, height = meta.viewport
-    return [
-        *replay_options(binary, fixture, (width, height)),
-        *swb_js_options(True, meta.captured),
-        "--steps",
-        json.dumps(steps),
-        meta.url,
-    ]
-
-
 def run_swb_groups(
     sequence: str,
     fixture: str,
@@ -872,60 +816,28 @@ def run_swb_groups(
     shots = out / "swb-shots"
     shots.mkdir(exist_ok=True)
     steps = swb_steps(groups, shots, skip)
-    command = swb_command(binary, paths.js_fixture_dir(fixture), steps)
-    lines, status = run_swb_steps(command, out / "swb-log.txt")
-    records, arrival = parse_answers(lines)
+    command = swb_replay_command(binary, paths.js_fixture_dir(fixture), steps, animations=False)
     names = ["load", *(g["name"] for g in groups)]
-    expected = load_json(chromium)
-    diffs = [field_differences(e, a) for e, a in zip(expected, records, strict=False)]
-    seconds = [round(b - a, 3) for a, b in zip([0.0, *arrival], arrival, strict=False)]
-    log_groups = split_log((out / "swb-log.txt").read_text(encoding="utf-8"))
-    write_json(out / "swb-records.json", records)
-    write_json(out / "swb-diff.json", labelled(names, "fields", diffs))
-    write_json(out / "swb-times.json", labelled(names, "seconds", seconds))
-    write_json(out / "swb-groups.json", labelled(names, "log", log_groups))
-    print(f"swb status {status}; {len(records)} of {len(names)} records")
-    for name, fields, took in zip(names, diffs, seconds, strict=False):
-        print(f"{took:7.2f} s  {name}: {', '.join(fields) or 'equal'}")
-
-
-# The largest difference of a color channel that the test accepts at a pixel
-# point (`PIXEL_TOLERANCE` in the test).
-PIXEL_TOLERANCE = 12
+    compare_swb_run(command, out, load_json(chromium), names, with_times=True)
 
 
 def pixel_diff(out: Path, work: Path, sequence: str) -> None:
     """The `pixel-diff` command: the points where swb's screenshots (`swb`
     command) differ from Chromium's colors by more than the tolerance.
     Writes `pixel-diff.json` into the work directory of the sequence."""
-    from PIL import Image
-
     work = work_dir(work, sequence)
-    spec = load_json(data_file(out, sequence, "pixel-points"))
-    colors = load_json(data_file(out, sequence, "pixels"))
-    found: dict[str, list[dict[str, Any]]] = {}
-    for number, label in enumerate(spec["groups"]):
-        with Image.open(work / "swb-shots" / screenshot_name(number, label)) as image:
-            shot = np.asarray(image.convert("RGB"))
-        prefix = f"{number:03d}-"
-        rows = []
-        for name, (x, y) in spec["points"].items():
-            if not name.startswith(prefix):
-                continue
-            got = [int(c) for c in shot[y, x]]
-            want = colors[label][name]
-            if any(abs(g - w) > PIXEL_TOLERANCE for g, w in zip(got, want, strict=True)):
-                rows.append({"name": name, "at": [x, y], "swb": got, "chromium": want})
-        found[label] = rows
-        if rows:
-            print(f"{number:3d} {label}: {len(rows)} of {len(colors[label])} points differ")
-    write_json(work / "pixel-diff.json", found)
-    print(f"{sum(len(r) for r in found.values())} points differ; see {work / 'pixel-diff.json'}")
+    exit_records.pixel_diff(
+        data_file(out, sequence, "pixel-points"),
+        data_file(out, sequence, "pixels"),
+        work / "swb-shots",
+        work / "pixel-diff.json",
+        number_offset=0,
+    )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    commands = ["steps", "records", "points", "summary", "merge-node", "swb", "pixel-diff"]
+    commands = ["steps", "records", "points", "summary", "swb", "pixel-diff"]
     parser.add_argument("command", choices=commands)
     parser.add_argument(
         "--sequence",
@@ -950,7 +862,6 @@ def main() -> None:
     parser.add_argument("--skip", type=int, nargs="*", help="swb: group numbers to leave out")
     parser.add_argument("--chromium", type=Path, help="swb: Chromium's records")
     parser.add_argument("--binary", type=Path, help="swb: the swb binary")
-    parser.add_argument("--from", dest="source", type=Path, help="merge-node: a fixture directory")
     args = parser.parse_args()
     sequence, out = args.sequence, args.out
     if args.command == "swb":
@@ -963,10 +874,6 @@ def main() -> None:
         skip = frozenset(args.skip or [])
         target = work_dir(args.work, sequence)
         run_swb_groups(sequence, args.fixture, args.groups, target, chromium, binary, skip)
-    elif args.command == "merge-node":
-        if args.source is None:
-            sys.exit("merge-node needs --from DIR")
-        merge_node(args.source)
     elif args.command == "records":
         write_records(out, args.work, sequence)
     elif args.command == "points":

@@ -18,7 +18,7 @@ use crate::filter::css_output;
 /// The rectangle that contains what a box with `style` and the border box
 /// `rect` paints: its shadows, its outline and the output of its filters
 /// grow it (CSS px).
-pub fn visual_rect(style: &ComputedStyle, rect: Rect) -> Rect {
+pub(crate) fn visual_rect(style: &ComputedStyle, rect: Rect) -> Rect {
     let mut grow = 0.0f32;
     for s in style.box_shadow.iter().filter(|s| !s.inset) {
         grow = grow.max(s.x.abs().max(s.y.abs()) + 3.0 * s.blur.max(0.0) + s.spread.max(0.0));

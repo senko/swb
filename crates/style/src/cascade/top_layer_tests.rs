@@ -7,7 +7,7 @@
 use swb_css::MediaEnvironment;
 use swb_dom::{Document, ToggleState, TopLayerHost, parse_html};
 
-use super::test_util::node;
+use super::test_util::{compute_pseudo_element_style, node};
 use super::*;
 use crate::values::Position;
 use crate::values::*;

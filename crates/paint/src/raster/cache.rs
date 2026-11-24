@@ -278,7 +278,7 @@ impl Default for RasterCache {
 impl RasterCache {
     /// A cache that holds at most `limit` bytes in at most `max_entries`
     /// entries.
-    pub fn with_limits(limit: usize, max_entries: usize) -> Self {
+    fn with_limits(limit: usize, max_entries: usize) -> Self {
         RasterCache {
             state: Mutex::new(State::default()),
             enabled: std::sync::atomic::AtomicBool::new(true),

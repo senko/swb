@@ -26,6 +26,7 @@ use std::sync::{Arc, LazyLock};
 use swb_css::{ComponentValue, ParseError, Parser, serialize_identifier, serialize_string};
 
 use super::easing::{Easing, parse_easing};
+use super::list_support::{self, cycle, list, parse_nonneg_time};
 use super::time::{Number, Time, parse_number, parse_time};
 use super::timing::{FillMode, PlaybackDirection, Timing};
 use crate::ComputedStyle;
@@ -152,15 +153,6 @@ fn direction_of(ident: &str) -> Option<PlaybackDirection> {
     })
 }
 
-fn direction_text(d: PlaybackDirection) -> &'static str {
-    match d {
-        PlaybackDirection::Normal => "normal",
-        PlaybackDirection::Reverse => "reverse",
-        PlaybackDirection::Alternate => "alternate",
-        PlaybackDirection::AlternateReverse => "alternate-reverse",
-    }
-}
-
 fn fill_of(ident: &str) -> Option<FillMode> {
     Some(match ident.to_ascii_lowercase().as_str() {
         "none" => FillMode::None,
@@ -169,15 +161,6 @@ fn fill_of(ident: &str) -> Option<FillMode> {
         "both" => FillMode::Both,
         _ => return None,
     })
-}
-
-fn fill_text(f: FillMode) -> &'static str {
-    match f {
-        FillMode::None => "none",
-        FillMode::Forwards => "forwards",
-        FillMode::Backwards => "backwards",
-        FillMode::Both => "both",
-    }
 }
 
 fn play_state_of(ident: &str) -> Option<PlayState> {
@@ -216,17 +199,7 @@ fn composition_text(c: Composition) -> &'static str {
 /// `animation-name`: the CSS-wide keywords and `default` (`none` is the
 /// keyword of the property).
 fn is_reserved(ident: &str) -> bool {
-    [
-        "initial",
-        "inherit",
-        "unset",
-        "revert",
-        "revert-layer",
-        "default",
-        "none",
-    ]
-    .iter()
-    .any(|k| ident.eq_ignore_ascii_case(k))
+    list_support::is_reserved(ident, &["none"])
 }
 
 // ----- The computed record -----
@@ -292,11 +265,6 @@ pub struct AnimationEntry<'a> {
     pub keyframe_easing: &'a Easing,
     /// `animation-play-state`.
     pub play_state: PlayState,
-}
-
-/// Item `i` of a list, repeating the list (a list is never empty).
-fn cycle<T>(list: &[T], i: usize) -> Option<&T> {
-    list.get(i % list.len().max(1))
 }
 
 impl AnimationStyle {
@@ -388,7 +356,7 @@ fn update(style: &mut ComputedStyle, f: impl FnOnce(&mut AnimationStyle)) {
 /// Copies the value of the longhand `id` from `from` to `to` (inheritance
 /// and the keywords `inherit` and `initial`).
 pub(crate) fn copy_value(id: LonghandId, from: &ComputedStyle, to: &mut ComputedStyle) {
-    if id.name().starts_with("transition-") {
+    if id.is_transition() {
         super::transition_properties::copy_value(id, from, to);
         return;
     }
@@ -402,7 +370,7 @@ pub(crate) fn copy_value(id: LonghandId, from: &ComputedStyle, to: &mut Computed
 /// Stores the computed value of `value` in `s` (`apply` of `compute.rs`).
 pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut ComputedStyle) {
     use LonghandValue as V;
-    if value.id().name().starts_with("transition-") {
+    if value.id().is_transition() {
         super::transition_properties::apply(value, s);
         return;
     }
@@ -491,14 +459,6 @@ pub(crate) fn parse_longhand(id: LonghandId, p: &mut Parser<'_>) -> ParseResult<
     })
 }
 
-/// A comma-separated list of at least one item.
-fn list<T>(
-    p: &mut Parser<'_>,
-    item: impl FnMut(&mut Parser<'_>) -> ParseResult<T>,
-) -> ParseResult<Arc<[T]>> {
-    Ok(Arc::from(p.parse_comma_separated(item)?))
-}
-
 fn keyword<T>(p: &mut Parser<'_>, of: impl FnOnce(&str) -> Option<T>) -> ParseResult<T> {
     p.try_parse(|p| of(p.expect_ident()?).ok_or(ParseError::Unexpected))
 }
@@ -534,11 +494,7 @@ fn parse_duration(p: &mut Parser<'_>) -> ParseResult<Option<Time>> {
     if p.try_parse(|p| p.expect_ident_matching("auto")).is_ok() {
         return Ok(None);
     }
-    let t = parse_time(p)?;
-    if t.seconds < 0.0 && !t.is_math() {
-        return Err(ParseError::Invalid);
-    }
-    Ok(Some(t))
+    Ok(Some(parse_nonneg_time(p)?))
 }
 
 /// `infinite | <number [0,∞]>`; a math function may be negative (it

@@ -6,7 +6,7 @@ use swb_layout::Size;
 use swb_paint::Pixmap;
 
 use super::{FlushCounters, Page, StageTimings};
-use crate::document::{DocumentState, FrameDamage, PaintStamp, Rendering, full_damage};
+use crate::document::{DocumentState, FrameDamage, PaintStamp, Rendering};
 use crate::frames::FrameId;
 
 /// The inputs of a render of the page (see [`Page::frame_outdated`]): the
@@ -62,7 +62,7 @@ impl Page {
         let damage = match self.parts() {
             None => {
                 swb_paint::fill(target, swb_style::Rgba::WHITE);
-                full_damage((target.width(), target.height()))
+                FrameDamage::full((target.width(), target.height()))
             }
             Some((doc, fonts)) => {
                 doc.update_display_list(fonts);

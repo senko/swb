@@ -21,7 +21,7 @@
 //! buffer was last written ([`Composer::take_changed_rows`]): the damage of
 //! the page, the toolbar's rows, the bubble's old and new rows. A window
 //! buffer that still holds the last frame (softbuffer's buffer age 1) gets
-//! only those rows ([`Composer::write_rows`], ADR 0044 section 19).
+//! only those rows ([`Composer::write_buffer`] with `rows`, ADR 0044 section 19).
 //!
 //! [`compose_window`] is the simple path (headless `--with-chrome`
 //! screenshots): fresh pixmaps, the page copied with `draw_pixmap`. The tests
@@ -189,12 +189,7 @@ impl Composer {
                 self.damage = Some(page.render_update(&mut self.page));
             } else {
                 page.render(&mut self.page);
-                let pixels = u64::from(self.page.width()) * u64::from(self.page.height());
-                self.damage = Some(FrameDamage {
-                    full: true,
-                    rects: Vec::new(),
-                    viewport_pixels: pixels,
-                });
+                self.damage = Some(FrameDamage::full((self.page.width(), self.page.height())));
             }
             self.page_current = true;
             self.rasters.page += 1;
@@ -416,18 +411,10 @@ impl Composer {
     }
 
     /// Converts the window's pixels into a softbuffer buffer (`0RGB`), one
-    /// pass over the rows. `out` has one `u32` per window pixel.
-    pub(super) fn write_buffer(&self, out: &mut [u32]) {
-        self.write_rows_into(out, None);
-    }
-
-    /// [`Composer::write_buffer`] for the window rows `rows` only: `out`
-    /// holds the window's pixels of the last frame in the other rows.
-    pub(super) fn write_rows(&self, out: &mut [u32], rows: &[std::ops::Range<usize>]) {
-        self.write_rows_into(out, Some(rows));
-    }
-
-    fn write_rows_into(&self, out: &mut [u32], rows: Option<&[std::ops::Range<usize>]>) {
+    /// pass over the rows. `out` has one `u32` per window pixel. With
+    /// `rows`, only those window rows: `out` holds the window's pixels of
+    /// the last frame in the other rows.
+    pub(super) fn write_buffer(&self, out: &mut [u32], rows: Option<&[std::ops::Range<usize>]>) {
         let width = self.width();
         self.each_row(|y, x0, bytes| {
             if rows.is_some_and(|rows| !rows.iter().any(|r| r.contains(&y))) {
@@ -582,7 +569,7 @@ mod tests {
         assert!(frame.data() == reference.data(), "the frames differ");
         // The buffer conversion gives the same pixels.
         let mut buffer = vec![0xDEAD_BEEF_u32; frame.width() as usize * frame.height() as usize];
-        composer.write_buffer(&mut buffer);
+        composer.write_buffer(&mut buffer, None);
         let converted: Vec<u32> = reference
             .data()
             .as_chunks::<4>()
@@ -601,10 +588,12 @@ mod tests {
         KEPT.with(|kept| {
             let mut kept = kept.borrow_mut();
             match changed {
-                Some(rows) if kept.len() == buffer.len() => composer.write_rows(&mut kept, &rows),
+                Some(rows) if kept.len() == buffer.len() => {
+                    composer.write_buffer(&mut kept, Some(&rows));
+                }
                 _ => {
                     *kept = vec![0xDEAD_BEEF_u32; buffer.len()];
-                    composer.write_buffer(&mut kept);
+                    composer.write_buffer(&mut kept, None);
                 }
             }
             assert!(*kept == converted, "the kept buffer differs");
@@ -779,7 +768,7 @@ mod tests {
                 page.mouse_move(20.0, 20.0);
                 composer.compose(page, toolbar);
                 let mut buffer = vec![0; 100 * height as usize];
-                composer.write_buffer(&mut buffer);
+                composer.write_buffer(&mut buffer, None);
             }
         });
     }

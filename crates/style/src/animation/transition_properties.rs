@@ -25,6 +25,7 @@ use std::sync::{Arc, LazyLock};
 use swb_css::{ComponentValue, ParseError, Parser};
 
 use super::easing::{Easing, parse_easing};
+use super::list_support::{self, cycle, list, parse_nonneg_time};
 use super::time::{Time, parse_time, seconds_text};
 use crate::ComputedStyle;
 use crate::parse::ParseResult;
@@ -98,11 +99,6 @@ impl TransitionEntry<'_> {
     pub fn combined_duration(&self) -> f64 {
         self.duration.max(0.0) + self.delay
     }
-}
-
-/// Item `i` of a list, repeating the list (a list is never empty).
-fn cycle<T>(list: &[T], i: usize) -> Option<&T> {
-    list.get(i % list.len().max(1))
 }
 
 impl TransitionStyle {
@@ -230,9 +226,7 @@ impl TransitionStyle {
 /// `will-change`).
 pub(crate) fn is_transitionable_longhand(id: LonghandId) -> bool {
     use LonghandId as L;
-    let name = id.name();
-    !(name.starts_with("animation-")
-        || name.starts_with("transition-")
+    !(id.is_animation_or_transition()
         || matches!(id, L::Direction | L::UnicodeBidi | L::WillChange))
 }
 
@@ -319,16 +313,7 @@ fn computed_list<S, C: Clone>(
 /// True for the keywords that cannot be a `<custom-ident>` of
 /// `transition-property`: the CSS-wide keywords and `default`.
 fn is_reserved(ident: &str) -> bool {
-    [
-        "initial",
-        "inherit",
-        "unset",
-        "revert",
-        "revert-layer",
-        "default",
-    ]
-    .iter()
-    .any(|k| ident.eq_ignore_ascii_case(k))
+    list_support::is_reserved(ident, &[])
 }
 
 /// Names of Chromium's animatable properties that swb does not parse as
@@ -377,27 +362,9 @@ fn parse_property_list(p: &mut Parser<'_>) -> ParseResult<Arc<[TransitionName]>>
     Ok(Arc::from(p.parse_comma_separated(single_property)?))
 }
 
-/// A duration: a `<time>` not below 0 (a math function may be; it computes
-/// to 0).
-fn parse_duration(p: &mut Parser<'_>) -> ParseResult<Time> {
-    let t = parse_time(p)?;
-    if t.seconds < 0.0 && !t.is_math() {
-        return Err(ParseError::Invalid);
-    }
-    Ok(t)
-}
-
 /// One `<transition-behavior-value>`: true for `allow-discrete`.
 fn behavior(p: &mut Parser<'_>) -> ParseResult<bool> {
     p.expect_one_of(&[("normal", false), ("allow-discrete", true)])
-}
-
-/// A comma-separated list of at least one item.
-fn list<T>(
-    p: &mut Parser<'_>,
-    item: impl FnMut(&mut Parser<'_>) -> ParseResult<T>,
-) -> ParseResult<Arc<[T]>> {
-    Ok(Arc::from(p.parse_comma_separated(item)?))
 }
 
 /// Parses the value of the transition longhand `id` (the caller parses the
@@ -407,7 +374,7 @@ pub(crate) fn parse_longhand(id: LonghandId, p: &mut Parser<'_>) -> ParseResult<
     use LonghandValue as V;
     Ok(match id {
         L::TransitionProperty => V::TransitionProperty(parse_property_list(p)?),
-        L::TransitionDuration => V::TransitionDuration(list(p, parse_duration)?),
+        L::TransitionDuration => V::TransitionDuration(list(p, parse_nonneg_time)?),
         L::TransitionDelay => V::TransitionDelay(list(p, parse_time)?),
         L::TransitionTimingFunction => V::TransitionTimingFunction(list(p, parse_easing)?),
         L::TransitionBehavior => V::TransitionBehavior(list(p, behavior)?),

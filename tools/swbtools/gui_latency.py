@@ -681,7 +681,7 @@ def fixture_directory(name: str, javascript: bool, fixtures: str | None) -> Path
     when `fixtures` is `js` (the default with JavaScript on). Raises
     ValueError if there is none."""
     which = fixtures or ("js" if javascript else "pages")
-    directory = paths.js_fixture_dir(name) if which == "js" else paths.fixture_dir(name)
+    directory = paths.fixture_directory(name, which == "js")
     if not directory.is_dir():
         raise ValueError(f"there is no fixture {directory}")
     return directory

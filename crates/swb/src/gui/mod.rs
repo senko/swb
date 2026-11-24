@@ -453,10 +453,7 @@ impl App {
         // A buffer that holds the last frame (age 1) gets only the rows that
         // changed; any other gets every pixel.
         let changed = composer.take_changed_rows().filter(|_| buffer.age() == 1);
-        match &changed {
-            Some(rows) => composer.write_rows(&mut buffer, rows),
-            None => composer.write_buffer(&mut buffer),
-        }
+        composer.write_buffer(&mut buffer, changed.as_deref());
         let composed = Instant::now();
         // The compositor's frame callback paces the next frame (ADR 0040
         // section 3).

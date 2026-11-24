@@ -4,6 +4,25 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-24: M13 maintenance; end of M13
+
+- Two read-only reviews (style, css, text, web and ADR 0044; paint,
+  layout, engine, GUI, tests and tools) listed 42 items and no bug. 29
+  are applied, some in part: shared code for the longhand bit sets, the
+  `animation-*` and `transition-*` list parsing, the nested rasterizer
+  of transform and composited layers, rectangle outsets, the merge of
+  overlapping rectangles, the exit-record tools and the Rust exit tests;
+  `cascade.rs` (4,231 -> 2,213 lines) and `raster.rs` (2,518 -> 1,886)
+  split along their parts; clearer names; plan text of ADRs 0040, 0044
+  and 0046 that M13 made outdated.
+- Copies that differ in arithmetic or output stay separate (a filter
+  margin sum before the float cast, the point choice of the two exit
+  tests): a merge would change pixels or data files. The rest is in the
+  backlog.
+- Behaviour: the snapshot of 382 files is byte-equal to the one of
+  ef7a92b, and `compare --js --all` gives the same scores.
+- M13 is done. Next: plan M14 (media playback) in detail.
+
 ## 2026-11-24: M13 feature 6, the exit test of videojs.org
 
 - `crates/automation/tests/videojs.rs` checks the owner's list of M13

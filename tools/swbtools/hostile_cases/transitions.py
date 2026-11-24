@@ -7,9 +7,9 @@ inherited `color` that starts transitions on 100,000 elements through one class 
 body. Chromium has no limits for these; swb bounds the records (100,000 per page), and
 events run only in rendering updates."""
 
-from swbtools.hostile_cases.core import Page, case, doc
+from swbtools.hostile_cases.core import Page, case, doc, virtual_run
 
-RUNNING = ("--js", "--virtual-time", "--settle-ms", "3000")
+RUNNING = virtual_run(3000)
 """Scripts and 3 s of virtual time: the transitions run."""
 
 
@@ -108,7 +108,7 @@ def transition_list_10000_entries_3000_elements() -> Page:
     "5): each toggle reverses the running transition (a cancel and a new record); the number "
     "of live records stays one",
     time_limit_s=30,
-    swb_args=("--js", "--virtual-time", "--settle-ms", "20000"),
+    swb_args=virtual_run(20000),
     expect_log="toggles 1000",
 )
 def transition_toggle_every_frame_1000() -> Page:

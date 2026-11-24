@@ -165,11 +165,7 @@ impl Step {
             let damage = match how {
                 Render::Full => {
                     page.render(pixmap);
-                    FrameDamage {
-                        full: true,
-                        rects: Vec::new(),
-                        viewport_pixels: u64::from(pixmap.width()) * u64::from(pixmap.height()),
-                    }
+                    FrameDamage::full((pixmap.width(), pixmap.height()))
                 }
                 Render::Damage => page.render_update(pixmap),
             };

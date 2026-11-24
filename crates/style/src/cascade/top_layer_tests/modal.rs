@@ -4,6 +4,7 @@
 //! dialog"; the probe cases `inert-click` and `top-layer-hit-order` measure
 //! what it does in Chromium.
 
+use super::test_util::compute_element_styles;
 use super::*;
 
 /// Parses `html`, shows the popovers `open` and then the modal dialogs

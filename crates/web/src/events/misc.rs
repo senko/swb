@@ -9,9 +9,9 @@
 //! <https://www.w3.org/TR/css-animations-1/#interface-animationevent>
 //!
 //! swb fires `submit`, `beforetoggle`, `toggle` and the animation events of
-//! them (and the events
-//! of the modules that name them); scripts can construct them and dispatch
-//! them. The state of each is a variant of [`Other`].
+//! them (and the events of the modules that name them); scripts can
+//! construct them and dispatch them. The state of each is a variant of
+//! [`Other`].
 
 use swb_js::{Gc, Object, Runtime, Tracer, Value, VmError};
 

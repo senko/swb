@@ -60,7 +60,7 @@ mod equality;
 mod items;
 
 pub use builder::build_display_list;
-pub(crate) use builder::{layer_value, outset, path_clip_item, resolve_radii, with_descendants};
+pub(crate) use builder::{layer_value, path_clip_item, resolve_radii, with_descendants};
 pub use items::{
     DisplayItem, DisplayList, Highlights, Hit, ImageRef, ImageSizes, NoHighlights, Radii,
     SELECTION_BACKGROUND, Scrolling,

@@ -75,8 +75,7 @@ use tiny_skia::{
     PixmapPaint, Shader, SpreadMode, Stroke, Transform,
 };
 
-use crate::display_list::{DisplayItem, DisplayList, ImageRef, Radii};
-use crate::group_bounds::transform_ends;
+use crate::display_list::{DisplayItem, ImageRef, Radii};
 use crate::image::{DecodedImage, ImageKind, MAX_DIMENSION};
 use crate::mask::{self, MaskLayer, MaskLayerImage};
 use crate::reduce::Reductions;
@@ -95,7 +94,9 @@ mod gradient;
 mod masks;
 mod path;
 mod region;
+mod strips;
 mod svg_clip;
+mod transform_layer;
 
 use blend::blend_mode;
 pub use cache::{CacheStats, RasterCache};
@@ -104,7 +105,9 @@ use filter_layer::FilterLayer;
 pub use frame::FrameContent;
 use gradient::{degenerate_color, gradient_line, gradient_shader, gradient_tile};
 use region::Region;
+pub use strips::{rasterize, rasterize_in_strips, rasterize_region};
 use svg_clip::ClipResult;
+use transform_layer::GroupItems;
 
 /// How far (device px) a drawing can reach beyond the area that it gives
 /// for culling: a raster of parts draws what reaches this close to a part.
@@ -112,11 +115,6 @@ use svg_clip::ClipResult;
 /// to at least one pixel, which can lie one pixel outside the outer edge
 /// (backlog); other areas are exact.
 const REGION_SLACK: f32 = 2.0;
-
-/// `r` grown by `by` device px on every side.
-fn outset_px(r: Rect, by: f32) -> Rect {
-    Rect::new(r.x - by, r.y - by, r.width + 2.0 * by, r.height + 2.0 * by)
-}
 
 /// The most pixels of a layer for a transform group (a larger layer gets
 /// a lower resolution).
@@ -326,268 +324,6 @@ pub(crate) fn used_stroke_width(size: f32, width: f32) -> Option<f32> {
     Some(width.min((2.0 * size).max(16.0)))
 }
 
-/// Rasterizes a display list into `target`. The target is not cleared.
-///
-/// New renderings of SVG images share one work budget per call. When it is
-/// used up, later SVG images are drawn from a cached rendering of another
-/// size, or not at all; a later call (a repaint) renders them if its budget
-/// allows. Normal pages stay far below the budget. The layers of nested
-/// opacity, mask, transform and clip groups share a memory budget
-/// ([`MAX_GROUP_LAYER_PIXELS`]); masks ([`MAX_MASK_PIXELS`]), transform
-/// layers ([`MAX_TRANSFORM_PIXELS`]) and the paths and clip paths of inline
-/// SVG ([`path::MAX_PATH_WORK`]) have work budgets.
-pub fn rasterize(
-    list: &DisplayList,
-    target: &mut Pixmap,
-    params: RasterParams,
-    fonts: &mut FontContext,
-    images: &dyn ImageSource,
-) -> RasterReport {
-    let rows = target.height();
-    rasterize_in_strips(list, target, params, rows, fonts, images)
-}
-
-/// [`rasterize`] in strips of at most `strip_rows` device rows (at least
-/// 1), as if each strip were a viewport of its own: the budgets of group
-/// layers, masks, transform layers and paths apply to each strip, and
-/// opacity and mask layers are at most a strip high. Fixed and sticky boxes
-/// are placed for `params.scroll` in every strip. The strips have equal
-/// heights (the last one can be lower, by fewer rows than there are
-/// strips), and all get the budgets of that height. Each strip is drawn in
-/// place in the target's rows. The SVG rendering budget is shared by all
-/// strips. Device coordinates are computed as in one pass and then
-/// shifted by the strip's row, so rounding is the same; results can still
-/// differ by a few levels in single pixels: anti-aliased edges of paths
-/// that cross a strip boundary (tiny-skia clips them to the strip), and
-/// filtered images and gradients (positions in the image or along the
-/// gradient are computed relative to the strip).
-pub fn rasterize_in_strips(
-    list: &DisplayList,
-    target: &mut Pixmap,
-    params: RasterParams,
-    strip_rows: u32,
-    fonts: &mut FontContext,
-    images: &dyn ImageSource,
-) -> RasterReport {
-    let mut vectors = FrameBudget::new();
-    let (width, height) = (target.width(), target.height());
-    let rows = equal_strip_rows(height, strip_rows);
-    let row_bytes = width as usize * 4;
-    let mut skipped = Skipped::default();
-    let ends = transform_ends(&list.items);
-    for (k, data) in target
-        .data_mut()
-        .chunks_mut(rows as usize * row_bytes)
-        .enumerate()
-    {
-        let strip = Strip {
-            height: data_rows(data.len(), row_bytes),
-            data,
-            width,
-            top: k as u32 * rows,
-            budget_rows: rows,
-        };
-        let s = rasterize_strip(
-            list,
-            &ends,
-            strip,
-            params,
-            None,
-            &mut vectors,
-            fonts,
-            images,
-        );
-        skipped.merge(s);
-    }
-    finish_report(&vectors, skipped)
-}
-
-/// Logs what the budgets left out, and makes the report.
-fn finish_report(vectors: &FrameBudget, skipped: Skipped) -> RasterReport {
-    if vectors.skipped() {
-        log::warn!(
-            "SVG images: the rendering budget of this frame ran out; some images \
-             use a rendering of another size or are not drawn"
-        );
-    }
-    if vectors.reduce.skipped() {
-        log::warn!(
-            "images: the work budget for reduced copies ran out in this frame; some images \
-             are drawn from a larger level (coarser), a later repaint continues"
-        );
-    }
-    skipped.warn();
-    RasterReport {
-        incomplete: vectors.skipped() || vectors.reduce.skipped() || skipped.any(),
-    }
-}
-
-/// Rasterizes the parts `rects` of `target` (device px; clamped to the
-/// target) and leaves its other pixels as they are (ADR 0044 section 18).
-/// Each part is filled with `background` first (`None`: the part keeps the
-/// target's pixels below the list, for lists drawn over the page) and
-/// drawn as a full [`rasterize`] of the target draws it: the pixels inside
-/// the parts equal those of a full raster bit for bit, if the target's
-/// pixels there were those of the full raster below the list.
-///
-/// How: overlapping parts become their bounding box, and all parts are
-/// drawn in one pass into a scratch pixmap of the target's size, so that
-/// every pixmap that the rasterizer uses (the target, the layers of groups)
-/// has the size and position that it has in a full raster; only the items
-/// are culled to the parts, and the drawing whose pixels do not depend on
-/// its extent (rectangles, images, gradients, glyphs, the composite of
-/// layers) is limited to them. Anti-aliased paths, clip paths, masks and
-/// the layers of transforms are drawn as in a full raster, so their pixels
-/// do not depend on the parts. A filter draws its content in the parts
-/// grown by what the filter reads. The pass gets the budgets of the whole
-/// target, so it draws everything a full raster draws (it draws fewer
-/// items). A caller must make each part that touches the box of a
-/// `backdrop-filter` hold all of it (`crate::damage`): the filter reads the
-/// whole box.
-pub fn rasterize_region(
-    list: &DisplayList,
-    target: &mut Pixmap,
-    params: RasterParams,
-    rects: &[PixelRect],
-    background: Option<Rgba>,
-    fonts: &mut FontContext,
-    images: &dyn ImageSource,
-) -> RasterReport {
-    let (width, height) = (target.width(), target.height());
-    let parts: Vec<PixelRect> = rects
-        .iter()
-        .map(|r| r.clamp_to(width, height))
-        .filter(|r| !r.is_empty())
-        .collect();
-    if parts.is_empty() {
-        return RasterReport::default();
-    }
-    // The pixmap of the last raster of parts, if it has this size: its
-    // pixels outside the parts do not matter.
-    let cache = images.raster_cache();
-    let scratch = match cache {
-        Some(cache) => cache.take_scratch(width, height),
-        None => Pixmap::new(width, height),
-    };
-    let Some(mut scratch) = scratch else {
-        return RasterReport { incomplete: true };
-    };
-    // One pass for all parts, so that the work of a drawing that does not
-    // depend on the parts (a layer's clip path, a filter) is done once. The
-    // parts are made disjoint, so that each pixel is drawn once.
-    let Some(region) = Region::new(parts.iter().map(|p| p.to_rect()).collect()) else {
-        if let Some(cache) = cache {
-            cache.put_scratch(scratch);
-        }
-        return RasterReport::default();
-    };
-    let parts: Vec<PixelRect> = region
-        .pieces(region.bounds())
-        .into_iter()
-        .map(pixel_part)
-        .collect();
-    for &part in &parts {
-        match background {
-            Some(color) => fill_part(&mut scratch, part, color),
-            None => copy_part(target, &mut scratch, part),
-        }
-    }
-    let mut vectors = FrameBudget::new();
-    let ends = transform_ends(&list.items);
-    let strip = Strip {
-        data: scratch.data_mut(),
-        width,
-        height,
-        top: 0,
-        budget_rows: height,
-    };
-    let skipped = rasterize_strip(
-        list,
-        &ends,
-        strip,
-        params,
-        Some(region),
-        &mut vectors,
-        fonts,
-        images,
-    );
-    for &part in &parts {
-        copy_part(&scratch, target, part);
-    }
-    if let Some(cache) = cache {
-        cache.put_scratch(scratch);
-    }
-    finish_report(&vectors, skipped)
-}
-
-/// A rectangle of whole device px as a [`PixelRect`].
-fn pixel_part(r: Rect) -> PixelRect {
-    let edge = |v: f32| v.max(0.0) as u32;
-    PixelRect::from_edges(edge(r.x), edge(r.y), edge(r.right()), edge(r.bottom()))
-}
-
-/// Fills the pixels of `part` (inside `target`) with `color`.
-fn fill_part(target: &mut Pixmap, part: PixelRect, color: Rgba) {
-    let pixel = to_skia_color(color).premultiply().to_color_u8();
-    let bytes = [pixel.red(), pixel.green(), pixel.blue(), pixel.alpha()];
-    let width = target.width() as usize;
-    let data = target.data_mut();
-    for row in part.y..part.bottom() {
-        let from = (row as usize * width + part.x as usize) * 4;
-        let to = from + part.width as usize * 4;
-        if let Some(line) = data.get_mut(from..to) {
-            for px in line.as_chunks_mut::<4>().0 {
-                *px = bytes;
-            }
-        }
-    }
-}
-
-/// Copies the pixels of `part` from `from` to `to` (two pixmaps of one
-/// size).
-fn copy_part(from: &Pixmap, to: &mut Pixmap, part: PixelRect) {
-    let width = from.width() as usize;
-    if to.width() as usize != width || to.height() != from.height() {
-        return;
-    }
-    let src = from.data();
-    let dst = to.data_mut();
-    for row in part.y..part.bottom() {
-        let start = (row as usize * width + part.x as usize) * 4;
-        let end = start + part.width as usize * 4;
-        if let (Some(a), Some(b)) = (src.get(start..end), dst.get_mut(start..end)) {
-            b.copy_from_slice(a);
-        }
-    }
-}
-
-/// The height of equal strips for a target of `height` rows and strips of
-/// at most `max_rows` rows: `height` split into the fewest strips, as
-/// equal as possible (the last one can be lower).
-fn equal_strip_rows(height: u32, max_rows: u32) -> u32 {
-    let height = height.max(1);
-    let count = height.div_ceil(max_rows.clamp(1, height));
-    height.div_ceil(count)
-}
-
-/// The number of rows in `bytes` bytes of rows of `row_bytes` bytes.
-fn data_rows(bytes: usize, row_bytes: usize) -> u32 {
-    u32::try_from(bytes / row_bytes.max(1)).unwrap_or(u32::MAX)
-}
-
-/// One strip of the target: its rows, in place.
-struct Strip<'a> {
-    /// The strip's pixels (premultiplied RGBA, rows of `width` pixels).
-    data: &'a mut [u8],
-    width: u32,
-    height: u32,
-    /// The strip's first row in the target.
-    top: u32,
-    /// The rows of a strip for the budgets (all strips of a target get the
-    /// same budgets).
-    budget_rows: u32,
-}
-
 /// What the budgets of a strip left out.
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 struct Skipped {
@@ -714,88 +450,6 @@ struct Budget {
     /// The path work charges since the last mark of a raster cache entry,
     /// in order; `None` when no entry is being made.
     path_log: Option<Vec<f64>>,
-}
-
-/// Rasterizes one strip of the target. `ends` comes from [`transform_ends`].
-/// With `region` (device px of the strip), only the pixels there matter
-/// (see [`rasterize_region`]).
-#[allow(clippy::too_many_arguments)]
-fn rasterize_strip(
-    list: &DisplayList,
-    ends: &[usize],
-    Strip {
-        data,
-        width,
-        height,
-        top,
-        budget_rows,
-    }: Strip<'_>,
-    params: RasterParams,
-    region: Option<Region>,
-    vectors: &mut FrameBudget,
-    fonts: &mut FontContext,
-    images: &dyn ImageSource,
-) -> Skipped {
-    // The strip (or the region) in CSS px, 1 device px larger on every
-    // side: snapping can move a thin rectangle into the next row.
-    let s = params.scale;
-    let viewport = match region.as_ref().map(Region::bounds) {
-        None => Rect::new(
-            params.scroll.x - 1.0 / s,
-            params.scroll.y + (top as f32 - 1.0) / s,
-            (width as f32 + 2.0) / s,
-            (height as f32 + 2.0) / s,
-        ),
-        // A region culls with more slack (see `REGION_SLACK`).
-        Some(area) => {
-            let m = REGION_SLACK + 1.0;
-            Rect::new(
-                params.scroll.x + (area.x - m) / s,
-                params.scroll.y + (top as f32 + area.y - m) / s,
-                (area.width + 2.0 * m) / s,
-                (area.height + 2.0 * m) / s,
-            )
-        }
-    };
-    let rows = u64::from(budget_rows);
-    let pixels = rows.saturating_mul(u64::from(width));
-    let mask_budget = rows
-        .saturating_mul(u64::from(width) + 2 * ROW_COST_PIXELS)
-        .saturating_mul(4);
-    let mut r = Rasterizer {
-        target: data,
-        target_size: (width, height),
-        offset_y: top as f32,
-        params,
-        layers: Vec::new(),
-        budget: Budget {
-            max_layer_pixels: MAX_GROUP_LAYER_PIXELS.max(pixels.saturating_mul(4)),
-            max_mask_pixels: MAX_MASK_PIXELS.max(mask_budget),
-            max_filter_pixels: MAX_FILTER_PIXELS.max(pixels.saturating_mul(8)),
-            max_transform_pixels: MAX_TRANSFORM_PIXELS.max(pixels.saturating_mul(8)),
-            max_path_work: path::MAX_PATH_WORK,
-            ..Budget::default()
-        },
-        clips: Vec::new(),
-        mask: None,
-        vectors,
-        translation: Point::default(),
-        visible: viewport,
-        region,
-        viewport_scroll: params.viewport_scroll,
-        fixed_origin: params.viewport_scroll,
-        viewport_clip: None,
-        depth: 0,
-        frames: FrameNesting::default(),
-        sticky: StickyCache::default(),
-        image_blend: None,
-    };
-    r.run(&list.items, 0..list.items.len(), ends, fonts, images);
-    // Close unbalanced groups.
-    while !r.layers.is_empty() {
-        r.pop_layer(images, fonts);
-    }
-    r.budget.skipped
 }
 
 /// The layer of an open opacity or mask group.
@@ -933,95 +587,6 @@ struct Rasterizer<'a> {
     image_blend: Option<(tiny_skia::BlendMode, f32)>,
 }
 
-/// `area` (a part of `bounds`, in a group's coordinates) grown by two
-/// layer pixels on every side for the scale `k` (layer px per CSS px),
-/// inside `bounds`, with its top-left corner on the grid of layer pixels
-/// that starts at the top-left corner of `bounds`. The layers of a group in
-/// different strips then have pixels at the same positions, and the
-/// filtering at the layer's edges reads pixels of the group's content.
-fn grid_area(area: Rect, bounds: Rect, k: f32) -> Rect {
-    let k64 = f64::from(k);
-    let snap = |v: f32, origin: f32| {
-        let origin = f64::from(origin);
-        let steps = (((f64::from(v) - origin) * k64).floor() - 2.0).max(0.0);
-        (origin + steps / k64) as f32
-    };
-    let x = snap(area.x, bounds.x);
-    let y = snap(area.y, bounds.y);
-    let right = (area.right() + 2.0 / k).min(bounds.right());
-    let bottom = (area.bottom() + 2.0 / k).min(bounds.bottom());
-    Rect::new(x, y, (right - x).max(0.0), (bottom - y).max(0.0))
-}
-
-/// The part of the layer of a transform group that the pixels `region`
-/// (target device px) of a raster of parts read: `region` grown by 2 device
-/// px (the filtering and the anti-aliased edges), mapped to the group's
-/// coordinates (`to_device` maps them to the target), grown by 2 layer px,
-/// inside `area` (the layer, at `k` layer px per CSS px). Returns it as the
-/// visible area of the layer's rasterizer (the group's coordinates) and as
-/// its region (layer px); `None` if the region does not reach the layer.
-fn layer_part(
-    to_device: &Matrix,
-    area: Rect,
-    k: f32,
-    region: Rect,
-) -> Option<(Rect, Option<Region>)> {
-    let grown = Rect::new(
-        region.x - 2.0,
-        region.y - 2.0,
-        region.width + 4.0,
-        region.height + 4.0,
-    );
-    let local = to_device.invert()?.map_rect(&grown);
-    let m = 2.0 / k;
-    let local = Rect::new(
-        local.x - m,
-        local.y - m,
-        local.width + 2.0 * m,
-        local.height + 2.0 * m,
-    )
-    .intersection(&area)?;
-    let layer = snap_out(Rect::new(
-        (local.x - area.x) * k,
-        (local.y - area.y) * k,
-        local.width * k,
-        local.height * k,
-    ));
-    Some((local, Region::new(vec![layer])))
-}
-
-/// The scale (layer px per CSS px of the group) of the layer of a
-/// transform group that covers `area` (the group's coordinates), for the
-/// scale `k` of the device resolution: limited so that the layer has sides
-/// of at most [`MAX_TRANSFORM_LAYER_SIDE`] and at most
-/// [`MAX_TRANSFORM_LAYER_PIXELS`] pixels. `None` for a scale that is not
-/// finite and positive.
-fn layer_scale(area: Rect, mut k: f32) -> Option<f32> {
-    if !(k.is_finite() && k > 0.0) {
-        return None;
-    }
-    let side = area.width.max(area.height) * k;
-    if side > MAX_TRANSFORM_LAYER_SIDE {
-        k *= MAX_TRANSFORM_LAYER_SIDE / side;
-    }
-    let pixels = (area.width * k).max(1.0) * (area.height * k).max(1.0);
-    if pixels > MAX_TRANSFORM_LAYER_PIXELS {
-        k *= (MAX_TRANSFORM_LAYER_PIXELS / pixels).sqrt();
-    }
-    k.is_normal().then_some(k)
-}
-
-/// The size in pixels of a layer that covers `area` at the scale `k`, if
-/// it is within the limits of [`layer_scale`] (with room for rounding).
-fn layer_size(area: Rect, k: f32) -> Option<(u32, u32)> {
-    let width = (area.width * k).ceil().max(1.0);
-    let height = (area.height * k).ceil().max(1.0);
-    let fits = width <= MAX_TRANSFORM_LAYER_SIDE + 4.0
-        && height <= MAX_TRANSFORM_LAYER_SIDE + 4.0
-        && width * height <= MAX_TRANSFORM_LAYER_PIXELS * 2.0;
-    fits.then_some((width as u32, height as u32))
-}
-
 /// The nesting of frames at a point of the drawing: all the rasterizers of
 /// a strip share it.
 #[derive(Clone, Copy, Default)]
@@ -1031,21 +596,6 @@ struct FrameNesting {
     /// The number of enclosing transform groups inside frames (each adds
     /// to the stack of the rasterizer).
     groups: u32,
-}
-
-/// Where and how large the layer of a transform group is.
-struct LayerPlan {
-    /// From the group's coordinates to target device px.
-    to_device: Matrix,
-    /// The part of the group that the layer covers (the group's
-    /// coordinates).
-    area: Rect,
-    /// Layer px per CSS px of the group.
-    scale: f32,
-    width: u32,
-    height: u32,
-    /// The cost for [`MAX_TRANSFORM_PIXELS`].
-    work: u64,
 }
 
 impl Rasterizer<'_> {
@@ -1072,6 +622,11 @@ impl Rasterizer<'_> {
             } = item
             {
                 let end = ends.get(i).copied().unwrap_or(range.end).min(range.end);
+                let group = || GroupItems {
+                    items,
+                    range: i + 1..end,
+                    ends,
+                };
                 let outer = Matrix::translate(self.translation.x, self.translation.y);
                 let m = match transform {
                     GroupTransform::Fixed => {
@@ -1097,19 +652,11 @@ impl Rasterizer<'_> {
                     } else if !*composited
                         || fixed_bounds.is_some()
                         || matches!(
-                            self.composited_layer(
-                                items,
-                                i + 1..end,
-                                ends,
-                                &m,
-                                *bounds,
-                                fonts,
-                                images
-                            ),
+                            self.composited_layer(group(), &m, *bounds, fonts, images),
                             Composited::Fallback
                         )
                     {
-                        self.transform_layer(items, i + 1..end, ends, &m, *bounds, fonts, images);
+                        self.transform_layer(group(), &m, *bounds, fonts, images);
                     }
                     self.leave_group();
                 }
@@ -1130,166 +677,6 @@ impl Rasterizer<'_> {
             }
             i += 1;
         }
-    }
-
-    /// Draws `items[range]`, a transform group whose items `m` maps to the
-    /// coordinates of `params` and that draws in `bounds` (its own
-    /// coordinates), through a layer (see the module documentation).
-    #[allow(clippy::too_many_arguments)]
-    fn transform_layer(
-        &mut self,
-        items: &[DisplayItem],
-        range: std::ops::Range<usize>,
-        ends: &[usize],
-        m: &Matrix,
-        bounds: Rect,
-        fonts: &mut FontContext,
-        images: &dyn ImageSource,
-    ) {
-        if self.depth >= MAX_TRANSFORM_DEPTH {
-            self.budget.skipped.transforms = true;
-            return;
-        }
-        let Some(plan) = self.plan_layer(m, bounds) else {
-            return;
-        };
-        if self.budget.transform_pixels.saturating_add(plan.work) > self.budget.max_transform_pixels
-        {
-            self.budget.skipped.transforms = true;
-            return;
-        }
-        let LayerPlan {
-            to_device,
-            area,
-            scale: k,
-            width: layer_width,
-            height: layer_height,
-            work,
-        } = plan;
-        // In a raster of parts, the layer has its place and size of a full
-        // raster (its resampling depends on them), but only its pixels that
-        // the part reads are drawn.
-        let (visible, region) = match &self.region {
-            None => (area, None),
-            Some(region) => match layer_part(&to_device, area, k, region.bounds()) {
-                Some(part) => part,
-                None => return,
-            },
-        };
-        let Some(mut layer) = self.layer_pixmap(layer_width, layer_height) else {
-            return;
-        };
-        self.budget.transform_pixels += work;
-        // The groups inside the layer share the budgets of the strip. Fixed
-        // and sticky groups inside it still move with the viewport.
-        let budget = std::mem::take(&mut self.budget);
-        self.budget = {
-            let mut nested = Rasterizer {
-                target: layer.data_mut(),
-                target_size: (layer_width, layer_height),
-                offset_y: 0.0,
-                params: RasterParams {
-                    scroll: area.origin(),
-                    viewport_scroll: self.viewport_scroll,
-                    scale: k,
-                },
-                layers: Vec::new(),
-                budget,
-                clips: Vec::new(),
-                mask: None,
-                vectors: &mut *self.vectors,
-                translation: Point::default(),
-                visible,
-                region,
-                viewport_scroll: self.viewport_scroll,
-                fixed_origin: self.fixed_origin,
-                viewport_clip: None,
-                depth: self.depth + 1,
-                frames: self.frames,
-                sticky: std::mem::take(&mut self.sticky),
-                image_blend: None,
-            };
-            nested.run(items, range, ends, fonts, images);
-            while !nested.layers.is_empty() {
-                nested.pop_layer(images, fonts);
-            }
-            self.sticky = std::mem::take(&mut nested.sticky);
-            nested.budget
-        };
-        // Layer px to target device px.
-        let to_target =
-            to_device.multiply(&Matrix::new(1.0 / k, 0.0, 0.0, 1.0 / k, area.x, area.y));
-        self.draw_transformed(&layer, &to_target, 1.0);
-        self.release(&layer);
-    }
-
-    /// The layer of a transform group whose items `m` maps to the
-    /// coordinates of `params` and that draws in `bounds` (its own
-    /// coordinates): the part that can be visible, on the grid of layer
-    /// pixels of `bounds` (see [`grid_area`]). `None` if nothing is
-    /// visible or the transform cannot be inverted.
-    fn plan_layer(&self, m: &Matrix, bounds: Rect) -> Option<LayerPlan> {
-        let s = self.params.scale;
-        let scroll = self.params.scroll;
-        let to_device =
-            Matrix::new(s, 0.0, 0.0, s, -scroll.x * s, -scroll.y * s - self.offset_y).multiply(m);
-        let visible = self.visible_area()?;
-        let visible_part = to_device
-            .invert()?
-            .map_rect(&visible)
-            .intersection(&bounds)?;
-        // The scale for the visible part; the margin of the grid can lower
-        // it a little, and the area is snapped with the final scale.
-        let k = layer_scale(visible_part, s * m.max_scale())?;
-        let k = layer_scale(grid_area(visible_part, bounds, k), k)?;
-        let area = grid_area(visible_part, bounds, k);
-        let (width, height) = layer_size(area, k)?;
-        let covered = to_device
-            .map_rect(&area)
-            .intersection(&visible)
-            .map_or(0, |r| (r.width as u64).saturating_mul(r.height as u64));
-        let work = (u64::from(width) * u64::from(height)).saturating_add(covered);
-        Some(LayerPlan {
-            to_device,
-            area,
-            scale: k,
-            width,
-            height,
-            work,
-        })
-    }
-
-    /// Draws `layer` with the transform `to_target` (layer px to target
-    /// device px), bilinear filtering and anti-aliased edges
-    /// (`draw_pixmap` does not anti-alias them), with the opacity `alpha`.
-    fn draw_transformed(&mut self, layer: &Pixmap, to_target: &Matrix, alpha: f32) {
-        let (width, height) = (layer.width() as f32, layer.height() as f32);
-        let Some(rect) = tiny_skia::Rect::from_xywh(0.0, 0.0, width, height) else {
-            return;
-        };
-        let device_bounds = to_target.map_rect(&Rect::new(0.0, 0.0, width, height));
-        let paint = Paint {
-            shader: Pattern::new(
-                layer.as_ref(),
-                SpreadMode::Pad,
-                FilterQuality::Bilinear,
-                alpha,
-                Transform::identity(),
-            ),
-            anti_alias: true,
-            ..Paint::default()
-        };
-        let layer_transform = Transform::from_row(
-            to_target.a,
-            to_target.b,
-            to_target.c,
-            to_target.d,
-            to_target.e,
-            to_target.f,
-        );
-        self.draw(device_bounds, |p, t, mask| {
-            p.fill_rect(rect, &paint, t.pre_concat(layer_transform), mask);
-        });
     }
 
     #[allow(clippy::too_many_lines)] // One arm per item.
@@ -1564,7 +951,7 @@ impl Rasterizer<'_> {
         let in_region = |v: &Rect| {
             self.region
                 .as_ref()
-                .is_none_or(|r| r.touches(&outset_px(*v, REGION_SLACK)))
+                .is_none_or(|r| r.touches(&v.outset(REGION_SLACK)))
         };
         if !shown.as_ref().is_some_and(in_region) {
             return;

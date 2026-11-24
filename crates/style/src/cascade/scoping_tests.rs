@@ -7,7 +7,7 @@
 use swb_css::MediaEnvironment;
 use swb_dom::{Document, ShadowRootInit, ShadowRootMode, SlotAssignment, parse_html};
 
-use super::test_util::{base, node};
+use super::test_util::{base, compute_element_styles, compute_pseudo_element_style, node};
 use super::*;
 use crate::cssom::sheet::StyleMemory;
 use crate::values::*;

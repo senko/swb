@@ -19,7 +19,7 @@ from typing import Any
 
 import numpy as np
 
-from swbtools.records import ROOT
+from swbtools.records import ROOT, load_json, write_json
 
 FLAT_RADIUS = 3
 """A point is chosen only where the (2 radius + 1) square around it is one
@@ -252,3 +252,94 @@ def run_swb_steps(
 def labelled(names: list[str], key: str, values: list[Any]) -> list[dict[str, Any]]:
     """`[{"name": N, KEY: V}, ...]` for the pairs of names and values."""
     return [{"name": n, key: v} for n, v in zip(names, values, strict=False)]
+
+
+def group(name: str, *steps: dict[str, Any]) -> dict[str, Any]:
+    """A named group of replay steps."""
+    return {"name": name, "steps": list(steps)}
+
+
+def wait(ms: int) -> dict[str, Any]:
+    """A `wait` step of `ms` milliseconds."""
+    return {"wait": ms}
+
+
+def swb_replay_command(
+    binary: Path, fixture: Path, steps: list[dict[str, Any]], animations: bool
+) -> list[str]:
+    """The command line of one swb run of `steps` on a JavaScript fixture
+    (the options of `compare --js`; `animations`: the page's animations and
+    transitions run)."""
+    from swbtools.compare import swb_js_options
+    from swbtools.pages import read_meta
+    from swbtools.swb import replay_options
+
+    meta = read_meta(fixture)
+    width, height = meta.viewport
+    return [
+        *replay_options(binary, fixture, (width, height), animations=animations),
+        *swb_js_options(True, meta.captured),
+        "--steps",
+        json.dumps(steps),
+        meta.url,
+    ]
+
+
+def compare_swb_run(
+    command: list[str], target: Path, expected: list[Any], names: list[str], with_times: bool
+) -> None:
+    """Runs swb with `command`, compares its records with Chromium's
+    (`expected`) and writes `swb-log.txt`, `swb-records.json`,
+    `swb-diff.json`, `swb-groups.json` and, with `with_times`,
+    `swb-times.json` into `target`; prints the differing fields of each
+    record."""
+    lines, status = run_swb_steps(command, target / "swb-log.txt")
+    records, arrival = parse_answers(lines)
+    diffs = [field_differences(e, a) for e, a in zip(expected, records, strict=False)]
+    seconds = [round(b - a, 3) for a, b in zip([0.0, *arrival], arrival, strict=False)]
+    log_groups = split_log((target / "swb-log.txt").read_text(encoding="utf-8"))
+    write_json(target / "swb-records.json", records)
+    write_json(target / "swb-diff.json", labelled(names, "fields", diffs))
+    if with_times:
+        write_json(target / "swb-times.json", labelled(names, "seconds", seconds))
+    write_json(target / "swb-groups.json", labelled(names, "log", log_groups))
+    print(f"swb status {status}; {len(records)} of {len(names)} records")
+    for name, fields, took in zip(names, diffs, seconds, strict=False):
+        print(f"{took:7.2f} s  {name}: {', '.join(fields) or 'equal'}")
+
+
+PIXEL_TOLERANCE = 12
+"""The largest difference of a color channel that the test accepts at a pixel
+point (`PIXEL_TOLERANCE` in `crates/automation/tests/common/mod.rs`)."""
+
+
+def pixel_diff(
+    spec_path: Path, colors_path: Path, shots_dir: Path, out_json: Path, number_offset: int
+) -> None:
+    """The points where swb's screenshots (the files of `screenshot_name`
+    in `shots_dir`, numbered from `number_offset` for the first group)
+    differ from Chromium's colors by more than the tolerance. Writes
+    `out_json`."""
+    from PIL import Image
+
+    spec = load_json(spec_path)
+    colors = load_json(colors_path)
+    found: dict[str, list[dict[str, Any]]] = {}
+    for number, label in enumerate(spec["groups"]):
+        shot_name = screenshot_name(number + number_offset, label)
+        with Image.open(shots_dir / shot_name) as image:
+            shot = np.asarray(image.convert("RGB"))
+        prefix = f"{number:03d}-"
+        rows = []
+        for name, (x, y) in spec["points"].items():
+            if not name.startswith(prefix):
+                continue
+            got = [int(c) for c in shot[y, x]]
+            want = colors[label][name]
+            if any(abs(g - w) > PIXEL_TOLERANCE for g, w in zip(got, want, strict=True)):
+                rows.append({"name": name, "at": [x, y], "swb": got, "chromium": want})
+        found[label] = rows
+        if rows:
+            print(f"{number:3d} {label}: {len(rows)} of {len(colors[label])} points differ")
+    write_json(out_json, found)
+    print(f"{sum(len(r) for r in found.values())} points differ; see {out_json}")

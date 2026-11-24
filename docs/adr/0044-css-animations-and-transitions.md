@@ -13,14 +13,14 @@ declarations, `getAnimations()` and `finished` for Base UI, the frame and
 idle CPU budgets, and the option that turns animations off for the
 comparisons of the other targets.
 
-Today swb runs no animation. `@keyframes` is kept for the CSSOM only
-(`swb_css::KeyframesRule`), the `animation-*` properties do not exist, and
-`transition-*` are inert text values (`properties/inert.rs`). Style and
-layout run on demand; a rendering update (`page/rendering_update.rs`) runs
-only for scripts, and only with JavaScript on. Every style change drops the
-layout (ADR 0041, 0042), every frame rebuilds the display list and
-rasterizes the whole page (ADR 0040, "Alternatives"): a repaint of the hero
-of videojs.org costs 30 ms.
+Before M13, swb ran no animation. `@keyframes` was kept for the CSSOM only
+(`swb_css::KeyframesRule`), the `animation-*` properties did not exist, and
+`transition-*` were inert text values (`properties/inert.rs`). Style and
+layout ran on demand; a rendering update (`page/rendering_update.rs`) ran
+only for scripts, and only with JavaScript on. Every style change dropped
+the layout (ADR 0041, 0042), every frame rebuilt the display list and
+rasterized the whole page (ADR 0040, "Alternatives"): a repaint of the hero
+of videojs.org cost 30 ms.
 
 This ADR decides the design of features 3 to 5. The behaviour comes from
 the specifications below and from black-box measurements in Chromium 148:
@@ -94,7 +94,8 @@ dispatched its last event. Then the record is *released*: the engine
 removes it and lists its id for the bindings.
 
 **JavaScript objects.** The web crate keeps one wrapper per live record:
-`DocState::animations: HashMap<AnimationId, Gc<Object>>`, traced strongly,
+`DocState::animations: HashMap<AnimationId, Gc<Object>>` (implemented as
+`AnimationObjects`, section 15), traced strongly,
 like the sheet and rule wrappers of `cssom_sheets.rs`. `getAnimations()`
 looks up the id and makes the wrapper only when it is missing, so the same
 record gives the same object on every call (`animation-api`). The entry
@@ -285,7 +286,7 @@ property's clamps apply.
 | Unregistered custom properties | Discrete; no transition without `allow-discrete` | `un`, `custom-properties` |
 | `visibility` | `visible` for the whole interval when one end is `visible` | `vi`, `vi2` |
 | `display`, `content-visibility`, `overlay` | With `none` (`hidden`, `none`) on one end, the other value for the whole interval; in transitions only with `allow-discrete` ([Display 4](https://drafts.csswg.org/css-display-4/#display-animation), [Contain 2](https://drafts.csswg.org/css-contain-2/#content-visibility-animation)) | `ds`, `cv`, `transition-behavior-discrete` |
-| Sizes with `interpolate-size: allow-keywords` | A length against `auto`, `min-content`, `max-content` or `fit-content` interpolates: the computed value keeps the keyword, the length and the progress, and layout resolves it (the keyword's size in px, then linear) | `interpolate-size` |
+| Sizes with `interpolate-size: allow-keywords` | A length against `auto`, `min-content`, `max-content` or `fit-content` interpolates: the computed value keeps the keyword, the length and the progress, and layout resolves it (the keyword's size in px, then linear). Not done (section 20): the property parses, such pairs are discrete | `interpolate-size` |
 | Other properties of feature 2a (`corner-shape`, `text-wrap`, `isolation`); everything not listed | Discrete | |
 
 **Colors** ([Color 4 §12](https://www.w3.org/TR/css-color-4/#interpolation)),
@@ -304,10 +305,9 @@ measured:
 - Decision for swb: the space follows Color 4 as above. For that, a
   computed `oklch()`, `oklab()`, `lab()`, `lch()` or `color()` value keeps
   its space and its float coordinates (a `Wide` color of `color_mix.rs`),
-  as Chromium's `getComputedStyle` shows it. Today swb computes these to
-  8-bit sRGB; feature 2b changes that (Tailwind 4 writes every color of
-  the page as `oklch()`, so without it the hover transitions would mix in
-  sRGB). The table holds one entry per distinct declared color, and a full
+  as Chromium's `getComputedStyle` shows it. Feature 2b did this (`Wide`
+  colors, ADR 0046; Tailwind 4 writes every color of the page as
+  `oklch()`, so without it the hover transitions would mix in sRGB). The table holds one entry per distinct declared color, and a full
   table falls back to 8-bit sRGB as it does for `color-mix()`.
 - The result of an interpolation is stored as an 8-bit `Rgba`, never in
   the process-wide table (2^20 entries that never shrink; one entry per
@@ -384,9 +384,9 @@ effect easing of a CSS animation is `linear` (so `getComputedTiming()
 - All timing math is `f64`. Tests compare numbers with a relative
   tolerance of 1e-5 and an absolute one of 1e-4 (section 12).
 
-`transition-*` leave `inert.rs` in feature 5 and get typed computed
-values, with `calc()` in times and `linear()`, which the inert grammar
-rejects today.
+Done in feature 5 (`animation/transition_properties.rs`): `transition-*`
+left `inert.rs` and got typed computed values, with `calc()` in times and
+`linear()`, which the inert grammar rejected.
 
 ### 6. Events
 
@@ -458,7 +458,8 @@ Transitions 2 §6.1):
   `pending`, `ready`, `finished`, `effect`, `timeline`, `id`, `replaceState`
   (`"active"`), `playbackRate` (read only, 1).
 - `KeyframeEffect`: `target`, `pseudoElement`, `getKeyframes()` (with
-  `computedOffset` and the keyframe easing), `getTiming()`,
+  `computedOffset` and the keyframe easing; see sections 15 and 16 for
+  departures), `getTiming()`,
   `getComputedTiming()` (no `phase`), `composite` (`"replace"`).
 - `CSSAnimation.animationName`, `CSSTransition.transitionProperty`;
   `DocumentTimeline.currentTime`.

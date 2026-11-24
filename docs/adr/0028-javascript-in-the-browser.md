@@ -2506,7 +2506,7 @@ and `swb_style::cssom` (`cssom/tests.rs`)):
   subtrees and in template contents keep the styles; their insertion is a
   change in the document. (This closes the backlog item of feature 3b.)
 - **The style of one element on demand (section 9, plan item 2).**
-  `swb_style::compute_element_styles` runs the cascade of an element and
+  `swb_style::compute_element_styles_animated` runs the cascade of an element and
   its ancestors, from the document element down, with the code of the
   full cascade (`Styler::style_element`, without the Bloom filter and
   without pseudo-elements, `use` instances and counters); the result
@@ -2654,7 +2654,7 @@ serializer's tests are in `swb_style::cssom::resolved`):
   1/16 of the nodes (at least 256) without a change, one full restyle
   serves the rest (a script that reads every element). The style of a
   pseudo-element is its own cascade, also without a box
-  (`compute_pseudo_element_style`), kept until the styles change.
+  (`compute_pseudo_element_style_animated`), kept until the styles change.
 - **The object.** `getComputedStyle` is `[NewObject]` in `idl/cssom.idl`
   (Chromium returns a new object at each call); the declaration is the
   `CSSStyleDeclaration` of `element.style` with another target, live

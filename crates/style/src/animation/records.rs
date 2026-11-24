@@ -522,12 +522,12 @@ fn cancel_event(
 /// The result of the visibility test (see
 /// [`DocumentAnimations::set_visible`]).
 #[derive(Debug, PartialEq)]
-struct Visibility {
+struct ViewportCheck {
     checked: HashSet<NodeId>,
     visible: HashSet<NodeId>,
 }
 
-impl Visibility {
+impl ViewportCheck {
     /// True if the animations of `node` can change visible pixels.
     fn shows(&self, node: NodeId) -> bool {
         !self.checked.contains(&node) || self.visible.contains(&node)
@@ -536,7 +536,7 @@ impl Visibility {
 
 /// A cached minimum of next times.
 #[derive(Clone, Copy, Debug, Default)]
-enum Cached {
+enum NextTimeCache {
     /// To compute.
     #[default]
     Stale,
@@ -593,9 +593,9 @@ pub struct DocumentAnimations {
     transitions_seen: bool,
     /// True once a style that can start a transition of an inherited value
     /// was computed
-    /// ([`super::transition_properties::TransitionStyle::may_transition_inherited`]): only
-    /// then do elements keep [`DocumentAnimations::transition_parent`] and
-    /// do the records of inherited values need frames (ADR 0044 section
+    /// ([`super::transition_properties::TransitionStyle::may_transition_inherited`]):
+    /// only then do elements keep [`DocumentAnimations::transition_parent`]
+    /// and do the records of inherited values need frames (ADR 0044 section
     /// 20).
     inherited_transitions_seen: bool,
     /// True once such a style also takes a non-inherited value with
@@ -619,7 +619,7 @@ pub struct DocumentAnimations {
     track_released: bool,
     /// The cached minimum of the records' next times (timeline times,
     /// without the origin), for `frames` false and true; stale: to compute.
-    next_cache: Cell<[Cached; 2]>,
+    next_cache: Cell<[NextTimeCache; 2]>,
     /// Counts the changes of the records' play state or pending flag, and
     /// of their existence (see [`DocumentAnimations::state_epoch`]).
     state_epoch: Cell<u64>,
@@ -639,7 +639,7 @@ pub struct DocumentAnimations {
     /// and those of them whose animations can change visible pixels; `None`
     /// until the engine first told. An owner that was not checked (its
     /// animation started to run since) counts as visible.
-    visible: Option<Visibility>,
+    viewport_check: Option<ViewportCheck>,
     /// True once the record limit was reported.
     limit_warned: bool,
     /// The records that the page has room for, shared by its documents
@@ -936,7 +936,7 @@ impl DocumentAnimations {
                 done.push((record.id, record.owner));
             }
             let shown = self
-                .visible
+                .viewport_check
                 .as_ref()
                 .is_none_or(|v| v.shows(record.owner.node));
             // The restyle that changes the value starts the children's
@@ -960,7 +960,7 @@ impl DocumentAnimations {
             }
         }
         self.next_cache
-            .set([Cached::Known(next[0]), Cached::Known(next[1])]);
+            .set([NextTimeCache::Known(next[0]), NextTimeCache::Known(next[1])]);
         for (id, owner) in done {
             self.complete_transition(id, owner);
         }
@@ -1005,7 +1005,7 @@ impl DocumentAnimations {
             // The events wait for the next rendering update.
             return Some(self.time + self.origin);
         }
-        let next = if let Some(Cached::Known(next)) = cache.get(slot).copied() {
+        let next = if let Some(NextTimeCache::Known(next)) = cache.get(slot).copied() {
             next
         } else {
             let next = self
@@ -1017,7 +1017,7 @@ impl DocumentAnimations {
                 })
                 .reduce(f64::min);
             if let Some(entry) = cache.get_mut(slot) {
-                *entry = Cached::Known(next);
+                *entry = NextTimeCache::Known(next);
             }
             self.next_cache.set(cache);
             next
@@ -1027,7 +1027,7 @@ impl DocumentAnimations {
 
     /// True if the animations of `node` can change visible pixels.
     fn shown(&self, node: NodeId) -> bool {
-        self.visible.as_ref().is_none_or(|v| v.shows(node))
+        self.viewport_check.as_ref().is_none_or(|v| v.shows(node))
     }
 
     /// The owners of the animations that run (play state `running` at the
@@ -1067,17 +1067,17 @@ impl DocumentAnimations {
     /// change visible pixels; the others need no painted frames, only
     /// their event times. Owners that were not checked count as visible.
     pub fn set_visible(&mut self, checked: HashSet<NodeId>, visible: HashSet<NodeId>) {
-        let new = Some(Visibility { checked, visible });
-        if self.visible != new {
-            self.visible = new;
-            self.next_cache.set([Cached::Stale; 2]);
+        let new = Some(ViewportCheck { checked, visible });
+        if self.viewport_check != new {
+            self.viewport_check = new;
+            self.next_cache.set([NextTimeCache::Stale; 2]);
         }
     }
 
     /// A record changed (or appeared, or went): drops the cached next time
     /// and counts the change in [`DocumentAnimations::state_epoch`].
     fn invalidate(&self) {
-        self.next_cache.set([Cached::Stale; 2]);
+        self.next_cache.set([NextTimeCache::Stale; 2]);
         self.state_epoch.set(self.state_epoch.get() + 1);
     }
 

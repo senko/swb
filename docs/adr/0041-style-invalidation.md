@@ -400,14 +400,14 @@ pass plus a full one, so they are for rare cases:
   calls since the last styles. A full restyle in between (DOM change,
   fallback) resets them.
 - **The style of one element on demand** (`query_element_style`,
-  `element_styles`, `compute_element_styles`): unchanged. With current
+  `element_styles`, `compute_element_styles_animated`): unchanged. With current
   styles it reads the map, which equals a full restyle (the oracle,
   section 6). With `styles_stale` it computes the element and its
   ancestors as now; a state change still clears `element_styles`.
 - **`getComputedStyle` after a state change**: after a user's change the
   restyle has run, and the map equals a full restyle; after a script's
   focus, the path above. The pseudo-element path
-  (`compute_pseudo_element_style`) is unchanged. So scripts read the same
+  (`compute_pseudo_element_style_animated`) is unchanged. So scripts read the same
   values as now.
 
 ### 6. Tests

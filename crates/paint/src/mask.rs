@@ -36,7 +36,7 @@ use swb_style::{
 
 use crate::background;
 use crate::display_list::{
-    DisplayItem, ImageRef, ImageSizes, UNBOUNDED, layer_value, outset, with_descendants,
+    DisplayItem, ImageRef, ImageSizes, UNBOUNDED, layer_value, with_descendants,
 };
 use crate::group_bounds::union_areas;
 use crate::image::mul_255;
@@ -133,13 +133,10 @@ impl MaskBoxes {
         // Chromium's focus ring (`auto`) is drawn around the box and its
         // descendants, up to 3 px outside the offset.
         let outline = match style.outline_style.border_style() {
-            None => Some(outset(
-                with_descendants(b, origin),
-                style.outline_offset + 3.0,
-            )),
+            None => Some(with_descendants(b, origin).outset(style.outline_offset + 3.0)),
             Some(BorderStyle::None) => None,
             Some(_) if style.outline_width <= 0.0 => None,
-            Some(_) => Some(outset(border, style.outline_width + style.outline_offset)),
+            Some(_) => Some(border.outset(style.outline_width + style.outline_offset)),
         };
         MaskBoxes {
             border,

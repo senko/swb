@@ -5916,7 +5916,7 @@ Steps:
    behind the header links (not in the fixture; they only navigate),
    print.
 
-## M13: CSS transitions and animations (videojs.org) — planned
+## M13: CSS transitions and animations (videojs.org) — done
 
 Owner decisions (2026-11-20, ground rules): the target is the front page
 of <https://videojs.org/>, with JavaScript on and off, in three
@@ -6876,8 +6876,7 @@ Source Extensions, AV1 (dav1d), YouTube.
   `Arc::make_mut` on every children vector: free while the tree is
   unshared, a copy of every vector if a clone of the tree is ever kept.
   `BoxFragment::overflow_base` (20 bytes) is in every box fragment,
-  although only scroll containers use it. The debug-only compare helpers
-  of `paint_restyle.rs` (about 175 lines) could move to their own file.
+  although only scroll containers use it.
 - Paint-only frames (feature 4a): a hover in an iframe repaints right,
   but no test shows that the frame document took the paint-only path (the
   counters are the top-level page's).
@@ -6941,14 +6940,12 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Transitions (feature 5): 20,000 elements with `*{transition:color}`
   under an animated `body` color cost 92 ms per frame (17 ms without the
   transitions): carry the after-change style in the sharing cache.
-- Frame budgets (feature 4c), code: `composited.rs` repeats the set-up of
-  the nested `Rasterizer` and the loop that ends its layers from
-  `transform_layer` (about 35 lines).
 - Frame budgets (feature 4c): the viewport scroll is still a full raster
   (not needed for the budgets).
-- Damage (feature 4b), code: `merge_overlaps` repeats the loop of
-  `Region::new`; `outset`, `outset_px` and `filter_layer::grow` are one
-  function three times; `Lists::resync_budget` need not be a `Cell`;
+- Damage (feature 4b), code: `filter_layer::grow` is `Rect::outset` with
+  margins per side, but adds the integer margins before the float cast
+  (merging it could change a pixel); `Lists::resync_budget` may not need
+  to be a `Cell` (check the borrows of `mismatch` and `span`);
   `paint_generation` hashes the `Debug` text of `View`; `media_keys`,
   `group_ends` and the scratch pixmap are per-frame work proportional to
   the page (0.04 to 0.34 ms measured).
@@ -6956,8 +6953,11 @@ Source Extensions, AV1 (dav1d), YouTube.
   from Chromium by up to 12 per channel, animated or not (the `shimmer`
   pixel test).
 - Style (feature 3b): the animated value of each longhand clones the
-  whole style once per keyframe (`cascade/animated.rs`); avoiding it
-  needs an interpolation API that takes the computed values alone.
+  whole style once per keyframe (`cascade/animated.rs`, `value_of`), and
+  `interpolate::is_interpolable` clones a style per property check (in
+  each style change event with transitions); avoiding it needs an
+  interpolation API that takes the computed values alone, or two scratch
+  styles per input. Measure first.
 - Style (feature 3a): `animation-trigger` does not parse (Chromium 148
   parses it).
 - CSSOM (feature 3a): an infinite `cubic-bezier()` or `linear()`
@@ -6991,6 +6991,33 @@ Source Extensions, AV1 (dav1d), YouTube.
   varies between Chromium runs), the seek thumb and the time toggle (not
   focusable without media in swb), picture-in-picture and fullscreen (no
   such buttons without media). M15's exit test can add them.
+- Paint (feature 2b, ADR 0046): a gradient whose stops are not all
+  legacy colors interpolates in premultiplied sRGB (`raster/gradient.rs`;
+  gradients parse without `Wide` colors); Chromium interpolates it in
+  Oklab (CSS Color 4 §12). Not checked which gradients of the target
+  pages this changes.
+- Maintenance (M13, not done; items of the two reviews of the M13
+  maintenance): style: one `Copy` struct for the six common inputs of
+  the cascade entry points (eight `too_many_arguments` allows in
+  `cascade.rs`; touches the engine's call sites); `animation/records.rs`
+  (1,480 lines) into the record and the document table; the tuple
+  `Styler::animations` as a struct; one helper for the getters of
+  `AnimationEvent` and `TransitionEvent` (`web/src/events/misc.rs`); the
+  three tests of a property name as text for `animation-*` and
+  `transition-*` (`properties/text.rs`, `cssom/resolved/longhand.rs`).
+  Paint and engine: `Skipped`, `Budget` and `FrameNesting` into
+  `raster/budget.rs` (with accessors; ten files read their fields); a
+  `load_animated` and `play_ticks` helper for `damage_oracle.rs` and
+  `paint_only_fixtures.rs`; `restyle_check.rs` named `check_mode.rs`;
+  `paint_generation` without `format!("{:?}")`; one `PageSettings` for
+  the two bools of `gui::run` and `headless::serve`. Tests and tools: the
+  point choice of the two exit-record scripts (`RECT_PER_AREA` 3 and 8,
+  other inputs) and `rect_differences` of `videojs.rs` and
+  `osm_zagreb.rs` (other message texts) stay separate; `--js
+  --virtual-time --settle-ms N` is written 14 times in older hostile
+  cases (`core.virtual_run` exists); the default of the `animations` flag
+  differs between `swb.replay_options` (off) and the other tool functions
+  (on); `reference.load_settled` for `animation_survey.py`.
 - Tests (feature 6 review): `osm_zagreb_matches_chromium_without_webgl`
   failed in 2 of 2 runs while the `swb-engine` tests ran in parallel (0 of
   4 runs on an idle machine; once in 13 runs in the first review): the
@@ -7022,7 +7049,10 @@ Source Extensions, AV1 (dav1d), YouTube.
   5 added the URL reads of `--urls`); 8 to 10 of the 11 wheel notches of
   `osm-map` request no frame at once (Leaflet's own debounce).
 - Maintenance (M12, not done): the split of `tools/osm_zagreb_records.py`
-  (1,231 lines: steps, points, the swb runner; its tests load it by path);
+  (the M13 maintenance moved the shared parts to
+  `swbtools/exit_records.py`: 1,231 -> 890 lines; what stays is the
+  page's steps, record script and point choice; its tests load it by
+  path);
   one tokenizer for `path_numbers` (`osm_zagreb.rs`) and `common::numbers`
   (they differ in the sign rule); `run_swb_steps` of the OSM tool and
   `swb.run` (the first streams timed output with a kill timer); a
@@ -7050,9 +7080,6 @@ Source Extensions, AV1 (dav1d), YouTube.
   pattern and Python tries the next one when the first has no entries.
   No test checks that the two readers choose the same entry from one
   shared manifest.
-- `tools/osm_zagreb_records.py` (feature 1) repeats `write_json` and
-  `differences` of `tools/github_swb_records.py` (end-of-milestone
-  maintenance).
 - `fixtures/pages/osm-zagreb` (feature 1) keeps the site's anonymous
   `csrf-token` meta value (useless without the session cookie, which the
   fixture does not store).

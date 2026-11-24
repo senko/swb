@@ -14,9 +14,9 @@ viewport. Feature 4a adds the paint-only path (`paint-only-*`): a color animatio
 elements, an inherited `color` animation on a tree of 100,000 text fragments, a transform
 animation inside 1,000 nested scroll containers, and `opacity` toggled on 10,000 elements."""
 
-from swbtools.hostile_cases.core import JS, Page, case, doc, nest
+from swbtools.hostile_cases.core import JS, Page, case, doc, nest, virtual_run
 
-RUNNING = ("--js", "--virtual-time", "--settle-ms", "3000")
+RUNNING = virtual_run(3000)
 """Scripts and 3 s of virtual time: the animations run (one update per iteration)."""
 
 COUNT_ANIMATIONS = (
@@ -207,7 +207,7 @@ def animation_record_limit() -> Page:
     return Page(doc(body, css))
 
 
-LONG_RUN = ("--js", "--virtual-time", "--settle-ms", "100000")
+LONG_RUN = virtual_run(100000)
 """A script chain of 20,000 timers runs to its end (80 s of virtual time)."""
 
 TIMER_CHAIN = (
@@ -337,7 +337,7 @@ def animation_end_restart_loop() -> Page:
     "update, one update per frame (the iteration ends of 1 ms are at every frame)",
     time_limit_s=40,
     rss_limit_mib=1536,
-    swb_args=("--js", "--virtual-time", "--settle-ms", "1000"),
+    swb_args=virtual_run(1000),
     expect_log="iterations",
 )
 def animation_iteration_10000_elements_1ms() -> Page:
@@ -359,7 +359,7 @@ def animation_iteration_10000_elements_1ms() -> Page:
     "the rendering update settles in one pass",
     time_limit_s=40,
     rss_limit_mib=2048,
-    swb_args=("--js", "--virtual-time", "--settle-ms", "2000"),
+    swb_args=virtual_run(2000),
     expect_log="all finished 99000",
 )
 def animation_await_finished_99000() -> Page:
@@ -383,7 +383,7 @@ def animation_await_finished_99000() -> Page:
     "5 s) must not look at them again while no play state changes",
     time_limit_s=30,
     rss_limit_mib=1536,
-    swb_args=("--js", "--virtual-time", "--settle-ms", "5000"),
+    swb_args=virtual_run(5000),
     expect_log="finished read 10000",
 )
 def animation_finished_read_10000_infinite() -> Page:

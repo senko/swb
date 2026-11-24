@@ -39,10 +39,7 @@ use std::sync::{Arc, LazyLock};
 
 use swb_dom::NodeId;
 
-use super::{
-    CascadeContext, ImportantPhase, LONGHAND_WORDS, LonghandSet, ResolvedVariables,
-    apply_declaration,
-};
+use super::{CascadeContext, ImportantPhase, ResolvedVariables, apply_declaration};
 use crate::ComputedStyle;
 use crate::animation::interpolate::interpolate_longhand;
 use crate::animation::keyframes::{AnimatedProperty, Keyframe};
@@ -53,6 +50,7 @@ use crate::animation::transition_properties::TransitionStyle;
 use crate::animation::{AnimationOwner, AnimationStyle, DocumentAnimations, Easing, KeyframeSet};
 use crate::custom::{CustomPool, CustomProperties, Registered, compute_custom_properties};
 use crate::properties::compute::ComputeContext;
+use crate::properties::set::LonghandSet;
 use crate::properties::{CssWideKeyword, CustomDeclaration, LonghandId, PropertyDeclaration};
 use crate::values::{Content, Display};
 
@@ -197,7 +195,7 @@ impl AnimationInput {
             base,
             effects: Vec::new(),
             longhands: Vec::new(),
-            set: [0; LONGHAND_WORDS],
+            set: LonghandSet::new(),
             custom: Vec::new(),
             transitions: Vec::new(),
             transition_longhands: Vec::new(),
@@ -211,8 +209,7 @@ impl AnimationInput {
         for (i, effect) in effects.iter().enumerate() {
             if let TransitionTarget::Longhand(id) = effect.target {
                 longhands.insert(id, i);
-                let index = id as usize;
-                self.set[index / 64] |= 1 << (index % 64);
+                self.set.insert(id);
             }
         }
         let mut longhands: Vec<(LonghandId, usize)> = longhands.into_iter().collect();
@@ -240,10 +237,10 @@ impl AnimationInput {
 
     /// The effect and the property index of the animated longhand `id`.
     fn longhand(&self, id: LonghandId) -> Option<(&Effect, usize)> {
-        let index = id as usize;
-        if self.set[index / 64] & (1 << (index % 64)) == 0 {
+        if !self.set.contains(id) {
             return None;
         }
+        let index = id as usize;
         let at = self
             .longhands
             .binary_search_by_key(&index, |&(l, _, _)| l as usize)
@@ -426,8 +423,7 @@ pub(crate) fn input(
         for (p, list) in effect.set.properties.iter().enumerate() {
             match &list.property {
                 AnimatedProperty::Longhand(id) => {
-                    let index = *id as usize;
-                    if important.longhands[index / 64] & (1 << (index % 64)) == 0 {
+                    if !important.longhands.contains(*id) {
                         longhands.insert(*id, (e, p));
                     }
                 }
@@ -451,10 +447,9 @@ pub(crate) fn input(
         .map(|(id, (e, p))| (id, e, p))
         .collect();
     longhands.sort_by_key(|&(id, _, _)| id as usize);
-    let mut set = [0u64; LONGHAND_WORDS];
+    let mut set = LonghandSet::new();
     for &(id, _, _) in &longhands {
-        let index = id as usize;
-        set[index / 64] |= 1 << (index % 64);
+        set.insert(id);
     }
     Some(AnimationInput {
         base: Arc::new(base.clone()),
@@ -641,10 +636,7 @@ static ANIMATION_LONGHANDS: LazyLock<Vec<LonghandId>> = LazyLock::new(|| {
     LonghandId::ALL
         .iter()
         .copied()
-        .filter(|id| {
-            let name = id.name();
-            name.starts_with("animation-") || name.starts_with("transition-")
-        })
+        .filter(|id| id.is_animation_or_transition())
         .collect()
 });
 

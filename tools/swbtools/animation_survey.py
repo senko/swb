@@ -167,7 +167,7 @@ def animation_survey(names: list[str], javascript: bool, out: Path) -> int:
     )
     print(header)
     for name in names:
-        directory = paths.js_fixture_dir(name) if javascript else paths.fixture_dir(name)
+        directory = paths.fixture_directory(name, javascript)
         try:
             result = asyncio.run(survey_fixture(directory, javascript))
         except FileNotFoundError:
@@ -242,7 +242,7 @@ async def measure_cpu(
         if target in SYNTHETIC_PAGES:
             await page.set_content(SYNTHETIC_PAGES[target])
         else:
-            directory = paths.js_fixture_dir(target) if javascript else paths.fixture_dir(target)
+            directory = paths.fixture_directory(target, javascript)
             meta = read_meta(directory)
             await Replayer(Fixture(directory)).attach(context, page)
             await page.goto(meta.url, wait_until="load", timeout=60_000)

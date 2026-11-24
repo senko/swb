@@ -67,6 +67,15 @@ pub struct FrameDamage {
 }
 
 impl FrameDamage {
+    /// The damage of a full raster of a target of `size`.
+    pub fn full((width, height): (u32, u32)) -> FrameDamage {
+        FrameDamage {
+            full: true,
+            rects: Vec::new(),
+            viewport_pixels: u64::from(width) * u64::from(height),
+        }
+    }
+
     /// The device pixels that were rasterized.
     pub fn pixels(&self) -> u64 {
         if self.full {
@@ -100,7 +109,7 @@ impl DocumentState {
             self.last_frame = None;
             swb_paint::fill(target, swb_style::Rgba::WHITE);
             self.draw_indicators(target, None, fonts);
-            return full_damage(size);
+            return FrameDamage::full(size);
         };
         let started = Instant::now();
         let indicators = self.viewport_indicators();
@@ -132,14 +141,14 @@ impl DocumentState {
             Damage::None => (
                 RasterReport::default(),
                 FrameDamage {
-                    viewport_pixels: full_damage(size).viewport_pixels,
+                    viewport_pixels: FrameDamage::full(size).viewport_pixels,
                     ..FrameDamage::default()
                 },
             ),
             Damage::Full => {
                 swb_paint::fill(target, swb_style::Rgba::WHITE);
                 let report = swb_paint::rasterize(&list, target, params, fonts, images);
-                (report, full_damage(size))
+                (report, FrameDamage::full(size))
             }
             Damage::Rects(rects) => {
                 let report = swb_paint::rasterize_region(
@@ -154,7 +163,7 @@ impl DocumentState {
                 let drawn = FrameDamage {
                     full: false,
                     rects: rects.clone(),
-                    viewport_pixels: full_damage(size).viewport_pixels,
+                    viewport_pixels: FrameDamage::full(size).viewport_pixels,
                 };
                 (report, drawn)
             }
@@ -275,15 +284,6 @@ fn indicator_params(scale: f32) -> RasterParams {
         scroll: Point::default(),
         viewport_scroll: Point::default(),
         scale,
-    }
-}
-
-/// The damage of a full raster of a target of `size`.
-pub(crate) fn full_damage((width, height): (u32, u32)) -> FrameDamage {
-    FrameDamage {
-        full: true,
-        rects: Vec::new(),
-        viewport_pixels: u64::from(width) * u64::from(height),
     }
 }
 

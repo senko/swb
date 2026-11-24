@@ -1635,7 +1635,7 @@ and `crates/engine/tests/blend_mode.rs` (the cases of part 4d: transforms,
 `backdrop-filter`, frames and SVG, with Chromium's pixels; hostile cases
 `blend-in-4000-rounded-clips` and `blend-in-500-nested-rounded-clips`).
 The two fast paths of M12 feature 5a have unit tests:
-`crates/paint/src/raster/tests/blend_image.rs` (a blend group of one image
+`crates/paint/src/raster/tests/blend.rs` (a blend group of one image
 drawn directly against the layer path, pixel by pixel within the rounding
 of ADR 0043: the 17 modes with opaque and translucent images, fractional
 positions at scales 1 and 1.5, opacity, a clip through the image,

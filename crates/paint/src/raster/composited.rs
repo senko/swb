@@ -27,16 +27,17 @@
 
 use std::sync::Arc;
 
-use swb_layout::{GroupTransform, Matrix, Point, Rect};
+use swb_layout::{GroupTransform, Matrix, Rect};
 use swb_style::MixBlendMode;
 use swb_text::FontContext;
 use tiny_skia::Pixmap;
 
 use super::cache::{Charges, LayerKey, LayerParts, rect_bits};
 use super::region::Region;
+use super::transform_layer::GroupItems;
 use super::{
     ImageSource, MAX_TRANSFORM_DEPTH, MAX_TRANSFORM_LAYER_PIXELS, MAX_TRANSFORM_LAYER_SIDE,
-    RasterParams, Rasterizer,
+    Rasterizer,
 };
 use crate::damage::item_media_key;
 use crate::display_list::DisplayItem;
@@ -60,7 +61,7 @@ pub(super) enum Composited {
 }
 
 /// Where and how large the layer of a composited group is.
-struct Plan {
+struct CompositedPlan {
     /// The group's bounds (its coordinates): the area of the layer.
     bounds: Rect,
     /// Layer px per CSS px of the group.
@@ -73,7 +74,7 @@ struct Plan {
     work: u64,
 }
 
-impl Plan {
+impl CompositedPlan {
     /// From layer px to target device px.
     fn to_target(&self) -> Matrix {
         let k = 1.0 / self.scale;
@@ -83,16 +84,13 @@ impl Plan {
 }
 
 impl Rasterizer<'_> {
-    /// Draws `items[range]`, the content of a composited transform group
-    /// whose items `transform` maps to the coordinates of `params` and that
+    /// Draws `group`, the content of a composited transform group whose
+    /// items `transform` maps to the coordinates of `params` and that
     /// draws in `bounds` (its own coordinates); see the module
     /// documentation.
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn composited_layer(
         &mut self,
-        items: &[DisplayItem],
-        range: std::ops::Range<usize>,
-        ends: &[usize],
+        group: GroupItems<'_>,
         transform: &Matrix,
         bounds: Rect,
         fonts: &mut FontContext,
@@ -109,6 +107,7 @@ impl Rasterizer<'_> {
             self.budget.skipped.transforms = true;
             return Composited::Done;
         }
+        let GroupItems { items, range, ends } = group;
         let (content, alpha) = own_opacity(items, range);
         let Some(layer) = self.composited_pixels(items, content, ends, &plan, (fonts, images))
         else {
@@ -125,13 +124,13 @@ impl Rasterizer<'_> {
 
     /// The layer of a composited group with the transform `transform` and
     /// the bounds `bounds`, if it is within the limits of transform layers.
-    fn plan_composited(&self, transform: &Matrix, bounds: Rect) -> Option<Plan> {
+    fn plan_composited(&self, transform: &Matrix, bounds: Rect) -> Option<CompositedPlan> {
         if self.depth >= MAX_TRANSFORM_DEPTH {
             return None;
         }
         let device_scale = self.params.scale;
-        let scale = layer_scale(device_scale, transform)?;
-        let (width, height) = layer_size(bounds, scale)?;
+        let scale = group_layer_scale(device_scale, transform)?;
+        let (width, height) = group_layer_size(bounds, scale)?;
         let scroll = self.params.scroll;
         let to_device = Matrix::new(
             device_scale,
@@ -150,7 +149,7 @@ impl Rasterizer<'_> {
                 .map_or(0, |r| (r.width as u64).saturating_mul(r.height as u64))
         });
         let work = (u64::from(width) * u64::from(height)).saturating_add(covered);
-        Some(Plan {
+        Some(CompositedPlan {
             bounds,
             scale,
             width,
@@ -169,7 +168,7 @@ impl Rasterizer<'_> {
         items: &[DisplayItem],
         content: std::ops::Range<usize>,
         ends: &[usize],
-        plan: &Plan,
+        plan: &CompositedPlan,
         (fonts, images): (&mut FontContext, &dyn ImageSource),
     ) -> Option<Arc<Pixmap>> {
         let slice = items.get(content.clone())?;
@@ -188,7 +187,7 @@ impl Rasterizer<'_> {
         // layer of a transform group is.
         let churns = cache.is_none_or(|c| c.layer_misses(&parts) > MAX_WHOLE_MISSES);
         let part = match &self.region {
-            Some(region) if churns => Some(super::layer_part(
+            Some(region) if churns => Some(super::transform_layer::layer_part(
                 &plan.to_device,
                 plan.bounds,
                 plan.scale,
@@ -214,7 +213,7 @@ impl Rasterizer<'_> {
     fn layer_parts(
         &self,
         slice: &[DisplayItem],
-        plan: &Plan,
+        plan: &CompositedPlan,
         images: &dyn ImageSource,
     ) -> LayerParts {
         let viewport = if depends_on_viewport(slice) {
@@ -247,7 +246,7 @@ impl Rasterizer<'_> {
         items: &[DisplayItem],
         content: std::ops::Range<usize>,
         ends: &[usize],
-        plan: &Plan,
+        plan: &CompositedPlan,
         part: Option<(Rect, Option<Region>)>,
         (fonts, images): (&mut FontContext, &dyn ImageSource),
     ) -> Option<(Pixmap, Option<Charges>)> {
@@ -257,41 +256,18 @@ impl Rasterizer<'_> {
             self.end_charges(mark);
             return None;
         };
-        // The groups inside the layer share the budgets of the strip.
-        let budget = std::mem::take(&mut self.budget);
-        self.budget = {
-            let mut nested = Rasterizer {
-                target: layer.data_mut(),
-                target_size: (plan.width, plan.height),
-                offset_y: 0.0,
-                params: RasterParams {
-                    scroll: plan.bounds.origin(),
-                    viewport_scroll: self.viewport_scroll,
-                    scale: plan.scale,
-                },
-                layers: Vec::new(),
-                budget,
-                clips: Vec::new(),
-                mask: None,
-                vectors: &mut *self.vectors,
-                translation: Point::default(),
-                visible,
-                region,
-                viewport_scroll: self.viewport_scroll,
-                fixed_origin: self.fixed_origin,
-                viewport_clip: None,
-                depth: self.depth + 1,
-                frames: self.frames,
-                sticky: std::mem::take(&mut self.sticky),
-                image_blend: None,
-            };
-            nested.run(items, content, ends, fonts, images);
-            while !nested.layers.is_empty() {
-                nested.pop_layer(images, fonts);
-            }
-            self.sticky = std::mem::take(&mut nested.sticky);
-            nested.budget
+        let group = GroupItems {
+            items,
+            range: content,
+            ends,
         };
+        self.draw_nested(
+            &mut layer,
+            (plan.bounds.origin(), plan.scale),
+            (visible, region),
+            group,
+            (fonts, images),
+        );
         self.release(&layer);
         let charges = self.end_charges(mark);
         Some((layer, charges))
@@ -303,7 +279,7 @@ impl Rasterizer<'_> {
 /// the group's largest scale factor rounded up to a power of two (1 for
 /// scales up to 1, at most [`MAX_GROUP_SCALE`]). `None` for a transform
 /// that is not finite or has no scale.
-fn layer_scale(s: f32, m: &Matrix) -> Option<f32> {
+fn group_layer_scale(s: f32, m: &Matrix) -> Option<f32> {
     let scale = m.max_scale();
     if !(scale.is_finite() && scale > 0.0 && s.is_finite() && s > 0.0) {
         return None;
@@ -317,7 +293,7 @@ fn layer_scale(s: f32, m: &Matrix) -> Option<f32> {
 
 /// The size in px of a layer that covers `bounds` at `k` px per CSS px, if
 /// it is within the limits of transform layers.
-fn layer_size(bounds: Rect, k: f32) -> Option<(u32, u32)> {
+fn group_layer_size(bounds: Rect, k: f32) -> Option<(u32, u32)> {
     let width = (bounds.width * k).ceil().max(1.0);
     let height = (bounds.height * k).ceil().max(1.0);
     let fits = width.is_finite()
@@ -398,13 +374,13 @@ mod tests {
     #[test]
     fn the_layer_scale_is_a_power_of_two_of_the_group_scale() {
         let scaled = |k: f32| Matrix::new(k, 0.0, 0.0, k, 3.5, 7.25);
-        assert_eq!(layer_scale(1.0, &scaled(0.99)), Some(1.0));
-        assert_eq!(layer_scale(1.5, &scaled(0.2)), Some(1.5));
-        assert_eq!(layer_scale(1.0, &scaled(1.01)), Some(2.0));
-        assert_eq!(layer_scale(2.0, &scaled(3.0)), Some(8.0));
-        assert_eq!(layer_scale(1.0, &scaled(1000.0)), Some(8.0));
-        assert_eq!(layer_scale(1.0, &scaled(f32::NAN)), None);
-        assert_eq!(layer_scale(1.0, &scaled(0.0)), None);
+        assert_eq!(group_layer_scale(1.0, &scaled(0.99)), Some(1.0));
+        assert_eq!(group_layer_scale(1.5, &scaled(0.2)), Some(1.5));
+        assert_eq!(group_layer_scale(1.0, &scaled(1.01)), Some(2.0));
+        assert_eq!(group_layer_scale(2.0, &scaled(3.0)), Some(8.0));
+        assert_eq!(group_layer_scale(1.0, &scaled(1000.0)), Some(8.0));
+        assert_eq!(group_layer_scale(1.0, &scaled(f32::NAN)), None);
+        assert_eq!(group_layer_scale(1.0, &scaled(0.0)), None);
     }
 
     #[test]

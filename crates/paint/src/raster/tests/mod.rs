@@ -1,4 +1,8 @@
+use super::strips::equal_strip_rows;
+use super::transform_layer::{grid_area, transform_scale, transform_size};
 use super::*;
+use crate::display_list::DisplayList;
+use crate::group_bounds::transform_ends;
 
 #[test]
 fn blit_blends_and_clips() {
@@ -989,19 +993,19 @@ fn transform_layers_nest_up_to_a_depth() {
 #[test]
 fn transform_layer_geometry_is_bounded() {
     let area = Rect::new(0.0, 0.0, 100.0, 50.0);
-    assert_eq!(layer_scale(area, f32::NAN), None);
-    assert_eq!(layer_scale(area, 0.0), None);
-    assert_eq!(layer_scale(area, f32::INFINITY), None);
+    assert_eq!(transform_scale(area, f32::NAN), None);
+    assert_eq!(transform_scale(area, 0.0), None);
+    assert_eq!(transform_scale(area, f32::INFINITY), None);
     // Sides and pixels are limited.
-    let k = layer_scale(Rect::new(0.0, 0.0, 1e6, 1.0), 1.0).unwrap();
+    let k = transform_scale(Rect::new(0.0, 0.0, 1e6, 1.0), 1.0).unwrap();
     assert!(1e6 * k <= MAX_TRANSFORM_LAYER_SIDE * 1.001);
-    let k = layer_scale(Rect::new(0.0, 0.0, 1e4, 1e4), 1.0).unwrap();
+    let k = transform_scale(Rect::new(0.0, 0.0, 1e4, 1e4), 1.0).unwrap();
     assert!(1e8 * k * k <= MAX_TRANSFORM_LAYER_PIXELS * 1.001);
     assert_eq!(
-        layer_size(Rect::new(0.0, 0.0, f32::NAN, 1.0), 1.0),
+        transform_size(Rect::new(0.0, 0.0, f32::NAN, 1.0), 1.0),
         Some((1, 1))
     );
-    assert_eq!(layer_size(Rect::new(0.0, 0.0, 1e9, 1.0), 1.0), None);
+    assert_eq!(transform_size(Rect::new(0.0, 0.0, 1e9, 1.0), 1.0), None);
     // The grid starts at the corner of the bounds; two pixels of
     // margin, inside the bounds.
     let bounds = Rect::new(10.0, 10.0, 100.0, 100.0);

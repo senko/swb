@@ -8,8 +8,8 @@ use swb_css::{ComponentValue, Parser};
 
 use super::{
     AnimationName, AnimationStyle, INITIAL, PlayState, RANGE_NAMES, composition_text, cycle,
-    direction_text, fill_text, parse_animation, parse_animation_range, parse_longhand,
-    parse_range_pair, play_state_text, range_text,
+    parse_animation, parse_animation_range, parse_longhand, parse_range_pair, play_state_text,
+    range_text,
 };
 use crate::ComputedStyle;
 use crate::animation::easing::Easing;
@@ -38,8 +38,8 @@ pub(crate) fn computed_text(name: &str, style: &ComputedStyle) -> Option<String>
         "animation-timing-function" => join(&a.timing_functions, Easing::computed_text),
         "animation-delay" => join(&a.delays, |s| seconds_text(*s)),
         "animation-iteration-count" => join(&a.iteration_counts, |c| count_text(*c)),
-        "animation-direction" => join(&a.directions, |d| direction_text(*d).to_owned()),
-        "animation-fill-mode" => join(&a.fill_modes, |f| fill_text(*f).to_owned()),
+        "animation-direction" => join(&a.directions, |d| d.as_str().to_owned()),
+        "animation-fill-mode" => join(&a.fill_modes, |f| f.as_str().to_owned()),
         "animation-play-state" => join(&a.play_states, |s| play_state_text(*s).to_owned()),
         "animation-composition" => join(&a.compositions, |c| composition_text(*c).to_owned()),
         "animation-timeline" => join(&a.timelines, ToString::to_string),
@@ -121,10 +121,10 @@ fn computed_layer(a: &AnimationStyle, i: usize) -> String {
     if direction != PlaybackDirection::Normal
         || named(&["normal", "reverse", "alternate", "alternate-reverse"])
     {
-        parts.push(direction_text(direction).to_owned());
+        parts.push(direction.as_str().to_owned());
     }
     if fill != FillMode::None || named(&["forwards", "backwards", "both", "none"]) {
-        parts.push(fill_text(fill).to_owned());
+        parts.push(fill.as_str().to_owned());
     }
     if play != PlayState::Running || named(&["running", "paused"]) {
         parts.push(play_state_text(play).to_owned());
@@ -205,8 +205,8 @@ fn value_text(value: &LonghandValue, tokens: &[ComponentValue]) -> String {
         V::AnimationTimingFunction(v) => join(v, Easing::declared_text),
         V::AnimationDelay(v) => join(v, |t| t.declared()),
         V::AnimationIterationCount(v) => join(v, |c| c.declared()),
-        V::AnimationDirection(v) => join(v, |d| direction_text(*d).to_owned()),
-        V::AnimationFillMode(v) => join(v, |f| fill_text(*f).to_owned()),
+        V::AnimationDirection(v) => join(v, |d| d.as_str().to_owned()),
+        V::AnimationFillMode(v) => join(v, |f| f.as_str().to_owned()),
         V::AnimationPlayState(v) => join(v, |s| play_state_text(*s).to_owned()),
         V::AnimationComposition(v) => join(v, |c| composition_text(*c).to_owned()),
         V::AnimationTimeline(v) => join(v, ToString::to_string),

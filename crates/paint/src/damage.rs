@@ -563,7 +563,7 @@ impl Walk<'_> {
             rect
         };
         let rect = match clip {
-            Some(c) => match rect.intersection(&outset(c, 1.0)) {
+            Some(c) => match rect.intersection(&c.outset(1.0)) {
                 Some(r) => r,
                 None => return,
             },
@@ -700,19 +700,14 @@ fn grow_filter_damage(out: &mut Vec<Rect>, start: usize, reach: f32, clip: Optio
         .get(start..)
         .unwrap_or(&[])
         .iter()
-        .map(|r| outset(*r, reach))
+        .map(|r| r.outset(reach))
         .filter_map(|r| match clip {
-            Some(c) => r.intersection(&outset(c, 1.0)),
+            Some(c) => r.intersection(&c.outset(1.0)),
             None => Some(r),
         })
         .collect();
     out.truncate(start);
     out.extend(grown);
-}
-
-/// `r` grown by `by` on every side.
-fn outset(r: Rect, by: f32) -> Rect {
-    Rect::new(r.x - by, r.y - by, r.width + 2.0 * by, r.height + 2.0 * by)
 }
 
 /// The smallest rectangle of whole pixels that contains `r`.
@@ -879,12 +874,12 @@ pub fn backdrop_boxes(list: &DisplayList, keys: &MediaKeys, params: RasterParams
                 }
             }
             DisplayItem::BackdropFilter { rect, .. } => {
-                boxes.push(outset(base.multiply(&matrix).map_rect(rect), grow));
+                boxes.push(base.multiply(&matrix).map_rect(rect).outset(grow));
             }
             DisplayItem::Frame { rect, .. }
                 if keys.get(i).is_some_and(|k| k[1] == FRAME_READS_PIXELS) =>
             {
-                boxes.push(outset(base.multiply(&matrix).map_rect(rect), grow));
+                boxes.push(base.multiply(&matrix).map_rect(rect).outset(grow));
             }
             _ => {}
         }
@@ -969,18 +964,29 @@ pub fn hold_backdrop_boxes(
 /// Merges overlapping rectangles into their bounding box until none
 /// overlap.
 fn merge_overlaps(rects: &mut Vec<PixelRect>) {
+    merge_until_disjoint(rects, overlaps, union);
+}
+
+/// Replaces the first pair of `items` that `overlap` finds by its `union`
+/// (the second item leaves by `swap_remove`) and starts again, until no pair
+/// overlaps. For few items.
+pub(crate) fn merge_until_disjoint<T: Copy>(
+    items: &mut Vec<T>,
+    overlap: impl Fn(T, T) -> bool,
+    union: impl Fn(T, T) -> T,
+) {
     let mut merged = true;
     while merged {
         merged = false;
-        'pairs: for a in 0..rects.len() {
-            for b in a + 1..rects.len() {
-                let (Some(&ra), Some(&rb)) = (rects.get(a), rects.get(b)) else {
+        'pairs: for a in 0..items.len() {
+            for b in a + 1..items.len() {
+                let (Some(&ia), Some(&ib)) = (items.get(a), items.get(b)) else {
                     continue;
                 };
-                if overlaps(ra, rb) {
-                    rects.swap_remove(b);
-                    if let Some(r) = rects.get_mut(a) {
-                        *r = union(ra, rb);
+                if overlap(ia, ib) {
+                    items.swap_remove(b);
+                    if let Some(i) = items.get_mut(a) {
+                        *i = union(ia, ib);
                     }
                     merged = true;
                     break 'pairs;

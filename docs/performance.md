@@ -68,25 +68,42 @@ whenever it runs (style, layout, display list).
 
 ### Interaction stages (`--bench`, M11)
 
-After the stages, `--bench` runs two interaction stages with the page's
-normal input paths: `Page::mouse_move` or `Page::wheel`, then
-`Page::render` into the viewport pixmap when the input says that the page
-needs a repaint, as the GUI does. The GUI's composition of the window (the
+After the stages, `--bench` runs three interaction stages (`animation`,
+`hover`, `scroll`) with the page's normal input paths: `Page::mouse_move`
+or `Page::wheel`, then `Page::render_update` (hover and animation) or
+`Page::render` (scroll) into the viewport pixmap when the input says that
+the page needs a repaint, as the GUI does. The GUI's composition of the window (the
 toolbar and the copies, 5.5 ms at 1280 x 900 before M11 feature 3) is not
-part of the times. The result is the key `interaction` of the JSON:
+part of the times. The result is the key `interaction` of the JSON (the
+sample shows the keys; the numbers of `animation`, `render` and
+`raster_cache` are illustrative):
 
 ```json
 "interaction": {
+  "animation": {
+    "frames": 30, "median_ms": 12.0, "style_ms": 3.0, "layout_ms": 0.0,
+    "display_list_ms": 2.0, "raster_ms": 4.0, "restyled_elements": 120,
+    "paint_only_frames": 30, "layout_runs": 0, "paint_ms": 1.5,
+    "render": { "raster_ms": 4.0, "raster_p90_ms": 6.0, "damage_ms": 0.8,
+      "full_frames": 1, "region_frames": 29, "empty_frames": 0,
+      "region_pixels_median": 90000 }
+  },
   "hover": {
     "grid": [8, 6], "rounds": 5, "steps": 240, "changed": 120,
     "changed_median_ms": 91.6, "changed_p90_ms": 123.9,
     "median_ms": 75.6, "p90_ms": 123.3,
     "style_runs_per_change": 1.0, "layout_runs_per_change": 0.6,
-    "style_ms_per_change": 24.1, "layout_ms_per_change": 3.1
+    "style_ms_per_change": 24.1, "layout_ms_per_change": 3.1,
+    "render": { "raster_ms": 8.0, "raster_p90_ms": 20.0, "damage_ms": 1.0,
+      "full_frames": 1, "region_frames": 119, "empty_frames": 0,
+      "region_pixels_median": 40000 }
   },
   "scroll": {
     "steps": 40, "median_ms": 5.8, "p90_ms": 15.3,
     "style_runs": 0, "layout_runs": 0, "style_ms": 0.0, "layout_ms": 0.0
+  },
+  "raster_cache": {
+    "peak_bytes": 8000000, "bytes": 6000000, "entries": 12, "hits": 300, "misses": 14
   }
 }
 ```

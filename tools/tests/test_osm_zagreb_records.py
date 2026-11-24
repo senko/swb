@@ -7,6 +7,7 @@ import json
 import sys
 from pathlib import Path
 
+from swbtools import exit_records
 from swbtools.records import format_json
 
 SCRIPT = Path(__file__).resolve().parents[1] / "osm_zagreb_records.py"
@@ -64,7 +65,7 @@ def test_answers_become_records_with_their_times():
         (1.0, json.dumps({"value": "{broken"})),
         (1.2, json.dumps({"value": 5})),
     ]
-    found, times = records.parse_answers(lines)
+    found, times = exit_records.parse_answers(lines)
     assert found[0] == {"hash": "#a"}
     assert found[1] == {"error": "TypeError: x"}
     assert found[2]["error"].startswith("not JSON")
@@ -82,7 +83,7 @@ def test_the_log_is_split_at_the_screenshot_lines():
             "WARN console group two",
         ]
     )
-    parts = records.split_log(text)
+    parts = exit_records.split_log(text)
     assert parts == [
         ["WARN console load error"],
         ["WARN console group one", "WARN console group one again"],
@@ -93,15 +94,15 @@ def test_the_log_is_split_at_the_screenshot_lines():
 def test_the_differences_name_the_fields_to_two_levels():
     a = {"hash": "#1", "tiles": {"loaded": 24, "srcs": ["a"]}, "counts": {"li": 3}, "same": [1]}
     b = {"hash": "#2", "tiles": {"loaded": 24, "srcs": ["b"]}, "counts": {"li": 3}, "same": [1]}
-    assert records.field_differences(a, a) == []
-    assert records.field_differences(a, b) == ["hash", "tiles.srcs"]
-    assert records.field_differences(a, {"hash": "#1"}) == [
+    assert exit_records.field_differences(a, a) == []
+    assert exit_records.field_differences(a, b) == ["hash", "tiles.srcs"]
+    assert exit_records.field_differences(a, {"hash": "#1"}) == [
         "counts.li",
         "same",
         "tiles.loaded",
         "tiles.srcs",
     ]
-    assert records.field_differences({"x": 1}, {"error": "boom"}) == ["error", "x"]
+    assert exit_records.field_differences({"x": 1}, {"error": "boom"}) == ["error", "x"]
 
 
 def test_matomo_urls_are_cut_to_the_path_and_the_missing_urls_sorted():

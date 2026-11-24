@@ -737,27 +737,6 @@ impl g::css_animation::CSSAnimationImpl for WebState {
     }
 }
 
-/// The text of a fill mode, a direction.
-fn fill_text(fill: swb_style::animation::FillMode) -> &'static str {
-    use swb_style::animation::FillMode as F;
-    match fill {
-        F::None => "none",
-        F::Forwards => "forwards",
-        F::Backwards => "backwards",
-        F::Both => "both",
-    }
-}
-
-fn direction_text(direction: swb_style::animation::PlaybackDirection) -> &'static str {
-    use swb_style::animation::PlaybackDirection as D;
-    match direction {
-        D::Normal => "normal",
-        D::Reverse => "reverse",
-        D::Alternate => "alternate",
-        D::AlternateReverse => "alternate-reverse",
-    }
-}
-
 /// `getTiming()` of an animation's state (of a released one: the default
 /// timing).
 fn effect_timing(info: Option<&AnimationInfo>) -> EffectTiming {
@@ -765,11 +744,11 @@ fn effect_timing(info: Option<&AnimationInfo>) -> EffectTiming {
     let t = info.map_or(&default, |i| &i.timing);
     EffectTiming {
         delay: t.delay,
-        direction: direction_text(t.direction).to_owned(),
+        direction: t.direction.as_str().to_owned(),
         duration: t.duration,
         easing: t.easing.computed_text(),
         end_delay: t.end_delay,
-        fill: fill_text(t.fill).to_owned(),
+        fill: t.fill.as_str().to_owned(),
         iteration_start: t.iteration_start,
         iterations: t.iterations,
     }

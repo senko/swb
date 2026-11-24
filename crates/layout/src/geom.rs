@@ -120,6 +120,17 @@ impl Rect {
         )
     }
 
+    /// This rectangle grown by `by` on every side (shrunk if negative).
+    #[must_use]
+    pub fn outset(&self, by: f32) -> Rect {
+        Rect::new(
+            self.x - by,
+            self.y - by,
+            self.width + 2.0 * by,
+            self.height + 2.0 * by,
+        )
+    }
+
     /// This rectangle moved by `offset`.
     #[must_use]
     pub fn translate(&self, offset: Point) -> Rect {

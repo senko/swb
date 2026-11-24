@@ -1,4 +1,4 @@
-//! Properties without effect on layout or paint: `will-change` (CSS Will
+//! Properties that layout and paint ignore: `will-change` (CSS Will
 //! Change 1), `touch-action` (Pointer Events 3), `perspective` and
 //! `perspective-origin` (CSS Transforms 2), with the `-webkit-` aliases that
 //! Chromium has; and `scroll-margin-*` and `scroll-padding-*` (CSS Scroll
@@ -6,8 +6,8 @@
 //!
 //! swb parses them with their grammar, cascades and computes them, and
 //! shows them to scripts (`element.style`, `getComputedStyle`,
-//! `CSS.supports`), but draws no perspective. Pages test and write these properties
-//! (Leaflet's tests for the 3D support). The scroll margin and padding
+//! `CSS.supports`), but draws no perspective. Pages test and write these
+//! properties (Leaflet's tests for the 3D support). The scroll margin and padding
 //! are read by the scroll to a fragment, `scrollIntoView()` and focus
 //! scrolling ([`InertStyle::scroll_margin`], [`InertStyle::scroll_padding`]).
 //!

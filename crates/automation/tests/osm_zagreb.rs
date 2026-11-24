@@ -79,9 +79,8 @@ use std::time::{Duration, Instant};
 
 use common::console;
 use common::departures::Departures;
-use common::{
-    PIXEL_TOLERANCE, Recording, fixture, load_at_capture_with, on_page_thread, step_groups, value,
-};
+use common::records::{Difference, paced, pixel_problems};
+use common::{Recording, fixture, load_at_capture_with, on_page_thread, step_groups, value};
 use serde_json::{Value, json};
 use swb_automation::run_steps;
 use swb_engine::Page;
@@ -158,15 +157,6 @@ const NO_TRANSPORT: Sequence = Sequence {
     departures: include_str!("data/osm-zagreb-nt-departures.json"),
 };
 
-/// The steps of a group with the pause after each step, as `swbtools replay`
-/// and `osm_zagreb_records.py swb` run them.
-fn paced(steps: &[Value]) -> Vec<Value> {
-    steps
-        .iter()
-        .flat_map(|step| [step.clone(), json!({ "wait": PAUSE_MS })])
-        .collect()
-}
-
 /// The record `window.__o()` of the page.
 fn record(page: &mut Page) -> Value {
     let text = value(page, "window.__o()");
@@ -181,9 +171,6 @@ fn masked(url: &str) -> String {
         url.to_owned()
     }
 }
-
-/// A difference: the field it names and its text.
-type Difference = (String, String);
 
 /// The fields of a record that the test compares exactly: all but the
 /// rectangles and the outline paths (the numbers of `d`).
@@ -386,22 +373,6 @@ fn missing_problems(
     })
 }
 
-/// The pixel differences of a group, without those that a departure
-/// accepts.
-fn pixel_problems(
-    label: &str,
-    page: &mut Page,
-    points: &[common::Point],
-    pixels: &Value,
-    departures: &mut Departures,
-) -> Vec<String> {
-    common::pixel_mismatches(label, page, points, pixels, PIXEL_TOLERANCE)
-        .into_iter()
-        .filter(|(name, _)| !departures.accepts_point(name))
-        .map(|(_, message)| message)
-        .collect()
-}
-
 fn check(sequence: &Sequence, dir: &std::path::Path) {
     let started = Instant::now();
     let expected: Vec<Value> = serde_json::from_str(sequence.chromium).unwrap();
@@ -434,7 +405,7 @@ fn check(sequence: &Sequence, dir: &std::path::Path) {
         .collect::<Vec<_>>();
     for (number, label) in labels.iter().enumerate() {
         if number > 0 {
-            run_steps(&mut page, &paced(&groups[number - 1].1))
+            run_steps(&mut page, &paced(&groups[number - 1].1, PAUSE_MS))
                 .unwrap_or_else(|e| panic!("group {label}: {e}"));
         }
         problems.extend(record_problems(

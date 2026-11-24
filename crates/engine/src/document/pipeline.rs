@@ -798,11 +798,13 @@ impl DocumentState {
         changed
     }
 
-    /// Lays out the document, if it has styles. Returns false if not.
-    fn run_layout(&mut self, fonts: &mut FontContext) -> bool {
-        let Some(styles) = &self.styles else {
-            return false;
-        };
+    /// The layout of the document with the styles `styles`, at the current
+    /// viewport, images, form values and focus.
+    pub(super) fn layout_with(
+        &self,
+        styles: &swb_style::StyleMap,
+        fonts: &mut FontContext,
+    ) -> swb_layout::FragmentTree {
         let controls = LayoutControls {
             doc: &self.dom,
             forms: self.forms.value(),
@@ -815,8 +817,16 @@ impl DocumentState {
             replaced: &self.images,
             controls: &controls,
         };
+        swb_layout::layout(&input, fonts)
+    }
+
+    /// Lays out the document, if it has styles. Returns false if not.
+    fn run_layout(&mut self, fonts: &mut FontContext) -> bool {
+        let Some(styles) = &self.styles else {
+            return false;
+        };
         let started = Instant::now();
-        let fragments = swb_layout::layout(&input, fonts);
+        let fragments = self.layout_with(styles, fonts);
         self.timings.layout = started.elapsed();
         self.flushes.layout(self.timings.layout, self.in_query);
         log::debug!("layout: {:?}", self.timings.layout);

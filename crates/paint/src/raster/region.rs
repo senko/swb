@@ -4,6 +4,7 @@
 
 use swb_layout::Rect;
 
+use crate::damage::merge_until_disjoint;
 use crate::filter::Margins;
 
 /// The most rectangles of a region; more become their bounding box.
@@ -30,25 +31,11 @@ impl Region {
             parts = vec![bounds];
         }
         // Merge overlapping parts until none overlap (few parts).
-        let mut merged = true;
-        while merged {
-            merged = false;
-            'pairs: for a in 0..parts.len() {
-                for b in a + 1..parts.len() {
-                    let (Some(&ra), Some(&rb)) = (parts.get(a), parts.get(b)) else {
-                        continue;
-                    };
-                    if ra.intersection(&rb).is_some() {
-                        parts.swap_remove(b);
-                        if let Some(p) = parts.get_mut(a) {
-                            *p = ra.union(&rb);
-                        }
-                        merged = true;
-                        break 'pairs;
-                    }
-                }
-            }
-        }
+        merge_until_disjoint(
+            &mut parts,
+            |a, b| a.intersection(&b).is_some(),
+            |a, b| a.union(&b),
+        );
         Some(Region { parts, bounds })
     }
 

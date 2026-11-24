@@ -27,7 +27,7 @@ STAGES = ["parse", "stylesheets", "style", "layout", "display_list", "raster"]
 def bench_fixture(binary: Path, name: str, runs: int, javascript: bool = False) -> dict | None:
     """Runs `swb --bench` for a fixture (of `fixtures/js/` with `javascript`)
     and returns its JSON output, or None if swb failed."""
-    directory = paths.js_fixture_dir(name) if javascript else paths.fixture_dir(name)
+    directory = paths.fixture_directory(name, javascript)
     meta = read_meta(directory)
     extra = swb_js_options(javascript, meta.captured)
     command = swb.bench_command(binary, directory, meta.url, meta.viewport, runs, extra)

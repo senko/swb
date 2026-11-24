@@ -27,7 +27,7 @@ use swb_style::{MixBlendMode, Rgba};
 use swb_text::FontContext;
 
 use super::{ImageSource, LayerKind, NewLayer, Rasterizer, snap};
-use crate::display_list::{DisplayItem, DisplayList, outset};
+use crate::display_list::{DisplayItem, DisplayList};
 
 /// What the rasterizer needs of a frame's document.
 pub struct FrameContent<'a> {
@@ -120,7 +120,9 @@ impl Rasterizer<'_> {
         }
         let s = self.params.scale;
         let margin = 1.0 / s;
-        let Some(visible) = outset(rect.translate(self.translation), margin)
+        let Some(visible) = rect
+            .translate(self.translation)
+            .outset(margin)
             .intersection(&self.visible)
             .filter(|_| !content.list.items.is_empty())
         else {

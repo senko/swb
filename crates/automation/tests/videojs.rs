@@ -138,6 +138,7 @@ use std::time::{Duration, Instant};
 use common::animation_values::{oklab_as_rgb, same as value_same};
 use common::console;
 use common::departures::Departures;
+use common::records::{Difference, paced, pixel_problems};
 use common::{
     PIXEL_TOLERANCE, fixture, load_at_capture_animated, on_page_thread, replay_page_with,
     repo_root, step_groups, value,
@@ -219,20 +220,6 @@ const EVENTS: Sequence = Sequence {
     pixels: None,
     pause_ms: EVENTS_PAUSE_MS,
 };
-
-/// A difference: the field it names and its text.
-type Difference = (String, String);
-
-/// The steps of a group with the pause after each step (none if 0).
-fn paced(steps: &[Value], pause_ms: u64) -> Vec<Value> {
-    if pause_ms == 0 {
-        return steps.to_vec();
-    }
-    steps
-        .iter()
-        .flat_map(|step| [step.clone(), json!({ "wait": pause_ms })])
-        .collect()
-}
 
 /// The record `window.__v()` of the page.
 fn record(page: &mut Page) -> Value {
@@ -560,21 +547,6 @@ fn events_mode(number: usize, group: &str, orders: Option<&Value>) -> Events {
         ),
         None => Events::Exact,
     }
-}
-
-/// The pixel differences of a group, without those that a departure accepts.
-fn pixel_problems(
-    label: &str,
-    page: &mut Page,
-    points: &[common::Point],
-    pixels: &Value,
-    departures: &mut Departures,
-) -> Vec<String> {
-    common::pixel_mismatches(label, page, points, pixels, PIXEL_TOLERANCE)
-        .into_iter()
-        .filter(|(name, _)| !departures.accepts_point(name))
-        .map(|(_, message)| message)
-        .collect()
 }
 
 /// Runs a sequence on a fresh load and returns its problems.

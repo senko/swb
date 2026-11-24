@@ -57,9 +57,11 @@ runs; tests in `crates/automation/tests/videojs_static.rs` and
   and `color-mix()` with `currentcolor` keep their earlier forms.
 - **Paint** is the 8-bit sRGB color clipped to the gamut (`Wide::to_rgba`),
   as before; the pixels of all fixtures did not change (snapshot of every
-  page and layout test equal before and after). Interpolation is not in 2b
-  (feature 3a): a gradient between `oklch()` colors interpolates in sRGB in
-  swb, in Oklab in Chromium (CSS Color 4 section 12: the default space is
+  page and layout test equal before and after). Interpolation is not in 2b;
+  feature 3a added it for animations (`animation/interpolate/`), not for
+  gradient stops (still open at the end of M13, backlog): a gradient
+  between `oklch()` colors interpolates in sRGB in swb, in Oklab in
+  Chromium (CSS Color 4 section 12: the default space is
   Oklab as soon as one color is not legacy); the pixel case `color-paint`
   has no such gradient.
 - **Mixing.** `color-mix()` converts a polar color to the rectangular space

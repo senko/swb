@@ -26,6 +26,18 @@ pub enum PlaybackDirection {
     AlternateReverse,
 }
 
+impl PlaybackDirection {
+    /// The keyword.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            PlaybackDirection::Normal => "normal",
+            PlaybackDirection::Reverse => "reverse",
+            PlaybackDirection::Alternate => "alternate",
+            PlaybackDirection::AlternateReverse => "alternate-reverse",
+        }
+    }
+}
+
 /// `animation-fill-mode`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum FillMode {
@@ -41,6 +53,16 @@ pub enum FillMode {
 }
 
 impl FillMode {
+    /// The keyword.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            FillMode::None => "none",
+            FillMode::Forwards => "forwards",
+            FillMode::Backwards => "backwards",
+            FillMode::Both => "both",
+        }
+    }
+
     fn backwards(self) -> bool {
         matches!(self, FillMode::Backwards | FillMode::Both)
     }

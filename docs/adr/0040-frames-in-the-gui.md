@@ -159,6 +159,8 @@ and `set_cursor_visible` only when the icon or visibility differs.
   inputs puts the rule in one place.
 - Damage rectangles and partial raster: later, with a raster cache for
   scrolling (backlog). A frame that changes is still drawn in full.
+  (Changed by ADR 0044 section 18, damage and partial raster; this text is
+  the state of M11.)
 - A thread for rasterization: not needed for the targets once the frame
   count drops; it would also need the page state shared across threads.
 
@@ -292,7 +294,9 @@ the toolbar rows from `chrome` and the other rows from `page`.
 (`Composer::write_buffer`). It does not skip rows: softbuffer's buffer may
 be a different one each frame (the age can be 0), so old contents cannot be
 relied on; a full pass is 0.5 ms at 1280 x 900 and 3.3 ms at 5120 x 1440,
-within the budget.
+within the budget. (Changed by ADR 0044 section 19: a buffer of age 1 gets
+only the rows that changed, `Composer::write_buffer` with `rows`; this text
+is the state of M11.)
 
 **Headless.** `render_window` (`--with-chrome`) keeps the simple path
 (`compose_window`: fresh pixmaps, `draw_pixmap`); the unit tests compare the

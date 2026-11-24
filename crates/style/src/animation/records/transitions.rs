@@ -43,6 +43,7 @@ use crate::animation::transition_properties::{
 use crate::animation::visibility::{
     is_composited_property, is_inherited_property, reach_of_property,
 };
+use crate::properties::set::LonghandSet;
 use crate::properties::{ComputedSlot, LonghandId};
 use crate::used_color_scheme;
 use crate::values::Display;
@@ -312,15 +313,8 @@ fn changed_longhands(
         }
     }
     // The longhands of the named properties that `all` did not cover.
-    let mut seen = [0u64; LonghandId::COUNT.div_ceil(64)];
-    let mut mark = |id: LonghandId| {
-        let (word, bit) = (id as usize / 64, 1u64 << (id as usize % 64));
-        let new = seen.get(word).is_some_and(|w| w & bit == 0);
-        if let Some(w) = seen.get_mut(word) {
-            *w |= bit;
-        }
-        new
-    };
+    let mut seen = LonghandSet::new();
+    let mut mark = |id: LonghandId| seen.insert(id);
     if all {
         for &id in TRANSITIONABLE.iter() {
             mark(id);

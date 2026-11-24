@@ -532,7 +532,7 @@ primary and the other buttons (measured: a right click dismisses):
   styled in `style_pseudo_elements` only for elements with the
   `TOP_LAYER` bit, with the element's style as the parent (measured
   inheritance). `getComputedStyle(el, '::backdrop')` computes it with
-  rules (`compute_pseudo_element_style`).
+  rules (`compute_pseudo_element_style_animated`).
 - `:popover-open` and `:modal` from the flag byte in
   `DomElement::state`; `:open` stays as it is (measured: `dialog[open]`
   and `details[open]`).
@@ -1575,7 +1575,7 @@ draw.rs` (hit shapes), `crates/layout/src/fragment.rs` and
 **What differs from the design.**
 
 1. *Where the flag is set.* In `Styler::style_element`, not in the walk of
-   `run`, so that `compute_element_styles` (`getComputedStyle`) agrees. The
+   `run`, so that `compute_element_styles_animated` (`getComputedStyle`) agrees. The
    styler reads `Document::blocking_dialog` once (O(1), see the review
    fixes below); an element then costs one `Option` test. The root
    and the dialog are never shared (`shareable`: the root is excluded, a dialog

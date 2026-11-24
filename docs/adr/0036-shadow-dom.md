@@ -403,7 +403,7 @@ anyway).
 | Stage | Today | With the flat tree |
 |---|---|---|
 | Style (`Styler::run`) | `element_children`, parent style pushed per child | `flat_element_children`; the stack also carries the child's tree scope (section 5). Inheritance follows the flat tree with no further change (measured: slotted elements inherit from the slot, shadow children from the host). The Bloom filter holds the flat ancestors: a superset of the DOM ancestors that a light-tree selector can see, and of the shadow-tree ancestors, so it never rejects a rule wrongly |
-| `compute_element_styles` (`getComputedStyle`, a pseudo-element without a box) | the chain of DOM ancestors | the chain of flat ancestors for an element in the flat tree; for one outside it (measured: computed values exist) the DOM chain as today |
+| `compute_element_styles_animated` (`getComputedStyle`, a pseudo-element without a box) | the chain of DOM ancestors | the chain of flat ancestors for an element in the flat tree; for one outside it (measured: computed values exist) the DOM chain as today |
 | Counters and list numbering (`counters.rs`) | `element_children`, `parent` | flat children and flat parent (CSS Lists: counters follow the flat tree) |
 | Box tree (`push_children`, `push_flattened`, `table/build.rs` `for_each_child`) | `doc.children`, text style of the DOM parent | `flat_children`; a text node's style is the flat parent's (the slot's for slotted text, measured). Light children outside the flat tree get no box (measured) |
 | Paint | fragments | no change |
@@ -786,7 +786,7 @@ in the change functions; the walks in four crates).
 
 **5b. The flat tree in rendering** (`implementer-hard`).
 Scope: section 4: `flat.rs`, the style walk with inheritance and the Bloom
-filter, `compute_element_styles`, counters, the box tree (also tables and
+filter, `compute_element_styles_animated`, counters, the box tree (also tables and
 the depth flattening), hit testing (`element_of`, links, the cursor),
 `elementFromPoint` retargeting, the `:hover`, `:active` and `:focus-within`
 chains, `innerText` (not the engine's selection: backlog); the
@@ -1193,7 +1193,7 @@ Measured (cases `unslotted-computed-style` and
 has computed values, but they inherit from nothing: `font-size: 16px`, black,
 `display: inline` (not blockified) under a host with `20px` and green; its
 child inherits from it; unused fallback content of a slot the same. So
-`compute_element_styles` walks the flat ancestors and stops at the first node
+`compute_element_styles_animated` walks the flat ancestors and stops at the first node
 without a flat parent, which inherits from the initial style; it is not the
 DOM chain. A node that is not in the window's document still has no style.
 

@@ -988,7 +988,7 @@ impl Builder<'_> {
             return;
         }
         let w = style.outline_width;
-        let outer = outset(rect, w + style.outline_offset);
+        let outer = rect.outset(w + style.outline_offset);
         let color = style.outline_color.resolve(style.color);
         self.list.push(DisplayItem::Border {
             rect: outer,
@@ -1022,7 +1022,7 @@ impl Builder<'_> {
             // The radius of the ring's center line is at least 2 px.
             let radius = |r: f32| (r + distance).max(2.0 + distance - center);
             let radii = radii.map(|(h, v)| (radius(h), radius(v)));
-            (outset(rect, distance), radii)
+            (rect.outset(distance), radii)
         };
         // Both rings or none: the color ring must not be degenerate.
         let (color_rect, _) = ring(center + 1.0);
@@ -1491,16 +1491,6 @@ pub(crate) fn with_descendants(b: &BoxFragment, origin: Point) -> Rect {
             acc
         }
     })
-}
-
-/// `rect` grown by `amount` on every side (shrunk if negative).
-pub(crate) fn outset(rect: Rect, amount: f32) -> Rect {
-    Rect::new(
-        rect.x - amount,
-        rect.y - amount,
-        rect.width + 2.0 * amount,
-        rect.height + 2.0 * amount,
-    )
 }
 
 /// The value of a background property for layer `i`. The lists of the

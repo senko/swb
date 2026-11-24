@@ -47,7 +47,7 @@ mod rope;
 mod scroll_indicator;
 mod svg;
 
-pub use animation_bounds::{Keys, animation_bounds, visual_rect};
+pub use animation_bounds::{Keys, animation_bounds};
 pub use damage::{
     Damage, ListDamage, MAX_RECTS, MediaKeys, Side, backdrop_boxes, hold_backdrop_boxes,
     list_damage, media_keys, merge_damage,
