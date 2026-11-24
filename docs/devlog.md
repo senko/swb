@@ -4,6 +4,23 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-24: M14 step 2, ADR 0047 (media playback)
+
+- ADR 0047 decides the FFmpeg build (9.0.2, pinned and signed; only the
+  needed demuxers, decoders and parsers; LGPL-2.1 or later), the license
+  rules, the Cargo feature `media` (off by default), the C boundary with
+  the one crate that may use `unsafe`, the media byte source, threads,
+  the media clock, audio output, video in paint, the element and the
+  limits for hostile media. Updates of ADRs 0003, 0020 and 0028.
+- A spike (not committed) checked it: FFmpeg builds in 24 s and adds
+  about 8.2 MB; every test file decodes through Rust read and seek
+  callbacks; ASan and UBSan found nothing; 1080p decodes at 11 to 16 %
+  of a core; PipeWire played silence with 10.7 ms delay.
+- Finding: Chromium caps the Cb-to-B coefficient of its YUV conversion
+  at 2.0. That explains the 13-level difference of the diagnosis; with
+  the cap, FFmpeg's conversion is within 3 levels of Chromium.
+- Next: feature 3, the FFmpeg build and the boundary.
+
 ## 2026-11-24: M14 plan and feature 1, the media diagnosis
 
 - M14 (media playback) is planned in detail (roadmap). The owner

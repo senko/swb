@@ -6787,23 +6787,71 @@ Steps:
      element without the feature.
    - Limits for hostile media.
    - Updates ADR 0003 and ADR 0020.
+
+   Done (2026-11-24): ADR 0047 "Media playback" (accepted), with a build
+   spike that is not committed (kept in `out/m14-spike/` with the
+   tarball).
+   - FFmpeg 9.0.2 (SHA-256 `8c38…002e`, signature checked), configured
+     with `--disable-everything` and 7 demuxers, 13 decoders, 8 parsers,
+     no network, no GPL, no system libraries: "LGPL version 2.1 or
+     later". 24 s with `-j 8`; 11.5 MB of static libraries; about 8.2 MB
+     more binary.
+   - The boundary: a small C file per library (compiled with `cc`)
+     behind a narrow C API of opaque handles; `swb-media-ffi` is the
+     only crate with `unsafe` code, with its own lint tables tied to the
+     workspace's by a test. All test files open and decode through a
+     Rust byte source (FFmpeg never gets a file name); ASan and UBSan
+     found nothing.
+   - Colors: Chromium caps the Cb-to-B coefficient at 2.0. With the cap,
+     `swscale` is within 3 levels of Chromium for BT.601, BT.709 and full
+     range (12 before), a direct conversion within 1.
+   - Decode cost: 1080p 30 fps 11 to 16 % of a core, the Wikipedia VP8
+     file 5 to 12 %, the 4K file 52 to 72 %; conversion 0.6 ms per 1080p
+     frame; 1080p seeks 17 to 28 ms. The budget of 150 % leaves room for
+     paint.
+   - PipeWire 1.4.2: a stream (silence only) at 48 kHz with 10.7 ms
+     delay; without a server the connect fails at once and swb uses the
+     silent output.
+   - Decisions: the feature `media` is off by default (`just check`
+     unchanged; new `just ffmpeg`, `check-media` and a CI job
+     `check-media`); without it the element API exists and every load
+     fails with code 4 without a fetch; per element a fetch thread, a
+     demux thread and a video thread, at most 16 open pipelines, idle
+     pipelines suspend after 15 s; the audio clock is the master, the
+     page clock in headless mode and tests; one PipeWire stream per
+     process with swb's mixer; frames are images whose generation
+     changes, not a new display list; `--eval`, `eval` steps and
+     `page.evaluate` give user activation (feature 6b checks the
+     existing activation tests first).
+   - Not decided (nothing to decide now): binary distribution (swb
+     publishes none; ADR 0047 section 2 lists the obligations) and
+     patents.
 3. Features, in this order. Each feature ends with a review and a
    commit, with the checks of M9.
    3. The FFmpeg build and the boundary (`implementer-hard`): the
       `just` recipe that downloads, checks and builds FFmpeg; the Cargo
       feature `media`; CI jobs with and without it; the new crate
       demuxes and decodes every test file into frames and samples from
-      a byte source (a file source in this feature); notices and
-      license files.
+      a byte source (a file source in this feature); the conversion to
+      RGBA with the capped coefficient, tested against
+      `media-frames` at scale 1 (3 levels); notices, license files,
+      `swb --version` and `--licenses`, the license test, the test that
+      ties the lint tables, `just media-asan` (ADR 0047 sections 1 to 4,
+      9). The PipeWire C file waits for feature 8.
    4. The media byte source (`implementer`; `net`): `Range` requests
       through the loader, chunked reads of an open response,
       cancellation, a byte budget for read-ahead, no 64 MiB limit for
       media, servers without `Range` (seek fails), replay of `Range`
-      requests from a whole recorded body. Diagnosis section 5.
+      requests from a whole recorded body (read at offsets, never whole).
+      Diagnosis section 5, ADR 0047 section 5. May split into 4a (the
+      loader) and 4b (replay and the tests' server).
    5. The media pipeline (`implementer-hard`): decode threads, frame
       and sample queues, seeking, the media clock, audio and video
       synchronization, the silent output on virtual time (`timeupdate`
-      every 250 ms of media time without sleeping in tests).
+      every 250 ms of media time without sleeping in tests; a pipeline
+      that has not decoded what the next due time needs is pending work,
+      ADR 0047 section 7); the origin and the duration per container
+      from the probe rows (MP3 encoder delay, MP4 with a start time).
    6. The media element, in two parts (`implementer`), each with
       JavaScript off and without the feature:
       6a. The core: attributes, resource selection with `<source>`
@@ -6822,7 +6870,9 @@ Steps:
       stream, BT.601 and BT.709 by Chromium's rule, `object-fit`,
       rounded clips and transforms, paint-only frames with damage
       rectangles; frames at paused times against Chromium's
-      (`media-frames`, `media-poster`).
+      (`media-frames`, `media-poster`; 3 levels). Measure where the
+      untagged BT.601/BT.709 boundary lies and which tag wins for the
+      Wikipedia VP8 file (container BT.709, decoder BT.601).
    8. Audio output through PipeWire (`implementer`): the stream, the
       mix of several elements, volume and mute, a missing server or
       device.
@@ -6831,7 +6881,10 @@ Steps:
       during playback, auto-hide, the states that Chromium draws
       (`media-controls`); their timers stop when nothing changes.
    10. The exit test (`implementer`): the list above against Chromium,
-      the hostile media, the budgets in the GUI.
+      the hostile media (also the new files of ADR 0047 section 11: a
+      frame size above the limit, an endless body, 1,000 elements, 100
+      streams, with Chromium's behaviour for the large frame), the
+      budgets in the GUI.
 
 ## M15: The videojs.org player — planned
 

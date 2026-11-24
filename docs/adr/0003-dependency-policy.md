@@ -10,6 +10,10 @@
   ([ADR 0028](0028-javascript-in-the-browser.md) section 5). It is
   permissive: keep the notice and mark changes. It applies to IDL data
   files only, not to code dependencies.
+- Updated: 2026-11-24: an exception for builds with the `media`
+  feature: FFmpeg (LGPL-2.1-or-later, linked statically) and PipeWire
+  (MIT, linked dynamically), allowed by the owner on 2026-11-20. See
+  "Update: media builds" below and [ADR 0047](0047-media-playback.md).
 
 ## Context
 
@@ -79,3 +83,37 @@ For each new dependency:
   of work and gives us full control.
 - Some useful crates are excluded. If a case appears where excluding a crate
   costs a lot, write an ADR and ask the owner.
+
+## Update: media builds (2026-11-24, ADR 0047)
+
+The owner allowed two C libraries for media playback (ground rules,
+2026-11-20). They are an exception for builds with the Cargo feature
+`media`, which is off by default; like ADR 0014, the exception is not a
+precedent for other copyleft code.
+
+- **FFmpeg** (libavformat, libavcodec, libswscale, libswresample,
+  libavutil), LGPL-2.1 or later: a pinned source release, built without
+  its GPL and non-free parts, with only the demuxers and decoders that
+  swb needs, linked statically. FFmpeg is not a crate: `tools/ffmpeg/`
+  pins the version and checksum, `just ffmpeg` builds it, and the build
+  script of `swb-media-ffi` links it.
+- **PipeWire** (libpipewire-0.3), MIT: the system library, linked
+  dynamically, for audio output.
+
+What keeps the default build permissive:
+
+- `cargo build` without `media` compiles no C code and links neither
+  library; `swb-media-ffi` is then an empty crate.
+- `cargo deny` checks Cargo's graph with all features: the media crates
+  are swb's own (MIT), and their build dependencies `cc` and
+  `pkg-config` are MIT OR Apache-2.0, so the allowed list does not
+  change. The C libraries are outside that graph; a test of
+  `swb-media-ffi` checks FFmpeg's license strings ("LGPL version 2.1 or
+  later") and its configure line (no `--enable-gpl`, no
+  `--enable-nonfree`).
+- The obligations of a binary distribution of a media build (notices,
+  the license text, FFmpeg's source and configure line, swb's source for
+  relinking) are in ADR 0047 section 2 and `THIRD_PARTY_NOTICES.md`.
+
+Other copyleft libraries (for example a GPL build of FFmpeg, or x264)
+stay excluded.

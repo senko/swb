@@ -156,3 +156,33 @@ changes from the text above. With it on (measured in Chromium 148 with
 - `noscript` generates no box (HTML rendering: `display: none !important`
   with scripting enabled; the cascade sets `display: none`, where Chromium
   keeps the authored computed value).
+
+## Update: playback (2026-11-24, ADR 0047)
+
+M14 adds playback in builds with the Cargo feature `media` (ADR 0047).
+What changes in this ADR:
+
+- **Scope.** In a media build, swb fetches and plays the media resource
+  (ADR 0047 sections 5 to 10); "swb plays no media and never fetches the
+  media resource" holds only for builds without the feature. There the
+  element API exists in full, `canPlayType()` answers `""`, nothing is
+  fetched, and a load fails with `MEDIA_ERR_SRC_NOT_SUPPORTED` (ADR 0047
+  section 3); the poster and the controls stay as above.
+- **Sizes.** A video's natural size is the stream's (`videoWidth` and
+  `videoHeight`, from `loadedmetadata`), except while the poster shows:
+  then it is the poster's (Chromium: a 200 x 100 poster keeps the box at
+  200 x 100 after the metadata, diagnosis section 3). Before the metadata
+  the rules above apply (300 x 150 without a poster). A change of the
+  natural size (`resize`) needs a new layout; a new frame does not.
+- **Poster and frames.** The poster shows until `play()` or a seek with
+  data; then the current frame (ADR 0047 section 9, diagnosis section 8).
+  A frame is the element's image (`ImageRef::Node`), placed with
+  `object-fit` and `object-position` like the poster; the letterbox area
+  stays transparent (measured). The default poster (#333) stays the fill
+  of a video with controls and without a poster before its first frame
+  (JavaScript off: every video).
+- **Controls.** M14 feature 9 makes them respond (play and pause, seek
+  by click and drag, mute and the volume slider, the time during
+  playback, auto-hide) and draws the states that Chromium draws during
+  and after playback (diagnosis section 9). Before playback they look as
+  described above.

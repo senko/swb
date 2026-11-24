@@ -4710,7 +4710,11 @@ M9 feature 14b, ADR 0031.)
 Media playback is out of scope too (ADR 0020 stays: no media is
 fetched). With scripting on, `HTMLMediaElement` has its attributes
 (`paused` true, `readyState` 0), and `play()` returns a promise that
-rejects with `NotSupportedError`.
+rejects with `NotSupportedError`. (Update 2026-11-24: ADR 0047 section 10
+replaces this paragraph. In builds with the `media` feature the element
+plays; without it, the element follows ADR 0047 section 3, and `play()`
+rejects with `NotSupportedError: The element has no supported
+sources.`)
 
 ### 15. The on/off setting
 

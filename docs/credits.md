@@ -330,6 +330,20 @@ Format: source, license (for code), what it influenced.
   non-HTTP API for `document.cookie` (§5.7, §5.8; M8 feature 8b)
 - WHATWG Fetch, "append a request `Origin` header" — the `Origin` header
   of `POST` requests
+- WHATWG HTML, media elements (§4.8.11,
+  https://html.spec.whatwg.org/multipage/media.html) and "potentially
+  CORS-enabled request"; WHATWG Fetch, the CORS-safelisted `Range`
+  header; RFC 9110 §14 (range requests, `Content-Range`, 206 and 416) —
+  the design of media playback and of the media byte source (ADR 0047)
+- ITU-R BT.601 and BT.709 (the Y'CbCr matrices, limited and full range)
+  — the color conversion of video frames (ADR 0047 section 9; the cap of
+  the Cb-to-B coefficient at 2.0 was found by fitting Chromium's pixels,
+  not from any source)
+- GNU Lesser General Public License 2.1 (FSF), FFmpeg's `LICENSE.md`
+  and its "License and Legal Considerations" checklist
+  (https://ffmpeg.org/legal.html; from earlier reading, the page was not
+  fetched in M14 step 2) — the license rules of media builds (ADR 0047
+  section 2)
 
 ## Books and articles
 
@@ -600,6 +614,16 @@ Format: source, license (for code), what it influenced.
 
 ## Projects
 
+- FFmpeg 9.0.2 (LGPL-2.1-or-later; https://ffmpeg.org/) — a dependency
+  of builds with the `media` feature (ADR 0047). Read for the C boundary:
+  the public headers and their API documentation (`libavformat/avformat.h`,
+  `avio.h`, `libavcodec/avcodec.h`, `libswscale/swscale.h`,
+  `libswresample/swresample.h`, `libavutil/`), `configure --help` and its
+  component lists, `LICENSE.md`. No FFmpeg code is copied into swb.
+- PipeWire 1.4.2 (MIT; https://pipewire.org/) — the audio output of media
+  builds (ADR 0047 section 8). Read: the headers and API documentation of
+  `pipewire/stream.h`, `pipewire/thread-loop.h`, `pipewire/version.h` and
+  `spa/param/audio/format-utils.h`. No code copied.
 - test262 (BSD-3-Clause, Ecma International), commit 2e0a567
   (2026-10-08) — the conformance tests of the JavaScript engine. A
   separate checkout in `out/test262`, not copied into the repository;
