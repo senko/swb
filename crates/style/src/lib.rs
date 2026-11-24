@@ -72,7 +72,7 @@ pub use cascade::targeted::{
     restyle_targeted,
 };
 pub use cascade::{
-    compute_element_styles, compute_element_styles_animated,
+    TransitionInputs, compute_element_styles, compute_element_styles_animated,
     compute_element_styles_with_containers, compute_pseudo_element_style,
     compute_pseudo_element_style_animated, compute_pseudo_element_style_with_containers,
     compute_styles, compute_styles_animated, compute_styles_reusing,

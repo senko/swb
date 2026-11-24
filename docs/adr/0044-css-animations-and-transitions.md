@@ -210,15 +210,26 @@ an animation of it.
 **Style change events, before- and after-change styles**
 ([Transitions 1 §3](https://drafts.csswg.org/css-transitions-1/#starting)).
 In swb a style change event is each style computation that the engine
-runs for changes (a targeted restyle of ADR 0041/0042, or a full restyle
-with a previous map). Animation updates are not style change events:
-changes of computed values that come from animations start no transition.
+runs for changes (a targeted restyle of ADR 0041/0042 after a change of
+the element states or of the DOM, or a full restyle with a previous map).
+Animation updates are not style change events for the animated elements:
+a targeted restyle for the marked owners starts no transition for them,
+and changes of computed values that come from their own animations start
+none. Their children are different: a child whose parent's style changed
+in the restyle has a style change event, and its after-change style
+inherits from the parent's style without the values of the animations and
+transitions of the parent and its ancestors (measured in Chromium 148:
+such a child starts its own transition one frame after its parent's,
+towards the parent's end value; section 20 has the rules as implemented,
+and the departure for lists that cannot name an inherited value).
 
 - The *before-change style* of an element is its style in the map that the
   restyle starts from (the current map for state changes, the stale map of
-  ADR 0042 for DOM changes, the previous map of a full restyle). For a
+  ADR 0042 for DOM changes, the previous map of a full restyle), or a newer
+  style that a script's read computed for it since (section 20). For a
   property that a running animation or transition drives, the value is
-  taken at the current timeline time.
+  taken at the current timeline time; a transition that completed since
+  counts with its end value.
 - The *after-change style* is the new cascade with the animation input
   and without the transition input.
 - Only restyled elements can start, update or cancel transitions: an
@@ -413,10 +424,13 @@ the order of the script's changes or of the declarations (the diagnosis's
 returns the same order (`get-animations-order`). Three cancels from one
 change (`events-cancel-and-reverse`: a reversal on `e1`, `display: none`
 on `e2`, `transition: none` on `e3`): Chromium dispatches `e2` first in
-every run, and `e1` and `e3` in either order (one of three runs). swb uses
-the rule above; the scheduled time of a cancel by `display: none`
-(possibly unresolved, which sorts first) is for feature 5 to settle with
-that row.
+every run, and `e1` and `e3` in either order (one of three runs). Settled
+in feature 5 (section 20): a cancel by `display: none` (of the element or
+an ancestor, or a removed element) has an unresolved scheduled time and
+sorts first; other cancels are scheduled at the timeline time of the style
+change; at one scheduled time the cancels come before the other events
+(the `transitionrun` and `transitionstart` of the reversed `e1`), then
+composite order (`e1` before `e3`, the other order that Chromium gives).
 
 **Members.** `AnimationEvent` is new (IDL, `Other::Animation`,
 `EventInterface::Animation` for trusted dispatch); `TransitionEvent` gets
@@ -673,9 +687,11 @@ Chromium has no limits for these (`hostile-limits`: 10,000 animations on
 one element, `linear()` with 100,001 points, `steps(2147483648)`), so swb
 sets only limits that keep it alive:
 
-- **Records**: at most 100,000 live animations and transitions per
-  document; beyond, no new record is created (one `warn!`). About 300 bytes
-  each.
+- **Records**: at most 100,000 live animations and transitions per page,
+  all its documents together (`RecordRoom`, shared by the documents of a
+  page; fix round of feature 5); beyond, no new record is created (one
+  `warn!` per document). About 300 bytes each; a transition keeps the
+  computed values of its one property besides.
 - **`steps()`**: `n` clamped to 2^31 − 1; scheduling treats steps shorter
   than a frame as continuous.
 - **`linear()`**: no point limit; binary search; style memory.
@@ -749,7 +765,9 @@ commits.
 - Feature 5: the typed `transition-*` longhands (out of `inert.rs`); the
   before- and after-change styles in the targeted and full restyles; start,
   cancel and reversal; `allow-discrete` and `interpolate-size`; the
-  events; `CSSTransition`.
+  events; `CSSTransition`. As done (section 20): all but the interpolation
+  of `interpolate-size: allow-keywords`, which needs `calc-size()` in
+  layout and is a task of its own.
 
 ### 14. Done in feature 3a
 
@@ -2009,6 +2027,481 @@ composited group of 20,000 x 20,000 px (drawn as a transform layer) 1.36 /
 - A layer that misses in a region raster is drawn whole (up to the cost of
   its content once), until it misses three times in a row.
 - The scroll of the viewport is still a full raster (item 4 not needed).
+
+### 20. Done in feature 5
+
+Feature 5 runs CSS transitions: the typed `transition-*` longhands, the
+rules of CSS Transitions 1 §3 in every style change event, the events,
+`CSSTransition` in the API, and their frames through the paint-only path
+and composited groups. Not done: the interpolation of `interpolate-size:
+allow-keywords` (below). Measured in Chromium 148 with the probe file
+`tools/probes/css-transitions.json` (19 cases: the 18 of feature 1 and
+`outline-offset-values`, added for this section; three equal runs).
+
+**The longhands** (`animation/transition_properties.rs`). The five
+longhands moved from `inert.rs` to the third group of the `longhands!`
+macro with typed specified values: `transition-property` (`all`, `none`,
+names: lower case for a property that swb knows, custom properties and
+unknown names as written), `transition-duration` and `transition-delay`
+(`<time>` of `animation/time.rs`, so `calc()` and the math functions; a
+negative math duration computes to 0), `transition-timing-function`
+(`parse_easing` of `animation/easing.rs`, so `linear()` and `steps()`),
+`transition-behavior`. The computed values are one optional shared record,
+`ComputedStyle::transitions: Option<Arc<TransitionStyle>>` (`None` while
+all are initial); the lists keep their lengths (`getComputedStyle` shows
+`transition-duration: 0.2s, 0.2s, 0.4s` for four properties, as Chromium:
+`attribute-popup`), and `TransitionStyle::matching` finds the last item of
+`transition-property` that names a longhand (by itself, an alias, a
+shorthand that contains it, or `all`) or a custom property, with the other
+lists repeated to its length (CSS Transitions 1 §2.1). The CSSOM forms go
+through the texts of the animation properties (`Ser::Animation`): the
+specified values keep the written times and easings (`300ms`,
+`calc(0.4s)`, `steps(4)`), the computed values are in seconds and in the
+computed easing forms, the `transition` shorthand is serialized as before.
+`Ser::TransitionProperty` and `Ser::Easing` and the text values of
+`inert.rs` are gone. `--animations off` resets the longhands as before.
+`interpolate-size` (`numeric-only | allow-keywords`, inherited) parses,
+computes and serializes; `CSS.supports` is true.
+
+**The records** (`animation/records/transitions.rs`). A transition is an
+`AnimationRecord` with a `TransitionState`: the property
+(`TransitionTarget`: a longhand or a custom property), the start and end
+values and the reversing-adjusted start value (`TransitionValue`: the
+computed value of a longhand alone, `ComputedSlot`, or the tokens of a
+custom property; fix round below), the reversing shortening
+factor and the transition generation. Its effect has the transition's
+delay and duration, one iteration, `fill: backwards` and the timing
+function as the effect easing (Chromium's `getComputedTiming()`). The
+records of an owner's running transitions are a list of their own
+(`DocumentAnimations::transitions`), in composite order (generation, then
+property name in code point order). The record limit of section 11 counts
+transitions (`reserve_id`). A transition that reaches its end at an update
+leaves its owner's list, queues `transitionend`, and its record goes at
+the next update (`finished`), after the bindings resolved its `finished`
+promise. Its end value is kept in the owner's set of completed
+transitions until the owner's next style change event (rules 1 and 2:
+the before-change style of that event can still hold a value of a tick
+before the end; the end value counts instead).
+
+**The rules in each restyle path.** The cascade computes the base style,
+then the style with the animated values of the CSS animations (the
+after-change style), then, in a style change event, runs
+`DocumentAnimations::sync_transitions` for the element or pseudo-element
+(`cascade/animated.rs`, `transition_effects`), and computes the style a
+third time with the values of the running transitions when there are
+any (they win over the animations of their properties):
+
+- Rule 3: a running transition whose property has no matching item is
+  cancelled. Rule 4: a running transition whose end value differs from the
+  after-change value is cancelled when its current value equals the
+  after-change value, the pair cannot transition, or the combined duration
+  is 0; it is reversed when the after-change value is its
+  reversing-adjusted start value (factor |output × old factor + 1 − old
+  factor|, the duration and a negative delay times the factor); else it
+  is replaced by a transition from its current value. A transition that a
+  script paused at its end (after phase) counts as completed: it goes
+  without an event and rule 1 applies.
+- Rule 1: for each candidate property (the longhands that the items name,
+  all transitionable longhands for `all`, the named custom properties)
+  without a running transition, a value that differs between the
+  before-change and the after-change style starts a transition when the
+  combined duration is above 0 and the pair is transitionable
+  (`is_interpolable`, `custom_is_interpolable`; with `allow-discrete` any
+  pair). The animation and transition properties, `direction`,
+  `unicode-bidi` and `will-change` never transition. A property that a CSS
+  animation of the element drives now starts no transition. The after-change
+  style goes through the fix-ups of the element first (blockification, the
+  border widths of `border-style: none`), as the before-change style did,
+  or `transition: all` would see changes that are none.
+- An after-change `display: none` cancels every transition of the
+  element (unresolved time) unless a `display` transition keeps it
+  rendered (`allow-discrete`: `display` is the other value for the whole
+  interval, then the transition's end makes it `none`; probe
+  `transition-behavior-discrete`).
+
+Where the before-change style comes from (`ChangeSource` in `cascade.rs`,
+`TransitionInputs` in the API):
+
+- *The targeted restyle* (state changes, DOM changes; ADR 0041, 0042): the
+  element's style in the map it starts from (`visit_targeted` hands the
+  old style of the element and of its pseudo-elements to the styler). A
+  restyle for the animation ticks alone (no state or DOM change, no
+  queried style) is a style change event only for the children of
+  elements whose style changed in it (fix round, below).
+- *The full restyle with a previous map* (`compute_styles_from`): the
+  previous map. The first styles of a document and the check modes have
+  none.
+- *The paint-only path* (feature 4a) is the targeted restyle; a transition
+  of a paint property gives paint-only frames (`paint_only.rs`,
+  `transitions_of_colors_stay_paint_only`).
+- *The style of one element for a query* (`getComputedStyle` while the
+  styles are stale, ADR 0028 section 9): when an element of the chain can
+  start a transition or has one, the query runs the style pass of the
+  document instead (the read is a style change event, as in Chromium);
+  else the chain's styles are kept as the newer before-change styles of
+  their elements (`DocumentState::queried_styles`) for the next style
+  change event (`inline-style-spring`: `transition: none`, a transform, a
+  read, then `transition: transform 600ms` and no transform starts the
+  transition from the read's value). `getAnimations()` runs the style pass.
+- *The style step of the rendering update* computes the styles when a
+  style that can start a transition has been computed in the document
+  (`DocumentAnimations::transitions_seen`) and the styles are stale, so a
+  class change by a script starts its transitions without a read. The
+  transitions of that step start in that frame (their start time is the
+  frame's time; `start_pending_transitions`), and their first update
+  comes at the next frame. A transition that a script's read started is
+  pending until the next update (`pending`, `currentTime` 0, as in
+  Chromium).
+
+Style sharing: see the fix round below (an element takes a shared style
+when its style change event would do nothing); a shared style with no
+transitions cancels the transitions of an element that gets it
+(`retain_transitions` in the sweep).
+
+**Discrete cases** (section 4): `display`, `content-visibility` and
+`overlay` transition only with `allow-discrete` (a `none` or `hidden` end
+keeps the other value for the whole interval); unregistered custom
+properties, and registered ones whose syntax does not interpolate the
+pair, only with `allow-discrete` (they flip at 0.5); every other discrete
+pair of section 4 too. Measured: `outline-offset` computes, also while it
+transitions, to a value snapped as a border width with its sign (`1.5px`
+is `1px`, `0.75px` is `1px`, `-1.5px` is `-1px`); swb now snaps it in the
+computed value and in the interpolation. A `calc()` with a percentage that
+is 0 keeps it in the computed value (`background-size: calc(0% + 20px)`,
+the start of a transition from a length to a percentage).
+
+**Events and their order** (section 6). `transition_events_of` is the
+table of CSS Transitions 2 §5.1: `transitionrun` (scheduled at the start
+time, so a delayed transition's `transitionrun` comes with the
+`transitionrun` and `transitionstart` of the others: `events-run-start-end`),
+`transitionstart` and `transitionend` (scheduled at their interval
+boundaries), `transitioncancel` (the active time at the cancel). The queue
+is sorted by scheduled time (unresolved first), then the cancels before
+the other events of the same time, then transitions before animations,
+then the owners in tree order with their pseudo-elements, then (for
+transitions) generation and property name, (for animations) the position
+in `animation-name` (`events-order-many-properties`: the transitions of
+`e1` and `e2`, then the `animationstart` of `e1`). The settled cancel
+order of `events-cancel-and-reverse`: the cancel by `display: none` is
+unresolved and first; the reversal of `e1` and the `transition: none` of
+`e3` share the time of the style change and come in composite order
+(`e1`, `e3`; Chromium gives `e3`, `e1` in the recorded run and either in
+others; the test accepts both); the new transition of `e1` follows.
+`TransitionEvent` (`EventInterface::Transition`, `propertyName`,
+`elapsedTime`, `pseudoElement`), `bubbles` and `cancelable` true.
+
+**The API** (section 7). `getAnimations()` of the document and of
+elements (`subtree` too) lists the transitions before the animations
+(`get-animations-order` of `css-animations.json` passes). A transition's
+wrapper is a `CSSTransition` (`transitionProperty`, kept after its record
+went); every member of `Animation` works on it (`pause()` and
+`currentTime` for the probe's `seek()`, `finish()`, `cancel()` (the
+transition leaves its owner), `ready`, `finished`, `effect` with
+`getTiming()` and `getComputedTiming()`). Base UI's `Promise.all` of the
+`finished` promises resolves when the transitions end and rejects with an
+`AbortError` when a reversal or `display: none` cancels them
+(`transition-api-finished`). Departure: `getKeyframes()` of a transition
+is empty (Chromium lists the start and end values).
+
+**Frames and cost.** Transitions are records, so the frame scheduling of
+section 8 (the visibility test by the reach of the property, offscreen and
+paused ones ask only for their event times), the paint-only path of
+section 17 and the composited groups of section 19 (`composited_owners`
+includes running transitions of `transform`, `translate`, `rotate`,
+`scale` and `opacity`) apply as for animations. A frame of a running
+transition costs what a frame of an animation of the same property costs:
+the owner is marked, restyled with the transition input, and its paint
+follows the same path.
+
+**`interpolate-size`.** Not done: the property exists, but a length
+against `auto`, `min-content`, `max-content` or `fit-content` does not
+interpolate (it changes at once, as with `numeric-only`). The design for
+the follow-up: the computed value keeps the keyword, the length and the
+progress (as `InterpolatedTransform` keeps two transform lists), layout
+resolves the keyword's size where it resolves the keyword today
+(`resolve_size` in block, flex and grid layout, the intrinsic sizes) and
+mixes it linearly; `getComputedStyle` gives the used size (the element has
+a box). Rows 1 to 3 of the probe case wait (`WAITS` in
+`css_transitions.rs`).
+
+**Measurements** (release; before is the commit of feature 4c;
+`docs/performance.md`, "CSS transitions"). The load stages of `perf
+videojs` and `perf hacker-news` (5 runs, animations off) and the load style
+stage of `--bench 3` with animations on are the same within noise (the
+budget: at most 50 ms on a page with transitions, 0 on others). Hover change
+median / p90 with animations on: videojs with JavaScript 0.85 / 25.0 ->
+1.24 / 26.0 ms (its hovers start transitions, paint-only), the others equal.
+GUI, `videojs-page`: pointer move to frame p90 28 -> 20 ms (budget 50);
+frame time p90 10.1 -> 10.3 ms (budget 16); CPU idle after the trace 0.7 %
+both. The frame maximum of the whole trace (57 ms, both) is a frame of the
+load; section 19 measured 27 ms after the first paint. 60 frames per
+second while only a transition runs was not measured separately. Hostile
+cases (`hostile_cases/transitions.py`, time and peak RSS): the
+`transitionend` ping-pong 0.05 s, 117 MiB (bounded by one round per frame);
+a class change that starts four transitions on 10,000 elements 0.35 s, 229
+MiB; a `transition` list of 10,000 entries 0.05 s; a property toggled
+every 16 ms for 1,000 rounds (a reversal each) 0.05 s; an inherited
+`color` that starts a transition on 100,000 elements 2.3 s, 1,104 MiB (the
+transitions keep the styles of their start and end values). The whole set:
+601 cases, 599 ok, the known failure `nest-div-100000`, and
+`large-message-to-a-frame-in-a-loop-js-on` inactive once (it passes alone,
+with this binary and the base one).
+Snapshot byte-equal; `compare --all` and `compare --js --all` equal but
+for `js-ars-technica` (its A/B pixels) and `js-craigslist-posting` (0.63 ->
+1.00: the first base run ran under load; run again, the base gives 1.00).
+
+**Tests.** `crates/automation/tests/css_transitions.rs`: every row of
+`css-transitions.json` but rows 1 to 3 of `interpolate-size`, one pair of
+lines accepted in either order (`EITHER`), no departure. The helpers of
+the probe values moved to `tests/common/animation_values.rs`.
+`cascade/transition_tests.rs`: the start rules, reversal, replacement,
+cancels (rule 3, `transition: none`, `display: none` with its unresolved
+time), discrete cases, animations that drive a property, composite order,
+event times, completed transitions, shorthands. `transition_properties.rs`
+tests the grammar and texts. `damage_oracle.rs`
+(`transitions_of_hovers_and_class_changes`: hovers and a class toggled
+every 170 ms with transitions of colors, `transform`, `opacity`, `scale`
+and `height`, at scales 1 and 1.5), `paint_only.rs`
+(`transitions_of_colors_stay_paint_only`), `videojs_transitions.rs` (the
+hover transitions of the search button and a player control on the JS
+fixture: start and end values, events per property).
+
+**Fix round of feature 5** (review findings). Measured in Chromium 148
+with `tools/probes/css-transitions.json` (17 cases added; three equal
+runs each).
+
+*Children of elements whose inherited values change.* A child whose
+parent transitions or animates an inherited property (`color`) starts its
+own transition, as in Chromium. The rule, from the probe cases
+`inherit-*`:
+
+- The after-change style of an element inherits from its parent's style
+  without the values of the CSS animations and transitions of the parent
+  and of the parent's ancestors (`DocumentAnimations::transition_parent`:
+  kept for an element with element children, or with pseudo-elements that
+  can have transitions, while it differs from the element's style in an
+  inherited value (in any value once a style of the document that can
+  start a transition takes a non-inherited value with `inherit`:
+  `DocumentAnimations::reset_inherited_seen`), once a style of the
+  document can start a transition of an inherited value; second fix round below; not a field of `ComputedStyle`,
+  whose 8 more bytes put each style into the next size class of the
+  allocator, +88 MiB on `color-mix-200000-distinct-colors`). So the child's transition runs towards the parent's end value
+  (`inherit-parent-child-start`: from `rgb(0, 0, 0)` to `rgb(255, 255,
+  255)`), and towards the parent's value without its animation when the
+  parent has a CSS animation (`inherit-animated-parent`: `#p` without a
+  color, `from rgb(4, 4, 4) to rgb(0, 0, 0)`; with `color: red`, to
+  `rgb(255, 0, 0)`). A grandchild through a child without a transition
+  does the same (`inherit-grandchild`).
+- The restyle of the animation ticks is a style change event for the
+  elements whose parent's style changed in it, and for the pseudo-elements
+  of an element whose style changed (`TransitionInputs::inherited_only`);
+  the animated elements themselves have none. A child is restyled when an
+  inherited value of its parent changes, not when only the parent's
+  kept style does: so in the parent's style change event the
+  parent's value is still its start value, the child sees no change, and
+  it starts at the next frame, where the parent's value first changes
+  (`inherit-parent-child-start`: one frame later). A child that the event
+  restyles for its own reasons starts with the parent
+  (`inherit-child-restyled`). A seek of the parent's transition starts
+  the child's (pending) at the style change of the seek
+  (`inherit-parent-child-seek`). Later frames keep the child's transition
+  (its end value is the parent's end value); a reversal of the parent's
+  reverses the child's (`inherit-parent-reverse`).
+- Frames: in a headless run the frames of an animation come only at its
+  event times; a transition or animation of an inherited value now gets
+  the frames of a painted one until a tick's restyle changes the owner's
+  style (`AnimationRecord::inherited_due`; second fix round below: for CSS
+  animations and transitions alike, only for owners whose styles others
+  inherit from, and only once a style of the document can start a
+  transition of an inherited value), and the style step of the rendering update runs when owners
+  that can show wait for a restyle in a document whose styles can start
+  transitions (`ticks_can_start_transitions`). The transitions that the
+  tick's restyle starts start in that frame (`start_pending_transitions`).
+  A painted frame restyled these owners before; it costs nothing more.
+
+*Memory per transition.* `TransitionValue::Longhand` holds the computed
+value of the one property (`ComputedSlot`: the field or fields that hold
+it, copied out of the style by `LonghandId::value_of` and put back into
+scratch styles by `put_value` for the functions on whole styles), not the
+before- and after-change styles; the set of completed transitions keeps
+such values too. The record limit of section 11 is per page
+(`RecordRoom`: the documents of a page share it; a document gives its
+records back when it goes). The hostile case of 100,000 inherited `color`
+transitions: 2.3 s and 1,100 MiB before, 2.3 s and 574 MiB after (about
+5 KB less per transition).
+
+*Cost on pages that declare transitions.* An element without running
+transitions whose after-change style (with its fix-ups, built on the
+stack) equals its before-change style has nothing to do: no candidate
+list, no allocation. `all` alone iterates a static list of the
+transitionable longhands and compares the two styles per longhand; other
+lists mark longhands in a bit set. The custom properties of a list count
+only when the two custom property maps differ (one comparison). Style
+sharing stays on: an element takes a shared style when the style can
+start no transition, or when the element has no running transition and
+its style change event would do nothing (no before-change style, or one
+with the values of the shared style for the properties of its
+`transition-property`, second fix round); a style with running
+transitions is not shared. The computed `transition-duration`, `-delay` and
+`-timing-function` lists of the elements of one declaration are one list
+(a cache of the last specified list per longhand). Measured (release,
+20,005 elements, `--bench 3`, load style / restyle median with unchanged
+styles in ms; `--animations off` / on before / on after):
+`*{transition:all .2s}` 11.8 / 40.9 / 11.7 and 11.4 / 262.9 / 15.5; four
+properties on a class 11.7 / 41.3 / 11.6 and 11.6 / 59.8 / 16.0. A list of
+10,000 custom properties on 3,000 elements and one class change on the body
+(hostile case `transition-list-10000-entries-3000-elements`): 0.50 s and
+2,063 MiB before (over its memory limit), 0.15 s and 78 MiB after; the
+class change itself 2,095 ms before, 79 ms after.
+
+*`CSSTransition` after its end.* A held wrapper of a transition whose
+record went after its end reads `playState` `finished` and its end time as
+`currentTime` (the engine hands the end time with the released id;
+`api-promises-after-end`). Departure: `cancel()` releases the record, so
+`play()` on the held wrapper does not replay the transition (Chromium
+replays it from 0; `api-after-end-and-cancel` rows 9 and 10 in
+`SWB_ROWS`; backlog: keep the record of a cancelled transition while a
+script holds its wrapper).
+
+*Nits.* `transition: width -1s` has the duration 0s and the delay -1s (a
+negative literal cannot be the duration; a math function is checked at
+computed-value time). A `background-size` `calc()` whose two parts are 0 with a
+percentage computes to `0%` (`calc-zero-percentage`; a `translate` of such a value stays `0px`, `registered-tl-3`). `document.getAnimations()`
+lists the animations of the document tree only; `ShadowRoot.getAnimations()`
+lists those of its shadow tree (`shadow-tree`).
+
+*`interpolate-size` (design notes for the follow-up).* (a) A reversal
+needs the current value of a mix: the computed value must nest (a mix of
+a mix), or the transition keeps (from, to, progress) and resolves the
+current value at the reversal. (b) The frames of such a transition need
+layout, not the paint-only path: its reach for the visibility test and
+the frame path must say `Layout`.
+
+*Tests.* `css_transitions.rs` runs the 17 new cases (`SWB_ROWS`:
+`getKeyframes()` and the replay after `cancel()`); the hostile case
+`transition-list-10000-entries-3000-elements`.
+
+*Measurements of the fix round* (release, the feature's binary before /
+after). `perf videojs hacker-news --runs 5` and `--bench 3` on videojs
+(with and without JavaScript), github-swb and wikipedia-web-browser: equal
+within noise. GUI, `videojs-page` (own Xvfb): frame render p90 8.3 / 8.3
+ms, render max after the first paint 26.6 / 27.2 ms (budget 33), pointer
+move to frame p90 3.7 / 22.9 ms (budget 50; it varies between runs), 60
+frames per second in the runs of continuous frames (hover transitions and
+the reveal), CPU idle after the trace 0.2 % both. Snapshot byte-equal;
+`compare --all` equal, `compare --js --all` equal but `js-ars-technica`
+(its A/B pixels, both binaries).
+
+**Second fix round of feature 5** (delta review findings). Measured in
+Chromium 148 with six cases added to `tools/probes/css-transitions.json`
+(three equal runs).
+
+*Style sharing and the kept style.* An element that takes a shared style
+runs no cascade, so it set no kept style: the children of the second and
+later of identical siblings inherited the animated value and restarted
+their transitions at every frame (`inherit-shared-siblings`), and a parent
+that took a shared style after its animation ended kept a stale style
+(`inherit-shared-parent-stale`). The sharing cache now holds the kept
+style of each shared style, and an element that takes one sets it (or
+drops its old one). The sharing key holds the address of the parent's
+kept style (held by the cache entry, so the address is not reused) and,
+under a kept style, whether the element keeps one itself: elements with
+one key keep one style.
+
+*Which elements keep a style, and for whom.* An element keeps a style
+for its children only when it has element children or pseudo-elements
+that can have transitions (some rule of the document for a
+pseudo-element sets a `transition-*` longhand:
+`Stylist::has_pseudo_transitions`; a test per element would need the
+pseudo-elements' styles, which come after the element's), and only once
+a style of the document can start a transition of an inherited value
+(`TransitionStyle::may_transition_inherited`: an item that is `all`, a
+custom property or (a shorthand of) an inherited longhand;
+`DocumentAnimations::inherited_transitions_seen`). So `::before`,
+`::after` and `::marker` of an element whose children are text start with
+it, in the same event (`inherit-pseudo-text-only`, `inherit-pseudo-marker`;
+they started one frame late). The per-frame headless updates of records of
+inherited values (`inherited_due`) need the same flag.
+
+*Lists that cannot name an inherited value.* An element whose
+`transition-property` names no inherited value, and that takes no
+non-inherited value with `inherit` (`ComputedStyle::inherits_reset`, set
+by the cascade; the review of the second fix round found that
+`background-color: inherit` with `transition: background-color` under a
+transitioning parent had lost its own transition), takes its after-change
+style from its parent's style as it is (no second compute from the kept
+style), and keeps the style sharing in the tick's restyle: it takes a
+shared style when its before-change style has the values of the shared
+style for the properties of its list (`same_transitioned_values`), not
+only when the two styles are equal. A list that can name an inherited
+value does not take a shared style under a parent with a kept style (its
+after-change style differs from the shared style).
+
+*Frames until the value changes.* `inherited_due` stayed set only until the
+time passed the delay; the first frame of a long animation (`color` over
+10 s) does not change the 8-bit value, so the child's transition waited
+for the next script read in headless runs
+(`inherit-long-animation-parent`, `-no-read`). It is now cleared when a
+tick's targeted restyle changes the owner's style
+(`DocumentAnimations::note_value_changed`), when a `steps()` animation is
+past its first step, or when the record leaves its active phase. It is set
+for CSS animations and transitions alike only when the owner's style has
+dependents (`AnimationTarget::children`; animations: `note_no_dependents`).
+A full restyle during the ticks does not clear it: the frames go on until
+the end (or the next targeted tick that changes the style).
+
+*Departures.*
+- A child that takes a non-inherited value with `inherit` and transitions
+  it starts its transition one frame after the parent in the GUI (the
+  parent's computed value does not change in the parent's event, so the
+  walk does not restyle the child); Chromium starts both in the same event
+  (`r-inherit-kw`, `r-inherit-kw-bw` of the review's probes). In headless
+  runs the child starts at the next script read, because a transition of a
+  non-inherited value gets no extra frames (`inherited_due`).
+- When the first style that can transition an inherited value comes in
+  the same event as the parent's change, the child's transition can be
+  cancelled and run again once (5 events where Chromium has 2; review
+  probe `n-enable-late`), or start one or two frames later
+  (`n-enable-same-event`); the values are right.
+- A value computed from an inherited value of the parent (`em`, `var()`):
+  Chromium restarts the child's transition at every frame while the
+  parent's value changes (cancel and run; review probes `d-font-size`,
+  `d-custom`). swb restarts it too when the child's list names no
+  inherited value (`#c{width:2em;transition:width}`: the after-change style
+  takes the animated parent), and runs one transition to the end value when
+  it names one (`color: var(--x)` with `transition: color`; a registered
+  inherited `--x` transitions on the parent): the kept style applies to the
+  inherited value and to what is computed from it. No probe row shows this:
+  the number of restarts depends on the frame timing.
+- Before the first style of the document whose list can name an inherited
+  value, no element keeps a style: if that first style comes in the same
+  style change event as the parent's change, the child's after-change
+  style takes the animated parent once (the next frame corrects it).
+
+*Tests.* `css_transitions.rs` runs the six new cases (no `SWB_ROWS`), and
+`shadow_roots_list_the_animations_of_their_trees` (nested shadow trees).
+Unit tests: `cascade/kept_style_tests.rs` (shared siblings, the stale
+style, the cleanup when elements go or become `display: none`, the frames
+until the value changes, owners without children, sharing with lists of
+other properties and of inherited values, a listed value that changed,
+the cancel of a running transition whose property leaves the list, the
+end times of released transitions) and
+`transition_values_round_trip_and_interpolate_as_whole_styles` (every
+transitionable longhand: `put_value` of `value_of` gives the value back,
+and the interpolation through the scratch styles equals the one of whole
+styles; 2 x 3 progress values). `put_value` stops a debug build at a slot
+of another type.
+
+*Measurements of the second fix round* (release; before is the first fix
+round's binary). 20,000 elements under a body whose `color` animates, a
+script reads a style in each `requestAnimationFrame` (frames in 3 s,
+headless, 181 is the frame rate): no `transition` 181 / 181;
+`.a{transition:opacity .2s}` 34 / 181 (93 ms / 17 ms per frame);
+`*{transition:color .2s}` 32 / 35 (98 / 92 ms per frame: every child
+computes its after-change style from the kept style). Without the reads:
+34 / 181 and 39 / 38. The pages of the first review, `perf videojs
+hacker-news --runs 5`, `--bench 3` on the fixtures and the GUI
+(`videojs-page`) are equal within noise.
 
 ## Consequences
 

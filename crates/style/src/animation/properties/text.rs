@@ -28,6 +28,9 @@ fn join<T>(items: &[T], f: impl Fn(&T) -> String) -> String {
 /// The computed text of the animation longhand `name` (`getComputedStyle`);
 /// `None` for other names.
 pub(crate) fn computed_text(name: &str, style: &ComputedStyle) -> Option<String> {
+    if name.starts_with("transition-") {
+        return crate::animation::transition_properties::computed_text(name, style);
+    }
     let a = AnimationStyle::of(style);
     Some(match name {
         "animation-name" => join(&a.names, AnimationName::text),
@@ -184,6 +187,9 @@ pub(crate) const SHORTHAND_LONGHANDS: [&str; 11] = [
 /// `element.style` writes it; `None` if `tokens` do not parse or `name`
 /// is not an animation longhand.
 pub(crate) fn declared_text(name: &str, tokens: &[ComponentValue]) -> Option<String> {
+    if name.starts_with("transition-") {
+        return crate::animation::transition_properties::declared_text(name, tokens);
+    }
     let id = LonghandId::from_name(name)?;
     let mut p = Parser::new(tokens);
     let value = p.parse_entirely(|p| parse_longhand(id, p)).ok()?;
@@ -260,7 +266,7 @@ pub(crate) fn animation_value(texts: &[&str]) -> String {
     }
     let lists: Vec<Vec<&str>> = rest
         .iter()
-        .map(|t| crate::properties::inert::split_list(t))
+        .map(|t| crate::animation::transition_properties::split_list(t))
         .collect();
     let count = lists.iter().map(Vec::len).max().unwrap_or(0);
     let layers: Vec<String> = (0..count)
@@ -284,7 +290,7 @@ pub(crate) fn lists_match(texts: &[&str]) -> bool {
     let mut lengths = texts
         .iter()
         .take(8)
-        .map(|t| crate::properties::inert::split_list(t).len());
+        .map(|t| crate::animation::transition_properties::split_list(t).len());
     let first = lengths.next();
     lengths.all(|n| Some(n) == first)
 }
@@ -292,8 +298,8 @@ pub(crate) fn lists_match(texts: &[&str]) -> bool {
 /// The value of `animation-range` in `element.style` from the texts of
 /// its two longhands.
 pub(crate) fn range_value(start: &str, end: &str) -> String {
-    let starts = crate::properties::inert::split_list(start);
-    let ends = crate::properties::inert::split_list(end);
+    let starts = crate::animation::transition_properties::split_list(start);
+    let ends = crate::animation::transition_properties::split_list(end);
     if starts.len() != ends.len() {
         return String::new();
     }

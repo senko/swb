@@ -388,6 +388,10 @@ fn update(style: &mut ComputedStyle, f: impl FnOnce(&mut AnimationStyle)) {
 /// Copies the value of the longhand `id` from `from` to `to` (inheritance
 /// and the keywords `inherit` and `initial`).
 pub(crate) fn copy_value(id: LonghandId, from: &ComputedStyle, to: &mut ComputedStyle) {
+    if id.name().starts_with("transition-") {
+        super::transition_properties::copy_value(id, from, to);
+        return;
+    }
     if from.animations.is_none() && to.animations.is_none() {
         return;
     }
@@ -398,6 +402,10 @@ pub(crate) fn copy_value(id: LonghandId, from: &ComputedStyle, to: &mut Computed
 /// Stores the computed value of `value` in `s` (`apply` of `compute.rs`).
 pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut ComputedStyle) {
     use LonghandValue as V;
+    if value.id().name().starts_with("transition-") {
+        super::transition_properties::apply(value, s);
+        return;
+    }
     update(s, |r| match value {
         V::AnimationName(v) => r.names = Arc::clone(v),
         V::AnimationDuration(v) => {
@@ -474,6 +482,11 @@ pub(crate) fn parse_longhand(id: LonghandId, p: &mut Parser<'_>) -> ParseResult<
         L::AnimationTimeline => V::AnimationTimeline(list(p, parse_timeline)?),
         L::AnimationRangeStart => V::AnimationRangeStart(list(p, parse_range_item)?),
         L::AnimationRangeEnd => V::AnimationRangeEnd(list(p, parse_range_item)?),
+        L::TransitionProperty
+        | L::TransitionDuration
+        | L::TransitionDelay
+        | L::TransitionTimingFunction
+        | L::TransitionBehavior => super::transition_properties::parse_longhand(id, p)?,
         _ => return Err(ParseError::Invalid),
     })
 }

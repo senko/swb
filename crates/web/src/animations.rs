@@ -1,7 +1,8 @@
-//! CSS animations for scripts (Web Animations 1 §6,
+//! CSS animations and transitions for scripts (Web Animations 1 §6,
 //! <https://drafts.csswg.org/web-animations-1/#programming-interface>; CSS
-//! Animations 2 §6.1; ADR 0044 section 7, M13 features 3b and 3c):
-//! `getAnimations()` of documents and elements, `CSSAnimation` (`play()`,
+//! Animations 2 §6.1, CSS Transitions 2 §6.1; ADR 0044 section 7, M13
+//! features 3b, 3c and 5): `getAnimations()` of documents and elements,
+//! `CSSTransition` (`transitionProperty`), `CSSAnimation` (`play()`,
 //! `pause()`, `cancel()`, `finish()`, `currentTime`, `startTime`,
 //! `playState`, `ready`, `finished`, `timeline`, `animationName`,
 //! `effect`), `KeyframeEffect` (`target`, `getKeyframes()`, `getTiming()`,
@@ -86,6 +87,10 @@ pub(crate) struct AnimationData {
     finished: Option<Gc<Object>>,
     /// What stays true after the record went: the name and the target.
     origin: Origin,
+    /// The end time of a CSS transition whose record went after its end:
+    /// the wrapper reads `finished` and this `currentTime` (measured in
+    /// Chromium 148, probe `api-promises-after-end`).
+    ended: Option<f64>,
 }
 
 /// The name and the target of an animation, kept by its wrapper: a wrapper
@@ -135,9 +140,18 @@ fn generic(data: HostData) -> b::Result<Gc<swb_js::Generic>> {
 fn sweep(cx: &mut Cx<'_>) -> b::Result<()> {
     let released = engine_mut(cx.rt)?.released_animations();
     if !released.is_empty() {
-        let objects = &mut state_mut(cx.rt)?.doc.animations;
-        for id in released {
-            objects.wrappers.remove(&id);
+        for (id, end) in released {
+            let Some(object) = state_mut(cx.rt)?.doc.animations.wrappers.remove(&id) else {
+                continue;
+            };
+            let (Some(end), Ok(handle)) = (end, handle_of(cx.rt, object)) else {
+                continue;
+            };
+            if let Ok(data) = cx.rt.heap_mut().generic_mut::<TargetData>(handle)
+                && let Some(animation) = data.animation.as_mut()
+            {
+                animation.ended = Some(end);
+            }
         }
     }
     Ok(())
@@ -151,17 +165,23 @@ fn wrappers(cx: &mut Cx<'_>, ids: &[u64]) -> b::Result<Vec<Gc<Object>>> {
             out.push(*object);
             continue;
         }
-        let origin = match engine_mut(cx.rt)?.animation(id) {
-            Some(info) => Origin {
-                name: info.name,
-                target: info.target,
-                pseudo: info.pseudo,
-            },
-            None => Origin {
-                name: String::new(),
-                target: NodeId::DOCUMENT,
-                pseudo: None,
-            },
+        let (origin, transition) = match engine_mut(cx.rt)?.animation(id) {
+            Some(info) => (
+                Origin {
+                    name: info.name,
+                    target: info.target,
+                    pseudo: info.pseudo,
+                },
+                info.transition,
+            ),
+            None => (
+                Origin {
+                    name: String::new(),
+                    target: NodeId::DOCUMENT,
+                    pseudo: None,
+                },
+                false,
+            ),
         };
         let mut data = TargetData::default();
         data.animation = Some(Box::new(AnimationData {
@@ -170,10 +190,16 @@ fn wrappers(cx: &mut Cx<'_>, ids: &[u64]) -> b::Result<Vec<Gc<Object>>> {
             ready: None,
             finished: None,
             origin,
+            ended: None,
         }));
         let data = cx.rt.alloc_host_data(data)?;
         let realm = cx.realm();
-        let object = cx.rt.new_host_object(realm, g::CSS_ANIMATION, data)?;
+        let class = if transition {
+            g::CSS_TRANSITION
+        } else {
+            g::CSS_ANIMATION
+        };
+        let object = cx.rt.new_host_object(realm, class, data)?;
         state_mut(cx.rt)?.doc.animations.wrappers.insert(id, object);
         out.push(object);
     }
@@ -197,6 +223,12 @@ pub(crate) fn document_animations(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Ve
         return Ok(Vec::new());
     }
     get_animations(cx, None, false)
+}
+
+/// `shadowRoot.getAnimations()`: the animations of the elements of the
+/// shadow tree (the engine reads a shadow root as a scope).
+pub(crate) fn shadow_root_animations(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Vec<Gc<Object>>> {
+    get_animations(cx, Some(this), true)
 }
 
 /// `element.getAnimations(options)`.
@@ -225,6 +257,22 @@ fn animation_id(cx: &Cx<'_>, this: Platform) -> b::Result<u64> {
 fn info(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<AnimationInfo>> {
     let id = animation_id(cx, this)?;
     Ok(engine_mut(cx.rt)?.animation(id))
+}
+
+/// The end time of the animation `this` if its record went after its end
+/// (a CSS transition, [`AnimationData::ended`]).
+fn ended(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<f64>> {
+    // The ids of the records that went since the last listing carry it.
+    sweep(cx)?;
+    let handle = generic(this.data)?;
+    Ok(cx
+        .rt
+        .heap()
+        .generic::<TargetData>(handle)
+        .map_err(VmError::from)?
+        .animation
+        .as_ref()
+        .and_then(|a| a.ended))
 }
 
 /// The id of the animation of the effect `this`.
@@ -580,7 +628,10 @@ impl g::animation::AnimationImpl for WebState {
     }
 
     fn current_time(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<f64>> {
-        Ok(info(cx, this)?.and_then(|i| time_value(i.current_time, i.held)))
+        match info(cx, this)? {
+            Some(i) => Ok(time_value(i.current_time, i.held)),
+            None => ended(cx, this),
+        }
     }
 
     /// Setting `null` while the timeline is active throws a `TypeError`
@@ -598,7 +649,12 @@ impl g::animation::AnimationImpl for WebState {
     }
 
     fn play_state(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
-        Ok(info(cx, this)?.map_or("idle", |i| i.play_state).to_owned())
+        let state = match info(cx, this)? {
+            Some(i) => i.play_state,
+            None if ended(cx, this)?.is_some() => "finished",
+            None => "idle",
+        };
+        Ok(state.to_owned())
     }
 
     fn replace_state(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<String> {
@@ -650,9 +706,12 @@ impl g::animation::AnimationImpl for WebState {
 }
 
 impl g::css_transition::CSSTransitionImpl for WebState {
-    /// No `CSSTransition` exists before feature 5.
-    fn transition_property(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<String> {
-        Ok(String::new())
+    /// The property; a transition whose record went keeps it.
+    fn transition_property(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
+        match info(cx, this)? {
+            Some(info) => Ok(info.name),
+            None => Ok(animation_origin(cx, this)?.name),
+        }
     }
 }
 

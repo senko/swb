@@ -77,7 +77,7 @@ pub(super) fn value(name: &str, r: &Resolver<'_>) -> String {
                 String::new()
             }
         }
-        "transition" => crate::properties::inert::transition_value(&[
+        "transition" => crate::animation::transition_properties::transition_value(&[
             &get("transition-behavior"),
             &get("transition-duration"),
             &get("transition-timing-function"),

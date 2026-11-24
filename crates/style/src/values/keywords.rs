@@ -687,6 +687,19 @@ keyword_enum! {
 }
 
 keyword_enum! {
+    /// The `interpolate-size` property (CSS Values 5 §11.2,
+    /// <https://drafts.csswg.org/css-values-5/#interpolate-size>):
+    /// `allow-keywords` lets a length interpolate with an intrinsic size
+    /// keyword. swb parses and inherits it; the interpolation itself is not
+    /// done (ADR 0044, "Done in feature 5").
+    InterpolateSize {
+        NumericOnly = "numeric-only",
+        AllowKeywords = "allow-keywords",
+    }
+    default NumericOnly
+}
+
+keyword_enum! {
     /// The `isolation` property (CSS Compositing and Blending 1 §3.1,
     /// <https://www.w3.org/TR/compositing-1/#isolation>): `isolate` makes
     /// a stacking context.

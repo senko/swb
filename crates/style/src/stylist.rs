@@ -347,6 +347,8 @@ pub struct Stylist {
     container_chains: Vec<Arc<[Arc<ContainerCondition>]>>,
     /// True if some rule's declarations use container query units.
     container_units: bool,
+    /// True if a rule for a pseudo-element sets a `transition-*` longhand.
+    pseudo_transitions: bool,
     /// The cascade layers of the author origin.
     layers: LayerTree,
     next_order: u32,
@@ -491,6 +493,7 @@ impl Stylist {
             media_chains: Vec::new(),
             container_chains: Vec::new(),
             container_units: false,
+            pseudo_transitions: false,
             layers: LayerTree::default(),
             next_order: 0,
             state_dependencies: ElementState::empty(),
@@ -925,6 +928,13 @@ impl Stylist {
         self.container_units || self.scopes.iter().any(Stylist::has_container_units)
     }
 
+    /// True if a rule for a pseudo-element sets a `transition-*` longhand
+    /// (also in a shadow tree's stylist): only then can a pseudo-element
+    /// have transitions.
+    pub(crate) fn has_pseudo_transitions(&self) -> bool {
+        self.pseudo_transitions || self.scopes.iter().any(Stylist::has_pseudo_transitions)
+    }
+
     /// Adds the registration of a valid `@property` rule. Rules in a
     /// shadow tree's sheet and inside `@container` are ignored.
     fn add_registration(&mut self, rule: &swb_css::PropertyRule, scope: Scope) {
@@ -1001,6 +1011,19 @@ impl Stylist {
             .chain(&block.important)
             .any(|d| d.longhand() == Some(crate::properties::LonghandId::Content));
         let sets_content = uses_element_data;
+        let sets_transitions = block.normal.iter().chain(&block.important).any(|d| {
+            use crate::properties::LonghandId as L;
+            matches!(
+                d.longhand(),
+                Some(
+                    L::TransitionProperty
+                        | L::TransitionDuration
+                        | L::TransitionDelay
+                        | L::TransitionTimingFunction
+                        | L::TransitionBehavior
+                )
+            )
+        });
         for selector in selectors {
             let Some(target) = RuleTarget::of(selector.pseudo_element()) else {
                 if let Some(other) = selector.pseudo_element() {
@@ -1028,6 +1051,7 @@ impl Stylist {
             }
             self.state_dependencies |= selector.state_dependencies();
             self.container_units |= block.uses_container_units;
+            self.pseudo_transitions |= sets_transitions && target != RuleTarget::Element;
             self.rules.push(Rule {
                 selector: selector.clone(),
                 block: Arc::clone(block),

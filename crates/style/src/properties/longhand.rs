@@ -32,13 +32,13 @@ use crate::values::{
     Contain, ContainerName, ContainerType, ContentVisibility, CounterList, Cursor, Direction,
     Display, EmptyCells, FieldSizing, FillRule, FlexDirection, FlexWrap, Float, FontFamily,
     FontSizeKeyword, FontSmoothing, FontStyle, FontVariantCaps, FontVariantLigatures,
-    FontVariantNumeric, GenericFamily, Hyphens, Isolation, Length, LineBreak, ListStylePosition,
-    ListStyleType, MixBlendMode, ObjectFit, OutlineStyle, Overflow, OverflowAnchor, OverflowWrap,
-    Overlay, OverscrollBehavior, PointerEvents, Position, Resize, ScrollbarWidth, ShapeRendering,
-    SpaceCollapse, SpecifiedLengthPercentage as Lp, StrokeLinecap, StrokeLinejoin, TableLayout,
-    TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow, TextSizeAdjust,
-    TextTransform, TextWrapStyle, UnicodeBidi, UserSelect, VerticalAlignKeyword, Visibility,
-    WordBreak, ZIndex,
+    FontVariantNumeric, GenericFamily, Hyphens, InterpolateSize, Isolation, Length, LineBreak,
+    ListStylePosition, ListStyleType, MixBlendMode, ObjectFit, OutlineStyle, Overflow,
+    OverflowAnchor, OverflowWrap, Overlay, OverscrollBehavior, PointerEvents, Position, Resize,
+    ScrollbarWidth, ShapeRendering, SpaceCollapse, SpecifiedLengthPercentage as Lp, StrokeLinecap,
+    StrokeLinejoin, TableLayout, TextAlign, TextDecorationLine, TextDecorationStyle, TextOverflow,
+    TextSizeAdjust, TextTransform, TextWrapStyle, UnicodeBidi, UserSelect, VerticalAlignKeyword,
+    Visibility, WordBreak, ZIndex,
 };
 
 /// True for the properties where the quirks mode unitless length quirk
@@ -145,6 +145,7 @@ pub(crate) fn parse_longhand(
             L::Rotate => V::Rotate(effects::parse_rotate(p)?),
             L::Scale => V::Scale(effects::parse_scale(p)?),
             L::Isolation => V::Isolation(keyword(p, Isolation::from_ident)?),
+            L::InterpolateSize => V::InterpolateSize(keyword(p, InterpolateSize::from_ident)?),
             L::CornerTopLeftShape => V::CornerTopLeftShape(effects::parse_corner_shape(p)?),
             L::CornerTopRightShape => V::CornerTopRightShape(effects::parse_corner_shape(p)?),
             L::CornerBottomRightShape => V::CornerBottomRightShape(effects::parse_corner_shape(p)?),
@@ -328,12 +329,7 @@ pub(crate) fn parse_longhand(
             L::UserSelect => V::UserSelect(parse_user_select(p)?),
             L::UnicodeBidi => V::UnicodeBidi(parse_unicode_bidi(p)?),
             L::ColorScheme => V::ColorScheme(crate::color_scheme::parse_color_scheme(p)?),
-            L::TransitionProperty
-            | L::TransitionDuration
-            | L::TransitionDelay
-            | L::TransitionTimingFunction
-            | L::TransitionBehavior
-            | L::WillChange
+            L::WillChange
             | L::TouchAction
             | L::Perspective
             | L::PerspectiveOrigin
@@ -356,7 +352,12 @@ pub(crate) fn parse_longhand(
             | L::AnimationComposition
             | L::AnimationTimeline
             | L::AnimationRangeStart
-            | L::AnimationRangeEnd => crate::animation::properties::parse_longhand(id, p)?,
+            | L::AnimationRangeEnd
+            | L::TransitionProperty
+            | L::TransitionDuration
+            | L::TransitionDelay
+            | L::TransitionTimingFunction
+            | L::TransitionBehavior => crate::animation::properties::parse_longhand(id, p)?,
         })
     })
 }

@@ -95,6 +95,16 @@ pub enum EventInterface {
         /// `pseudoElement` (`""` or `"::before"` and so on).
         pseudo_element: String,
     },
+    /// `TransitionEvent` (`transitionrun`, `transitionstart`,
+    /// `transitionend`, `transitioncancel`; ADR 0044 section 6).
+    Transition {
+        /// `propertyName`.
+        property_name: String,
+        /// `elapsedTime` in seconds.
+        elapsed_time: f64,
+        /// `pseudoElement` (`""` or `"::before"` and so on).
+        pseudo_element: String,
+    },
     /// `ToggleEvent` (`beforetoggle`, `toggle`; ADR 0037).
     Toggle {
         /// `oldState`.
@@ -223,9 +233,9 @@ pub(crate) fn dispatch_trusted(
                 })),
             )
         }
-        EventInterface::HashChange { .. } | EventInterface::Animation { .. } => {
-            plain_parts(&event.interface)
-        }
+        EventInterface::HashChange { .. }
+        | EventInterface::Animation { .. }
+        | EventInterface::Transition { .. } => plain_parts(&event.interface),
         EventInterface::FormData { form_data } => (
             g::FORM_DATA_EVENT,
             Extra::Other(Box::new(super::misc::form_data(*form_data))),
@@ -269,8 +279,9 @@ pub(crate) fn dispatch_trusted(
     dispatch(rt, realm, target_object, object, target_override)
 }
 
-/// The interface and the data of a trusted `HashChangeEvent` or
-/// `AnimationEvent` (no script value in them); `Event` for the others.
+/// The interface and the data of a trusted `HashChangeEvent`,
+/// `AnimationEvent` or `TransitionEvent` (no script value in them); `Event`
+/// for the others.
 fn plain_parts(interface: &EventInterface) -> (ClassId, Extra) {
     let (class, other) = match interface {
         EventInterface::HashChange { old_url, new_url } => (
@@ -288,6 +299,18 @@ fn plain_parts(interface: &EventInterface) -> (ClassId, Extra) {
             g::ANIMATION_EVENT,
             super::misc::Other::Animation {
                 animation_name: animation_name.clone(),
+                elapsed_time: *elapsed_time,
+                pseudo_element: pseudo_element.clone(),
+            },
+        ),
+        EventInterface::Transition {
+            property_name,
+            elapsed_time,
+            pseudo_element,
+        } => (
+            g::TRANSITION_EVENT,
+            super::misc::Other::Transition {
+                property_name: property_name.clone(),
                 elapsed_time: *elapsed_time,
                 pseudo_element: pseudo_element.clone(),
             },

@@ -64,6 +64,8 @@ mod container_tests;
 #[cfg(test)]
 mod dom_tests;
 #[cfg(test)]
+mod kept_style_tests;
+#[cfg(test)]
 mod pseudo_content_tests;
 mod scoping;
 #[cfg(test)]
@@ -77,6 +79,8 @@ mod targeted_tests;
 mod test_util;
 #[cfg(test)]
 mod top_layer_tests;
+#[cfg(test)]
+mod transition_tests;
 pub(crate) mod use_instances;
 
 use scoping::{DOCUMENT_STYLIST, ScopeCascade, ScopedMatch};
@@ -90,6 +94,7 @@ use swb_dom::{Document, ElementData, FlatScopes, NodeId};
 use url::Url;
 
 use crate::ComputedStyle;
+use crate::animation::transition_properties::TransitionStyle;
 use crate::animation::{AnimationOwner, DocumentAnimations};
 use crate::bloom::AncestorFilter;
 use crate::container::{ContainerSizes, Containers};
@@ -178,7 +183,10 @@ pub fn compute_styles_reusing(
 /// section 3): each element's records are brought up to date with its
 /// computed `animation-*` lists, and the styles take the animated values at
 /// the timeline's time. The records of elements that have no style or no
-/// animation name afterwards are cancelled ([`sweep_animations`]).
+/// animation name afterwards are cancelled ([`sweep_animations`]). With
+/// `transitions`, the pass is a style change event: the elements'
+/// transitions start from their styles in `previous` (CSS Transitions 1
+/// §3).
 #[allow(clippy::too_many_arguments)]
 pub fn compute_styles_animated(
     doc: &Document,
@@ -189,15 +197,87 @@ pub fn compute_styles_animated(
     sizes: &ContainerSizes,
     previous: Option<&StyleMap>,
     animations: &RefCell<DocumentAnimations>,
+    transitions: Option<TransitionInputs<'_>>,
 ) -> StyleMap {
     let state_set = StateSet::new(doc, states);
     let mut styler = Styler::new(
         doc, &state_set, stylist, env, base_url, true, sizes, previous,
     );
     styler.animations = Some((animations, true));
+    styler.change = transitions.map(|t| ChangeSource {
+        previous,
+        queried: t.queried,
+        element: None,
+        pseudos: None,
+        all: true,
+        parent_changed: false,
+    });
     let map = styler.run();
     sweep_animations(&map, animations);
     map
+}
+
+/// The inputs of a style change event (CSS Transitions 1 §3, ADR 0044
+/// sections 3 and 20): a style pass with them starts, reverses and cancels
+/// the CSS transitions of the elements it styles, from their before-change
+/// styles (their styles in the map that the pass starts from). A pass
+/// without them (a check) only reads the transitions.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct TransitionInputs<'a> {
+    /// Styles of single elements that queries of scripts computed after
+    /// the map that the pass starts from: they are the newer before-change
+    /// styles of those elements.
+    pub queried: Option<&'a HashMap<NodeId, Arc<ComputedStyle>>>,
+    /// True for a targeted pass for the animation ticks alone: it is a
+    /// style change event only for the elements whose parent's style
+    /// changed in the pass, and for the pseudo-elements of an element
+    /// whose style changed (an inherited value can have changed; measured
+    /// in Chromium 148: such a child starts its own transition one frame
+    /// after its parent's). A full pass ignores it.
+    pub inherited_only: bool,
+}
+
+/// Where a style pass finds the before-change styles of the elements it
+/// styles.
+struct ChangeSource<'a> {
+    /// The styles before the event: the previous map of a full restyle.
+    previous: Option<&'a StyleMap>,
+    /// Newer styles of single elements (see [`TransitionInputs::queried`]).
+    queried: Option<&'a HashMap<NodeId, Arc<ComputedStyle>>>,
+    /// The old style of the element that a targeted walk restyles now.
+    element: Option<Arc<ComputedStyle>>,
+    /// The old styles of its pseudo-elements.
+    pseudos: Option<crate::style_map::PseudoStyles>,
+    /// False in a pass of [`TransitionInputs::inherited_only`]: then only
+    /// the owners with `parent_changed` have a style change event.
+    all: bool,
+    /// In a targeted pass: the parent of the element that the walk styles
+    /// now changed its style (for its pseudo-elements: the element or its
+    /// parent did).
+    parent_changed: bool,
+}
+
+impl ChangeSource<'_> {
+    /// The before-change style of `owner`.
+    fn before(&self, owner: AnimationOwner) -> Option<Arc<ComputedStyle>> {
+        match owner.pseudo {
+            None => self
+                .queried
+                .and_then(|q| q.get(&owner.node))
+                .or(self.element.as_ref())
+                .or_else(|| self.previous.and_then(|m| m.get(owner.node)))
+                .cloned(),
+            Some(kind) => self
+                .pseudos
+                .as_ref()
+                .and_then(|p| p.get(kind as usize).cloned().flatten())
+                .or_else(|| {
+                    self.previous
+                        .and_then(|m| m.pseudo(owner.node, kind))
+                        .cloned()
+                }),
+        }
+    }
 }
 
 /// Cancels the animation records whose owner has no style in `map` or no
@@ -212,13 +292,14 @@ pub fn sweep_animations(map: &StyleMap, animations: &RefCell<DocumentAnimations>
     if animations.is_empty() {
         return;
     }
+    let style_of = |owner: AnimationOwner| match owner.pseudo {
+        None => map.get(owner.node),
+        Some(kind) => map.pseudo(owner.node, kind),
+    };
     animations.retain_owners(|owner| {
-        let style = match owner.pseudo {
-            None => map.get(owner.node),
-            Some(kind) => map.pseudo(owner.node, kind),
-        };
-        style.is_some_and(|s| crate::animation::AnimationStyle::has_names(s))
+        style_of(owner).is_some_and(|s| crate::animation::AnimationStyle::has_names(s))
     });
+    animations.retain_transitions(|owner| style_of(owner).cloned());
 }
 
 /// [`compute_styles`] with the ancestor Bloom filter optional (tests check
@@ -478,6 +559,31 @@ struct SharingKey {
     /// results are in `rules` already. A plain number: one hash write and
     /// one comparison per element on pages without container CSS.
     container: u32,
+    /// The style that the after-change styles of the element inherit from
+    /// when its parent keeps one (its address; 0 for none; ADR 0044
+    /// section 20), and then whether the element keeps one for its
+    /// children ([`animated::keeps_parent_style`]): elements with the same
+    /// key keep the same style.
+    kept_parent: usize,
+    keeps: bool,
+}
+
+/// The sharing key of an element, with the parent's kept style that the
+/// key names by its address.
+struct SharingInput {
+    key: SharingKey,
+    kept_parent: Option<Arc<ComputedStyle>>,
+}
+
+/// A style of the sharing cache.
+struct SharedStyle {
+    style: Arc<ComputedStyle>,
+    /// The style that the after-change styles of the children of the
+    /// elements that take `style` inherit from (`None`: `style`).
+    kept: Option<Arc<ComputedStyle>>,
+    /// The parent's kept style that the key names by its address, held so
+    /// that the address is not reused while the cache lives.
+    _kept_parent: Option<Arc<ComputedStyle>>,
 }
 
 /// Settings shared by all cascades of one document.
@@ -548,7 +654,7 @@ struct Styler<'a> {
     /// The ancestors of the element being styled (see [`crate::bloom`]).
     filter: Option<AncestorFilter>,
     /// Styles that elements with the same inputs share.
-    shared: HashMap<SharingKey, Arc<ComputedStyle>>,
+    shared: HashMap<SharingKey, SharedStyle>,
     /// The last style of an element in the top layer and the last
     /// `::backdrop` style: an equal next one reuses it ([`share_last`]).
     last_top_layer: [Option<Arc<ComputedStyle>>; 2],
@@ -590,6 +696,12 @@ struct Styler<'a> {
     /// 0044 section 3), and whether this pass creates, updates and cancels
     /// records (`true`) or only reads them (the styles of queries).
     animations: Option<(&'a RefCell<DocumentAnimations>, bool)>,
+    /// The before-change styles if the pass is a style change event (ADR
+    /// 0044 section 3); `None` if it only reads the transitions.
+    change: Option<ChangeSource<'a>>,
+    /// True if a rule for a pseudo-element sets a `transition-*` longhand
+    /// ([`Stylist::has_pseudo_transitions`]).
+    pseudo_transitions: bool,
 }
 
 impl<'a> Styler<'a> {
@@ -666,6 +778,8 @@ impl<'a> Styler<'a> {
             container_units: stylist.has_container_units(),
             attribute_units: false,
             animations: None,
+            change: None,
+            pseudo_transitions: stylist.has_pseudo_transitions(),
         }
     }
 
@@ -814,16 +928,21 @@ impl<'a> Styler<'a> {
                 .iter()
                 .all(|m| !self.cx.scoped_rule(m).is_some_and(|r| r.uses_element_data));
         let contents_is_none = contents_is_none(data);
-        let key = shareable.then(|| SharingKey {
-            parent: Arc::as_ptr(parent) as usize,
-            layout_parent,
-            contents_is_none,
-            rules: matched.clone().into_boxed_slice(),
-            scoped: scoped.clone().into_boxed_slice(),
-            container: self.sharing_container(),
+        let sharing = shareable.then(|| {
+            self.sharing_input(
+                el.node_id(),
+                parent,
+                layout_parent,
+                contents_is_none,
+                &matched,
+                &scoped,
+            )
         });
-        if let Some(shared) = key.as_ref().and_then(|k| self.shared.get(k)) {
-            let shared = Arc::clone(shared);
+        let owner = AnimationOwner {
+            node: el.node_id(),
+            pseudo: None,
+        };
+        if let Some(shared) = sharing.as_ref().and_then(|s| self.take_shared(s, owner)) {
             self.matched = matched;
             self.scoped_matched = scoped;
             return shared;
@@ -837,21 +956,16 @@ impl<'a> Styler<'a> {
             scoped: &scoped,
             own,
         };
-        let owner = AnimationOwner {
-            node: el.node_id(),
-            pseudo: None,
-        };
-        let mut style =
-            self.cascade_with_units(&rules, extra, parent, Some(data), is_root, Some(owner));
-        // An element with animation names has a style of its own: its
-        // animations are its own (their play states, the values at their
-        // times). Other `animation-*` values alone (a reduced-motion reset)
-        // make no animation and keep the sharing.
-        let key = if crate::animation::AnimationStyle::has_names(&style) {
-            None
-        } else {
-            key
-        };
+        let fixup = animated::Fixup::Parent(layout_parent);
+        let mut style = self.cascade_with_units(
+            &rules,
+            extra,
+            parent,
+            Some(data),
+            is_root,
+            Some((owner, fixup)),
+        );
+        let sharing = sharing.filter(|_| self.shareable_animated(owner, &style));
         if top_layer {
             top_layer_fixup(&mut style, true);
         }
@@ -880,7 +994,93 @@ impl<'a> Styler<'a> {
         }
         self.matched = matched;
         self.scoped_matched = scoped;
-        self.finish_style(style, top_layer, key)
+        self.finish_style(style, top_layer, sharing, owner.node)
+    }
+
+    /// The sharing key of the element `node` (see [`SharingKey`]) with the
+    /// style that its parent keeps for it, if any.
+    fn sharing_input(
+        &self,
+        node: NodeId,
+        parent: &Arc<ComputedStyle>,
+        layout_parent: Option<Display>,
+        contents_is_none: bool,
+        matched: &[u32],
+        scoped: &[ScopedMatch],
+    ) -> SharingInput {
+        let kept_parent = self.kept_parent_style(node);
+        let key = SharingKey {
+            parent: Arc::as_ptr(parent) as usize,
+            layout_parent,
+            contents_is_none,
+            rules: matched.into(),
+            scoped: scoped.into(),
+            container: self.sharing_container(),
+            kept_parent: kept_parent.as_ref().map_or(0, |k| Arc::as_ptr(k) as usize),
+            keeps: kept_parent.is_some() && self.has_dependents(node),
+        };
+        SharingInput { key, kept_parent }
+    }
+
+    /// The shared style for the inputs `sharing`, if `owner` may take it
+    /// ([`Self::may_take_shared`]); `owner` then keeps the style of the
+    /// cache for its children, or drops a stale one.
+    fn take_shared(
+        &self,
+        sharing: &SharingInput,
+        owner: AnimationOwner,
+    ) -> Option<Arc<ComputedStyle>> {
+        let shared = self.shared.get(&sharing.key)?;
+        if !self.may_take_shared(owner, &shared.style, sharing.kept_parent.is_some()) {
+            return None;
+        }
+        self.set_kept_style(owner.node, shared.kept.clone());
+        Some(Arc::clone(&shared.style))
+    }
+
+    /// The style that the after-change styles of the transitions of the
+    /// element `node` inherit from, if its parent keeps one (ADR 0044
+    /// section 20).
+    fn kept_parent_style(&self, node: NodeId) -> Option<Arc<ComputedStyle>> {
+        let (animations, _) = self.animations?;
+        let animations = animations.try_borrow().ok()?;
+        if !animations.keeps_transition_parents() {
+            return None;
+        }
+        animations.transition_parent(self.doc.flat_parent_element(node)?)
+    }
+
+    /// The style that `node` keeps for its children, if any.
+    fn kept_style(&self, node: NodeId) -> Option<Arc<ComputedStyle>> {
+        let (animations, _) = self.animations?;
+        animations.try_borrow().ok()?.transition_parent(node)
+    }
+
+    /// Keeps `kept` as the style of `node` for its children (`None`: drops a
+    /// stale one).
+    fn set_kept_style(&self, node: NodeId, kept: Option<Arc<ComputedStyle>>) {
+        if let Some((animations, _)) = self.animations
+            && let Ok(mut animations) = animations.try_borrow_mut()
+        {
+            animations.set_transition_parent(node, kept);
+        }
+    }
+
+    /// Notes that the style of the animated element `node` changed in a
+    /// restyle ([`DocumentAnimations::note_value_changed`]).
+    fn note_value_changed(&self, node: NodeId) {
+        if let Some((animations, true)) = self.animations
+            && let Ok(mut animations) = animations.try_borrow_mut()
+        {
+            animations.note_value_changed(node);
+        }
+    }
+
+    /// True if styles inherit from the style of the element `node`: it has
+    /// element children, or pseudo-elements can have transitions
+    /// ([`animated::AnimationTarget::children`]).
+    fn has_dependents(&self, node: NodeId) -> bool {
+        self.pseudo_transitions || self.doc.flat_element_children(node).next().is_some()
     }
 
     /// The presentational hints of the element `el` ([`crate::hints`]).
@@ -931,6 +1131,56 @@ impl<'a> Styler<'a> {
         self.container_units || self.attribute_units
     }
 
+    /// True if `owner` with the style `style` may share it with the elements
+    /// styled later: an element with animation names has a style of its own
+    /// (its animations are its own: their play states, the values at their
+    /// times; other `animation-*` values alone, as in a reduced-motion
+    /// reset, make no animation and keep the sharing), and so has an
+    /// element with running transitions (their values are its own).
+    fn shareable_animated(&self, owner: AnimationOwner, style: &ComputedStyle) -> bool {
+        !crate::animation::AnimationStyle::has_names(style)
+            && (!TransitionStyle::may_transition(style) || !self.has_transitions(owner))
+    }
+
+    /// True if `owner` may take the shared style `shared` instead of a
+    /// cascade of its own (ADR 0044 section 20): always when `shared` can
+    /// start no transition; else only when the owner has no running
+    /// transition, its after-change style would be `shared` (not so when
+    /// the parent keeps a style, `kept_parent`, and the list can follow an
+    /// inherited value), and its style change event, if it has one, would
+    /// start none (it has no before-change style, or that style has the
+    /// values of `shared` for the properties of the list).
+    fn may_take_shared(
+        &self,
+        owner: AnimationOwner,
+        shared: &ComputedStyle,
+        kept_parent: bool,
+    ) -> bool {
+        if !TransitionStyle::may_transition(shared) {
+            return true;
+        }
+        if self.has_transitions(owner)
+            || (kept_parent && TransitionStyle::may_transition_inherited(shared))
+        {
+            return false;
+        }
+        match self.change.as_ref() {
+            Some(change) if change.all || change.parent_changed => change
+                .before(owner)
+                .is_none_or(|before| TransitionStyle::same_transitioned_values(&before, shared)),
+            _ => true,
+        }
+    }
+
+    /// True if `owner` has running transitions.
+    fn has_transitions(&self, owner: AnimationOwner) -> bool {
+        self.animations.is_some_and(|(animations, _)| {
+            animations
+                .try_borrow()
+                .is_ok_and(|a| !a.is_empty() && a.has_transitions(owner))
+        })
+    }
+
     /// The nearest query container for the style sharing key, if values
     /// can use container units ([`Self::units_possible`]).
     fn sharing_container(&self) -> u32 {
@@ -949,7 +1199,7 @@ impl<'a> Styler<'a> {
     /// containers, so the log records the units of the elements that use
     /// them.
     /// `owner` is the element or pseudo-element whose animations give
-    /// animated values, if any.
+    /// animated values, if any, with the fix-ups its style goes through.
     fn cascade_with_units(
         &mut self,
         rules: &MatchedRules<'_>,
@@ -957,18 +1207,32 @@ impl<'a> Styler<'a> {
         parent: &ComputedStyle,
         element: Option<&ElementData>,
         is_root: bool,
-        owner: Option<AnimationOwner>,
+        owner: Option<(AnimationOwner, animated::Fixup)>,
     ) -> ComputedStyle {
         let viewport = ContainerBasis {
             width: self.cx.env.viewport_width,
             height: self.cx.env.viewport_height,
         };
         let target = match (self.animations, owner) {
-            (Some((animations, sync)), Some(owner)) => Some(animated::AnimationTarget {
+            (Some((animations, sync)), Some((owner, fixup))) => Some(animated::AnimationTarget {
                 animations,
                 owner,
                 media: &self.media,
                 sync,
+                change: self
+                    .change
+                    .as_ref()
+                    .filter(|c| sync && (c.all || c.parent_changed))
+                    .map(|c| animated::StyleChange {
+                        before: c.before(owner),
+                        is_root,
+                        fixup,
+                    }),
+                children: owner.pseudo.is_none() && self.has_dependents(owner.node),
+                parent: match owner.pseudo {
+                    None => self.doc.flat_parent_element(owner.node),
+                    Some(_) => Some(owner.node),
+                },
             }),
             _ => None,
         };
@@ -999,20 +1263,27 @@ impl<'a> Styler<'a> {
     }
 
     /// Puts the computed `style` in an `Arc`, shared with an equal previous
-    /// one in the top layer, and in the sharing cache under `key`.
+    /// one in the top layer, and in the sharing cache under the inputs
+    /// `sharing` of the element `node`.
     fn finish_style(
         &mut self,
         style: ComputedStyle,
         top_layer: bool,
-        key: Option<SharingKey>,
+        sharing: Option<SharingInput>,
+        node: NodeId,
     ) -> Arc<ComputedStyle> {
         let style = if top_layer {
             share_last(&mut self.last_top_layer[0], style)
         } else {
             Arc::new(style)
         };
-        if let Some(key) = key {
-            self.shared.insert(key, Arc::clone(&style));
+        if let Some(SharingInput { key, kept_parent }) = sharing {
+            let shared = SharedStyle {
+                style: Arc::clone(&style),
+                kept: self.kept_style(node),
+                _kept_parent: kept_parent,
+            };
+            self.shared.insert(key, shared);
         }
         style
     }
@@ -1152,13 +1423,18 @@ impl<'a> Styler<'a> {
                 if always && let Some((cell, _)) = saved {
                     self.animations = Some((cell, false));
                 }
+                let fixup = if boxed {
+                    animated::Fixup::None
+                } else {
+                    animated::Fixup::Parent(pseudo_layout_parent)
+                };
                 let mut pseudo = self.cascade_with_units(
                     &rules,
                     ExtraDeclarations::default(),
                     style,
                     Some(el.data()),
                     false,
-                    owner,
+                    owner.map(|o| (o, fixup)),
                 );
                 self.animations = saved;
                 // Also the backdrop of an element outside the top layer, for
@@ -1683,7 +1959,9 @@ fn cascade(
 }
 
 /// The end of [`cascade`]: the font cycles, the style from the winners,
-/// and with an animation target the style with its animated values.
+/// and with an animation target the style with its animated values and
+/// running transitions; it also keeps the style that the after-change
+/// styles of the target's children inherit from (ADR 0044 section 20).
 #[allow(clippy::too_many_arguments)]
 fn compute_with_animations(
     cx: &CascadeContext<'_>,
@@ -1695,24 +1973,217 @@ fn compute_with_animations(
     units: ContainerBasis,
     target: Option<&animated::AnimationTarget<'_>>,
 ) -> ComputedStyle {
-    // A declaration that a font cycle makes invalid is `unset`: both
-    // properties inherit, and the style starts as the parent's.
+    drop_font_cycles(cx, &mut winners, is_root);
+    let run = Recompute {
+        cx,
+        winners: &winners,
+        element,
+        is_root,
+        units,
+    };
+    let base = run.style(parent, None);
+    let Some(target) = target else {
+        return base;
+    };
+    // The parent's style without the animations and transitions of it and
+    // its ancestors, if that differs from its style.
+    let parent_base = target
+        .parent
+        .and_then(|node| animated::transition_parent(target, node));
+    let parent_base = parent_base.as_deref();
+    if !animated::may_animate(target, &base) {
+        let keeps = animated::keeps_parent_style(target);
+        let every = animated::keeps_every_value(target);
+        let kept = parent_base
+            .filter(|_| keeps)
+            .and_then(|p| unanimated_parent(run.style(p, None), &base, every));
+        set_kept_style(target, kept);
+        return base;
+    }
+    let input = animated::input(cx, target, &base, important);
+    let keeps = animated::keeps_parent_style(target);
+    let styles = TransitionStyles::compute(&run, target, parent, parent_base, base, input, keeps);
+    let effects =
+        animated::transition_effects(target, styles.after_change(), styles.input.as_ref());
+    let TransitionStyles {
+        after,
+        unanimated,
+        input,
+        ..
+    } = styles;
+    let every = animated::keeps_every_value(target);
+    if effects.is_empty() {
+        let kept = unanimated
+            .filter(|_| keeps)
+            .and_then(|u| unanimated_parent(u, &after, every));
+        set_kept_style(target, kept);
+        return after;
+    }
+    let after = Arc::new(after);
+    let mut input =
+        input.unwrap_or_else(|| animated::AnimationInput::transitions_only(Arc::clone(&after)));
+    input.add_transitions(effects);
+    let style = run.style(parent, Some(&input));
+    let kept = match unanimated {
+        _ if !keeps => None,
+        Some(unanimated) => unanimated_parent(unanimated, &style, every),
+        None => kept_values_differ(&after, &style, every).then_some(after),
+    };
+    set_kept_style(target, kept);
+    style
+}
+
+/// Makes the declarations that a font cycle makes invalid `unset`: both
+/// properties inherit, and the style starts as the parent's.
+fn drop_font_cycles(cx: &CascadeContext<'_>, winners: &mut Winners<'_>, is_root: bool) {
     if let Some(registry) = cx.registry.as_ref() {
-        let (names, invalid) = font_cycle_names(&winners, registry, is_root);
+        let (names, invalid) = font_cycle_names(winners, registry, is_root);
         for id in invalid {
             winners.longhands[id as usize] = None;
             winners.set[id as usize / 64] &= !(1 << (id as usize % 64));
         }
         winners.font_cycle = names;
     }
-    let base = compute(cx, &winners, parent, element, is_root, units, None);
-    let Some(target) = target.filter(|t| animated::may_animate(t, &base)) else {
-        return base;
-    };
-    match animated::input(cx, target, &base, important) {
-        Some(input) => compute(cx, &winners, parent, element, is_root, units, Some(&input)),
-        None => base,
+}
+
+/// The inputs of [`compute`] for one element, to compute its style from
+/// other parent styles and animation inputs.
+struct Recompute<'r, 'w> {
+    cx: &'r CascadeContext<'r>,
+    winners: &'r Winners<'w>,
+    element: Option<&'r ElementData>,
+    is_root: bool,
+    units: ContainerBasis,
+}
+
+impl Recompute<'_, '_> {
+    /// The element's style as the child of `parent`, with the animated
+    /// values of `input`.
+    fn style(
+        &self,
+        parent: &ComputedStyle,
+        input: Option<&animated::AnimationInput>,
+    ) -> ComputedStyle {
+        compute(
+            self.cx,
+            self.winners,
+            parent,
+            self.element,
+            self.is_root,
+            self.units,
+            input,
+        )
     }
+}
+
+/// The styles of an element with animations or transitions, before its
+/// transitions apply.
+struct TransitionStyles {
+    /// The style with the values of its CSS animations: its style if no
+    /// transition runs.
+    after: ComputedStyle,
+    /// Its style without animations and transitions, as a child of the
+    /// parent's kept style (`None`: `after`, which has none). Computed only
+    /// when the element keeps a style for its children or its transitions
+    /// can follow an inherited value.
+    unanimated: Option<ComputedStyle>,
+    /// The after-change style of its transitions when it is not `after`
+    /// or `unanimated`: with the animated values, as a child of the parent's
+    /// kept style.
+    change: Option<ComputedStyle>,
+    /// True if `unanimated` is the after-change style (no animations).
+    change_is_unanimated: bool,
+    /// The animation input of its CSS animations.
+    input: Option<animated::AnimationInput>,
+}
+
+impl TransitionStyles {
+    /// The styles of the target of `run` with the base style `base` (no
+    /// animations), the parent's style `parent` and its kept style
+    /// `parent_base`. `keeps`: the element keeps a style for its children.
+    fn compute(
+        run: &Recompute<'_, '_>,
+        target: &animated::AnimationTarget<'_>,
+        parent: &ComputedStyle,
+        parent_base: Option<&ComputedStyle>,
+        base: ComputedStyle,
+        input: Option<animated::AnimationInput>,
+        keeps: bool,
+    ) -> TransitionStyles {
+        // A list that cannot name an inherited value does not need the
+        // after-change style of the parent's kept style (ADR 0044 section
+        // 20).
+        let follows = parent_base.filter(|_| TransitionStyle::may_transition_inherited(&base));
+        let own_base = parent_base
+            .filter(|_| keeps || follows.is_some())
+            .map(|p| run.style(p, None));
+        let change = match (follows, &input) {
+            (Some(parent_base), Some(input)) if target.change.is_some() => {
+                Some(run.style(parent_base, Some(input)))
+            }
+            _ => None,
+        };
+        match &input {
+            Some(i) => TransitionStyles {
+                after: run.style(parent, Some(i)),
+                unanimated: own_base.or(Some(base)),
+                change,
+                change_is_unanimated: false,
+                input,
+            },
+            // Without animations the after-change style is the style as a
+            // child of the parent's kept style, if the list follows it.
+            None => TransitionStyles {
+                after: base,
+                change: None,
+                change_is_unanimated: follows.is_some() && own_base.is_some(),
+                unanimated: own_base,
+                input,
+            },
+        }
+    }
+
+    /// The after-change style of the element's transitions.
+    fn after_change(&self) -> &ComputedStyle {
+        let unanimated = self
+            .unanimated
+            .as_ref()
+            .filter(|_| self.change_is_unanimated);
+        self.change.as_ref().or(unanimated).unwrap_or(&self.after)
+    }
+}
+
+/// Keeps `kept` as the style that the after-change styles of the children
+/// of the element of `target` inherit from (`None`: its style).
+fn set_kept_style(target: &animated::AnimationTarget<'_>, kept: Option<Arc<ComputedStyle>>) {
+    if target.owner.pseudo.is_none() {
+        animated::set_transition_parent(target, kept);
+    }
+}
+
+/// The style that the after-change styles of the children of an element
+/// with the style `style` inherit from, if it is not `style`: its style
+/// without animations and transitions, `unanimated`, when that differs
+/// ([`kept_values_differ`]).
+fn unanimated_parent(
+    unanimated: ComputedStyle,
+    style: &ComputedStyle,
+    every: bool,
+) -> Option<Arc<ComputedStyle>> {
+    kept_values_differ(&unanimated, style, every).then(|| Arc::new(unanimated))
+}
+
+/// True if `a` and `b` differ in a value that children take: an inherited
+/// value, or with `every` any value (a child can take a non-inherited
+/// value with `inherit`, `background-color: inherit`).
+fn kept_values_differ(a: &ComputedStyle, b: &ComputedStyle, every: bool) -> bool {
+    if every {
+        return a != b;
+    }
+    a.custom_properties != b.custom_properties
+        || LonghandId::ALL
+            .iter()
+            .any(|&id| id.is_inherited() && !id.same_value(a, b))
 }
 
 /// The lengths that the values of an element with the style `parent` as
@@ -1973,6 +2444,9 @@ fn apply_css_wide(
             id.is_inherited()
         }
     };
+    if inherit && !id.is_inherited() {
+        style.inherits_reset = true;
+    }
     id.copy_value(if inherit { parent } else { initial }, style);
 }
 

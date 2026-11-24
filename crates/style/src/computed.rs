@@ -8,6 +8,7 @@ use crate::custom::CustomProperties;
 use crate::font_settings::{FontFeatureSettings, FontVariationSettings};
 
 use crate::animation::properties::AnimationStyle;
+use crate::animation::transition_properties::TransitionStyle;
 use crate::properties::inert::InertStyle;
 use crate::values::{
     Alignment, Appearance, AspectRatio, BackgroundAttachment, BackgroundBox,
@@ -26,8 +27,8 @@ use crate::values::{
 };
 use crate::values::{
     BoxOrient, BoxShadow, ClipRect, CornerShape, FontSmoothing, FontVariantLigatures,
-    FontVariantNumeric, Isolation, LineBreak, OverflowAnchor, OverscrollBehavior, Rotate, Scale,
-    TextShadow, TextSizeAdjust, TransformFunction, TransformOrigin, Translate,
+    FontVariantNumeric, InterpolateSize, Isolation, LineBreak, OverflowAnchor, OverscrollBehavior,
+    Rotate, Scale, TextShadow, TextSizeAdjust, TransformFunction, TransformOrigin, Translate,
 };
 
 /// The computed values of all supported properties for one element (or
@@ -183,6 +184,12 @@ pub struct ComputedStyle {
     /// in Chromium 148, `tools/probes/svg-symbol.json`, cases `grid-item-*`
     /// and `flex-item-*`). Not a CSS property.
     pub flex_or_grid_item: bool,
+    /// True if a non-inherited property of the element takes the parent's
+    /// value through a CSS-wide keyword (`inherit`). Not a CSS property
+    /// and not inherited: a transition of such a property can follow a
+    /// transitioning parent, so the element keeps a parent style for it
+    /// (`TransitionStyle::may_transition_inherited`).
+    pub inherits_reset: bool,
     /// The transform functions in order; empty for `none`.
     pub transform: Arc<[TransformFunction]>,
     pub transform_origin: TransformOrigin,
@@ -195,6 +202,8 @@ pub struct ComputedStyle {
     pub scale: Option<Scale>,
     /// `isolation`.
     pub isolation: Isolation,
+    /// `interpolate-size` (inherited; parsed and inherited only).
+    pub interpolate_size: InterpolateSize,
     /// `box-shadow`; empty for `none`.
     pub box_shadow: Arc<[BoxShadow]>,
     /// `corner-top-left-shape`.
@@ -347,6 +356,9 @@ pub struct ComputedStyle {
     /// while all are initial, so an element without animations pays one
     /// pointer.
     pub animations: Option<Arc<AnimationStyle>>,
+    /// The `transition-*` properties (`animation/transition_properties.rs`).
+    /// `None` while all are initial.
+    pub transitions: Option<Arc<TransitionStyle>>,
     /// True for the `::details-content` box of a closed `details`. Not a
     /// CSS property: it stands for Chromium's `content-visibility: hidden`
     /// on that box. The box has size, layout, paint and style
@@ -473,6 +485,7 @@ impl ComputedStyle {
             rotate: None,
             scale: None,
             isolation: Isolation::Auto,
+            interpolate_size: InterpolateSize::NumericOnly,
             box_shadow: Arc::from([]),
             corner_top_left_shape: CornerShape::ROUND,
             corner_top_right_shape: CornerShape::ROUND,
@@ -596,7 +609,9 @@ impl ComputedStyle {
             unicode_bidi: UnicodeBidi::Normal,
             inert: None,
             animations: None,
+            transitions: None,
             contents_hidden: false,
+            inherits_reset: false,
         }
     }
 

@@ -139,6 +139,10 @@ impl g::shadow_root::ShadowRootImpl for WebState {
         Ok(data(cx, this)?.host)
     }
 
+    fn get_animations(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Vec<swb_js::Gc<swb_js::Object>>> {
+        crate::animations::shadow_root_animations(cx, this)
+    }
+
     fn inner_html(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
         Ok(swb_dom::inner_html(dom(cx.rt)?, this))
     }

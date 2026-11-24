@@ -126,3 +126,9 @@ partial interface Document {
   readonly attribute DocumentTimeline timeline;
   sequence<Animation> getAnimations();
 };
+
+// `getAnimations()` of `DocumentOrShadowRoot` for shadow roots: the
+// animations of the elements of the shadow tree.
+partial interface ShadowRoot {
+  sequence<Animation> getAnimations();
+};

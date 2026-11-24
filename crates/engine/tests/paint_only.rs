@@ -152,6 +152,35 @@ fn colors_and_effects_of_a_box() {
     ));
 }
 
+/// A hover that starts transitions of colors, `opacity` and a shadow
+/// (ADR 0044, feature 5): every frame of the transitions is paint-only,
+/// also the frames that reverse them.
+#[test]
+fn transitions_of_colors_stay_paint_only() {
+    let html = page!(
+        "#a{width:100px;height:60px;background:#ccc;color:#333;opacity:1;\
+         transition:background-color .2s,color .2s,opacity .2s,box-shadow .2s} \
+         #a:hover{background:#c00;color:#fff;opacity:.5;box-shadow:2px 2px 3px #000}",
+        "<div id=a>text <span>inherited</span></div>"
+    );
+    let steps = [
+        Step::Move(20.0, 20.0),
+        Step::Wait(50),
+        Step::Wait(50),
+        Step::Move(380.0, 280.0),
+        Step::Wait(30),
+        Step::Move(20.0, 20.0),
+        Step::Wait(300),
+        Step::Leave,
+        Step::Wait(300),
+    ];
+    let outcome = on_page_thread(move || run(html, &steps));
+    assert_eq!(outcome.layouts, 0, "a layout ran");
+    assert_eq!(outcome.fallbacks, 0, "a refresh fell back");
+    assert!(outcome.refreshes >= 6, "{} refreshes", outcome.refreshes);
+    assert!(outcome.checks >= 1, "the check mode compared nothing");
+}
+
 #[test]
 fn inherited_color_reaches_anonymous_boxes_and_text() {
     assert_paint_only(page!(

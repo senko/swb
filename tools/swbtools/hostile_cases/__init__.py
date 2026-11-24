@@ -50,6 +50,7 @@ MODULES = (
     "osm_gaps",
     "static_css",
     "animations",
+    "transitions",
     "damage",
     "raster_cache",
 )

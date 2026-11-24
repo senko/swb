@@ -114,10 +114,6 @@ pub(crate) fn serialize_longhand(ser: Ser, tokens: &[ComponentValue]) -> String 
                 w.join(" ")
             }
         }
-        Ser::TransitionProperty => declared("transition-property", tokens)
-            .unwrap_or_else(|| serialize(tokens, Style::NAMES)),
-        Ser::Easing => declared("transition-timing-function", tokens)
-            .unwrap_or_else(|| serialize(tokens, Style::PLAIN)),
         Ser::WillChange => {
             declared("will-change", tokens).unwrap_or_else(|| serialize(tokens, Style::NAMES))
         }

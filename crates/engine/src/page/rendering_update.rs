@@ -361,6 +361,8 @@ impl Page {
                 && doc.animation_styles_due()
             {
                 doc.update_style();
+                // The transitions of this style step start in this frame.
+                doc.animations.get_mut().start_pending_transitions();
                 ran = true;
             }
         }

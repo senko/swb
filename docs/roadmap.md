@@ -6450,6 +6450,67 @@ Steps:
       `transitionrun`, `transitionstart`, `transitionend`,
       `transitioncancel`; transitions that scripts start through styles,
       classes and attributes.
+
+      Done 2026-11-24 (ADR 0044 section 20), except the interpolation of
+      `interpolate-size: allow-keywords` (it parses; the design is in
+      section 20; only the player skin of videojs uses it, for menus that
+      open after play: M15, backlog). Headless renders are unchanged
+      (snapshot byte-equal, no score down).
+      - The `transition-*` longhands are typed
+        (`animation/transition_properties.rs`): `calc()` in times,
+        `linear()` and `steps()`, the CSSOM forms as in Chromium;
+        `inert.rs` keeps only the properties without effect.
+      - Transitions are records of `DocumentAnimations`
+        (`records/transitions.rs`): the rules of CSS Transitions 1 §3
+        (start, replacement, reversal with the shortening factor,
+        cancels) and `allow-discrete`, in every style change event
+        (targeted state and DOM restyles, full restyles with a previous
+        map, script reads where a transition can start, the style step of
+        the rendering update). A transition keeps only the computed value
+        of its property; the record limit is per page.
+      - Children of a transitioning or animated parent: their
+        after-change style inherits the parent's style without its
+        animations and transitions, kept in a side table and carried with
+        shared styles; the tick restyle is a style change event for the
+        children of changed elements and for pseudo-elements. Measured in
+        Chromium (21 probe cases of the two fix rounds).
+      - Events in Chromium's order; a cancel by `display: none` is
+        unresolved and comes first, cancels come before the other events
+        of their time. `CSSTransition` in `getAnimations()` (transitions
+        first), `transitionProperty`, the `Animation` members, `finished`
+        and the end time after the end, Base UI's `Promise.all` of
+        `finished`; `ShadowRoot.getAnimations()`, and
+        `document.getAnimations()` leaves out shadow trees.
+      - Cost: pages that declare transitions cost what they cost without
+        (20,005 elements with `*{transition:all}`: restyle 16 ms against
+        11 ms without); elements whose `transition-property` cannot name
+        an inherited value keep style sharing in animation ticks.
+      - Measured on the way: `outline-offset` snaps like a border width
+        with its sign; `transition: width -1s` is a delay; a computed
+        `calc(0px + 0%)` of `background-size` is `0%`.
+      - GUI `videojs-page`: frame p90 8.7 ms, max after the first paint
+        27.4 ms, move to frame p90 23 ms, 60 frames per second while
+        transitions run, idle CPU 0 %.
+      - Reviews: the first found that children of a transitioning parent
+        started no transition, the cost of declaring transitions (restyle
+        12 -> 263 ms on 20,000 elements) and 11 KB per transition; the
+        second, that siblings with a shared style restarted their
+        children's transitions every frame and a 50 % tick cost; the
+        third, that a child with `background-color: inherit` had lost its
+        own transition under a transitioning parent. All fixed (the last
+        starts one frame after the parent, a listed departure).
+      - Departures: `play()` after `cancel()` does not replay a
+        transition; `getKeyframes()` of a transition is empty; children
+        whose `em` or `var()` value follows an animated inherited value
+        run one transition where Chromium restarts it every frame (when
+        the child's list names an inherited value).
+      - Tests: `css_transitions.rs` (the 42 cases of the probe file; three
+        `interpolate-size` rows wait, three rows of one case are listed
+        departures), `get-animations-order` of
+        `css_animations.rs`, `transition_tests.rs`,
+        `kept_style_tests.rs`, a round trip of every transitionable
+        longhand, damage-oracle and paint-only sessions,
+        `videojs_transitions.rs`; 6 hostile cases.
    6. The exit test (`implementer`): an integration test on the fixture
       with the items below, the JS-off check and the `load` budget.
 
@@ -6788,6 +6849,24 @@ Source Extensions, AV1 (dav1d), YouTube.
   documents' cache lives as long as the page; Wayland buffers of age 2
   get full writes; a hit does not touch the `VectorCache` entries of its
   SVG images.
+- Transitions (feature 5): the interpolation of `interpolate-size:
+  allow-keywords` (ADR 0044 section 20: keep the keyword, the length and
+  the progress, resolve in layout; a reversal needs a nested mix or the
+  kept triple; its frames need layout); for M15 (the player's menus).
+- Transitions (feature 5): `play()` after `cancel()` does not replay a
+  transition (the record goes at the cancel); `getKeyframes()` of a
+  `CSSTransition` is empty.
+- Transitions (feature 5): Chromium computes `calc(0px + 0%)` to `0%` for
+  about 20 properties (positions, origins, `translate`, `text-indent`,
+  radii, gaps, margins, paddings, widths, offsets, `flex-basis`, ...); swb
+  does it for `background-size` and `mask-size` only.
+- Transitions (feature 5): a child inserted during its parent's transition
+  starts its own at the next script read in headless mode (Chromium: the
+  next frame); `inherited_due` is not cleared by a full restyle in the
+  ticks (headless frames go on until the animation ends).
+- Transitions (feature 5): 20,000 elements with `*{transition:color}`
+  under an animated `body` color cost 92 ms per frame (17 ms without the
+  transitions): carry the after-change style in the sharing cache.
 - Frame budgets (feature 4c), code: `composited.rs` repeats the set-up of
   the nested `Rasterizer` and the loop that ends its layers from
   `transform_layer` (about 35 lines).

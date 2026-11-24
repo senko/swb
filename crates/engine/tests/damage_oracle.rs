@@ -684,3 +684,54 @@ fn the_delay_of_an_animation_is_the_static_render() {
         assert!(difference.is_none(), "{difference:?}");
     });
 }
+
+/// CSS transitions (ADR 0044, feature 5): hovers that start transitions of
+/// colors (paint-only frames), of `transform` and `opacity` (composited
+/// groups), and a script that toggles a class with transitions of
+/// `height` (layout) and a color, reversed while they run; every frame is
+/// drawn with its damage and compared with a full render.
+#[test]
+fn transitions_of_hovers_and_class_changes() {
+    on_page_thread(|| {
+        let html = "<!DOCTYPE html><style>body{margin:0;font:16px sans-serif}\
+            a{display:inline-block;margin:10px;padding:8px;color:#123;background:#eee;\
+            border-radius:6px;transition:color .3s,background-color .3s ease}\
+            a:hover{color:#fff;background:#c00}\
+            #b{width:120px;height:60px;margin:20px;background:#38f;border-radius:9px;\
+            transition:transform .4s cubic-bezier(.2,.8,.2,1),opacity .4s,scale .4s}\
+            #b:hover{transform:translateX(40px) rotate(10deg);opacity:.5;scale:1.1}\
+            #c{height:20px;margin:10px;background:#0a5;overflow:hidden;\
+            transition:height .3s linear,background-color .3s}\
+            body.on #c{height:80px;background:#a05}</style>\
+            <a href=#x>one</a><a href=#y>two</a><div id=b></div><div id=c>text</div>\
+            <p>after</p><script>setInterval(()=>document.body.classList.toggle('on'),170)\
+            </script>";
+        for scale in [1.0, 1.5] {
+            let mut page = open_at(html, true, scale);
+            let mut oracle = DamageOracle::default();
+            let label = format!("transitions (scale {scale})");
+            oracle.step(&mut page, &format!("{label}: first"));
+            for tick in 0..40 {
+                match tick {
+                    3 => {
+                        page.mouse_move(30.0, 25.0);
+                    }
+                    7 => {
+                        page.mouse_move(90.0, 25.0);
+                    }
+                    12 | 26 => {
+                        page.mouse_move(80.0, 100.0);
+                    }
+                    22 => {
+                        page.mouse_move(700.0, 500.0);
+                    }
+                    _ => {}
+                }
+                page.run_event_loop(Duration::from_millis(33), Duration::from_secs(10));
+                oracle.step(&mut page, &format!("{label}: tick {tick}"));
+            }
+            assert!(oracle.region_frames > 0, "{label}: {}", oracle.summary());
+            eprintln!("{label}: {}", oracle.summary());
+        }
+    });
+}

@@ -647,6 +647,72 @@ are the same, except the raster stage of videojs, 30.1 to 23.3 ms (the bench
 rasterizes the same viewport again and finds the clips' coverage; the
 product of a clip skips its inside).
 
+### CSS transitions (M13 feature 5)
+
+ADR 0044 section 20. Release build; before is the commit of feature 4c
+(7e42ff1). `perf videojs hacker-news --runs 5` (animations off, as the
+comparisons): the load stages are the same within noise (videojs style
+12.70 / 12.87 ms, total 51.2 / 48.0 ms; Hacker News total 5.71 / 4.99 ms).
+`--bench 3` with animations on (load style stage ms; hover change median /
+p90 ms; before / after):
+
+| Fixture | Style | Hover change median | Hover change p90 | Paint-only changes |
+|---|---|---|---|---|
+| videojs (`--js`) | 14.7 / 14.2 | 0.85 / 1.24 | 25.0 / 26.0 | 19 / 23 |
+| videojs | 15.2 / 12.8 | 0.18 / 0.15 | 3.5 / 3.1 | 13 / 14 |
+| github-swb | 28.1 / 29.3 | 6.88 / 6.89 | 18.9 / 19.0 | 62 / 56 |
+| wikipedia-web-browser | 11.3 / 11.0 | 0.39 / 0.41 | 3.4 / 2.8 | 24 / 24 |
+| hacker-news | 1.54 / 1.68 | 0.04 / 0.05 | 0.27 / 0.29 | 15 / 15 |
+
+The hovers of videojs with JavaScript now start transitions (the search
+button, the player's controls); their frames take the paint-only path.
+GUI (`gui-latency videojs --js --trace videojs-page --window 1280x840`, own
+Xvfb, before / after): pointer move to frame median 2 / 2 ms, p90 28 / 20
+ms; frame time (render + compose from the frame log, all frames of the
+trace) median 2.5 / 2.5 ms, p90 10.1 / 10.3 ms, max 57.2 / 57.0 ms (the
+frames of the load, the same before); 24.9 / 27.6 frames per second during
+the trace; CPU 18.0 / 18.9 % during the trace, 0.7 / 0.7 % idle after it.
+
+Fix round (ADR 0044 section 20, "Fix round of feature 5"; before is the
+feature's first binary). Pages that declare transitions, 20,005 elements,
+`--bench 3`, load style / restyle median with unchanged styles in ms
+(`--animations off` / on before / on after):
+
+| Page | Load style | Restyle median |
+|---|---|---|
+| `*{transition:all .2s}` | 11.8 / 40.9 / 11.7 | 11.4 / 262.9 / 15.5 |
+| four properties on a class | 11.7 / 41.3 / 11.6 | 11.6 / 59.8 / 16.0 |
+
+A `transition` list of 10,000 custom properties on 3,000 elements and one
+class change: 2,095 ms / 79 ms, peak 3.8 GB / 83 MiB. 100,000 inherited
+`color` transitions (hostile case): 1,100 / 574 MiB. `perf videojs
+hacker-news --runs 5`, `--bench 3` on the fixtures and the GUI numbers of
+`videojs-page` are equal within noise (frame render max after the first
+paint 26.6 / 27.2 ms, budget 33; 60 frames per second while transitions
+run).
+
+Second fix round (ADR 0044 section 20, "Second fix round of feature 5";
+before is the first fix round's binary). The animation ticks of 20,000
+elements under a body whose `color` animates, a script reading a style in
+each `requestAnimationFrame`, frames in 3 s headless (181 is the frame
+rate):
+
+| Page | Frames before / after | ms per frame |
+|---|---|---|
+| no `transition` | 181 / 181 | 17 / 17 |
+| `.a{transition:opacity .2s}` | 34 / 181 | 93 / 17 |
+| `*{transition:color .2s}` | 32 / 35 | 98 / 92 |
+
+A list that cannot name an inherited value keeps the style sharing and
+needs no kept style; a list that can (`color`, `all`) computes each
+child's after-change style from its parent's kept style. `perf videojs
+hacker-news --runs 5` (videojs style 11.75 / 11.83 ms, total 42.5 / 43.3
+ms; Hacker News total 4.95 / 4.95 ms), `--bench 3` on the fixtures and the
+pages of the first review, and the GUI numbers of `videojs-page` (frame
+render p90 8.3 / 8.3 ms, max after the first paint 26.7 / 27.4 ms, move to
+frame p90 24 / 23 ms, 60 frames per second while transitions run, CPU 15.2
+/ 15.0 % in the trace, 0.0 % idle) are equal within noise.
+
 ### GUI: input latency on Xvfb, 1280 x 900
 
 `swbtools gui-latency NAME --js --trace TRACE` (fixtures of `fixtures/js`;

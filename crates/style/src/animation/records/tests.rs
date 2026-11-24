@@ -188,6 +188,25 @@ fn the_record_limit_creates_no_more() {
 }
 
 #[test]
+fn the_documents_of_a_page_share_the_record_limit() {
+    let room = DocumentAnimations::page_room();
+    let mut first = DocumentAnimations::with_room(0.0, Rc::clone(&room));
+    let mut second = DocumentAnimations::with_room(0.0, Rc::clone(&room));
+    for i in 0..MAX_RECORDS - 1 {
+        assert!(first.create(owner(), "a", i, i).is_some());
+    }
+    let last = second.create(owner(), "b", 0, 0).expect("the last room");
+    assert!(second.create(owner(), "b", 1, 1).is_none());
+    assert!(first.create(owner(), "a", 0, 0).is_none());
+    // A released record gives its room back; so does a document that goes.
+    second.owners.insert(owner(), vec![last]);
+    second.retain_owners(|_| false);
+    assert_eq!(room.get(), 1);
+    drop(first);
+    assert_eq!(room.get(), MAX_RECORDS);
+}
+
+#[test]
 fn released_records_are_reported() {
     let mut animations = DocumentAnimations::new(0.0);
     animations.track_released();

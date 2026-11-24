@@ -67,10 +67,6 @@ pub(crate) enum Ser {
     GridAutoFlow,
     /// `content`: strings, `attr()` and counters.
     Content,
-    /// `transition-property`: known property names in lower case.
-    TransitionProperty,
-    /// `transition-timing-function`: `steps(4, end)` is `steps(4)`.
-    Easing,
     /// `will-change`.
     WillChange,
     /// `color-scheme`: custom identifiers keep their case, `only` goes last.
@@ -79,7 +75,8 @@ pub(crate) enum Ser {
     TouchAction,
     /// `container-name`: names that keep their case, `none` in lower case.
     Names,
-    /// An animation longhand (its name): `animation/properties.rs`.
+    /// An animation or transition longhand (its name):
+    /// `animation/properties.rs`, `animation/transition_properties.rs`.
     Animation(&'static str),
 }
 
@@ -839,7 +836,12 @@ fn ser_of(name: &'static str) -> Ser {
         | "animation-composition"
         | "animation-timeline"
         | "animation-range-start"
-        | "animation-range-end" => Ser::Animation(name),
+        | "animation-range-end"
+        | "transition-property"
+        | "transition-duration"
+        | "transition-delay"
+        | "transition-timing-function"
+        | "transition-behavior" => Ser::Animation(name),
         "color"
         | "background-color"
         | "outline-color"
@@ -853,8 +855,6 @@ fn ser_of(name: &'static str) -> Ser {
         | "border-left-color" => Ser::Color,
         "font-family" => Ser::FontFamily,
         "transform-origin" | "object-position" | "perspective-origin" => Ser::Position,
-        "transition-property" => Ser::TransitionProperty,
-        "transition-timing-function" => Ser::Easing,
         "will-change" => Ser::WillChange,
         "color-scheme" => Ser::ColorScheme,
         "touch-action" => Ser::TouchAction,

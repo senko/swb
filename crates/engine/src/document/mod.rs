@@ -189,20 +189,29 @@ pub(crate) struct DocumentInit {
     pub(crate) animations: AnimationSetting,
 }
 
-/// The animation setting of a new document: on or off, and the page time
-/// of its time origin (the document timeline's zero).
-#[derive(Clone, Copy, Debug)]
+/// The animation setting of a new document: on or off, the page time of
+/// its time origin (the document timeline's zero) and the page's room for
+/// animation records.
+#[derive(Clone, Debug)]
 pub(crate) struct AnimationSetting {
     /// False for `--animations off`.
     pub(crate) enabled: bool,
     /// The page time of the time origin.
     pub(crate) origin: f64,
+    /// The animation records that the page's documents have room for
+    /// (`None`: the document has the limit alone).
+    pub(crate) room: Option<swb_style::animation::RecordRoom>,
 }
 
 impl AnimationSetting {
     /// The animations of a new document: none, with its time origin.
-    fn records(self) -> swb_style::animation::DocumentAnimations {
-        swb_style::animation::DocumentAnimations::new(self.origin)
+    fn records(&self) -> swb_style::animation::DocumentAnimations {
+        match &self.room {
+            Some(room) => {
+                swb_style::animation::DocumentAnimations::with_room(self.origin, Rc::clone(room))
+            }
+            None => swb_style::animation::DocumentAnimations::new(self.origin),
+        }
     }
 }
 
@@ -211,6 +220,7 @@ impl Default for AnimationSetting {
         AnimationSetting {
             enabled: true,
             origin: 0.0,
+            room: None,
         }
     }
 }
@@ -437,6 +447,13 @@ pub struct DocumentState {
     /// queries while `styles` is `None` (ADR 0028 section 9); dropped with
     /// the styles and at each change of the element states.
     pub(crate) element_styles: std::collections::HashMap<NodeId, Arc<swb_style::ComputedStyle>>,
+    /// The styles of elements that the queries of scripts computed since
+    /// the last style pass (their chains, without the part below a
+    /// `display: none` element): the before-change styles of the next style
+    /// change event for CSS transitions (ADR 0044 section 3). Unlike
+    /// `element_styles`, they stay across DOM changes until a style pass
+    /// takes them.
+    pub(crate) queried_styles: std::collections::HashMap<NodeId, Arc<swb_style::ComputedStyle>>,
     /// The styles of pseudo-elements that `getComputedStyle` asked for
     /// (also those without a box); dropped with `element_styles`.
     pub(crate) pseudo_styles:
@@ -571,6 +588,7 @@ impl DocumentState {
             flushes: FlushCounters::default(),
             in_query: false,
             element_styles: std::collections::HashMap::new(),
+            queried_styles: std::collections::HashMap::new(),
             pseudo_styles: std::collections::HashMap::new(),
             used_boxes: None,
             geometry: None,
@@ -1042,7 +1060,7 @@ impl swb_web::EngineHost for DocumentState {
         DocumentState::animation_keyframes(self, id)
     }
 
-    fn released_animations(&mut self) -> Vec<u64> {
+    fn released_animations(&mut self) -> Vec<(u64, Option<f64>)> {
         DocumentState::released_animations(self)
     }
 

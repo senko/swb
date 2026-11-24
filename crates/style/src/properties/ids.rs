@@ -22,6 +22,7 @@ use crate::ComputedStyle;
 use crate::animation::properties::{
     AnimationName, Composition, IterationCount, PlayState, RangeItem,
 };
+use crate::animation::transition_properties::TransitionName;
 use crate::animation::{Easing, FillMode, PlaybackDirection, Time};
 use crate::font_settings::{FontFeatureSettings, FontVariationSettings};
 use crate::parse::image::SpecifiedImage;
@@ -32,14 +33,32 @@ use crate::values::{
     CornerShape, CounterList, Cursor, Direction, Display, EmptyCells, FieldSizing, FillRule,
     FlexDirection, FlexWrap, Float, FontFamily, FontSmoothing, FontStyle, FontVariantCaps,
     FontVariantLigatures, FontVariantNumeric, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens,
-    Isolation, LineBreak, ListStylePosition, ListStyleType, MaskClip, MaskMode, MixBlendMode,
-    ObjectFit, OutlineStyle, Overflow, OverflowAnchor, OverflowWrap, Overlay, OverscrollBehavior,
-    PointerEvents, Position, Resize, Rotate, Scale, ScrollbarWidth, ShapeRendering, SpaceCollapse,
-    SpecifiedLengthPercentage as Lp, SpecifiedTrackList, SpecifiedTrackSize, StrokeLinecap,
-    StrokeLinejoin, SvgPaint, TableLayout, TextDecorationLine, TextDecorationStyle, TextOverflow,
-    TextSizeAdjust, TextTransform, TextWrapStyle, UnicodeBidi, UserSelect, Visibility, WordBreak,
-    ZIndex,
+    InterpolateSize, Isolation, LineBreak, ListStylePosition, ListStyleType, MaskClip, MaskMode,
+    MixBlendMode, ObjectFit, OutlineStyle, Overflow, OverflowAnchor, OverflowWrap, Overlay,
+    OverscrollBehavior, PointerEvents, Position, Resize, Rotate, Scale, ScrollbarWidth,
+    ShapeRendering, SpaceCollapse, SpecifiedLengthPercentage as Lp, SpecifiedTrackList,
+    SpecifiedTrackSize, StrokeLinecap, StrokeLinejoin, SvgPaint, TableLayout, TextDecorationLine,
+    TextDecorationStyle, TextOverflow, TextSizeAdjust, TextTransform, TextWrapStyle, UnicodeBidi,
+    UserSelect, Visibility, WordBreak, ZIndex,
 };
+
+/// The computed value of one longhand alone ([`LonghandId::value_of`]):
+/// the field or fields of [`ComputedStyle`] that hold it, shared.
+#[derive(Clone)]
+pub(crate) struct ComputedSlot(Arc<dyn std::any::Any + Send + Sync>);
+
+impl ComputedSlot {
+    /// True if both are the same object (so the same value).
+    pub(crate) fn ptr_eq(&self, other: &ComputedSlot) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl std::fmt::Debug for ComputedSlot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ComputedSlot")
+    }
+}
 
 macro_rules! longhands {
     ($($id:ident $name:literal $kind:ident $field:ident: $spec:ty;)+
@@ -121,6 +140,117 @@ macro_rules! longhands {
             }
         }
 
+        impl LonghandId {
+            /// True if `a` and `b` have the same computed value of this
+            /// property (the comparison of the before- and after-change
+            /// styles of a transition).
+            pub(crate) fn same_value(self, a: &ComputedStyle, b: &ComputedStyle) -> bool {
+                // `white-space-collapse` and `text-wrap-mode` share one
+                // field; `color` keeps its exact form next to it.
+                match self {
+                    LonghandId::WhiteSpaceCollapse => {
+                        return a.white_space.collapse() == b.white_space.collapse();
+                    }
+                    LonghandId::TextWrapMode => {
+                        return a.white_space.wraps() == b.white_space.wraps();
+                    }
+                    LonghandId::Color => {
+                        return a.color == b.color && a.color_exact == b.color_exact;
+                    }
+                    _ => {}
+                }
+                match self {
+                    $(LonghandId::$id => a.$field == b.$field,)+
+                    $(LonghandId::$iid)|+ => super::inert::same_value(self, a, b),
+                    $(LonghandId::$aid)|+ => {
+                        a.animations == b.animations && a.transitions == b.transitions
+                    }
+                }
+            }
+        }
+
+        impl LonghandId {
+            /// The computed value of this property in `style` alone: a copy
+            /// of the field or fields that hold it (the start and end values
+            /// of a transition, ADR 0044 section 20; a few dozen bytes where
+            /// the style is a few kilobytes).
+            pub(crate) fn value_of(self, style: &ComputedStyle) -> ComputedSlot {
+                match self {
+                    LonghandId::Color => {
+                        return ComputedSlot(Arc::new((style.color, style.color_exact)));
+                    }
+                    LonghandId::FontSize => {
+                        return ComputedSlot(Arc::new((style.font_size, style.font_size_origin)));
+                    }
+                    _ => {}
+                }
+                ComputedSlot(match self {
+                    $(LonghandId::$id => Arc::new(style.$field.clone()),)+
+                    $(LonghandId::$iid)|+ => Arc::new(style.inert.clone()),
+                    $(LonghandId::$aid)|+ => {
+                        Arc::new((style.animations.clone(), style.transitions.clone()))
+                    }
+                })
+            }
+
+            /// Stores the value `slot` of this property (from
+            /// [`LonghandId::value_of`] of the same property) in `style`: the
+            /// fields that hold it, whole (both halves of `white-space` too).
+            /// A slot of another type is a bug: it changes nothing, and a
+            /// debug build stops at it.
+            pub(crate) fn put_value(self, slot: &ComputedSlot, style: &mut ComputedStyle) {
+                let value: &(dyn std::any::Any + Send + Sync) = &*slot.0;
+                let fits = |found: bool| {
+                    debug_assert!(found, "a slot of another type for {}", self.name());
+                };
+                match self {
+                    LonghandId::Color => {
+                        let v = value.downcast_ref();
+                        fits(v.is_some());
+                        if let Some((color, exact)) = v {
+                            style.color = *color;
+                            style.color_exact = *exact;
+                        }
+                        return;
+                    }
+                    LonghandId::FontSize => {
+                        let v = value.downcast_ref();
+                        fits(v.is_some());
+                        if let Some((size, origin)) = v {
+                            style.font_size = *size;
+                            style.font_size_origin = *origin;
+                        }
+                        return;
+                    }
+                    _ => {}
+                }
+                match self {
+                    $(LonghandId::$id => {
+                        let v = value.downcast_ref();
+                        fits(v.is_some());
+                        if let Some(v) = v {
+                            style.$field.clone_from(v);
+                        }
+                    })+
+                    $(LonghandId::$iid)|+ => {
+                        let v = value.downcast_ref();
+                        fits(v.is_some());
+                        if let Some(v) = v {
+                            style.inert.clone_from(v);
+                        }
+                    }
+                    $(LonghandId::$aid)|+ => {
+                        let v = value.downcast_ref();
+                        fits(v.is_some());
+                        if let Some((a, t)) = v {
+                            style.animations.clone_from(a);
+                            style.transitions.clone_from(t);
+                        }
+                    }
+                }
+            }
+        }
+
         /// The specified value of a longhand declaration.
         #[derive(Clone, Debug, PartialEq)]
         pub(crate) enum LonghandValue {
@@ -160,6 +290,7 @@ longhands! {
     TextSizeAdjust "text-size-adjust" inherited text_size_adjust: TextSizeAdjust;
     FontSmoothing "-webkit-font-smoothing" inherited font_smoothing: FontSmoothing;
     LineBreak "line-break" inherited line_break: LineBreak;
+    InterpolateSize "interpolate-size" inherited interpolate_size: InterpolateSize;
     FontVariationSettings "font-variation-settings" inherited font_variation_settings: FontVariationSettings;
     FontFeatureSettings "font-feature-settings" inherited font_feature_settings: FontFeatureSettings;
     LineHeight "line-height" inherited line_height: SpecifiedLineHeight;
@@ -354,11 +485,6 @@ longhands! {
     // and padding only on scrolling to an element): the computed values are
     // in `ComputedStyle::inert` (see `inert.rs`).
     ;
-    TransitionProperty "transition-property": Arc<str>;
-    TransitionDuration "transition-duration": Arc<str>;
-    TransitionDelay "transition-delay": Arc<str>;
-    TransitionTimingFunction "transition-timing-function": Arc<str>;
-    TransitionBehavior "transition-behavior": Arc<str>;
     WillChange "will-change": Arc<str>;
     TouchAction "touch-action": Arc<str>;
     Perspective "perspective": Option<Lp>;
@@ -373,7 +499,8 @@ longhands! {
     ScrollPaddingLeft "scroll-padding-left": Option<Lp>;
 
     // Not inherited: the animation properties, in one shared record
-    // (`ComputedStyle::animations`, `animation/properties.rs`).
+    // (`ComputedStyle::animations`, `animation/properties.rs`), and the
+    // transition properties.
     ;
     AnimationName "animation-name": Arc<[AnimationName]>;
     AnimationDuration "animation-duration": Arc<[Option<Time>]>;
@@ -387,6 +514,13 @@ longhands! {
     AnimationTimeline "animation-timeline": Arc<[Arc<str>]>;
     AnimationRangeStart "animation-range-start": Arc<[RangeItem]>;
     AnimationRangeEnd "animation-range-end": Arc<[RangeItem]>;
+    // The transition properties, in their own shared record
+    // (`ComputedStyle::transitions`, `animation/transition_properties.rs`).
+    TransitionProperty "transition-property": Arc<[TransitionName]>;
+    TransitionDuration "transition-duration": Arc<[Time]>;
+    TransitionDelay "transition-delay": Arc<[Time]>;
+    TransitionTimingFunction "transition-timing-function": Arc<[Easing]>;
+    TransitionBehavior "transition-behavior": Arc<[bool]>;
 }
 
 #[cfg(test)]

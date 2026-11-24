@@ -4,6 +4,32 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-24: M13 feature 5, CSS transitions
+
+- ADR 0044, section 20. The `transition-*` longhands are typed values
+  (`calc()` times, `linear()`), and transitions run as records of the
+  document's animations: in every style change event the cascade compares
+  each element's before- and after-change style, starts, reverses and
+  cancels transitions by CSS Transitions 1 §3, then computes the style
+  with their values. Script reads that can start a transition run the
+  style pass. Events, `CSSTransition` and the frame paths of the
+  animations (paint-only frames, composited groups) follow.
+- Two review rounds found the hard part: children of an element whose
+  inherited value transitions. Chromium starts the child's own transition
+  one frame later, towards the parent's end value: the child's
+  after-change style inherits the parent's style without its animations
+  and transitions. swb keeps that style per parent in a side table (a
+  field in `ComputedStyle` pushed every style into the next allocator size
+  class) and carries it with shared styles; without that, siblings that
+  shared a style restarted their children's transitions every frame.
+- Cost: declaring `transition: all` on 20,000 elements first made a
+  restyle 12 -> 263 ms and each transition kept two whole styles (11 KB);
+  now the restyle is 16 ms and a transition keeps one value.
+- Not done: the interpolation of `interpolate-size: allow-keywords` (the
+  player's menus, M15). Snapshot byte-equal, no score down, GUI budgets
+  met with hover transitions running.
+- Next: feature 6, the M13 exit test.
+
 ## 2026-11-23: M13 feature 4c, frame budgets
 
 - ADR 0044, section 19. The two budgets that feature 4b missed are met,

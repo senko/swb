@@ -272,7 +272,7 @@ impl ShorthandId {
                 | S::WhiteSpace
                 | S::WebkitTextStroke
                 | S::CornerShape => parse_paint_shorthand(self, p, cx, out),
-                S::Transition => super::inert::parse_transition(p, out),
+                S::Transition => crate::animation::transition_properties::parse_transition(p, out),
                 S::Animation => crate::animation::properties::parse_animation(p, out),
                 S::AnimationRange => crate::animation::properties::parse_animation_range(p, out),
             }

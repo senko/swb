@@ -51,6 +51,9 @@ pub trait ShadowRootImpl: b::Host {
     /// `sequence<Element> elementsFromPoint(double x, double y)`.
     fn elements_from_point(cx: &mut b::Cx<'_>, this: b::NodeId, x: f64, y: f64) -> b::Result<Vec<b::NodeId>>;
 
+    /// `sequence<Animation> getAnimations()`.
+    fn get_animations(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Vec<swb_js::Gc<swb_js::Object>>>;
+
 }
 
 fn get_mode<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -195,6 +198,14 @@ fn op_elements_from_point<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &sw
     })
 }
 
+fn op_get_animations<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("ShadowRoot", "getAnimations"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SHADOW_ROOT)?;
+        let result = <H as ShadowRootImpl>::get_animations(&mut b::Cx::new(rt, call, super::SHADOW_ROOT), this)?;
+        Ok(b::to_js::sequence(rt, call.realm(), &result, |_rt, item0| swb_js::VmResult::Ok(swb_js::Value::Object(*item0)))?)
+    })
+}
+
 /// Creates the interface object and the prototype of `ShadowRoot` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
@@ -214,6 +225,7 @@ pub fn define<H: ShadowRootImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js
     rt.define_accessor(realm, target, "activeElement", (Some(get_active_element::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "elementFromPoint", 2, op_element_from_point::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "elementsFromPoint", 2, op_elements_from_point::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "getAnimations", 0, op_get_animations::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

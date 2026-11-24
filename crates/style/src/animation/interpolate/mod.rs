@@ -82,6 +82,39 @@ pub fn interpolate_custom(
     if progress < 0.5 { from } else { to }.cloned()
 }
 
+/// True if a transition can interpolate the longhand `id` from `a` to `b`
+/// (the pair is not discrete; CSS Transitions 1 §3 "transitionable" without
+/// `allow-discrete`). `display`, `content-visibility` and `overlay` are
+/// discrete for transitions also where an animation keeps the other value
+/// of `none` (CSS Transitions 2 §3).
+pub(crate) fn is_interpolable(id: LonghandId, a: &ComputedStyle, b: &ComputedStyle) -> bool {
+    if matches!(
+        id,
+        LonghandId::Display | LonghandId::ContentVisibility | LonghandId::Overlay
+    ) {
+        return false;
+    }
+    let mut scratch = b.clone();
+    interpolate_typed(id, a, b, 0.5, &mut scratch)
+}
+
+/// True if a transition can interpolate the custom property `name` from
+/// `a` to `b`: it is registered and its syntax interpolates the pair.
+pub(crate) fn custom_is_interpolable(
+    custom: &crate::CustomProperties,
+    name: &str,
+    a: Option<&Arc<[ComponentValue]>>,
+    b: Option<&Arc<[ComponentValue]>>,
+    current: crate::values::Rgba,
+) -> bool {
+    match (custom.registration(name), a, b) {
+        (Some(registration), Some(a), Some(b)) => {
+            custom::interpolate(&registration.syntax, a, b, current, 0.5).is_some()
+        }
+        _ => false,
+    }
+}
+
 /// Sets longhand `id` of `out` to its value between `from` and `to` at
 /// `progress`.
 pub(crate) fn interpolate_longhand(
@@ -193,7 +226,14 @@ fn interpolate_typed(
         L::TextStrokeWidth => number!(text_stroke_width, 0.0, f32::MAX),
         L::BorderSpacingHorizontal => number!(border_spacing_horizontal, 0.0, f32::MAX),
         L::BorderSpacingVertical => number!(border_spacing_vertical, 0.0, f32::MAX),
-        L::OutlineOffset => number!(outline_offset, f32::MIN, f32::MAX),
+        L::OutlineOffset => {
+            s.outline_offset = crate::properties::compute::snap_outline_offset(lerp(
+                a.outline_offset,
+                b.outline_offset,
+                p,
+            ));
+            true
+        }
         L::BorderTopWidth => border_width(
             &mut s.border_top_width,
             a.border_top_width,

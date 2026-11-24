@@ -73,6 +73,18 @@ pub(crate) fn snap_border_width(px: f32) -> f32 {
     }
 }
 
+/// `outline-offset` as Chromium 148 computes it: snapped as a border
+/// width, with its sign (`1.5px` is `1px`, `-0.75px` is `-1px`; measured
+/// in `outline-offset-values` of `tools/probes/css-transitions.json`,
+/// also for interpolated values).
+pub(crate) fn snap_outline_offset(px: f32) -> f32 {
+    if px < 0.0 {
+        -snap_border_width(-px)
+    } else {
+        snap_border_width(px)
+    }
+}
+
 /// Stores the computed value of `value` in `s`.
 #[allow(clippy::too_many_lines)] // One arm per longhand.
 pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut ComputedStyle) {
@@ -129,6 +141,7 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::Rotate(v) => s.rotate = *v,
         V::Scale(v) => s.scale = *v,
         V::Isolation(v) => s.isolation = *v,
+        V::InterpolateSize(v) => s.interpolate_size = *v,
         V::CornerTopLeftShape(v) => s.corner_top_left_shape = *v,
         V::CornerTopRightShape(v) => s.corner_top_right_shape = *v,
         V::CornerBottomRightShape(v) => s.corner_bottom_right_shape = *v,
@@ -218,7 +231,7 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::OutlineWidth(v) => s.outline_width = snap_border_width(cx.px(v)),
         V::OutlineStyle(v) => s.outline_style = *v,
         V::OutlineColor(v) => s.outline_color = *v,
-        V::OutlineOffset(v) => s.outline_offset = cx.px(v),
+        V::OutlineOffset(v) => s.outline_offset = snap_outline_offset(cx.px(v)),
         V::BackgroundColor(v) => s.background_color = *v,
         V::BackgroundImage(v) => {
             s.background_image = v
@@ -301,12 +314,7 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::ObjectPosition([x, y]) => s.object_position = [x.compute(cx), y.compute(cx)],
         V::UserSelect(v) => s.user_select = *v,
         V::UnicodeBidi(v) => s.unicode_bidi = *v,
-        V::TransitionProperty(_)
-        | V::TransitionDuration(_)
-        | V::TransitionDelay(_)
-        | V::TransitionTimingFunction(_)
-        | V::TransitionBehavior(_)
-        | V::WillChange(_)
+        V::WillChange(_)
         | V::TouchAction(_)
         | V::Perspective(_)
         | V::PerspectiveOrigin(_)
@@ -329,7 +337,12 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         | V::AnimationComposition(_)
         | V::AnimationTimeline(_)
         | V::AnimationRangeStart(_)
-        | V::AnimationRangeEnd(_) => crate::animation::properties::apply(value, cx, s),
+        | V::AnimationRangeEnd(_)
+        | V::TransitionProperty(_)
+        | V::TransitionDuration(_)
+        | V::TransitionDelay(_)
+        | V::TransitionTimingFunction(_)
+        | V::TransitionBehavior(_) => crate::animation::properties::apply(value, cx, s),
     }
 }
 
@@ -367,6 +380,11 @@ mod tests {
         assert_eq!(snap_border_width(1.0), 1.0);
         assert_eq!(snap_border_width(2.7), 2.0);
         assert_eq!(snap_border_width(f32::NAN), 0.0);
+        assert_eq!(snap_outline_offset(1.5), 1.0);
+        assert_eq!(snap_outline_offset(-1.5), -1.0);
+        assert_eq!(snap_outline_offset(-0.75), -1.0);
+        assert_eq!(snap_outline_offset(2.7), 2.0);
+        assert_eq!(snap_outline_offset(0.0), 0.0);
     }
 
     #[test]

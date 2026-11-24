@@ -57,6 +57,7 @@ impl Fixture {
             &ContainerSizes::new(),
             None,
             &self.animations,
+            None,
         );
     }
 
@@ -82,6 +83,7 @@ impl Fixture {
             &DomChanges::default(),
             &marked,
             Some(&self.animations),
+            None,
             &mut self.map,
         );
         assert!(matches!(outcome, Restyle::Done { .. }), "{outcome:?}");
@@ -265,6 +267,7 @@ fn animations_off_resets_the_properties() {
         &ContainerSizes::new(),
         None,
         &animations,
+        None,
     );
     let style = map.get(node(&doc, "a")).expect("a style");
     assert!(style.animations.is_none());

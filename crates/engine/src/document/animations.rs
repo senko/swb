@@ -1,13 +1,17 @@
-//! The CSS animations of a document for scripts (ADR 0044 section 7, M13
-//! feature 3b): `getAnimations()` in composite order, the state of one
-//! animation, the commands of scripts (`play()`, `pause()`,
-//! `currentTime`) and `getKeyframes()`.
+//! The CSS animations and transitions of a document for scripts (ADR 0044
+//! section 7, M13 features 3b and 5): `getAnimations()` in composite order,
+//! the state of one animation, the commands of scripts (`play()`,
+//! `pause()`, `currentTime`) and `getKeyframes()`.
 //!
 //! Composite order (CSS Animations 2 §2.2,
-//! <https://drafts.csswg.org/css-animations-2/#animation-composite-order>):
-//! the owning elements in tree order, each element's pseudo-elements after
-//! it (`::marker`, `::before`, `::after`), and the animations of one owner
-//! by their position in `animation-name`.
+//! <https://drafts.csswg.org/css-animations-2/#animation-composite-order>;
+//! CSS Transitions 2 §4.1,
+//! <https://drafts.csswg.org/css-transitions-2/#animation-composite-order>):
+//! all transitions before all animations; within each, the owning elements
+//! in tree order, each element's pseudo-elements after it (`::marker`,
+//! `::before`, `::after`); the transitions of one owner by transition
+//! generation, then property name; the animations of one owner by their
+//! position in `animation-name`.
 
 use std::collections::{HashMap, HashSet};
 
@@ -221,22 +225,43 @@ impl DocumentState {
             return Vec::new();
         }
         let order = self.tree_order();
+        // At one time the cancels come first (a style change cancels before
+        // the transitions it starts run: measured in Chromium 148,
+        // `events-cancel-and-reverse`); then transitions before animations;
+        // the transitions of one owner by generation, then property name
+        // (the events of one record keep their queue order: the sort is
+        // stable).
         let key = |e: &PendingAnimationEvent| {
             (
                 e.scheduled.is_some(),
                 e.scheduled.unwrap_or(0.0),
+                !matches!(
+                    e.kind,
+                    swb_style::animation::AnimationEventKind::Cancel
+                        | swb_style::animation::AnimationEventKind::TransitionCancel
+                ),
+                e.generation.is_none(),
                 order.rank(e.owner.node),
                 pseudo_rank(e.owner.pseudo),
-                e.index,
+                (e.generation.unwrap_or(0), e.index),
             )
         };
         let mut keyed: Vec<_> = events.drain(..).map(|e| (key(&e), e)).collect();
-        keyed.sort_by(|(a, _), (b, _)| {
+        keyed.sort_by(|(a, x), (b, y)| {
             a.0.cmp(&b.0)
                 .then(a.1.total_cmp(&b.1))
                 .then(a.2.cmp(&b.2))
                 .then(a.3.cmp(&b.3))
                 .then(a.4.cmp(&b.4))
+                .then(a.5.cmp(&b.5))
+                .then(a.6.cmp(&b.6))
+                .then_with(|| {
+                    if x.generation.is_some() {
+                        x.name.cmp(&y.name)
+                    } else {
+                        std::cmp::Ordering::Equal
+                    }
+                })
         });
         keyed
             .into_iter()
@@ -244,34 +269,64 @@ impl DocumentState {
                 let mut event = TrustedEvent::new(e.kind.as_str());
                 event.bubbles = true;
                 event.cancelable = true;
-                event.interface = EventInterface::Animation {
-                    animation_name: e.name.to_string(),
-                    elapsed_time: e.elapsed,
-                    pseudo_element: pseudo_text(e.owner.pseudo).unwrap_or("").to_owned(),
+                let pseudo_element = pseudo_text(e.owner.pseudo).unwrap_or("").to_owned();
+                event.interface = if e.kind.is_transition() {
+                    EventInterface::Transition {
+                        property_name: e.name.to_string(),
+                        elapsed_time: e.elapsed,
+                        pseudo_element,
+                    }
+                } else {
+                    EventInterface::Animation {
+                        animation_name: e.name.to_string(),
+                        elapsed_time: e.elapsed,
+                        pseudo_element,
+                    }
                 };
                 (DispatchTarget::Node(e.owner.node), event)
             })
             .collect()
     }
 
-    /// True if a style computation can start or cancel animations: the
-    /// document has `@keyframes` rules (in its current stylist) and work
-    /// for the style pass (styles dropped by DOM changes, stale styles, or
-    /// DOM changes not yet taken). The rendering update then computes the
-    /// styles, as a browser's frame does, so that the animations that a
-    /// script starts by a style change run without a read of the styles.
+    /// True if a style computation can start or cancel animations or
+    /// transitions: the document has `@keyframes` rules (in its current
+    /// stylist) or a style that can start a transition was computed, and
+    /// there is work for the style pass (styles dropped by DOM changes,
+    /// stale styles, DOM changes not yet taken, or animation ticks that can
+    /// start transitions of children). The rendering update
+    /// then computes the styles, as a browser's frame does, so that the
+    /// animations and transitions that a script starts by a style change
+    /// run without a read of the styles.
     pub(crate) fn animation_styles_due(&self) -> bool {
         self.animations_enabled
             && !self.retired
-            && self
+            && (self
                 .stylist
                 .as_ref()
                 .is_some_and(swb_style::Stylist::has_keyframes)
+                || self
+                    .animations
+                    .try_borrow()
+                    .is_ok_and(|a| a.transitions_seen()))
             && (self.styles.is_none()
                 || self.styles_stale
                 || self.drained != Some(self.dom.generation())
-                || !self.dom.journal().is_empty())
+                || !self.dom.journal().is_empty()
+                || self.ticks_can_start_transitions())
             && self.stylesheets_settled()
+    }
+
+    /// True if the restyle of this frame's animation ticks can start
+    /// transitions: a style that can start one was computed, and owners
+    /// whose values changed can show (their children with transitions of
+    /// an inherited property start them in this frame, one frame after the
+    /// parent's, as in Chromium; ADR 0044 section 20). A painted frame
+    /// restyles them anyway; this also does it for the frames that paint
+    /// nothing (headless runs).
+    fn ticks_can_start_transitions(&self) -> bool {
+        self.animations
+            .try_borrow()
+            .is_ok_and(|a| a.transitions_seen() && a.has_shown_marks())
     }
 
     /// The visibility test of the frame loop (ADR 0044 section 8): after a
@@ -431,10 +486,11 @@ impl DocumentState {
             .collect()
     }
 
-    /// `getAnimations()`: the relevant animations of the document, or of
-    /// `element` (with `subtree`, of its inclusive descendants and their
-    /// pseudo-elements), in composite order. Brings the styles up to date
-    /// first (they create the animations).
+    /// `getAnimations()`: the relevant animations and transitions of the
+    /// document, or of `element` (with `subtree`, of its inclusive
+    /// descendants and their pseudo-elements), in composite order (all
+    /// transitions first). Brings the styles up to date first (they create
+    /// the animations and start the transitions).
     pub(crate) fn animation_list(&mut self, element: Option<NodeId>, subtree: bool) -> Vec<u64> {
         let outer = std::mem::replace(&mut self.in_query, true);
         self.update_style();
@@ -443,41 +499,81 @@ impl DocumentState {
             return Vec::new();
         }
         if let (Some(node), false) = (element, subtree) {
-            // One element without its subtree: its own animations (the
-            // pseudo-elements' belong to the subtree), read directly.
+            // One element without its subtree: its own transitions and
+            // animations (the pseudo-elements' belong to the subtree), read
+            // directly.
             let animations = self.animations.borrow();
             let time = animations.time();
             let owner = AnimationOwner { node, pseudo: None };
             return animations
-                .ids_of(owner)
+                .transition_ids_of(owner)
                 .iter()
+                .chain(animations.ids_of(owner))
                 .copied()
                 .filter(|&id| animations.record(id).is_some_and(|r| r.is_relevant(time)))
                 .collect();
         }
-        let owners: Vec<AnimationOwner> = self.animations.borrow().owners().collect();
+        let (transition_owners, owners): (Vec<AnimationOwner>, Vec<AnimationOwner>) = {
+            let animations = self.animations.borrow();
+            (
+                animations.transition_owners().collect(),
+                animations.owners().collect(),
+            )
+        };
+        // `getAnimations()` of the document and of a shadow root
+        // (DocumentOrShadowRoot): the owners in that tree only (measured in
+        // Chromium 148, probe `shadow-tree`).
+        let scope = match element {
+            None => Some(NodeId::DOCUMENT),
+            Some(e) if self.dom.root(e) == e && e != NodeId::DOCUMENT => Some(e),
+            Some(_) => None,
+        };
+        let (transition_owners, owners) = match scope {
+            Some(root) => {
+                let dom = &self.dom;
+                let keep = |owners: Vec<AnimationOwner>| -> Vec<AnimationOwner> {
+                    owners
+                        .into_iter()
+                        .filter(|o| dom.root(o.node) == root)
+                        .collect()
+                };
+                (keep(transition_owners), keep(owners))
+            }
+            None => (transition_owners, owners),
+        };
+        let element = element.filter(|_| scope.is_none());
         let order = self.tree_order();
         let range = element.map(|e| (order.rank(e), order.end_of(e)));
-        let mut keyed: Vec<(u32, u8, AnimationOwner)> = owners
-            .into_iter()
-            .filter_map(|owner| {
-                let rank = order.rank(owner.node);
-                if rank == u32::MAX {
-                    return None;
-                }
-                let wanted = match range {
-                    Some((start, end)) => rank >= start && rank < end,
-                    None => true,
-                };
-                wanted.then_some((rank, pseudo_rank(owner.pseudo), owner))
-            })
-            .collect();
-        keyed.sort_by_key(|&(rank, pseudo, _)| (rank, pseudo));
+        let sorted = |owners: Vec<AnimationOwner>| {
+            let mut keyed: Vec<(u32, u8, AnimationOwner)> = owners
+                .into_iter()
+                .filter_map(|owner| {
+                    let rank = order.rank(owner.node);
+                    if rank == u32::MAX {
+                        return None;
+                    }
+                    let wanted = match range {
+                        Some((start, end)) => rank >= start && rank < end,
+                        None => true,
+                    };
+                    wanted.then_some((rank, pseudo_rank(owner.pseudo), owner))
+                })
+                .collect();
+            keyed.sort_by_key(|&(rank, pseudo, _)| (rank, pseudo));
+            keyed
+        };
+        let transition_owners = sorted(transition_owners);
+        let owners = sorted(owners);
         let animations = self.animations.borrow();
         let time = animations.time();
-        keyed
+        transition_owners
             .into_iter()
-            .flat_map(|(_, _, owner)| animations.ids_of(owner).iter().copied())
+            .flat_map(|(_, _, owner)| animations.transition_ids_of(owner).iter().copied())
+            .chain(
+                owners
+                    .into_iter()
+                    .flat_map(|(_, _, owner)| animations.ids_of(owner).iter().copied()),
+            )
             .filter(|&id| animations.record(id).is_some_and(|r| r.is_relevant(time)))
             .collect()
     }
@@ -490,6 +586,7 @@ impl DocumentState {
         let record: &AnimationRecord = animations.record(id)?;
         Some(AnimationInfo {
             name: record.name.to_string(),
+            transition: record.is_transition(),
             target: record.owner.node,
             pseudo: pseudo_text(record.owner.pseudo),
             play_state: record.play_state(time).as_str(),
@@ -561,10 +658,13 @@ impl DocumentState {
     /// Departure: the value is the element's current one, which is the
     /// animated value for a property that the animation changes now.
     pub(crate) fn animation_keyframes(&mut self, id: u64) -> Vec<KeyframeInfo> {
+        // A transition has no `@keyframes` rule (departure: Chromium lists
+        // its two keyframes with the start and end values).
         let Some((name, easing, owner)) = self
             .animations
             .borrow()
             .record(id)
+            .filter(|r| !r.is_transition())
             .map(|r| (r.name.clone(), r.keyframe_easing.computed_text(), r.owner))
         else {
             return Vec::new();
@@ -624,10 +724,15 @@ impl DocumentState {
     /// call starts the bookkeeping: the bindings call it before they make a
     /// wrapper, and a document whose scripts never list animations keeps
     /// no ids.
-    pub(crate) fn released_animations(&mut self) -> Vec<u64> {
+    pub(crate) fn released_animations(&mut self) -> Vec<(u64, Option<f64>)> {
         let animations = self.animations.get_mut();
         animations.track_released();
-        animations.take_released()
+        let ended = animations.take_ended();
+        animations
+            .take_released()
+            .into_iter()
+            .map(|id| (id, ended.get(&id).copied()))
+            .collect()
     }
 }
 

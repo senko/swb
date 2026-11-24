@@ -149,7 +149,7 @@ pub fn restyle_targeted(
     dom: &DomChanges,
     map: &mut StyleMap,
 ) -> Restyle {
-    restyle_animated(inputs, old, new, dom, &[], None, map)
+    restyle_animated(inputs, old, new, dom, &[], None, None, map)
 }
 
 /// [`restyle_targeted`] with the document's animations (ADR 0044 section
@@ -157,7 +157,9 @@ pub fn restyle_targeted(
 /// have changed) are restyled too, the restyled elements' animation records
 /// are brought up to date, and their styles take the animated values. The
 /// records of elements without a style or an animation name afterwards are
-/// cancelled ([`super::sweep_animations`]).
+/// cancelled ([`super::sweep_animations`]). With `transitions`, the
+/// restyle is a style change event: the restyled elements' transitions
+/// start from their styles in `map` (CSS Transitions 1 §3).
 #[allow(clippy::too_many_arguments)]
 pub fn restyle_animated(
     inputs: &RestyleInputs<'_>,
@@ -166,6 +168,7 @@ pub fn restyle_animated(
     dom: &DomChanges,
     marked: &[NodeId],
     animations: Option<&RefCell<DocumentAnimations>>,
+    transitions: Option<super::TransitionInputs<'_>>,
     map: &mut StyleMap,
 ) -> Restyle {
     let RestyleInputs {
@@ -237,6 +240,14 @@ pub fn restyle_animated(
     let states = StateSet::lazy(doc, new);
     let mut styler = Styler::new(doc, &states, stylist, env, base_url, true, sizes, None);
     styler.animations = animations.map(|a| (a, true));
+    styler.change = transitions.map(|t| super::ChangeSource {
+        previous: None,
+        queried: t.queried,
+        element: None,
+        pseudos: None,
+        all: !t.inherited_only,
+        parent_changed: false,
+    });
     let changes = styler
         .run_targeted(map, &plan)
         .and_then(|changes| styler.collect_stale(map, dom, changes));
@@ -539,6 +550,11 @@ impl Styler<'_> {
             || active
                 .as_ref()
                 .is_some_and(|a| a.matches(el.data(), self.cx.quirks));
+        if let Some(change) = &mut self.change {
+            change.element.clone_from(&old);
+            change.pseudos = map.pseudo_styles_of(node).cloned();
+            change.parent_changed = visit.parent_changed;
+        }
         let (style, changed) = if restyle {
             self.restyle_one(el, visit, is_root, old.as_ref(), map, changes)
                 .map(|(style, changed)| {
@@ -583,6 +599,12 @@ impl Styler<'_> {
             None => None,
         };
         if restyle {
+            if let Some(change) = &mut self.change {
+                change.parent_changed |= changed;
+            }
+            if changed && old.is_some() && plan.marked.contains(&node) {
+                self.note_value_changed(node);
+            }
             self.style_pseudo_elements(el, &style, layout_parent, &mut changes.pseudos);
             if self.containers.take_read() {
                 return Err(FullReason::Containers);

@@ -394,6 +394,7 @@ impl Page {
             animations: crate::document::AnimationSetting {
                 enabled: self.animations,
                 origin: self.clock.now(),
+                room: Some(Rc::clone(&self.maker.animation_room)),
             },
         });
         // Set without a restyle: the styles of the new document are not

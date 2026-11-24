@@ -19,8 +19,8 @@ use super::Value;
 use super::longhand::serialize_longhand;
 use super::props::{Kind, Ser, Shorthand, TABLE};
 use super::value::{Style, serialize};
+use crate::animation::transition_properties::{expand_transition, transition_value};
 use crate::parse::ParserContext;
-use crate::properties::inert::{expand_transition, transition_value};
 use crate::properties::parse_declaration;
 
 /// The values that the shorthand `def` (index `index`) with the value

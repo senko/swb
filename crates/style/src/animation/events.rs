@@ -1,8 +1,10 @@
-//! The events of CSS animations (ADR 0044 section 6; M13 feature 3c): which
-//! events a change of an animation's phase and iteration gives, with their
-//! `elapsedTime` and their scheduled event time, by the table of CSS
-//! Animations 2 §5.1
-//! (<https://drafts.csswg.org/css-animations-2/#event-dispatch>).
+//! The events of CSS animations and transitions (ADR 0044 section 6; M13
+//! features 3c and 5): which events a change of an animation's phase and
+//! iteration gives, with their `elapsedTime` and their scheduled event
+//! time, by the tables of CSS Animations 2 §5.1
+//! (<https://drafts.csswg.org/css-animations-2/#event-dispatch>) and CSS
+//! Transitions 2 §5.1
+//! (<https://drafts.csswg.org/css-transitions-2/#event-dispatch>).
 //!
 //! [`DocumentAnimations`](super::DocumentAnimations) queues the events at
 //! each update (and a cancel at once, when a style change or a script
@@ -27,6 +29,14 @@ pub enum AnimationEventKind {
     End,
     /// `animationcancel`.
     Cancel,
+    /// `transitionrun`.
+    TransitionRun,
+    /// `transitionstart`.
+    TransitionStart,
+    /// `transitionend`.
+    TransitionEnd,
+    /// `transitioncancel`.
+    TransitionCancel,
 }
 
 impl AnimationEventKind {
@@ -37,7 +47,22 @@ impl AnimationEventKind {
             AnimationEventKind::Iteration => "animationiteration",
             AnimationEventKind::End => "animationend",
             AnimationEventKind::Cancel => "animationcancel",
+            AnimationEventKind::TransitionRun => "transitionrun",
+            AnimationEventKind::TransitionStart => "transitionstart",
+            AnimationEventKind::TransitionEnd => "transitionend",
+            AnimationEventKind::TransitionCancel => "transitioncancel",
         }
+    }
+
+    /// True for the events of CSS transitions (`TransitionEvent`).
+    pub fn is_transition(self) -> bool {
+        matches!(
+            self,
+            AnimationEventKind::TransitionRun
+                | AnimationEventKind::TransitionStart
+                | AnimationEventKind::TransitionEnd
+                | AnimationEventKind::TransitionCancel
+        )
     }
 }
 
@@ -53,7 +78,7 @@ pub struct PendingAnimationEvent {
     /// The owning element: the target (with the pseudo-element for
     /// `pseudoElement`).
     pub owner: AnimationOwner,
-    /// `animationName`.
+    /// `animationName`, or the `propertyName` of a transition.
     pub name: Arc<str>,
     /// The position of the name in `animation-name` when the event was
     /// queued (composite order within the owner).
@@ -63,6 +88,9 @@ pub struct PendingAnimationEvent {
     /// The scheduled event time: the timeline time (ms) at which the event
     /// happened; `None` sorts first.
     pub scheduled: Option<f64>,
+    /// The transition generation of a CSS transition (composite order:
+    /// all transitions before all animations; `None` for an animation).
+    pub generation: Option<u64>,
 }
 
 /// The interval start of an effect: max(min(−delay, active duration), 0).
@@ -112,6 +140,39 @@ pub(crate) fn events_of(timing: &Timing, change: PhaseChange) -> Vec<(AnimationE
         (Phase::Active, Phase::After) => vec![(End, end)],
         (Phase::After, Phase::Active) => vec![(Start, end)],
         (Phase::After, Phase::Before) => vec![(Start, end), (End, start)],
+        _ => Vec::new(),
+    }
+}
+
+/// The events of a CSS transition for `change` as (kind, elapsed time in
+/// ms, the elapsed time that places the event, `None` for the start time):
+/// the table of CSS Transitions 2 §5.1 without the cancel. A
+/// `transitionrun` is scheduled at the start time (measured in Chromium
+/// 148, `events-run-start-end`: the `transitionrun` of a delayed transition
+/// comes with the `transitionrun` and `transitionstart` of the others).
+pub(crate) fn transition_events_of(
+    timing: &Timing,
+    change: PhaseChange,
+) -> Vec<(AnimationEventKind, f64, Option<f64>)> {
+    use AnimationEventKind::{
+        TransitionEnd as End, TransitionRun as Run, TransitionStart as Start,
+    };
+    let start = interval_start(timing);
+    let end = interval_end(timing);
+    match (change.before.0, change.after.0) {
+        (Phase::Idle, Phase::Before) => vec![(Run, start, None)],
+        (Phase::Idle, Phase::Active) => vec![(Run, start, None), (Start, start, Some(start))],
+        (Phase::Idle, Phase::After) => vec![
+            (Run, start, None),
+            (Start, start, Some(start)),
+            (End, end, Some(end)),
+        ],
+        (Phase::Before, Phase::Active) => vec![(Start, start, Some(start))],
+        (Phase::Before, Phase::After) => vec![(Start, start, Some(start)), (End, end, Some(end))],
+        (Phase::Active, Phase::After) => vec![(End, end, Some(end))],
+        (Phase::Active, Phase::Before) => vec![(End, start, Some(start))],
+        (Phase::After, Phase::Active) => vec![(Start, end, Some(end))],
+        (Phase::After, Phase::Before) => vec![(Start, end, Some(end)), (End, start, Some(start))],
         _ => Vec::new(),
     }
 }

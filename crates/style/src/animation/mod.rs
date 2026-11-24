@@ -37,6 +37,7 @@ pub mod properties;
 pub mod records;
 pub mod time;
 pub mod timing;
+pub mod transition_properties;
 pub mod visibility;
 
 pub use easing::{Easing, LinearPoint, MAX_STEPS, StepPosition, parse_easing};
@@ -46,7 +47,7 @@ pub use keyframes::{Interval, Keyframe, KeyframeSet, PropertyKeyframes};
 pub use properties::{AnimationEntry, AnimationName, AnimationStyle, Composition, PlayState};
 pub use records::{
     AnimationId, AnimationOwner, AnimationPlayState, AnimationRecord, DocumentAnimations,
-    MAX_RECORDS, round_noise,
+    MAX_RECORDS, RecordRoom, round_noise,
 };
 pub use time::{Number, Time};
 pub use timing::{ComputedTiming, FillMode, Phase, PlaybackDirection, Timing};

@@ -417,6 +417,456 @@
      "js": "(async () => { for (const e of $$('.t')) getComputedStyle(e).opacity; $('#e2').classList.add('on'); $('#e1').classList.add('on'); $('#e1').classList.add('an'); getComputedStyle($('#e1')).opacity; const order = document.getAnimations().map((a) => a.effect.target.id + ':' + (a.transitionProperty || a.animationName)).join(' '); await wait(400); return order + '\\n' + LOG.join('\\n'); })()"
     }
    ]
+  },
+  {
+   "name": "outline-offset-values",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>#a{outline:1px solid red;outline-offset:1.5px}#b{outline:1px solid red;outline-offset:-1.5px}#c{outline:1px solid red;outline-offset:2.7px}#d{width:calc(0% + 20px);background-size:calc(0% + 20px) 100%;margin-left:calc(0% - 5px)}#t{outline:1px solid red;outline-offset:0px;transition:outline-offset 4s linear}#t.on{outline-offset:6px}#u{outline:1px solid red;outline-offset:0px;transition:outline-offset 4s linear}#u.on{outline-offset:-6px}</style></head><body><div id=a></div><div id=b></div><div id=c></div><div id=d></div><div id=t></div><div id=u></div><script>\nconst $ = (s) => document.querySelector(s);\nconst $$ = (s) => [...document.querySelectorAll(s)];\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction at(sel, props, times) { return times.map((t) => { seek(t); return t + ' ' + val(sel, props); }).join('\\n'); }\nfunction atAll(sels, props, times) { return times.map((t) => { seek(t); return t + ' ' + sels.map((s) => s + ' {' + val(s, props) + '}').join(' '); }).join('\\n'); }\nfunction rect(sel) { const r = $(sel).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(','); }\nfunction states() { return document.getAnimations().map((a) => (a.animationName || a.transitionProperty) + ':' + a.playState + ':' + a.currentTime).join(' | '); }\nfunction timing(a) { const c = a.effect.getComputedTiming(); return JSON.stringify({delay: c.delay, endDelay: c.endDelay, fill: c.fill, iterationStart: c.iterationStart, iterations: c.iterations, duration: c.duration, direction: c.direction, easing: c.easing, endTime: c.endTime, activeDuration: c.activeDuration}); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "val('#a',['outline-offset']) + ' / ' + val('#b',['outline-offset']) + ' / ' + val('#c',['outline-offset'])"
+    },
+    {
+     "js": "val('#d',['width','background-size','margin-left'])"
+    },
+    {
+     "js": "E(() => { getComputedStyle($('#t')).outlineOffset; getComputedStyle($('#u')).outlineOffset; $('#t').classList.add('on'); $('#u').classList.add('on'); return states(); })"
+    },
+    {
+     "js": "[0, 500, 1000, 2000, 2400, 3000].map((t) => { seek(t); return t + ' ' + val('#t', ['outline-offset']) + ' ' + val('#u', ['outline-offset']); }).join('\\n')"
+    }
+   ]
+  },
+  {
+   "name": "inherit-parent-child-start",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#p{color:#000;transition:color 1s linear}#p.on{color:#fff}#c{transition:color 1s linear}</style></head><body><div id=p><div id=c>x</div></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\nfunction ends(sel) { const a = $(sel).getAnimations().find((x) => x.transitionProperty); if (!a) return 'none'; const t = a.currentTime, paused = a.playState === 'paused'; a.pause(); a.currentTime = 0; const s = val(sel, ['color']); a.currentTime = a.effect.getComputedTiming().duration - 0.1; const e = val(sel, ['color']); a.currentTime = t; if (!paused) a.play(); return 'from ' + s + ' to ' + e; }\nwindow.LOG = [];\nfor (const t of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) document.addEventListener(t, (e) => LOG.push(e.type + ' ' + e.propertyName + ' ' + e.target.id));\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#p')).color;$('#p').classList.add('on');return info()})"
+    },
+    {
+     "js": "wait(300).then(()=>{const c=$('#c').getAnimations()[0],p=$('#p').getAnimations()[0];window.cs=c.startTime;const d=c.startTime-p.startTime;return 'one frame later '+(d>10&&d<20)+' '+c.playState+' ## '+LOG.join(',')})"
+    },
+    {
+     "js": "wait(300).then(()=>'same start '+($('#c').getAnimations()[0].startTime===window.cs)+' '+document.getAnimations().length+' '+LOG.length)"
+    },
+    {
+     "js": "E(()=>{$('#p').style.width='50px';return 'same start '+($('#c').getAnimations()[0].startTime===window.cs)+' '+document.getAnimations().length+' '+ends('#c')})"
+    }
+   ]
+  },
+  {
+   "name": "inherit-parent-child-seek",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#p{color:#000;transition:color 1s linear}#p.on{color:#fff}#c{transition:color 1s linear}#p{width:100px}#p.w{width:200px}</style></head><body><div id=p><div id=c>x</div></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\nfunction ends(sel) { const a = $(sel).getAnimations().find((x) => x.transitionProperty); if (!a) return 'none'; const t = a.currentTime, paused = a.playState === 'paused'; a.pause(); a.currentTime = 0; const s = val(sel, ['color']); a.currentTime = a.effect.getComputedTiming().duration - 0.1; const e = val(sel, ['color']); a.currentTime = t; if (!paused) a.play(); return 'from ' + s + ' to ' + e; }\nwindow.LOG = [];\nfor (const t of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) document.addEventListener(t, (e) => LOG.push(e.type + ' ' + e.propertyName + ' ' + e.target.id));\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#p')).color;getComputedStyle($('#c')).color;$('#p').classList.add('on');return info()})"
+    },
+    {
+     "js": "(seek(500), info()+' ## '+val('#p',['color'])+' '+val('#c',['color']))"
+    },
+    {
+     "js": "E(()=>{$('#p').classList.add('w');return info()+' ## '+val('#p',['color'])+' '+val('#c',['color'])})"
+    },
+    {
+     "js": "E(()=>{$('#p').classList.remove('w');return info()+' ## '+val('#c',['color'])})"
+    },
+    {
+     "js": "wait(100).then(()=>$('#c').getAnimations()[0].playState+' '+ends('#c')+' ## '+LOG.join(','))"
+    }
+   ]
+  },
+  {
+   "name": "inherit-child-restyled",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#p{color:#000;transition:color 1s linear}#p.on{color:#fff}#c{transition:color 1s linear}#p.on #c{outline:1px solid red}</style></head><body><div id=p><div id=c>x</div></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\nfunction ends(sel) { const a = $(sel).getAnimations().find((x) => x.transitionProperty); if (!a) return 'none'; const t = a.currentTime, paused = a.playState === 'paused'; a.pause(); a.currentTime = 0; const s = val(sel, ['color']); a.currentTime = a.effect.getComputedTiming().duration - 0.1; const e = val(sel, ['color']); a.currentTime = t; if (!paused) a.play(); return 'from ' + s + ' to ' + e; }\nwindow.LOG = [];\nfor (const t of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) document.addEventListener(t, (e) => LOG.push(e.type + ' ' + e.propertyName + ' ' + e.target.id));\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#p')).color;getComputedStyle($('#c')).color;$('#p').classList.add('on');return info()+' ## '+val('#c',['outline-style','color'])})"
+    },
+    {
+     "js": "(seek(500), info()+' ## '+val('#p',['color'])+' '+val('#c',['color']))"
+    }
+   ]
+  },
+  {
+   "name": "inherit-grandchild",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#p{color:#000;transition:color 1s linear}#p.on{color:#fff}#g{transition:color 1s linear}</style></head><body><div id=p><div id=c><div id=g>x</div></div></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\nfunction ends(sel) { const a = $(sel).getAnimations().find((x) => x.transitionProperty); if (!a) return 'none'; const t = a.currentTime, paused = a.playState === 'paused'; a.pause(); a.currentTime = 0; const s = val(sel, ['color']); a.currentTime = a.effect.getComputedTiming().duration - 0.1; const e = val(sel, ['color']); a.currentTime = t; if (!paused) a.play(); return 'from ' + s + ' to ' + e; }\nwindow.LOG = [];\nfor (const t of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) document.addEventListener(t, (e) => LOG.push(e.type + ' ' + e.propertyName + ' ' + e.target.id));\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#g')).color;$('#p').classList.add('on');return info()})"
+    },
+    {
+     "js": "wait(200).then(()=>LOG.join(','))"
+    },
+    {
+     "js": "(seek(500), info()+' ## '+val('#p',['color'])+' '+val('#g',['color']))"
+    }
+   ]
+  },
+  {
+   "name": "inherit-animated-parent",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}@keyframes k{from{color:#000}to{color:#fff}}#p{animation:k 1s linear}#p2{color:red;animation:k 1s linear}#c,#c2{transition:color 1s linear}</style></head><body><div id=p><div id=c>x</div></div><div id=p2><div id=c2>y</div></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\nfunction ends(sel) { const a = $(sel).getAnimations().find((x) => x.transitionProperty); if (!a) return 'none'; const t = a.currentTime, paused = a.playState === 'paused'; a.pause(); a.currentTime = 0; const s = val(sel, ['color']); a.currentTime = a.effect.getComputedTiming().duration - 0.1; const e = val(sel, ['color']); a.currentTime = t; if (!paused) a.play(); return 'from ' + s + ' to ' + e; }\nwindow.LOG = [];\nfor (const t of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) document.addEventListener(t, (e) => LOG.push(e.type + ' ' + e.propertyName + ' ' + e.target.id));\n</script></body></html>",
+   "measure": [
+    {
+     "js": "wait(300).then(()=>ends('#c')+' / '+ends('#c2')+' ## '+LOG.join(','))"
+    },
+    {
+     "js": "wait(300).then(()=>LOG.length+' '+$('#c').getAnimations().length+' '+$('#c2').getAnimations().length)"
+    }
+   ]
+  },
+  {
+   "name": "inherit-parent-reverse",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#p{color:#000;transition:color 1s linear}#p.on{color:#fff}#c{transition:color 1s linear}</style></head><body><div id=p><div id=c>x</div></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\nfunction ends(sel) { const a = $(sel).getAnimations().find((x) => x.transitionProperty); if (!a) return 'none'; const t = a.currentTime, paused = a.playState === 'paused'; a.pause(); a.currentTime = 0; const s = val(sel, ['color']); a.currentTime = a.effect.getComputedTiming().duration - 0.1; const e = val(sel, ['color']); a.currentTime = t; if (!paused) a.play(); return 'from ' + s + ' to ' + e; }\nwindow.LOG = [];\nfor (const t of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) document.addEventListener(t, (e) => LOG.push(e.type + ' ' + e.propertyName + ' ' + e.target.id));\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#p')).color;$('#p').classList.add('on');return info()})"
+    },
+    {
+     "js": "wait(300).then(()=>{$('#p').classList.remove('on');return 'x'})"
+    },
+    {
+     "js": "wait(100).then(()=>ends('#c')+' ## '+LOG.join(','))"
+    }
+   ]
+  },
+  {
+   "name": "shorthands-and-all",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#a{width:10px;height:10px;border:1px solid red;position:relative;top:0;left:0;right:0;bottom:0;transition:border 1s,inset 2s,-webkit-transform 3s,margin 1s}#a.on{border:5px solid blue;top:10px;left:10px;right:10px;bottom:10px;transform:rotate(10deg);margin:3px}#b{width:10px;height:10px;background:red;color:red;border:1px solid red;opacity:1;transition:all 1s}#b.on{width:20px;height:20px;background:blue;color:blue;border:3px dashed green;opacity:.5;padding:4px;margin:2px;font-size:20px;letter-spacing:2px}</style></head><body><div id=a></div><div id=b></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#a')).width;getComputedStyle($('#b')).width;$('#a').classList.add('on');$('#b').classList.add('on');return info()})"
+    }
+   ]
+  },
+  {
+   "name": "list-lengths-negative-delay",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#a{width:10px;height:10px;opacity:1;color:#000;transition-property:width,height,opacity,color;transition-duration:1s,2s;transition-delay:-500ms;}#a.on{width:20px;height:20px;opacity:.5;color:#fff}#b{width:10px;transition:width 1s linear 500ms}#b.on{width:20px}#c{width:10px;transition:width 1s linear -2s}#c.on{width:20px}</style></head><body><div id=a></div><div id=b></div><div id=c></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#a')).width;getComputedStyle($('#b')).width;getComputedStyle($('#c')).width;$('#a').classList.add('on');$('#b').classList.add('on');$('#c').classList.add('on');return info()})"
+    },
+    {
+     "js": "E(()=>{seek(300);return val('#a',['width','height','opacity'])})"
+    }
+   ]
+  },
+  {
+   "name": "pseudo-elements-marker",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#a::before{content:'x';display:inline-block;width:10px;color:#000;transition:width 1s linear,color 1s}#a.on::before{width:30px;color:#f00}li::marker{color:#000;transition:color 1s}li.on::marker{color:#f00}#a::after{content:'y';opacity:1;transition:opacity 1s}#a.on::after{opacity:.2}</style></head><body><div id=a></div><ul><li id=l>i</li></ul><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#a'),'::before').width;getComputedStyle($('#l'),'::marker').color;getComputedStyle($('#a'),'::after').opacity;$('#a').classList.add('on');$('#l').classList.add('on');return info()})"
+    },
+    {
+     "js": "(seek(500), getComputedStyle($('#a'),'::before').width+' '+getComputedStyle($('#a'),'::before').color+' '+getComputedStyle($('#a'),'::after').opacity+' '+getComputedStyle($('#l'),'::marker').color)"
+    }
+   ]
+  },
+  {
+   "name": "shadow-tree",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}</style></head><body><div id=h></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{const r=$('#h').attachShadow({mode:'open'});r.innerHTML='<style>#s{width:10px;transition:width 1s linear}#s.on{width:20px}:host{display:block}</style><div id=s></div>';const s=r.getElementById('s');getComputedStyle(s).width;s.classList.add('on');return info()+' '+r.getAnimations().length})"
+    },
+    {
+     "js": "(seek(500), getComputedStyle($('#h').shadowRoot.getElementById('s')).width)"
+    }
+   ]
+  },
+  {
+   "name": "read-other-element",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#a{width:10px;opacity:1;transition:opacity 1s linear,width 1s linear}#a.on{opacity:.5;width:20px}#b{color:#000}#c{opacity:1;transition:opacity 1s linear}#c.on{opacity:.5}</style></head><body><div id=a>a</div><div id=b>b</div><div id=c>c</div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#a')).opacity;$('#a').classList.add('on');getComputedStyle($('#b')).color;$('#a').classList.remove('on');return info()+' '+val('#a',['opacity'])})"
+    },
+    {
+     "js": "E(()=>{return info()})"
+    }
+   ]
+  },
+  {
+   "name": "read-other-element-2",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#a{width:10px;opacity:1;transition:opacity 1s linear,width 1s linear}#a.on{opacity:.5;width:20px}#b{color:#000}#c{opacity:1;transition:opacity 1s linear}#c.on{opacity:.5}</style></head><body><div id=a>a</div><div id=b>b</div><div id=c>c</div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#a')).opacity;$('#a').classList.add('on');getComputedStyle($('#b')).color;getComputedStyle($('#b')).color;return info()+' '+val('#a',['opacity'])})"
+    }
+   ]
+  },
+  {
+   "name": "read-then-change",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#a{width:10px;opacity:1;transition:opacity 1s linear,width 1s linear}#a.on{opacity:.5;width:20px}#b{color:#000}#c{opacity:1;transition:opacity 1s linear}#c.on{opacity:.5}</style></head><body><div id=a>a</div><div id=b>b</div><div id=c>c</div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#a')).opacity;$('#a').classList.add('on');getComputedStyle($('#a')).opacity;$('#a').classList.remove('on');return info()+' '+val('#a',['opacity'])})"
+    },
+    {
+     "js": "E(()=>{$('#c').classList.add('on');document.body.offsetWidth;$('#c').classList.remove('on');return info()})"
+    },
+    {
+     "js": "E(()=>{$('#c').classList.add('on');document.body.offsetWidth;$('#c').classList.remove('on');return info()+' '+val('#c',['opacity'])})"
+    }
+   ]
+  },
+  {
+   "name": "first-style-no-read",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#a{width:10px;opacity:1;transition:opacity 1s linear,width 1s linear}#a.on{opacity:.5;width:20px}#b{color:#000}#c{opacity:1;transition:opacity 1s linear}#c.on{opacity:.5}</style></head><body><div id=a>a</div><div id=b>b</div><div id=c>c</div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{$('#a').classList.add('on');return info()})"
+    },
+    {
+     "js": "E(()=>{$('#c').classList.add('on');return info()+' '+val('#c',['opacity'])})"
+    }
+   ]
+  },
+  {
+   "name": "api-after-end-and-cancel",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#a{width:10px;transition:width 1s linear}#a.on{width:20px}#a.off{width:5px}</style></head><body><div id=a></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#a')).width;$('#a').classList.add('on');const x=$('#a').getAnimations();window.t=x[0];return x.length+' '+(t instanceof CSSTransition)+' '+(t===$('#a').getAnimations()[0])+' '+t.constructor.name+' '+t.transitionProperty+' '+t.playState+' '+t.pending+' '+t.currentTime+' '+t.effect.getKeyframes().length+' '+Object.prototype.toString.call(t)})"
+    },
+    {
+     "js": "E(()=>{t.pause();return t.playState+' '+t.pending+' '+t.currentTime})"
+    },
+    {
+     "js": "E(()=>{t.currentTime=500;return val('#a',['width'])+' '+t.playState})"
+    },
+    {
+     "js": "E(()=>{$('#a').classList.add('off');return $('#a').getAnimations().length+' '+val('#a',['width'])+' '+t.playState+' '+(t===$('#a').getAnimations()[0])+' '+$('#a').getAnimations().map(a=>a.playState+':'+a.currentTime)})"
+    },
+    {
+     "js": "E(()=>{$('#a').classList.remove('off');const as=$('#a').getAnimations();return as.length+' '+val('#a',['width'])+' '+as.map(a=>a.playState+':'+a.currentTime+':'+a.effect.getComputedTiming().duration)})"
+    },
+    {
+     "js": "E(()=>{const a=$('#a').getAnimations()[0];a.finish();return a.playState+' '+val('#a',['width'])+' '+$('#a').getAnimations().length})"
+    },
+    {
+     "js": "E(()=>{return $('#a').getAnimations().length+' '+val('#a',['width'])})"
+    },
+    {
+     "js": "E(()=>{$('#a').classList.add('off');const a=$('#a').getAnimations()[0];window.u=a;a.cancel();return a.playState+' '+val('#a',['width'])+' '+$('#a').getAnimations().length})"
+    },
+    {
+     "js": "E(()=>{return u.playState+' '+u.currentTime+' '+u.transitionProperty})"
+    },
+    {
+     "js": "E(()=>{u.play();return u.playState+' '+u.currentTime+' '+val('#a',['width'])+' '+$('#a').getAnimations().length})"
+    },
+    {
+     "js": "E(()=>{$('#a').classList.remove('off');return $('#a').getAnimations().length+' '+$('#a').getAnimations().map(a=>a.playState+':'+a.currentTime)+' '+val('#a',['width'])})"
+    }
+   ]
+  },
+  {
+   "name": "api-promises-after-end",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#a{width:10px;transition:width 200ms linear}#a.on{width:20px}#a.off{width:5px}</style></head><body><div id=a></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction val(sel, props) { const cs = getComputedStyle($(sel)); return props.map((p) => p + ':' + cs.getPropertyValue(p)).join(' ; '); }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction info(root) { return (root||document).getAnimations({subtree:true}).map((a) => (a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState+':'+a.currentTime+':d'+a.effect.getComputedTiming().delay+':D'+a.effect.getComputedTiming().duration).sort().join(' | '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#a')).width;$('#a').classList.add('on');window.t=$('#a').getAnimations()[0];window.r=[];t.ready.then(()=>r.push('ready'));t.finished.then(()=>r.push('finished'),(e)=>r.push('fail:'+e.name));return 'x'})"
+    },
+    {
+     "js": "wait(500).then(()=>r.join(',')+' '+t.playState+' '+t.currentTime+' '+$('#a').getAnimations().length)"
+    },
+    {
+     "js": "E(()=>{$('#a').classList.remove('on');window.t=$('#a').getAnimations()[0];window.r=[];t.finished.then(()=>r.push('finished'),(e)=>r.push('fail:'+e.name));return 'y'})"
+    },
+    {
+     "js": "E(()=>{$('#a').classList.add('on');return 'z'})"
+    },
+    {
+     "js": "wait(50).then(()=>r.join(',')+' '+t.playState)"
+    }
+   ]
+  },
+  {
+   "name": "calc-zero-percentage",
+   "html": "<!DOCTYPE html><body style='font-size:10px'><div id=d style='position:relative;width:100px;height:50px'></div><script>function E(f){try{const v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}</script></body>",
+   "measure": [
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='padding-left:calc(0% + 5px)';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('padding-left')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='margin-left:calc(0% + 5px)';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('margin-left')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='text-indent:calc(0% + 5px)';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('text-indent')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='background-position:calc(0% + 5px) calc(0% + 6px)';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('background-position')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='background-size:calc(0% + 5px) calc(0px + 0%)';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('background-size')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='border-top-left-radius:calc(0% + 5px)';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('border-top-left-radius')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='translate:calc(0% + 5px)';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('translate')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='transform-origin:calc(0% + 5px) calc(0% + 5px)';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('transform-origin')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='object-position:calc(0% + 5px) 0%';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('object-position')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='top:calc(0% + 5px)';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('top')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='line-height:calc(0% + 5px)';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('line-height')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='outline-offset:0.3px';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('outline-offset')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='outline-offset:-0.3px';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('outline-offset')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='outline-offset:0.5px';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('outline-offset')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='outline-offset:2.5px';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('outline-offset')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='outline-offset:-2.5px';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('outline-offset')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='outline-offset:calc(1.5px + 1.2px)';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('outline-offset')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='outline-offset:1e-5px';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('outline-offset')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='outline-offset:-1e-5px';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('outline-offset')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='outline-offset:0.99px';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('outline-offset')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='outline-offset:1em';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('outline-offset')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='outline-offset:0.1em';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('outline-offset')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='outline-width:0.3px';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('outline-width')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='width:calc(0% + 5px)';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('width')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='flex-basis:calc(0% + 5px)';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('flex-basis')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='gap:calc(0% + 5px)';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('gap')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='mask-size:calc(0% + 5px) auto';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('mask-size')})"
+    },
+    {
+     "js": "E(()=>{const d=document.getElementById('d');d.style.cssText='clip-path:inset(calc(0% + 5px))';document.body.offsetWidth;return getComputedStyle(d).getPropertyValue('clip-path')})"
+    }
+   ]
+  },
+  {
+   "name": "inherit-shared-siblings",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#p{color:#000;transition:color 1s linear}#p.on{color:#fff}.g{transition:color 1s linear}</style></head><body><div id=p><div class=c><span class=g id=g1>x</span></div><div class=c><span class=g id=g2>y</span></div><div class=c><span class=g id=g3>z</span></div></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction S(){ return document.getAnimations({subtree:true}).map((a)=>(a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState).sort().join(' | '); }\nfunction C(...sels){ return sels.map((s)=>s+'='+getComputedStyle($(s)).color).join(' '); }\nfunction same(...sels){ const v=sels.map((s)=>getComputedStyle($(s)).color); return 'same '+v.every((x)=>x===v[0]); }\nfunction to(sel){ const a=$(sel).getAnimations().find((x)=>x.transitionProperty); if(!a) return sel+' none'; const t=a.currentTime; a.pause(); a.currentTime=a.effect.getComputedTiming().duration-0.1; const v=getComputedStyle($(sel)).color; a.currentTime=t; a.play(); return sel+' to '+v; }\nwindow.LOG = [];\nfor (const t of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) document.addEventListener(t, (e) => LOG.push(e.type + ' ' + e.propertyName + ' ' + e.target.id + (e.pseudoElement||'')));\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#g1')).color;getComputedStyle($('#g2')).color;$('#p').classList.add('on');return S()})"
+    },
+    {
+     "js": "wait(300).then(()=>S()+' ## '+same('#g1','#g2','#g3')+' '+LOG.join(','))"
+    },
+    {
+     "js": "wait(100).then(()=>(seek(500), S()+' ## '+C('#p','#g1','#g2','#g3')))"
+    }
+   ]
+  },
+  {
+   "name": "inherit-shared-parent-stale",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}@keyframes k{from{color:#00f}to{color:#0f0}}.a{color:red;animation:k 10s linear}.c{transition:color 1s linear}</style></head><body><div class='p a' id=p1><span class=c id=c1>x</span></div><div class='p a' id=p2><span class=c id=c2>y</span></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction S(){ return document.getAnimations({subtree:true}).map((a)=>(a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState).sort().join(' | '); }\nfunction C(...sels){ return sels.map((s)=>s+'='+getComputedStyle($(s)).color).join(' '); }\nfunction same(...sels){ const v=sels.map((s)=>getComputedStyle($(s)).color); return 'same '+v.every((x)=>x===v[0]); }\nfunction to(sel){ const a=$(sel).getAnimations().find((x)=>x.transitionProperty); if(!a) return sel+' none'; const t=a.currentTime; a.pause(); a.currentTime=a.effect.getComputedTiming().duration-0.1; const v=getComputedStyle($(sel)).color; a.currentTime=t; a.play(); return sel+' to '+v; }\nwindow.LOG = [];\nfor (const t of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) document.addEventListener(t, (e) => LOG.push(e.type + ' ' + e.propertyName + ' ' + e.target.id + (e.pseudoElement||'')));\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#c1')).color;return S()})"
+    },
+    {
+     "js": "wait(200).then(()=>S()+' ## '+same('#c1','#c2')+' '+to('#c1')+' '+to('#c2'))"
+    },
+    {
+     "js": "E(()=>{for(const e of document.querySelectorAll('.p'))e.classList.remove('a');return S()+' ## '+same('#c1','#c2')+' '+to('#c1')+' '+to('#c2')})"
+    },
+    {
+     "js": "wait(100).then(()=>S()+' ## '+same('#c1','#c2')+' '+LOG.join(','))"
+    },
+    {
+     "js": "wait(1200).then(()=>S()+' ## '+C('#c1','#c2'))"
+    }
+   ]
+  },
+  {
+   "name": "inherit-pseudo-text-only",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#p{color:#000;transition:color 1s linear}#p.on{color:#fff}#p::before{content:'x';transition:color 1s linear}</style></head><body><div id=p>y</div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction S(){ return document.getAnimations({subtree:true}).map((a)=>(a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState).sort().join(' | '); }\nfunction C(...sels){ return sels.map((s)=>s+'='+getComputedStyle($(s)).color).join(' '); }\nfunction same(...sels){ const v=sels.map((s)=>getComputedStyle($(s)).color); return 'same '+v.every((x)=>x===v[0]); }\nfunction to(sel){ const a=$(sel).getAnimations().find((x)=>x.transitionProperty); if(!a) return sel+' none'; const t=a.currentTime; a.pause(); a.currentTime=a.effect.getComputedTiming().duration-0.1; const v=getComputedStyle($(sel)).color; a.currentTime=t; a.play(); return sel+' to '+v; }\nwindow.LOG = [];\nfor (const t of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) document.addEventListener(t, (e) => LOG.push(e.type + ' ' + e.propertyName + ' ' + e.target.id + (e.pseudoElement||'')));\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#p')).color;getComputedStyle($('#p'),'::before').color;$('#p').classList.add('on');return S()})"
+    },
+    {
+     "js": "wait(300).then(()=>S()+' ## '+LOG.join(','))"
+    },
+    {
+     "js": "wait(100).then(()=>(seek(500), S()+' ## '+C('#p')+' '+getComputedStyle($('#p'),'::before').color))"
+    }
+   ]
+  },
+  {
+   "name": "inherit-pseudo-marker",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}li{color:#000;transition:color 1s linear}li.on{color:#fff}li::marker{transition:color 1s linear}</style></head><body><ul><li id=p>y</li></ul><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction S(){ return document.getAnimations({subtree:true}).map((a)=>(a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState).sort().join(' | '); }\nfunction C(...sels){ return sels.map((s)=>s+'='+getComputedStyle($(s)).color).join(' '); }\nfunction same(...sels){ const v=sels.map((s)=>getComputedStyle($(s)).color); return 'same '+v.every((x)=>x===v[0]); }\nfunction to(sel){ const a=$(sel).getAnimations().find((x)=>x.transitionProperty); if(!a) return sel+' none'; const t=a.currentTime; a.pause(); a.currentTime=a.effect.getComputedTiming().duration-0.1; const v=getComputedStyle($(sel)).color; a.currentTime=t; a.play(); return sel+' to '+v; }\nwindow.LOG = [];\nfor (const t of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) document.addEventListener(t, (e) => LOG.push(e.type + ' ' + e.propertyName + ' ' + e.target.id + (e.pseudoElement||'')));\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#p')).color;$('#p').classList.add('on');return S()})"
+    },
+    {
+     "js": "wait(300).then(()=>S()+' ## '+LOG.join(','))"
+    },
+    {
+     "js": "wait(100).then(()=>(seek(500), S()+' ## '+C('#p')+' '+getComputedStyle($('#p'),'::marker').color))"
+    }
+   ]
+  },
+  {
+   "name": "inherit-long-animation-parent",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}@keyframes k{from{color:#00f}to{color:#0f0}}.a{color:red;animation:k 10s linear}.c{transition:color 1s linear}</style></head><body><div class='p a' id=p1><span class=c id=c1>x</span></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction S(){ return document.getAnimations({subtree:true}).map((a)=>(a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState).sort().join(' | '); }\nfunction C(...sels){ return sels.map((s)=>s+'='+getComputedStyle($(s)).color).join(' '); }\nfunction same(...sels){ const v=sels.map((s)=>getComputedStyle($(s)).color); return 'same '+v.every((x)=>x===v[0]); }\nfunction to(sel){ const a=$(sel).getAnimations().find((x)=>x.transitionProperty); if(!a) return sel+' none'; const t=a.currentTime; a.pause(); a.currentTime=a.effect.getComputedTiming().duration-0.1; const v=getComputedStyle($(sel)).color; a.currentTime=t; a.play(); return sel+' to '+v; }\nwindow.LOG = [];\nfor (const t of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) document.addEventListener(t, (e) => LOG.push(e.type + ' ' + e.propertyName + ' ' + e.target.id + (e.pseudoElement||'')));\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(()=>{getComputedStyle($('#c1')).color;return S()})"
+    },
+    {
+     "js": "wait(300).then(()=>S()+' ## '+LOG.join(',')+' moved '+(getComputedStyle($('#c1')).color!=='rgb(0, 0, 255)'))"
+    },
+    {
+     "js": "wait(300).then(()=>{const a=$('#c1').getAnimations()[0];return a?(a.currentTime>450)+' '+to('#c1'):'none'})"
+    }
+   ]
+  },
+  {
+   "name": "inherit-long-animation-parent-no-read",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}@keyframes k{from{color:#00f}to{color:#0f0}}.a{color:red;animation:k 10s linear}.c{transition:color 1s linear}</style></head><body><div class='p a' id=p1><span class=c id=c1>x</span></div><script>\nconst $ = (s) => document.querySelector(s);\nconst wait = (ms) => new Promise((r) => setTimeout(r, ms));\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction seek(t) { for (const a of document.getAnimations({subtree:true})) { a.pause(); a.currentTime = t; } }\nfunction nm(a){ const t=a.effect&&a.effect.target; return (t?(t.id||t.localName):'?')+(a.effect&&a.effect.pseudoElement||''); }\nfunction S(){ return document.getAnimations({subtree:true}).map((a)=>(a.transitionProperty||a.animationName)+'@'+nm(a)+':'+a.playState).sort().join(' | '); }\nfunction C(...sels){ return sels.map((s)=>s+'='+getComputedStyle($(s)).color).join(' '); }\nfunction same(...sels){ const v=sels.map((s)=>getComputedStyle($(s)).color); return 'same '+v.every((x)=>x===v[0]); }\nfunction to(sel){ const a=$(sel).getAnimations().find((x)=>x.transitionProperty); if(!a) return sel+' none'; const t=a.currentTime; a.pause(); a.currentTime=a.effect.getComputedTiming().duration-0.1; const v=getComputedStyle($(sel)).color; a.currentTime=t; a.play(); return sel+' to '+v; }\nwindow.LOG = [];\nfor (const t of ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']) document.addEventListener(t, (e) => LOG.push(e.type + ' ' + e.propertyName + ' ' + e.target.id + (e.pseudoElement||'')));\n</script></body></html>",
+   "measure": [
+    {
+     "js": "'noop'"
+    },
+    {
+     "js": "wait(300).then(()=>S()+' ## '+LOG.join(',')+' moved '+(getComputedStyle($('#c1')).color!=='rgb(0, 0, 255)'))"
+    },
+    {
+     "js": "wait(300).then(()=>{const a=$('#c1').getAnimations()[0];return a?(a.currentTime>450)+' '+to('#c1'):'none'})"
+    }
+   ]
   }
  ]
 }

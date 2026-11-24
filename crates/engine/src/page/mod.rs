@@ -508,6 +508,7 @@ impl Page {
             font_files: Arc::clone(&frame_fonts),
             animations: std::cell::Cell::new(true),
             clock: RefCell::new(swb_web::PageClock::real()),
+            animation_room: swb_style::animation::DocumentAnimations::page_room(),
         });
         let view = View {
             viewport,

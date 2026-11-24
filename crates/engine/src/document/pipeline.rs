@@ -304,6 +304,17 @@ impl DocumentState {
             RestylePath::State => &none,
             RestylePath::Dom => &self.dom_changes,
         };
+        // A restyle for the animation ticks alone is a style change event
+        // only for the elements whose parent's style changed in it (ADR 0044
+        // sections 3 and 20): the animated elements themselves start no
+        // transition.
+        let event = path == RestylePath::Dom
+            || !self.style_states.changes(&self.states).is_empty()
+            || !self.queried_styles.is_empty();
+        let transitions = Some(swb_style::TransitionInputs {
+            queried: Some(&self.queried_styles),
+            inherited_only: !event,
+        });
         let outcome = swb_style::restyle_animated(
             &inputs,
             &self.style_states,
@@ -311,6 +322,7 @@ impl DocumentState {
             dom,
             &marked,
             Some(&self.animations),
+            transitions,
             map,
         );
         let (changed, restyled, image_urls, paint) = match outcome {
@@ -344,6 +356,7 @@ impl DocumentState {
         self.style_states = self.states.clone();
         self.styles_stale = false;
         self.clear_element_styles();
+        self.queried_styles.clear();
         if path == RestylePath::Dom {
             self.dom_changes.clear();
         }
@@ -453,6 +466,7 @@ impl DocumentState {
             &self.container_sizes,
             None,
             &self.animations,
+            None,
         );
         if let Some(difference) = map.first_difference(&full) {
             panic!(
@@ -578,6 +592,20 @@ impl DocumentState {
             Some(&self.animations),
         );
         self.flushes.element_style(started.elapsed());
+        // An element of the chain that can start a transition, or that has
+        // one: the read is a style change event (ADR 0044 section 3), which
+        // the style pass of the document runs.
+        if self.chain_transitions(&chain) {
+            let outer = std::mem::replace(&mut self.in_query, true);
+            self.update_style();
+            self.in_query = outer;
+            if !self.styles_stale
+                && let Some(style) = self.styles.as_ref().and_then(|s| s.get(node))
+            {
+                return Some(Arc::clone(style));
+            }
+        }
+        self.note_queried(&chain);
         // An element inside a query container: its style can depend on the
         // container's size in the current layout (measured: a script's
         // change of a container's width shows in `getComputedStyle` at
@@ -596,6 +624,37 @@ impl DocumentState {
         let style = chain.last().map(|(_, s)| Arc::clone(s));
         self.element_styles.extend(chain);
         style
+    }
+
+    /// True if an element of `chain` can start a transition (its style
+    /// has one with a duration) or has running ones.
+    fn chain_transitions(
+        &self,
+        chain: &[(swb_dom::NodeId, Arc<swb_style::ComputedStyle>)],
+    ) -> bool {
+        let animations = self.animations.borrow();
+        chain.iter().any(|(node, style)| {
+            swb_style::animation::transition_properties::TransitionStyle::may_transition(style)
+                || !animations
+                    .transition_ids_of(swb_style::animation::AnimationOwner {
+                        node: *node,
+                        pseudo: None,
+                    })
+                    .is_empty()
+        })
+    }
+
+    /// Keeps the styles of `chain` (from the document element down) as the
+    /// before-change styles of the next style change event, up to the first
+    /// `display: none` element (an element below one has no before-change
+    /// style).
+    fn note_queried(&mut self, chain: &[(swb_dom::NodeId, Arc<swb_style::ComputedStyle>)]) {
+        for (node, style) in chain {
+            if style.display == swb_style::Display::None {
+                break;
+            }
+            self.queried_styles.insert(*node, Arc::clone(style));
+        }
     }
 
     /// The style of `node` after a forced layout flush: from the full
@@ -1003,7 +1062,14 @@ impl DocumentState {
             &self.container_sizes,
             previous,
             &self.animations,
+            (previous.is_some() || !self.queried_styles.is_empty()).then_some(
+                swb_style::TransitionInputs {
+                    queried: Some(&self.queried_styles),
+                    inherited_only: false,
+                },
+            ),
         );
+        self.queried_styles.clear();
         self.timings.style = started.elapsed();
         self.flushes.style(self.timings.style, self.in_query);
         log::debug!("style: {:?}", self.timings.style);

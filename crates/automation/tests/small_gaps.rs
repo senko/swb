@@ -31,7 +31,7 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
         "shadow-root-interface",
         7,
-        r#""activeElement,adoptedStyleSheets,clonable,constructor,delegatesFocus,elementFromPoint,elementsFromPoint,host,innerHTML,mode,onslotchange,serializable,slotAssignment,styleSheets""#,
+        r#""activeElement,adoptedStyleSheets,clonable,constructor,delegatesFocus,elementFromPoint,elementsFromPoint,getAnimations,host,innerHTML,mode,onslotchange,serializable,slotAssignment,styleSheets""#,
         "`ShadowRoot` lacks the members that ADR 0036 section 9 leaves out of M10",
     ),
     (

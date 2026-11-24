@@ -319,8 +319,10 @@ pub struct ImageInfo {
 /// The state of a CSS animation for the bindings (ADR 0044 section 7).
 #[derive(Clone, Debug)]
 pub struct AnimationInfo {
-    /// `animationName`.
+    /// `animationName`, or the `transitionProperty` of a transition.
     pub name: String,
+    /// True for a CSS transition (`CSSTransition`).
+    pub transition: bool,
     /// The owning element (the `target` of the effect).
     pub target: NodeId,
     /// The pseudo-element of the target (`"::before"`), if any.
@@ -1044,9 +1046,11 @@ pub trait EngineHost: Any {
     }
 
     /// The ids of the animations that went since the last call: the
-    /// bindings drop their wrappers. The first call starts the
-    /// bookkeeping (the engine keeps no ids before: no wrapper exists).
-    fn released_animations(&mut self) -> Vec<u64> {
+    /// bindings drop their wrappers. With each, the end time of a CSS
+    /// transition that went after its end (a held wrapper reads it as
+    /// `finished` there). The first call starts the bookkeeping (the
+    /// engine keeps no ids before: no wrapper exists).
+    fn released_animations(&mut self) -> Vec<(u64, Option<f64>)> {
         Vec::new()
     }
 

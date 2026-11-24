@@ -25,9 +25,17 @@
 //! its record (and its identity for scripts) when the other `animation-*`
 //! values change; a name that appears twice makes two animations, matched by
 //! their order among the entries of that name.
+//!
+//! CSS transitions (M13 feature 5, `records/transitions.rs`) are records
+//! too, with a [`TransitionState`]: the cascade starts, reverses and
+//! cancels them in each style change event
+//! ([`DocumentAnimations::sync_transitions`]), and they live until they
+//! finish (released at the update after their end, when the bindings have
+//! settled their `finished` promise) or are cancelled.
 
 use std::cell::Cell;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::rc::Rc;
 use std::sync::Arc;
 
 use swb_dom::NodeId;
@@ -35,7 +43,7 @@ use swb_dom::NodeId;
 use super::easing::Easing;
 use super::events::{
     AnimationEventKind, PendingAnimationEvent, PhaseChange, cancel_elapsed, event_time, events_of,
-    scheduled_time,
+    scheduled_time, transition_events_of,
 };
 use super::keyframes::KeyframeSet;
 use super::properties::{AnimationEntry, AnimationStyle, PlayState};
@@ -46,12 +54,24 @@ use crate::properties::LonghandId;
 use crate::style_map::PseudoKind;
 use crate::values::Display;
 
+mod transitions;
+
+pub(crate) use transitions::{
+    TransitionEffect, TransitionState, TransitionTarget, TransitionValue, interpolate_slots,
+};
+
 /// The id of an animation record: grows per document, never reused.
 pub type AnimationId = u64;
 
-/// The most live animation records of one document (ADR 0044 section 11):
-/// beyond, no record is created (one warning per document).
+/// The most live animation records (CSS animations and transitions) of one
+/// page, all its documents together (ADR 0044 section 11): beyond, no
+/// record is created (one warning per document). A document without a
+/// shared [`RecordRoom`] has the limit alone.
 pub const MAX_RECORDS: usize = 100_000;
+
+/// The number of animation records that the documents of a page still have
+/// room for (shared by them; starts at [`MAX_RECORDS`]).
+pub type RecordRoom = Rc<Cell<usize>>;
 
 /// The length of a frame in ms (60 Hz): the scheduling treats steps shorter
 /// than this as continuous.
@@ -154,9 +174,22 @@ pub struct AnimationRecord {
     /// `scale` or `opacity`: while the animation runs, paint composites the
     /// owner's group (ADR 0044 section 19).
     composited: bool,
+    /// True if it animates a value that children inherit, its owner's
+    /// style has dependents (element children, pseudo-elements with
+    /// transitions), and no tick's restyle has changed that style yet: in a
+    /// document whose styles can start transitions of inherited values, a
+    /// headless run gives it the frames of a painted one until then, so
+    /// that the children start their transitions at the frame where the
+    /// value first changes, as in Chromium (ADR 0044 section 20). They keep
+    /// them on later frames: no more frames are needed for them.
+    inherited_due: bool,
     /// The play state and the pending flag at the last update (for
     /// [`DocumentAnimations::state_epoch`]).
     observed: Option<(AnimationPlayState, bool)>,
+    /// For a CSS transition: its property, values and generation (`None`:
+    /// a CSS animation; `name` is then the animation name, else the
+    /// property name).
+    pub(crate) transition: Option<Box<TransitionState>>,
 }
 
 impl AnimationRecord {
@@ -188,8 +221,20 @@ impl AnimationRecord {
             step_key: (0, Easing::Linear, f64::NAN),
             reach: Reach::default(),
             composited: false,
+            inherited_due: false,
             observed: None,
+            transition: None,
         }
+    }
+
+    /// True for a CSS transition (`CSSTransition`).
+    pub fn is_transition(&self) -> bool {
+        self.transition.is_some()
+    }
+
+    /// The transition generation of a CSS transition (composite order).
+    pub fn transition_generation(&self) -> Option<u64> {
+        self.transition.as_ref().map(|t| t.generation)
     }
 
     /// The current time at the timeline time `timeline`; `None` when idle.
@@ -369,8 +414,11 @@ impl AnimationRecord {
     /// delay, of each iteration and of the active phase). `None` when
     /// idle, paused or finished.
     fn next_time(&self, timeline: f64, frames: bool) -> Option<f64> {
-        if self.pending.is_some() {
-            // The ready time: the next update.
+        if self.pending.is_some()
+            || (self.transition.is_some() && self.last_phase.is_none() && self.start_time.is_some())
+        {
+            // The ready time, or the first update of a transition that
+            // started at once (its events): the next update.
             return Some(timeline);
         }
         let start = self.start_time?;
@@ -446,17 +494,28 @@ impl AnimationRecord {
     }
 }
 
-/// The `animationcancel` event of `record` (elapsed time in ms), scheduled
-/// at the timeline time `time`.
-fn cancel_event(record: &AnimationRecord, elapsed: f64, time: f64) -> PendingAnimationEvent {
+/// The `animationcancel` or `transitioncancel` event of `record` (elapsed
+/// time in ms), scheduled at the timeline time `time` (`None`: unresolved,
+/// a cancel by `display: none`; ADR 0044 section 6).
+fn cancel_event(
+    record: &AnimationRecord,
+    elapsed: f64,
+    time: Option<f64>,
+) -> PendingAnimationEvent {
+    let kind = if record.is_transition() {
+        AnimationEventKind::TransitionCancel
+    } else {
+        AnimationEventKind::Cancel
+    };
     PendingAnimationEvent {
-        kind: AnimationEventKind::Cancel,
+        kind,
         id: record.id,
         owner: record.owner,
         name: Arc::clone(&record.name),
         index: record.index,
         elapsed: elapsed / 1000.0,
-        scheduled: Some(event_time(time)),
+        scheduled: time.map(event_time),
+        generation: record.transition_generation(),
     }
 }
 
@@ -500,12 +559,52 @@ pub struct DocumentAnimations {
     /// The records of each owner, in composite order (by position in
     /// `animation-name`).
     owners: HashMap<AnimationOwner, Vec<AnimationId>>,
+    /// The running CSS transitions of each owner, in composite order (by
+    /// transition generation, then property name).
+    transitions: HashMap<AnimationOwner, Vec<AnimationId>>,
+    /// Finished transitions: released at the next update, after the
+    /// bindings settled their `finished` promise.
+    finished: Vec<AnimationId>,
+    /// The completed transitions of each owner since its last style change
+    /// event: the property and the end value (CSS Transitions 1 §3, "the
+    /// set of completed transitions"). The before-change style of the next
+    /// event can still hold a value of the transition from a tick before its
+    /// end; the end value counts instead.
+    completed: HashMap<AnimationOwner, Vec<(TransitionTarget, TransitionValue)>>,
+    /// The styles that the after-change styles of the children of these
+    /// elements inherit from: their styles without the values of the
+    /// animations and transitions of them and their ancestors, kept for the
+    /// elements with element children where that differs from their style
+    /// in an inherited value (CSS Transitions 1 §3; ADR 0044 section 20).
+    transition_parents: HashMap<NodeId, Arc<ComputedStyle>>,
+    /// The last transition generation (one per style change event of an
+    /// owner that starts transitions).
+    generation: u64,
+    /// True once a style that can start a transition was computed: the
+    /// rendering update then computes the styles after DOM changes.
+    transitions_seen: bool,
+    /// True once a style that can start a transition of an inherited value
+    /// was computed
+    /// ([`super::transition_properties::TransitionStyle::may_transition_inherited`]): only
+    /// then do elements keep [`DocumentAnimations::transition_parent`] and
+    /// do the records of inherited values need frames (ADR 0044 section
+    /// 20).
+    inherited_transitions_seen: bool,
+    /// True once such a style also takes a non-inherited value with
+    /// `inherit` (`ComputedStyle::inherits_reset`): from then on an element
+    /// keeps [`DocumentAnimations::transition_parent`] when any value
+    /// differs, not only an inherited one.
+    reset_inherited_seen: bool,
     /// The owners whose animated values can have changed since their last
     /// style computation.
     marked: HashSet<NodeId>,
     /// The ids of the records that went, for the bindings' wrapper map;
     /// kept only while `track_released` is set.
     released: Vec<AnimationId>,
+    /// The end times of the transitions among `released` that went after
+    /// their end (not cancelled): a wrapper that a script holds reads them
+    /// as `finished` at that time, as in Chromium 148 (ADR 0044 section 20).
+    ended: HashMap<AnimationId, f64>,
     /// True once the bindings made a wrapper: only then do they need the
     /// ids of the records that went (a page without scripts, or whose
     /// scripts never list animations, would grow the list without bound).
@@ -535,6 +634,9 @@ pub struct DocumentAnimations {
     visible: Option<Visibility>,
     /// True once the record limit was reported.
     limit_warned: bool,
+    /// The records that the page has room for, shared by its documents
+    /// (`None`: this document has [`MAX_RECORDS`] alone).
+    room: Option<RoomShare>,
     /// The number of updates (for tests of the scheduling).
     updates: u64,
 }
@@ -546,6 +648,114 @@ impl DocumentAnimations {
         DocumentAnimations {
             origin,
             ..DocumentAnimations::default()
+        }
+    }
+
+    /// [`DocumentAnimations::new`] with the record room of the page.
+    pub fn with_room(origin: f64, room: RecordRoom) -> Self {
+        DocumentAnimations {
+            origin,
+            room: Some(RoomShare { room, held: 0 }),
+            ..DocumentAnimations::default()
+        }
+    }
+
+    /// A new room for the records of a page's documents.
+    pub fn page_room() -> RecordRoom {
+        Rc::new(Cell::new(MAX_RECORDS))
+    }
+
+    /// True once a style that can start a transition was computed.
+    pub fn transitions_seen(&self) -> bool {
+        self.transitions_seen
+    }
+
+    /// True once a style that can start a transition of an inherited value
+    /// was computed: then the elements keep the styles that the
+    /// after-change styles of their children inherit from.
+    pub(crate) fn inherited_transitions_seen(&self) -> bool {
+        self.inherited_transitions_seen
+    }
+
+    /// True once a style that can start a transition takes a non-inherited
+    /// value with `inherit` (see `reset_inherited_seen`).
+    pub(crate) fn reset_inherited_seen(&self) -> bool {
+        self.reset_inherited_seen
+    }
+
+    /// Notes that a style that can start a transition was computed;
+    /// `inherited` tells if it can start one of an inherited value (asked
+    /// once per document while none could).
+    pub(crate) fn see_transitions(&mut self, inherited: impl FnOnce() -> bool, reset: bool) {
+        self.transitions_seen = true;
+        self.reset_inherited_seen |= reset;
+        if !self.inherited_transitions_seen && inherited() {
+            self.inherited_transitions_seen = true;
+            // The records of inherited values need frames now.
+            self.invalidate();
+        }
+    }
+
+    /// The style that the after-change styles of the children of `node`
+    /// inherit from, if it is not `node`'s style.
+    pub(crate) fn transition_parent(&self, node: NodeId) -> Option<Arc<ComputedStyle>> {
+        if self.transition_parents.is_empty() {
+            return None;
+        }
+        self.transition_parents.get(&node).cloned()
+    }
+
+    /// Notes that a restyle changed the style of `node` at an update of
+    /// its animated values: the children's transitions have started, so
+    /// its records of inherited values need no more frames (ADR 0044
+    /// section 20).
+    pub(crate) fn note_value_changed(&mut self, node: NodeId) {
+        let owner = AnimationOwner { node, pseudo: None };
+        let mut cleared = false;
+        let animations = self.owners.get(&owner).map_or(&[][..], Vec::as_slice);
+        let transitions = self.transitions.get(&owner).map_or(&[][..], Vec::as_slice);
+        for id in animations.iter().chain(transitions) {
+            if let Some(record) = self.records.get_mut(id) {
+                cleared |= std::mem::take(&mut record.inherited_due);
+            }
+        }
+        if cleared {
+            self.invalidate();
+        }
+    }
+
+    /// Notes that no style inherits from the style of `owner`: its CSS
+    /// animations of inherited values need no frames for children.
+    pub(crate) fn note_no_dependents(&mut self, owner: AnimationOwner) {
+        let ids = self.owners.get(&owner).map_or(&[][..], Vec::as_slice);
+        for id in ids {
+            if let Some(record) = self.records.get_mut(id) {
+                record.inherited_due = false;
+            }
+        }
+    }
+
+    /// True if an element keeps a style for its children
+    /// ([`DocumentAnimations::transition_parent`]).
+    pub(crate) fn keeps_transition_parents(&self) -> bool {
+        !self.transition_parents.is_empty()
+    }
+
+    /// Keeps `style` as [`DocumentAnimations::transition_parent`] of
+    /// `node` (`None`: `node`'s own style).
+    pub(crate) fn set_transition_parent(
+        &mut self,
+        node: NodeId,
+        style: Option<Arc<ComputedStyle>>,
+    ) {
+        match style {
+            Some(style) => {
+                self.transition_parents.insert(node, style);
+            }
+            None if !self.transition_parents.is_empty() => {
+                self.transition_parents.remove(&node);
+            }
+            None => {}
         }
     }
 
@@ -608,14 +818,25 @@ impl DocumentAnimations {
         self.records.get(&id)
     }
 
-    /// The records of `owner` in composite order.
+    /// The CSS animations of `owner` in composite order.
     pub fn ids_of(&self, owner: AnimationOwner) -> &[AnimationId] {
         self.owners.get(&owner).map_or(&[], Vec::as_slice)
     }
 
-    /// The owners that have animations, in no order.
+    /// The running CSS transitions of `owner` in composite order (they
+    /// come before its animations).
+    pub fn transition_ids_of(&self, owner: AnimationOwner) -> &[AnimationId] {
+        self.transitions.get(&owner).map_or(&[], Vec::as_slice)
+    }
+
+    /// The owners that have CSS animations, in no order.
     pub fn owners(&self) -> impl Iterator<Item = AnimationOwner> + '_ {
         self.owners.keys().copied()
+    }
+
+    /// The owners that have running CSS transitions, in no order.
+    pub fn transition_owners(&self) -> impl Iterator<Item = AnimationOwner> + '_ {
+        self.transitions.keys().copied()
     }
 
     /// The update of the rendering update (ADR 0044 section 2): sets the
@@ -627,8 +848,15 @@ impl DocumentAnimations {
         self.updates += 1;
         let time = (page_time - self.origin).max(self.time);
         self.time = time;
+        // The transitions that finished at an earlier update: their
+        // `finished` promises have settled since.
+        for id in std::mem::take(&mut self.finished) {
+            self.release(id, None);
+        }
         let mut marked = false;
         let mut next = [None::<f64>; 2];
+        let mut done = Vec::new();
+        let seen = self.inherited_transitions_seen;
         for record in self.records.values_mut() {
             record.resolve_pending(time);
             let state = (record.play_state(time), record.pending());
@@ -656,7 +884,22 @@ impl DocumentAnimations {
                 (None, Some(start)) => start,
                 (None, None) => time,
             };
-            for (kind, elapsed) in events_of(&record.timing, change) {
+            let generation = record.transition_generation();
+            let events = if generation.is_some() {
+                transition_events_of(&record.timing, change)
+            } else {
+                events_of(&record.timing, change)
+                    .into_iter()
+                    .map(|(kind, elapsed)| (kind, elapsed, Some(elapsed)))
+                    .collect()
+            };
+            for (kind, elapsed, at) in events {
+                // A `transitionrun` is scheduled at the start time (local
+                // time 0), the others at their boundary.
+                let scheduled = match at {
+                    Some(elapsed) => scheduled_time(&record.timing, zero, elapsed),
+                    None => event_time(zero),
+                };
                 self.events.push(PendingAnimationEvent {
                     kind,
                     id: record.id,
@@ -664,7 +907,8 @@ impl DocumentAnimations {
                     name: Arc::clone(&record.name),
                     index: record.index,
                     elapsed: elapsed / 1000.0,
-                    scheduled: Some(scheduled_time(&record.timing, zero, elapsed)),
+                    scheduled: Some(scheduled),
+                    generation,
                 });
             }
             let changed = phase != record.last_phase
@@ -677,11 +921,31 @@ impl DocumentAnimations {
                 self.marked.insert(record.owner.node);
                 marked = true;
             }
+            if generation.is_some()
+                && state.0 == AnimationPlayState::Finished
+                && timing.phase == Phase::After
+            {
+                done.push((record.id, record.owner));
+            }
             let shown = self
                 .visible
                 .as_ref()
                 .is_none_or(|v| v.shows(record.owner.node));
+            // The restyle that changes the value starts the children's
+            // transitions ([`DocumentAnimations::note_value_changed`]). A
+            // value that never changes needs frames until the end, or, with
+            // `steps()`, until the first step is past.
+            if record.inherited_due {
+                let past_step = record
+                    .step_period
+                    .zip(current)
+                    .is_some_and(|(period, c)| c > record.timing.delay + period);
+                if past_step || !matches!(timing.phase, Phase::Before | Phase::Active) {
+                    record.inherited_due = false;
+                }
+            }
             for (slot, frames) in next.iter_mut().zip([false, true]) {
+                let frames = frames || (seen && record.inherited_due);
                 if let Some(t) = record.next_time(time, frames && shown) {
                     *slot = Some(slot.map_or(t, |m| m.min(t)));
                 }
@@ -689,6 +953,9 @@ impl DocumentAnimations {
         }
         self.next_cache
             .set([Cached::Known(next[0]), Cached::Known(next[1])]);
+        for (id, owner) in done {
+            self.complete_transition(id, owner);
+        }
         marked
     }
 
@@ -736,7 +1003,10 @@ impl DocumentAnimations {
             let next = self
                 .records
                 .values()
-                .filter_map(|r| r.next_time(self.time, frames && self.shown(r.owner.node)))
+                .filter_map(|r| {
+                    let frames = frames || (self.inherited_transitions_seen && r.inherited_due);
+                    r.next_time(self.time, frames && self.shown(r.owner.node))
+                })
                 .reduce(f64::min);
             if let Some(entry) = cache.get_mut(slot) {
                 *entry = Cached::Known(next);
@@ -755,8 +1025,8 @@ impl DocumentAnimations {
     /// The owners of the animations that run (play state `running` at the
     /// current timeline time: also in their delay, not paused, finished or
     /// idle) and animate `transform`, `translate`, `rotate`, `scale` or
-    /// `opacity`: paint composites their groups (ADR 0044 section 19). A
-    /// running transition will join them (feature 5).
+    /// `opacity`: paint composites their groups (ADR 0044 section 19). The
+    /// transitions of these properties join them.
     pub fn composited_owners(&self) -> HashSet<AnimationOwner> {
         self.records
             .values()
@@ -844,6 +1114,12 @@ impl DocumentAnimations {
         std::mem::take(&mut self.released)
     }
 
+    /// Takes the end times of the transitions among the released records
+    /// that went after their end ([`DocumentAnimations::take_released`]).
+    pub fn take_ended(&mut self) -> HashMap<AnimationId, f64> {
+        std::mem::take(&mut self.ended)
+    }
+
     /// Cancels the records of the owners for which `keep` is false (their
     /// element left the document, lost its style or its names).
     pub fn retain_owners(&mut self, mut keep: impl FnMut(AnimationOwner) -> bool) {
@@ -852,30 +1128,43 @@ impl DocumentAnimations {
         // The order of creation, not of the hash map: the cancel events and
         // the released ids are the same in every run.
         gone.sort_by_key(|o| self.owners.get(o).and_then(|ids| ids.first().copied()));
+        let time = self.time;
         for owner in gone {
             if let Some(ids) = self.owners.remove(&owner) {
                 for id in ids {
-                    self.release(id);
+                    self.release(id, Some(time));
                 }
             }
         }
     }
 
-    /// Cancels every animation (a new stylist made the document's
-    /// animations off, or the document goes).
+    /// Cancels every animation and transition (a new stylist made the
+    /// document's animations off, or the document goes).
     pub fn clear(&mut self) {
         self.retain_owners(|_| false);
+        self.retain_transitions(|_| None);
     }
 
-    fn release(&mut self, id: AnimationId) {
-        let time = self.time;
+    /// Releases the record `id` (cancelled at the timeline time `time`, or
+    /// unresolved: `None`; a record past its end sends no cancel).
+    fn release(&mut self, id: AnimationId, time: Option<f64>) {
+        let now = self.time;
         if let Some(mut record) = self.records.remove(&id) {
+            if let Some(room) = &mut self.room {
+                room.give();
+            }
             self.invalidate();
-            if let Some(elapsed) = record.cancel(time) {
+            let ended = record.is_transition()
+                && !record.cancelled
+                && record.last_phase == Some(Phase::After);
+            if let Some(elapsed) = record.cancel(now) {
                 self.events.push(cancel_event(&record, elapsed, time));
             }
             if self.track_released {
                 self.released.push(id);
+                if ended {
+                    self.ended.insert(id, record.timing.end_time());
+                }
                 self.wake = true;
             }
         }
@@ -907,10 +1196,23 @@ impl DocumentAnimations {
         record.script_override = true;
         record.cancelled = true;
         if let Some(elapsed) = record.cancel(time) {
-            self.events.push(cancel_event(record, elapsed, time));
+            self.events.push(cancel_event(record, elapsed, Some(time)));
         }
-        self.marked.insert(record.owner.node);
+        let owner = record.owner;
+        let transition = record.is_transition();
+        self.marked.insert(owner.node);
         self.invalidate();
+        if transition {
+            // A cancelled transition is no longer running: it leaves its
+            // owner and goes at the next update (after its promises).
+            if let Some(list) = self.transitions.get_mut(&owner) {
+                list.retain(|&other| other != id);
+                if list.is_empty() {
+                    self.transitions.remove(&owner);
+                }
+            }
+            self.finished.push(id);
+        }
     }
 
     /// `finish()` by a script. False, with no change, when the end of the
@@ -1025,9 +1327,10 @@ impl DocumentAnimations {
             }
         }
         let kept: HashSet<AnimationId> = out.iter().map(|(id, _)| *id).collect();
+        let time = self.time;
         for id in old {
             if !kept.contains(&id) {
-                self.release(id);
+                self.release(id, Some(time));
             }
         }
         if !out.is_empty() {
@@ -1105,6 +1408,7 @@ impl DocumentAnimations {
             record.step_key = key;
             record.reach = reach_of(set);
             record.composited = super::visibility::is_composited(set);
+            record.inherited_due = super::visibility::is_inherited(set);
             changed = true;
         }
         if changed {
@@ -1120,23 +1424,47 @@ impl DocumentAnimations {
         index: usize,
         occurrence: usize,
     ) -> Option<AnimationId> {
-        if self.records.len() >= MAX_RECORDS {
-            if !self.limit_warned {
-                log::warn!(
-                    "animations: the document has {MAX_RECORDS} animations; no more are created"
-                );
-                self.limit_warned = true;
-            }
-            return None;
-        }
-        self.invalidate();
-        self.next_id += 1;
-        let id = self.next_id;
+        let id = self.reserve_id()?;
         self.records.insert(
             id,
             AnimationRecord::new(id, owner, Arc::from(name), index, occurrence),
         );
         Some(id)
+    }
+}
+
+/// A document's share of the page's [`RecordRoom`]: the records it holds,
+/// given back when the document goes.
+#[derive(Debug)]
+struct RoomShare {
+    room: RecordRoom,
+    held: usize,
+}
+
+impl RoomShare {
+    /// Takes room for one record; false if there is none.
+    fn take(&mut self) -> bool {
+        let left = self.room.get();
+        if left == 0 {
+            return false;
+        }
+        self.room.set(left - 1);
+        self.held += 1;
+        true
+    }
+
+    /// Gives the room of one record back.
+    fn give(&mut self) {
+        if self.held > 0 {
+            self.held -= 1;
+            self.room.set(self.room.get() + 1);
+        }
+    }
+}
+
+impl Drop for RoomShare {
+    fn drop(&mut self) {
+        self.room.set(self.room.get() + self.held);
     }
 }
 

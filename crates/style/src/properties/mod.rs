@@ -31,8 +31,8 @@ use std::sync::Arc;
 use log::trace;
 use swb_css::{ComponentValue, Declaration, Parser, contains_function, trim_whitespace};
 
-pub(crate) use ids::LonghandId;
 use ids::LonghandValue;
+pub(crate) use ids::{ComputedSlot, LonghandId};
 use shorthand::ShorthandId;
 
 use crate::parse::{ParseResult, ParserContext, is_custom_property_name};
@@ -349,6 +349,20 @@ fn lookup_property(name: &str) -> Option<(PropertyId, bool)> {
         return Some((PropertyId::Longhand(id), false));
     }
     ShorthandId::from_alias(name).map(|s| (PropertyId::Shorthand(s), false))
+}
+
+/// The longhands that the property `name` (lower case) stands for in
+/// `transition-property`: the longhand itself (or the longhand of an
+/// alias), or the longhands of a shorthand; empty for an unknown name and
+/// for `all` (CSS Transitions 1 §2.1).
+pub(crate) fn longhands_of(name: &str) -> &'static [LonghandId] {
+    match lookup_property(name) {
+        Some((PropertyId::Longhand(id), _)) => LonghandId::ALL
+            .get(id as usize..=id as usize)
+            .unwrap_or_default(),
+        Some((PropertyId::Shorthand(s), _)) => s.longhands(),
+        _ => &[],
+    }
 }
 
 /// The number of entries that a declaration of `name` (lower case, or a

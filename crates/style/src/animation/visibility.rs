@@ -77,7 +77,7 @@ const CLIP: &[&str] = &[
 ];
 
 /// The reach of a property (by its name).
-fn reach_of_property(name: &str) -> Reach {
+pub(crate) fn reach_of_property(name: &str) -> Reach {
     if SUBTREE.contains(&name) {
         Reach::Subtree
     } else if CLIP.contains(&name) {
@@ -90,6 +90,32 @@ fn reach_of_property(name: &str) -> Reach {
 /// The properties whose animation makes paint composite the owner's group
 /// (ADR 0044 section 19).
 const COMPOSITED: &[&str] = &["transform", "translate", "rotate", "scale", "opacity"];
+
+/// True if paint composites the owner's group while the property `name`
+/// animates or transitions (ADR 0044 section 19).
+pub(crate) fn is_composited_property(name: &str) -> bool {
+    COMPOSITED.contains(&name)
+}
+
+/// True if a transition or an animation of the property `name` changes a
+/// value that children inherit: an inherited longhand (by itself or as
+/// part of a shorthand) or a custom property (they inherit unless
+/// registered otherwise). The children of its owner can start their own
+/// transitions at its frames (ADR 0044 section 20).
+pub(crate) fn is_inherited_property(name: &str) -> bool {
+    name.starts_with("--")
+        || crate::properties::longhands_of(name)
+            .iter()
+            .any(|id| id.is_inherited())
+}
+
+/// True if the keyframes `set` animate a property that children inherit
+/// ([`is_inherited_property`]).
+pub(crate) fn is_inherited(set: &KeyframeSet) -> bool {
+    set.properties
+        .iter()
+        .any(|p| is_inherited_property(&p.name))
+}
 
 /// True if the keyframes `set` animate a property of [`COMPOSITED`].
 pub(crate) fn is_composited(set: &KeyframeSet) -> bool {

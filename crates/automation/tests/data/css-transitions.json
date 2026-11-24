@@ -107,5 +107,155 @@
   ],
   "events-order-many-properties": [
     "e1:background-color e1:color e1:font-size e1:left e1:opacity e1:width e2:background-color e2:color e2:font-size e2:left e2:opacity e2:width e1:k\ntransitionrun background-color e1\ntransitionstart background-color e1\ntransitionrun color e1\ntransitionstart color e1\ntransitionrun font-size e1\ntransitionstart font-size e1\ntransitionrun left e1\ntransitionstart left e1\ntransitionrun opacity e1\ntransitionstart opacity e1\ntransitionrun width e1\ntransitionstart width e1\ntransitionrun background-color e2\ntransitionstart background-color e2\ntransitionrun color e2\ntransitionstart color e2\ntransitionrun font-size e2\ntransitionstart font-size e2\ntransitionrun left e2\ntransitionstart left e2\ntransitionrun opacity e2\ntransitionstart opacity e2\ntransitionrun width e2\ntransitionstart width e2\nanimationstart k e1\ntransitionend background-color e1\ntransitionend color e1\ntransitionend font-size e1\ntransitionend left e1\ntransitionend opacity e1\ntransitionend width e1\ntransitionend background-color e2\ntransitionend color e2\ntransitionend font-size e2\ntransitionend left e2\ntransitionend opacity e2\ntransitionend width e2\nanimationend k e1"
+  ],
+  "outline-offset-values": [
+    "outline-offset:1px / outline-offset:-1px / outline-offset:2px",
+    "width:20px ; background-size:calc(0% + 20px) 100% ; margin-left:-5px",
+    "outline-offset:running:0 | outline-offset:running:0",
+    "0 outline-offset:0px outline-offset:0px\n500 outline-offset:1px outline-offset:-1px\n1000 outline-offset:1px outline-offset:-1px\n2000 outline-offset:3px outline-offset:-3px\n2400 outline-offset:3px outline-offset:-3px\n3000 outline-offset:4px outline-offset:-4px"
+  ],
+  "inherit-parent-child-start": [
+    "color@p:running:0:d0:D1000",
+    "one frame later true running ## transitionrun color p,transitionstart color p,transitionrun color c,transitionstart color c",
+    "same start true 2 4",
+    "same start true 2 from color:rgb(0, 0, 0) to color:rgb(255, 255, 255)"
+  ],
+  "inherit-parent-child-seek": [
+    "color@p:running:0:d0:D1000",
+    "color@c:running:0:d0:D1000 | color@p:paused:500:d0:D1000 ## color:rgb(128, 128, 128) color:rgb(0, 0, 0)",
+    "color@c:running:0:d0:D1000 | color@p:paused:500:d0:D1000 ## color:rgb(128, 128, 128) color:rgb(0, 0, 0)",
+    "color@c:running:0:d0:D1000 | color@p:paused:500:d0:D1000 ## color:rgb(0, 0, 0)",
+    "running from color:rgb(0, 0, 0) to color:rgb(255, 255, 255) ## transitionrun color p,transitionstart color p,transitionrun color c,transitionstart color c"
+  ],
+  "inherit-child-restyled": [
+    "color@c:running:0:d0:D1000 | color@p:running:0:d0:D1000 ## outline-style:solid ; color:rgb(0, 0, 0)",
+    "color@c:paused:500:d0:D1000 | color@p:paused:500:d0:D1000 ## color:rgb(128, 128, 128) color:rgb(128, 128, 128)"
+  ],
+  "inherit-grandchild": [
+    "color@p:running:0:d0:D1000",
+    "transitionrun color p,transitionstart color p,transitionrun color g,transitionstart color g",
+    "color@g:paused:500:d0:D1000 | color@p:paused:500:d0:D1000 ## color:rgb(128, 128, 128) color:rgb(128, 128, 128)"
+  ],
+  "inherit-animated-parent": [
+    "from color:rgb(4, 4, 4) to color:rgb(0, 0, 0) / from color:rgb(0, 0, 0) to color:rgb(255, 0, 0) ## transitionrun color c2,transitionstart color c2,transitionrun color c,transitionstart color c",
+    "4 1 1"
+  ],
+  "inherit-parent-reverse": [
+    "color@p:running:0:d0:D1000",
+    "x",
+    "from color:rgb(72, 72, 72) to color:rgb(0, 0, 0) ## transitionrun color p,transitionstart color p,transitionrun color c,transitionstart color c,transitioncancel color p,transitioncancel color c,transitionrun color p,transitionstart color p,transitionrun color c,transitionstart color c"
+  ],
+  "shorthands-and-all": [
+    "background-color@b:running:0:d0:D1000 | border-bottom-color@a:running:0:d0:D1000 | border-bottom-color@b:running:0:d0:D1000 | border-bottom-width@a:running:0:d0:D1000 | border-bottom-width@b:running:0:d0:D1000 | border-left-color@a:running:0:d0:D1000 | border-left-color@b:running:0:d0:D1000 | border-left-width@a:running:0:d0:D1000 | border-left-width@b:running:0:d0:D1000 | border-right-color@a:running:0:d0:D1000 | border-right-color@b:running:0:d0:D1000 | border-right-width@a:running:0:d0:D1000 | border-right-width@b:running:0:d0:D1000 | border-top-color@a:running:0:d0:D1000 | border-top-color@b:running:0:d0:D1000 | border-top-width@a:running:0:d0:D1000 | border-top-width@b:running:0:d0:D1000 | bottom@a:running:0:d0:D2000 | color@b:running:0:d0:D1000 | font-size@b:running:0:d0:D1000 | height@b:running:0:d0:D1000 | left@a:running:0:d0:D2000 | letter-spacing@b:running:0:d0:D1000 | margin-bottom@a:running:0:d0:D1000 | margin-bottom@b:running:0:d0:D1000 | margin-left@a:running:0:d0:D1000 | margin-left@b:running:0:d0:D1000 | margin-right@a:running:0:d0:D1000 | margin-right@b:running:0:d0:D1000 | margin-top@a:running:0:d0:D1000 | margin-top@b:running:0:d0:D1000 | opacity@b:running:0:d0:D1000 | padding-bottom@b:running:0:d0:D1000 | padding-left@b:running:0:d0:D1000 | padding-right@b:running:0:d0:D1000 | padding-top@b:running:0:d0:D1000 | right@a:running:0:d0:D2000 | top@a:running:0:d0:D2000 | transform@a:running:0:d0:D3000 | width@b:running:0:d0:D1000"
+  ],
+  "list-lengths-negative-delay": [
+    "color@a:running:0:d-500:D2000 | height@a:running:0:d-500:D2000 | opacity@a:running:0:d-500:D1000 | width@a:running:0:d-500:D1000 | width@b:running:0:d500:D1000",
+    "width:19.75px ; height:16.8125px ; opacity:0.512187"
+  ],
+  "pseudo-elements-marker": [
+    "color@a::before:running:0:d0:D1000 | color@l::marker:running:0:d0:D1000 | opacity@a::after:running:0:d0:D1000 | width@a::before:running:0:d0:D1000",
+    "20px rgb(205, 0, 0) 0.358077 rgb(205, 0, 0)"
+  ],
+  "shadow-tree": [
+    " 1",
+    "10px"
+  ],
+  "read-other-element": [
+    " opacity:1",
+    ""
+  ],
+  "read-other-element-2": [
+    "opacity@a:running:0:d0:D1000 | width@a:running:0:d0:D1000 opacity:1"
+  ],
+  "read-then-change": [
+    " opacity:1",
+    "",
+    " opacity:1"
+  ],
+  "first-style-no-read": [
+    "opacity@a:running:0:d0:D1000 | width@a:running:0:d0:D1000",
+    "opacity@a:running:0:d0:D1000 | opacity@c:running:0:d0:D1000 | width@a:running:0:d0:D1000 opacity:1"
+  ],
+  "api-after-end-and-cancel": [
+    "1 true true CSSTransition width running true 0 2 [object CSSTransition]",
+    "paused true 0",
+    "width:15px paused",
+    "1 width:15px idle false running:0",
+    "1 width:15px running:0:1000",
+    "finished width:20px 0",
+    "0 width:20px",
+    "idle width:5px 0",
+    "idle null width",
+    "running 0 width:20px 1",
+    "0  width:20px"
+  ],
+  "api-promises-after-end": [
+    "x",
+    "ready,finished finished 200 0",
+    "y",
+    "z",
+    "fail:AbortError idle"
+  ],
+  "calc-zero-percentage": [
+    "5px",
+    "5px",
+    "calc(0% + 5px)",
+    "calc(0% + 5px) calc(0% + 6px)",
+    "calc(0% + 5px) 0%",
+    "calc(0% + 5px)",
+    "calc(0% + 5px)",
+    "5px 5px",
+    "calc(0% + 5px) 0%",
+    "calc(0% + 5px)",
+    "5px",
+    "1px",
+    "-1px",
+    "1px",
+    "2px",
+    "-2px",
+    "2px",
+    "1px",
+    "-1px",
+    "1px",
+    "10px",
+    "1px",
+    "1px",
+    "5px",
+    "calc(0% + 5px)",
+    "calc(0% + 5px)",
+    "calc(0% + 5px)",
+    "inset(calc(0% + 5px))"
+  ],
+  "inherit-shared-siblings": [
+    "color@p:running",
+    "color@g1:running | color@g2:running | color@g3:running | color@p:running ## same true transitionrun color p,transitionstart color p,transitionrun color g1,transitionstart color g1,transitionrun color g2,transitionstart color g2,transitionrun color g3,transitionstart color g3",
+    "color@g1:paused | color@g2:paused | color@g3:paused | color@p:paused ## #p=rgb(128, 128, 128) #g1=rgb(128, 128, 128) #g2=rgb(128, 128, 128) #g3=rgb(128, 128, 128)"
+  ],
+  "inherit-shared-parent-stale": [
+    "k@p1:running | k@p2:running",
+    "color@c1:running | color@c2:running | k@p1:running | k@p2:running ## same true #c1 to rgb(255, 0, 0) #c2 to rgb(255, 0, 0)",
+    "color@c1:running | color@c2:running ## same true #c1 to rgb(0, 0, 0) #c2 to rgb(0, 0, 0)",
+    "color@c1:running | color@c2:running ## same true transitionrun color c1,transitionstart color c1,transitionrun color c2,transitionstart color c2,transitioncancel color c1,transitioncancel color c2,transitionrun color c1,transitionstart color c1,transitionrun color c2,transitionstart color c2",
+    " ## #c1=rgb(0, 0, 0) #c2=rgb(0, 0, 0)"
+  ],
+  "inherit-pseudo-text-only": [
+    "color@p::before:running | color@p:running",
+    "color@p::before:running | color@p:running ## transitionrun color p,transitionstart color p,transitionrun color p::before,transitionstart color p::before",
+    "color@p::before:paused | color@p:paused ## #p=rgb(128, 128, 128) rgb(128, 128, 128)"
+  ],
+  "inherit-pseudo-marker": [
+    "color@p::marker:running | color@p:running",
+    "color@p::marker:running | color@p:running ## transitionrun color p,transitionstart color p,transitionrun color p::marker,transitionstart color p::marker",
+    "color@p::marker:paused | color@p:paused ## #p=rgb(128, 128, 128) rgb(128, 128, 128)"
+  ],
+  "inherit-long-animation-parent": [
+    "k@p1:running",
+    "color@c1:running | k@p1:running ## transitionrun color c1,transitionstart color c1 moved true",
+    "true #c1 to rgb(255, 0, 0)"
+  ],
+  "inherit-long-animation-parent-no-read": [
+    "noop",
+    "color@c1:running | k@p1:running ## transitionrun color c1,transitionstart color c1 moved true",
+    "true #c1 to rgb(255, 0, 0)"
   ]
 }

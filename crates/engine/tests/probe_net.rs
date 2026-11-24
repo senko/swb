@@ -731,10 +731,10 @@ const SHADOW_DEPARTURES: &[Departure] = &[
     (
         "api-surface",
         1,
-        r#""activeElement,adoptedStyleSheets,clonable,constructor,delegatesFocus,elementFromPoint,elementsFromPoint,host,innerHTML,mode,onslotchange,serializable,slotAssignment,styleSheets""#,
+        r#""activeElement,adoptedStyleSheets,clonable,constructor,delegatesFocus,elementFromPoint,elementsFromPoint,getAnimations,host,innerHTML,mode,onslotchange,serializable,slotAssignment,styleSheets""#,
         "`ShadowRoot` lacks the members that ADR \
          0036 section 9 leaves out of M10 \
-         (`getHTML`, `setHTML`, `setHTMLUnsafe`, `getSelection`, `getAnimations`, \
+         (`getHTML`, `setHTML`, `setHTMLUnsafe`, `getSelection`, \
          `fullscreenElement`, `pictureInPictureElement`, `pointerLockElement`, \
          `customElementRegistry`)",
     ),

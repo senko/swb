@@ -54,6 +54,9 @@ pub(crate) struct DocumentMaker {
     pub(crate) animations: Cell<bool>,
     /// The page clock (the time origin of new frame documents).
     pub(crate) clock: RefCell<swb_web::PageClock>,
+    /// The animation records that the page's documents have room for
+    /// (ADR 0044 section 11: one limit for all of them).
+    pub(crate) animation_room: swb_style::animation::RecordRoom,
 }
 
 /// A parsed frame document and what it starts with.
@@ -119,6 +122,7 @@ impl DocumentMaker {
             animations: crate::document::AnimationSetting {
                 enabled: self.animations.get(),
                 origin: self.clock.borrow().now(),
+                room: Some(Rc::clone(&self.animation_room)),
             },
         }));
         doc.history = init.history;

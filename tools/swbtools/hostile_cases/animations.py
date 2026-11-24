@@ -194,7 +194,7 @@ def animation_custom_properties_1000_levels() -> Page:
     time_limit_s=30,
     rss_limit_mib=2048,
     swb_args=RUNNING,
-    expect_log=("animations: the document has 100000 animations", "animations 100000"),
+    expect_log=("animations: the page has 100000 animations", "animations 100000"),
 )
 def animation_record_limit() -> Page:
     names = ", ".join(f"k{i % 5}" for i in range(101))

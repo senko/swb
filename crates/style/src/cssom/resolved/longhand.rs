@@ -499,7 +499,7 @@ fn multiply(a: [f64; 6], b: [f64; 6]) -> [f64; 6] {
 #[allow(clippy::too_many_lines)] // One line per property.
 fn computed(name: &str, r: &Resolver<'_>) -> String {
     let s = r.style;
-    if name.starts_with("animation-")
+    if (name.starts_with("animation-") || name.starts_with("transition-"))
         && let Some(text) = crate::animation::properties::computed_text(name, s)
     {
         return text;
@@ -565,6 +565,7 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
         "rotate" => super::effects::rotate(s.rotate.as_ref()),
         "scale" => super::effects::scale(s.scale.as_ref()),
         "isolation" => s.isolation.as_str().to_owned(),
+        "interpolate-size" => s.interpolate_size.as_str().to_owned(),
         "font-variant-ligatures" => s.font_variant_ligatures.as_text(),
         "font-variant-numeric" => s.font_variant_numeric.as_text(),
         "-webkit-tap-highlight-color" => color(s.tap_highlight_color),
@@ -891,13 +892,7 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
         | "text-underline-position"
         | "text-decoration-skip-ink" => "auto".to_owned(),
         "mask-type" => "luminance".to_owned(),
-        "transition-property"
-        | "transition-duration"
-        | "transition-delay"
-        | "transition-timing-function"
-        | "transition-behavior"
-        | "will-change"
-        | "touch-action" => LonghandId::from_name(name)
+        "will-change" | "touch-action" => LonghandId::from_name(name)
             .and_then(|id| InertStyle::text(s, id))
             .unwrap_or_default()
             .to_owned(),
@@ -956,6 +951,13 @@ fn calc(c: &ComputedCalc) -> String {
     let per_cent = at(100.0) - fixed;
     if (at(200.0) - at(100.0) - per_cent).abs() <= 1e-3 {
         return match (per_cent == 0.0, fixed == 0.0) {
+            // A percentage that is 0 stays when the value has one
+            // (Chromium 148: `background-size: calc(0% + 20px)`, also at the
+            // start of an interpolation, `values-by-class`).
+            (true, false) if c.has_percentage() => {
+                let sign = if fixed < 0.0 { '-' } else { '+' };
+                format!("calc(0% {sign} {})", px(fixed.abs()))
+            }
             (true, _) => px(fixed),
             (false, true) => format!("{}%", number(per_cent)),
             (false, false) => {
@@ -1058,13 +1060,27 @@ pub(super) fn position(p: &PositionComponent) -> String {
     }
 }
 
+/// One size of `background-size`: a `calc()` with a percentage whose two
+/// parts are 0 is `0%` (`calc(0px + 0%)`, measured in Chromium 148; a
+/// `translate` of the same value is `0px`).
+fn bg_size_part(v: &LengthPercentageOrAuto) -> String {
+    if let LengthPercentageOrAuto::LengthPercentage(LengthPercentage::Calc(c)) = v
+        && c.has_percentage()
+        && c.resolve(0.0) == 0.0
+        && c.resolve(100.0) == 0.0
+    {
+        return "0%".to_owned();
+    }
+    lp_auto(v)
+}
+
 pub(super) fn bg_size(v: &BackgroundSize) -> String {
     match v {
         BackgroundSize::Cover => "cover".to_owned(),
         BackgroundSize::Contain => "contain".to_owned(),
         BackgroundSize::Auto => "auto".to_owned(),
-        BackgroundSize::Explicit(w, LengthPercentageOrAuto::Auto) => lp_auto(w),
-        BackgroundSize::Explicit(w, h) => format!("{} {}", lp_auto(w), lp_auto(h)),
+        BackgroundSize::Explicit(w, LengthPercentageOrAuto::Auto) => bg_size_part(w),
+        BackgroundSize::Explicit(w, h) => format!("{} {}", bg_size_part(w), bg_size_part(h)),
     }
 }
 
