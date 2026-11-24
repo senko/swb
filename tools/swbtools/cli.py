@@ -26,6 +26,7 @@ from swbtools.linebreak_tables import write_tables
 from swbtools.linebreaks import linebreaks
 from swbtools.manifest import FILES_DIR, read_manifest
 from swbtools.measure import MEASUREMENTS, SLOW_MEASUREMENTS, measure
+from swbtools.media_cpu import media_cpu
 from swbtools.module_cases import SUBCOMMANDS as PROBE_NET_CASES
 from swbtools.module_cases import write_cases
 from swbtools.pages import list_fixtures, list_js_fixtures, read_meta
@@ -179,7 +180,15 @@ def cmd_probe(args: argparse.Namespace) -> int:
         if binary is None:
             log.error("swb binary not found; build it (`just build`) or pass --swb PATH")
             return 1
-    return probe(args.files, args.case, binary, args.tolerance, args.json)
+    return probe(
+        args.files,
+        args.case,
+        binary,
+        args.tolerance,
+        args.json,
+        args.chromium_arg,
+        args.shots_dir,
+    )
 
 
 def cmd_linebreaks(args: argparse.Namespace) -> int:
@@ -236,6 +245,14 @@ def cmd_animation_survey(args: argparse.Namespace) -> int:
 
 def cmd_animation_cpu(args: argparse.Namespace) -> int:
     return animation_cpu(args.targets, args.js, args.scroll, args.seconds, Path(args.out))
+
+
+def cmd_media_cpu(args: argparse.Namespace) -> int:
+    width, _, height = args.window.partition("x")
+    if not (width.isdigit() and height.isdigit()):
+        log.error("--window: expected WIDTHxHEIGHT, got %r", args.window)
+        return 2
+    return media_cpu(args.files, (int(width), int(height)), args.seconds, Path(args.out))
 
 
 def cmd_replay(args: argparse.Namespace) -> int:
@@ -525,6 +542,20 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"maximum box difference in px (default {PROBE_TOLERANCE:g})",
     )
     p.add_argument("--json", action="store_true", help="print JSON instead of text")
+    p.add_argument(
+        "--chromium-arg",
+        action="append",
+        default=[],
+        metavar="ARG",
+        help="add a flag to Chromium's launch (repeatable; write --chromium-arg=--flag), "
+        "for example --chromium-arg=--autoplay-policy=document-user-activation-required",
+    )
+    p.add_argument(
+        "--shots-dir",
+        type=Path,
+        metavar="DIR",
+        help='where the {"shot": NAME} steps write CASE-NAME.png (default out/probe-shots/)',
+    )
     p.set_defaults(func=cmd_probe)
 
     p = commands.add_parser(
@@ -656,6 +687,22 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seconds", type=float, default=10.0, help="measured time (default 10)")
     p.add_argument("--out", default="out/animations", help="output directory")
     p.set_defaults(func=cmd_animation_cpu)
+
+    p = commands.add_parser(
+        "media-cpu",
+        help="measure the CPU use and the memory of Chromium while it plays a media file",
+        description=(
+            "Plays each file muted in a <video> that fills the window and measures, over "
+            "--seconds each, the playing, paused and ended phases: CPU time of the Chromium "
+            "processes by type (share of one core), resident memory, media time against wall "
+            "time and the frames decoded and dropped (docs/media-diagnosis.md section 6)."
+        ),
+    )
+    p.add_argument("files", nargs="+", type=Path, metavar="FILE")
+    p.add_argument("--window", default="1280x720", help="window size (default 1280x720)")
+    p.add_argument("--seconds", type=float, default=10.0, help="time per phase (default 10)")
+    p.add_argument("--out", default="out/media/cpu.json", help="output file")
+    p.set_defaults(func=cmd_media_cpu)
 
     p = commands.add_parser(
         "replay",

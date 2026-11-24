@@ -204,3 +204,13 @@ Details and reasons are in [ADR 0025](adr/0025-javascript-approach.md).
   list: swb reports it as unavailable, and Video.js then hides its
   button.
 - The rules of M9 apply.
+
+## Decisions from 2026-11-24: media playback (M14)
+
+- The owner confirmed the list of what "works" at the end of M14
+  (roadmap, M14). It includes three real media files as local
+  fixtures: the video of the Wikipedia target (VP8, played with
+  JavaScript off) and Mux's `highest.mp4` and `audio.m4a` from
+  videojs.org.
+- `playbackRate` other than 1 is not in M14 (backlog). Chromium keeps
+  the pitch at other rates, which needs time stretching of the audio.

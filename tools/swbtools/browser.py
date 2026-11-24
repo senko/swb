@@ -207,10 +207,13 @@ async def session(
             await chromium.close()
 
 
-async def in_chromium[T](run: Callable[[Page, Path], Awaitable[T]]) -> T:
+async def in_chromium[T](
+    run: Callable[[Page, Path], Awaitable[T]], extra_args: Sequence[str] = ()
+) -> T:
     """Calls `run` with a Chromium page (the layout test settings) and a
-    temporary directory for the pages."""
-    async with session(LAYOUT_VIEWPORT) as (_, _, page):
+    temporary directory for the pages. `extra_args` are flags for Chromium's
+    launch."""
+    async with session(LAYOUT_VIEWPORT, extra_args=extra_args) as (_, _, page):
         with tempfile.TemporaryDirectory(prefix="swb-measure-") as directory:
             return await run(page, Path(directory))
 

@@ -2,6 +2,7 @@
 the parser of the JSON format (see `probe.py` for the format)."""
 
 import json
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -82,6 +83,13 @@ class Case:
     animations: bool = False
     """True leaves CSS animations and transitions on (the tool otherwise
     turns them off after the load, as `reference` does)."""
+    http: bool = False
+    """True loads the page over HTTP from the case server, also without
+    `resources`: the `files` are then served by it (media files, with `Range`
+    requests; see `probe_server.py`)."""
+    ranges: bool = True
+    """False makes the case server ignore `Range` headers and send no
+    `Accept-Ranges` (a server that cannot seek)."""
 
 
 def _parse_viewport(value: Any, where: str) -> tuple[int, int]:
@@ -204,14 +212,29 @@ def _parse_case(
     steps = parse_steps(item.get("steps", []), where)
     if steps and not javascript:
         raise ProbeError(f"{where}: steps need javascript")
+    http = _parse_flag(item.get("http", False), where, "http")
+    ranges = _parse_flag(item.get("ranges", True), where, "ranges")
     return Case(
-        name, html, viewport, queries, files, zone, javascript, resources, steps, animations
+        name,
+        html,
+        viewport,
+        queries,
+        files,
+        zone,
+        javascript,
+        resources,
+        steps,
+        animations,
+        http,
+        ranges,
     )
 
 
 # The step kinds of `swb_automation::run_steps` that the probe tool also runs
 # in Chromium. `screenshot` is swb's only: the tool refuses it ("unknown
-# step 'screenshot'").
+# step 'screenshot'"). `shot` is Chromium's only (`{"shot": "name"}` saves a
+# screenshot of the viewport, see `probe.py`); `--with-swb` leaves it out of
+# the steps that it sends to swb.
 STEP_KINDS = (
     "click",
     "dblclick",
@@ -231,6 +254,7 @@ STEP_KINDS = (
     "colorScheme",
     "back",
     "forward",
+    "shot",
 )
 _POINT_STEPS = ("click", "dblclick", "rightclick", "middleclick", "hover")
 
@@ -286,6 +310,10 @@ def parse_steps(value: Any, where: str) -> tuple[dict[str, Any], ...]:
             ok = isinstance(argument, int) and not isinstance(argument, bool) and argument >= 0
         elif kind in ("mousedown", "mouseup"):
             ok = argument in ("left", "middle", "right")
+        elif kind == "shot":
+            ok = (
+                isinstance(argument, str) and re.fullmatch(r"[A-Za-z0-9_.-]+", argument) is not None
+            )
         else:
             ok = isinstance(argument, str) and bool(argument)
         if not ok:

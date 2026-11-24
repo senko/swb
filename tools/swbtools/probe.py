@@ -73,6 +73,13 @@ A case file is JSON (committed ones are in `tools/probes/`):
   `content-type`, `range`, `access-control-request-*` and the `x-*`
   headers). A case can then tell whether a preflight ran and whether
   cookies went.
+- `http` (case, optional; M14): `true` loads the page from the local server
+  also without `resources`; the `files` are then served with `Range` support
+  (206, `Content-Range`) and their `__log` entries have `status`, `sent` and
+  `content_range`. `ranges: false` makes the server ignore `Range`. Used for
+  media files (docs/testing.md, "Media: test files, real files and probes").
+- A step `{"shot": "name"}` (Chromium only) saves a PNG of the viewport as
+  `SHOTS/CASE-name.png` (`--shots-dir`, default `out/probe-shots/`).
 - `time_zone` (file and case, optional): the IANA name of the time zone of
   the page (`"Europe/Zagreb"`), for the results of `Date`. Without it the
   page has the machine's zone. Chromium gets it as the `timezone_id` of a
@@ -147,7 +154,7 @@ from typing import Any
 from PIL import Image
 from playwright.async_api import Page
 
-from swbtools import browser, swb
+from swbtools import browser, paths, swb
 from swbtools.boxes import BoxDump, Rect, read_dump, round2, union
 from swbtools.probe_cases import (
     _POINT_STEPS,
@@ -177,6 +184,10 @@ DEFAULT_TOLERANCE = 1.0
 INK_TOLERANCE = 0.05
 """The largest relative difference of swb's ink from Chromium's (at least 2
 units), for anti-aliasing differences."""
+
+JS_TIMEOUT_S = 90
+"""How long a `js` query may run in Chromium. A promise that never settles (a
+media element that waits for a source) gives an error row, not a hang."""
 
 PIXEL_TOLERANCE = 2
 """The largest difference of one channel of a `pixels` value between swb and
@@ -447,7 +458,10 @@ async def _run_query(page: Page, query: Query, animations: bool = False) -> list
             return await _pixel_rows(page, query.target, query.points, animations)
         if query.kind == "js":
             scope = await frame_at(page, query.frame) if query.frame else page
-            value = await scope.evaluate(query.target)
+            try:
+                value = await asyncio.wait_for(scope.evaluate(query.target), JS_TIMEOUT_S)
+            except TimeoutError as error:
+                raise ProbeError(f"the expression did not finish in {JS_TIMEOUT_S} s") from error
             try:
                 json.dumps(value)
             except TypeError as error:
@@ -507,9 +521,17 @@ async def _point_of(
     return box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
 
 
-async def run_steps(page: Page, steps: Sequence[dict[str, Any]], pause_ms: int = 0) -> None:
+async def run_steps(
+    page: Page,
+    steps: Sequence[dict[str, Any]],
+    pause_ms: int = 0,
+    shots: Path | None = None,
+    shot_prefix: str = "",
+) -> None:
     """Sends the input of the steps to Chromium. `pause_ms` is a pause after
-    each step (page time), for tools that record page state between steps."""
+    each step (page time), for tools that record page state between steps.
+    A `shot` step saves a PNG of the viewport as `SHOTS/PREFIX-NAME.png`
+    (without `shots` it is an error)."""
     for step in steps:
         modifiers = step.get("modifiers", [])
         ((kind, argument),) = [(k, v) for k, v in step.items() if k not in ("modifiers", "frame")]
@@ -544,6 +566,14 @@ async def run_steps(page: Page, steps: Sequence[dict[str, Any]], pause_ms: int =
             await page.evaluate(argument)
         elif kind == "viewport":
             await page.set_viewport_size({"width": argument[0], "height": argument[1]})
+        elif kind == "shot":
+            if shots is None:
+                raise ProbeError("a shot step needs a screenshot directory (probe --shots-dir)")
+            shots.mkdir(parents=True, exist_ok=True)
+            target = shots / f"{shot_prefix}{argument}.png"
+            # `animations: "allow"`: a video keeps playing, and the controls fade.
+            target.write_bytes(await page.screenshot(animations="allow", caret="hide"))
+            log.info("shot %s", target)
         elif kind == "colorScheme":
             await page.emulate_media(color_scheme=argument)
         elif kind == "back":
@@ -557,13 +587,19 @@ async def run_steps(page: Page, steps: Sequence[dict[str, Any]], pause_ms: int =
 
 
 async def probe_case(
-    page: Page, directory: Path, number: int, case: Case, server: CaseServer | None = None
+    page: Page,
+    directory: Path,
+    number: int,
+    case: Case,
+    server: CaseServer | None = None,
+    shots: Path | None = None,
 ) -> tuple[CaseResult, Path, str]:
     """Loads the case in Chromium and runs its queries. Returns the result,
     the path of the page file and its URL (`http:` from `server` for a case
-    with resources, else `file:`)."""
+    with resources or `http`, else `file:`). `shots` is the directory of the
+    `shot` steps."""
     await page.set_viewport_size({"width": case.viewport[0], "height": case.viewport[1]})
-    if case.resources:
+    if case.resources or case.http:
         if server is None:
             raise ProbeError(f"case {case.name!r}: resources need the case server")
         path, url = _serve_case(case, number, directory, server)
@@ -578,7 +614,7 @@ async def probe_case(
         await browser.stop_animations(page)
     if case.steps:
         try:
-            await run_steps(page, case.steps)
+            await run_steps(page, case.steps, 0, shots, f"{case.name}-")
         except ProbeError:
             raise
         except Exception as error:
@@ -737,8 +773,9 @@ def _compare_with_swb(
     attaches its boxes, ink and values to the result. A JavaScript case
     runs with `--js` and `--eval` for its `js` queries."""
     extra = [JS_OPTION] if case.javascript else []
-    if case.steps:
-        extra.append(f"{STEPS_OPTION}={json.dumps(list(case.steps))}")
+    swb_steps = [step for step in case.steps if "shot" not in step]
+    if swb_steps:
+        extra.append(f"{STEPS_OPTION}={json.dumps(swb_steps)}")
     if case.javascript:
         extra += eval_arguments(case.queries)
     wants_ink = any(query.kind in ("ink", "pixels") for query in case.queries)
@@ -754,11 +791,17 @@ def _compare_with_swb(
 
 
 async def _probe_all(
-    cases: Sequence[Case], binary: Path | None, tolerance: float, page: Page, directory: Path
+    cases: Sequence[Case],
+    binary: Path | None,
+    tolerance: float,
+    page: Page,
+    directory: Path,
+    shots: Path | None = None,
 ) -> list[CaseResult]:
     results = []
     pages = {(None, False): page}
-    server = CaseServer(directory) if any(case.resources for case in cases) else None
+    needs_server = any(case.resources or case.http for case in cases)
+    server = CaseServer(directory) if needs_server else None
     try:
         for number, case in enumerate(cases, 1):
             key = (case.time_zone, case.javascript)
@@ -768,7 +811,9 @@ async def _probe_all(
             # page carries over to its next document.
             case_page = await pages[key].context.new_page() if case.steps else pages[key]
             try:
-                result, path, url = await probe_case(case_page, directory, number, case, server)
+                result, path, url = await probe_case(
+                    case_page, directory, number, case, server, shots
+                )
             finally:
                 if case.steps:
                     await case_page.close()
@@ -787,10 +832,14 @@ def probe(
     swb_binary: Path | None,
     tolerance: float,
     as_json: bool,
+    chromium_args: Sequence[str] = (),
+    shots_dir: Path | None = None,
 ) -> int:
     """Runs the cases of the files and prints the results. Returns 1 if a
     query failed (a bad selector or expression) or if swb was compared and
-    a box is outside the tolerance, 2 for a bad request."""
+    a box is outside the tolerance, 2 for a bad request. `chromium_args` are
+    added to Chromium's command line (`--chromium-arg`); `shots_dir` is where
+    the `shot` steps write (default `out/probe-shots/`)."""
     try:
         cases = select_cases([case for path in files for case in read_cases(path)], case_names)
     except ProbeError as error:
@@ -799,10 +848,14 @@ def probe(
     if not cases:
         log.error("no cases to run")
         return 2
+    shots = shots_dir or paths.out_dir() / "probe-shots"
     try:
         results = asyncio.run(
             browser.in_chromium(
-                lambda page, directory: _probe_all(cases, swb_binary, tolerance, page, directory)
+                lambda page, directory: _probe_all(
+                    cases, swb_binary, tolerance, page, directory, shots
+                ),
+                chromium_args,
             )
         )
     except ProbeError as error:

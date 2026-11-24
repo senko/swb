@@ -587,6 +587,16 @@ Format: source, license (for code), what it influenced.
   table (Unicode License v3; see `THIRD_PARTY_NOTICES.md`). No library
   was read; test262's generated property tests and Chromium 148 probes
   checked the result.
+- Chrome's autoplay policy (developer.chrome.com, "Autoplay policy in
+  Chrome", documentation, not source) — the rules that M14 step 1 states in
+  `docs/media-diagnosis.md` section 4 (muted autoplay, user activation,
+  Media Engagement Index, `allow="autoplay"`); the behavior itself was
+  measured in Chromium 148 (`tools/probes/media-autoplay.json`).
+- FFmpeg's test sources (`testsrc2`, `sine`) and its command line
+  (ffmpeg.org documentation) — the test media of `fixtures/media/`
+  (`tools/media/generate.py`); the files contain generated test patterns
+  only. The three real media files of `fixtures/js/media/` are local and
+  not distributed (the Wikimedia file is CC BY-SA 4.0, author DecafPotato).
 
 ## Projects
 

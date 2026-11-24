@@ -1,0 +1,93 @@
+{
+ "javascript": true,
+ "viewport": [
+  800,
+  600
+ ],
+ "cases": [
+  {
+   "name": "types-mp4",
+   "html": "<!DOCTYPE html><title>t</title>",
+   "measure": [
+    {
+     "js": "\n(() => {\n  const v = document.createElement('video');\n  const a = document.createElement('audio');\n  const ms = typeof MediaSource === 'undefined' ? null : MediaSource;\n  const mms = typeof ManagedMediaSource === 'undefined' ? null : ManagedMediaSource;\n  const types = [\"video/mp4\", \"video/mp4; codecs=\\\"avc1.42E01E, mp4a.40.2\\\"\", \"video/mp4; codecs=\\\"avc1.42E01E\\\"\", \"video/mp4; codecs=\\\"avc1.4D401E, mp4a.40.2\\\"\", \"video/mp4; codecs=\\\"avc1.640028, mp4a.40.2\\\"\", \"video/mp4; codecs=\\\"avc1.640028\\\"\", \"video/mp4; codecs=\\\"avc1.64001F, mp4a.40.2\\\"\", \"video/mp4; codecs=\\\"avc1.640033, mp4a.40.2\\\"\", \"video/mp4; codecs=\\\"avc1.F4001F\\\"\", \"video/mp4; codecs=\\\"avc3.640028\\\"\", \"video/mp4; codecs=\\\"mp4a.40.2\\\"\", \"video/mp4; codecs=\\\"mp4a.40.5\\\"\", \"video/mp4; codecs=\\\"mp4a.40.29\\\"\", \"video/mp4; codecs=\\\"mp4a.69\\\"\", \"video/mp4; codecs=\\\"mp4a.6B\\\"\", \"video/mp4; codecs=\\\"hev1.1.6.L93.B0\\\"\", \"video/mp4; codecs=\\\"hvc1.1.6.L93.B0\\\"\", \"video/mp4; codecs=\\\"av01.0.05M.08\\\"\", \"video/mp4; codecs=\\\"av01.0.08M.08\\\"\", \"video/mp4; codecs=\\\"vp09.00.10.08\\\"\", \"video/mp4; codecs=\\\"vp9\\\"\", \"video/mp4; codecs=\\\"opus\\\"\", \"video/mp4; codecs=\\\"flac\\\"\", \"video/mp4; codecs=\\\"ac-3\\\"\", \"video/mp4; codecs=\\\"ec-3\\\"\", \"video/mp4; codecs=\\\"mp4v.20.8\\\"\", \"video/mp4; codecs=\\\"avc1\\\"\", \"video/mp4; codecs=\\\"avc1.42E01E, vorbis\\\"\", \"video/mp4; codecs=\\\"theora\\\"\", \"audio/mp4\", \"audio/mp4; codecs=\\\"mp4a.40.2\\\"\", \"audio/mp4; codecs=\\\"mp4a.40.5\\\"\", \"audio/mp4; codecs=\\\"flac\\\"\", \"audio/mp4; codecs=\\\"opus\\\"\", \"audio/x-m4a\", \"audio/m4a\", \"audio/aac\", \"audio/aacp\", \"audio/x-aac\", \"audio/adts\"];\n  return types.map(t => [t, v.canPlayType(t), a.canPlayType(t),\n    ms ? String(ms.isTypeSupported(t)) : 'no MediaSource']);\n})()\n"
+    }
+   ]
+  },
+  {
+   "name": "types-webm",
+   "html": "<!DOCTYPE html><title>t</title>",
+   "measure": [
+    {
+     "js": "\n(() => {\n  const v = document.createElement('video');\n  const a = document.createElement('audio');\n  const ms = typeof MediaSource === 'undefined' ? null : MediaSource;\n  const mms = typeof ManagedMediaSource === 'undefined' ? null : ManagedMediaSource;\n  const types = [\"video/webm\", \"video/webm; codecs=\\\"vp8, vorbis\\\"\", \"video/webm; codecs=\\\"vp8\\\"\", \"video/webm; codecs=\\\"vp9, opus\\\"\", \"video/webm; codecs=\\\"vp9\\\"\", \"video/webm; codecs=\\\"vp09.00.10.08\\\"\", \"video/webm; codecs=\\\"vp09.00.10.08, opus\\\"\", \"video/webm; codecs=\\\"vp09.02.10.10\\\"\", \"video/webm; codecs=\\\"vp09.01.10.08\\\"\", \"video/webm; codecs=\\\"av01.0.05M.08\\\"\", \"video/webm; codecs=\\\"vp8.0\\\"\", \"video/webm; codecs=\\\"avc1.42E01E\\\"\", \"video/webm; codecs=\\\"opus\\\"\", \"video/webm; codecs=\\\"vorbis\\\"\", \"video/webm; codecs=\\\"theora\\\"\", \"audio/webm\", \"audio/webm; codecs=\\\"opus\\\"\", \"audio/webm; codecs=\\\"vorbis\\\"\"];\n  return types.map(t => [t, v.canPlayType(t), a.canPlayType(t),\n    ms ? String(ms.isTypeSupported(t)) : 'no MediaSource']);\n})()\n"
+    }
+   ]
+  },
+  {
+   "name": "types-ogg",
+   "html": "<!DOCTYPE html><title>t</title>",
+   "measure": [
+    {
+     "js": "\n(() => {\n  const v = document.createElement('video');\n  const a = document.createElement('audio');\n  const ms = typeof MediaSource === 'undefined' ? null : MediaSource;\n  const mms = typeof ManagedMediaSource === 'undefined' ? null : ManagedMediaSource;\n  const types = [\"video/ogg\", \"video/ogg; codecs=\\\"theora, vorbis\\\"\", \"video/ogg; codecs=\\\"theora\\\"\", \"video/ogg; codecs=\\\"vp8\\\"\", \"audio/ogg\", \"audio/ogg; codecs=vorbis\", \"audio/ogg; codecs=\\\"vorbis\\\"\", \"audio/ogg; codecs=opus\", \"audio/ogg; codecs=\\\"opus\\\"\", \"audio/ogg; codecs=flac\", \"audio/ogg; codecs=speex\", \"application/ogg\", \"audio/opus\"];\n  return types.map(t => [t, v.canPlayType(t), a.canPlayType(t),\n    ms ? String(ms.isTypeSupported(t)) : 'no MediaSource']);\n})()\n"
+    }
+   ]
+  },
+  {
+   "name": "types-others",
+   "html": "<!DOCTYPE html><title>t</title>",
+   "measure": [
+    {
+     "js": "\n(() => {\n  const v = document.createElement('video');\n  const a = document.createElement('audio');\n  const ms = typeof MediaSource === 'undefined' ? null : MediaSource;\n  const mms = typeof ManagedMediaSource === 'undefined' ? null : ManagedMediaSource;\n  const types = [\"audio/mpeg\", \"audio/mpeg; codecs=\\\"mp3\\\"\", \"audio/mp3\", \"audio/x-mp3\", \"audio/mpeg3\", \"audio/wav\", \"audio/wave\", \"audio/x-wav\", \"audio/vnd.wave\", \"audio/wav; codecs=1\", \"audio/wav; codecs=\\\"1\\\"\", \"audio/wav; codecs=\\\"pcm\\\"\", \"audio/flac\", \"audio/x-flac\", \"audio/flac; codecs=flac\", \"audio/3gpp\", \"video/3gpp\", \"audio/amr\", \"audio/x-ms-wma\", \"audio/midi\", \"audio/basic\", \"audio/aiff\", \"audio/x-aiff\", \"video/quicktime\", \"video/x-matroska\", \"video/x-matroska; codecs=\\\"avc1.42E01E\\\"\", \"audio/x-matroska\", \"video/x-msvideo\", \"video/mpeg\", \"video/mp2t\", \"video/x-flv\", \"video/x-m4v\", \"application/vnd.apple.mpegurl\", \"application/x-mpegURL\", \"application/x-mpegurl\", \"audio/mpegurl\", \"audio/x-mpegurl\", \"application/dash+xml\", \"application/octet-stream\", \"text/plain\", \"image/png\"];\n  return types.map(t => [t, v.canPlayType(t), a.canPlayType(t),\n    ms ? String(ms.isTypeSupported(t)) : 'no MediaSource']);\n})()\n"
+    }
+   ]
+  },
+  {
+   "name": "types-garbage-and-variants",
+   "html": "<!DOCTYPE html><title>t</title>",
+   "measure": [
+    {
+     "js": "\n(() => {\n  const v = document.createElement('video');\n  const a = document.createElement('audio');\n  const ms = typeof MediaSource === 'undefined' ? null : MediaSource;\n  const mms = typeof ManagedMediaSource === 'undefined' ? null : ManagedMediaSource;\n  const types = [\"\", \" \", \"video\", \"video/\", \"/mp4\", \"garbage\", \"video/mp4;\", \"video/mp4; codecs=\", \"video/mp4; codecs=\\\"\\\"\", \"video/mp4; codecs=\\\"\", \"video/mp4; codecs=avc1.42E01E\", \"video/mp4; codecs=avc1.42E01E, mp4a.40.2\", \"video/mp4; codecs='avc1.42E01E'\", \"video/mp4;codecs=\\\"avc1.42E01E,mp4a.40.2\\\"\", \"video/mp4 ; codecs=\\\"avc1.42E01E\\\"\", \" video/mp4\", \"video/mp4 \", \"VIDEO/MP4\", \"Video/Mp4; Codecs=\\\"AVC1.42E01E\\\"\", \"video/mp4; codecs=\\\"AVC1.42E01E\\\"\", \"video/mp4; codecs=\\\"avc1.42e01e\\\"\", \"video/mp4; codecs=\\\"avc1.42E01E,mp4a.40.2\\\"\", \"video/mp4; codecs=\\\"avc1.42E01E,  mp4a.40.2\\\"\", \"video/mp4; codecs=\\\"mp4a.40.2, avc1.42E01E\\\"\", \"video/mp4; codecs=\\\"avc1.42E01E, avc1.640028\\\"\", \"video/mp4; codecs=\\\"unknown\\\"\", \"video/mp4; codecs=\\\"avc1.42E01E, unknown\\\"\", \"video/mp4; profile=foo\", \"video/mp4; codecs=\\\"avc1.42E01E\\\"; foo=bar\", \"video/webm;codecs=vp8\", \"video/webm; codecs=vp8,vorbis\", \"video/webm; codecs=\\\"vp8,vorbis\\\"\", \"video/webm; codecs=\\\"VP8, Vorbis\\\"\", \"video/x-foo\", \"audio/x-foo\", \"video/mp4\\u0000\", \"video/mp4; codecs=\\\"avc1.42E01E, mp4a.40.2\\\"; extra\"];\n  return types.map(t => [t, v.canPlayType(t), a.canPlayType(t),\n    ms ? String(ms.isTypeSupported(t)) : 'no MediaSource']);\n})()\n"
+    }
+   ]
+  },
+  {
+   "name": "api-surface",
+   "html": "<!DOCTYPE html><video id=v></video><audio id=a></audio>",
+   "measure": [
+    {
+     "js": "['MediaSource', 'ManagedMediaSource', 'SourceBuffer', 'MediaError', 'TimeRanges', 'HTMLMediaElement', 'HTMLVideoElement', 'HTMLAudioElement', 'Audio', 'MediaStream', 'AudioContext', 'webkitAudioContext', 'VideoPlaybackQuality', 'MediaCapabilities', 'MediaSession', 'AudioTrackList', 'VideoTrackList', 'TextTrack', 'VTTCue', 'MediaKeys', 'RemotePlayback'].map(n => n + ': ' + typeof window[n])"
+    },
+    {
+     "js": "['mediaCapabilities', 'mediaSession', 'mediaDevices', 'requestMediaKeySystemAccess'].map(n => n + ': ' + typeof navigator[n])"
+    },
+    {
+     "js": "['requestVideoFrameCallback', 'cancelVideoFrameCallback', 'captureStream', 'getVideoPlaybackQuality', 'requestPictureInPicture', 'webkitEnterFullscreen', 'webkitDecodedFrameCount', 'disablePictureInPicture', 'disableRemotePlayback', 'sinkId', 'setSinkId', 'preservesPitch', 'mozPreservesPitch', 'webkitPreservesPitch', 'audioTracks', 'videoTracks', 'textTracks', 'addTextTrack', 'controlsList', 'crossOrigin', 'srcObject', 'fastSeek', 'playbackRate', 'defaultPlaybackRate', 'mediaKeys', 'requestFullscreen', 'webkitRequestFullscreen'].map(n => n + ': ' + typeof v[n])"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(HTMLMediaElement.prototype).sort()"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(HTMLVideoElement.prototype).sort()"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(HTMLAudioElement.prototype).sort()"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(MediaError.prototype).sort()"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(TimeRanges.prototype).sort()"
+    },
+    {
+     "js": "[HTMLMediaElement.NETWORK_EMPTY, HTMLMediaElement.NETWORK_IDLE, HTMLMediaElement.NETWORK_LOADING, HTMLMediaElement.NETWORK_NO_SOURCE, HTMLMediaElement.HAVE_NOTHING, HTMLMediaElement.HAVE_METADATA, HTMLMediaElement.HAVE_CURRENT_DATA, HTMLMediaElement.HAVE_FUTURE_DATA, HTMLMediaElement.HAVE_ENOUGH_DATA, MediaError.MEDIA_ERR_ABORTED, MediaError.MEDIA_ERR_NETWORK, MediaError.MEDIA_ERR_DECODE, MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED]"
+    },
+    {
+     "js": "[v.preload, a.preload, new Audio().preload, v.volume, v.muted, v.defaultMuted, v.paused, v.ended, v.autoplay, v.loop, v.controls, v.currentTime, v.duration, v.readyState, v.networkState, v.currentSrc, v.src, v.error, v.playbackRate, v.defaultPlaybackRate, v.buffered.length, v.seekable.length, v.played.length, v.seeking, v.videoWidth, v.videoHeight, v.poster, v.crossOrigin, v.preservesPitch, v.disablePictureInPicture, v.width, v.height, v.playsInline]"
+    },
+    {
+     "js": "[Object.prototype.toString.call(v), Object.prototype.toString.call(v.buffered), String(new Audio()), new Audio().tagName, new Audio('x.mp3').src.slice(-5), new Audio('x.mp3').getAttribute('src'), new Audio().hasAttribute('preload'), new Audio().getAttribute('preload'), new Audio().preload]"
+    }
+   ]
+  }
+ ]
+}

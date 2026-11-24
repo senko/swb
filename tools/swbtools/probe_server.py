@@ -44,6 +44,11 @@ class CaseServer:
         """URL path to the answer; paths without a route are files."""
         self.requests: dict[str, list[dict[str, Any]]] = {}
         """Case folder to the log of its requests."""
+        self.media_folders: set[str] = set()
+        """The folders of the cases with `http: true`: their files are served
+        with `Range` support and the log has `status` and `sent`."""
+        self.ranges: dict[str, bool] = {}
+        """Case folder to whether the server honors `Range` there."""
         self._lock = threading.Lock()
         self._httpds = [self._listen(directory, name) for name in ("main", "other")]
         for httpd in self._httpds:
@@ -72,6 +77,59 @@ class CaseServer:
                 if not head:
                     self.wfile.write(body)
 
+            def _send_file(self, folder: str, entry: dict[str, Any] | None, head: bool) -> None:
+                """Answers a file of a media case (`http: true`): `Range`
+                requests get 206 (unless the case has `ranges: false`), the
+                log entry gets the `status`, the `sent` body bytes and the
+                `content_range`."""
+                file = Path(self.translate_path(self.path))
+                if not file.is_file():
+                    self._send(404, [], b"", head)
+                    if entry is not None:
+                        with server._lock:
+                            entry.update(status=404, sent=0)
+                    return
+                size = file.stat().st_size
+                ranged = server.ranges.get(folder, True)
+                spec = _range_of(self.headers.get("Range"), size) if ranged else "full"
+                headers = [("Content-Type", self.guess_type(str(file)))]
+                if ranged:
+                    headers.append(("Accept-Ranges", "bytes"))
+                if spec is None:
+                    status, start, end = 416, 0, -1
+                    headers.append(("Content-Range", f"bytes */{size}"))
+                elif spec == "full":
+                    status, start, end = 200, 0, size - 1
+                else:
+                    status, (start, end) = 206, spec
+                    headers.append(("Content-Range", f"bytes {start}-{end}/{size}"))
+                length = max(0, end - start + 1)
+                self.send_response(status)
+                for name, value in headers:
+                    self.send_header(name, value)
+                self.send_header("Content-Length", str(length))
+                self.end_headers()
+                sent = 0
+                try:
+                    if not head and length:
+                        with file.open("rb") as stream:
+                            stream.seek(start)
+                            while sent < length:
+                                chunk = stream.read(min(1 << 20, length - sent))
+                                if not chunk:
+                                    break
+                                self.wfile.write(chunk)
+                                sent += len(chunk)
+                finally:
+                    if entry is not None:
+                        # `__log` serializes the entries under the lock.
+                        with server._lock:
+                            entry.update(
+                                status=status,
+                                sent=sent,
+                                content_range=dict(headers).get("Content-Range"),
+                            )
+
             def _serve(self) -> None:
                 try:
                     self._answer()
@@ -86,18 +144,20 @@ class CaseServer:
                 folder = path.split("/")[1] if path.count("/") >= 2 else ""
                 if path.endswith("/__log"):
                     with server._lock:
-                        entries = list(server.requests.get(folder, []))
-                    text = json.dumps(entries).encode()
+                        text = json.dumps(server.requests.get(folder, [])).encode()
                     self._send(200, [("Content-Type", "application/json")], text, method == "HEAD")
                     return
+                entry = None
                 if method == "GET" and path.endswith(".html"):
                     with server._lock:
                         server.requests[folder] = []
                 elif path != "/favicon.ico":
-                    server._log(folder, which, self, path, body)
+                    entry = server._log(folder, which, self, path, body)
                 route = server.routes.get(path)
                 if route is None:
-                    if method in ("GET", "HEAD"):
+                    if method in ("GET", "HEAD") and folder in server.media_folders:
+                        self._send_file(folder, entry, method == "HEAD")
+                    elif method in ("GET", "HEAD"):
                         super().do_GET() if method == "GET" else super().do_HEAD()
                     else:
                         self._send(404, [], b"", False)
@@ -129,7 +189,9 @@ class CaseServer:
 
     def _log(
         self, folder: str, which: str, handler: SimpleHTTPRequestHandler, path: str, body: bytes
-    ) -> None:
+    ) -> dict[str, Any]:
+        """Logs a request and returns its entry (the server may add fields
+        to it after the answer)."""
         headers = handler.headers
         kept = {
             name.lower(): value
@@ -148,6 +210,7 @@ class CaseServer:
         }
         with self._lock:
             self.requests.setdefault(folder, []).append(entry)
+        return entry
 
     @staticmethod
     def _options_answer(resource: Resource, request: Any) -> tuple[int, list[tuple[str, str]]]:
@@ -205,6 +268,35 @@ class CaseServer:
 
 
 _JAVASCRIPT_TYPE = "text/javascript"
+_LINK_ABOVE = 8 << 20
+"""Case files above this size (bytes) are linked into the case folder, not
+copied."""
+
+
+def _range_of(header: str | None, size: int) -> tuple[int, int] | str | None:
+    """The byte range of a `Range` header for a file of `size` bytes
+    (RFC 9110 section 14): `(first, last)`; `None` if it cannot be satisfied;
+    `"full"` if there is no header or it is not a single `bytes` range (a
+    server ignores such a header)."""
+    if not header or not header.startswith("bytes=") or "," in header:
+        return "full"
+    first, _, last = header.removeprefix("bytes=").strip().partition("-")
+    try:
+        if first == "":
+            count = int(last)
+            if count <= 0 or size == 0:
+                return None
+            return max(0, size - count), size - 1
+        start = int(first)
+        end = int(last) if last else size - 1
+    except ValueError:
+        return "full"
+    if last and end < start:
+        # An invalid range-spec (section 14.1.1): the header is ignored.
+        return "full"
+    if start >= size:
+        return None
+    return start, min(end, size - 1)
 
 
 def _resource_type(resource: Resource) -> str:
@@ -219,8 +311,14 @@ def _resource_type(resource: Resource) -> str:
 def _write_case_files(case: Case, directory: Path) -> None:
     """Copies the `files` of a case into `directory`."""
     for name, source in case.files:
+        target = directory / name
         try:
-            shutil.copyfile(source, directory / name)
+            if source.stat().st_size > _LINK_ABOVE:
+                # A real media file can be 160 MB: link it, do not copy it.
+                target.unlink(missing_ok=True)
+                target.symlink_to(source.resolve())
+            else:
+                shutil.copyfile(source, target)
         except OSError as error:
             raise ProbeError(f"case {case.name!r}: cannot copy {source}: {error}") from error
 
@@ -232,6 +330,9 @@ def _serve_case(case: Case, number: int, directory: Path, server: CaseServer) ->
     case_dir = directory / folder
     case_dir.mkdir(exist_ok=True)
     _write_case_files(case, case_dir)
+    if case.http:
+        server.media_folders.add(folder)
+    server.ranges[folder] = case.ranges
     for resource in case.resources:
         text = server.substitute(resource.text, folder)
         (case_dir / resource.name).write_text(text, encoding="utf-8")

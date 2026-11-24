@@ -142,7 +142,8 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just perf [NAME...]`        | `perf [NAME...] [--runs N] [--js]`     | Times swb's pipeline stages and the interaction (hover, scroll) per fixture; with `--js` the fixtures of `fixtures/js/` with JavaScript on ([performance.md](performance.md)). |
 | `just tools gui-latency NAME` | `gui-latency NAME [--js] [--trace T] [--window WxH] [--json] [--log FILE] [--urls]` | Plays an input trace into the GUI on a private Xvfb and reports the input latency (see "GUI input latency"). Also `--url URL` for a live page. |
 | `just tools measure [NAME...]` | `measure [NAME...]`                  | Measures the Chromium behaviour that some of swb's data comes from (see "Measure Chromium behaviour"). `font-size-sweep` runs only when named. |
-| `just probe FILE...`         | `probe FILE... [--case NAME]... [--with-swb] [--tolerance PX] [--json]` | Asks Chromium (and with `--with-swb`, swb) about the cases of JSON files: boxes, line fragments, computed styles, JS values, ink and the colors at points (`pixels`); cases with `"javascript": true` run their scripts (see "Probe Chromium behaviour"). |
+| `just probe FILE...`         | `probe FILE... [--case NAME]... [--with-swb] [--tolerance PX] [--json] [--chromium-arg=FLAG]... [--shots-dir DIR]` | Asks Chromium (and with `--with-swb`, swb) about the cases of JSON files: boxes, line fragments, computed styles, JS values, ink and the colors at points (`pixels`); cases with `"javascript": true` run their scripts (see "Probe Chromium behaviour"). |
+| `just tools media-cpu FILE...` | `media-cpu FILE... [--window WxH] [--seconds N] [--out FILE]` | Chromium's CPU and memory while a media file plays, is paused and has ended (see "Media: test files, real files and probes"). |
 | `just hostile [NAME...]`     | `hostile [NAME...] [--swb PATH] [--list] [--keep]` | Runs swb on the hostile-page set and checks time and memory limits (see "Hostile-page set"). `just` builds swb first. |
 | `just bindings`              |                                        | Regenerates the binding glue from the IDL files with `swb-webidl` (see "Web API bindings"). |
 | `just test262 [ARGS]`        |                                        | Runs the test262 subset in `swb-js` and compares the pass counts with `crates/js/test262/scores.json`; `--parse-only` runs only the front end over `test/language/`, `test/built-ins/` and `test/annexB/` against `parse-scores.json` (see "JavaScript engine tools"). |
@@ -1783,6 +1784,72 @@ N]` measures the CPU time of the Chromium processes (CDP
 `N` seconds (default 10) after a 2 s wait, for the synthetic pages
 `idle`, `spinner` (the player's buffering spinner) and `marquee` (the
 page's) or for a fixture scrolled to `Y`.
+
+### Media: test files, real files and probes (M14)
+
+**Test media** (`fixtures/media/`, committed, about 2.0 MB, 37 files).
+`tools/media/generate.py` makes them with the static `ffmpeg` CLI of the
+development machine (`python3 tools/media/generate.py [--out DIR]
+[NAME...]`; the exact command of each file is printed; the files are made
+bit-exact without metadata tags, so a second run with the same `ffmpeg`
+build gives the same bytes; the encoders' own identification strings, such
+as x264's settings, stay in the files). Builds and tests never run
+it. Content: `testsrc2` (320 x 240, 25 fps, 2 s; the time and the frame number
+in the top left corner, moving color bars) and a stereo pair of sines (440 Hz
+left, 660 Hz right). Files: MP4 (H.264 High with B-frames + AAC-LC; Baseline;
+index at the end; video only), M4A, WebM (VP8 + Vorbis, VP9 + Opus, video
+only), Ogg (Vorbis, Opus, FLAC), MP3, FLAC, WAV (PCM s16), ADTS AAC; sizes
+321 x 241 (VP8, VP9); color: BT.709 and BT.601 tagged, untagged with BT.709
+content (at 320 x 240, 640 x 480, 720 x 576, 1280 x 720), full range; a
+start time of 1.5 s (WebM, MP4); 10 s files with a key frame every second
+(MP4, MP3); two posters (`poster-320x240.png`, `poster-200x100.png`, flat
+#336699, which decodes to 49,100,151); hostile files derived by byte changes
+(truncated, no index, corrupt middle, 4096 random bytes `garbage.mp4`).
+
+**Real files** (local only, never committed): `fixtures/js/media/`
+(git-ignored with `fixtures/js/`): `mux-highest.mp4` (Mux's `highest.mp4`
+of videojs.org: H.264 High level 5.2, 3840 x 2160, about 24 fps, BT.709,
+36 Mbit/s, 36 s, 161.6 MB, AAC 48 kHz stereo), `mux-audio.m4a` (AAC-LC 48
+kHz, 36 s, 0.87 MB), `wikimedia-web-browser-demo.webm` (the Wikipedia target's
+first source: VP8 2558 x 1626, 25 fps, BT.709 tags, 23.2 s, 4.4 MB, no audio;
+CC BY-SA 4.0, author DecafPotato, Wikimedia Commons "File:Web browser
+demo.webm"), and the `.headers` of the three downloads.
+
+**Probe files** (`tools/probes/media-*.json`; Chromium 148 ran each three
+times with equal output): `media-can-play-type`, `media-states`,
+`media-playback`, `media-autoplay`, `media-fetch`, `media-frames`,
+`media-poster`, `media-controls` and (local files) `media-real-files`. They
+use `javascript: true` and these probe features, added in M14 step 1:
+
+- `http: true` (case): the page loads over HTTP from the case server even
+  without `resources`, and the `files` are served by it as media files:
+  `Range` requests get 206 with `Content-Range` (`bytes=A-B`, `A-`, `-N`;
+  416 when unsatisfiable), `Accept-Ranges: bytes`. `ranges: false` makes the
+  server ignore `Range` (200, no `Accept-Ranges`). `__log` entries of these
+  files also have `status`, `sent` (body bytes written; absent while the
+  request runs) and `content_range`. A case file above 8 MiB is linked into
+  the case folder, not copied.
+- step `{"shot": "name"}` (Chromium only; `--with-swb` leaves it out):
+  saves a PNG of the viewport (scale 1, animations on) as
+  `SHOTS/CASE-name.png`; `--shots-dir DIR` (default `out/probe-shots/`).
+- `--chromium-arg=FLAG` (repeatable): flags for Chromium's launch, for
+  example `--autoplay-policy=no-user-gesture-required`.
+- A `js` query that does not finish in 90 s is an error row, not a hang.
+
+A `js` query waits for media events with a promise. The queries run
+through Playwright's `evaluate`, which carries **user activation**
+(`navigator.userActivation.hasBeenActive` is true after the first query and
+after the font wait that precedes the steps), so a `play()` in a query
+resolves; to see the autoplay rules the case runs its script at load, before
+any query (`media-autoplay.json`). Times that depend on the speed of the
+machine (`currentTime` while playing) are rounded to 0.25 s.
+
+`swbtools media-cpu FILE... [--window WxH] [--seconds N] [--out FILE]`
+measures Chromium's CPU time (by process type, share of one core, CDP
+`SystemInfo.getProcessInfo`), resident memory (`VmRSS` of the processes),
+media time against wall time and the frames decoded and dropped
+(`getVideoPlaybackQuality()`) while the file plays muted in a window, while
+it is paused and after it ended. Report: docs/media-diagnosis.md.
 
 ## Hostile-page set
 

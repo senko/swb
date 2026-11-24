@@ -583,6 +583,133 @@ def test_parse_resource_status_headers_and_options():
             parse_cases(case_json(resources=bad))
 
 
+def test_parse_http_ranges_and_shot_step():
+    (case,) = parse_cases(case_json())
+    assert (case.http, case.ranges) == (False, True)
+    (case,) = parse_cases(
+        case_json(http=True, ranges=False, javascript=True, steps=[{"shot": "a-1.b"}])
+    )
+    assert (case.http, case.ranges, case.steps) == (True, False, ({"shot": "a-1.b"},))
+    for bad in (
+        {"http": 1},
+        {"ranges": "no"},
+        {"javascript": True, "steps": [{"shot": ""}]},
+        {"javascript": True, "steps": [{"shot": "a/b"}]},
+        {"javascript": True, "steps": [{"shot": 1}]},
+    ):
+        with pytest.raises(ProbeError):
+            parse_cases(case_json(**bad))
+
+
+def test_range_header_parsing():
+    from swbtools.probe_server import _range_of
+
+    assert _range_of(None, 100) == "full"
+    assert _range_of("bytes=0-", 100) == (0, 99)
+    assert _range_of("bytes=10-19", 100) == (10, 19)
+    assert _range_of("bytes=90-200", 100) == (90, 99)
+    assert _range_of("bytes=-10", 100) == (90, 99)
+    assert _range_of("bytes=-200", 100) == (0, 99)
+    assert _range_of("bytes=100-", 100) is None
+    assert _range_of("bytes=20-10", 100) == "full"
+    assert _range_of("bytes=-0", 100) is None
+    assert _range_of("bytes=0-1,5-6", 100) == "full"
+    assert _range_of("items=0-1", 100) == "full"
+    assert _range_of("bytes=a-b", 100) == "full"
+
+
+def test_case_server_serves_files_with_ranges_and_logs_them(tmp_path):
+    import http.client
+    from urllib.parse import urlsplit
+
+    from swbtools.probe_server import CaseServer, _serve_case
+
+    source = tmp_path / "source.bin"
+    source.write_bytes(bytes(range(200)))
+    case = Case("c", "<p>x", (400, 300), (), files=(("m.bin", source),), http=True)
+    plain = Case("p", "<p>x", (400, 300), (), files=(("m.bin", source),), http=True, ranges=False)
+    server = CaseServer(tmp_path)
+    try:
+        _serve_case(case, 1, tmp_path, server)
+        _serve_case(plain, 2, tmp_path, server)
+        parts = urlsplit(server.origin)
+
+        def get(folder, headers=None, method="GET"):
+            connection = http.client.HTTPConnection(parts.hostname, parts.port)
+            connection.request(method, f"/{folder}/m.bin", headers=headers or {})
+            response = connection.getresponse()
+            result = (response.status, dict(response.getheaders()), response.read())
+            connection.close()
+            return result
+
+        status, headers, data = get("case-1")
+        assert (status, len(data), headers["Accept-Ranges"]) == (200, 200, "bytes")
+        status, headers, data = get("case-1", {"Range": "bytes=10-19"})
+        assert (status, data, headers["Content-Range"]) == (
+            206,
+            bytes(range(10, 20)),
+            "bytes 10-19/200",
+        )
+        status, headers, data = get("case-1", {"Range": "bytes=0-"})
+        assert (status, len(data), headers["Content-Range"]) == (206, 200, "bytes 0-199/200")
+        status, headers, data = get("case-1", {"Range": "bytes=500-"})
+        assert (status, headers["Content-Range"], data) == (416, "bytes */200", b"")
+        status, headers, data = get("case-1", method="HEAD")
+        assert (status, headers["Content-Length"], data) == (200, "200", b"")
+        status, headers, data = get("case-2", {"Range": "bytes=10-19"})
+        assert (status, len(data), "Accept-Ranges" in headers) == (200, 200, False)
+        assert get("case-1/nope")[0] == 404
+        connection = http.client.HTTPConnection(parts.hostname, parts.port)
+        connection.request("GET", "/case-1/__log")
+        log = json.loads(connection.getresponse().read())
+        assert [(e["status"], e["sent"], e["headers"].get("range")) for e in log[:4]] == [
+            (200, 200, None),
+            (206, 10, "bytes=10-19"),
+            (206, 200, "bytes=0-"),
+            (416, 0, "bytes=500-"),
+        ]
+        assert log[1]["content_range"] == "bytes 10-19/200"
+    finally:
+        server.close()
+
+
+@pytest.mark.usefixtures("chromium")
+def test_probe_media_case_over_http_with_a_shot_step(tmp_path):
+    # A real media file played from the case server: the log shows the Range
+    # request, and the shot step writes a PNG.
+    media = paths.repo_root() / "fixtures" / "media" / "webm-vp8-video-only.webm"
+    queries = (
+        Query(
+            "js",
+            "new Promise(r => v.readyState >= 1 ? r() "
+            ": v.addEventListener('loadedmetadata', r, {once: true}))",
+        ),
+        Query("js", "[v.duration, v.videoWidth, v.videoHeight]"),
+        Query(
+            "js", "fetch('__log').then(r => r.json()).then(l => [l[0].headers.range, l[0].status])"
+        ),
+    )
+    html = "<video id=v src=a.webm preload=metadata></video>"
+    case = Case(
+        "m",
+        html,
+        (400, 300),
+        queries,
+        files=(("a.webm", media),),
+        javascript=True,
+        steps=({"wait": 100}, {"shot": "first"}),
+        http=True,
+    )
+    results = asyncio.run(
+        in_chromium(
+            lambda page, directory: _probe_all([case], None, 1.0, page, directory, tmp_path)
+        )
+    )
+    values = [row.data["value"] for row in results[0].rows]
+    assert values[1:] == [[2, 320, 240], ["bytes=0-", 206]]
+    assert (tmp_path / "m-first.png").read_bytes().startswith(b"\x89PNG")
+
+
 def test_case_server_answers_every_method_and_logs_the_requests(tmp_path):
     import http.client
     import json

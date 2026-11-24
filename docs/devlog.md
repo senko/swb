@@ -4,6 +4,24 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-24: M14 plan and feature 1, the media diagnosis
+
+- M14 (media playback) is planned in detail (roadmap). The owner
+  confirmed the list of what "works" and moved `playbackRate` other
+  than 1 to the backlog (ground rules, "Decisions from 2026-11-24").
+- Diagnosis (`docs/media-diagnosis.md`): 37 generated test files
+  (`fixtures/media/`, 2.0 MB), three real files kept local (Mux's
+  `highest.mp4` and `audio.m4a`, the Wikipedia VP8 video) and a local
+  1080p transcode, nine probe files with 332 Chromium cases, a `Range`
+  server and a `shot` step in the probe tool, and `swbtools media-cpu`.
+- Findings that change the plan: Mux's `highest.mp4` is 4K, not 1080p;
+  Chromium reads media with open-ended `Range` requests in chunks, which
+  swb's loader (one buffer, at most 64 MiB) and replay cannot serve, so
+  M14 gets a feature for a media byte source; the element feature is
+  split in two. The poster stays until `play()` or a seek. Chromium
+  plays 1080p at 25 % of a core and 0 % when paused.
+- Next: the ADR for media (step 2), with an FFmpeg build spike.
+
 ## 2026-11-24: M13 maintenance; end of M13
 
 - Two read-only reviews (style, css, text, web and ADR 0044; paint,

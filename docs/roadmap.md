@@ -6622,30 +6622,216 @@ and GPL parts, linked statically (LGPL-2.1 or later); PipeWire for audio
 output, linked dynamically; a Cargo feature for media support, so that
 swb builds without FFmpeg and PipeWire; CI builds and tests both.
 
-Draft, planned in detail when M13 is done:
+The rules of M9 apply. M14 has no page of its own: videojs.org plays
+its stream only with Media Source Extensions (M15). M14 tests with:
 
-1. ADR: media (the FFmpeg build and its license, the exception to
-   ADR 0003, the feature, the boundary to FFmpeg and its `unsafe` code
-   (the code conventions require an ADR first), FFmpeg reads through
-   swb's loader and never opens network connections itself, threads,
-   the media clock, audio output). Updates ADR 0020.
-2. The FFmpeg build in `just` and CI; the `media` crate: demuxing and
-   decoding through FFmpeg, decode threads, the frame queue, the media
-   clock and audio and video synchronization.
-3. Audio output: PipeWire, a silent output for headless mode and tests,
-   mixing and volume.
-4. The media element (HTML), for `<audio>` and `<video>` alike, and
-   `new Audio()`: resource selection, fetches with `Range` requests,
-   ready and network states, events, play, pause, seeking, autoplay
-   rules, `TimeRanges`, `MediaError`, `canPlayType` with Chromium's
-   answers for the formats that the build supports. The default
-   controls of `controls` (ADR 0020 draws them, without interaction)
-   respond: play and pause, the timeline, mute and volume, the time.
-5. Video frames in paint (with `object-fit` and rounded clips) and in
-   the GUI frame loop; frames at paused times compared with Chromium's.
-6. Test media: small files made with FFmpeg's test sources (committed),
-   and Mux's `highest.mp4` and `audio.m4a` from the page's constants
-   (local fixtures).
+- Test media made with FFmpeg's test sources (`testsrc2`, `sine`), one
+  short file for each format and codec of the build, and test pages
+  that use them. Both are small and committed.
+- Three real files as local fixtures (not committed): Mux's
+  `highest.mp4` and `audio.m4a` from videojs.org's constants (H.264
+  High and AAC at the sizes that sites serve), and the first source of
+  the video on the Wikipedia target (`Web_browser_demo.webm`, VP8,
+  2558 × 1626, 25 fps, 23.2 s, no audio), which Chromium picks with
+  JavaScript off. `highest.mp4` is 3840 × 2160 (161.6 MB); the budget
+  of works item 5 uses a local 1080p 30 fps transcode of it
+  (`mux-1080p30-20s.mp4`).
+
+Formats: the demuxers MP4/MOV, WebM/Matroska, Ogg, MP3, FLAC, WAV and
+ADTS AAC; the decoders H.264, VP8, VP9, AAC, MP3, Opus, Vorbis, FLAC and
+PCM. The diagnosis checks this list against Chromium's `canPlayType`.
+AV1 (dav1d) is later.
+
+What "works" means at the end of M14 (confirmed by the owner on
+2026-11-24):
+
+1. `<video>` and `<audio>` play the test media of each format, with
+   JavaScript on and off. With `controls`, the default controls work by
+   mouse: play and pause, seek by click and by drag on the timeline,
+   mute, and the time display during playback.
+2. Scripts: `play()` and its promise, `pause()`, seeking with
+   `currentTime`, `volume`, `muted`, `loop`, `autoplay` and `preload`
+   with Chromium's rules, `new Audio()`, `canPlayType`, the ready and
+   network states, `duration`, `buffered`, `seekable`, `played`,
+   `videoWidth` and `videoHeight`, `MediaError`. Events come in
+   Chromium's order, with Chromium's values at sampled points (virtual
+   time in tests).
+3. A video shows its poster and its frames by Chromium's rules; frames
+   at paused times are equal to Chromium's within a tolerance, also
+   with `object-fit`, rounded clips and transforms. The natural size
+   comes from the stream.
+4. In the GUI, audio plays through PipeWire, in sync with the video:
+   the frame on screen is at most one frame period from the audio
+   clock, also after seeks and over a long playback (measured with a
+   trace).
+5. Budgets in the GUI (release build): a 1080p 30 fps H.264 video plays
+   without dropped frames; CPU and memory stay within budgets that the
+   diagnosis sets; after `pause` or `ended` the idle CPU returns to 0.
+6. Hostile media (truncated, corrupt, very large frame sizes, endless
+   streams, many media elements on one page) do not crash or hang swb,
+   and memory stays bounded.
+7. Without the `media` feature, swb builds and passes its tests, and
+   media elements behave like a Chromium build without codecs:
+   `canPlayType` gives `""`, and loading fails with
+   `MEDIA_ERR_SRC_NOT_SUPPORTED`.
+8. Real files: the Wikipedia video plays after a click on play (JS
+   off); Mux's `highest.mp4` and `audio.m4a` play. On videojs.org, the
+   media element API exists; the hero player waits for M15.
+
+Not in M14: Media Source Extensions, workers, text tracks, fullscreen
+(M15); `playbackRate` other than 1 (Chromium keeps the pitch, which
+needs time stretching; the owner moved it to the backlog on
+2026-11-24); picture-in-picture (reported as unavailable);
+Web Audio, `captureStream()`, `requestVideoFrameCallback()` (M15 checks
+whether the player needs it); native HLS; AV1; the overflow menu of the
+default controls.
+
+Steps:
+
+1. Diagnosis and tools (`implementer`):
+   - Test media and their generator (`tools/media/`, with the static
+     `ffmpeg` CLI of the development machine; the generated files are
+     committed, so builds and tests do not need the CLI). The three
+     real files as local fixtures.
+   - Chromium's behaviour as probe files (three equal runs): the
+     `canPlayType` answers for the MIME types and codec strings of the
+     formats above and of common other ones; states, values and events
+     of load, `preload` (`none`, `metadata`, `auto`), play, pause, seek,
+     `ended`, `loop`, errors, `volume` and `muted`, `new Audio()`, the
+     `play()` promise; the autoplay rules (headless Chromium and
+     Playwright may differ from Chrome's default rules; the diagnosis
+     says which rules swb takes); the source that resource selection
+     picks; the natural size; frames at paused times as pixels; the
+     look of the default controls while a video plays and after it
+     ends.
+   - What the probe tool and the automation API need for media: wait
+     for media events, sample at media times, virtual time.
+   - What Chromium fetches for each file (the `Range` requests and their
+     sizes with each `preload` value), and what replay needs to serve
+     them.
+   - Budgets: Chromium's CPU and memory for the 1080p H.264 file and
+     the 2558 × 1626 VP8 file in a window; the budgets of item 5.
+   - Report `docs/media-diagnosis.md`. The diagnosis may change the
+     order and the scope of the features below.
+
+   Done (2026-11-24): `docs/media-diagnosis.md`.
+   - Test media: `fixtures/media/` (37 files, 2.0 MB, committed;
+     generator `tools/media/generate.py`, byte-identical when run
+     again). Local real files in `fixtures/js/media/`.
+   - Nine probe files `tools/probes/media-*.json` (332 cases; three
+     equal Chromium runs, except `media-real-files.json`, whose chunk
+     sizes vary). The probe tool has a static server with `Range`
+     (cases `http` and `ranges`), a `shot` step, `--chromium-arg` and
+     `--shots-dir`; new command `media-cpu`.
+   - `canPlayType`: Chromium answers `"probably"` for every format of
+     the list with codecs and `"maybe"` without; HLS types are
+     `"maybe"` (swb answers `""`, ground rules).
+   - Fetches: an open-ended `Range: bytes=0-`, then open-ended chunks
+     at 64 KiB multiples that Chromium cancels; `preload=none` fetches
+     nothing until `play()`; without `Range` a seek ends at 0. swb's
+     loader keeps a whole response in one buffer (at most 64 MiB) and
+     replay has no `Range`: M14 needs a media byte source (feature 4
+     below).
+   - Autoplay: Playwright's Chromium has Chrome's default policy (muted
+     video autoplays; sound needs user activation; `new Audio().play()`
+     needs activation also when muted). Playwright's `evaluate` gives
+     user activation; swb's `--eval` must do the same in tests.
+   - Poster: it stays after the first frame loads, for every `preload`
+     value, until `play()` or a seek.
+   - Frames: Chromium and a plain FFmpeg decode differ by at most 3
+     levels (BT.601, full range), 13 for BT.709 limited range (cause
+     unknown). An untagged stream is BT.601 at 640 × 480 and 720 × 576
+     and BT.709 at 1280 × 720 (the boundary is open).
+   - Budgets (Chromium, headless, 1280 × 720): 1080p 30 fps 25 % of a
+     core, the Wikipedia file 22 %, the 4K file 93 %; 0 % paused or
+     ended; no dropped frames. Proposed for swb: at most 150 % of a
+     core and 600 MiB above the idle page for 1080p and the Wikipedia
+     file without dropped frames; the 4K file within 1.5 GiB; 0 % CPU
+     after pause and end.
+   - videojs.org without `MediaSource` (Chromium): Video.js sets the
+     master playlist as `src` (native HLS); it does not fall back to
+     `highest.mp4`. swb today does the same and loads nothing.
+   - Plan changes, applied below: a new feature for the media byte
+     source; feature 5 (the element) is split in two.
+2. ADR: media (`implementer-hard`, with a build spike that is not
+   committed; the ADR records its numbers):
+   - The FFmpeg build: the pinned release, its checksum, the
+     `configure` options (only the listed demuxers, decoders and
+     parsers; no network, no programs, no GPL or non-free parts, no
+     automatic detection of system libraries), the build time and the
+     size; where the source comes from and where the build goes; the
+     CI cache.
+   - The license: what static linking of LGPL code requires (notices,
+     the source of FFmpeg and of swb, relinking); the exception to
+     ADR 0003; what the default build is (`cargo build` without
+     FFmpeg; which `just` recipes turn the feature on).
+   - The boundary to FFmpeg: a small C file compiled into the crate, a
+     generated binding, or hand-written declarations; the one crate
+     with `unsafe` code and how its lints differ from the workspace
+     lints (the code conventions require an ADR first).
+   - Input: FFmpeg reads through swb's loader (custom I/O callbacks)
+     and never opens files or network connections itself; `Range`
+     requests; buffering for each `preload` value; replay.
+   - Threads: demuxing and decoding per media element, the bound on
+     concurrent decoders, frame and sample queues and their memory.
+   - The media clock: the audio clock when audio plays, otherwise the
+     system clock, and the virtual clock in headless mode and tests;
+     audio and video synchronization; seeking.
+   - Audio output: PipeWire (`pw_stream`), mixing of several elements,
+     volume; the silent output; what happens without a PipeWire server.
+   - Video frames in paint: the pixel format and color conversion
+     (BT.601 and BT.709, limited and full range, as Chromium shows
+     them), the scale, frames in the display list and damage
+     rectangles (ADR 0044), the GUI frame loop.
+   - Where the media element lives (DOM, engine, `web`), and the
+     element without the feature.
+   - Limits for hostile media.
+   - Updates ADR 0003 and ADR 0020.
+3. Features, in this order. Each feature ends with a review and a
+   commit, with the checks of M9.
+   3. The FFmpeg build and the boundary (`implementer-hard`): the
+      `just` recipe that downloads, checks and builds FFmpeg; the Cargo
+      feature `media`; CI jobs with and without it; the new crate
+      demuxes and decodes every test file into frames and samples from
+      a byte source (a file source in this feature); notices and
+      license files.
+   4. The media byte source (`implementer`; `net`): `Range` requests
+      through the loader, chunked reads of an open response,
+      cancellation, a byte budget for read-ahead, no 64 MiB limit for
+      media, servers without `Range` (seek fails), replay of `Range`
+      requests from a whole recorded body. Diagnosis section 5.
+   5. The media pipeline (`implementer-hard`): decode threads, frame
+      and sample queues, seeking, the media clock, audio and video
+      synchronization, the silent output on virtual time (`timeupdate`
+      every 250 ms of media time without sleeping in tests).
+   6. The media element, in two parts (`implementer`), each with
+      JavaScript off and without the feature:
+      6a. The core: attributes, resource selection with `<source>`
+          (`type`, `media`), the load algorithm and its events, the
+          network and ready states, fetches through the byte source for
+          each `preload` value, `MediaError` and its messages,
+          `canPlayType`, `TimeRanges`. Tests: `media-can-play-type`,
+          `media-states`, `media-fetch`.
+      6b. Playback: `play()` and its promise, `pause()`, seeking with
+          `currentTime`, `loop`, `ended`, `played`, `volume` and
+          `muted`, `autoplay` and the user activation policy (also for
+          `--eval`), `new Audio()`, removal from the document. Tests:
+          `media-playback`, `media-autoplay`.
+   7. Video frames in paint and in the GUI frame loop (`implementer`):
+      the poster rules (diagnosis section 8), the natural size from the
+      stream, BT.601 and BT.709 by Chromium's rule, `object-fit`,
+      rounded clips and transforms, paint-only frames with damage
+      rectangles; frames at paused times against Chromium's
+      (`media-frames`, `media-poster`).
+   8. Audio output through PipeWire (`implementer`): the stream, the
+      mix of several elements, volume and mute, a missing server or
+      device.
+   9. The default controls respond (`implementer`): play and pause,
+      seek by click and drag, mute and the volume slider, the time
+      during playback, auto-hide, the states that Chromium draws
+      (`media-controls`); their timers stop when nothing changes.
+   10. The exit test (`implementer`): the list above against Chromium,
+      the hostile media, the budgets in the GUI.
 
 ## M15: The videojs.org player — planned
 
@@ -6680,6 +6866,23 @@ Source Extensions, AV1 (dav1d), YouTube.
   sizing; sticky offsets; two float helpers), Skia data and Servo
   (`collapsed_margin.rs`, MPL-2.0); kept with attribution for now
   (ADR 0021).
+
+## Backlog from M14
+
+- Media (owner, 2026-11-24): `playbackRate` other than 1. Chromium keeps
+  the pitch, which needs time stretching of the audio.
+- Probe (feature 1): a color probe with graded Y'CbCr patches, to find
+  Chromium's conversion of BT.709 limited range (a plain FFmpeg
+  conversion differs by up to 13 levels in saturated colors; the other
+  matrices and ranges by at most 3).
+- Tools (feature 1): `swbtools capture` cannot record media (large
+  bodies, `Range` answers); the real files were downloaded by hand.
+- Diagnosis (feature 1), not measured: the hour format of the time text
+  of the default controls, their keyboard shortcuts, HEVC and AV1 files,
+  a headed Chromium.
+- videojs.org (feature 1): without `MediaSource`, Video.js sets the
+  master playlist as `src` (native HLS). With native HLS (backlog of
+  M15) the hero would play without Media Source Extensions.
 
 ## Backlog from M13
 
