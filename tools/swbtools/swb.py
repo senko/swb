@@ -48,11 +48,14 @@ def record_missing_command(swb: Path, fixture: Path, url: str) -> list[str]:
     return [str(swb), "--headless", "--record-missing", str(fixture), url]
 
 
-def replay_options(swb: Path, fixture: Path, viewport: tuple[int, int]) -> list[str]:
+def replay_options(
+    swb: Path, fixture: Path, viewport: tuple[int, int], animations: bool = False
+) -> list[str]:
     """The start of a command line that serves all requests from the fixture
     and uses the test fonts and the viewport size. `compare` and `perf` use
     the same settings. Animations are off, as in Chromium's references
-    (docs/testing.md, "Animations in the references")."""
+    (docs/testing.md, "Animations in the references"), unless `animations`
+    (the exit test of videojs.org runs with them on)."""
     width, height = viewport
     return [
         str(swb),
@@ -62,8 +65,7 @@ def replay_options(swb: Path, fixture: Path, viewport: tuple[int, int]) -> list[
         "--test-fonts",
         "--size",
         f"{width}x{height}",
-        "--animations",
-        "off",
+        *([] if animations else ["--animations", "off"]),
     ]
 
 

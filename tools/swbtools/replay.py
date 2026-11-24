@@ -42,6 +42,13 @@ record before, for the load and for each group:
 `--chromium-arg ARG` (M12, repeatable) adds a flag to Chromium's launch, for
 example `--chromium-arg=--disable-3d-apis` (a Chromium without WebGL; use the
 `=` form for a value that starts with `--`).
+
+`--animations on` (M13 feature 6) leaves the page's CSS animations and
+transitions on: no kill sheet after the load, screenshots with Playwright's
+`animations: "allow"` (the default `off` injects the sheet and uses
+`"disabled"`, which finishes finite animations). The records and screenshots
+then depend on the time; a test seeks the animations (`pause()` and
+`currentTime`) in its setup script and steps.
 """
 
 import asyncio
@@ -144,10 +151,13 @@ def pixel_observer(
     wanted: list[str],
     points: dict[str, tuple[int, int]],
     samples: dict[str, dict[str, list[int]]],
+    animations: bool = False,
 ) -> Observer:
     """An observer that saves screenshots into `screenshots` and reads the
     `points` after the groups in `wanted` into `samples`. `names` are the
-    group names in order."""
+    group names in order. With `animations` the screenshots leave the page's
+    animations as they are (Playwright's `animations: "allow"`; "disabled"
+    finishes the finite ones)."""
     labels = ["load", *names]
     count = 0
 
@@ -157,7 +167,7 @@ def pixel_observer(
         count += 1
         if screenshots is None and label not in wanted:
             return
-        png = await page.screenshot(animations="disabled", caret="hide")
+        png = await page.screenshot(animations="allow" if animations else "disabled", caret="hide")
         if screenshots is not None:
             screenshots.mkdir(parents=True, exist_ok=True)
             slug = re.sub(r"[^a-z0-9]+", "-", labels[index].lower()).strip("-")
@@ -188,6 +198,7 @@ async def replay(
     console: list[str] | None = None,
     missing_by_group: list[list[str]] | None = None,
     chromium_args: Sequence[str] = (),
+    animations: bool = False,
 ) -> tuple[list[Any], list[str], list[str]]:
     """Replays the fixture `name` and returns the records, the requested
     URLs that the fixture does not have, and the console errors and
@@ -197,7 +208,10 @@ async def replay(
     scripts; every console message of every frame goes to `console`.
     `missing_by_group` gets one list per record (after the load, then after
     each group): the URLs that the fixture lacked since the record before.
-    `chromium_args` are added to Chromium's command line."""
+    `chromium_args` are added to Chromium's command line. With `animations`
+    the page's animations and transitions stay on (the default injects the
+    kill sheet of `browser.stop_animations` after the load); `observer`
+    takes the screenshots accordingly."""
     directory = paths.js_fixture_dir(name)
     meta = read_meta(directory)
     replayer = Replayer(Fixture(directory))
@@ -250,7 +264,7 @@ async def replay(
                     "exception  :0  " + str(error).replace("\\", "\\\\").replace("\n", "\\n")
                 ),
             )
-        await load_settled_js(page, meta.url)
+        await load_settled_js(page, meta.url, animations)
         if setup:
             await page.evaluate(setup)
         records.append(await evaluate_record(page, record))
@@ -281,6 +295,7 @@ def replay_command(
     console_out: Path | None = None,
     missing_out: Path | None = None,
     chromium_args: Sequence[str] = (),
+    animations: bool = False,
 ) -> int:
     """Runs `replay` and writes the records (JSON, indent 1) to `out` or
     stdout. Logs the missing URLs and the page's errors. With `pixels` and
@@ -288,7 +303,8 @@ def replay_command(
     saves the screenshots; `init_script` and `console_out` are described in
     the module comment; `missing_out` gets the URLs that the fixture lacks
     per record (`[{"label": "load", "missing": [...]}, ...]`); `chromium_args`
-    are flags for Chromium's launch (`--chromium-arg`)."""
+    are flags for Chromium's launch (`--chromium-arg`); `animations` is
+    `--animations on` (see `replay`)."""
     named = read_step_groups(steps)
     groups = [group for _, group in named]
     names = [name for name, _ in named]
@@ -316,7 +332,7 @@ def replay_command(
         if repeated:
             log.error("--pixels: %r names more than one group in %s", repeated[0], steps)
             return 2
-        observer = pixel_observer(names, screenshots, wanted, points, samples)
+        observer = pixel_observer(names, screenshots, wanted, points, samples, animations)
     try:
         records, missing, errors = asyncio.run(
             asyncio.wait_for(
@@ -333,6 +349,7 @@ def replay_command(
                     console,
                     by_group,
                     chromium_args,
+                    animations,
                 ),
                 REPLAY_TIMEOUT_S,
             )

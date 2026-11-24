@@ -727,8 +727,8 @@ animated custom properties through 1,000 levels of inheritance.
 - **Tolerances**: the text without numbers must be equal; numbers compare
   with a relative tolerance of 1e-5 or an absolute one of 1e-4 (Chromium
   prints 6 significant digits; `2.22045e-16` and `6.12323e-17` are both
-  0); color channels of 0 to 255 by 1; pixels by 2 per channel (the probe
-  tool's rule). Rows that read real time print `~` already.
+  0); color channels of 0 to 255 by 1, the alpha by 1/255 (feature 6;
+  before, 0.5/255); pixels by 2 per channel (the probe tool's rule). Rows that read real time print `~` already.
 - **Pixels at seek times**: the `pixels` rows of `hero-reveal`, `shimmer`
   and the transition cases run with `probe --with-swb`, and the exit test
   (feature 6) samples the page's animations at fixed seek times.
@@ -2502,6 +2502,86 @@ computes its after-change style from the kept style). Without the reads:
 34 / 181 and 39 / 38. The pages of the first review, `perf videojs
 hacker-news --runs 5`, `--bench 3` on the fixtures and the GUI
 (`videojs-page`) are equal within noise.
+
+### 21. Done in feature 6
+
+Feature 6 is the exit test of videojs.org
+(`crates/automation/tests/videojs.rs`, roadmap M13). It found these
+defects of swb; each is fixed with a probe row (Chromium 148, three equal
+runs) and a test.
+
+*Vendor-prefixed `hyphens`.* `-webkit-hyphens`, `-moz-hyphens` and
+`-ms-hyphens` were aliases of `hyphens`; Chromium 148 has none of them
+(probe `vendor-hyphens` of `tools/probes/css-videojs-6.json`). Tailwind's
+`@supports (-webkit-hyphens: none) and not (margin-trim: inline)` fallback
+for Safari therefore applied in swb, and its `*{--tw-scale-x: 1, ...}` in
+`@layer properties` beat the utilities: a popup's open transition started
+at scale 1 where Chromium starts at 0.95. The aliases are gone from the
+property table and the CSSOM.
+
+*The set of completed transitions* (CSS Transitions 2,
+[starting of transitions](https://drafts.csswg.org/css-transitions-2/#starting)).
+Three defects of feature 5, found once the test stopped reading the style
+after a script's `finish()`:
+
+- A transition that a script finished (or seeked to its end) and that the
+  next style change event finds in its after phase now puts its end value
+  in the set, as a transition that ended by time does. Before, the
+  before-change style still held the old animated value, and the event
+  started a transition from it (probe row `finish-then-style-change`:
+  Chromium starts none). A property with a completed transition is also a
+  candidate where the before-change style holds the after-change value:
+  `finish()` and then the old class again starts a transition from the end
+  value back (rows `finish-then-restore`, `finish-read-then-restore`,
+  `seek-end-then-restore`; found by the second review).
+- The set ends at every style change event of the element, also one whose
+  after-change style has no transitions (`transition: none`). The page's
+  spring sets `transition: none` for the pull and a transition for the
+  release; a stale end value of the first release made the second release
+  start none (probe row `release-twice`). `may_animate` answers yes for an
+  element with completed transitions in a style change event, and
+  `transition_effects` forgets them when the event has nothing else to do.
+- The cascade of an element with container units runs twice in one event,
+  and a style pass can follow a restyle of the animations, with the same
+  before-change style. The first run consumes the set and drops the
+  finished records, so the second run started a transition from the stale
+  value. `DocumentAnimations::repeated` keeps the set that the last event
+  of an element used, with its before-change style (`Arc`); a run with the
+  same `Arc` uses it again. The `Arc` keeps the style alive, so its address
+  cannot come back for another style (a first version that kept only the
+  address failed one run in three). An element that leaves the document,
+  or whose next event has nothing to do, drops its set.
+
+*The used color scheme.* A change of the used color scheme
+([Color Adjust 1 §2](https://www.w3.org/TR/css-color-adjust-1/#color-scheme-prop))
+starts a transition of `color` from a value to the equal value on every
+element whose `transition-property` names `color` or is `all`, and of no
+other property (probe rows `color-scheme-*`: `color-scheme: light only` to
+`dark` gives keyframes `rgb(255, 255, 255)` to `rgb(255, 255, 255)`;
+`light` to `light dark` changes no used scheme and starts none).
+videojs.org's theme change sets `.dark { color-scheme: dark }`, so the
+player's buttons start such transitions. `sync_transitions` compares the
+used schemes of the before- and after-change styles (with the user's
+preference; the page's `color-scheme` meta is not read, backlog) and
+treats `color` as changed.
+
+*Focus by script.* A script's `focus()` or `blur()` did not schedule a
+rendering update, so the transitions of `:focus-visible` rules started at
+the next read of the styles (probe row
+`blur-by-script-starts-transition`). The engine now schedules one when a
+script request leaves the styles stale.
+
+*Test tolerances* (section 12). `getComputedStyle` of a color in the
+middle of an interpolation: Chromium writes `rgba(r, g, b, 1)` where the
+alpha rounds to 1 (swb: `rgb(r, g, b)`) and a float alpha where swb keeps
+the 8-bit value (alpha 71 is `0.28` in swb, `0.277837` in Chromium).
+`tests/common/animation_values.rs` treats the two forms as equal and
+compares alphas within one 8-bit step (1/255).
+
+*Wheel handlers* (ADR 0028, "Wheel and scroll"): with only passive
+`wheel` listeners on the path, the page scrolls before the event; the
+page's spring reads the new `scrollY` in its passive listener and starts
+at the same wheel as in Chromium.
 
 ## Consequences
 

@@ -1,0 +1,870 @@
+[
+ {
+  "name": "first view",
+  "steps": [
+   {
+    "eval": "window.__rects = true; window.__values = true; window.__targets = true"
+   },
+   {
+    "wait": 1000
+   }
+  ]
+ },
+ {
+  "name": "reveal before delay",
+  "steps": [
+   {
+    "eval": "__seek('hero', -100)"
+   }
+  ]
+ },
+ {
+  "name": "reveal start",
+  "steps": [
+   {
+    "eval": "__seek('hero', 0)"
+   }
+  ]
+ },
+ {
+  "name": "reveal middle",
+  "steps": [
+   {
+    "eval": "__seek('hero', 550)"
+   }
+  ]
+ },
+ {
+  "name": "reveal near end",
+  "steps": [
+   {
+    "eval": "__seek('hero', 1050)"
+   }
+  ]
+ },
+ {
+  "name": "reveal end",
+  "steps": [
+   {
+    "eval": "__finishKind('CSSAnimation', 'hero')"
+   }
+  ]
+ },
+ {
+  "name": "rectangles off",
+  "steps": [
+   {
+    "eval": "window.__rects = false"
+   }
+  ]
+ },
+ {
+  "name": "hover blog start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "hover": "nav a[href=\"/blog\"]:visible >> nth=0"
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "hover blog middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "hover blog near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "hover docs start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "hover": "nav a[data-ph-capture-attribute-destination=\"docs\"]:visible >> nth=0"
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "hover docs middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "hover docs near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "hover github start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "hover": "nav a[href*=\"github.com\"]:visible >> nth=0"
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "hover github middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "hover github near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "hover search start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "hover": ".DocSearch-Button"
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "hover search middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "hover search near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "hover away start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "hover": [640, 780]
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "hover away middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "hover away near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "tab 1 start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "tab 1 middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "tab 1 near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "tab 2 start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "tab 2 middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "tab 2 near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "tab 3 start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "tab 3 middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "tab 3 near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "tab 4 start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "tab 4 middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "tab 4 near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "focus container start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "focus container middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "focus container near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "focus away start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "eval": "document.activeElement.blur()"
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "focus away middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "focus away near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "hover video start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "hover": [640, 300]
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "hover video middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "hover video near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "hover play start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "hover": ".media-play-button:visible >> nth=-1"
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "hover play middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "hover play near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "hover time slider start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "hover": ".media-time-slider"
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "hover time slider middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "hover time slider near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "hover settings start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "hover": ".media-settings-menu-trigger"
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "hover settings middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "hover settings near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "hover player away start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "hover": [640, 780]
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "hover player away middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "hover player away near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "appearance open start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "click": "button[aria-label=\"Appearance\"]"
+   },
+   {
+    "wait": 60
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "appearance open middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "appearance open near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "appearance hover start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "hover": "div[role=\"group\"].grid > button >> nth=1"
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "appearance hover middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "appearance hover near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "theme dark start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "click": "div[role=\"group\"].grid > button >> nth=2"
+   },
+   {
+    "wait": 60
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "theme dark middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "theme dark near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "theme light start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "click": "div[role=\"group\"].grid > button >> nth=0"
+   },
+   {
+    "wait": 60
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "theme light middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "theme light near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "appearance close start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "key": "Escape"
+   },
+   {
+    "wait": 60
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "appearance close middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "appearance close near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "bars start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "hover": [640, 400]
+   },
+   {
+    "wheel": [0, 600]
+   },
+   {
+    "wait": 400
+   },
+   {
+    "wheel": [0, 400]
+   },
+   {
+    "wait": 100
+   },
+   {
+    "eval": "__seekFraction('CSSAnimation', 'grow-bar', 0)"
+   }
+  ]
+ },
+ {
+  "name": "bars middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSAnimation', 'grow-bar', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "bars near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSAnimation', 'grow-bar', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "bars end",
+  "steps": [
+   {
+    "eval": "__finishKind('CSSAnimation', 'grow-bar')"
+   }
+  ]
+ },
+ {
+  "name": "marquee start",
+  "steps": [
+   {
+    "eval": "__seek('marquee', 0)"
+   }
+  ]
+ },
+ {
+  "name": "marquee middle",
+  "steps": [
+   {
+    "eval": "__seek('marquee', 15000)"
+   }
+  ]
+ },
+ {
+  "name": "marquee near end",
+  "steps": [
+   {
+    "eval": "__seek('marquee', 29900)"
+   }
+  ]
+ },
+ {
+  "name": "marquee second iteration",
+  "steps": [
+   {
+    "eval": "__seek('marquee', 30100)"
+   }
+  ]
+ },
+ {
+  "name": "page end",
+  "steps": [
+   {
+    "wheel": [0, 700]
+   },
+   {
+    "wait": 500
+   },
+   {
+    "wheel": [0, 700]
+   },
+   {
+    "wait": 500
+   },
+   {
+    "wheel": [0, 700]
+   },
+   {
+    "wait": 1000
+   }
+  ]
+ },
+ {
+  "name": "spring start",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "wheel": [0, 120]
+   },
+   {
+    "wheel": [0, 120]
+   },
+   {
+    "wheel": [0, 120]
+   },
+   {
+    "wait": 250
+   },
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0)"
+   }
+  ]
+ },
+ {
+  "name": "spring middle",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.5)"
+   }
+  ]
+ },
+ {
+  "name": "spring near end",
+  "steps": [
+   {
+    "eval": "__seekFraction('CSSTransition', '', 0.95)"
+   }
+  ]
+ },
+ {
+  "name": "spring end",
+  "steps": [
+   {
+    "eval": "__finish()"
+   },
+   {
+    "wait": 100
+   }
+  ]
+ }
+]

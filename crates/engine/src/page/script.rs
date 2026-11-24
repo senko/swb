@@ -754,6 +754,12 @@ impl Page {
             // The content under the pointer may have changed.
             self.note_hover_stale();
         }
+        if self.doc.as_deref().is_some_and(|d| d.styles_stale) {
+            // A script changed the focus: the `:focus` and `:focus-visible`
+            // rules start transitions in the next frame, with no read of the
+            // styles (probe row `blur-by-script-starts-transition`).
+            self.note_animation_styles();
+        }
         self.apply_state_changes(requests.state_changes);
         if let Some(node) = requests.scroll_into_view {
             self.scroll_into_view(node);

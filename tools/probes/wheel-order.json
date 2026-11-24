@@ -1,0 +1,620 @@
+{
+ "viewport": [
+  400,
+  300
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "wheel-win-default",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; const L=(n)=>()=>window.log.push(n+'='+Math.round(scrollY)); const e=document.getElementById('e'); addEventListener('wheel',L('w')); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "wheel-win-passive-true",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; const L=(n)=>()=>window.log.push(n+'='+Math.round(scrollY)); const e=document.getElementById('e'); addEventListener('wheel',L('w'),{passive:true}); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "wheel-win-nonpassive",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; const L=(n)=>()=>window.log.push(n+'='+Math.round(scrollY)); const e=document.getElementById('e'); addEventListener('wheel',L('w'),{passive:false}); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "wheel-doc-default",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; const L=(n)=>()=>window.log.push(n+'='+Math.round(scrollY)); const e=document.getElementById('e'); document.addEventListener('wheel',L('d')); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "wheel-body-default",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; const L=(n)=>()=>window.log.push(n+'='+Math.round(scrollY)); const e=document.getElementById('e'); document.body.addEventListener('wheel',L('b')); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "wheel-el-default",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; const L=(n)=>()=>window.log.push(n+'='+Math.round(scrollY)); const e=document.getElementById('e'); e.addEventListener('wheel',L('e')); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "wheel-el-passive-true",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; const L=(n)=>()=>window.log.push(n+'='+Math.round(scrollY)); const e=document.getElementById('e'); e.addEventListener('wheel',L('e'),{passive:true}); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "wheel-el-default-target-elsewhere",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; const L=(n)=>()=>window.log.push(n+'='+Math.round(scrollY)); const e=document.getElementById('e'); document.getElementById('t').addEventListener('wheel',L('t')); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "wheel-win-default+el-nonpassive",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; const L=(n)=>()=>window.log.push(n+'='+Math.round(scrollY)); const e=document.getElementById('e'); addEventListener('wheel',L('w'));e.addEventListener('wheel',L('e'),{passive:false}); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "wheel-700-h1500",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:1500px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; addEventListener('wheel',(e)=>window.log.push('w'+e.deltaY+'@'+Math.round(scrollY)+'/'+Math.round(document.documentElement.scrollHeight-innerHeight))); addEventListener('scroll',()=>window.log.push('s'+Math.round(scrollY))); })()"
+    },
+    {
+     "wheel": [
+      0,
+      700
+     ]
+    },
+    {
+     "wait": 500
+    },
+    {
+     "wheel": [
+      0,
+      700
+     ]
+    },
+    {
+     "wait": 500
+    },
+    {
+     "wheel": [
+      0,
+      700
+     ]
+    },
+    {
+     "wait": 1000
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "wheel-order-3-paced",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; const L=(n)=>()=>window.log.push(n+'='+Math.round(scrollY)); const e=document.getElementById('e');\n addEventListener('wheel',L('win-default'));\n addEventListener('wheel',L('win-nonpassive'),{passive:false});\n addEventListener('wheel',L('win-passive'),{passive:true});\n document.addEventListener('wheel',L('doc-default'));\n document.addEventListener('wheel',L('doc-nonpassive'),{passive:false});\n document.body.addEventListener('wheel',L('body-default'));\n e.addEventListener('wheel',L('el-default'));\n e.addEventListener('wheel',L('el-nonpassive'),{passive:false});\n e.addEventListener('wheel',L('el-passive'),{passive:true});\n addEventListener('scroll',L('scroll'));\n})()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 200
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 200
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "onwheel-win-idl",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; window.L=(n)=>(ev)=>window.log.push(n+'='+Math.round(scrollY)+(ev&&ev.cancelable?'c':'n')); const e=document.getElementById('e'); window.onwheel=L('w'); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')+' end='+Math.round(scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "onwheel-doc-idl",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; window.L=(n)=>(ev)=>window.log.push(n+'='+Math.round(scrollY)+(ev&&ev.cancelable?'c':'n')); const e=document.getElementById('e'); document.onwheel=L('d'); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')+' end='+Math.round(scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "onwheel-body-idl",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; window.L=(n)=>(ev)=>window.log.push(n+'='+Math.round(scrollY)+(ev&&ev.cancelable?'c':'n')); const e=document.getElementById('e'); document.body.onwheel=L('b'); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')+' end='+Math.round(scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "onwheel-el-idl",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; window.L=(n)=>(ev)=>window.log.push(n+'='+Math.round(scrollY)+(ev&&ev.cancelable?'c':'n')); const e=document.getElementById('e'); e.onwheel=L('e'); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')+' end='+Math.round(scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "onwheel-body-attr",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body onwheel=\"log.push('b='+Math.round(scrollY))\"><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; window.L=(n)=>(ev)=>window.log.push(n+'='+Math.round(scrollY)+(ev&&ev.cancelable?'c':'n')); const e=document.getElementById('e');  })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')+' end='+Math.round(scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "onwheel-el-attr",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e onwheel=\"log.push('e='+Math.round(scrollY))\"></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; window.L=(n)=>(ev)=>window.log.push(n+'='+Math.round(scrollY)+(ev&&ev.cancelable?'c':'n')); const e=document.getElementById('e');  })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')+' end='+Math.round(scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "onwheel-el-attr-syntaxerr",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e onwheel=\"if(\"></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; window.L=(n)=>(ev)=>window.log.push(n+'='+Math.round(scrollY)+(ev&&ev.cancelable?'c':'n')); const e=document.getElementById('e'); window.onerror=()=>{log.push('err='+Math.round(scrollY))}; })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')+' end='+Math.round(scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "onwheel-null-after-idl",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; window.L=(n)=>(ev)=>window.log.push(n+'='+Math.round(scrollY)+(ev&&ev.cancelable?'c':'n')); const e=document.getElementById('e'); window.onwheel=L('w'); window.onwheel=null; addEventListener('wheel',L('x')); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')+' end='+Math.round(scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "onwheel-body-attr-set-later",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; document.body.setAttribute('onwheel', \"log.push('b='+Math.round(scrollY))\"); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')+' end='+Math.round(scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "onwheel-html-attr-parsed",
+   "html": "<!DOCTYPE html><html onwheel=\"log.push('h='+Math.round(scrollY))\"><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')+' end='+Math.round(scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "onwheel-html-attr-set-later",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; document.documentElement.setAttribute('onwheel', \"log.push('h='+Math.round(scrollY))\"); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')+' end='+Math.round(scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "onwheel-body-attr-parsed-then-reset",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body onwheel=\"log.push('b='+Math.round(scrollY))\"><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; document.body.setAttribute('onwheel', \"log.push('b2='+Math.round(scrollY))\"); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')+' end='+Math.round(scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "onwheel-body-attr-parsed-removed-set",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body onwheel=\"log.push('b='+Math.round(scrollY))\"><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; document.body.removeAttribute('onwheel'); document.body.setAttribute('onwheel', \"log.push('b3='+Math.round(scrollY))\"); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')+' end='+Math.round(scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "onwheel-new-body-attr",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#e{height:200px;background:#ccc}#t{height:3000px}</style></head><body><div id=e></div><div id=t></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log=[]; const b=document.createElement('body'); b.setAttribute('onwheel', \"log.push('nb='+Math.round(scrollY))\"); b.innerHTML='<div style=height:3000px></div>'; document.body.replaceWith(b); })()"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')+' end='+Math.round(scrollY)"
+    }
+   ]
+  }
+ ]
+}

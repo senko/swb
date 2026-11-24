@@ -1,0 +1,250 @@
+[
+ {
+  "name": "first view",
+  "steps": [
+   {
+    "eval": "window.__events = true"
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "hover search button",
+  "steps": [
+   {
+    "hover": ".DocSearch-Button"
+   },
+   {
+    "wait": 400
+   },
+   {
+    "hover": [640, 780]
+   },
+   {
+    "wait": 400
+   }
+  ]
+ },
+ {
+  "name": "hover nav links without transitions",
+  "steps": [
+   {
+    "hover": "nav a[href=\"/blog\"]:visible >> nth=0"
+   },
+   {
+    "wait": 400
+   },
+   {
+    "hover": "nav a[data-ph-capture-attribute-destination=\"docs\"]:visible >> nth=0"
+   },
+   {
+    "wait": 400
+   },
+   {
+    "hover": "nav a[href*=\"github.com\"]:visible >> nth=0"
+   },
+   {
+    "wait": 400
+   },
+   {
+    "hover": [640, 780]
+   },
+   {
+    "wait": 400
+   }
+  ]
+ },
+ {
+  "name": "tab to the search button",
+  "steps": [
+   {
+    "key": "Tab"
+   },
+   {
+    "wait": 300
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "wait": 300
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "wait": 300
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "wait": 400
+   }
+  ]
+ },
+ {
+  "name": "tab to the player controls",
+  "steps": [
+   {
+    "key": "Tab"
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "key": "Tab"
+   },
+   {
+    "eval": "document.activeElement.blur()"
+   },
+   {
+    "wait": 400
+   }
+  ]
+ },
+ {
+  "name": "hover player controls",
+  "steps": [
+   {
+    "hover": [640, 300]
+   },
+   {
+    "wait": 500
+   },
+   {
+    "hover": ".media-play-button:visible >> nth=-1"
+   },
+   {
+    "wait": 500
+   },
+   {
+    "hover": ".media-time-slider"
+   },
+   {
+    "wait": 500
+   },
+   {
+    "hover": ".media-settings-menu-trigger"
+   },
+   {
+    "wait": 500
+   },
+   {
+    "hover": [640, 780]
+   },
+   {
+    "wait": 800
+   }
+  ]
+ },
+ {
+  "name": "appearance menu",
+  "steps": [
+   {
+    "click": "button[aria-label=\"Appearance\"]"
+   },
+   {
+    "wait": 600
+   },
+   {
+    "hover": "div[role=\"group\"].grid > button >> nth=1"
+   },
+   {
+    "wait": 300
+   },
+   {
+    "click": "div[role=\"group\"].grid > button >> nth=2"
+   },
+   {
+    "wait": 800
+   },
+   {
+    "click": "div[role=\"group\"].grid > button >> nth=0"
+   },
+   {
+    "wait": 800
+   },
+   {
+    "key": "Escape"
+   },
+   {
+    "wait": 800
+   }
+  ]
+ },
+ {
+  "name": "scroll to the bars",
+  "steps": [
+   {
+    "hover": [640, 400]
+   },
+   {
+    "wheel": [0, 600]
+   },
+   {
+    "wait": 400
+   },
+   {
+    "wheel": [0, 400]
+   },
+   {
+    "wait": 2500
+   },
+   {
+    "wait": 1500
+   }
+  ]
+ },
+ {
+  "name": "scroll to the page end",
+  "steps": [
+   {
+    "wheel": [0, 700]
+   },
+   {
+    "wait": 500
+   },
+   {
+    "wheel": [0, 700]
+   },
+   {
+    "wait": 500
+   },
+   {
+    "wheel": [0, 700]
+   },
+   {
+    "wait": 1000
+   }
+  ]
+ },
+ {
+  "name": "overscroll spring",
+  "steps": [
+   {
+    "wheel": [0, 120]
+   },
+   {
+    "wheel": [0, 120]
+   },
+   {
+    "wheel": [0, 120]
+   },
+   {
+    "wait": 150
+   },
+   {
+    "wait": 1000
+   }
+  ]
+ }
+]

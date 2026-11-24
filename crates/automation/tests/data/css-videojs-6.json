@@ -1,0 +1,59 @@
+{
+ "starting-style-layers": [
+  "0.95 | 95% | 0"
+ ],
+ "supports-condition-alone": [
+  "none | "
+ ],
+ "supports-tailwind-fallback": [
+  "false false false false false false false false true false"
+ ],
+ "vendor-hyphens": [
+  "-webkit-hyphens:false:manual: | -moz-hyphens:false:manual: | -ms-hyphens:false:manual: | hyphens:true:auto:hyphens: auto;"
+ ],
+ "finish-then-style-change": [
+  "0 | "
+ ],
+ "finish-flush-then-style-change": [
+  "0 | "
+ ],
+ "finish-then-hover": [
+  "0 | "
+ ],
+ "release-twice": [
+  "first:running:transform | idle: | second:running:transform"
+ ],
+ "color-scheme-button-inherit": [
+  "color rgb(255, 255, 255)"
+ ],
+ "color-scheme-div-all": [
+  "color rgb(255, 255, 255)"
+ ],
+ "color-scheme-div-explicit": [
+  "color rgb(255, 255, 255)"
+ ],
+ "color-scheme-normal-dark": [
+  "color rgb(255, 255, 255)"
+ ],
+ "color-scheme-light-lightdark": [
+  " rgb(255, 255, 255)"
+ ],
+ "color-scheme-same": [
+  " rgb(255, 255, 255)"
+ ],
+ "color-scheme-dark-light": [
+  "color rgb(255, 255, 255)"
+ ],
+ "blur-by-script-starts-transition": [
+  "transitionrun:outline-color transitionrun:outline-offset transitionend:outline-color transitionend:outline-offset transitionrun:outline-color transitionrun:outline-offset transitionend:outline-color transitionend:outline-offset"
+ ],
+ "finish-then-restore": [
+  "0 | running:opacity | 0.5"
+ ],
+ "finish-read-then-restore": [
+  "0 | running:opacity | 0.5"
+ ],
+ "seek-end-then-restore": [
+  "0 | running:opacity | 0.5"
+ ]
+}

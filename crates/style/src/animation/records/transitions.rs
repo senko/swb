@@ -25,9 +25,12 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::sync::{Arc, LazyLock};
 
-use swb_css::ComponentValue;
+use swb_css::{ColorScheme, ComponentValue};
 
-use super::{AnimationId, AnimationOwner, AnimationPlayState, AnimationRecord, DocumentAnimations};
+use super::{
+    AnimationId, AnimationOwner, AnimationPlayState, AnimationRecord, CompletedSet,
+    DocumentAnimations,
+};
 use crate::ComputedStyle;
 use crate::animation::easing::Easing;
 use crate::animation::interpolate::{
@@ -41,6 +44,7 @@ use crate::animation::visibility::{
     is_composited_property, is_inherited_property, reach_of_property,
 };
 use crate::properties::{ComputedSlot, LonghandId};
+use crate::used_color_scheme;
 use crate::values::Display;
 
 /// The property of a transition.
@@ -288,16 +292,17 @@ static TRANSITIONABLE: LazyLock<Vec<LonghandId>> = LazyLock::new(|| {
 });
 
 /// The candidate longhands of a style change event whose values differ
-/// between `before` and `after`: the longhands that the items of
-/// `transition-property` name (all transitionable longhands for `all`),
-/// without repeats, in the order of the list (of `LonghandId::ALL` for
-/// `all`).
+/// between `before` and `after`, or for which `also` is true: the
+/// longhands that the items of `transition-property` name (all
+/// transitionable longhands for `all`), without repeats, in the order of
+/// the list (of `LonghandId::ALL` for `all`).
 fn changed_longhands(
     list: &TransitionStyle,
     before: &ComputedStyle,
     after: &ComputedStyle,
+    also: &dyn Fn(LonghandId) -> bool,
 ) -> Vec<LonghandId> {
-    let differs = |id: LonghandId| !id.same_value(before, after);
+    let differs = |id: LonghandId| !id.same_value(before, after) || also(id);
     let all = list.properties.contains(&TransitionName::All);
     let mut out: Vec<LonghandId> = Vec::new();
     if all {
@@ -338,15 +343,27 @@ fn changed_longhands(
 }
 
 /// The candidate custom properties of a style change event whose values
-/// differ between `before` and `after`: the ones that the items of
-/// `transition-property` name, without repeats. None when the two maps
-/// are equal (the common case costs one comparison).
+/// differ between `before` and `after`, or that have a completed
+/// transition: the ones that the items of `transition-property` name,
+/// without repeats. None when the two maps are equal and no custom
+/// property has a completed transition (the common case costs one
+/// comparison).
 fn changed_customs(
     list: &TransitionStyle,
     before: &ComputedStyle,
     after: &ComputedStyle,
+    completed: &CompletedSet,
 ) -> Vec<Arc<str>> {
-    if before.custom_properties == after.custom_properties {
+    let completed_custom = |name: &str| {
+        completed
+            .iter()
+            .any(|(t, _)| matches!(t, TransitionTarget::Custom(c) if c.as_ref() == name))
+    };
+    if before.custom_properties == after.custom_properties
+        && !completed
+            .iter()
+            .any(|(t, _)| matches!(t, TransitionTarget::Custom(_)))
+    {
         return Vec::new();
     }
     let mut out: Vec<Arc<str>> = Vec::new();
@@ -356,7 +373,7 @@ fn changed_customs(
             continue;
         };
         if name.starts_with("--")
-            && custom_of(before, name) != custom_of(after, name)
+            && (custom_of(before, name) != custom_of(after, name) || completed_custom(name))
             && seen.insert(name)
         {
             out.push(Arc::clone(name));
@@ -418,9 +435,10 @@ impl DocumentAnimations {
     pub(crate) fn sync_transitions(
         &mut self,
         owner: AnimationOwner,
-        before: Option<&ComputedStyle>,
+        before: Option<&Arc<ComputedStyle>>,
         after: &ComputedStyle,
         children: bool,
+        prefers: ColorScheme,
         animated: &dyn Fn(&TransitionTarget) -> bool,
     ) {
         let list = TransitionStyle::of(after);
@@ -429,7 +447,21 @@ impl DocumentAnimations {
             list,
             children,
         };
-        let completed = self.completed.remove(&owner).unwrap_or_default();
+        let mut completed = self.completed.remove(&owner).unwrap_or_default();
+        // A second run of the event for the same before-change style (the
+        // cascade of an element with container units runs twice; a style
+        // pass can follow a restyle of the animations with no style change
+        // in between) sees the set of completed transitions that the first
+        // one used. The set keeps the style: its address cannot come back
+        // for another style while the set is kept.
+        if let Some((kept, saved)) = self.repeated.remove(&owner)
+            && before.is_some_and(|b| Arc::ptr_eq(b, &kept))
+        {
+            for (target, value) in saved {
+                completed.retain(|(t, _)| *t != target);
+                completed.push((target, value));
+            }
+        }
         let mut handled: HashSet<TransitionTarget> = HashSet::new();
         let mut generation = None;
         if self.transitions.contains_key(&owner) {
@@ -439,12 +471,39 @@ impl DocumentAnimations {
                     handled.insert(target);
                 }
             }
+            // The transitions that this event found completed: their end
+            // values replace older ones of the same property.
+            for (target, value) in self.completed.remove(&owner).unwrap_or_default() {
+                completed.retain(|(old, _)| *old != target);
+                completed.push((target, value));
+            }
         }
         if let Some(before) = before.filter(|b| b.display != Display::None)
             && TransitionStyle::may_transition(after)
         {
-            let longhands = changed_longhands(list, before, after);
-            let customs = changed_customs(list, before, after);
+            // A change of the used color scheme changes `color` for the
+            // transitions even where its value is equal (measured in
+            // Chromium 148, probe rows `scheme-*` of `css-videojs-6.json`:
+            // `color-scheme: light only` to `dark` starts a transition of
+            // `color` from white to white, and of no other property;
+            // `light` to `light dark` changes no used scheme and starts
+            // none). The page's own `color-scheme` meta is not read here.
+            let scheme_changed = used_color_scheme(before.color_scheme.as_deref(), None, prefers)
+                != used_color_scheme(after.color_scheme.as_deref(), None, prefers);
+            // A property with a completed transition is a candidate even
+            // where the before-change style holds the value of the
+            // after-change style: the completed end value is its value
+            // before the change (`finish()`, then the old class again:
+            // Chromium starts a transition back, probe rows
+            // `*-then-restore` of `css-videojs-6.json`).
+            let also = |id: LonghandId| {
+                (scheme_changed && id == LonghandId::Color)
+                    || completed
+                        .iter()
+                        .any(|(t, _)| *t == TransitionTarget::Longhand(id))
+            };
+            let longhands = changed_longhands(list, before, after, &also);
+            let customs = changed_customs(list, before, after, &completed);
             let targets = longhands
                 .into_iter()
                 .map(TransitionTarget::Longhand)
@@ -467,7 +526,9 @@ impl DocumentAnimations {
                     None => value_of(&target, before),
                 };
                 let end = value_of(&target, after);
-                if same(&target, &start, &end)
+                let forced =
+                    scheme_changed && target == TransitionTarget::Longhand(LonghandId::Color);
+                if (!forced && same(&target, &start, &end))
                     || !transitionable(&target, &start, &end, entry.allow_discrete, after)
                 {
                     continue;
@@ -482,6 +543,11 @@ impl DocumentAnimations {
                 };
                 self.start_transition(owner, new, &mut generation, children);
             }
+        }
+        if let Some(before) = before
+            && !completed.is_empty()
+        {
+            self.repeated.insert(owner, (Arc::clone(before), completed));
         }
         if after.display == Display::None {
             let keeps = self.transition_ids_of(owner).iter().any(|id| {
@@ -513,9 +579,16 @@ impl DocumentAnimations {
         let target = state.target.clone();
         let timing = record.computed_timing(time);
         if matches!(timing.phase, Phase::After | Phase::Idle) {
-            // Completed (a script seeked it to its end and paused it): not a
-            // running transition; it goes without an event, and rule 1 sees
-            // the property as any other.
+            // Completed (a script seeked it to its end and paused it, or
+            // finished it): not a running transition; it goes without an
+            // event. Its end value is the before-change value of the
+            // property (a stale animated value in the before-change style
+            // must not start a transition), and an older completed
+            // transition of the property does not count.
+            let end = state.end.clone();
+            let list = self.completed.entry(owner).or_default();
+            list.retain(|(t, _)| *t != target);
+            list.push((target, end));
             self.drop_completed(owner, id);
             return None;
         }
@@ -739,12 +812,28 @@ impl DocumentAnimations {
         self.transitions.contains_key(&owner)
     }
 
+    /// True if `owner` has completed transitions since its last style
+    /// change event.
+    pub(crate) fn has_completed(&self, owner: AnimationOwner) -> bool {
+        !self.completed.is_empty() && self.completed.contains_key(&owner)
+    }
+
     /// Ends the set of completed transitions of `owner` at a style change
     /// event that has nothing else to do (its styles did not change).
     pub(crate) fn forget_completed(&mut self, owner: AnimationOwner) {
         if !self.completed.is_empty() {
             self.completed.remove(&owner);
         }
+        if !self.repeated.is_empty() {
+            self.repeated.remove(&owner);
+        }
+    }
+
+    /// The number of elements whose last style change event kept a set of
+    /// completed transitions for a second run.
+    #[cfg(test)]
+    pub(crate) fn repeated_sets(&self) -> usize {
+        self.repeated.len()
     }
 
     /// Cancels the transitions whose owner has no style now (it left the
@@ -775,6 +864,12 @@ impl DocumentAnimations {
             for owner in gone {
                 self.completed.remove(&owner);
             }
+        }
+        if !self.repeated.is_empty() {
+            // The sets kept for a second run of an event: they hold a style
+            // each, and an element that left keeps none.
+            self.repeated
+                .retain(|&o, _| style_of(o).is_some_and(|s| s.display != Display::None));
         }
         if self.transitions.is_empty() {
             return;

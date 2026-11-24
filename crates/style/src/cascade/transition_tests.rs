@@ -398,6 +398,170 @@ fn a_completed_transition_ends_at_its_end_value() {
 }
 
 #[test]
+fn a_transition_that_a_script_finished_ends_at_its_end_value() {
+    // Probe `finish-then-style-change` (css-videojs-6.json): `finish()` of a
+    // paused transition, then a style change before any restyle. The
+    // before-change style still holds the old animated value (1), but the
+    // finished transition's end value (0) is the one that counts: no new
+    // transition from 1 to 0.
+    let mut f = Fixture::new(
+        BOX,
+        "#a { opacity: 1; transition: opacity 1s linear } #a.on { opacity: 0 }",
+    );
+    f.class("a", "on");
+    let ids = f.transition_ids("a");
+    assert_eq!(ids.len(), 1);
+    {
+        let mut animations = f.animations.borrow_mut();
+        animations.pause(ids[0]);
+        animations.set_current_time(ids[0], 950.0);
+        assert!(animations.finish(ids[0]));
+    }
+    f.class("a", "on x");
+    assert_eq!(f.transitions("a"), []);
+    assert_eq!(f.opacity("a"), 0.0);
+}
+
+#[test]
+fn a_finished_transition_starts_one_back_when_the_old_value_returns() {
+    // Probe rows `finish-then-restore` and `seek-end-then-restore`
+    // (css-videojs-6.json): the before-change style still holds the start
+    // value (1), which equals the after-change value, but the finished
+    // transition's end value (0) is the value before the change: Chromium
+    // starts a transition from 0 to 1.
+    for seek in [false, true] {
+        let mut f = Fixture::new(
+            BOX,
+            "#a { opacity: 1; transition: opacity 1s linear } #a.on { opacity: 0 }",
+        );
+        f.class("a", "on");
+        let ids = f.transition_ids("a");
+        assert_eq!(ids.len(), 1);
+        {
+            let mut animations = f.animations.borrow_mut();
+            if seek {
+                animations.pause(ids[0]);
+                animations.set_current_time(ids[0], 1000.0);
+            } else {
+                assert!(animations.finish(ids[0]));
+            }
+        }
+        f.class("a", "");
+        assert_eq!(
+            f.transitions("a"),
+            [("opacity".to_owned(), 0.0, 1000.0)],
+            "seek {seek}"
+        );
+        assert_eq!(f.opacity("a"), 0.0, "seek {seek}");
+    }
+}
+
+#[test]
+fn the_sets_kept_for_a_second_run_go_with_their_element() {
+    // `DocumentAnimations::repeated` holds a style per element: an element
+    // that leaves the document keeps none.
+    let mut f = Fixture::new(
+        BOX,
+        "#a { opacity: 1; transition: opacity 1s linear } #a.on { opacity: 0 } \
+         #a.x { margin-left: 10px }",
+    );
+    f.class("a", "on");
+    f.tick(0.0);
+    f.tick(2000.0);
+    f.class("a", "on x");
+    assert_eq!(f.animations.borrow().repeated_sets(), 1);
+    f.animations.borrow_mut().retain_transitions(|_| None);
+    assert_eq!(f.animations.borrow().repeated_sets(), 0);
+}
+
+#[test]
+fn a_completed_transition_does_not_outlive_a_style_change_without_transitions() {
+    // The page's overscroll spring: `transition: none` with a value that
+    // changes (a pull), then `transition: opacity 600ms` with the old value
+    // (the release), twice. The completed transition of the first release
+    // ends at the pull, a style change event of an element whose
+    // after-change style has no transitions; if its end value stayed, the
+    // second release would see no change from it.
+    let mut f = Fixture::new(
+        BOX,
+        "#a { opacity: 1 } #a.pull { transition: none; opacity: 0.5 } \
+         #a.rel { transition: opacity 600ms linear; opacity: 1 }",
+    );
+    for round in 0..2 {
+        let base = f64::from(round) * 2000.0;
+        f.tick(base + 0.0);
+        f.class("a", "pull");
+        f.tick(base + 16.0);
+        f.tick(base + 200.0);
+        f.class("a", "rel");
+        assert_eq!(f.transitions("a").len(), 1, "round {round}");
+        f.tick(base + 216.0);
+        f.tick(base + 1000.0);
+        assert_eq!(f.transitions("a"), [], "round {round}");
+        f.tick(base + 1100.0);
+    }
+}
+
+#[test]
+fn a_change_of_the_used_color_scheme_starts_a_color_transition_of_equal_colors() {
+    // Probe rows `color-scheme-*` of css-videojs-6.json: `light only` to
+    // `dark` starts a transition of `color` (white to white) and of no
+    // other property; `light` to `light dark` changes no used scheme.
+    let css = "#a { color: #fff; background-color: #fff; transition: all 1s linear; \
+               color-scheme: light only } #a.dark { color-scheme: dark } \
+               #b { color: #fff; transition: all 1s linear; color-scheme: light } \
+               #b.both { color-scheme: light dark }";
+    let mut f = Fixture::new("<div id=a></div><div id=b></div>", css);
+    f.class("a", "dark");
+    assert_eq!(f.transitions("a"), [("color".to_owned(), 0.0, 1000.0)]);
+    f.class("b", "both");
+    assert_eq!(f.transitions("b"), []);
+}
+
+#[test]
+fn a_repeat_of_a_style_change_event_sees_the_same_completed_transitions() {
+    // The cascade of an element that uses container units runs twice in one
+    // style change event, with the same before-change style. A transition
+    // that a script finished between the styles is dropped by the first run;
+    // the second must still start nothing from the stale animated value of
+    // the before-change style.
+    let mut f = Fixture::new(
+        BOX,
+        "#a { opacity: 1; transition: opacity 1s linear } #a.on { opacity: 0 }",
+    );
+    f.class("a", "on");
+    let ids = f.transition_ids("a");
+    f.tick(0.0);
+    f.tick(100.0);
+    {
+        let mut animations = f.animations.borrow_mut();
+        animations.pause(ids[0]);
+        animations.set_current_time(ids[0], 950.0);
+    }
+    f.tick(116.0);
+    let before = Arc::clone(f.style("a"));
+    assert!(close(before.opacity, 0.05), "{}", before.opacity);
+    f.animations.borrow_mut().finish(ids[0]);
+    let mut after = (**f.style("a")).clone();
+    after.opacity = 0.0;
+    let owner = AnimationOwner {
+        node: node(&f.doc, "a"),
+        pseudo: None,
+    };
+    for _ in 0..2 {
+        f.animations.borrow_mut().sync_transitions(
+            owner,
+            Some(&before),
+            &after,
+            false,
+            swb_css::ColorScheme::Light,
+            &|_| false,
+        );
+        assert_eq!(f.transitions("a"), []);
+    }
+}
+
+#[test]
 fn shorthands_in_transition_property_name_their_longhands() {
     let css = "#a { margin: 0; transition: margin 1s } #a.on { margin: 0 10px }";
     let mut f = Fixture::new(BOX, css);

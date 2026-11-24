@@ -139,6 +139,9 @@ pub(crate) struct StyleChange {
     pub(crate) is_root: bool,
     /// The fix-ups that the owner's style goes through.
     pub(crate) fixup: Fixup,
+    /// The user's color scheme preference (for the used color scheme of
+    /// the before-change and after-change styles).
+    pub(crate) prefers: swb_css::ColorScheme,
 }
 
 /// Whether the style of an element or pseudo-element goes through the
@@ -284,9 +287,13 @@ pub(crate) fn may_animate(target: &AnimationTarget<'_>, base: &ComputedStyle) ->
         }
     }
     target.animations.try_borrow().is_ok_and(|animations| {
-        !animations.is_empty()
-            && (!animations.ids_of(target.owner).is_empty()
-                || animations.has_transitions(target.owner))
+        // A style change event ends the set of completed transitions,
+        // whatever its after-change style is (the records of a completed
+        // transition may be gone).
+        (target.change.is_some() && animations.has_completed(target.owner))
+            || (!animations.is_empty()
+                && (!animations.ids_of(target.owner).is_empty()
+                    || animations.has_transitions(target.owner)))
     })
 }
 
@@ -341,11 +348,14 @@ pub(crate) fn transition_effects(
         };
         animations.sync_transitions(
             target.owner,
-            change.before.as_deref(),
+            change.before.as_ref(),
             after,
             target.children,
+            change.prefers,
             &animated,
         );
+    } else if target.change.is_some() {
+        animations.forget_completed(target.owner);
     }
     if !animations.has_transitions(target.owner) {
         return Vec::new();

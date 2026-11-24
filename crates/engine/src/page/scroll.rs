@@ -135,14 +135,30 @@ impl Page {
                 return scrolled;
             }
         }
-        // With scripts, `wheel` goes first; a listener that cancels it
-        // keeps the page from scrolling.
+        // With scripts: a `wheel` event that a listener can cancel (one on
+        // the path is not passive) goes first, and a cancel keeps the page
+        // from scrolling. With only passive listeners the page scrolls
+        // first and the listeners see the new scroll position (Chromium's
+        // compositor scrolls before the main thread dispatches the event).
+        // The target is the one under the pointer before the scroll.
         let generation = self.dom_generation();
-        if self.script_input() && !self.scripted_wheel(Point::new(x, y), dx, dy) {
+        let point = Point::new(x, y);
+        let target = if self.script_input() {
+            self.target_at(point)
+        } else {
+            None
+        };
+        let blocking = target.is_some_and(|t| self.wheel_is_blocking(t));
+        if let Some(t) = target.filter(|_| blocking)
+            && !self.fire_wheel(t, point, dx, dy)
+        {
             return generation != self.dom_generation();
         }
         let start = self.hit_doc(x, y).map(|h| h.node);
         let scrolled = self.user_scroll(start, |_| (dx, dy), (dx, dy));
+        if let Some(t) = target.filter(|_| !blocking) {
+            self.fire_wheel(t, point, dx, dy);
+        }
         // Listeners may have changed the page as well.
         scrolled || generation != self.dom_generation()
     }

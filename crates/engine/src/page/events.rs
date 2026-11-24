@@ -654,11 +654,33 @@ impl Page {
 
     /// `wheel` (UI Events <https://www.w3.org/TR/uievents/#event-type-wheel>)
     /// at `point` with the deltas in CSS px. Returns false if a
-    /// listener canceled it (the page does not scroll).
+    /// listener canceled it (the page does not scroll). The wheel in frame
+    /// documents uses it before the scroll, also for passive listeners
+    /// (backlog; [`Page::wheel`] has Chromium's order).
     pub(super) fn scripted_wheel(&mut self, point: Point, dx: f32, dy: f32) -> bool {
         let Some(target) = self.target_at(point) else {
             return true;
         };
+        self.fire_wheel(target, point, dx, dy)
+    }
+
+    /// True if a `wheel` listener on the path from `target` to the window is
+    /// not passive: `passive: false`, a listener of another target without
+    /// `passive`, or a content attribute handler that the parser set (the
+    /// window, the document, the root element and the body listen passively
+    /// by default, also through `onwheel` set by a script). Chromium
+    /// dispatches the event first only then, and the listener can cancel
+    /// the scroll; otherwise the page scrolls first and the listeners see
+    /// the new scroll position (measured with
+    /// `tools/probes/wheel-order.json`).
+    pub(super) fn wheel_is_blocking(&mut self, target: NodeId) -> bool {
+        self.run_task(|script| script.has_blocking_listener(target, "wheel"))
+            .unwrap_or(false)
+    }
+
+    /// Fires `wheel` at `target`, which was found at `point` before any
+    /// scrolling. Returns false if a listener canceled it.
+    pub(super) fn fire_wheel(&mut self, target: NodeId, point: Point, dx: f32, dy: f32) -> bool {
         let mut event = self.mouse_event("wheel", target, point, None, 0, 0, (0.0, 0.0));
         event.delta = (f64::from(dx), f64::from(dy));
         event.pointer_id = 0;

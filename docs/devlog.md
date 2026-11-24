@@ -4,6 +4,32 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-24: M13 feature 6, the exit test of videojs.org
+
+- `crates/automation/tests/videojs.rs` checks the owner's list of M13
+  against Chromium's replay with the page's animations on: the first view
+  (rectangles, texts, pixel points), the animations and transitions at
+  sampled times (every animation paused and seeked to 0, 0.5 and 0.95 of
+  its duration), the events in order, the console, and the first view
+  with JavaScript off. 618 problems without the departures file; the
+  departures left are media (M14, M15), PostHog's bot warning, the theme
+  swatches (a listed departure of feature 5) and `scrollbar-color`.
+- The test found five defects in swb, all fixed: vendor-prefixed
+  `hyphens` aliases (Tailwind's Safari fallback applied), three cases of
+  the set of completed transitions after a script's `finish()`, the
+  `color` transition at a change of the used color scheme, a missing frame
+  after a script's `blur()`, and the order of `wheel` and the scroll
+  (with only passive listeners, Chromium scrolls first).
+- Lessons: a test helper can hide a bug (the first version read the style
+  after `finish()`, which hid the stale value; a departure for the result
+  was the wrong answer). A departure's cause must be measured, not
+  guessed: the "8-bit color" cause was a color-scheme rule. Sampling
+  groups must wait out the page's own timers (the spring's 180 ms).
+- Budgets met (release, GUI on Xvfb): frame p90 8.7 ms, max after the
+  first paint 27.4 ms, move to frame p90 2 ms, 60 frames per second, idle
+  CPU 0 % at rest and 12 % with the marquee in view; `load` 0.18 s.
+- Next: the M13 maintenance review, then M14 (media playback).
+
 ## 2026-11-24: M13 feature 5, CSS transitions
 
 - ADR 0044, section 20. The `transition-*` longhands are typed values

@@ -229,7 +229,6 @@ fn longhand_alias(name: &str) -> Option<LonghandId> {
         "-webkit-box-sizing" | "-moz-box-sizing" => L::BoxSizing,
         "-webkit-appearance" => L::Appearance,
         "-webkit-user-select" | "-moz-user-select" | "-ms-user-select" => L::UserSelect,
-        "-webkit-hyphens" | "-ms-hyphens" | "-moz-hyphens" => L::Hyphens,
         "-webkit-flex-direction" => L::FlexDirection,
         "-webkit-flex-wrap" => L::FlexWrap,
         "-webkit-flex-grow" => L::FlexGrow,
@@ -1185,6 +1184,20 @@ mod tests {
         assert!(valid("text-underline-offset", "2px"));
     }
 
+    /// Chromium has no vendor-prefixed `hyphens` (probe case `vendor-hyphens`
+    /// of `css-videojs-6.json`); Tailwind's `@supports` fallback for Safari
+    /// and Firefox tests `-webkit-hyphens`, and takes effect where it is
+    /// accepted (M13 feature 6).
+    #[test]
+    fn vendor_prefixed_hyphens_are_not_properties() {
+        for name in ["-webkit-hyphens", "-moz-hyphens", "-ms-hyphens"] {
+            let s = style(&format!("{name}: auto"));
+            assert_eq!(s.hyphens, Hyphens::Manual, "{name}");
+            assert!(!valid(name, "auto"), "{name}");
+        }
+        assert_eq!(style("hyphens: auto").hyphens, Hyphens::Auto);
+    }
+
     #[test]
     fn more_text_properties() {
         let s = style("letter-spacing: 0.1em; word-spacing: 2px; text-indent: -10px hanging");
@@ -1192,9 +1205,7 @@ mod tests {
         assert_eq!(s.word_spacing, 2.0);
         assert_eq!(s.text_indent, px(-10.0));
         assert_eq!(style("letter-spacing: normal").letter_spacing, 0.0);
-        let s = style(
-            "word-wrap: break-word; word-break: break-all; -webkit-hyphens: auto; tab-size: 4",
-        );
+        let s = style("word-wrap: break-word; word-break: break-all; hyphens: auto; tab-size: 4");
         assert_eq!(s.overflow_wrap, OverflowWrap::BreakWord);
         assert_eq!(s.word_break, WordBreak::BreakAll);
         assert_eq!(s.hyphens, Hyphens::Auto);

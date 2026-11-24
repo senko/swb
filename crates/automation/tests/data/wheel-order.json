@@ -1,0 +1,77 @@
+{
+ "wheel-win-default": [
+  "w=100"
+ ],
+ "wheel-win-passive-true": [
+  "w=100"
+ ],
+ "wheel-win-nonpassive": [
+  "w=0"
+ ],
+ "wheel-doc-default": [
+  "d=100"
+ ],
+ "wheel-body-default": [
+  "b=100"
+ ],
+ "wheel-el-default": [
+  "e=0"
+ ],
+ "wheel-el-passive-true": [
+  "e=100"
+ ],
+ "wheel-el-default-target-elsewhere": [
+  ""
+ ],
+ "wheel-win-default+el-nonpassive": [
+  "e=0 w=0"
+ ],
+ "wheel-700-h1500": [
+  "w700@700/1400 s700 w700@1400/1400 s1400 w700@1400/1400"
+ ],
+ "wheel-order-3-paced": [
+  "el-default=0 el-nonpassive=0 el-passive=0 body-default=0 doc-default=0 doc-nonpassive=0 win-default=0 win-nonpassive=0 win-passive=0 scroll=100 el-default=100 el-nonpassive=100 el-passive=100 body-default=100 doc-default=100 doc-nonpassive=100 win-default=100 win-nonpassive=100 win-passive=100 scroll=200 body-default=200 doc-default=200 doc-nonpassive=200 win-default=200 win-nonpassive=200 win-passive=200 scroll=300"
+ ],
+ "onwheel-win-idl": [
+  "w=100n end=100"
+ ],
+ "onwheel-doc-idl": [
+  "d=100n end=100"
+ ],
+ "onwheel-body-idl": [
+  "b=100n end=100"
+ ],
+ "onwheel-el-idl": [
+  "e=0c end=100"
+ ],
+ "onwheel-body-attr": [
+  "b=0 end=100"
+ ],
+ "onwheel-el-attr": [
+  "e=0 end=100"
+ ],
+ "onwheel-el-attr-syntaxerr": [
+  "err=0 end=100"
+ ],
+ "onwheel-null-after-idl": [
+  "x=100n end=100"
+ ],
+ "onwheel-body-attr-set-later": [
+  "b=100 end=100"
+ ],
+ "onwheel-html-attr-parsed": [
+  "h=0 end=100"
+ ],
+ "onwheel-html-attr-set-later": [
+  "h=100 end=100"
+ ],
+ "onwheel-body-attr-parsed-then-reset": [
+  "b2=0 end=100"
+ ],
+ "onwheel-body-attr-parsed-removed-set": [
+  "b3=100 end=100"
+ ],
+ "onwheel-new-body-attr": [
+  "nb=0 end=100"
+ ]
+}

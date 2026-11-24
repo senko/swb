@@ -1,0 +1,9 @@
+[
+ {
+  "type": "warning",
+  "url": "https://videojs.org/ph/static/array.js",
+  "text": "[PostHog.js] Events are being dropped because the user agent looks like a bot. Set `opt_out_useragent_filter: true` to capture them, e.g. in end-to-end tests. Note that logs from `captureLog` are not subject to this filter.",
+  "min": 1,
+  "max": 1
+ }
+]

@@ -77,12 +77,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use common::console;
+use common::departures::Departures;
 use common::{
     PIXEL_TOLERANCE, Recording, fixture, load_at_capture_with, on_page_thread, step_groups, value,
 };
 use serde_json::{Value, json};
 use swb_automation::run_steps;
-use swb_engine::{ConsoleLevel, Page};
+use swb_engine::Page;
 use swb_net::ReplayFetcher;
 
 /// The largest difference, in CSS px, of a coordinate or a size in the
@@ -156,116 +158,6 @@ const NO_TRANSPORT: Sequence = Sequence {
     departures: include_str!("data/osm-zagreb-nt-departures.json"),
 };
 
-/// The differences from Chromium that a sequence accepts, as the file of the
-/// sequence lists them: a list of `{"cause": TEXT, "groups": [NAMES],
-/// "fields": [PREFIXES], "points": [NAMES]}`. A difference of a record is
-/// named `group: FIELD` (a field of the record such as `sidebar`,
-/// `rects.panel[.overlay-layers label #2]` or `outlines.d[0]`); an entry
-/// accepts it if the group is in `groups` (an empty list: every group) and the
-/// name starts with one of the `fields`. A pixel point is accepted if its
-/// name is in `points`.
-///
-/// Each use is counted: a departure whose group or point no longer differs
-/// is a problem, so the list stays exact.
-struct Departures {
-    list: Vec<Departure>,
-    used: BTreeSet<(usize, String)>,
-}
-
-struct Departure {
-    cause: String,
-    groups: Vec<String>,
-    fields: Vec<String>,
-    points: Vec<String>,
-}
-
-impl Departures {
-    fn load(text: &str) -> Self {
-        let entries: Vec<Value> = serde_json::from_str(text).unwrap();
-        let strings = |entry: &Value, key: &str| -> Vec<String> {
-            entry[key]
-                .as_array()
-                .map(|list| {
-                    list.iter()
-                        .map(|s| s.as_str().unwrap().to_owned())
-                        .collect()
-                })
-                .unwrap_or_default()
-        };
-        let list = entries
-            .iter()
-            .map(|entry| Departure {
-                cause: entry["cause"].as_str().unwrap().to_owned(),
-                groups: strings(entry, "groups"),
-                fields: strings(entry, "fields"),
-                points: strings(entry, "points"),
-            })
-            .collect();
-        Departures {
-            list,
-            used: BTreeSet::new(),
-        }
-    }
-
-    /// True if a departure accepts the difference `field` of `group`.
-    fn accepts_field(&mut self, group: &str, field: &str) -> bool {
-        let found = self.list.iter().position(|d| {
-            (d.groups.is_empty() || d.groups.iter().any(|g| g == group))
-                && d.fields.iter().any(|prefix| field.starts_with(prefix))
-        });
-        if let Some(at) = found {
-            self.used.insert((at, group.to_owned()));
-        }
-        found.is_some()
-    }
-
-    /// True if a departure accepts the pixel point `name`.
-    fn accepts_point(&mut self, name: &str) -> bool {
-        let found = self
-            .list
-            .iter()
-            .position(|d| d.points.iter().any(|p| p == name));
-        if let Some(at) = found {
-            self.used.insert((at, name.to_owned()));
-        }
-        found.is_some()
-    }
-
-    /// The departures (or their groups and points) that no difference used.
-    fn unused(&self) -> Vec<String> {
-        let mut found = Vec::new();
-        for (at, d) in self.list.iter().enumerate() {
-            let seen = |key: &String| self.used.contains(&(at, key.clone()));
-            if !d.fields.is_empty() {
-                let stale: Vec<&String> = if d.groups.is_empty() {
-                    let any = self.used.iter().any(|(i, _)| *i == at);
-                    if any {
-                        vec![]
-                    } else {
-                        d.fields.iter().collect()
-                    }
-                } else {
-                    d.groups.iter().filter(|g| !seen(g)).collect()
-                };
-                if !stale.is_empty() {
-                    found.push(format!(
-                        "departure no longer needed ({}): {stale:?} of fields {:?}",
-                        d.cause, d.fields
-                    ));
-                }
-            }
-            let stale: Vec<&String> = d.points.iter().filter(|p| !seen(p)).collect();
-            if !stale.is_empty() {
-                found.push(format!(
-                    "departure no longer needed ({}): points {stale:?}",
-                    d.cause
-                ));
-            }
-        }
-        found
-    }
-}
-
 /// The steps of a group with the pause after each step, as `swbtools replay`
 /// and `osm_zagreb_records.py swb` run them.
 fn paced(steps: &[Value]) -> Vec<Value> {
@@ -287,23 +179,6 @@ fn masked(url: &str) -> String {
         MATOMO.to_owned()
     } else {
         url.to_owned()
-    }
-}
-
-/// The text of a page message as Chromium's replay reports it: for an
-/// uncaught exception the message without swb's prefix (`a promise:
-/// Uncaught (in promise) TypeError: `) and without the name of an error
-/// class.
-fn page_message(text: &str) -> String {
-    let Some((_, rest)) = text.split_once("Uncaught ") else {
-        return text.to_owned();
-    };
-    let rest = rest.strip_prefix("(in promise) ").unwrap_or(rest);
-    match rest.split_once(": ") {
-        Some((name, message)) if name.ends_with("Error") && !name.contains(' ') => {
-            message.to_owned()
-        }
-        _ => rest.to_owned(),
     }
 }
 
@@ -483,50 +358,6 @@ fn record_problems(
         .collect()
 }
 
-/// The problems of the console: a message that swb's page has more or
-/// fewer times than the range of Chromium's runs.
-fn console_problems(page: &Page, chromium: &str) -> Vec<String> {
-    let entries: Vec<Value> = serde_json::from_str(chromium).unwrap();
-    let mut want: BTreeMap<String, (u64, u64)> = BTreeMap::new();
-    for entry in &entries {
-        let text = entry["text"].as_str().unwrap().replace(STATUS_MESSAGE, "");
-        if text.starts_with("Failed to load resource") {
-            continue;
-        }
-        let range = want.entry(text).or_default();
-        range.0 += entry["min"].as_u64().unwrap();
-        range.1 += entry["max"].as_u64().unwrap();
-    }
-    let mut got: BTreeMap<String, u64> = BTreeMap::new();
-    for message in page.console_messages() {
-        if matches!(message.level, ConsoleLevel::Error | ConsoleLevel::Warn) {
-            *got.entry(page_message(&message.text)).or_default() += 1;
-        }
-    }
-    let texts: BTreeSet<&String> = got.keys().chain(want.keys()).collect();
-    texts
-        .into_iter()
-        .filter_map(|text| {
-            let n = got.get(text).copied().unwrap_or(0);
-            let (mut low, high) = want.get(text).copied().unwrap_or((0, 0));
-            if text.starts_with(COOKIE_ERROR) {
-                low = 0;
-            }
-            if (low..=high).contains(&n) {
-                return None;
-            }
-            let who = if n == 0 {
-                "swb lacks it"
-            } else {
-                "count differs"
-            };
-            Some(format!(
-                "console ({who}): swb {n} times, Chromium {low} to {high} times: {text}"
-            ))
-        })
-        .collect()
-}
-
 /// The URLs that the fixture lacked since `seen` requests, masked.
 fn missing_urls(fetcher: &Recording, seen: usize) -> Vec<String> {
     fetcher
@@ -633,7 +464,12 @@ fn check(sequence: &Sequence, dir: &std::path::Path) {
     if sampled != pixel_groups.len() {
         problems.push("a group of the pixel check is missing".to_owned());
     }
-    problems.extend(console_problems(&page, sequence.console));
+    problems.extend(console::problems(
+        &page,
+        sequence.console,
+        &[STATUS_MESSAGE],
+        &[COOKIE_ERROR],
+    ));
     problems.extend(departures.unused());
     eprintln!("osm_zagreb: {:.1} s", started.elapsed().as_secs_f64());
     assert!(

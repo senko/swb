@@ -481,3 +481,58 @@ def test_a_chromium_arg_changes_the_browser(tmp_path, monkeypatch):
     )  # fmt: skip
     assert status == 0
     assert json.loads(out.read_text()) == [{"webgl": False}]
+
+
+ANIMATION_PAGE = (
+    b"<!DOCTYPE html><style>body { margin: 0 } @keyframes fade { from { opacity: 0 }"
+    b" to { opacity: 1 } } #a { width: 20px; height: 20px; background: rgb(0, 0, 0);"
+    b" animation: fade 1000s linear both }</style><div id=a></div>"
+    b"<script>window.__s = () => JSON.stringify({n: document.getAnimations().length,"
+    b" t: document.getAnimations().map((a) => a.currentTime < 100000)})</script>"
+)
+
+
+def test_replay_animations_option_on_the_command_line():
+    parse = build_parser().parse_args
+    base = ["replay", "page", "--steps", "s.json", "--record", "1"]
+    assert parse(base).animations == "off"
+    assert parse([*base, "--animations", "on"]).animations == "on"
+    with pytest.raises(SystemExit):
+        parse([*base, "--animations", "maybe"])
+
+
+@pytest.mark.usefixtures("chromium")
+def test_replay_animations_on_keeps_them_running_also_in_screenshots(tmp_path, monkeypatch):
+    """The default injects the kill sheet after the load (no animation is
+    left); `--animations on` keeps a running animation, and its screenshot
+    shows the state at the time (opacity near 0: the animation is not
+    finished by the screenshot)."""
+    root = tmp_path / "root"
+    fixture = root / "fixtures" / "js" / "page"
+    fixture.mkdir(parents=True)
+    recorded = Fixture(fixture)
+    recorded.record(
+        "GET", "https://fixture.test/", 200, [("content-type", "text/html")], ANIMATION_PAGE
+    )
+    recorded.save()
+    write_meta(
+        fixture,
+        FixtureMeta("https://fixture.test/", "2031-05-06T07:08:09Z", (200, 100), "test", True),
+    )
+    monkeypatch.setenv("SWB_ROOT", str(root))
+    steps = write(tmp_path, [{"name": "later", "steps": [{"wait": 50}]}])
+    results = {}
+    for animations in (False, True):
+        out = tmp_path / f"records-{animations}.json"
+        status = replay_command(
+            "page", None, steps, "window.__s()", out, 50, True, tmp_path / f"shots-{animations}",
+            animations=animations,
+        )  # fmt: skip
+        assert status == 0
+        results[animations] = json.loads(out.read_text())
+    assert [r["n"] for r in results[False]] == [0, 0]
+    assert [r["n"] for r in results[True]] == [1, 1]
+    # After the screenshot of the load the animation is still far from its end.
+    assert results[True][1]["t"] == [True]
+    shot = Image.open(tmp_path / "shots-True" / "001-later.png").convert("RGB")
+    assert shot.getpixel((5, 5))[0] > 200  # opacity 0 over white: not yet black

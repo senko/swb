@@ -1227,6 +1227,7 @@ impl<'a> Styler<'a> {
                         before: c.before(owner),
                         is_root,
                         fixup,
+                        prefers: self.cx.env.prefers_color_scheme,
                     }),
                 children: owner.pseudo.is_none() && self.has_dependents(owner.node),
                 parent: match owner.pseudo {

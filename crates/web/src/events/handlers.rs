@@ -30,6 +30,15 @@
 //! `on*` attributes of such an element go through [`attribute_changed`].
 //! Departure: an element that no script touched has no listener until
 //! then, which no script can observe.
+//!
+//! The passive flag of a handler's listener is the default passive value
+//! when the listener is added (DOM "add an event listener"): the parser
+//! sets the attributes before it inserts the element, so a handler that
+//! `sync` reads is not passive (`<body onwheel>` can cancel the scroll),
+//! while a script that sets `onwheel` on the body later adds a passive one
+//! (measured, `tools/probes/wheel-order.json`, rows `onwheel-*`). So that
+//! a script's change is added at its own time, [`before_attribute_change`]
+//! reads an element's attributes before a script sets an `on*` attribute.
 
 use std::borrow::Cow;
 use std::cell::Cell;
@@ -384,7 +393,31 @@ fn sync_node(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
         .collect();
     for (name, value) in found {
         let key = resolve(dom(rt)?, HandlerTarget::Node(node), name);
-        set_raw(rt, key, name, value)?;
+        set_raw(rt, key, name, value, Added::ByParser)?;
+    }
+    Ok(())
+}
+
+/// Runs before a script sets the content attribute `attribute` of
+/// `element`: an `on*` attribute of an element that was not read yet
+/// first reads the element's other attributes (the parser's, added
+/// before the element was in the document) and marks the element, so that
+/// [`attribute_changed`] adds the new handler with the default passive
+/// value of its own time.
+pub(crate) fn before_attribute_change(
+    rt: &mut Runtime,
+    element: NodeId,
+    attribute: &QualName,
+) -> VmResult<()> {
+    if attribute.ns != ns!() || !attribute.local.starts_with("on") {
+        return Ok(());
+    }
+    if state(rt)?.doc.handlers.synced.contains(&element) {
+        return Ok(());
+    }
+    sync_node(rt, element)?;
+    if dom(rt)?.element(element).is_some() {
+        state_mut(rt)?.doc.handlers.synced.insert(element);
     }
     Ok(())
 }
@@ -430,7 +463,7 @@ pub(crate) fn attribute_changed(
     };
     let key = resolve(dom, HandlerTarget::Node(element), name);
     match value {
-        Some(value) => set_raw(rt, key, name, value.to_owned()),
+        Some(value) => set_raw(rt, key, name, value.to_owned(), Added::Now),
         None => deactivate(rt, key, name),
     }
 }
@@ -447,9 +480,25 @@ fn marker(rt: &mut Runtime) -> VmResult<Gc<Object>> {
     Ok(marker)
 }
 
+/// When a handler's listener counts as added, for its passive flag.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Added {
+    /// Now: the default passive value of the target.
+    Now,
+    /// When the parser set the content attribute, before the element was
+    /// in the document: not passive.
+    ByParser,
+}
+
 /// Sets the value of a handler and makes sure that its listener is in the
 /// list (HTML "activate an event handler").
-fn set_value(rt: &mut Runtime, key: Key, name: &'static Name, value: Value_) -> VmResult<()> {
+fn set_value(
+    rt: &mut Runtime,
+    key: Key,
+    name: &'static Name,
+    value: Value_,
+    added: Added,
+) -> VmResult<()> {
     let entry = entry_or_null(rt, key, name.attr)?;
     entry.value = value;
     if entry.registered {
@@ -464,7 +513,7 @@ fn set_value(rt: &mut Runtime, key: Key, name: &'static Name, value: Value_) -> 
         return Err(rt.terminate("too many event listeners in the document"));
     }
     let callback = marker(rt)?;
-    let passive = default_passive(rt, target, name.event)?;
+    let passive = added == Added::Now && default_passive(rt, target, name.event)?;
     let listener = Listener {
         callback,
         capture: false,
@@ -485,8 +534,14 @@ fn set_value(rt: &mut Runtime, key: Key, name: &'static Name, value: Value_) -> 
 }
 
 /// A content attribute sets the raw handler.
-fn set_raw(rt: &mut Runtime, key: Key, name: &'static Name, text: String) -> VmResult<()> {
-    set_value(rt, key, name, Value_::Raw(text))
+fn set_raw(
+    rt: &mut Runtime,
+    key: Key,
+    name: &'static Name,
+    text: String,
+    added: Added,
+) -> VmResult<()> {
+    set_value(rt, key, name, Value_::Raw(text), added)
 }
 
 /// HTML "deactivate an event handler": the value becomes `null` and the
@@ -539,7 +594,7 @@ pub(crate) fn set(
     sync(rt, key.target())?;
     let result = match value {
         Value::Object(object) => {
-            set_value(rt, key, name, Value_::Function(object))?;
+            set_value(rt, key, name, Value_::Function(object), Added::Now)?;
             if let HandlerTarget::Object(target) = target {
                 crate::media_queries::register(rt, target)?;
             }

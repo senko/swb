@@ -1623,7 +1623,22 @@ tests are
   cancelable only if a listener on the path (the target, its ancestors, the
   window) is not passive; the listeners of the window, the document and
   `body` are passive by default (DOM), so a `preventDefault` there is
-  ignored and does not stop the scroll. `scroll` is a plain `Event`: at the
+  ignored and does not stop the scroll. The same test sets the order
+  (M13 feature 6, measured: `tools/probes/wheel-order.json`): with a
+  listener on the path that is not passive, the event goes first and a
+  cancel keeps the page from scrolling;
+  with only passive listeners the page scrolls first and the listeners see
+  the new scroll position (Chromium's compositor scrolls before the main
+  thread dispatches the event). The target is the element under the
+  pointer before the scroll. A wheel in a frame document still goes first
+  (backlog). An event handler's listener takes the default passive value
+  when it is added: `document.body.onwheel = f` and an `onwheel` attribute
+  that a script sets on the body later are passive, but the parser sets
+  `<body onwheel>` and `<html onwheel>` before it inserts the element, so
+  they are not (rows `onwheel-*`). swb reads the parser's attributes
+  lazily and adds their listeners as not passive; a script that sets an
+  `on*` attribute first makes the element read its attributes, so the new
+  handler is added at its own time. `scroll` is a plain `Event`: at the
   document (bubbling) when the viewport scrolled, at an element (not
   bubbling) when it scrolled as a scroll container; several elements get
   their events in the order they scrolled (CSSOM View "run the scroll

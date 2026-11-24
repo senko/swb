@@ -468,6 +468,17 @@ impl ScriptRuntime {
         })
     }
 
+    /// True if a listener of `kind` on the path from `node` to the window is
+    /// not passive (a `wheel` listener that can cancel the scroll). Chromium
+    /// scrolls before it dispatches a `wheel` event for which this is false.
+    /// No listener runs.
+    pub fn has_blocking_listener(&mut self, node: NodeId, kind: &str) -> bool {
+        if self.stopped {
+            return false;
+        }
+        crate::events::node_has_blocking_listener(&mut self.rt, node, kind).unwrap_or(true)
+    }
+
     /// The events of a navigation within the document that the page carried
     /// out (HTML "navigate to a fragment" and "update document for history
     /// step application"): `popstate` with the state of the entry that

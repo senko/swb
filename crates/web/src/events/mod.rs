@@ -38,11 +38,15 @@ pub use dispatch::{DispatchTarget, EventInterface, TrustedEvent};
 pub(crate) use dispatch::{
     dispatch, dispatch_trusted, fire_at_object, fire_trusted, new_event_object,
 };
-pub(crate) use handlers::{Handlers, attribute_changed as handler_attribute_changed};
+pub(crate) use handlers::{
+    Handlers, attribute_changed as handler_attribute_changed,
+    before_attribute_change as handler_before_attribute_change,
+};
 pub(crate) use listened::Listened;
 pub(crate) use listeners::Listeners;
 pub(crate) use mouse::new_click_event;
 pub(crate) use target::{TargetData, has_listener_for, remove_listener};
+pub(crate) use user::node_has_blocking_listener;
 pub use user::{UserEvent, UserKind, modifiers};
 
 use swb_js::{

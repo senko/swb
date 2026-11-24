@@ -1250,6 +1250,58 @@ geometry 1.0000, pixels 0.9982. `compare --all` and `compare --all --js`
 are unchanged by feature 5, and the hostile set passes except the known
 `nest-div-100000`.
 
+## M13 exit (feature 6)
+
+Release build of b43f23d with feature 6 and its fix round (the changes to
+swb: the vendor prefixes of `hyphens` are no properties; completed transitions;
+the order of passive `wheel` listeners and the scroll; the `color` transition at
+a change of the used color scheme; a script's `blur()` schedules a frame), the fixture `videojs`
+(`fixtures/js`, JavaScript on, the page clock at the capture time), own Xvfb
+for the GUI runs, idle machine (load average 0.8 to 1.1). Two runs of each
+GUI measurement; budgets from `videojs-diagnosis.md` section 5.
+
+| Budget (item 5) | Run 1 | Run 2 | Target |
+|---|---|---|---|
+| Frame time p90 (render + compose), `videojs-page` | 8.6 ms | 8.7 ms | 16 |
+| Frame time max after the first paint | 26.6 ms | 29.6 ms | 33 |
+| Pointer move to frame p90 | 2 ms | 2 ms | 50 |
+| Frames per second while animations and transitions run (median gap of frames less than 50 ms apart) | 60.0 | 59.9 | 60 |
+| Idle CPU after `videojs-page` | 0.0 % | 0.0 % | 0 |
+| Idle CPU, marquee and bars in view (12 wheel notches, then 10 s at rest) | 12.0 % | 11.8 % | 15 |
+| Idle CPU, page with only the spinner (8 `steps(8)` segments, 3 s) | 0.3 % | 0.7 % | 5 |
+| Idle CPU, page with only the marquee (3 s) | 1.7 % | 0.7 % | 15 |
+
+(`gui-latency videojs --js --trace videojs-page --window 1280x840 [--log
+FILE]`; the frame times are the `render` and `compose` fields of the frame
+log, the first two frames of the load left out (the first paint is 41 ms:
+the page's full raster); the longest frames are the end of the reveal and
+wheel steps at the hero, 24 to 30 ms. The trace with the marquee:
+`--trace SCROLL12 --idle 10`, a scratch trace of one move and 12 notches 100
+ms apart; the two single-animation pages are small scratch pages and
+`--trace idle-10s --idle 3 --url file://...`.)
+
+After the fix round (the build of the whole feature, `videojs-page` once on a
+private Xvfb): frame time p90 8.7 ms, max after the first paint 27.4 ms, move to
+frame p90 2 ms, 60.0 frames per second, idle CPU 0.0 % (561 frames).
+
+**`load` (item 6).** `swb --headless --replay fixtures/js/videojs --test-fonts
+--size 1280x800 --js --now CAPTURED --virtual-time --settle-ms 0
+--screenshot`, wall time with process start, 7 runs, median: 0.182 s with
+animations on (0.178 to 0.195) and 0.300 s with `--animations off` (0.296 to
+0.308); with `--settle-ms 1500` 0.524 and 0.513 s. Budget 1.34 s: met by a
+factor of 4. The two numbers differ by the screenshot, not by the load:
+without `--screenshot` both runs take 0.13 s. With animations on, the hero is
+still in its delayed reveal (opacity 0) at the time of the capture, so the
+screenshot rasters less (the poster and the title text are not painted); with
+animations off the hero is fully visible.
+
+**Rendering and checks.** `just snapshot` of the base and of this tree are
+byte-equal (also after the fix round, 382 files); `compare --all` and `compare --js --all` give the same numbers
+with both binaries (videojs JS off: geometry 1.0000, pixels 0.9999; JS on:
+geometry 0.8852, size 0.9244, relative 0.9188, pixels 0.9979);
+`just hostile`: 601 of 602 ok, the known `nest-div-100000` (also after the fix
+round). The exit test (`videojs.rs`, 9 tests) takes 5.5 s in the dev profile.
+
 ## Script runtime of a document
 
 The engine creates a `swb_web::ScriptRuntime` for each document that

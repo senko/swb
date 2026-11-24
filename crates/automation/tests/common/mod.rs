@@ -7,6 +7,8 @@
 #![allow(dead_code)]
 
 pub(crate) mod animation_values;
+pub(crate) mod console;
+pub(crate) mod departures;
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -258,12 +260,24 @@ fn fixture_meta(dir: &Path) -> Value {
 /// `dir`, with JavaScript on or off and animations off (as Chromium's
 /// references), and the URL of the fixture. The caller navigates.
 pub(crate) fn replay_page(dir: &Path, javascript: bool) -> (Page, Url) {
-    replay_page_with(dir, javascript, Arc::new(ReplayFetcher::load(dir).unwrap()))
+    replay_page_with(
+        dir,
+        javascript,
+        Arc::new(ReplayFetcher::load(dir).unwrap()),
+        false,
+    )
 }
 
 /// [`replay_page`] with `fetcher` (a wrapper of the fixture's
-/// [`ReplayFetcher`], for a test that records the requests).
-fn replay_page_with(dir: &Path, javascript: bool, fetcher: Arc<dyn Fetcher>) -> (Page, Url) {
+/// [`ReplayFetcher`], for a test that records the requests), and with the
+/// page's animations and transitions on if `animations` (the exit test of
+/// videojs.org; the references of the other tests have them off).
+pub(crate) fn replay_page_with(
+    dir: &Path,
+    javascript: bool,
+    fetcher: Arc<dyn Fetcher>,
+    animations: bool,
+) -> (Page, Url) {
     let url = Url::parse(fixture_meta(dir)["url"].as_str().unwrap()).unwrap();
     let config = PageConfig {
         fetcher,
@@ -280,7 +294,7 @@ fn replay_page_with(dir: &Path, javascript: bool, fetcher: Arc<dyn Fetcher>) -> 
     page.set_javascript(javascript);
     // Chromium's references are taken with animations off (ADR 0044
     // section 10, docs/testing.md "Animations in the references").
-    page.set_animations(false);
+    page.set_animations(animations);
     (page, url)
 }
 
@@ -307,7 +321,18 @@ pub(crate) fn load_at_capture_with(
     settle: Duration,
     fetcher: Arc<dyn Fetcher>,
 ) -> Page {
-    let (mut page, url) = replay_page_with(dir, true, fetcher);
+    load_at_capture_animated(dir, settle, fetcher, false)
+}
+
+/// [`load_at_capture_with`] with the page's animations and transitions on
+/// if `animations`.
+pub(crate) fn load_at_capture_animated(
+    dir: &Path,
+    settle: Duration,
+    fetcher: Arc<dyn Fetcher>,
+    animations: bool,
+) -> Page {
+    let (mut page, url) = replay_page_with(dir, true, fetcher, animations);
     let captured: jiff::Timestamp = fixture_meta(dir)["captured"]
         .as_str()
         .unwrap()

@@ -1,0 +1,261 @@
+{
+ "viewport": [
+  400,
+  300
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "starting-style-layers",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>@layer theme,base,components,utilities;@property --tw-scale-x{syntax:\"*\";inherits:false;initial-value:1}@property --tw-scale-y{syntax:\"*\";inherits:false;initial-value:1}@property --tw-scale-z{syntax:\"*\";inherits:false;initial-value:1}@layer utilities{.starting-style\\:scale-95[data-starting-style]{--tw-scale-x:95%;--tw-scale-y:95%;--tw-scale-z:95%;scale:var(--tw-scale-x) var(--tw-scale-y)}.starting-style\\:opacity-0[data-starting-style]{opacity:0}.ending-style\\:scale-95[data-ending-style]{--tw-scale-x:95%;--tw-scale-y:95%;--tw-scale-z:95%;scale:var(--tw-scale-x) var(--tw-scale-y)}}#a{width:50px;height:50px;background:red}</style></head><body><div id=a class=\"starting-style:scale-95 starting-style:opacity-0 ending-style:scale-95\" data-starting-style></div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const s = getComputedStyle(document.getElementById('a')); return [s.scale, s.getPropertyValue('--tw-scale-x'), s.opacity].join(' | '); })()"
+    }
+   ]
+  },
+  {
+   "name": "supports-condition-alone",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>@supports (((-webkit-hyphens:none)) and (not (margin-trim:inline))) or ((-moz-orient:inline) and (not (color:rgb(from red r g b)))){.s{--tw-scale-x:3}}#a{width:50px;height:50px;background:red}</style></head><body><div id=a class=s data-s></div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const s = getComputedStyle(document.getElementById('a')); return [s.scale, s.getPropertyValue('--tw-scale-x')].join(' | '); })()"
+    }
+   ]
+  },
+  {
+   "name": "supports-tailwind-fallback",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8></head><body></body></html>",
+   "measure": [
+    {
+     "js": "[CSS.supports('margin-trim','inline'), CSS.supports('margin-trim','block'), CSS.supports('margin-trim','none'), CSS.supports('margin-trim: block-start'), CSS.supports('-webkit-hyphens','none'), CSS.supports('(-webkit-hyphens:none)'), CSS.supports('-moz-orient','inline'), CSS.supports('-moz-orient: inline'), CSS.supports('hyphens','auto'), CSS.supports('(((-webkit-hyphens:none)) and (not (margin-trim:inline))) or ((-moz-orient:inline) and (not (color:rgb(from red r g b))))')].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "vendor-hyphens",
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8></head><body><p id=a>text</p></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const d = document.getElementById('a'); const out = []; for (const n of ['-webkit-hyphens', '-moz-hyphens', '-ms-hyphens', 'hyphens']) { d.style.cssText = ''; d.style.setProperty(n, 'auto'); out.push(n + ':' + CSS.supports(n, 'auto') + ':' + getComputedStyle(d).hyphens + ':' + d.style.cssText); } return out.join(' | '); })()"
+    }
+   ]
+  },
+  {
+   "name": "finish-then-style-change",
+   "animations": true,
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>#a{width:50px;height:50px;background:red;opacity:1;transition:opacity 1s linear}#a.out{opacity:0}#a.other{margin-left:10px}</style></head><body><div id=a></div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const a = document.getElementById('a'); a.className = 'out'; a.getBoundingClientRect(); const t = a.getAnimations()[0]; t.pause(); t.currentTime = 950; t.finish(); a.className = 'out other'; const after = a.getAnimations().map((x) => x.playState + ':' + x.transitionProperty); return [getComputedStyle(a).opacity, after.join(',')].join(' | '); })()"
+    }
+   ]
+  },
+  {
+   "name": "finish-flush-then-style-change",
+   "animations": true,
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>#a{width:50px;height:50px;background:red;opacity:1;transition:opacity 1s linear}#a.out{opacity:0}#a.other{margin-left:10px}</style></head><body><div id=a></div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const a = document.getElementById('a'); a.className = 'out'; a.getBoundingClientRect(); const t = a.getAnimations()[0]; t.pause(); t.currentTime = 950; t.finish(); getComputedStyle(a).opacity; a.className = 'out other'; const after = a.getAnimations().map((x) => x.playState + ':' + x.transitionProperty); return [getComputedStyle(a).opacity, after.join(',')].join(' | '); })()"
+    }
+   ]
+  },
+  {
+   "name": "finish-then-hover",
+   "animations": true,
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#p{width:100px;height:100px;background:red;opacity:1;transition:opacity 1s linear}#p.out{opacity:0}#p:hover{margin-left:5px}#b{width:100px;height:100px}</style></head><body><div id=p><div id=b></div></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { const a = document.getElementById('p'); a.className = 'out'; a.getBoundingClientRect(); const t = a.getAnimations()[0]; t.pause(); t.currentTime = 950; t.finish(); getComputedStyle(a).opacity; })()"
+    },
+    {
+     "hover": [
+      50,
+      50
+     ]
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const a = document.getElementById('p'); return [getComputedStyle(a).opacity, a.getAnimations().map((x) => x.playState + ':' + x.transitionProperty).join(',')].join(' | '); })()"
+    }
+   ]
+  },
+  {
+   "name": "release-twice",
+   "animations": true,
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#p{height:100px;background:red}</style></head><body><div id=p></div></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log = []; let offset = 0, timer; const p = document.getElementById('p'); window.state = () => p.getAnimations().map((a) => a.playState + ':' + a.transitionProperty).join(','); addEventListener('wheel', (e) => { offset = Math.min(200, offset + e.deltaY); p.style.transition = 'none'; p.style.transform = `translate3d(0, ${-offset}px, 0)`; clearTimeout(timer); timer = setTimeout(() => { offset = 0; p.style.transition = 'transform 600ms ease'; p.style.transform = ''; }, 180); }, { passive: true }); })()"
+    },
+    {
+     "wheel": [
+      0,
+      120
+     ]
+    },
+    {
+     "wait": 250
+    },
+    {
+     "eval": "window.log.push('first:' + window.state())"
+    },
+    {
+     "wait": 1000
+    },
+    {
+     "eval": "window.log.push('idle:' + window.state())"
+    },
+    {
+     "wheel": [
+      0,
+      120
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      120
+     ]
+    },
+    {
+     "wait": 250
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.concat(['second:' + window.state()]).join(' | ')"
+    }
+   ]
+  },
+  {
+   "name": "color-scheme-button-inherit",
+   "animations": true,
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>:root{color-scheme:light only}.dark{color-scheme:dark}#m{color:#fff}#b{color:inherit;transition:color .15s}</style></head><body><div id=m><button id=b>x</button></div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const b = document.getElementById('b'); b.getBoundingClientRect(); document.documentElement.className = 'dark'; getComputedStyle(b).color; return b.getAnimations().map((a) => a.transitionProperty).join() + ' ' + getComputedStyle(b).color; })()"
+    }
+   ]
+  },
+  {
+   "name": "color-scheme-div-all",
+   "animations": true,
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>:root{color-scheme:light only}.dark{color-scheme:dark}#m{color:#fff}#b{color:inherit;background-color:#fff;border:1px solid #fff;transition:all .15s}</style></head><body><div id=m><div id=b>x</div></div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const b = document.getElementById('b'); b.getBoundingClientRect(); document.documentElement.className = 'dark'; getComputedStyle(b).color; return b.getAnimations().map((a) => a.transitionProperty).join() + ' ' + getComputedStyle(b).color; })()"
+    }
+   ]
+  },
+  {
+   "name": "color-scheme-div-explicit",
+   "animations": true,
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>:root{color-scheme:light only}.dark{color-scheme:dark}#b{color:#fff;transition:color .15s}</style></head><body><div id=b>x</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const b = document.getElementById('b'); b.getBoundingClientRect(); document.documentElement.className = 'dark'; getComputedStyle(b).color; return b.getAnimations().map((a) => a.transitionProperty).join() + ' ' + getComputedStyle(b).color; })()"
+    }
+   ]
+  },
+  {
+   "name": "color-scheme-normal-dark",
+   "animations": true,
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>.dark{color-scheme:dark} #b{color:#fff;background-color:#fff;border:1px solid #fff;transition:all .15s}</style></head><body><div id=b>x</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const b = document.getElementById('b'); b.getBoundingClientRect(); document.documentElement.className = 'dark'; getComputedStyle(b).color; return b.getAnimations().map((a) => a.transitionProperty).join() + ' ' + getComputedStyle(b).color; })()"
+    }
+   ]
+  },
+  {
+   "name": "color-scheme-light-lightdark",
+   "animations": true,
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>:root{color-scheme:light}.dark{color-scheme:light dark} #b{color:#fff;background-color:#fff;border:1px solid #fff;transition:all .15s}</style></head><body><div id=b>x</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const b = document.getElementById('b'); b.getBoundingClientRect(); document.documentElement.className = 'dark'; getComputedStyle(b).color; return b.getAnimations().map((a) => a.transitionProperty).join() + ' ' + getComputedStyle(b).color; })()"
+    }
+   ]
+  },
+  {
+   "name": "color-scheme-same",
+   "animations": true,
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>:root{color-scheme:light only}.dark{color-scheme:light only} #b{color:#fff;background-color:#fff;border:1px solid #fff;transition:all .15s}</style></head><body><div id=b>x</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const b = document.getElementById('b'); b.getBoundingClientRect(); document.documentElement.className = 'dark'; getComputedStyle(b).color; return b.getAnimations().map((a) => a.transitionProperty).join() + ' ' + getComputedStyle(b).color; })()"
+    }
+   ]
+  },
+  {
+   "name": "color-scheme-dark-light",
+   "animations": true,
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>:root{color-scheme:dark}.dark{color-scheme:light only} #b{color:#fff;background-color:#fff;border:1px solid #fff;transition:all .15s}</style></head><body><div id=b>x</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const b = document.getElementById('b'); b.getBoundingClientRect(); document.documentElement.className = 'dark'; getComputedStyle(b).color; return b.getAnimations().map((a) => a.transitionProperty).join() + ' ' + getComputedStyle(b).color; })()"
+    }
+   ]
+  },
+  {
+   "name": "blur-by-script-starts-transition",
+   "animations": true,
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>body{margin:0}#b{width:100px;height:40px;outline:2px solid transparent;outline-offset:0;transition:outline-offset .1s linear,outline-color .1s linear}#b:focus-visible{outline-color:orange;outline-offset:4px}</style></head><body><button id=b>x</button></body></html>",
+   "steps": [
+    {
+     "eval": "(() => { window.log = []; for (const t of ['transitionrun', 'transitionend']) document.addEventListener(t, (e) => window.log.push(t + ':' + e.propertyName)); })()"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "document.activeElement.blur()"
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "window.log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "finish-then-restore",
+   "animations": true,
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>#a{width:50px;height:50px;background:red;opacity:1;transition:opacity 1s linear}#a.out{opacity:0}#a.other{margin-left:10px}</style></head><body><div id=a></div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const a = document.getElementById('a'); a.className = 'out'; a.getBoundingClientRect(); const t = a.getAnimations()[0]; t.finish(); a.className = ''; const now = a.getAnimations(); const after = now.map((x) => x.playState + ':' + x.transitionProperty).join(','); const first = getComputedStyle(a).opacity; let mid = '-'; if (now.length === 1) { now[0].pause(); now[0].currentTime = 500; mid = getComputedStyle(a).opacity; } return [first, after, mid].join(' | '); })()"
+    }
+   ]
+  },
+  {
+   "name": "finish-read-then-restore",
+   "animations": true,
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>#a{width:50px;height:50px;background:red;opacity:1;transition:opacity 1s linear}#a.out{opacity:0}#a.other{margin-left:10px}</style></head><body><div id=a></div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const a = document.getElementById('a'); a.className = 'out'; a.getBoundingClientRect(); const t = a.getAnimations()[0]; t.finish(); getComputedStyle(a).opacity; a.className = ''; const now = a.getAnimations(); const after = now.map((x) => x.playState + ':' + x.transitionProperty).join(','); const first = getComputedStyle(a).opacity; let mid = '-'; if (now.length === 1) { now[0].pause(); now[0].currentTime = 500; mid = getComputedStyle(a).opacity; } return [first, after, mid].join(' | '); })()"
+    }
+   ]
+  },
+  {
+   "name": "seek-end-then-restore",
+   "animations": true,
+   "html": "<!DOCTYPE html><html><head><meta charset=utf-8><style>#a{width:50px;height:50px;background:red;opacity:1;transition:opacity 1s linear}#a.out{opacity:0}#a.other{margin-left:10px}</style></head><body><div id=a></div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const a = document.getElementById('a'); a.className = 'out'; a.getBoundingClientRect(); const t = a.getAnimations()[0]; t.pause(); t.currentTime = 1000; a.className = ''; const now = a.getAnimations(); const after = now.map((x) => x.playState + ':' + x.transitionProperty).join(','); const first = getComputedStyle(a).opacity; let mid = '-'; if (now.length === 1) { now[0].pause(); now[0].currentTime = 500; mid = getComputedStyle(a).opacity; } return [first, after, mid].join(' | '); })()"
+    }
+   ]
+  }
+ ]
+}

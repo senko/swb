@@ -1,0 +1,582 @@
+{
+ "set": [],
+ "range": {
+  "6": [
+   [
+    ["transitioncancel", "color", "button[radio|Gold|flex size-7 items-center justify-center ]", "", null],
+    18,
+    19
+   ],
+   [
+    ["transitioncancel", "color", "button[radio|Magenta|flex size-7 items-center justify-center ]", "", null],
+    18,
+    19
+   ],
+   [
+    ["transitioncancel", "color", "button[radio|Orange|flex size-7 items-center justify-center ]", "", null],
+    18,
+    19
+   ],
+   [
+    ["transitioncancel", "color", "button[radio|Red|flex size-7 items-center justify-center ]", "", null],
+    18,
+    19
+   ],
+   [
+    ["transitionend", "-webkit-text-stroke-color", "span[||text-stroke-manila-light duration-200 gr]", "", 0.3],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "background-color", "button[|Search documentation (Control+k)|DocSearch DocSearch-Button]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "background-color", "div[dialog||w-88 origin-(--transform-origin) rounded]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "background-color", "div[||group relative mb-34 items-center overfl]", "", 0.3],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "background-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0.1],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "background-color", "kbd[||DocSearch-Button-Key]", "", 0.1],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "border-bottom-color", "button[|Search documentation (Control+k)|DocSearch DocSearch-Button]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "border-bottom-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0.1],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "border-bottom-color", "kbd[||DocSearch-Button-Key]", "", 0.1],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "border-left-color", "button[|Search documentation (Control+k)|DocSearch DocSearch-Button]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "border-left-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0.1],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "border-left-color", "kbd[||DocSearch-Button-Key]", "", 0.1],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "border-right-color", "button[|Search documentation (Control+k)|DocSearch DocSearch-Button]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "border-right-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0.1],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "border-right-color", "kbd[||DocSearch-Button-Key]", "", 0.1],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "border-top-color", "button[|Search documentation (Control+k)|DocSearch DocSearch-Button]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "border-top-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0.1],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "border-top-color", "kbd[||DocSearch-Button-Key]", "", 0.1],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "box-shadow", "button[radio|Orange|flex size-7 items-center justify-center ]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "box-shadow", "div[dialog||w-88 origin-(--transform-origin) rounded]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "color", "button[button|Enter fullscreen|media-button media-fullscreen-button]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "color", "button[button|Enter picture-in-picture|media-button media-pip-button]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "color", "button[button|Mute|media-button media-mute-button video-con]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "color", "button[button|Play|media-button media-play-button]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "color", "button[radio|Gold|flex size-7 items-center justify-center ]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "color", "button[radio|Magenta|flex size-7 items-center justify-center ]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "color", "button[radio|Orange|flex size-7 items-center justify-center ]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "color", "button[radio|Red|flex size-7 items-center justify-center ]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "color", "button[||media-button media-settings-menu-trigger]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "color", "div[dialog||w-88 origin-(--transform-origin) rounded]", "", 0.15],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "color", "div[||group relative mb-34 items-center overfl]", "", 0.3],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0.1],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "color", "kbd[||DocSearch-Button-Key]", "", 0.1],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "opacity", "div[dialog||w-88 origin-(--transform-origin) rounded]", "", 0.15],
+    1,
+    1
+   ],
+   [
+    ["transitionend", "scale", "div[dialog||w-88 origin-(--transform-origin) rounded]", "", 0.15],
+    1,
+    1
+   ],
+   [
+    ["transitionend", "scrollbar-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0.1],
+    2,
+    2
+   ],
+   [
+    ["transitionend", "scrollbar-color", "kbd[||DocSearch-Button-Key]", "", 0.1],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "-webkit-text-stroke-color", "span[||text-stroke-manila-light duration-200 gr]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "background-color", "button[|Search documentation (Control+k)|DocSearch DocSearch-Button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "background-color", "div[dialog||w-88 origin-(--transform-origin) rounded]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "background-color", "div[||group relative mb-34 items-center overfl]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "background-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "background-color", "kbd[||DocSearch-Button-Key]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "border-bottom-color", "button[|Search documentation (Control+k)|DocSearch DocSearch-Button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "border-bottom-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "border-bottom-color", "kbd[||DocSearch-Button-Key]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "border-left-color", "button[|Search documentation (Control+k)|DocSearch DocSearch-Button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "border-left-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "border-left-color", "kbd[||DocSearch-Button-Key]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "border-right-color", "button[|Search documentation (Control+k)|DocSearch DocSearch-Button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "border-right-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "border-right-color", "kbd[||DocSearch-Button-Key]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "border-top-color", "button[|Search documentation (Control+k)|DocSearch DocSearch-Button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "border-top-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "border-top-color", "kbd[||DocSearch-Button-Key]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "box-shadow", "button[radio|Orange|flex size-7 items-center justify-center ]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "box-shadow", "div[dialog||w-88 origin-(--transform-origin) rounded]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "color", "button[button|Enter fullscreen|media-button media-fullscreen-button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "color", "button[button|Enter picture-in-picture|media-button media-pip-button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "color", "button[button|Mute|media-button media-mute-button video-con]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "color", "button[button|Play|media-button media-play-button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "color", "button[radio|Gold|flex size-7 items-center justify-center ]", "", 0],
+    20,
+    21
+   ],
+   [
+    ["transitionrun", "color", "button[radio|Magenta|flex size-7 items-center justify-center ]", "", 0],
+    20,
+    21
+   ],
+   [
+    ["transitionrun", "color", "button[radio|Orange|flex size-7 items-center justify-center ]", "", 0],
+    20,
+    21
+   ],
+   [
+    ["transitionrun", "color", "button[radio|Red|flex size-7 items-center justify-center ]", "", 0],
+    20,
+    21
+   ],
+   [
+    ["transitionrun", "color", "button[||media-button media-settings-menu-trigger]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "color", "div[dialog||w-88 origin-(--transform-origin) rounded]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "color", "div[||group relative mb-34 items-center overfl]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "color", "kbd[||DocSearch-Button-Key]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "opacity", "div[dialog||w-88 origin-(--transform-origin) rounded]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "scale", "div[dialog||w-88 origin-(--transform-origin) rounded]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "scrollbar-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionrun", "scrollbar-color", "kbd[||DocSearch-Button-Key]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "-webkit-text-stroke-color", "span[||text-stroke-manila-light duration-200 gr]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "background-color", "button[|Search documentation (Control+k)|DocSearch DocSearch-Button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "background-color", "div[dialog||w-88 origin-(--transform-origin) rounded]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "background-color", "div[||group relative mb-34 items-center overfl]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "background-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "background-color", "kbd[||DocSearch-Button-Key]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "border-bottom-color", "button[|Search documentation (Control+k)|DocSearch DocSearch-Button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "border-bottom-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "border-bottom-color", "kbd[||DocSearch-Button-Key]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "border-left-color", "button[|Search documentation (Control+k)|DocSearch DocSearch-Button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "border-left-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "border-left-color", "kbd[||DocSearch-Button-Key]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "border-right-color", "button[|Search documentation (Control+k)|DocSearch DocSearch-Button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "border-right-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "border-right-color", "kbd[||DocSearch-Button-Key]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "border-top-color", "button[|Search documentation (Control+k)|DocSearch DocSearch-Button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "border-top-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "border-top-color", "kbd[||DocSearch-Button-Key]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "box-shadow", "button[radio|Orange|flex size-7 items-center justify-center ]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "box-shadow", "div[dialog||w-88 origin-(--transform-origin) rounded]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "color", "button[button|Enter fullscreen|media-button media-fullscreen-button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "color", "button[button|Enter picture-in-picture|media-button media-pip-button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "color", "button[button|Mute|media-button media-mute-button video-con]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "color", "button[button|Play|media-button media-play-button]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "color", "button[radio|Gold|flex size-7 items-center justify-center ]", "", 0],
+    20,
+    21
+   ],
+   [
+    ["transitionstart", "color", "button[radio|Magenta|flex size-7 items-center justify-center ]", "", 0],
+    20,
+    21
+   ],
+   [
+    ["transitionstart", "color", "button[radio|Orange|flex size-7 items-center justify-center ]", "", 0],
+    20,
+    21
+   ],
+   [
+    ["transitionstart", "color", "button[radio|Red|flex size-7 items-center justify-center ]", "", 0],
+    20,
+    21
+   ],
+   [
+    ["transitionstart", "color", "button[||media-button media-settings-menu-trigger]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "color", "div[dialog||w-88 origin-(--transform-origin) rounded]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "color", "div[||group relative mb-34 items-center overfl]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "color", "kbd[||DocSearch-Button-Key]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "opacity", "div[dialog||w-88 origin-(--transform-origin) rounded]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "scale", "div[dialog||w-88 origin-(--transform-origin) rounded]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "scrollbar-color", "kbd[||DocSearch-Button-Key DocSearch-Button-Ke]", "", 0],
+    2,
+    2
+   ],
+   [
+    ["transitionstart", "scrollbar-color", "kbd[||DocSearch-Button-Key]", "", 0],
+    2,
+    2
+   ]
+  ]
+ }
+}

@@ -183,9 +183,22 @@ fn fill_mouse(rt: &mut Runtime, f: &mut Fields, event: &UserEvent) -> VmResult<(
 }
 
 /// True if a listener of `kind` on the path from `target` up to the window
-/// is not passive. Chromium makes a `wheel` event cancelable only then.
+/// is not passive (the `on*` content attributes of the path are read
+/// first; a handler that the parser set is not passive, see
+/// `handlers`). Chromium makes a `wheel` event cancelable only then, and
+/// scrolls before it dispatches a `wheel` event that has no such
+/// listener.
+pub(crate) fn node_has_blocking_listener(
+    rt: &mut Runtime,
+    node: NodeId,
+    kind: &str,
+) -> VmResult<bool> {
+    has_blocking_listener(rt, TargetKind::Node(node), kind)
+}
+
+/// [`node_has_blocking_listener`] for any kind of target.
 pub(crate) fn has_blocking_listener(
-    rt: &Runtime,
+    rt: &mut Runtime,
     target: TargetKind,
     kind: &str,
 ) -> VmResult<bool> {
@@ -199,6 +212,7 @@ pub(crate) fn has_blocking_listener(
         }
     }
     for t in targets {
+        super::handlers::sync(rt, t)?;
         if listeners_of(rt, t, kind)?.iter().any(|l| !l.passive) {
             return Ok(true);
         }

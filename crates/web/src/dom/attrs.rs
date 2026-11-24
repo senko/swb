@@ -236,6 +236,7 @@ pub(crate) fn set_attribute(
 ) -> b::Result<()> {
     let (had, old) = old_value(rt, element, name)?;
     let type_change = crate::html::before_type_change(rt, element, name)?;
+    crate::events::handler_before_attribute_change(rt, element, name)?;
     let result = dom_mut(rt)?.set_attribute(element, name, value);
     dom_result(rt, result)?;
     if !had {

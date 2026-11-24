@@ -6514,6 +6514,75 @@ Steps:
    6. The exit test (`implementer`): an integration test on the fixture
       with the items below, the JS-off check and the `load` budget.
 
+      Done (2026-11-24). `crates/automation/tests/videojs.rs`: four tests
+      against Chromium 148's records (three equal runs with the page's
+      animations on: `swbtools replay --animations on`,
+      `tools/videojs_records.py`) and two tests of probe files.
+      - `values_match_chromium` (items 1 to 3): 83 groups in one load. The
+        first view after the hero reveal (rectangles and texts within 0.1
+        px); the reveal at -100, 0, 550 and 1050 ms of each animation's
+        delay and at its end; the bars and the marquee at four or five
+        times; each hover, Tab, focus, step of the appearance menu (open,
+        hover, Dark, Light, close) and the spring at 0, 0.5 and 0.95 of
+        each transition's duration (every animation paused and seeked).
+        Per group: the page's animations, the computed values of their
+        properties, the rectangles of their targets, and pixel points
+        chosen from Chromium's screenshots alone (1,334 in all, 46 in the
+        first view).
+      - `events_match_chromium` (item 3): the capture's groups and three
+        more (the first view, the search button, Tab to the player's
+        controls), with no seeking: the `transition*` and `animation*`
+        events in Chromium's order. The appearance menu is compared as a
+        range (the number of events of its swatches varies between
+        Chromium runs).
+      - Item 4: the console of both sequences.
+      - `js_off_first_view_matches_chromium` (item 1, JS off): 30,099 of
+        1,024,000 pixels differ (the downscaled poster, the title, glyph
+        edges; the count must not rise), the first-view boxes are at
+        geometry 1.0000. `js_off_animations_leave_the_first_view_alone`:
+        the reveal elements keep the values of a page without animations
+        and the two bars stay at width 0 (paused until a script starts
+        them); a mutation that runs paused animations fails it.
+      - `probe_cases_of_feature_6` (`tools/probes/css-videojs-6.json`, 19
+        cases) and `probe_cases_of_wheel_order`
+        (`tools/probes/wheel-order.json`, 25 cases).
+      - Departures (`videojs-departures.json`, one entry per cause and
+        sequence): media (M14, M15), PostHog's bot warning (backlog), the
+        theme swatches (ADR 0044 section 20) and `scrollbar-color`
+        (backlog). Without them the test reports 618 problems.
+      - The page's links have no transitions (all 26 `a` elements have
+        `transition: 0s all` in Chromium). The elements whose `:hover` or
+        `:focus-visible` rules change a transitioned property are the
+        search button, the player's container and controls, the slider
+        thumbs and the time toggle; the test samples all but those that
+        need media or have a listed difference (backlog).
+      - Fixes in swb found by the test, each with a probe row and a test
+        (ADR 0044 section 21): `-webkit-hyphens`, `-moz-hyphens` and
+        `-ms-hyphens` are not properties (Tailwind's Safari fallback reset
+        `scale` in swb); the end value of a transition that a script
+        finished is the before-change value of the next style change
+        event (also when the old value returns), and the set of completed
+        transitions ends at every event; a
+        change of the used color scheme starts a `color` transition between
+        equal values; a script's `blur()` and `focus()` schedule a frame;
+        with only passive `wheel` listeners on the path, the page scrolls
+        before the event (ADR 0028).
+      - Items 5 and 6 (release; docs/performance.md, "M13 exit"): frame
+        p90 8.7 ms (budget 16), max after the first paint 27.4 ms (33),
+        pointer move to frame p90 2 ms (50), 60 frames per second while
+        animations run, idle CPU 0 % after the trace and 12 % with the
+        marquee and the bars in view (15), spinner page under 1 % (5);
+        `load` 0.18 s (1.34).
+      - The review found the `finish()` bug (the first version had a
+        departure for it), the wheel order, a cause that cited a backlog
+        item that did not exist, a group of links that tested nothing and
+        a JS-off check that a running animation could not fail. The review
+        of the fixes found that the kept sets of completed transitions
+        stayed after their element left, and that `<body onwheel>` blocks
+        the scroll in Chromium (the parser adds it before the body is in
+        the document); measured on the way: `finish()` and then the old
+        class again starts a transition back. All fixed.
+
    Features 3c and 5 add the hostile cases that the diagnosis lists
    (section 7, item 8) to the hostile-page set. Feature 5 also settles
    the order of the cancel events of `events-cancel-and-reverse` (ADR
@@ -6618,7 +6687,11 @@ Source Extensions, AV1 (dav1d), YouTube.
   (`POST /ph/i/v0/e/`, with retries at changing URLs) are missing from
   the fixture; Chromium sends none (PostHog drops headless Chromium as a
   bot). A replay rule that answers them with 204 would remove the noise
-  in swb's log (as for the Matomo requests of M12).
+  in swb's log (as for the Matomo requests of M12). The exit test
+  (feature 6) lists the result as the departure "PostHog requests that
+  the fixture lacks": Chromium's page logs PostHog's warning that it drops
+  events of a bot; swb's user agent does not look like one, so swb's page
+  logs no warning and sends the requests.
 - Capture (feature 1): Astro prefetches links on hover and focus; a page
   that does this needs step groups for a complete fixture.
 - CSS (feature 1): anchor positioning (`anchor-name`, `anchor-scope`,
@@ -6688,7 +6761,8 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Style (feature 2b): relative colors (`oklch(from red l c h)`) are
   invalid in swb, valid in Chromium 148. The player's style sheet tests
   them in `@supports`; swb takes the `color-mix()` branch, with equal
-  alphas.
+  alphas. `CSS.supports('color', 'rgb(from red r g b)')` is false in swb,
+  true in Chromium (feature 6, probe `css-videojs-6.json`).
 - Style (feature 2b): `font-variant-east-asian`, `-position` and
   `-alternates` do not exist; `font-variant` accepts and ignores their
   keywords (`historical-forms` computes to `normal`). Also missing:
@@ -6891,6 +6965,41 @@ Source Extensions, AV1 (dav1d), YouTube.
   3.40282e+38 (Chromium: 1.79769e+308); swb parses the declared text
   again, which holds the number as a literal. Values from style sheets
   are right.
+- Style (feature 6): `scrollbar-color` does not exist. videojs.org sets
+  `* { scrollbar-color: var(--color-manila-dark) transparent }`, and the
+  two `kbd` elements of the search button have `transition: all`, so
+  Chromium starts a `scrollbar-color` transition at each change of the
+  inherited value (a departure of the exit test). It needs an inherited
+  typed property (`auto | <color>{2}`), its computed value, the CSSOM, the
+  interpolation of the color pair and the scrollbar paint (about 10
+  files).
+- Transitions (feature 6): the used color scheme of the transition rule
+  (a change of it starts a `color` transition) comes from the
+  `color-scheme` property and the user's preference; the page's
+  `<meta name="color-scheme">` is not read.
+- Popups (feature 6): the tooltip of the player's play and settings
+  buttons on focus and `blur()`: swb closes it with a `transform`
+  transition (`translateY(8px)`), Chromium transitions `opacity`, `scale`
+  and `filter`, and the popup stays open in later records. Found by
+  sampling Tab to the play button; the exit test leaves these buttons out
+  (`FOCUS_STEPS` in `tools/videojs_records.py`).
+- Input (feature 6): a `wheel` in a frame document is still dispatched
+  before the scroll (`wheel_in_frames`); the top-level page scrolls first
+  when all `wheel` listeners on the path are passive (ADR 0028).
+- Tests (feature 6): the exit test has no focus groups for the mute
+  button and the volume thumb (the volume popup opens after a delay that
+  varies between Chromium runs), the seek thumb and the time toggle (not
+  focusable without media in swb), picture-in-picture and fullscreen (no
+  such buttons without media). M15's exit test can add them.
+- Tests (feature 6 review): `osm_zagreb_matches_chromium_without_webgl`
+  failed in 2 of 2 runs while the `swb-engine` tests ran in parallel (0 of
+  4 runs on an idle machine; once in 13 runs in the first review): the
+  markers `#1` and `#2` of `.leaflet-marker-pane`, at equal y, come in the
+  other order. Find what orders them by timing.
+- Tools (feature 6): with `replay --animations on`, the record after the
+  load falls in the middle of the hero reveal, at a time that depends on
+  the run; `tools/videojs_records.py` drops it. A record option that waits
+  for the page's animations to settle would keep it.
 
 ## Backlog from M12
 

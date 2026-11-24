@@ -73,15 +73,17 @@ JS_SETTLE_MS = 1_000
 start late. The page is not scrolled: scripts react to scrolling."""
 
 
-async def load_settled_js(page: Page, url: str) -> None:
+async def load_settled_js(page: Page, url: str, animations: bool = False) -> None:
     """Loads `url` (served from the fixture) with JavaScript on and waits
     until the page is done: `load`, network idle (capped), `JS_SETTLE_MS`,
-    web fonts loaded, animations off. No scrolling."""
+    web fonts loaded, animations off (unless `animations`: the page's
+    animations and transitions keep running). No scrolling."""
     await page.goto(url, wait_until="load", timeout=60_000)
     await browser.wait_for_network_idle(page, JS_IDLE_TIMEOUT_MS)
     await page.wait_for_timeout(JS_SETTLE_MS)
     await browser.wait_for_fonts(page)
-    await browser.stop_animations(page)
+    if not animations:
+        await browser.stop_animations(page)
     await browser.scroll_to_top(page)
 
 

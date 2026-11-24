@@ -254,6 +254,7 @@ def cmd_replay(args: argparse.Namespace) -> int:
         args.console_out,
         args.missing_out,
         args.chromium_arg,
+        args.animations == "on",
     )
 
 
@@ -735,6 +736,14 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="ARG",
         help="add a flag to Chromium's launch (repeatable; write --chromium-arg=--flag for a "
         "flag that starts with --)",
+    )
+    p.add_argument(
+        "--animations",
+        choices=["on", "off"],
+        default="off",
+        help="off (default): inject the kill sheet (animation: none; transition: none) after the "
+        "load and take screenshots with animations disabled; on: leave the page's animations and "
+        "transitions running and take screenshots with animations allowed",
     )
     p.add_argument("--system-fonts", action="store_true", help=fonts_help)
     p.set_defaults(func=cmd_replay)

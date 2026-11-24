@@ -63,13 +63,21 @@ pub(crate) fn oklab_as_rgb(text: &str) -> String {
         };
         let [r, g, b] = linear.map(channel);
         match alpha {
-            Some(alpha) => write!(out, "rgba({r}, {g}, {b}, {alpha})").unwrap(),
-            None => write!(out, "rgb({r}, {g}, {b})").unwrap(),
+            // An alpha that rounds to 255 is opaque in 8 bits: `rgb()`.
+            Some(alpha) if alpha_as_8_bits(alpha) < 255 => {
+                write!(out, "rgba({r}, {g}, {b}, {alpha})").unwrap();
+            }
+            _ => write!(out, "rgb({r}, {g}, {b})").unwrap(),
         }
         rest = &after[end + 1..];
     }
     out.push_str(rest);
     out
+}
+
+/// An alpha in 0 to 1 as the 8-bit value that swb stores for it.
+fn alpha_as_8_bits(alpha: f64) -> u8 {
+    (alpha.clamp(0.0, 1.0) * 255.0).round() as u8
 }
 
 /// Splits `text` into the parts between numbers and the numbers.
@@ -113,16 +121,44 @@ pub(crate) fn tokens(text: &str) -> (Vec<String>, Vec<f64>) {
     (words, numbers)
 }
 
+/// `text` with each `rgba(r, g, b, 1)` written as `rgb(r, g, b)`.
+fn opaque_rgba_as_rgb(text: &str) -> String {
+    use std::fmt::Write as _;
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(at) = rest.find("rgba(") {
+        out.push_str(&rest[..at]);
+        let after = &rest[at + "rgba(".len()..];
+        let Some(end) = after.find(')') else {
+            out.push_str(&rest[at..]);
+            return out;
+        };
+        let parts: Vec<&str> = after[..end].split(',').map(str::trim).collect();
+        let rest_after = &after[end + 1..];
+        match parts[..] {
+            [r, g, b, "1"] => write!(out, "rgb({r}, {g}, {b})").unwrap(),
+            _ => out.push_str(&rest[at..rest.len() - rest_after.len()]),
+        }
+        rest = rest_after;
+    }
+    out.push_str(rest);
+    out
+}
+
 /// True if `a` and `b` are equal with the tolerances of ADR 0044 section
 /// 12: the text without numbers equal; numbers within a relative 1e-5 or
 /// an absolute 1e-4 (Chromium prints 6 significant digits); the channels
-/// of `rgb()` and `rgba()` within 1.
+/// of `rgb()` and `rgba()` within 1 and their alpha within one 8-bit step;
+/// `rgba(r, g, b, 1)` is `rgb(r, g, b)`
+/// (a color in the middle of an interpolation whose alpha rounds to 1:
+/// Chromium keeps the `rgba()` form, swb's 8-bit color has no alpha left).
 pub(crate) fn close(a: &str, b: &str) -> bool {
     if a == b {
         return true;
     }
-    let (wa, na) = tokens(a);
-    let (wb, nb) = tokens(b);
+    let (a, b) = (opaque_rgba_as_rgb(a), opaque_rgba_as_rgb(b));
+    let (wa, na) = tokens(&a);
+    let (wb, nb) = tokens(&b);
     if wa != wb || na.len() != nb.len() {
         return false;
     }
@@ -139,8 +175,10 @@ pub(crate) fn close(a: &str, b: &str) -> bool {
         let tolerance = if in_color && channel < 3 {
             1.0
         } else if in_color && channel == 3 {
-            // An 8-bit alpha.
-            0.5 / 255.0 + 1e-4
+            // An 8-bit alpha within one step, as the channels: swb writes
+            // the shortest decimal of its 8-bit value (71 is `0.28`),
+            // Chromium the float (0.277837).
+            1.0 / 255.0 + 1e-4
         } else {
             (1e-5 * x.abs().max(y.abs())).max(1e-4)
         };

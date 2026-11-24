@@ -544,6 +544,10 @@ enum Cached {
     Known(Option<f64>),
 }
 
+/// The completed transitions of an element: the property and the end value of
+/// each.
+type CompletedSet = Vec<(TransitionTarget, TransitionValue)>;
+
 /// The animations of one document.
 #[derive(Debug, Default)]
 pub struct DocumentAnimations {
@@ -570,7 +574,11 @@ pub struct DocumentAnimations {
     /// set of completed transitions"). The before-change style of the next
     /// event can still hold a value of the transition from a tick before its
     /// end; the end value counts instead.
-    completed: HashMap<AnimationOwner, Vec<(TransitionTarget, TransitionValue)>>,
+    completed: HashMap<AnimationOwner, CompletedSet>,
+    /// The completed transitions that the last style change event of an
+    /// owner used, with its before-change style: a second run of the event
+    /// for the same before-change style uses them again.
+    repeated: HashMap<AnimationOwner, (Arc<ComputedStyle>, CompletedSet)>,
     /// The styles that the after-change styles of the children of these
     /// elements inherit from: their styles without the values of the
     /// animations and transitions of them and their ancestors, kept for the
