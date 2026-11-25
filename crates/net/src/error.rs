@@ -143,6 +143,16 @@ pub enum NetError {
         limit: usize,
     },
 
+    /// A media request got a status that is not 200 or 206 (a resource of
+    /// the media byte source: 404, 416 for the first request, 500).
+    #[error("the server answered with status {0}")]
+    Status(u16),
+
+    /// The answer to a `Range` request does not fit the request (a wrong
+    /// `Content-Range`, a status 200 to a request for a later range).
+    #[error("invalid answer to a range request: {0}")]
+    Range(String),
+
     /// The caller cancelled the request ([`Loader::cancel`](crate::Loader::cancel)).
     #[error("the request was aborted")]
     Aborted,

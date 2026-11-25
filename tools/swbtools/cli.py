@@ -27,6 +27,7 @@ from swbtools.linebreaks import linebreaks
 from swbtools.manifest import FILES_DIR, read_manifest
 from swbtools.measure import MEASUREMENTS, SLOW_MEASUREMENTS, measure
 from swbtools.media_cpu import media_cpu
+from swbtools.media_fixture import media_fixture
 from swbtools.module_cases import SUBCOMMANDS as PROBE_NET_CASES
 from swbtools.module_cases import write_cases
 from swbtools.pages import list_fixtures, list_js_fixtures, read_meta
@@ -253,6 +254,10 @@ def cmd_media_cpu(args: argparse.Namespace) -> int:
         log.error("--window: expected WIDTHxHEIGHT, got %r", args.window)
         return 2
     return media_cpu(args.files, (int(width), int(height)), args.seconds, Path(args.out))
+
+
+def cmd_media_fixture(args: argparse.Namespace) -> int:
+    return media_fixture(Path(args.fixture), args.url, Path(args.file), args.content_type)
 
 
 def cmd_replay(args: argparse.Namespace) -> int:
@@ -703,6 +708,25 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seconds", type=float, default=10.0, help="time per phase (default 10)")
     p.add_argument("--out", default="out/media/cpu.json", help="output file")
     p.set_defaults(func=cmd_media_cpu)
+
+    p = commands.add_parser(
+        "media-fixture",
+        help="record a media file as one whole response in a fixture directory",
+        description=(
+            "Adds FILE as the response (status 200, the whole body) to GET URL in the fixture "
+            "directory FIXTURE, creating it if needed. `capture` cannot record media: the "
+            "page's Range requests get partial responses. swb's replay answers Range requests "
+            "from the whole body (206, 416) and reads a body file over 8 MiB at an offset "
+            "(docs/media-diagnosis.md section 5)."
+        ),
+    )
+    p.add_argument("fixture", metavar="FIXTURE")
+    p.add_argument("url", metavar="URL")
+    p.add_argument("file", metavar="FILE")
+    p.add_argument(
+        "--content-type", default="video/mp4", help="the stored content type (default video/mp4)"
+    )
+    p.set_defaults(func=cmd_media_fixture)
 
     p = commands.add_parser(
         "replay",

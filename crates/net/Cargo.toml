@@ -11,6 +11,11 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[features]
+# A local HTTP server with `Range` for the tests of the media byte source,
+# also for the tests of other crates (`swb-media`).
+test-server = []
+
 [dependencies]
 brotli-decompressor.workspace = true
 flate2.workspace = true

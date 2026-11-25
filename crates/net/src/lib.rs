@@ -17,6 +17,10 @@
 //! [`Loader`] runs fetches on worker threads and returns the results through
 //! a channel.
 //!
+//! [`Loader::open_media`] opens a media file for a demux thread: blocking
+//! reads and seeks over `Range` requests (or a file, or bytes), with a block
+//! cache, read-ahead, a byte budget and cancellation (see [`media`]).
+//!
 //! [`CookieJar`] stores cookies. Each [`NetworkFetcher`] has one jar for
 //! all its HTTP requests (see ADR 0012).
 //!
@@ -35,11 +39,15 @@ mod file_types;
 pub mod fixture;
 mod headers;
 mod loader;
+pub mod media;
 mod mime;
 mod network;
+mod range;
 mod request;
 mod response;
 mod site;
+#[cfg(any(test, feature = "test-server"))]
+pub mod test_server;
 #[cfg(test)]
 mod test_util;
 
@@ -51,10 +59,11 @@ pub use cors::{
 pub use data_url::percent_decode;
 pub use error::{CorsError, NetError};
 pub use escape::escape_html;
-pub use fetch::{Fetcher, fetch_following_redirects};
+pub use fetch::{Fetcher, StreamResponse, fetch_following_redirects};
 pub use fixture::{ExtendingFetcher, RecordingFetcher, ReplayFetcher};
 pub use headers::{Headers, is_token};
 pub use loader::{API_WORKERS, ClientId, Completion, Loader, NO_CLIENT, RequestId};
+pub use media::{MediaHandle, MediaOptions, MediaResource, MediaStats, ReadAhead};
 pub use network::{NetworkFetcher, USER_AGENT};
 pub use request::{
     CredentialsMode, Destination, Method, RedirectMode, Request, RequestMode, Tainting,

@@ -15,12 +15,23 @@ workspace = true
 # Demuxing and decoding with FFmpeg (ADR 0047 section 3). Off: the byte
 # sources, the metadata types and the color rules only.
 ffmpeg = ["swb-media-ffi/ffmpeg"]
+# `NetSource`, the byte source over swb-net's `MediaResource` (M14 feature
+# 4). Off in the sanitizer build (`just media-asan`): linking swb-net's
+# dependencies before the sanitizer runtime breaks the runtime's start.
+net = ["dep:swb-net"]
 
 [dependencies]
 log.workspace = true
 swb-media-ffi.workspace = true
+swb-net = { workspace = true, optional = true }
 thiserror.workspace = true
 tiny-skia.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
+# The local server with `Range` for tests/net.rs.
+swb-net = { workspace = true, features = ["test-server"] }
+
+[[test]]
+name = "net"
+required-features = ["ffmpeg", "net"]

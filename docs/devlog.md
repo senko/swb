@@ -4,6 +4,25 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-25: M14 feature 4, the media byte source
+
+- `swb-net` reads media with `Range` requests into a cache of 64 KiB
+  blocks (64 MiB per resource, 512 MiB per page), on a pool of at most 16
+  threads. A seek far from the cache opens a new request; a reader blocks
+  until its bytes are in, and `cancel` wakes it at once.
+- The 161 MB 4K file reads through a local server and through the replay
+  with a peak of 64 MiB. FFmpeg's demuxer opens and seeks over the network
+  source as from the file.
+- Replay answers `Range` from a whole recorded body; `swbtools
+  media-fixture` records a media file, which `capture` cannot.
+- The review found a race in the pool's counters and a hang after
+  `resume`; both are fixed with tests. ureq's stable API cannot limit one
+  read, so a server that stalls without closing keeps a fetch thread
+  (backlog).
+- The diagnosis text said that `Content-Length` and `Accept-Ranges` decide
+  seeking in Chromium; that was not measured, and feature 6a measures it.
+- Next: feature 5, the media pipeline.
+
 ## 2026-11-25: M14 feature 3, the FFmpeg build and the boundary
 
 - `just ffmpeg` builds the pinned FFmpeg 9.0.2 into `out/ffmpeg/` (30 s;

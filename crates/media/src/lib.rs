@@ -16,6 +16,9 @@ mod error;
 mod info;
 mod source;
 
+#[cfg(feature = "net")]
+mod net_source;
+
 #[cfg(feature = "ffmpeg")]
 mod decode;
 #[cfg(feature = "ffmpeg")]
@@ -27,6 +30,9 @@ pub use info::{
     UNTAGGED_BT709_LINES, VideoTrack, conversion, natural_size,
 };
 pub use source::{ByteSource, FileSource, MemorySource};
+
+#[cfg(feature = "net")]
+pub use net_source::NetSource;
 
 #[cfg(feature = "ffmpeg")]
 pub use decode::{AudioChunk, AudioDecoder, Demux, Output, Packet, RawVideoFrame, VideoDecoder};

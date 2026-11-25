@@ -118,6 +118,22 @@
 //!   credentials allowed, `Vary: Origin` and the names of the stored headers
 //!   as `Access-Control-Expose-Headers`.
 //!
+//! # Media files and `Range`
+//!
+//! A media file is recorded once, as the whole response (status 200, the
+//! full body); the capture tool cannot record the partial responses of a
+//! page's `Range` requests. `swbtools media-fixture FIXTURE URL FILE` adds
+//! such an entry (or add the body file and the manifest entry by hand).
+//! [`ReplayFetcher`] answers a `GET` with one `Range` of the unit `bytes`
+//! to an entry with status 200 from that body, as a server with range
+//! support does: 206 with `Content-Range` and `Accept-Ranges: bytes`; 416
+//! with `Content-Range: bytes */LENGTH` for a range that starts after the
+//! last byte; 200 (with `Accept-Ranges`) for a range that is not valid or
+//! that has several parts. A request without `Range` gets the whole body
+//! as before. So a test depends on the bytes, not on the sequence of
+//! requests. A body file larger than 8 MiB is not read at load: it is read
+//! at the offset of each request ([`Fetcher::fetch_stream`] streams it).
+//!
 //! # Body files
 //!
 //! The file name is the first 16 hexadecimal digits (lowercase) of the

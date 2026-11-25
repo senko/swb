@@ -40,12 +40,13 @@ use std::time::Duration;
 
 use log::{error, warn};
 
-use crate::budget::Reservation;
+use crate::budget::{ByteBudget, Reservation};
 use crate::cookies::CookieJar;
 use crate::cors::{PreflightCache, ResponseKind};
 use crate::cors_fetch::fetch_request;
 use crate::error::NetError;
 use crate::fetch::Fetcher;
+use crate::media::{self, MediaOptions, MediaPool, MediaResource, PAGE_BUDGET_BYTES};
 use crate::request::Request;
 use crate::response::Response;
 
@@ -243,6 +244,11 @@ pub struct Loader {
     next_client: AtomicU64,
     /// The numbers of the threads that were started after the first ones.
     spawned: AtomicUsize,
+    /// The threads of the media byte source (at most 16), apart from the
+    /// two pools above (M14 feature 4).
+    media_pool: Arc<MediaPool>,
+    /// The memory that the media resources of the page share.
+    media_budget: Arc<ByteBudget>,
 }
 
 impl Loader {
@@ -280,6 +286,8 @@ impl Loader {
             next_id: AtomicU64::new(1),
             next_client: AtomicU64::new(NO_CLIENT + 1),
             spawned: AtomicUsize::new(0),
+            media_pool: MediaPool::new(),
+            media_budget: ByteBudget::new(PAGE_BUDGET_BYTES),
         }
     }
 
@@ -457,6 +465,32 @@ impl Loader {
     /// Returns the cookie jar of the fetcher, if it has one.
     pub fn cookie_jar(&self) -> Option<&CookieJar> {
         self.shared.fetcher.cookie_jar()
+    }
+
+    /// Opens `request` as a media resource with the default limits
+    /// ([`MediaOptions::default`]): see the [`media`](crate::media) module.
+    /// The request carries the cookies, referrer, CORS mode and credentials
+    /// of the element. The resource opens in the background; its calls
+    /// block until the first response is there.
+    pub fn open_media(&self, request: Request) -> MediaResource {
+        self.open_media_with(request, MediaOptions::default())
+    }
+
+    /// [`Loader::open_media`] with other limits.
+    pub fn open_media_with(&self, request: Request, options: MediaOptions) -> MediaResource {
+        media::open(
+            request,
+            &self.shared.fetcher,
+            &self.media_pool,
+            &self.media_budget,
+            options,
+        )
+    }
+
+    /// The budget that all media resources of this loader share (512 MiB,
+    /// [`PAGE_BUDGET_BYTES`]).
+    pub fn media_budget(&self) -> &Arc<ByteBudget> {
+        &self.media_budget
     }
 }
 

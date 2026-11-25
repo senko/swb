@@ -49,9 +49,28 @@ pub(crate) struct Fetched {
 /// <https://fetch.spec.whatwg.org/#main-fetch>
 pub(crate) fn fetch_request(
     fetcher: &dyn Fetcher,
-    mut request: Request,
+    request: Request,
     cache: &PreflightCache,
 ) -> Result<Fetched, NetError> {
+    fetch_request_with(fetcher, request, cache, &|request| {
+        fetcher.fetch(request).map(|response| (response, ()))
+    })
+    .map(|(fetched, ())| fetched)
+}
+
+/// The fetch of the main request of [`fetch_request_with`].
+pub(crate) type MainFetch<'a, T> = dyn Fn(&Request) -> Result<(Response, T), NetError> + 'a;
+
+/// [`fetch_request`] with the fetch of the main request (not the preflight)
+/// done by `main`, which returns the response and a value that goes with
+/// it: the open body of a streamed response (M14 feature 4). The value of
+/// the final response is returned; those of redirect responses are dropped.
+pub(crate) fn fetch_request_with<T>(
+    fetcher: &dyn Fetcher,
+    mut request: Request,
+    cache: &PreflightCache,
+    main: &MainFetch<'_, T>,
+) -> Result<(Fetched, T), NetError> {
     let start_url = request.url.clone();
     let mut redirect_count = 0;
     loop {
@@ -77,18 +96,20 @@ pub(crate) fn fetch_request(
                 .map_err(|failure| cors_error(failure, true))?;
             cache.store(&request, answer);
         }
-        let mut response = fetcher.fetch(&request)?;
+        let (mut response, extra) = main(&request)?;
         if request.tainting == Tainting::Cors {
             cors_check(&request, &response).map_err(|failure| cors_error(failure, false))?;
         }
         let Some(location) = location_url(&request.url, &response)? else {
             response.redirected = redirect_count > 0;
-            return Ok(finish(&request, response, kind_of(request.tainting)));
+            let kind = kind_of(request.tainting);
+            return Ok((finish(&request, response, kind), extra));
         };
         match request.redirect {
             RedirectMode::Follow => check_redirect_scheme(&request.url, &response, &location)?,
             RedirectMode::Manual => {
-                return Ok(finish(&request, response, ResponseKind::OpaqueRedirect));
+                let kind = ResponseKind::OpaqueRedirect;
+                return Ok((finish(&request, response, kind), extra));
             }
             RedirectMode::Error => {
                 return Err(NetError::Blocked(format!(

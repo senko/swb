@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::collections::hash_map;
 use std::fmt;
 use std::fs;
+use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -16,8 +17,9 @@ use super::{
 use crate::builtin;
 use crate::cookies::CookieJar;
 use crate::error::NetError;
-use crate::fetch::Fetcher;
+use crate::fetch::{Fetcher, StreamResponse};
 use crate::headers::Headers;
+use crate::range::{Resolved, parse_range, resolve};
 use crate::request::{Method, Request};
 use crate::response::Response;
 
@@ -43,25 +45,113 @@ pub struct ReplayFetcher {
 struct ReplayEntry {
     status: u16,
     headers: Headers,
-    body: Arc<Vec<u8>>,
+    body: ReplayBody,
+}
+
+/// Bodies larger than this stay in their file and are read at an offset
+/// when a request needs them (a media file: the 4K test file is 161 MB).
+const LAZY_BODY_BYTES: u64 = 8 << 20;
+
+/// A recorded body: in memory, or a file that is read on demand.
+#[derive(Clone)]
+enum ReplayBody {
+    Memory(Arc<Vec<u8>>),
+    File { path: Arc<PathBuf>, len: u64 },
+}
+
+impl ReplayBody {
+    fn len(&self) -> u64 {
+        match self {
+            ReplayBody::Memory(data) => data.len() as u64,
+            ReplayBody::File { len, .. } => *len,
+        }
+    }
+
+    /// The bytes `start..start + len` as a reader. The range is inside the
+    /// body (the callers resolved it against [`ReplayBody::len`]).
+    fn reader(&self, start: u64, len: u64) -> Result<Box<dyn Read + Send>, NetError> {
+        match self {
+            ReplayBody::Memory(data) => Ok(Box::new(MemoryRange {
+                data: Arc::clone(data),
+                pos: usize::try_from(start).unwrap_or(usize::MAX),
+                end: usize::try_from(start.saturating_add(len)).unwrap_or(usize::MAX),
+            })),
+            ReplayBody::File { path, .. } => {
+                let mut file =
+                    fs::File::open(path.as_path()).map_err(|error| fixture_error(path, &error))?;
+                file.seek(SeekFrom::Start(start))
+                    .map_err(|error| fixture_error(path, &error))?;
+                Ok(Box::new(file.take(len)))
+            }
+        }
+    }
+
+    /// The bytes `start..start + len` in memory.
+    fn read(&self, start: u64, len: u64) -> Result<Vec<u8>, NetError> {
+        if let ReplayBody::Memory(data) = self
+            && start == 0
+            && len == data.len() as u64
+        {
+            return Ok(data.as_ref().clone());
+        }
+        let mut bytes = Vec::new();
+        let path = match self {
+            ReplayBody::File { path, .. } => path.as_path(),
+            ReplayBody::Memory(_) => Path::new("(memory)"),
+        };
+        self.reader(start, len)?
+            .read_to_end(&mut bytes)
+            .map_err(|error| fixture_error(path, &error))?;
+        Ok(bytes)
+    }
+}
+
+/// A reader over a part of a body in memory.
+struct MemoryRange {
+    data: Arc<Vec<u8>>,
+    pos: usize,
+    end: usize,
+}
+
+impl Read for MemoryRange {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let end = self.end.min(self.data.len());
+        let rest = self.data.get(self.pos..end).unwrap_or_default();
+        let n = rest.len().min(buf.len());
+        buf[..n].copy_from_slice(&rest[..n]);
+        self.pos += n;
+        Ok(n)
+    }
 }
 
 impl ReplayFetcher {
     /// Loads the fixture in `dir`. Fails if the manifest is missing or
     /// invalid, or if a body file cannot be read. If the manifest has
     /// several entries for the same URL and method, the first one is used.
+    /// A body file over [`LAZY_BODY_BYTES`] is not read here: it is read
+    /// at an offset when a request needs it.
     pub fn load(dir: impl AsRef<Path>) -> Result<Self, NetError> {
         let dir = dir.as_ref();
-        let mut bodies: HashMap<String, Arc<Vec<u8>>> = HashMap::new();
+        let mut bodies: HashMap<String, ReplayBody> = HashMap::new();
         let mut entries = HashMap::new();
         for entry in read_manifest(dir)? {
             let body = if let Some(body) = bodies.get(&entry.body) {
-                Arc::clone(body)
+                body.clone()
             } else {
                 let path = body_path(dir, &entry.body)?;
-                let body = fs::read(&path).map_err(|error| fixture_error(&path, &error))?;
-                let body = Arc::new(body);
-                bodies.insert(entry.body.clone(), Arc::clone(&body));
+                let len = fs::metadata(&path)
+                    .map_err(|error| fixture_error(&path, &error))?
+                    .len();
+                let body = if len > LAZY_BODY_BYTES {
+                    ReplayBody::File {
+                        path: Arc::new(path),
+                        len,
+                    }
+                } else {
+                    let data = fs::read(&path).map_err(|error| fixture_error(&path, &error))?;
+                    ReplayBody::Memory(Arc::new(data))
+                };
+                bodies.insert(entry.body.clone(), body.clone());
                 body
             };
             match entries.entry((entry.url, entry.method, entry.request_body)) {
@@ -197,14 +287,21 @@ fn served_headers(request: &Request, entry: &ReplayEntry) -> Headers {
     headers
 }
 
-impl Fetcher for ReplayFetcher {
-    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
-        if let Some(result) = builtin::fetch(request) {
-            return result;
-        }
-        if is_preflight(request) {
-            return Ok(preflight_response(request));
-        }
+/// What a replayed request gets: the head and the part of the body.
+struct Answer {
+    head: Response,
+    body: ReplayBody,
+    start: u64,
+    len: u64,
+}
+
+impl ReplayFetcher {
+    /// The answer to `request`. A `GET` with a single `Range` of `bytes`
+    /// to an entry with status 200 gets the range of the recorded body, as
+    /// a server with range support answers: 206 with `Content-Range`, 416
+    /// (`Content-Range: bytes */LEN`) outside the body, 200 for a range
+    /// that is not valid; all with `Accept-Ranges: bytes` (M14 feature 4).
+    fn answer(&self, request: &Request) -> Result<Answer, NetError> {
         let url = entry_url(&request.url);
         let body = request_hash(request);
         let Some(entry) = self.lookup(&url, request.method.as_str(), body.as_deref()) else {
@@ -217,12 +314,86 @@ impl Fetcher for ReplayFetcher {
             return Err(NetError::NotInFixture(request.url.clone()));
         };
         debug!("served {} {}", request.method, url);
-        Ok(Response {
-            url: request.url.clone(),
-            status: entry.status,
-            headers: served_headers(request, entry),
-            body: entry.body.as_ref().clone(),
-            redirected: false,
+        let mut headers = served_headers(request, entry);
+        let total = entry.body.len();
+        let (mut status, mut start, mut len) = (entry.status, 0, total);
+        if request.method == Method::Get
+            && entry.status == 200
+            && let Some(value) = request.headers.get("range")
+        {
+            // The stored `Content-Length` is that of the whole body, and a
+            // stored `Accept-Ranges` or `Content-Range` would repeat ours.
+            let partial_headers = |headers: &mut Headers| {
+                for name in ["content-length", "accept-ranges", "content-range"] {
+                    headers.remove(name);
+                }
+                headers.append("accept-ranges", "bytes");
+            };
+            headers.set("accept-ranges", "bytes");
+            match parse_range(value).map(|spec| resolve(spec, total)) {
+                Some(Resolved::Partial { start: first, end }) => {
+                    status = 206;
+                    (start, len) = (first, end - first + 1);
+                    partial_headers(&mut headers);
+                    headers.append("content-range", format!("bytes {first}-{end}/{total}"));
+                }
+                Some(Resolved::Unsatisfiable) => {
+                    status = 416;
+                    len = 0;
+                    partial_headers(&mut headers);
+                    headers.append("content-range", format!("bytes */{total}"));
+                }
+                Some(Resolved::Whole) | None => {}
+            }
+        }
+        Ok(Answer {
+            head: Response {
+                url: request.url.clone(),
+                status,
+                headers,
+                body: Vec::new(),
+                redirected: false,
+            },
+            body: entry.body.clone(),
+            start,
+            len,
+        })
+    }
+}
+
+impl Fetcher for ReplayFetcher {
+    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
+        if let Some(result) = builtin::fetch(request) {
+            return result;
+        }
+        if is_preflight(request) {
+            return Ok(preflight_response(request));
+        }
+        let Answer {
+            mut head,
+            body,
+            start,
+            len,
+        } = self.answer(request)?;
+        head.body = body.read(start, len)?;
+        Ok(head)
+    }
+
+    /// Like [`ReplayFetcher::fetch`], but a body that is in a file is read
+    /// at the offset of the range when the caller reads it, not loaded.
+    fn fetch_stream(&self, request: &Request) -> Result<StreamResponse, NetError> {
+        if builtin::handles(&request.url) || is_preflight(request) {
+            return self.fetch(request).map(StreamResponse::buffered);
+        }
+        let Answer {
+            head,
+            body,
+            start,
+            len,
+        } = self.answer(request)?;
+        Ok(StreamResponse {
+            head,
+            body: body.reader(start, len)?,
         })
     }
 

@@ -12,6 +12,7 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use log::{debug, warn};
+use ureq::RequestExt as _;
 use ureq::http;
 use ureq::tls::{Certificate, RootCerts, TlsConfig, TlsProvider};
 use url::Url;
@@ -19,6 +20,7 @@ use url::Url;
 use super::{MAX_BODY_SIZE, USER_AGENT, decode};
 use crate::cookies::CookieJar;
 use crate::error::NetError;
+use crate::fetch::StreamResponse;
 use crate::headers::Headers;
 use crate::request::{Destination, Request};
 use crate::response::Response;
@@ -27,7 +29,9 @@ use crate::site;
 /// The time to open the connection, including the TLS handshake.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
 
-/// The time for the whole request, including the response body.
+/// The time for the whole request, including the response body. A streamed
+/// body ([`HttpClient::fetch_stream`]) has no such limit; it has this time
+/// for the response head.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// The `Accept` header for documents. Chromium also sends
@@ -62,6 +66,9 @@ pub(crate) struct HttpClient {
     fresh: ureq::Agent,
     fresh_direct: ureq::Agent,
     cookies: CookieJar,
+    /// The time limit of a request (a stream: of its head); tests make it
+    /// short.
+    request_timeout: Duration,
 }
 
 impl HttpClient {
@@ -76,15 +83,27 @@ impl HttpClient {
         Self::with_proxy(None)
     }
 
+    /// Creates a client that connects directly, with another time limit for
+    /// a request.
+    #[cfg(test)]
+    pub(crate) fn without_proxy_with_timeout(request_timeout: Duration) -> Self {
+        Self::with_proxy_and_timeout(None, request_timeout)
+    }
+
     /// Creates a client that sends requests through `proxy`, except
     /// requests to loopback hosts ([`site::is_loopback`]).
     pub(super) fn with_proxy(proxy: Option<ureq::Proxy>) -> Self {
+        Self::with_proxy_and_timeout(proxy, REQUEST_TIMEOUT)
+    }
+
+    fn with_proxy_and_timeout(proxy: Option<ureq::Proxy>, request_timeout: Duration) -> Self {
         HttpClient {
-            agent: build_agent(proxy.clone(), true),
-            direct: build_agent(None, true),
-            fresh: build_agent(proxy, false),
-            fresh_direct: build_agent(None, false),
+            agent: build_agent(proxy.clone(), true, request_timeout),
+            direct: build_agent(None, true, request_timeout),
+            fresh: build_agent(proxy, false, request_timeout),
+            fresh_direct: build_agent(None, false, request_timeout),
             cookies: CookieJar::new(),
+            request_timeout,
         }
     }
 
@@ -103,6 +122,66 @@ impl HttpClient {
     /// browsers do; every other method (`POST`, `PATCH`, ...) always
     /// opens a new connection and is never retried.
     pub(crate) fn fetch(&self, request: &Request) -> Result<Response, NetError> {
+        let (status, headers, mut body) = self.send(request, Timing::Agent)?;
+        let account = |bytes: usize| account(request, bytes);
+        let raw = read_body(&request.url, &mut body, &account)?;
+        let body = decode::decode_body(raw, &headers, MAX_BODY_SIZE, &account)?;
+        Ok(Response {
+            url: request.url.clone(),
+            status,
+            headers,
+            body,
+            redirected: false,
+        })
+    }
+
+    /// Like [`HttpClient::fetch`], but the body is a reader over the open
+    /// connection: no size limit, no decompression (a media request sends
+    /// `Accept-Encoding: identity`).
+    ///
+    /// Time limits: the connection and the response head keep their limits
+    /// (15 s, [`REQUEST_TIMEOUT`]). The body has no limit on its total time
+    /// when the request asks for the bytes from the start of the resource
+    /// (no `Range`, or `bytes=0-`): the server may answer 200 and send a
+    /// stream that has no reopen (a long file, a paused video). A request
+    /// for a later range is a seekable resource's: its body has
+    /// [`REQUEST_TIMEOUT`] in total, and the caller reopens where the body
+    /// stopped. `ureq` has no limit for one read (`timeout_recv_body` is a
+    /// total), so a server that stalls on a body without a limit holds the
+    /// reading thread until it closes the connection (ADR 0047, notes of
+    /// feature 4).
+    pub(crate) fn fetch_stream(&self, request: &Request) -> Result<StreamResponse, NetError> {
+        let body_time = (!from_start(request)).then_some(self.request_timeout);
+        let (status, headers, body) = self.send(request, Timing::Stream { body: body_time })?;
+        if headers
+            .get("content-encoding")
+            .is_some_and(|coding| !coding.trim().eq_ignore_ascii_case("identity"))
+        {
+            warn!(
+                "{}: a streamed body with a content coding is not decoded",
+                request.url
+            );
+        }
+        let reader = body.into_with_config().limit(u64::MAX).reader();
+        Ok(StreamResponse {
+            head: Response {
+                url: request.url.clone(),
+                status,
+                headers,
+                body: Vec::new(),
+                redirected: false,
+            },
+            body: Box::new(reader),
+        })
+    }
+
+    /// Sends `request` and returns the status, the headers and the open
+    /// body. The cookies of the response are stored.
+    fn send(
+        &self,
+        request: &Request,
+        timing: Timing,
+    ) -> Result<(u16, Headers, ureq::Body), NetError> {
         let credentials = request.sends_credentials();
         let cookie = if credentials {
             self.cookies.cookie_header(request)
@@ -119,8 +198,8 @@ impl HttpClient {
         let result = loop {
             let http_request = build_request(request, cookie.clone())?;
             let result = match &request.body {
-                Some(body) => agent.run(http_request.map(|()| body.as_slice())),
-                None => agent.run(http_request),
+                Some(body) => self.run(agent, http_request.map(|()| body.as_slice()), timing),
+                None => self.run(agent, http_request, timing),
             };
             attempt += 1;
             match result {
@@ -135,21 +214,53 @@ impl HttpClient {
             }
         };
         let response = result.map_err(|error| map_error(error, &request.url))?;
-        let (parts, mut body) = response.into_parts();
+        let (parts, body) = response.into_parts();
         let headers = convert_headers(&parts.headers);
         if credentials {
             self.cookies.store_response_cookies(request, &headers);
         }
-        let account = |bytes: usize| account(request, bytes);
-        let raw = read_body(&request.url, &mut body, &account)?;
-        let body = decode::decode_body(raw, &headers, MAX_BODY_SIZE, &account)?;
-        Ok(Response {
-            url: request.url.clone(),
-            status: parts.status.as_u16(),
-            headers,
-            body,
-            redirected: false,
-        })
+        Ok((parts.status.as_u16(), headers, body))
+    }
+}
+
+/// Which time limits a request has.
+#[derive(Clone, Copy)]
+enum Timing {
+    /// The agent's: [`REQUEST_TIMEOUT`] for the whole request.
+    Agent,
+    /// A streamed body: the response head has the request time limit, the
+    /// body this total time (none: no limit).
+    Stream { body: Option<Duration> },
+}
+
+/// True when `request` asks for the resource from its first byte: no
+/// `Range`, or `bytes=0-`.
+fn from_start(request: &Request) -> bool {
+    request
+        .headers
+        .get("range")
+        .and_then(crate::range::parse_range)
+        .is_none_or(|spec| matches!(spec, crate::range::RangeSpec::From(0)))
+}
+
+impl HttpClient {
+    /// Runs `http_request` on `agent` with the limits of `timing`.
+    fn run<S: ureq::AsSendBody>(
+        &self,
+        agent: &ureq::Agent,
+        http_request: http::Request<S>,
+        timing: Timing,
+    ) -> Result<http::Response<ureq::Body>, ureq::Error> {
+        match timing {
+            Timing::Agent => agent.run(http_request),
+            Timing::Stream { body } => http_request
+                .with_agent(agent)
+                .configure()
+                .timeout_global(None)
+                .timeout_recv_response(Some(self.request_timeout))
+                .timeout_recv_body(body)
+                .run(),
+        }
     }
 }
 
@@ -204,7 +315,7 @@ fn is_stale_connection(error: &io::Error) -> bool {
 
 /// Creates a `ureq` agent with the browser's settings.
 /// With `pooled` false, no connection is kept for a later request.
-fn build_agent(proxy: Option<ureq::Proxy>, pooled: bool) -> ureq::Agent {
+fn build_agent(proxy: Option<ureq::Proxy>, pooled: bool, request_timeout: Duration) -> ureq::Agent {
     let tls = TlsConfig::builder()
         .provider(TlsProvider::Rustls)
         .root_certs(native_root_certs())
@@ -218,7 +329,7 @@ fn build_agent(proxy: Option<ureq::Proxy>, pooled: bool) -> ureq::Agent {
         // 4xx and 5xx are responses, not errors.
         .http_status_as_error(false)
         .timeout_connect(Some(CONNECT_TIMEOUT))
-        .timeout_global(Some(REQUEST_TIMEOUT))
+        .timeout_global(Some(request_timeout))
         // Sent to proxies; requests set their own User-Agent header.
         .user_agent(USER_AGENT)
         .tls_config(tls)
@@ -298,7 +409,10 @@ fn request_headers(request: &Request, cookie: Option<String>) -> Headers {
     let defaults = [
         ("user-agent", Some(USER_AGENT.to_owned())),
         ("accept", Some(accept(request.destination).to_owned())),
-        ("accept-encoding", Some(ACCEPT_ENCODING.to_owned())),
+        (
+            "accept-encoding",
+            Some(accept_encoding(request.destination).to_owned()),
+        ),
         ("accept-language", Some(ACCEPT_LANGUAGE.to_owned())),
         ("origin", request.origin_header()),
         ("cookie", cookie),
@@ -319,12 +433,25 @@ fn request_headers(request: &Request, cookie: Option<String>) -> Headers {
     headers
 }
 
+/// Media is never compressed: the byte source reads ranges of the file
+/// as stored (ADR 0047 section 5).
+fn accept_encoding(destination: Destination) -> &'static str {
+    match destination {
+        Destination::Video | Destination::Audio => "identity",
+        _ => ACCEPT_ENCODING,
+    }
+}
+
 fn accept(destination: Destination) -> &'static str {
     match destination {
         Destination::Document | Destination::IFrame => ACCEPT_DOCUMENT,
         Destination::Style => ACCEPT_STYLE,
         Destination::Image => ACCEPT_IMAGE,
-        Destination::Font | Destination::Script | Destination::Other => ACCEPT_OTHER,
+        Destination::Font
+        | Destination::Script
+        | Destination::Video
+        | Destination::Audio
+        | Destination::Other => ACCEPT_OTHER,
     }
 }
 

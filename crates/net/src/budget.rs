@@ -55,8 +55,10 @@ impl ByteBudget {
         self.limit
     }
 
-    /// Takes `bytes` if the sum stays within the limit.
-    fn try_add(&self, bytes: usize) -> bool {
+    /// Takes `bytes` if the sum stays within the limit. The media byte
+    /// source takes the memory of its cache blocks this way (the page's
+    /// media budget, ADR 0047 section 5).
+    pub(crate) fn try_add(&self, bytes: usize) -> bool {
         self.used
             .try_update(Ordering::Relaxed, Ordering::Relaxed, |used| {
                 used.checked_add(bytes).filter(|sum| *sum <= self.limit)
@@ -64,7 +66,14 @@ impl ByteBudget {
             .is_ok()
     }
 
-    fn sub(&self, bytes: usize) {
+    /// Takes `bytes` even when the sum passes the limit (the floor of a
+    /// media resource, see `media::cache`).
+    pub(crate) fn add(&self, bytes: usize) {
+        self.used.fetch_add(bytes, Ordering::Relaxed);
+    }
+
+    /// Gives `bytes` back (taken with [`ByteBudget::try_add`]).
+    pub(crate) fn sub(&self, bytes: usize) {
         self.used.fetch_sub(bytes, Ordering::Relaxed);
     }
 }

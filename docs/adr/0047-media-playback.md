@@ -917,3 +917,130 @@ implementation:
   `VALIDSIG` is the primary key). The CI cache key does not include the
   date of the signature check, and the cache is saved right after the
   build (`actions/cache/save` with `if: always()`).
+
+## Implementation notes (M14 feature 4)
+
+Decisions that section 5 left open, and findings of the implementation
+(`crates/net/src/media/`, `range.rs`, `test_server.rs`):
+
+- **The interface.** `Loader::open_media(request)` and
+  `open_media_with(request, MediaOptions)` return a `MediaResource` at
+  once (an HTTP resource opens in the background; its calls block until the
+  first response is there; a failure to open is the error of the first
+  call, not of `open_media`). `MediaResource` has `read`, `seek`, `size`
+  and `cancel`; `MediaResource::handle()` gives a cloneable `MediaHandle`
+  for the owner: `cancel`, `resume` (undo a cancel: a suspended pipeline
+  keeps its cache), `reader()` (a new reader over the same cache),
+  `set_read_ahead(ReadAhead::Bytes | Seconds)`, `set_duration`, `stats()`
+  (`MediaStats`: bytes cached now and at the peak, requests, `stalled`,
+  `seekable`, `size`), `error()` and `wait_open(timeout)`. Dropping the
+  last handle and reader cancels and frees the cache at once (the page
+  budget gets its bytes back even when a job thread still waits for the
+  network); a `cancel` alone keeps the cache for a `resume`, which also
+  restarts the first request of a resource that was cancelled while it was
+  still opening. `MediaResource::from_bytes` is the
+  resource for `blob:` URLs (the engine holds the blobs). The element
+  sets `Destination::Video` or `Audio` (new variants); `open_media`
+  forces one of them.
+- **The adapter** is `swb_media::NetSource` (module `net_source.rs`), behind
+  the feature `net` of `swb-media` (`swb/media` turns it on): `swb-media`
+  depends on `swb-net` only with it, and the engine adds nothing in 6a
+  but the feature. Without the feature the sanitizer build (`just
+  media-asan`, which builds `swb-media` without `net`) is unchanged: with
+  `swb-net`'s dependencies (`ring`, through the `libc` crate) in the link,
+  the linker put `libc` before the AddressSanitizer runtime in the
+  `DT_NEEDED` list and the runtime crashed at start (`InitTlsSize`, a null
+  call). So `tests/net.rs` runs under `just test-media`, not under the
+  sanitizers.
+- **Request path.** `Fetcher::fetch_stream(request)` (new, default: the
+  buffered `fetch`) returns a `StreamResponse` (head and a `Read`); the
+  network fetcher streams, the replay streams from the file. The
+  redirect, CORS and tainting loop (`fetch_request_with`) is shared with
+  `fetch_request`. `Accept-Encoding: identity` is the default of
+  destinations `video` and `audio` in the HTTP layer, not a request
+  header: a header of the request would be CORS-unsafe and cause a
+  preflight (Chromium does not preflight it).
+- **Statuses.** 206 needs a valid `Content-Range` that starts at the
+  requested byte; a 206 with a total makes the resource seekable, with
+  `*` it is a stream. 200 makes a stream (a 200 to a later request is an
+  error unless it is for byte 0). Any other status, also 416 for the
+  first request (an empty file) and 404, fails the resource with
+  `NetError::Status`; a 416 later cannot happen (no request starts at
+  or past the size). A changed total or start is `NetError::Range`.
+- **Defaults.** Read-ahead `AUTO` (15 s) with at least 1 MiB and at most the
+  cache limit minus the kept 8 MiB; seconds become bytes by size over
+  duration, else 1 MiB per second. The job stops when the cache ahead of
+  the reader reaches the target and starts again below half of it. A
+  stream (no `Range`) cannot reopen, so its job waits with the
+  connection open (TCP back pressure) and keeps a place of the pool.
+- **Failures mid-body.** A body that ends or fails before the end of the
+  file is requested again at the first block that was not complete; three
+  failures in a row without a completed block fail the resource
+  (`NetError::Range`). A failed resource still serves the blocks it has.
+  A request for a later range (`bytes=N-`, N above 0) has 60 s for its
+  whole body: it ends with an error and is reopened where it stopped (see
+  **Time limits** below).
+- **Eviction** (`cache.rs`): behind the read position oldest first except the
+  newest 8 MiB; then blocks ahead past the first gap, farthest first; then
+  the rest behind; never the blocks that run without a gap from the read
+  position. A job without room waits (100 ms steps) and `stalled` is set.
+- **The pool** (`pool.rs`): at most 16 jobs run; a cancelled or replaced job
+  that waits for the network gives its place away (`release`) and its
+  thread ends when the network returns (at most 16 such threads). A job
+  marks its slot done under the pool lock before it changes the counters,
+  and `release` ignores a slot that is done or released, so a `cancel`
+  that races with the end of the job cannot count the place twice.
+  There is no timeout shorter than the request's 60 s for a server that
+  never answers the head: the cancelled thread stays until then.
+- **Not interruptible**: the read of a blocked connection (ureq has no way to
+  close it from another thread), so cancel frees the reader and the pool
+  place at once but not the socket. The budget is freed at once only when
+  the last owner is dropped (the cache closes: blocks and the block that
+  a thread fills now are given back, later calls of the thread do
+  nothing); after a `cancel` that keeps the cache the bytes stay charged.
+- **Time limits** (`network/http.rs`, `fetch_stream`). ureq 3.4 has, on its
+  stable API, a total time for the whole call (`timeout_global`), a total
+  for the response head (`timeout_recv_response`) and a total for the body
+  from the head on (`timeout_recv_body`); each is a budget that is not
+  restarted by a read, and the socket's read timeout is the time that is
+  left of the budget. A limit for one read (a stall limit) exists only in
+  `ureq::unversioned`, which has no stability promise and is not used.
+  The rule: the connect (15 s) and the head (60 s) keep their limits for
+  all requests. The body of a request for the first byte (no `Range`, or
+  `bytes=0-`: the server may answer 200 with a stream that cannot reopen)
+  has no limit on its total time, so a long file or a paused video does
+  not fail after 60 s. The body of a request for a later range has 60 s in
+  total; the job reopens where it stopped. Open: a server that stalls
+  without closing the connection holds the thread of a body without a
+  limit until it closes (the reader returns on `cancel`, and the place in
+  the pool is released, but the thread stays: at most 16 such threads
+  count against the pool; others wait). A stall limit needs a transport
+  that can time out one read (backlog).
+- **Page budget floor** (`cache.rs`): a resource that holds less than 2 MiB
+  may reserve past the page budget, so a resource with an empty cache
+  still progresses when the other resources hold the whole 512 MiB (at
+  most 16 resources run, so the excess is below 32 MiB). Above the floor
+  the budget limits as before.
+- **Hostile servers.** A 206 whose `Content-Range` starts at another byte
+  than requested, a total that changes on a later response, and a 200 to
+  a request for a later range each fail the resource with
+  `NetError::Range`; the blocks already read stay readable (tests with
+  `test_server::Lie`). The far-seek check exists in two places (`plan`
+  and the job); each alone gives the right result.
+- **Replay** (`fixture/replay.rs`): a body file over 8 MiB stays in its
+  file and is read at an offset (`File::seek` and `take`); smaller bodies
+  are in memory as before. A `GET` with a single `bytes` range to an
+  entry of status 200 gets 206, `Content-Range`, `Accept-Ranges: bytes`;
+  a range outside the body gets 416 with `Content-Range: bytes */LEN`; an
+  invalid or multiple range is ignored (200, with `Accept-Ranges`). A 206
+  or 416 drops the stored `Content-Length`, `Accept-Ranges` and
+  `Content-Range` before its own `Content-Range` and `Accept-Ranges` are
+  added.
+  A request without `Range` is answered as before. `swbtools
+  media-fixture FIXTURE URL FILE` records a media file as one whole
+  response.
+- **Measured** (local server and replay, 4K file `mux-highest.mp4`,
+  161,597,070 bytes): the whole file reads through one request when the
+  reader is fast, with a peak of 67,108,864 bytes (the 64 MiB limit) and
+  the page budget at most that; the demuxer opens it and seeks to 60 %
+  with 2 requests, 90.5 MB sent.

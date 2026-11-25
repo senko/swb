@@ -2,7 +2,8 @@
 //!
 //! The demuxer reads a source with blocking calls on its thread. This
 //! module has the file and the in-memory source; the network source
-//! (`Range` requests through the loader) comes with M14 feature 4.
+//! (`NetSource`, `Range` requests through the loader, M14 feature 4) is in
+//! `net_source.rs`, with the feature `net`.
 
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};

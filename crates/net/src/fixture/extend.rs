@@ -5,7 +5,7 @@ use std::fmt;
 use super::{RecordingFetcher, ReplayFetcher};
 use crate::cookies::CookieJar;
 use crate::error::NetError;
-use crate::fetch::Fetcher;
+use crate::fetch::{Fetcher, StreamResponse};
 use crate::request::Request;
 use crate::response::Response;
 
@@ -38,6 +38,16 @@ impl<F: Fetcher> Fetcher for ExtendingFetcher<F> {
             Err(NetError::NotInFixture(url)) => {
                 log::info!("not in the fixture, fetching: {url}");
                 self.recorder.fetch(request)
+            }
+            other => other,
+        }
+    }
+
+    fn fetch_stream(&self, request: &Request) -> Result<StreamResponse, NetError> {
+        match self.replay.fetch_stream(request) {
+            Err(NetError::NotInFixture(url)) => {
+                log::info!("not in the fixture, fetching: {url}");
+                self.recorder.fetch(request).map(StreamResponse::buffered)
             }
             other => other,
         }

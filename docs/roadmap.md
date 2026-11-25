@@ -6868,6 +6868,37 @@ Steps:
       requests from a whole recorded body (read at offsets, never whole).
       Diagnosis section 5, ADR 0047 section 5. May split into 4a (the
       loader) and 4b (replay and the tests' server).
+
+      Done (2026-11-25), in one part:
+      - `Loader::open_media` gives a `MediaResource` (blocking `read`,
+        `seek`, `size`; `cancel` from any thread) and a `MediaHandle`
+        (`ReadAhead::Bytes` or `Seconds` with the ADR's defaults, `AUTO`
+        15 s and `METADATA` 3 s; stats; `resume`; more readers). First
+        request `Range: bytes=0-` with `Accept-Encoding: identity`; 206
+        with `Content-Range` is seekable, 200 is a stream, other
+        statuses fail; redirects, CORS and cookies as for images.
+      - A cache of 64 KiB blocks: 64 MiB per resource (8 MiB kept
+        behind), the page's 512 MiB `ByteBudget` with a 2 MiB floor per
+        resource, freed when the last owner drops. Requests end when the
+        cache holds the target and reopen below half; a far seek reopens
+        at its block; an early close reopens at the incomplete block.
+        A pool of at most 16 media threads. `file:` direct, `data:` and
+        `blob:` in memory.
+      - Replay answers `Range` from the whole body (206, 416) and reads a
+        body over 8 MiB from the file at an offset; `swbtools
+        media-fixture` records a media file. The local test server
+        (`swb-net` feature `test-server`) with and without `Range`, and
+        with lies.
+      - `swb_media::NetSource` (feature `net`): the demuxer opens, seeks
+        and decodes over the server as from the file.
+      - The 161 MB 4K file reads through the server and the replay with
+        a peak of 64 MiB. Tests: 47 in `swb-net::media`, 3 in `range`,
+        5 in `swb-media` `tests/net.rs`.
+      - Review fixes: a `release` of the pool after its job ended, a
+        `resume` after a cancel during the open, the budget held after
+        the drop, a 60 s limit on the whole body of a stream, the floor,
+        tests of the hostile-server checks, the headers of replayed 206
+        answers.
    5. The media pipeline (`implementer-hard`): decode threads, frame
       and sample queues, seeking, the media clock, audio and video
       synchronization, the silent output on virtual time (`timeupdate`
@@ -6882,7 +6913,10 @@ Steps:
           network and ready states, fetches through the byte source for
           each `preload` value, `MediaError` and its messages,
           `canPlayType`, `TimeRanges`. Tests: `media-can-play-type`,
-          `media-states`, `media-fetch`.
+          `media-states`, `media-fetch`. A new probe case (review of
+          feature 4): a server that answers 200 with `Accept-Ranges:
+          bytes` and `Content-Length`, then a seek; the byte source makes
+          such a response a stream today.
       6b. Playback: `play()` and its promise, `pause()`, seeking with
           `currentTime`, `loop`, `ended`, `played`, `volume` and
           `muted`, `autoplay` and the user activation policy (also for
@@ -6970,6 +7004,34 @@ Source Extensions, AV1 (dav1d), YouTube.
 - videojs.org (feature 1): without `MediaSource`, Video.js sets the
   master playlist as `src` (native HLS). With native HLS (backlog of
   M15) the hero would play without Media Source Extensions.
+- Media byte source (feature 4): `cancel` cannot close a connection that
+  blocks in a read, and a body from byte 0 has no total time limit, so a
+  server that stalls without closing holds a fetch thread (the reader,
+  the pool place and, on drop, the budget are freed at once). The stable
+  API of ureq 3.4 has no limit for one read; a transport with a per-read
+  timeout or a socket shutdown would fix both (`ureq::unversioned` has no
+  stability promise).
+- Media byte source (feature 4): a stream (a 200 without `Range`) holds
+  its pool place for its whole life; 16 such streams take the pool.
+- Media byte source (feature 4): a block becomes readable only when its
+  64 KiB are in, so a slow live-like server shows data up to 64 KiB late.
+- Media byte source (feature 4): the readers of one handle share the read
+  position; one reader at a time is meant to read.
+- Media byte source (feature 4): media requests carry no referrer
+  (`Request` has no referrer field); feature 6a sets it as for images.
+- Media byte source (feature 4): the 2 MiB floor is bounded by the 16
+  resources that run (32 MiB past the page budget), not by the budget.
+- Media byte source (feature 4): `crates/media/tests/net.rs` does not run
+  under `just media-asan`: with `swb-net` linked, `libc` comes before the
+  sanitizer runtime in `DT_NEEDED` and the runtime crashes at start. The
+  link order in the build script of `swb-media-ffi` would fix it.
+- Hostile pages (feature 4, for 6a or 10): `video-endless-body` and
+  `video-range-lies` (a `Content-Range` that does not fit, a total that
+  changes) once the element exists; unit tests cover both today.
+- Tests (found in feature 4): `probe_net
+  module_graph_probe_cases_match_chromium` (`import-call-base-inserted`)
+  failed once in a loaded `just check-media` run (two module loads in the
+  other order; a 900 ms timer) and passed in the next two runs.
 
 ## Backlog from M13
 

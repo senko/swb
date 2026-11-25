@@ -12,7 +12,7 @@ use log::debug;
 use crate::builtin;
 use crate::cookies::CookieJar;
 use crate::error::NetError;
-use crate::fetch::Fetcher;
+use crate::fetch::{Fetcher, StreamResponse};
 use crate::request::Request;
 use crate::response::Response;
 
@@ -75,6 +75,15 @@ impl NetworkFetcher {
             http: http::HttpClient::without_proxy(),
         }
     }
+
+    /// [`NetworkFetcher::without_proxy`] with another time limit for a
+    /// request (a stream: for its head).
+    #[cfg(test)]
+    pub(crate) fn without_proxy_with_timeout(request_timeout: std::time::Duration) -> Self {
+        NetworkFetcher {
+            http: http::HttpClient::without_proxy_with_timeout(request_timeout),
+        }
+    }
 }
 
 impl Default for NetworkFetcher {
@@ -103,6 +112,21 @@ impl Fetcher for NetworkFetcher {
             Err(error) => debug!("{} failed: {error}", request.url),
         }
         result
+    }
+
+    /// HTTP and HTTPS stream the body (no size limit); the other schemes
+    /// read it whole.
+    fn fetch_stream(&self, request: &Request) -> Result<StreamResponse, NetError> {
+        match request.url.scheme() {
+            "http" | "https" => {
+                debug!(
+                    "fetch (stream) {} {} ({})",
+                    request.method, request.url, request.destination
+                );
+                self.http.fetch_stream(request)
+            }
+            _ => self.fetch(request).map(StreamResponse::buffered),
+        }
     }
 
     /// Always returns the jar: every network fetcher has one.

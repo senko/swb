@@ -2794,6 +2794,7 @@ dependencies = [
  "log",
  "serde_json",
  "swb-media-ffi",
+ "swb-net",
  "thiserror 2.0.21",
  "tiny-skia 0.12.0",
 ]

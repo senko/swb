@@ -36,6 +36,15 @@ pub trait Fetcher: Send + Sync {
     /// Fetches the resource for `request`.
     fn fetch(&self, request: &Request) -> Result<Response, NetError>;
 
+    /// Like [`Fetcher::fetch`], but the body is a reader that the caller
+    /// reads at its own pace and drops when it has enough, without the
+    /// limits on the size of a body (M14 feature 4, the media byte source).
+    /// The head has an empty `body`. The default reads the whole body with
+    /// [`Fetcher::fetch`]; the network and replay fetchers stream.
+    fn fetch_stream(&self, request: &Request) -> Result<StreamResponse, NetError> {
+        self.fetch(request).map(StreamResponse::buffered)
+    }
+
     /// Returns the cookie jar that the fetcher uses, if it has one. A
     /// fetcher that wraps another one returns the jar of the inner fetcher.
     fn cookie_jar(&self) -> Option<&CookieJar> {
@@ -43,9 +52,33 @@ pub trait Fetcher: Send + Sync {
     }
 }
 
+/// A response whose body is read incrementally ([`Fetcher::fetch_stream`]).
+pub struct StreamResponse {
+    /// The status, URL and headers; `head.body` is empty.
+    pub head: Response,
+    /// The body. A read fails when the connection fails; a body that ends
+    /// early is an error or a short body, as the transport reports it.
+    pub body: Box<dyn std::io::Read + Send>,
+}
+
+impl StreamResponse {
+    /// A stream over the body of a response that is in memory.
+    pub fn buffered(mut response: Response) -> StreamResponse {
+        let body = std::mem::take(&mut response.body);
+        StreamResponse {
+            head: response,
+            body: Box::new(std::io::Cursor::new(body)),
+        }
+    }
+}
+
 impl<F: Fetcher + ?Sized> Fetcher for Arc<F> {
     fn fetch(&self, request: &Request) -> Result<Response, NetError> {
         (**self).fetch(request)
+    }
+
+    fn fetch_stream(&self, request: &Request) -> Result<StreamResponse, NetError> {
+        (**self).fetch_stream(request)
     }
 
     fn cookie_jar(&self) -> Option<&CookieJar> {
@@ -56,6 +89,10 @@ impl<F: Fetcher + ?Sized> Fetcher for Arc<F> {
 impl<F: Fetcher + ?Sized> Fetcher for Box<F> {
     fn fetch(&self, request: &Request) -> Result<Response, NetError> {
         (**self).fetch(request)
+    }
+
+    fn fetch_stream(&self, request: &Request) -> Result<StreamResponse, NetError> {
+        (**self).fetch_stream(request)
     }
 
     fn cookie_jar(&self) -> Option<&CookieJar> {

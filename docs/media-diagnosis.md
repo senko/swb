@@ -417,8 +417,11 @@ pattern differs from run to run; a test must not depend on the sequence of
 requests, only on the bytes. (4) The capture tool (Playwright `route`)
 cannot record partial responses well; capture media with a plain `GET` of the
 full file outside the page. (5) `Content-Type` is not used to choose the
-demuxer (sniff the bytes, as Chromium does); `Content-Length` and `Accept-Ranges` decide
-whether a seek can be served. (6) Cookies, redirects (302 to the file
+demuxer (sniff the bytes, as Chromium does). A 206 makes seeks possible;
+a 200 without `Accept-Ranges` does not (the 14 `no-ranges` cases above). A
+200 with `Accept-Ranges: bytes` and `Content-Length` is not measured
+(correction of 2026-11-25: an earlier text said that these two headers
+decide; M14 feature 6a measures it). (6) Cookies, redirects (302 to the file
 works), status 404 and 500 (`MEDIA_ELEMENT_ERROR: Format error`) are as for
 other loads.
 

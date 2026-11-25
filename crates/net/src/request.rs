@@ -232,6 +232,10 @@ pub enum Destination {
     Font,
     /// A script.
     Script,
+    /// A resource of a `video` element (M14).
+    Video,
+    /// A resource of an `audio` element (M14).
+    Audio,
     /// Anything else.
     Other,
 }
@@ -246,6 +250,8 @@ impl Destination {
             Destination::Image => "image",
             Destination::Font => "font",
             Destination::Script => "script",
+            Destination::Video => "video",
+            Destination::Audio => "audio",
             Destination::Other => "other",
         }
     }
