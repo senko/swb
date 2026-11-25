@@ -19,10 +19,12 @@ Files are 2 s long, except the ones with `long` in their name (10 s, a key
 frame every second). The files are made bit-exact (`-bitexact`, no metadata),
 so a second run on the same ffmpeg gives the same bytes.
 
-Besides the media files the table has two flat-color posters and the hostile
-files (`derived`): truncated, without an index, with a corrupt middle, and
-random bytes. These are byte changes of the media files, made in Python with
-fixed seeds, after the ffmpeg runs. The files are described in docs/testing.md
+Besides the media files the table has two flat-color posters, three files over
+the limits of ADR 0047 section 11 (a frame wider than 16384 pixels, a frame of
+more than 8192 x 4352 pixels, 17 streams) and the hostile files (`derived`):
+truncated, without an index, with a corrupt middle, and random bytes. These
+are byte changes of the media files, made in Python with fixed seeds, after
+the ffmpeg runs. The files are described in docs/testing.md
 ("Media: test files, real files and probes") and measured against Chromium in
 docs/media-diagnosis.md.
 """
@@ -263,6 +265,32 @@ def entries() -> dict[str, list[str]]:
         "0",
         "-write_xing",
         "1",
+    ]
+    # Hostile limits (ADR 0047 section 11): one black VP9 frame wider than
+    # 16384 pixels, one with more pixels than 8192 x 4352, and a Matroska
+    # file with 17 audio streams (more than `max_streams`, 16).
+    for width, height in ((16400, 16), (8192, 4416)):
+        e[f"webm-vp9-{width}x{height}.webm"] = [
+            "-f",
+            "lavfi",
+            "-i",
+            f"color=c=black:size={width}x{height}:rate={FPS}:duration=0.04",
+            "-frames:v",
+            "1",
+            *VP9,
+            "-an",
+        ]
+    streams = 17
+    e[f"mka-pcm-{streams}-streams.mka"] = [
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=440:sample_rate=8000:duration=0.02",
+        "-filter_complex",
+        f"[0:a]asplit={streams}" + "".join(f"[a{i}]" for i in range(streams)),
+        *[arg for i in range(streams) for arg in ("-map", f"[a{i}]")],
+        "-c:a",
+        "pcm_s16le",
     ]
     # Posters: one flat color (#336699, a color that `testsrc2` does not draw).
     for size in ("320x240", "200x100"):

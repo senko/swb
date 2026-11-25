@@ -179,10 +179,12 @@ dynamically.
 
 **CI.** A second job, `check-media`: installs `nasm`, `pkg-config` and
 `libpipewire-0.3-dev`, restores `out/ffmpeg/9.0.2/` from the cache with
-the key `ffmpeg-<runner OS and image>-<hash of tools/ffmpeg/*>` (the
-version, the checksum and the configure line are in those files, so any
-change makes a new key), runs `just ffmpeg` (a no-op on a cache hit) and
-`just check-media`. The first job (`check`) stays as it is: the default
+the key `ffmpeg-<runner OS and image>-<hash of the pins>-<hash of
+configure.txt, build.sh and the key>` (the version, size, checksum, URL,
+key fingerprint and the configure line, so any change makes a new key; not
+the date of the signature check), runs `just ffmpeg` (a no-op on a cache
+hit), saves the cache right after the build (also when a later step fails)
+and runs `just check-media`. The first job (`check`) stays as it is: the default
 build without media.
 
 **Updates.** FFmpeg parses hostile input in the browser process without
@@ -812,3 +814,106 @@ license exception (section 2), ADR 0020 for playback (sections 3 and
   reuse the demuxer through the same byte source idea), AV1, native HLS,
   `playbackRate` other than 1 (time stretching), Web Audio,
   `captureStream()`, `requestVideoFrameCallback()`, hardware decoding.
+
+## Implementation notes (M14 feature 3)
+
+Decisions that the sections above left open, and findings of the
+implementation:
+
+- **The pins** (section 1) are four files in `tools/ffmpeg/`:
+  `ffmpeg.env` (version, SHA-256, size, URL, key fingerprint, the date of
+  the signature check; `KEY=VALUE` lines that the shell and the build
+  script read), `configure.txt` (one option per line), `release-key.asc`
+  (FFmpeg's public release signing key; `build.sh` imports only it into a
+  temporary key ring in `out/ffmpeg/` and checks its fingerprint against
+  the pin), and `build.sh`. `swb-build.txt` holds `version=`, `sha256=` and
+  `configure=` lines; the build script of `swb-media-ffi` compares them
+  with the pins. `build.sh` removes the source and build directories after
+  the install (the logs stay) and keeps all temporary files in
+  `out/ffmpeg/`.
+- **Linking**: FFmpeg's pkg-config files ask for `-lm -latomic -pthread`;
+  the build script links `m`, `atomic` and `pthread` dynamically.
+- **The feature `pipewire`** of section 3 is not defined until feature 8
+  adds the PipeWire C file. `swb`'s feature `media` is `swb-media/ffmpeg`
+  for now (`swb` depends on `swb-media` for `--version` and `--licenses`);
+  features 5 and 6 make it `swb-engine/media`.
+- **`just test-media` runs the whole workspace** with
+  `--features swb/media`. Feature unification changes only the crates that
+  depend on `swb-media` (today `swb-media-ffi`, `swb-media` and `swb`), so
+  the other crates reuse the artifacts of `just test`. When the engine
+  depends on `swb-media` (feature 5), the engine and the crates above it
+  build twice; measure then.
+- **`swb --version`** prints the configure options without `--prefix`
+  (the path of the build) and without the quotes that `configure` adds;
+  `-V` prints only swb's version.
+- **Limits** (section 11): FFmpeg's `max_streams` makes the Matroska
+  demuxer keep the first 16 streams of a file with more (the test file
+  `mka-pcm-17-streams.mka`); the other demuxers may fail instead (not
+  measured; feature 10's file with 100 streams). `max_pixels` makes
+  `avcodec_open2` fail for a stream over the limit, or the decode of the
+  first frame; swb checks the selected video track against both size
+  limits at the open (`Unsupported`, code 4) and every decoded frame
+  (decode error, code 3), and the audio track's channels and rate at the
+  open.
+- **Error kinds** of `swb-media`: `NotMedia` (no demuxer opens the bytes)
+  and `Unsupported` (no decodable stream, a limit, a decoder that does not
+  open) are code 4, `Decode` code 3, `Source` (the byte source failed,
+  also during a call that FFmpeg then reports as invalid data, and a
+  source that panics) code 2, `Seek` none. A read error that FFmpeg
+  tolerates during the open is cleared when the open succeeds, so the first
+  read does not report it again. None of the test files ends
+  with a demuxer error after the open: the cut and the corrupt WebM end at
+  the end of their bytes (FFmpeg logs the damage), so `error_at_end` is
+  not exercised by them.
+- **Seeking audio alone** starts the demuxer 200 ms before the target
+  (MP3's bit reservoir and Opus's pre-skip need the packets before it;
+  without the preroll the first MP3 frame after a seek is silent) and
+  drops the samples before the target. With video, the demuxer seeks to
+  the video's key frame, which is earlier.
+- **Colors**: matrices other than BT.601 and BT.709 (BT.2020, SMPTE 240M)
+  take the untagged rule; a pixel format with alpha is shown opaque (the C
+  side sets alpha to 255). Both are in the backlog.
+- **The natural size** applies the sample aspect ratio by widening (ratio
+  above 1) or heightening (below 1); not measured in Chromium (the test
+  files have square pixels).
+- **Measured** (the test data of `crates/media/tests/`): all 40 test files
+  open or fail as the spike found; the 25 rows of `format-metadata-table`
+  match Chromium's size, duration and start except the departures of
+  section 7 ("The origin"); 1,292 points of 43 frames are within 3 levels
+  of Chromium (the worst point is 3); ASan and UBSan on the C boundary
+  find nothing over the tests.
+
+### Review fixes of feature 3
+
+- **The refused `io_open`** (sections 5 and 11) has a self-check, not a
+  test through FFmpeg: the MOV demuxer follows an external data reference
+  only with its option `enable_drefs` (default off; swb passes no
+  options), and no other enabled demuxer opens a second resource. So no
+  test file can make FFmpeg call `io_open`. `swb_demuxer_try_io_open` calls
+  the open context's `io_open` and `boundary.rs` expects swb's own error
+  (`EPERM`). The build has no protocols either (`--disable-everything`):
+  FFmpeg's default `io_open` would fail too, with another
+  code, so the test checks the code and removing the refusal fails it
+  (measured: with the refusal removed, a test that only expects an error
+  still passed).
+- **Seeks and the audio content**: the test compares the samples after a
+  seek with the same span decoded in order. WebM times its blocks in whole
+  milliseconds, so after a seek its first sample can be up to 0.5 ms
+  (24 samples) from its time in the in-order decode (measured: `webm-vp8-
+  vorbis.webm` is off by up to 24 samples); the other containers match
+  within the resampler's phase (half a sample for 44.1 kHz).
+- **The scaler** keeps the source and destination size and format and the
+  matrix and range that it was set up with, and sets the coefficients again
+  when any of them changes (it no longer compares the pointer that
+  `sws_getCachedContext` returns).
+- **The resampler** drops the samples that its old context holds when the
+  input format changes inside a stream (a few milliseconds; broken or
+  hostile files only). `Resampler::convert` refuses a frame that would
+  need more than 4,194,304 samples per channel, and a frame's sample rate
+  must be within the limits of section 11 (as the track's, which must not
+  be 0).
+- **`build.sh`** checks the size (`FFMPEG_SIZE`) before the SHA-256 and
+  accepts a signature by a subkey of the pinned key (the last field of
+  `VALIDSIG` is the primary key). The CI cache key does not include the
+  date of the signature check, and the cache is saved right after the
+  build (`actions/cache/save` with `if: always()`).

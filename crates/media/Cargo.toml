@@ -1,0 +1,26 @@
+[package]
+name = "swb-media"
+description = "Media playback: byte sources, metadata, decoding into frames and samples (ADR 0047). Safe Rust over swb-media-ffi."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# Demuxing and decoding with FFmpeg (ADR 0047 section 3). Off: the byte
+# sources, the metadata types and the color rules only.
+ffmpeg = ["swb-media-ffi/ffmpeg"]
+
+[dependencies]
+log.workspace = true
+swb-media-ffi.workspace = true
+thiserror.workspace = true
+tiny-skia.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

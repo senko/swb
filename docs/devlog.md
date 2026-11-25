@@ -4,6 +4,20 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-25: M14 feature 3, the FFmpeg build and the boundary
+
+- `just ffmpeg` builds the pinned FFmpeg 9.0.2 into `out/ffmpeg/` (30 s;
+  checksum and signature checked). The Cargo feature `media` is off by
+  default; `just check-media` and a CI job build and test with it.
+- `swb-media-ffi` holds the C boundary and is the only crate with
+  `unsafe` code; `swb-media` has the byte sources, the metadata and
+  decoding with exact seeks. ASan and UBSan found nothing.
+- Against Chromium: frames within 3 levels at 1,292 points, the metadata
+  of 25 files equal; 5 start or duration rows differ and go to feature 5.
+- `swb --version` names FFmpeg and its configure line; `swb --licenses`
+  prints the notices.
+- Next: feature 4, the media byte source.
+
 ## 2026-11-24: M14 step 2, ADR 0047 (media playback)
 
 - ADR 0047 decides the FFmpeg build (9.0.2, pinned and signed; only the

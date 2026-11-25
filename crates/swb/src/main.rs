@@ -6,6 +6,7 @@
 //! - `--remote-port`: serve the automation protocol, with or without a
 //!   window.
 
+mod about;
 mod bench;
 mod gui;
 mod headless;
@@ -175,6 +176,11 @@ struct Args {
         conflicts_with_all = ["screenshot", "dump_dom", "dump_layout", "dump_boxes", "bench", "with_chrome", "full_page", "eval"]
     )]
     remote_port: Option<u16>,
+
+    /// Print swb's license, the third-party notices and the license texts
+    /// of the components that this build contains, then exit.
+    #[arg(long)]
+    licenses: bool,
 }
 
 fn parse_size(s: &str) -> Result<Size, String> {
@@ -259,8 +265,14 @@ fn eval_requests(matches: &ArgMatches, args: &Args) -> Vec<headless::EvalRequest
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
-    let matches = Args::command().get_matches();
+    let matches = Args::command()
+        .long_version(about::long_version())
+        .get_matches();
     let args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+    if args.licenses {
+        print!("{}", about::licenses());
+        return Ok(());
+    }
     let evals = eval_requests(&matches, &args);
 
     let fetcher: Arc<dyn Fetcher> = match (&args.replay, &args.record, &args.record_missing) {

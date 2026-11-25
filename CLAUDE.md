@@ -18,6 +18,12 @@ Before you start work, read:
   cargo-deny. Must pass before every commit.
 - `just fmt`, `just lint`, `just test`: the individual steps.
 - `just run <url>`: build and run the browser.
+- `just ffmpeg`: download, check and build the pinned FFmpeg into
+  `out/ffmpeg/` (once; needs a C compiler, `make`, `nasm`). Media builds
+  (the Cargo feature `media`, ADR 0047) need it; default builds do not.
+- `just check-media`: clippy, all tests and the sanitizers with media. A
+  commit that changes media code (`crates/media*`, or code behind the
+  feature) passes `just check-media` as well as `just check`.
 - Use the rustup toolchain in `~/.cargo/bin`. `/usr/bin/cargo` is too old.
   The justfile sets `PATH`. In raw shell commands, run
   `export PATH="$HOME/.cargo/bin:$PATH"` first.

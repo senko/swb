@@ -37,6 +37,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Scrolling tests        | `crates/engine/tests/scrolling.rs` (scroll containers: wheel, keys, scroll into view, paint, hit testing) | no |
 | Positioning tests      | `crates/engine/tests/positioning.rs` (fixed and sticky boxes while scrolling, clips, z-index order, transforms, `clip`; hit testing and pixels) | no |
 | Media tests            | `crates/engine/tests/media.rs` (video posters and their requests, `object-fit`, controls and the default poster in pixels, hit testing) | no |
+| Media decoding tests   | M14 feature 3, ADR 0047; they need FFmpeg and run only with the feature (`just test-media`, `just media-asan`; see "Media builds" below). `crates/media/tests/files.rs`: every file of `fixtures/media/` opens and decodes to its end or fails with its error kind (`NotMedia`, `Unsupported`, a decode error; a table that must list every file), the metadata of the 25 rows of `format-metadata-table` (`tools/probes/media-states.json`, Chromium's values in `tests/data/format-metadata.json`, three equal runs) with FFmpeg's departures listed (`DURATION_DEPARTURES`, `START_DEPARTURES`: feature 5 takes the rule per container), the codec information; `frames.rs`: 1,292 points of 43 frames of 11 cases of `tools/probes/media-frames.json` (Chromium's pixels in `tests/data/media-frames.json`, `probe --json` of the `frames-times-*` and `frames-color-*` cases at scale 1; three equal runs, a fourth equal too, the first run differed in one case) within 3 levels, opaque frames, seeks to an exact frame (also inside a frame, back, past the end, with a start time, and in the 1280 x 720 file that decodes with frame threads), the color rule; `audio.rs`: the sines (440 Hz left, 660 Hz right, by zero crossings and RMS) of ten formats, the first sample at a seek target within one sample and the samples after a seek against the same span decoded in order (0.007 tolerance: a shift of one sample fails; WebM may differ by 0.5 ms, its time resolution), the container order; `sources.rs`: short reads and `Interrupted`, a source that fails during the open and while decoding (`Source`, code 2), a read error that the open survives (not reported again),  a source that panics, a source without seeking, the size limits (`webm-vp9-16400x16.webm`, `webm-vp9-8192x4416.webm`), 17 streams (`mka-pcm-17-streams.mka`: the demuxer keeps 16). `crates/media-ffi/tests/license.rs` (the five license strings, the configure line against `tools/ffmpeg/configure.txt`, the version), `boundary.rs` (`max_pixels`, `max_streams`, bad stream indices and buffer sizes, the refusal of a second resource (`EPERM` from swb's `io_open`), a scaler reused for other sizes, matrices and ranges, frames and packets that outlive their decoder on another thread); the unit test `lint_tables_follow_the_workspace` of `media-ffi` runs in every build | no |
 | Responsive image tests | `crates/engine/tests/responsive_images.rs` (`srcset`, `sizes` and `<picture>` at other scales and viewports, selection again after a viewport or scale change, `object-fit` with density; by the color of the drawn image) | no |
 | Web font tests         | `crates/text/tests/web_fonts.rs` (the face set, loading requests, composite fonts, matching, variation axes, synthesis); `crates/engine/tests/web_fonts.rs` (loading in a page: each URL once, `src` fallback, URLs relative to the style sheet, one face set per document) | no |
 | Auto-size tests        | `crates/engine/tests/auto_sizes.rs` (`sizes="auto"`: selection after layout by the box width, `100vw` for eager images, the user-agent `contain: size` rule, selection again after a viewport or scale change; a recording fetcher) | no |
@@ -1787,7 +1788,7 @@ page's) or for a fixture scrolled to `Y`.
 
 ### Media: test files, real files and probes (M14)
 
-**Test media** (`fixtures/media/`, committed, about 2.0 MB, 37 files).
+**Test media** (`fixtures/media/`, committed, about 2.0 MB, 40 files).
 `tools/media/generate.py` makes them with the static `ffmpeg` CLI of the
 development machine (`python3 tools/media/generate.py [--out DIR]
 [NAME...]`; the exact command of each file is printed; the files are made
@@ -1804,7 +1805,10 @@ content (at 320 x 240, 640 x 480, 720 x 576, 1280 x 720), full range; a
 start time of 1.5 s (WebM, MP4); 10 s files with a key frame every second
 (MP4, MP3); two posters (`poster-320x240.png`, `poster-200x100.png`, flat
 #336699, which decodes to 49,100,151); hostile files derived by byte changes
-(truncated, no index, corrupt middle, 4096 random bytes `garbage.mp4`).
+(truncated, no index, corrupt middle, 4096 random bytes `garbage.mp4`);
+files over the limits of ADR 0047 section 11 (M14 feature 3: one black VP9
+frame of 16400 x 16 and one of 8192 x 4416, 1 and 3 KB; `mka-pcm-17-streams.mka`,
+17 PCM streams of 20 ms).
 
 **Real files** (local only, never committed): `fixtures/js/media/`
 (git-ignored with `fixtures/js/`): `mux-highest.mp4` (Mux's `highest.mp4`
@@ -1850,6 +1854,30 @@ measures Chromium's CPU time (by process type, share of one core, CDP
 media time against wall time and the frames decoded and dropped
 (`getVideoPlaybackQuality()`) while the file plays muted in a window, while
 it is paused and after it ended. Report: docs/media-diagnosis.md.
+
+### Media builds (M14 feature 3, ADR 0047)
+
+The Cargo feature `media` (`swb/media` → `swb-media/ffmpeg` →
+`swb-media-ffi/ffmpeg`) links the static FFmpeg build of `just ffmpeg`.
+The default recipes (`check`, `lint`, `test`, `build`, `run`) build without
+it and need no C library.
+
+| Recipe | What it does |
+|---|---|
+| `just ffmpeg` | `tools/ffmpeg/build.sh`: download `ffmpeg-VERSION.tar.xz` and its `.asc` into `out/ffmpeg/` when missing, check the size, the SHA-256 and (with `gpg`; a signature by a subkey of the pinned key counts) the signature against `tools/ffmpeg/release-key.asc`, configure with `tools/ffmpeg/configure.txt`, `make -j` (at most 8), install into `out/ffmpeg/VERSION/` with `swb-build.txt`. A no-op when that file matches the pins. 30 s here (8 jobs, 2 min 44 s of CPU); 25 MB in `out/ffmpeg/` with the tarball. `SWB_FFMPEG_DIR` points the build at another install prefix. |
+| `just build-media`, `just run-media ARGS` | The release binary with media. |
+| `just test-media` | `cargo test --workspace --features swb/media`: all tests; only the crates that depend on `swb-media` build a second time. |
+| `just lint-media` | clippy of the workspace with media. |
+| `just media-asan` | The tests of `swb-media-ffi` and `swb-media` with `-fsanitize=address,undefined` on the C boundary (FFmpeg itself is not instrumented), in `target/media-asan/`; leaks are checked. |
+| `just check-media` | `ffmpeg`, `lint-media`, `test-media`, `deny`, `media-asan`. A commit that changes media code passes it as well as `just check`. |
+
+CI runs `just check` in the job `check` and `just check-media` in the job
+`check-media`, which caches `out/ffmpeg/` under a key of the runner image,
+the pinned version, size, SHA-256, URL and key fingerprint of
+`tools/ffmpeg/ffmpeg.env` (not the date of the signature check), and the
+hash of `configure.txt`, `build.sh` and `release-key.asc`. The cache is
+restored before the build and saved right after it (also when a later step
+fails), so a failing check does not rebuild FFmpeg on every run.
 
 ## Hostile-page set
 

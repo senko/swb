@@ -44,3 +44,68 @@ jobs:
       - name: Security advisories
         run: just audit
         continue-on-error: true
+
+  # The build with the Cargo feature `media` (FFmpeg; ADR 0047 sections 1
+  # and 3). FFmpeg's build is cached: the key changes with the runner image,
+  # the pinned version, size and SHA-256, configure.txt and build.sh (not
+  # with the date of the signature check). The cache is saved right after
+  # the build, also when a later step fails, so that a failing check does
+  # not rebuild FFmpeg on every run.
+  check-media:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config libfontconfig1-dev libxkbcommon-dev libwayland-dev \
+            nasm libpipewire-0.3-dev
+
+      - name: Install Rust (version from rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: media
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just,cargo-deny
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Compute the FFmpeg cache key
+        id: ffmpeg-key
+        run: |
+          pins="$(grep -E '^FFMPEG_(VERSION|SHA256|SIZE|URL|KEY_FINGERPRINT)=' tools/ffmpeg/ffmpeg.env | sha256sum | cut -d' ' -f1)"
+          files="$(cat tools/ffmpeg/configure.txt tools/ffmpeg/build.sh tools/ffmpeg/release-key.asc | sha256sum | cut -d' ' -f1)"
+          echo "key=ffmpeg-$RUNNER_OS-$ImageOS-$ImageVersion-$pins-$files" >> "$GITHUB_OUTPUT"
+
+      - name: Restore FFmpeg
+        id: ffmpeg-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: out/ffmpeg
+          key: ${{ steps.ffmpeg-key.outputs.key }}
+
+      - name: Fetch dependencies
+        run: cargo fetch --locked
+
+      # A no-op on a cache hit.
+      - name: Build FFmpeg
+        run: just ffmpeg
+
+      # Saved even when a later step fails (the default save runs only after
+      # a green job). Only a finished build is saved: the build script writes
+      # swb-build.txt last.
+      - name: Save FFmpeg
+        if: always() && steps.ffmpeg-cache.outputs.cache-hit != 'true' && hashFiles('out/ffmpeg/*/swb-build.txt') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: out/ffmpeg
+          key: ${{ steps.ffmpeg-key.outputs.key }}
+
+      - name: Check with media
+        run: just check-media

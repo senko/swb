@@ -6838,6 +6838,29 @@ Steps:
       `swb --version` and `--licenses`, the license test, the test that
       ties the lint tables, `just media-asan` (ADR 0047 sections 1 to 4,
       9). The PipeWire C file waits for feature 8.
+
+      Done (2026-11-25):
+      - `tools/ffmpeg/` (pins, configure options, the release key,
+        `build.sh`): `just ffmpeg` builds FFmpeg 9.0.2 into `out/ffmpeg/`
+        in 30 s (SHA-256 and signature checked). The feature `media` is
+        off by default (`just check` unchanged); recipes `build-media`,
+        `run-media`, `test-media`, `lint-media`, `media-asan`,
+        `check-media`; CI job `check-media` with the FFmpeg cache.
+      - `swb-media-ffi`: the C boundary (`csrc/ffmpeg.{h,c}`) and its
+        safe types; the only crate with `unsafe`; its lint tables tied
+        to the workspace's by a test; ASan and UBSan clean.
+      - `swb-media`: byte sources (file, memory), metadata, `Demux`,
+        `VideoDecoder`, `AudioDecoder` (all `Send`), `MediaFile` with
+        seeks to an exact frame; the limits of ADR 0047 section 11.
+      - Tests: the 40 test files open or fail with their error kind;
+        metadata of 25 files equal to Chromium's (5 rows differ: the
+        duration of the MP4 with a start time, the start of MP3, WAV and
+        ADTS; feature 5); 1,292 frame points within 3 levels of
+        Chromium; the sines of ten audio formats; seeks; byte sources
+        that fail, read short, panic or cannot seek.
+      - `swb --version` names FFmpeg and its configure line;
+        `swb --licenses`; notices, `licenses/LGPL-2.1.txt`, the license
+        test.
    4. The media byte source (`implementer`; `net`): `Range` requests
       through the loader, chunked reads of an open response,
       cancellation, a byte budget for read-ahead, no 64 MiB limit for
@@ -6924,6 +6947,17 @@ Source Extensions, AV1 (dav1d), YouTube.
 
 - Media (owner, 2026-11-24): `playbackRate` other than 1. Chromium keeps
   the pitch, which needs time stretching of the audio.
+- Media (feature 3): video with alpha (VP8 and VP9 in WebM) shows
+  opaque; matrices other than BT.601 and BT.709 (BT.2020, SMPTE 240M)
+  and 10-bit formats have no probe; the natural size of a stream with a
+  non-square sample aspect ratio is not measured in Chromium.
+- Media (feature 3): no test file reaches the path where a demuxer error
+  ends the stream, or the refusal of `io_open` (a MOV with an external
+  data reference); which demuxers other than Matroska fail instead of
+  keeping 16 streams (feature 10's 100-stream file).
+- CI (feature 3): the job `check-media` has not run on GitHub before the
+  commit (the cache key, the packages, the download and the signature
+  check on the runner).
 - Probe (feature 1): a color probe with graded Y'CbCr patches, to find
   Chromium's conversion of BT.709 limited range (a plain FFmpeg
   conversion differs by up to 13 levels in saturated colors; the other

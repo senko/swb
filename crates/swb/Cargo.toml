@@ -11,6 +11,12 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[features]
+# Media playback with FFmpeg (ADR 0047 section 3). Off by default: the
+# default build needs no C library. M14 feature 3 uses it for `--version`
+# and `--licenses`; later features pass it on to swb-engine.
+media = ["swb-media/ffmpeg"]
+
 [dependencies]
 anyhow.workspace = true
 arboard.workspace = true
@@ -22,6 +28,7 @@ softbuffer.workspace = true
 swb-dom.workspace = true
 swb-engine.workspace = true
 swb-layout.workspace = true
+swb-media.workspace = true
 swb-net.workspace = true
 swb-paint.workspace = true
 swb-style.workspace = true

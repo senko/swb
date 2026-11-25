@@ -50,6 +50,38 @@ run *ARGS:
 build:
     cargo build --release -p swb
 
+# --- Media builds (the Cargo feature `media`, FFmpeg; ADR 0047). ---
+# The recipes above build without media and need no C library. A commit
+# that changes media code passes `just check-media` as well as `just check`.
+
+# Download (once), check and build the pinned FFmpeg into out/ffmpeg/VERSION/ (tools/ffmpeg/); a no-op when it is up to date.
+ffmpeg:
+    tools/ffmpeg/build.sh
+
+# Build the release binary with media.
+build-media: ffmpeg
+    cargo build --release -p swb --features media
+
+# Build and run the browser with media (release mode). Example: just run-media https://senko.net/
+run-media *ARGS: ffmpeg
+    cargo run --release -p swb --features media -- {{ARGS}}
+
+# Run all tests with media (the whole workspace: only the crates that depend on swb-media build a second time).
+test-media: ffmpeg
+    cargo test --workspace --locked --features swb/media
+
+# Run clippy with media on all crates and targets; warnings are errors.
+lint-media: ffmpeg
+    cargo clippy --workspace --all-targets --locked --features swb/media -- -D warnings
+
+# Run the decode tests with AddressSanitizer and UndefinedBehaviorSanitizer on the C boundary (own target directory).
+media-asan: ffmpeg
+    SWB_MEDIA_ASAN=1 ASAN_OPTIONS=verify_asan_link_order=0:detect_leaks=1 UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 \
+        cargo test --locked --target-dir target/media-asan -p swb-media-ffi -p swb-media --features swb-media/ffmpeg
+
+# Every check of a media commit (with `just check`): FFmpeg, clippy and tests with media, cargo-deny, the sanitizers.
+check-media: ffmpeg lint-media test-media deny media-asan
+
 # --- JavaScript engine tools (crates/js, tools/). See docs/testing.md. ---
 
 # The test262 commit that `just test262` uses (the only place that names it).

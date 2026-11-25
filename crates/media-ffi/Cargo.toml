@@ -1,0 +1,52 @@
+[package]
+name = "swb-media-ffi"
+description = "The C boundary of media playback: FFmpeg behind a narrow C API, with safe Rust types (ADR 0047 section 4). The only crate with unsafe code."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+# FFmpeg (static, LGPL-2.1-or-later; ADR 0047 sections 1 and 2). Off: the
+# crate is empty and the build script does nothing.
+ffmpeg = ["dep:cc", "dep:log", "dep:thiserror"]
+
+[dependencies]
+log = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+
+[build-dependencies]
+cc = { workspace = true, optional = true }
+
+# A copy of the workspace tables (root Cargo.toml) with `unsafe_code`
+# allowed and four stricter lints (ADR 0047 section 4). The test
+# `lint_tables_follow_the_workspace` fails on any other difference.
+[lints.rust]
+unsafe_code = "allow"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unused_qualifications = "warn"
+unreachable_pub = "warn"
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"
+similar_names = "allow"
+float_cmp = "allow"
+struct_excessive_bools = "allow"
+unwrap_used = "warn"
+dbg_macro = "warn"
+todo = "warn"
+undocumented_unsafe_blocks = "deny"
+multiple_unsafe_ops_per_block = "deny"
+missing_safety_doc = "deny"

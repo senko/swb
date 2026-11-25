@@ -619,7 +619,11 @@ Format: source, license (for code), what it influenced.
   the public headers and their API documentation (`libavformat/avformat.h`,
   `avio.h`, `libavcodec/avcodec.h`, `libswscale/swscale.h`,
   `libswresample/swresample.h`, `libavutil/`), `configure --help` and its
-  component lists, `LICENSE.md`. No FFmpeg code is copied into swb.
+  component lists, `LICENSE.md`. No FFmpeg code is copied into swb. M14
+  feature 3 started from the spike's boundary (written for swb, ADR 0047)
+  and read the installed headers of the build again (`avcodec.h`:
+  `max_pixels`; `pixdesc.h`, `channel_layout.h`, `mem.h`); the license
+  text `licenses/LGPL-2.1.txt` is FFmpeg's `COPYING.LGPLv2.1`, unchanged.
 - PipeWire 1.4.2 (MIT; https://pipewire.org/) — the audio output of media
   builds (ADR 0047 section 8). Read: the headers and API documentation of
   `pipewire/stream.h`, `pipewire/thread-loop.h`, `pipewire/version.h` and

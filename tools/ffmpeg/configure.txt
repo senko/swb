@@ -1,0 +1,19 @@
+# The configure options of swb's FFmpeg build (ADR 0047 section 1), one per
+# line, in order. build.sh adds --prefix. Lines that start with `#` and
+# empty lines are ignored. A change here is a change of ADR 0047.
+--enable-static
+--disable-shared
+--enable-pic
+--disable-autodetect
+--disable-iconv
+--disable-programs
+--disable-doc
+--disable-network
+--disable-avdevice
+--disable-avfilter
+--disable-debug
+--disable-everything
+--enable-demuxer=mov,matroska,ogg,mp3,flac,wav,aac
+--enable-decoder=h264,vp8,vp9,aac,mp3float,opus,vorbis,flac
+--enable-decoder=pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le
+--enable-parser=h264,vp8,vp9,aac,mpegaudio,opus,vorbis,flac

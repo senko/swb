@@ -21,6 +21,8 @@ swb-js-regexp = { path = "crates/js-regexp" }
 swb-js-syntax = { path = "crates/js-syntax" }
 swb-js-text = { path = "crates/js-text" }
 swb-layout = { path = "crates/layout" }
+swb-media = { path = "crates/media" }
+swb-media-ffi = { path = "crates/media-ffi" }
 swb-net = { path = "crates/net" }
 swb-paint = { path = "crates/paint" }
 swb-style = { path = "crates/style" }
@@ -50,6 +52,10 @@ rustix = { version = "1", default-features = false, features = ["std", "process"
 
 # Tests only.
 similar = "2"
+
+# media-ffi (build script, with the `ffmpeg` feature only): compiles the C
+# boundary file (ADR 0047 section 4).
+cc = "1"
 
 # automation
 data-encoding = "2"

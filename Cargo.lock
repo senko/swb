@@ -2666,6 +2666,7 @@ dependencies = [
  "swb-dom",
  "swb-engine",
  "swb-layout",
+ "swb-media",
  "swb-net",
  "swb-paint",
  "swb-style",
@@ -2784,6 +2785,26 @@ dependencies = [
  "swb-text",
  "unicode-segmentation",
  "url",
+]
+
+[[package]]
+name = "swb-media"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "serde_json",
+ "swb-media-ffi",
+ "thiserror 2.0.21",
+ "tiny-skia 0.12.0",
+]
+
+[[package]]
+name = "swb-media-ffi"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "log",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

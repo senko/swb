@@ -10,8 +10,11 @@ This file lists:
 
 - material that is compiled into swb binaries and is not under a
   permissive software license: material under a copyleft license (the
-  Public Suffix List and one file derived from Servo, both MPL-2.0)
+  Public Suffix List and one file derived from Servo, both MPL-2.0; in
+  builds with the `media` feature, FFmpeg, LGPL-2.1-or-later)
   and material under CC BY 4.0 (from the WHATWG HTML Standard);
+- the system libraries that builds with the `media` feature link
+  (PipeWire, MIT);
 - parts of swb's source code that are derived from the source code of
   other projects: from Chromium and Skia (BSD-3-Clause; copies of swb's
   source code and binaries must include their license texts below) and
@@ -58,6 +61,68 @@ the Mozilla Public License 2.0:
 - swb uses the list to find registrable domains for cookies
   (`crates/net/src/site.rs`).
 - Why swb makes this exception: [ADR 0014](docs/adr/0014-public-suffix-list-license-exception.md).
+
+## FFmpeg (LGPL-2.1-or-later), in builds with the `media` feature
+
+swb binaries built with the Cargo feature `media` (`just build-media`,
+`cargo build --features swb/media`) contain FFmpeg (https://ffmpeg.org/),
+copyright the FFmpeg developers: the libraries libavformat, libavcodec,
+libavutil, libswscale and libswresample, linked statically. Binaries built
+without the feature (the default) contain no FFmpeg code; `swb --version`
+says which kind a binary is.
+
+- License: the GNU Lesser General Public License, version 2.1 or later
+  (LGPL-2.1-or-later). The text is in
+  [licenses/LGPL-2.1.txt](licenses/LGPL-2.1.txt) (FFmpeg's
+  `COPYING.LGPLv2.1`), and `swb --licenses` prints it. Some files of FFmpeg
+  have MIT, X11 or BSD-style licenses; in combination the LGPL applies
+  (FFmpeg's `LICENSE.md`). swb's build has none of FFmpeg's GPL or
+  non-free parts: `configure` reports "License: LGPL version 2.1 or later",
+  and a test checks the license strings of the five libraries.
+- Version and source: FFmpeg 9.0.2, the release tarball
+  `ffmpeg-9.0.2.tar.xz` from https://ffmpeg.org/releases/ (SHA-256
+  `8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e`,
+  signed by the FFmpeg release signing key `FCF9 86EA 15E6 E293 A564 4F10
+  B432 2F04 D676 58D8`). swb applies no patches. The pins are in
+  `tools/ffmpeg/`.
+- Configure options (`tools/ffmpeg/configure.txt`; `swb --version` prints
+  them): `--enable-static --disable-shared --enable-pic
+  --disable-autodetect --disable-iconv --disable-programs --disable-doc
+  --disable-network --disable-avdevice --disable-avfilter --disable-debug
+  --disable-everything --enable-demuxer=mov,matroska,ogg,mp3,flac,wav,aac
+  --enable-decoder=h264,vp8,vp9,aac,mp3float,opus,vorbis,flac
+  --enable-decoder=pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le
+  --enable-parser=h264,vp8,vp9,aac,mpegaudio,opus,vorbis,flac`.
+- The swb source repository contains no FFmpeg code: `just ffmpeg`
+  (`tools/ffmpeg/build.sh`) downloads the tarball, checks it and builds
+  it. swb's own files, also the C boundary `crates/media-ffi/csrc/`, are
+  under swb's MIT License.
+- Whoever distributes a binary built with `media` must (LGPL-2.1 sections
+  6 and 6a; [ADR 0047](docs/adr/0047-media-playback.md) section 2):
+  1. give a prominent notice that the binary contains FFmpeg under the
+     LGPL-2.1-or-later, with the license text (this file and
+     `licenses/LGPL-2.1.txt`);
+  2. give FFmpeg's complete source as used, next to the binary: the exact
+     tarball above, the configure options and the patches (none);
+  3. allow relinking with a modified FFmpeg: give swb's complete source at
+     the same commit with its build instructions (`just ffmpeg`, or
+     `SWB_FFMPEG_DIR` for another FFmpeg build, then
+     `cargo build --release --features swb/media`);
+  4. not restrict reverse engineering for debugging such modifications.
+- swb publishes no binaries. Patents (H.264, AAC) are not a copyright
+  matter and not covered here.
+- Why swb makes this exception to its dependency policy:
+  [ADR 0047](docs/adr/0047-media-playback.md) and
+  [ADR 0003](docs/adr/0003-dependency-policy.md) ("Update: media builds").
+
+## PipeWire (MIT), in builds with the `media` feature
+
+Builds with the `media` feature will link the system's PipeWire client
+library (`libpipewire-0.3`, https://pipewire.org/, MIT) dynamically for
+audio output, and compile PipeWire's SPA headers (MIT) into a C file of
+`crates/media-ffi`. The audio output is not in swb yet (M14 feature 8):
+until it is, no build links PipeWire, and this section gets PipeWire's
+copyright and permission notice with it.
 
 ## WHATWG HTML Standard (CC BY 4.0)
 
