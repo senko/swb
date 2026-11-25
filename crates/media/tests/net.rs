@@ -145,6 +145,66 @@ fn the_4k_file_opens_and_seeks_over_the_server_with_a_bounded_cache() {
 }
 
 #[test]
+fn a_pipeline_plays_and_seeks_over_the_server() {
+    use common::driver::{Waker, options, play_virtual, settle_update};
+    use swb_media::pipeline::{Pipeline, Report, SourceOpener};
+
+    let name = "mp4-h264-high-aac-moov-at-end.mp4";
+    let server = TestServer::start(vec![(
+        "/mp4-h264-high-aac-moov-at-end.mp4",
+        Route::file(fixture(name)),
+    )]);
+    let loader = loader();
+    let resource = loader.open_media(Request::get(
+        server.url(&format!("/{name}")),
+        Destination::Video,
+    ));
+    let handle = resource.handle();
+    drop(resource);
+    let waker = Arc::new(Waker::default());
+    let slots = swb_media::pipeline::PipelineSlots::new(2);
+    let mut o = options(&waker);
+    o.slots = slots.clone();
+    let mut p = Pipeline::open(SourceOpener::net(handle.clone()), o);
+    let played = play_virtual(&mut p, &waker, 0, 1_000_000);
+    assert!(p.metadata().expect("metadata").info.seekable);
+    assert!(played.steps.len() > 10);
+    p.pause(played.now);
+    p.seek(1_500_000);
+    let mut reports = Vec::new();
+    settle_update(&mut p, &waker, played.now, &mut reports);
+    assert!(
+        reports.contains(&Report::SeekDone {
+            media_us: 1_500_000
+        }),
+        "{reports:?}"
+    );
+    assert_eq!(p.current_frame().map(|f| f.pts_us), Some(1_480_000));
+    let played = play_virtual(&mut p, &waker, played.now, i64::MAX);
+    assert_eq!(played.ended, Some(2_000_000));
+    // Suspend and reopen over the same cache.
+    p.suspend(played.now);
+    p.seek(200_000);
+    let mut reports = Vec::new();
+    settle_update(&mut p, &waker, played.now, &mut reports);
+    assert!(
+        reports.contains(&Report::SeekDone { media_us: 200_000 }),
+        "{reports:?}"
+    );
+    assert_eq!(p.current_frame().map(|f| f.pts_us), Some(200_000));
+    drop(p);
+    let started = Instant::now();
+    while slots.live_threads() > 0 {
+        assert!(
+            started.elapsed() < Duration::from_secs(30),
+            "the threads end"
+        );
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert!(handle.stats().requests >= 1);
+}
+
+#[test]
 fn cancel_ends_a_demuxer_that_waits_for_a_stalled_server() {
     let name = "mp4-h264-high-aac.mp4";
     // 50,000 bytes of the file arrive, then nothing.

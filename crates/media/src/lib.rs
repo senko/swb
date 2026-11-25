@@ -4,16 +4,22 @@
 //! With the feature `ffmpeg` (on in `swb --features media`), `MediaFile`
 //! opens a `ByteSource` through FFmpeg (`swb-media-ffi`), reports its
 //! metadata and decodes its frames and samples in order and after a seek.
-//! Its parts, `Demux`, `VideoDecoder` and `AudioDecoder`, are `Send`, so
-//! that the pipeline (M14 feature 5) can run the demuxer and the audio on
-//! one thread and the video on another. Without the feature only the byte
-//! sources, the metadata types and the color rules exist.
+//! Its parts, `Demux`, `VideoDecoder` and `AudioDecoder`, are `Send`;
+//! [`pipeline::Pipeline`] runs the demuxer and the audio on one thread and
+//! the video on another, with bounded queues, the media clock,
+//! synchronization, seeking and virtual time (ADR 0047 sections 6 and 7).
+//! Without the feature only the byte sources, the metadata types, the
+//! color rules, the timeline rules ([`timeline`]), the media clock and the
+//! sample ring exist.
 //!
 //! This crate is safe Rust; the C boundary and all `unsafe` code are in
 //! `swb-media-ffi`.
 
+mod clock;
 mod error;
 mod info;
+mod origin;
+mod ring;
 mod source;
 
 #[cfg(feature = "net")]
@@ -23,12 +29,17 @@ mod net_source;
 mod decode;
 #[cfg(feature = "ffmpeg")]
 mod file;
+#[cfg(feature = "ffmpeg")]
+pub mod pipeline;
 
+pub use clock::{ClockSource, MediaClock};
 pub use error::MediaError;
 pub use info::{
     AudioTrack, Codec, ColorTags, Conversion, Matrix, MatrixTag, MediaInfo, RangeTag,
     UNTAGGED_BT709_LINES, VideoTrack, conversion, natural_size,
 };
+pub use origin::{Timeline, timeline};
+pub use ring::{RingBase, SampleRing};
 pub use source::{ByteSource, FileSource, MemorySource};
 
 #[cfg(feature = "net")]

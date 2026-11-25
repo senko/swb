@@ -12,6 +12,71 @@ use crate::{ByteSource, MediaError, MediaInfo};
 /// (the samples before the target are dropped).
 const AUDIO_PREROLL_US: i64 = 200_000;
 
+/// Seeks `demux` for an exact seek to `target_us` (stream time) with the
+/// tracks that are on: to the video's key frame at or before the target,
+/// or, for audio alone, to the audio packet at or before the target minus
+/// the preroll (audio decoders need the packets before the target: MP3's
+/// bit reservoir, Opus's pre-skip; every audio packet is a key frame).
+pub(crate) fn seek_demux(
+    demux: &mut Demux,
+    video_stream: Option<usize>,
+    audio_stream: Option<usize>,
+    target_us: i64,
+) -> Result<(), MediaError> {
+    let (stream, demux_target) = match (video_stream, audio_stream) {
+        (Some(v), _) => (v, target_us),
+        (None, Some(a)) => (a, target_us.saturating_sub(AUDIO_PREROLL_US)),
+        (None, None) => return Err(MediaError::Seek("no track is on".to_owned())),
+    };
+    demux.seek(stream, demux_target)
+}
+
+/// The video frames after an exact seek: the frames before the target are
+/// dropped except the last one at or before it, which comes out when the
+/// first frame after the target (or the end) shows that it is the last.
+#[derive(Default)]
+pub(crate) struct SeekFilter {
+    target: Option<i64>,
+    held: Option<RawVideoFrame>,
+}
+
+impl SeekFilter {
+    /// Starts filtering for a seek to `target_us` (stream time).
+    pub(crate) fn start(&mut self, target_us: i64) {
+        self.target = Some(target_us);
+        self.held = None;
+    }
+
+    /// Stops filtering and drops the held frame.
+    pub(crate) fn reset(&mut self) {
+        self.target = None;
+        self.held = None;
+    }
+
+    /// Takes a decoded frame; returns the frames that come out, in order:
+    /// the held frame (the one at the target), then `frame`.
+    pub(crate) fn offer(
+        &mut self,
+        frame: RawVideoFrame,
+    ) -> (Option<RawVideoFrame>, Option<RawVideoFrame>) {
+        let Some(target) = self.target else {
+            return (None, Some(frame));
+        };
+        if frame.pts_us().is_none_or(|pts| pts <= target) {
+            self.held = Some(frame);
+            return (None, None);
+        }
+        self.target = None;
+        (self.held.take(), Some(frame))
+    }
+
+    /// The end of the stream: the held frame, if any.
+    pub(crate) fn finish(&mut self) -> Option<RawVideoFrame> {
+        self.target = None;
+        self.held.take()
+    }
+}
+
 /// A video frame converted to RGBA.
 pub struct VideoFrame {
     /// The presentation time in microseconds, when known.
@@ -43,10 +108,8 @@ pub struct MediaFile {
     /// A packet that its decoder refused because it was full.
     pending: Option<Packet>,
     out: VecDeque<Decoded>,
-    /// After a seek: the target of the video, until a frame after it came.
-    video_target: Option<i64>,
-    /// The last frame at or before `video_target`.
-    held: Option<RawVideoFrame>,
+    /// After a seek: the frame at the target.
+    filter: SeekFilter,
     eof: bool,
     video_ended: bool,
     audio_ended: bool,
@@ -67,8 +130,7 @@ impl MediaFile {
             audio,
             pending: None,
             out: VecDeque::new(),
-            video_target: None,
-            held: None,
+            filter: SeekFilter::default(),
             eof: false,
             video_ended: false,
             audio_ended: false,
@@ -156,27 +218,23 @@ impl MediaFile {
     /// the target are dropped except the last one at or before it, and the
     /// audio samples before it are dropped.
     pub fn seek(&mut self, target_us: i64) -> Result<(), MediaError> {
-        // Audio alone seeks earlier by the preroll: audio decoders need the
-        // packets before the target (MP3's bit reservoir, Opus's
-        // pre-skip), and every audio packet is a key frame.
-        let (stream, demux_target) = match (&self.video, &self.audio) {
-            (Some(v), _) if self.video_on => (v.stream(), target_us),
-            (_, Some(a)) if self.audio_on => {
-                (a.stream(), target_us.saturating_sub(AUDIO_PREROLL_US))
-            }
-            _ => return Err(MediaError::Seek("no track is on".to_owned())),
-        };
-        self.demux.seek(stream, demux_target)?;
+        let video = self.video.as_ref().filter(|_| self.video_on);
+        let audio = self.audio.as_ref().filter(|_| self.audio_on);
+        seek_demux(
+            &mut self.demux,
+            video.map(VideoDecoder::stream),
+            audio.map(AudioDecoder::stream),
+            target_us,
+        )?;
         self.out.clear();
         self.pending = None;
-        self.held = None;
+        self.filter.reset();
         self.eof = false;
         self.video_ended = false;
         self.audio_ended = false;
-        self.video_target = None;
         if let Some(v) = &mut self.video {
             v.flush();
-            self.video_target = Some(target_us);
+            self.filter.start(target_us);
         }
         if let Some(a) = &mut self.audio {
             a.flush();
@@ -229,23 +287,17 @@ impl MediaFile {
     }
 
     fn on_video_frame(&mut self, frame: RawVideoFrame) -> Result<(), MediaError> {
-        if let Some(target) = self.video_target {
-            if frame.pts_us().is_none_or(|pts| pts <= target) {
-                self.held = Some(frame);
-                return Ok(());
-            }
-            self.video_target = None;
-            self.release_held()?;
+        let (held, frame) = self.filter.offer(frame);
+        for f in [held, frame].into_iter().flatten() {
+            let converted = self.convert(&f)?;
+            self.out.push_back(Decoded::Video(converted));
         }
-        let converted = self.convert(&frame)?;
-        self.out.push_back(Decoded::Video(converted));
         Ok(())
     }
 
     /// Emits the frame held for a seek target.
     fn release_held(&mut self) -> Result<(), MediaError> {
-        self.video_target = None;
-        if let Some(frame) = self.held.take() {
+        if let Some(frame) = self.filter.finish() {
             let converted = self.convert(&frame)?;
             self.out.push_back(Decoded::Video(converted));
         }

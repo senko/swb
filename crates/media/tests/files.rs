@@ -6,7 +6,7 @@
 mod common;
 
 use common::{decode_all, open, repo_path};
-use swb_media::{Codec, MediaError};
+use swb_media::{Codec, MediaError, timeline};
 
 /// How decoding a file ends.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,6 +62,7 @@ fn table() -> Vec<(&'static str, Expect)> {
         ("mp3-long.mp3", ok(A, Complete, 0)),
         ("mp3-truncated.mp3", ok(A, Complete, HOSTILE)),
         ("mp3.mp3", ok(A, Complete, 0)),
+        ("mp4-h264-aac-late-audio.mp4", ok(AV, Complete, 50)),
         ("mp4-h264-aac-long.mp4", ok(AV, Complete, 250)),
         ("mp4-h264-aac-start1500.mp4", ok(AV, Complete, 50)),
         ("mp4-h264-baseline-aac.mp4", ok(AV, Complete, 50)),
@@ -188,26 +189,12 @@ fn chromium_rows() -> Vec<(String, f64, String, f64)> {
         .collect()
 }
 
-/// FFmpeg's duration (microseconds) where it differs from Chromium's
-/// `duration`. Feature 5 takes the rule per container (ADR 0047 section 7,
-/// "The origin").
-const DURATION_DEPARTURES: &[(&str, i64)] = &[
-    // FFmpeg: the duration from the start time (1.476009 s); Chromium:
-    // 3.496145.
-    ("mp4-h264-aac-start1500.mp4", 2_023_991),
-];
-
-/// FFmpeg's start time (microseconds, `None`: unknown) where it differs
-/// from Chromium's `currentTime` at the start.
-const START_DEPARTURES: &[(&str, Option<i64>)] = &[
-    // The encoder delay of the MP3 files; Chromium starts at 0.
-    ("mp3.mp3", Some(25_057)),
-    ("mp3-long.mp3", Some(25_057)),
-    // No start time in WAV and ADTS: the origin is 0.
-    ("wav-pcm-s16.wav", None),
-    ("aac-adts.aac", None),
-];
-
+/// The element's start and duration come from FFmpeg's values through the
+/// rules per container (`swb_media::timeline`, ADR 0047 section 7, "The
+/// origin"); before them, five rows differed: the duration of the MP4 with
+/// a start time (FFmpeg: 2.023991 s from the start; Chromium: 3.496145),
+/// the start of the MP3 files (FFmpeg: the encoder delay, 0.025057 s), and
+/// the start of WAV and ADTS (FFmpeg: none).
 #[test]
 fn metadata_matches_chromium() {
     let rows = chromium_rows();
@@ -230,22 +217,18 @@ fn metadata_matches_chromium() {
             failures.push(format!("{name}: size {got_size}, Chromium {size}"));
         }
         let us = |s: f64| (s * 1e6).round() as i64;
-        let expected_duration = DURATION_DEPARTURES
-            .iter()
-            .find(|(n, _)| *n == name)
-            .map_or(us(dur), |(_, d)| *d);
-        if info.duration_us != Some(expected_duration) {
+        let t = timeline(info);
+        if t.duration_us != Some(us(dur)) {
             failures.push(format!(
-                "{name}: duration {:?}, Chromium {dur}",
-                info.duration_us
+                "{name} ({}): duration {:?}, Chromium {dur}",
+                info.container, t.duration_us
             ));
         }
-        let expected_start = START_DEPARTURES
-            .iter()
-            .find(|(n, _)| *n == name)
-            .map_or(Some(us(ct)), |(_, s)| *s);
-        if info.start_us != expected_start {
-            failures.push(format!("{name}: start {:?}, Chromium {ct}", info.start_us));
+        if t.start_us != us(ct) {
+            failures.push(format!(
+                "{name} ({}): start {}, Chromium {ct}",
+                info.container, t.start_us
+            ));
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));

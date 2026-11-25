@@ -463,7 +463,9 @@ selected tracks of HTML); the demuxer discards the others
 - video packets: at most 2 s of media and 16 MiB;
 - decoded frames: at most 6 and at most 96 MiB (at least 2; a 4K frame
   is 33 MB in RGBA, so the 4K file keeps 2); the pixmaps are pooled and
-  reused, so playback does not allocate per frame;
+  reused, so playback does not allocate per frame; the current frame, the
+  frame being converted and the image that paint holds come on top of the
+  queue (about 3 pixmaps; see the implementation notes of feature 5);
 - samples: a ring of 1 s per element (384 KB).
 
 **A bound on pipelines.** At most 16 open pipelines per process (an open
@@ -1044,3 +1046,239 @@ Decisions that section 5 left open, and findings of the implementation
   reader is fast, with a peak of 67,108,864 bytes (the 64 MiB limit) and
   the page budget at most that; the demuxer opens it and seeks to 60 %
   with 2 requests, 90.5 MB sent.
+
+## Implementation notes (M14 feature 5)
+
+Decisions that sections 6 and 7 left open, and findings of the
+implementation (`crates/media/src/pipeline/`, `clock.rs`, `ring.rs`,
+`origin.rs`):
+
+- **The API.** `swb_media::pipeline::Pipeline::open(SourceOpener,
+  PipelineOptions)`; the owner calls `update(now)` (returns `Report`s),
+  `play(now)`, `pause(now)`, `seek(target)`, `suspend(now)`, `resume()`,
+  `next_due()`, `has_pending_work()`, `current_frame()`, `position()`,
+  `buffered()`, `quality()`, `set_painted()`, `set_gain()`, `samples()`.
+  `play` on a pipeline that ended does nothing: the element seeks to the
+  start first (HTML's `play()` at the end). Options besides the tracks, the
+  bound and the notify: `output` (`AudioOutput::Silent`, or `External`
+  when another consumer reads the ring: the ring has one consumer, so the
+  pipeline then consumes nothing, and `update` and `has_pending_work` wake
+  the demux thread when the ring has room again), `packet_bytes` (the
+  video packet bound, 16 MiB), `stall_limit` (the no-progress limit,
+  10 s; tests set small values of these two) and `painted` (the video is
+  painted from the open, default true; a hidden element sets false, so no
+  frame is converted before its first `set_painted`).
+  Times are microseconds: media times on the element's timeline, clock
+  times on the owner's clock. Reports: `Metadata`, `FirstFrame` (the first
+  data at the position: the first frame, or the first samples for audio
+  alone), `Buffered`, `Underrun`, `Resumed`, `SeekDone`, `TimeUpdate`,
+  `Ended`, `Error`. The owner's notify is called from the threads when a
+  report is ready or data that the owner waits for was decoded (pending
+  work, a seek, an underrun, or a playing pipeline without a queued frame,
+  whose next due time changes with the next frame).
+- **`SourceOpener`**: a function that opens a new byte source at position
+  0 (on the demux thread; at the first open, at each reopen, and for a
+  seek in a stream) and a cancel function (called at close and suspend).
+  `SourceOpener::net(MediaHandle)` resumes the resource and reads it with
+  a new reader over the same cache.
+- **Runs and epochs.** Each start of the threads is a run; closing,
+  suspending and a fatal error end it, and its threads stop at their next
+  check (a read that blocks in the source returns at the cancel). Each
+  seek is an epoch; frames carry it, and the owner uses only data of the
+  current epoch, so only the last of several seeks shows. Everything that
+  the owner and the threads share is under one mutex with two condition
+  variables; the sample ring is outside it.
+- **Wake-ups** (second review of feature 5). The two queues notify by
+  themselves, under the lock: each push to the video packet queue wakes
+  the video thread, each removal from it the demux thread, and each
+  removal from the frame queue the video thread (`PacketQueue`,
+  `FrameQueue`; their items are private, so no code path can take a frame
+  or a packet without the notify). Before, the owner notified only when
+  it took frames at the media time; taking the first frame or a seek's
+  frame from a full queue left the video thread waiting with room in the
+  queue, and virtual time hung (a test of the late-audio file failed 3 of
+  3 runs under load). The notifies go to all waiters, so a thread of an
+  older run cannot take the only one. The other changes that a thread
+  waits for notify explicitly: a new run (close, suspend, failure), a
+  seek, room in the ring (the silent output in `update`; for an external
+  consumer `update` and `has_pending_work`).
+- **The clock source** is the owner's: it passes the clock time to each
+  call (`ClockSource::Page`: page time in real or virtual time).
+  Feature 8 adds `ClockSource::Audio` (the frames that the mixer took from
+  the ring, `SampleRing::read_position`, minus the output delay).
+- **The sample ring** (`SampleRing`): `AtomicU32` cells with `f32` bits,
+  atomic frame positions, an atomic gain; one producer (the demux thread,
+  which writes under the pipeline's lock, so a stale run never writes) and
+  one consumer that takes no lock and allocates nothing. A seek discards
+  what was written; the consumer checks the discard position again after
+  it copied and replaces frames that were discarded meanwhile with
+  silence. Each run makes its own ring (only with an audio track), so a
+  suspended pipeline holds none; feature 8's mixer takes `samples()` again
+  after a reopen. Samples are placed at their time: a gap up to 10 s
+  becomes silence, an overlap is cut, a larger jump starts a new base.
+  The producer publishes each base (a ring position, its media time and
+  the seek epoch) in the ring before the first frame of that base, through
+  a sequence counter (`SampleRing::base`), so the consumer maps the
+  positions that it read to media times without the pipeline's lock
+  (feature 8's audio clock). Orderings: a release fence after the store of
+  a discard and an acquire fence before the consumer loads it again make
+  a consumer that copied a frame written after the discard see the
+  discard; x86 orders these stores anyway, so no test on the development
+  machine can show a missing fence (ARM can).
+- **The silent output** is in `update`: it consumes the ring up to the
+  media time. A full ring wakes the demux thread only when the output
+  consumes (the owner notifies it). With `AudioOutput::External`,
+  `update` and `has_pending_work` wake the demux thread when it waits for
+  room that is there again (also when the consumer read between the
+  owner's `update` and its `has_pending_work`), so feature 8's mixer
+  needs the owner to call one of them at least every 0.75 s while it
+  reads (the ring holds 1 s), and must not notify from its real-time
+  callback. `SampleRing::base` gives `None` also after 64 reads that
+  found the producer writing a base; the consumer keeps its last base.
+- **Queues** (section 6): video packets at most 16 MiB, 4,096 packets
+  and 2 s (an `End` or a seek's flush always goes in; the span is the
+  first and the last packet's time, kept as packets come and go, without a
+  scan), but the 2 s bound holds only while the ring has 250 ms or more
+  (a file whose video runs far ahead of its audio cannot block the
+  audio); the queue of decoded frames 2 to 6 frames within 96 MiB (by the
+  coded size); the ring 1 s. While the ring is full, the audio packets
+  that the demuxer reads wait in a backlog (a quarter of the packet bytes,
+  4 MiB, and 4,096 packets) and the demuxer reads on, so that the video
+  packets behind them in the file reach the video thread.
+  Pixmaps come from a pool (`Arc<Pixmap>`; reused when nobody else holds
+  them): 7 for the 1080p file, 4 for the 4K file, at most 9 for the
+  250-frame test file. A suspended pipeline drops the pool. **The frame
+  memory of a pipeline** is not the 96 MiB of the queue: the current
+  frame, the frame being converted and the image that paint holds add
+  about 3 pixmaps, so a pipeline holds about the queue's frames plus 3.
+  At the frame limit of section 11 (8192 x 4352, 142.6 MB in RGBA; the
+  queue keeps its minimum of 2) that is about 5 pixmaps, 713 MB per
+  pipeline and 11.4 GB for 16 pipelines (plus FFmpeg's own frames).
+  A process-wide frame budget is in the backlog (feature 10).
+- **Virtual time.** `next_due()` is the clock time of the next queued
+  frame, the next `timeupdate` point or the end; `has_pending_work()` is
+  true while the pipeline opens (until the metadata and the first data),
+  while a seek has not its frame and samples, and while playing when the
+  data for the next due time is not decoded (a queued frame at or after
+  it, or the queue full, or the video ended; the samples up to it, or the
+  ring full, or the audio ended; at the end, every track ended or decoded
+  past the end, which is also the condition of `Ended`, so the end does
+  not depend on when the decoder reports its drain). A pipeline that
+  waits for a place is not
+  pending work (a page with 1,000 elements must reach the 15 s suspend
+  time). In virtual time no underrun occurs, and frames are dropped only
+  when the pipeline is stalled on its owner (below).
+- **Tracks far apart in the file** (review of feature 5). The demuxer
+  reads in file order; when the data that the owner needs lies beyond the
+  queue bounds (the audio after 16 MiB of video, or the last video
+  packets behind more audio than the ring and the backlog hold), every
+  thread waits for room that only the owner frees. Each thread records
+  what it waits for in the shared state, under the lock, before it waits
+  (the demux thread: room in the packet queue, room in the ring, nothing
+  left to read; the video thread: packets, or room in the frame queue),
+  and the state is checked again each time: when both wait and what they
+  wait for still holds, the pipeline is stalled on its owner. Then it has
+  no pending work, a seek or the first data ends with what is there, and
+  the clock runs on, never an underrun: silence where the ring has no
+  samples for the media time (an audio gap; also at the start, when the
+  ring's first samples are later than the position, or when no audio has
+  come yet), the last frame where no frame is decoded; frames that come
+  late are dropped as usual. A thread that starts to wait while the owner
+  waits for data and so stalls the pipeline wakes the owner. While the
+  clock runs past the audio this way (an audio gap), only the video stops
+  the clock, until the audio covers the media time again (so real time
+  does not stop at every frame). The rule depends only on what the
+  threads have done, and every change that a thread waits for wakes it
+  (above), so the threads always reach the same stall and virtual time
+  stays the same on every run (checked under load). With
+  the default bounds the backlog makes the video flow while the audio is
+  far ahead; the test file `mp4-h264-aac-late-audio.mp4` (video 0 to 2 s,
+  audio 3 to 5 s, every video packet before the audio) shows both cases
+  with a 4 KiB packet bound: the gap at the start, and two frames held in
+  the decoder at the end of the video (dropped late). The reviewer's
+  files (1280 x 720 40 Mbit/s 4 s with audio from 5 s, 19.8 MB; 640 x 360
+  20 s with audio from 22 s) play to their end in virtual and in real
+  time, with no frame that comes late (the second one with an underrun
+  and a resume at 0 in real time, before the threads stall).
+- **The no-progress limit** (section 11). A pipeline whose owner needs
+  data (pending work, an underrun while playing) and whose threads made
+  no progress (bytes read from the source, a packet, a frame or samples
+  decoded) for 10 s fails with a decode error (code 3), and its run is
+  detached: the run's place goes to the next pipeline at once, the
+  source is cancelled, and its threads end at their next check when the
+  blocked call returns; they count as detached until then. While 16
+  detached threads run in the process, a new run fails at once with code
+  3. One watchdog thread per process (`swb-media-watchdog`, started at
+  the first use) holds the pipelines whose owners need data and sleeps on
+  a condition variable until the next check (no wake-up while none
+  needs data). The owner registers its pipeline when it starts to need
+  data (`has_pending_work` and `update`, so also in real time); the
+  failure calls the owner's notify, so it works also in virtual time,
+  where nothing else would wake the owner. The limit counts from the
+  moment the owner starts to need data (also after a long pause). A
+  pipeline whose threads all wait for room that only the owner frees
+  (stalled on the owner) is not stalled: the owner's flag may be older
+  than its last look. When the threads all wait but what one waits for no
+  longer holds, a wake-up was lost: the watchdog notifies both threads
+  (they check their conditions again) and fails the run when the same
+  holds a limit later without progress (second review of feature 5). The
+  place is counted per run: the last thread of a run gives it back (the
+  video thread too, so a panic of the demux thread no longer frees the
+  place while the video thread runs).
+- **Synchronization.** Audio is the master: with an audio track only the
+  audio's data stops the clock (underrun); without one, the video's. The
+  video thread drops a frame without converting it when its end is at or
+  before the owner's last media time (counted with the dropped frames).
+  `timeupdate` points: 250 ms of media time after `play`, after a seek
+  ends, and after each point (a point that comes late does not repeat).
+  After an underrun, playback resumes when 250 ms of audio past the media
+  time are decoded (or the audio ended, or the ring is full), or for video
+  alone when a frame is queued; the clock goes on from where it stopped.
+- **The end** is the duration. When the streams ended more than 1 s
+  before it (a cut file), or the duration is unknown, the end is the end
+  of the data (swb's choice; not measured). Opus and VP9 + Opus: FFmpeg's
+  duration (2.0065, 2.008 s) is a few milliseconds past the last sample;
+  playback goes on to the duration, so `ended` comes at Chromium's
+  `duration`.
+- **Seeks.** A seek before the metadata is kept and runs after the open;
+  the first frame after a seek is the seek's frame (the last at or before
+  the target, else the first after it); a suspended pipeline that seeks
+  reopens with that seek; a source that cannot seek opens again (when it
+  has read packets) and plays from the start: `SeekDone` gives the start.
+  The seek code is `MediaFile`'s (`seek_demux`, `SeekFilter`). A demuxer
+  whose seek fails decodes on from where it is.
+- **The origin** (section 7): `swb_media::timeline` per container. MP3:
+  the stream's times are shifted by FFmpeg's start time (the encoder
+  delay); the start is 0. WAV and ADTS: start 0. Matroska/WebM: FFmpeg's
+  duration is the end. MP4 with a start time above 0: the start plus the
+  longer of the video track and the AAC track in whole frames of 1,024
+  samples (3.496145 s for the test file, Chromium's value). One probe row
+  fits this rule; it is swb's reading of the row, not a measured
+  mechanism. The 25 rows of `format-metadata-table` now match without
+  departures. A negative start time (Ogg or Matroska with packets before
+  0, an MP4 edit list that starts before the first sample) gives the
+  start 0; the media times stay the stream's, so what lies before 0 does
+  not play (swb's choice; no test file has one; not measured).
+- **The bound** (section 6): `PipelineSlots` (16 per process,
+  `PipelineSlots::global()`; tests make their own). A pipeline without a
+  place has no thread; the place goes to the first waiter when a run's
+  threads have ended (or at once when the run is detached). A run that
+  ends while it waits leaves the queue, so a pipeline that suspends and
+  resumes many times does not grow it. Measured: 1,000 audio pipelines
+  open through 16 places with at most 16 threads.
+- **Idle.** A paused, ended or suspended pipeline schedules nothing
+  (`next_due` is `None`), and its threads block on condition variables
+  once the queues are full: no wake-ups in 500 ms (test counters), 0 ms of
+  CPU in 3 s paused for each real file (release build).
+- **Measured** (release build, development machine, `tests/
+  pipeline_bench.rs`, the thread counts of section 6): virtual time as
+  fast as it goes, decode and convert: 1080p 30 fps 1,058 fps (1,341
+  without conversion), the Wikimedia file 641 fps (2,180), the 4K file
+  230 fps (285); CPU per second of media 15 %, 9 % and 68 % of one core.
+  Real time on a monotonic clock, 5 s: no dropped frame and no underrun
+  for the three files (the frame shown at most 0.3 ms after its time);
+  CPU 14 %, 8 % and 63 % of one core (silent output, no paint).
+- **Small races closed** (review of feature 5): the demux thread adds
+  buffered ranges and pushes the end of the stream only for its own run;
+  when the source opened after the run ended (the opener may undo a
+  cancel), the thread cancels the source again and ends.

@@ -6906,6 +6906,49 @@ Steps:
       that has not decoded what the next due time needs is pending work,
       ADR 0047 section 7); the origin and the duration per container
       from the probe rows (MP3 encoder delay, MP4 with a start time).
+
+      Done (2026-11-25):
+      - `swb_media::pipeline::Pipeline`: per open resource a demux thread
+        (packets, audio decode and resample into a lock-free sample ring)
+        and a video thread (decode, convert into pooled pixmaps); queues
+        of 16 MiB, 4,096 packets or 2 s of video packets, 2 to 6 frames
+        within 96 MiB, 1 s of samples, and a backlog of audio packets
+        (4 MiB) while the ring is full; runs and epochs, so close,
+        suspend and several seeks never wait for a thread.
+      - The media clock on the owner's clock time (page time; feature 8
+        adds the audio clock); the silent output; audio is the master,
+        late frames are dropped and counted; underrun and resume; the end
+        at the duration; `timeupdate` every 250 ms of media time.
+      - Virtual time: `next_due` and `has_pending_work`; 20 test files
+        play with the frames and samples of the in-order decode, the same
+        on every run under load and under the sanitizers. When every
+        thread waits for room that only the owner frees (tracks far apart
+        in the file), the pipeline has no pending work and plays on with
+        an audio gap or late frames. The two queues notify the thread at
+        their other end on every change, so no code path can forget a
+        wake-up.
+      - The 10 s no-progress limit of ADR 0047 section 11: a watchdog
+        thread per process, code 3, detached threads (at most 16 per
+        process); it sleeps while no pipeline needs data, and wakes
+        threads that missed a wake-up.
+      - Seeks to an exact frame (also before the metadata, with a start
+        time, past the end, several in a row; a stream plays again from
+        the start); the origin and duration rules per container: the 25
+        metadata rows equal Chromium's without departures.
+      - At most 16 open pipelines (FIFO, no threads while waiting);
+        suspend and reopen; paused, ended and suspended pipelines use no
+        CPU (0 ms in 3 s for the real files).
+      - For feature 8: the ring's mapping from position to media time
+        without the pipeline's lock, and an option for an external
+        consumer of the ring.
+      - Measured (release): 1080p 1,058 fps, Wikimedia 641 fps, 4K
+        230 fps decode and convert; 5 s real time without a dropped frame
+        for all three.
+      - Review fixes (two rounds): the hang on files whose tracks lie far
+        apart, the no-progress limit, a lost wake-up of the video thread
+        that hung virtual time under load, a count bound of the packet
+        queue, fences in the ring, negative start times, tests of the
+        epoch checks and of the watchdog.
    6. The media element, in two parts (`implementer`), each with
       JavaScript off and without the feature:
       6a. The core: attributes, resource selection with `<source>`
@@ -6916,7 +6959,17 @@ Steps:
           `media-states`, `media-fetch`. A new probe case (review of
           feature 4): a server that answers 200 with `Accept-Ranges:
           bytes` and `Content-Length`, then a seek; the byte source makes
-          such a response a stream today.
+          such a response a stream today. Probe rows for the start and
+          duration rules of `swb_media::timeline` (review of feature 5;
+          the MP4 rule rests on one row): a fragmented MP4, an MP4 with
+          B-frames and no edit list, Opus in MP4. The rule for
+          `HAVE_ENOUGH_DATA` and `canplaythrough` from the pipeline's
+          reports. Proposal of feature 5: after the first data, with no
+          underrun and no seek, when the whole resource is read or the
+          decoded queues are full (ring full, and frame queue full or
+          video drained); back to `HAVE_CURRENT_DATA` at `Underrun`; a
+          getter `Pipeline::has_enough_data()`. The probe rows decide
+          whether Chromium fires it at once for small local files.
       6b. Playback: `play()` and its promise, `pause()`, seeking with
           `currentTime`, `loop`, `ended`, `played`, `volume` and
           `muted`, `autoplay` and the user activation policy (also for
@@ -7032,6 +7085,57 @@ Source Extensions, AV1 (dav1d), YouTube.
   module_graph_probe_cases_match_chromium` (`import-call-base-inserted`)
   failed once in a loaded `just check-media` run (two module loads in the
   other order; a 900 ms timer) and passed in the next two runs.
+- Media pipeline (feature 5): the end of a cut file (the data ends more
+  than 1 s before the duration): swb ends at the end of the data;
+  Chromium is not measured (does it change `duration`?).
+- Media pipeline (feature 5): after `set_painted(true)` while paused, the
+  current frame has no image until the next frame or a seek (feature 7
+  may seek to the position).
+- Media pipeline (feature 5): the time of `Report::Buffered` depends on
+  the demuxer's read-ahead and is not deterministic in virtual time
+  (like network progress).
+- Media pipeline (feature 5, for feature 10): a process-wide budget for
+  decoded frames. Each pipeline holds about its frame queue plus 3
+  pixmaps: at the frame size limit (8192 x 4352, 142.6 MB) about 713 MB
+  per pipeline, 11.4 GB for 16.
+- Media pipeline (feature 5): a file whose tracks lie further apart than
+  the audio backlog (4 MiB) plays with gaps in the audio or frozen video
+  until the reader catches up. A demuxer reader per track would play it
+  without gaps; the target pages do not need it.
+- Media pipeline (feature 5): in real time, a file whose audio comes far
+  after the video in the file gives one `Underrun` and `Resumed` at the
+  start before the threads stall on the owner.
+- Media pipeline (feature 5): the no-progress limit counts source bytes
+  as progress, so an endless stream of bytes that the demuxer skips never
+  fails (memory stays bounded by the byte budget); feature 10's
+  endless-body test checks it. An open that gets no byte for 10 s on a
+  slow network fails with code 3; Chromium may fire `stalled` and wait
+  (measure in 6a or 10).
+- Media pipeline (feature 5): the watchdog keeps an entry (one wake-up
+  per 10 s) for a pipeline whose owner needed data once and then stopped
+  asking while its threads wait.
+- Media pipeline (feature 5): the watchdog heals a lost wake-up only when
+  all threads of a pipeline wait, and only after up to one limit (10 s).
+  A lost wake-up of one thread while the other blocks in a source read
+  fails at the plain limit. The queues make the known lost wake-ups
+  impossible; the watchdog is a safety net.
+- Media pipeline (feature 5): the integration test
+  `a_seek_after_the_end_is_pending_until_its_frame_comes` catches a seek
+  that is not pending work only through a race; the unit test
+  `a_seek_ends_the_stall_on_the_owner` catches it every time.
+- Media pipeline (feature 5): the epoch check where the video thread
+  queues a converted frame has no test that fails without it (the frame
+  is filtered on every owner path). Key `video_end_us` by epoch to make
+  the check redundant.
+- Media pipeline (feature 5, for feature 8): with `AudioOutput::External`
+  the demux thread refills the ring only at the owner's `update`; the
+  mixer's element must call `update` at least every 0.75 s while it
+  plays (the ring holds 1 s), and the real-time callback needs a wake-up
+  path to the page thread that does not use a condition variable.
+- Tests (found in feature 5): `swb-engine --test script_location`
+  `at_most_sixty_four_traversals_wait_and_reloads_are_one` failed once in
+  a loaded `just check-media` run (4 document requests, the test allows
+  3) and passed in the next 6 runs.
 
 ## Backlog from M13
 

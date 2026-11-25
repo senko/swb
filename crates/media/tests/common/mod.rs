@@ -1,6 +1,8 @@
 //! Helpers of the decoding tests: the test media of `fixtures/media/`.
 #![allow(dead_code)]
 
+pub(crate) mod driver;
+
 use std::path::PathBuf;
 
 use swb_media::{Decoded, FileSource, MediaError, MediaFile};

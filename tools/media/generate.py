@@ -251,6 +251,29 @@ def entries() -> dict[str, list[str]]:
         "-movflags",
         "+faststart",
     ]
+    # Audio far from the video in the file (ADR 0047 section 7, the pipeline
+    # stalled on its owner): 2 s of video from 0 s and 2 s of audio from 3 s
+    # (`-itsoffset` on an audio input of its own). The muxer writes the
+    # packets in time order, so every video packet comes before the first
+    # audio packet; with a small packet bound the demuxer fills its queues
+    # before it reads any audio, and the ring fills before the video ends.
+    e["mp4-h264-aac-late-audio.mp4"] = [
+        *video_src(2),
+        "-itsoffset",
+        "3",
+        "-f",
+        "lavfi",
+        "-i",
+        audio_graph(2).replace("[a]", "[out0]"),
+        "-map",
+        "0:v",
+        "-map",
+        "1:a",
+        *H264_HIGH,
+        *AAC,
+        "-movflags",
+        "+faststart",
+    ]
     # Longer files for seeking: 10 s, a key frame every second.
     e["mp4-h264-aac-long.mp4"] = [*av(10), *H264_HIGH, *AAC, "-movflags", "+faststart"]
     e["mp3-long.mp3"] = [

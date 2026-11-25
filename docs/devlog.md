@@ -4,6 +4,33 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-25: M14 feature 5, the media pipeline
+
+- `swb-media` plays a resource with a demux thread and a video thread per
+  pipeline, driven by the page thread with the page clock's time. Audio is
+  the master; late frames are dropped. Close, suspend and seeks never wait
+  for a thread (runs and epochs). At most 16 pipelines are open.
+- In virtual time, 20 test files play with the frames and samples of the
+  in-order decode, the same on every run, also under load and under the
+  sanitizers. The start and duration rules per container make the 25
+  metadata rows equal to Chromium's; the 5 departures of feature 3 are
+  gone.
+- Release build: 1080p decodes and converts at 1,058 fps, 4K at 230 fps;
+  5 s of real time drop no frame. Paused pipelines use no CPU.
+- The review found two hangs: a file whose video lies far ahead of its
+  audio stopped virtual time for good, and the 10 s no-progress limit of
+  the ADR was missing. Now each thread records what it waits for, and a
+  pipeline that waits only on its owner plays on; a backlog of audio
+  packets keeps video flowing. A watchdog thread fails a stuck pipeline
+  with code 3 and detaches its threads.
+- A second review ran the tests under load and found a lost wake-up: the
+  page thread took a frame from a full queue without waking the video
+  thread, and virtual time hung. Both queues now wake the other thread on
+  every change, and the watchdog wakes threads that missed a wake-up. The
+  pipeline tests pass with two busy loops per core.
+- The MP4 start-time rule rests on one probe row; feature 6a adds rows.
+- Next: feature 6a, the core of the media element.
+
 ## 2026-11-25: M14 feature 4, the media byte source
 
 - `swb-net` reads media with `Range` requests into a cache of 64 KiB
