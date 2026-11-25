@@ -87,9 +87,11 @@ class Case:
     """True loads the page over HTTP from the case server, also without
     `resources`: the `files` are then served by it (media files, with `Range`
     requests; see `probe_server.py`)."""
-    ranges: bool = True
+    ranges: bool | str = True
     """False makes the case server ignore `Range` headers and send no
-    `Accept-Ranges` (a server that cannot seek)."""
+    `Accept-Ranges` (a server that cannot seek). `"ignore"` makes it ignore
+    `Range` but send `Accept-Ranges: bytes` and `Content-Length` (a server
+    that claims ranges and answers 200)."""
 
 
 def _parse_viewport(value: Any, where: str) -> tuple[int, int]:
@@ -213,7 +215,9 @@ def _parse_case(
     if steps and not javascript:
         raise ProbeError(f"{where}: steps need javascript")
     http = _parse_flag(item.get("http", False), where, "http")
-    ranges = _parse_flag(item.get("ranges", True), where, "ranges")
+    ranges = item.get("ranges", True)
+    if ranges != "ignore":
+        ranges = _parse_flag(ranges, where, "ranges")
     return Case(
         name,
         html,

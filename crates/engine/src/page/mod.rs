@@ -49,6 +49,7 @@ mod history_api;
 mod idle;
 mod input;
 mod loading;
+mod media;
 mod pipeline;
 mod popovers;
 mod rendering_update;
@@ -509,6 +510,7 @@ impl Page {
             animations: std::cell::Cell::new(true),
             clock: RefCell::new(swb_web::PageClock::real()),
             animation_room: swb_style::animation::DocumentAnimations::page_room(),
+            media: crate::media::MediaContext::new(),
         });
         let view = View {
             viewport,

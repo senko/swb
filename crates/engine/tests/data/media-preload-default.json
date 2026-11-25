@@ -1,0 +1,58 @@
+{
+  "cases": [
+    {
+      "name": "real-preload-default-mux-highest-mp4",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({preload: v.preload, rs: v.readyState, buffered: ahead(v)}))",
+          "value": {
+            "preload": "metadata",
+            "rs": 4,
+            "buffered": "under 10 s"
+          }
+        }
+      ]
+    },
+    {
+      "name": "real-preload-metadata-mux-highest-mp4",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({preload: v.preload, rs: v.readyState, buffered: ahead(v)}))",
+          "value": {
+            "preload": "metadata",
+            "rs": 4,
+            "buffered": "under 10 s"
+          }
+        }
+      ]
+    },
+    {
+      "name": "real-preload-auto-mux-highest-mp4",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({preload: v.preload, rs: v.readyState, buffered: ahead(v)}))",
+          "value": {
+            "preload": "auto",
+            "rs": 4,
+            "buffered": "over 10 s"
+          }
+        }
+      ]
+    }
+  ]
+}

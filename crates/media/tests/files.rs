@@ -62,6 +62,12 @@ fn table() -> Vec<(&'static str, Expect)> {
         ("mp3-long.mp3", ok(A, Complete, 0)),
         ("mp3-truncated.mp3", ok(A, Complete, HOSTILE)),
         ("mp3.mp3", ok(A, Complete, 0)),
+        // M14 feature 6a: rows for the timeline rules.
+        (
+            "mp4-h264-aac-bframes-no-edit-list.mp4",
+            ok(AV, Complete, 50),
+        ),
+        ("mp4-h264-aac-fragmented.mp4", ok(AV, Complete, 50)),
         ("mp4-h264-aac-late-audio.mp4", ok(AV, Complete, 50)),
         ("mp4-h264-aac-long.mp4", ok(AV, Complete, 250)),
         ("mp4-h264-aac-start1500.mp4", ok(AV, Complete, 50)),
@@ -79,6 +85,7 @@ fn table() -> Vec<(&'static str, Expect)> {
         ("mp4-h264-untagged-bt709-720x576.mp4", ok(V, Complete, 50)),
         ("mp4-h264-untagged-bt709.mp4", ok(V, Complete, 50)),
         ("mp4-h264-video-only.mp4", ok(V, Complete, 50)),
+        ("mp4-opus.mp4", ok(A, Complete, 0)),
         ("ogg-flac.oga", ok(A, Complete, 0)),
         ("ogg-opus.opus", ok(A, Complete, 0)),
         ("ogg-vorbis.ogg", ok(A, Complete, 0)),

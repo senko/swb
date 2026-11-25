@@ -12,16 +12,29 @@
 //! the owner's notify, so it works also when nothing else would wake the
 //! owner (virtual time, where the page clock does not move while work is
 //! pending).
+//!
+//! It also checks the place of each run that ended a limit after the end:
+//! a place still in transit then (a thread of the run does not end) is
+//! detached, so that the waiters, whose owners wait for it, go on.
 
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock, PoisonError, Weak};
 use std::thread;
 use std::time::Instant;
 
 use super::shared::Shared;
+use super::slots::RunPlace;
 
-/// A pipeline to check at `due`.
+/// What to check.
+enum Target {
+    /// A pipeline whose owner needs data.
+    Pipeline(Weak<Shared>),
+    /// The place of a run that ended (it must leave its transit).
+    Place(Weak<RunPlace>),
+}
+
+/// A pipeline or a place to check at `due`.
 struct Entry {
-    shared: Weak<Shared>,
+    target: Target,
     due: Instant,
 }
 
@@ -57,11 +70,23 @@ fn watchdog() -> &'static Arc<Watchdog> {
 
 /// Checks `shared` at `due` (the owner started to need data).
 pub(crate) fn watch(shared: &Arc<Shared>, due: Instant) {
-    let w = watchdog();
-    w.lock().push(Entry {
-        shared: Arc::downgrade(shared),
+    add(Entry {
+        target: Target::Pipeline(Arc::downgrade(shared)),
         due,
     });
+}
+
+/// Checks at `due` that `place` (of a run that ended) left its transit.
+pub(crate) fn watch_place(place: &Arc<RunPlace>, due: Instant) {
+    add(Entry {
+        target: Target::Place(Arc::downgrade(place)),
+        due,
+    });
+}
+
+fn add(entry: Entry) {
+    let w = watchdog();
+    w.lock().push(entry);
     w.cv.notify_one();
 }
 
@@ -89,13 +114,19 @@ fn run(w: &Watchdog) {
         drop(entries);
         let again: Vec<Entry> = due
             .into_iter()
-            .filter_map(|e| {
-                let shared = e.shared.upgrade()?;
-                let due = shared.check_progress(now)?;
-                Some(Entry {
-                    shared: e.shared,
-                    due,
-                })
+            .filter_map(|e| match e.target {
+                Target::Pipeline(weak) => {
+                    let shared = weak.upgrade()?;
+                    let due = shared.check_progress(now)?;
+                    Some(Entry {
+                        target: Target::Pipeline(weak),
+                        due,
+                    })
+                }
+                Target::Place(weak) => {
+                    weak.upgrade()?.check_transit();
+                    None
+                }
             })
             .collect();
         entries = w.lock();

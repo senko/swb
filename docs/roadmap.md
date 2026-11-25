@@ -6970,6 +6970,90 @@ Steps:
           video drained); back to `HAVE_CURRENT_DATA` at `Underrun`; a
           getter `Pipeline::has_enough_data()`. The probe rows decide
           whether Chromium fires it at once for small local files.
+
+          Done (2026-11-25):
+          - The element core in the engine (`crates/engine/src/media/`,
+            ADR 0047 "Implementation notes (M14 feature 6a)"): resource
+            selection (`src` wins; `source` children with `type` by
+            `canPlayType` and `media` by the document's environment;
+            `error` at skipped or failed sources; a `source` inserted
+            into an element that waits), the load algorithm (`load()`, a
+            `src` change: `abort`, `emptied`, `timeupdate`; the
+            stable-state part at the next pump), `networkState`,
+            `readyState`, `MediaError` with Chromium's messages,
+            `currentSrc`, `duration`, `videoWidth`, `videoHeight`,
+            `buffered`, `seekable`, `preload` (`none` waits for `load()`
+            or a change of the attribute). JavaScript on and off; without
+            the feature `media` a load fails with code 4 and no request.
+            The events come in Chromium's order with its values at each
+            event: the page delivers the events of one unit of media work
+            before it steps the next ("lockstep"), the same on every run,
+            also under load.
+          - The pipeline in the page: `Loader::waker()` and
+            `MediaHandle::set_notify` wake the page; `Page::pump` steps
+            the elements and delivers their events; virtual time waits
+            for the pending work of the elements and jumps to the next
+            suspend; an idle pipeline suspends after 15 s, a removed
+            element with all its data at once (a loading one goes on).
+            The process's 16 places (`Page::isolate_media` gives a test
+            page its own); the handover of a place to a waiting pipeline
+            is pending work (`PipelineSlots::in_transit`,
+            `Pipeline::awaits_handover`), so virtual time cannot move
+            while a place changes hands. 1,000
+            `<video preload=metadata>` load through the 16 places in
+            0.5 s of real time. `Pipeline::has_enough_data()` ("the
+            threads have settled") and `has_unread_reports()` in
+            `swb-media`. The waits for a settled source and for enough
+            data before `loadedmetadata` and `loadeddata` apply only in
+            virtual time; in real time the events come at the first
+            parse and the first frame, as in Chromium.
+          - Resource selection keeps HTML's pointer
+            (`select::Pointer`), so many skipped `source` children cost
+            linear time.
+          - Bindings: the `HTMLMediaElement` and `HTMLVideoElement`
+            members of 6a (`web/src/media_element.rs`), `MediaError`,
+            `TimeRanges`, `canPlayType` (`swb_media::can_play_type`: the
+            149 rows; departures: HLS and AV1 answer `""`).
+          - Probe rows: Chromium seeks in a resource that answers 200
+            with `Accept-Ranges: bytes` and `Content-Length` (a `Range`
+            request, a 200 with the whole body, the exact time); the byte
+            source now does the same (`ranges: "ignore"` in the probe
+            server, two cases in `media-fetch.json`); the bytes that it
+            reads and discards to reach one seek target are at most
+            256 MiB, so only a seek past that point fails (Chromium reads
+            on). The timeline rows
+            (`format-timeline-table`; 3 new files in `fixtures/media/`: a
+            fragmented MP4, B-frames without an edit list, Opus in MP4)
+            agree with `swb_media::timeline` without a change.
+            `canplaythrough`: every row has `readyState` 4 at
+            `loadeddata`, so `loadeddata`, `canplay` and `canplaythrough`
+            come together. Chromium's `preload` default (the attribute
+            missing) reads ahead as `metadata` does (three cases in
+            `media-real-files.json` with the local 4K file).
+          - Tests: 62 of the 65 cases of `media-states` (3 need 6b), the
+            load part of the 45 cases of `media-fetch`, 149 types, the
+            interfaces; JavaScript off; without the feature; 1,000
+            elements; the hostile media files; 36 pages at once under
+            load; a slow link in virtual and in real time; removal
+            during the load; the handover of places with a delay; the
+            selection pointer; the `preload` default; videojs.org with
+            media on against Chromium without `MediaSource`. Hostile
+            cases `media-many-skipped-sources`, `media-load-flood`,
+            `media-16000-videos` (`hostile_cases/media.py`).
+          - videojs.org: its HLS `src` now fails with code 4 and Video.js
+            shows its error dialog over the hero video. Chromium 148
+            without `MediaSource` shows the same dialog (measured in the
+            review; diagnosis section 10 is corrected), so it stays until
+            M15. The M13 tests load the page with `Page::set_media(false)`
+            (their recording has `MediaSource`).
+          - Review fixes (two rounds; the first with
+            `implementer-hard`, because it changed the thread code of
+            feature 5): the handover of places in virtual time and a
+            test of every path that ends a run, the order of the pending
+            checks, removal during the load, the real-time waits, the
+            process's places, the selection pointer, the bound of
+            discarded bytes per seek, the hostile cases, the videojs.org
+            test.
       6b. Playback: `play()` and its promise, `pause()`, seeking with
           `currentTime`, `loop`, `ended`, `played`, `volume` and
           `muted`, `autoplay` and the user activation policy (also for
@@ -7056,7 +7140,9 @@ Source Extensions, AV1 (dav1d), YouTube.
   a headed Chromium.
 - videojs.org (feature 1): without `MediaSource`, Video.js sets the
   master playlist as `src` (native HLS). With native HLS (backlog of
-  M15) the hero would play without Media Source Extensions.
+  M15) the hero would play without Media Source Extensions. Until then
+  the `src` fails with code 4 and Video.js shows its error dialog, as in
+  Chromium without `MediaSource` (feature 6a).
 - Media byte source (feature 4): `cancel` cannot close a connection that
   blocks in a read, and a body from byte 0 has no total time limit, so a
   server that stalls without closing holds a fetch thread (the reader,
@@ -7070,17 +7156,20 @@ Source Extensions, AV1 (dav1d), YouTube.
   64 KiB are in, so a slow live-like server shows data up to 64 KiB late.
 - Media byte source (feature 4): the readers of one handle share the read
   position; one reader at a time is meant to read.
-- Media byte source (feature 4): media requests carry no referrer
-  (`Request` has no referrer field); feature 6a sets it as for images.
+- Media byte source (feature 4): media requests carry no `Referer` and
+  no `Origin` (`Request` has no referrer field; feature 6a did not add
+  one); `crossorigin` sets the mode and the credentials.
 - Media byte source (feature 4): the 2 MiB floor is bounded by the 16
   resources that run (32 MiB past the page budget), not by the budget.
 - Media byte source (feature 4): `crates/media/tests/net.rs` does not run
   under `just media-asan`: with `swb-net` linked, `libc` comes before the
   sanitizer runtime in `DT_NEEDED` and the runtime crashes at start. The
   link order in the build script of `swb-media-ffi` would fix it.
-- Hostile pages (feature 4, for 6a or 10): `video-endless-body` and
+- Hostile pages (feature 4, for 10): `video-endless-body` and
   `video-range-lies` (a `Content-Range` that does not fit, a total that
-  changes) once the element exists; unit tests cover both today.
+  changes) as pages; unit tests cover both today. The hostile-page set
+  builds without the feature `media`, so these pages need a media build
+  of the set.
 - Tests (found in feature 4): `probe_net
   module_graph_probe_cases_match_chromium` (`import-call-base-inserted`)
   failed once in a loaded `just check-media` run (two module loads in the
@@ -7136,6 +7225,74 @@ Source Extensions, AV1 (dav1d), YouTube.
   `at_most_sixty_four_traversals_wait_and_reloads_are_one` failed once in
   a loaded `just check-media` run (4 document requests, the test allows
   3) and passed in the next 6 runs.
+- Media (feature 6a): MP3, WAV and Ogg served as a 200 without `Range`
+  have no duration (`Infinity`); Chromium knows it from
+  `Content-Length`. Give FFmpeg the length of a 200 as its size
+  (`ByteSource` has no size without seeking; `swb-media-ffi` makes
+  `seekable` from the size callback).
+- Media (feature 6a): `blob:` URLs fail to load (the engine holds no
+  blobs; the byte source has `MediaResource::from_bytes`).
+- Media (feature 6a): media elements do not delay the `load` event of
+  the window (HTML "delaying the load event" until `loadeddata`).
+- Media (feature 6a): `HAVE_CURRENT_DATA` and `HAVE_FUTURE_DATA` are
+  never visible, and `progress` comes once (feature 6b: more while data
+  arrives during playback).
+- Media (feature 6a): Chromium fires a second `suspend` after
+  `canplaythrough` for the 78 KB WebM file at `preload=metadata`, and not
+  for the MP4; swb does not.
+- Media (feature 6a): at `loadedmetadata` Chromium has `currentTime` 0
+  and the track's duration (2.023991) for the MP4 with a start time; swb
+  has the final values (1.476009, 3.496145), which Chromium shows 150 ms
+  later.
+- Media (feature 6a): the message of a failed HLS `src` is
+  `DEMUXER_ERROR_COULD_NOT_OPEN` in swb and
+  `DEMUXER_ERROR_COULD_NOT_PARSE` in Chromium without `MediaSource`
+  (Chromium parses the playlist natively).
+- Probe (feature 6a): `sel-first-404-then-ok` had one Chromium run of
+  three with a second request and a second `progress`;
+  `fetch-ignore-range-accept-ranges-long` varies in its request sizes and
+  its buffered end. Neither row is stable.
+- Media (feature 6a, for 6b): a pipeline failure after the metadata is
+  kept (`Fetch::late`) and not reported; 6b reports it (`error`, code 3)
+  when the playback reaches the damage.
+- Media (feature 6a, for 6b): a removed element whose pipeline was
+  suspended does not resume when it is inserted again
+  (`Media::discovered` returns early for a known node).
+- Media (feature 6a): the media event queue has no bound: 1,000,000
+  `load()` calls in one task give 2 million events (149 MiB, 2 s; the
+  hostile case `media-load-flood` stays within the limits). Coalesce or
+  cap.
+- Media (feature 6a): the byte source turns the read-ahead in seconds
+  into bytes at 1 MiB/s until the metadata gives the bit rate. What a
+  file over 1 MiB fetches before it is idle, and its `buffered`, depends
+  on when the metadata came, so in virtual time a test with such a file
+  is repeatable only if its bit rate is 1 MiB/s (a 30 s WAV at 192 KB/s
+  gave 22.9 s or 30 s under load).
+- Media (feature 6a): with the feature, the HLS `src` of videojs.org
+  gives `progress` and `suspend` before `error` (the playlist's bytes
+  arrive); Chromium's HLS player gives neither (a departure in the
+  test).
+- Media (feature 6a): the order of `source` children after insertions
+  and removals around the selection pointer follows the HTML text; no
+  Chromium probe row.
+- Media (feature 6a): the wait for enough data before `loadeddata` is
+  off in real time, but no test fails when it is on: the first 64 KiB
+  block of every test file holds the first frame and over 1 s of media.
+  A test needs a high-bit-rate file and a body that stalls after the
+  first block (`MediaSite`).
+- Media (feature 6a, measure in 6b or 10): a WAV served over the slow
+  test link (16 KiB per 100 ms) gave no event in 3 s of real time. Not
+  investigated; FFmpeg's stream analysis at the open may read far ahead
+  before the metadata. A slow network may delay `loadedmetadata` more
+  than in Chromium.
+- Media byte source (feature 6a): the rule that a reopening after a lost
+  connection keeps counting the discarded bytes of its seek
+  (`retried` in `net/src/media/job.rs`) has no test; nor has the order of
+  the checks in `Fetch::pending` (a window of microseconds).
+- Media (feature 6a): in virtual time one unit of media work goes at a
+  time (strict order), so a page with many elements that wait for their
+  threads takes one round trip for each; fine for the tests, not
+  measured for 1,000 elements with 1080p files.
 
 ## Backlog from M13
 

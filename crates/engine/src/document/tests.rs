@@ -71,6 +71,7 @@ fn state_with(
         fonts: Rc::default(),
         node_room: None,
         animations: super::AnimationSetting::default(),
+        media: crate::media::MediaContext::new(),
     });
     doc.run_parser();
     doc

@@ -124,6 +124,11 @@
 //! each with its cause: a backlog item of `docs/roadmap.md`, a listed
 //! departure of ADR 0044, or a media feature (M14, M15). A departure that no
 //! longer applies fails the test.
+//!
+//! The recordings have Media Source Extensions, which swb has from M15, so
+//! these sequences load with media off (`Page::set_media`). One test loads
+//! the page with media on against Chromium without `MediaSource`
+//! ([`without_media_source_the_player_fails_and_shows_its_error_dialog`]).
 
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
@@ -140,13 +145,13 @@ use common::console;
 use common::departures::Departures;
 use common::records::{Difference, paced, pixel_problems};
 use common::{
-    PIXEL_TOLERANCE, fixture, load_at_capture_animated, on_page_thread, replay_page_with,
-    repo_root, step_groups, value,
+    PIXEL_TOLERANCE, fixture, load_at_capture_animated, load_at_capture_without_media,
+    on_page_thread, replay_page_with, repo_root, step_groups, value,
 };
 use serde_json::{Value, json};
 use swb_automation::run_steps;
-use swb_engine::{ClockMode, Page, PageClock};
-use swb_net::ReplayFetcher;
+use swb_engine::{ClockMode, Page, PageClock, Url};
+use swb_net::{CookieJar, Fetcher, NetError, ReplayFetcher, Request, Response, StreamResponse};
 
 /// The largest difference, in CSS px, of a coordinate or a size in the
 /// rectangles of a record, and of the widths of the bars. Measured over the
@@ -564,7 +569,9 @@ fn check(sequence: &Sequence, dir: &Path) -> Vec<String> {
     let mut departures = Departures::load_for(DEPARTURES, Some(sequence.name));
 
     let fetcher = Arc::new(ReplayFetcher::load(dir).unwrap());
-    let mut page = load_at_capture_animated(dir, Duration::from_millis(1500), fetcher, true);
+    // Media loads are off: the recording has Media Source Extensions, swb
+    // none until M15 (see `load_at_capture_without_media`).
+    let mut page = load_at_capture_without_media(dir, Duration::from_millis(1500), fetcher, true);
     assert!(page.has_script_runtime());
     page.evaluate(SETUP, swb_engine::JsonForm::Strict);
 
@@ -863,6 +870,135 @@ fn js_off_animations_leave_the_first_view_alone() {
                 "a bar grows with JavaScript off: {bar}"
             );
         }
+    });
+}
+
+/// A fetcher that inserts a script at the start of the `head` of the
+/// document at `url`, as the replay tool's `--init-script` runs one in
+/// Chromium before the page's scripts.
+struct InitScript {
+    inner: Arc<dyn Fetcher>,
+    url: Url,
+    script: &'static str,
+}
+
+impl Fetcher for InitScript {
+    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
+        let mut response = self.inner.fetch(request)?;
+        if request.url == self.url && response.status == 200 {
+            let html = String::from_utf8_lossy(&response.body).into_owned();
+            let at = html
+                .find("<head")
+                .and_then(|h| html[h..].find('>').map(|e| h + e + 1))
+                .unwrap_or(0);
+            let tag = format!("<script>{}</script>", self.script);
+            response.body = format!("{}{tag}{}", &html[..at], &html[at..]).into_bytes();
+        }
+        Ok(response)
+    }
+
+    fn fetch_stream(&self, request: &Request) -> Result<StreamResponse, NetError> {
+        self.inner.fetch_stream(request)
+    }
+
+    fn cookie_jar(&self) -> Option<&CookieJar> {
+        self.inner.cookie_jar()
+    }
+}
+
+/// The player of videojs.org with media on (review of M14 feature 6a): the
+/// page gives the `video` the HLS playlist as `src` and plays it through
+/// Media Source Extensions (M15). Chromium 148 without `MediaSource` (the
+/// replay tool with `data/videojs-no-mse-init.js`, which deletes it and
+/// records the events of the media element; `data/videojs-no-mse-chromium.json`,
+/// three equal runs) fails the load: `loadstart`, then `error` with code 4,
+/// `networkState` 3, `readyState` 0, and Video.js shows its error dialog. swb
+/// gives the same, with the feature `media` and without it. Departures: the
+/// message (Chromium `DEMUXER_ERROR_COULD_NOT_PARSE`; swb with the feature
+/// `DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed`, the
+/// playlist body arrives and FFmpeg has no HLS demuxer; without it
+/// `MEDIA_ELEMENT_ERROR: Format error`, nothing is fetched) and
+/// `canPlayType` of the HLS type (Chromium "maybe", swb "", ground rules).
+/// The other tests of this file load with media off: their recordings have
+/// `MediaSource`.
+#[test]
+fn without_media_source_the_player_fails_and_shows_its_error_dialog() {
+    let Some(dir) = fixture("videojs") else {
+        eprintln!("skipped: fixtures/js/videojs is missing");
+        return;
+    };
+    on_page_thread(move || {
+        let meta: Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join("fixture.json")).unwrap())
+                .unwrap();
+        let fetcher = Arc::new(InitScript {
+            inner: Arc::new(ReplayFetcher::load(&dir).unwrap()),
+            url: Url::parse(meta["url"].as_str().unwrap()).unwrap(),
+            script: include_str!("data/videojs-no-mse-init.js"),
+        });
+        // As the replay tool: animations off.
+        let mut page = load_at_capture_animated(&dir, Duration::from_millis(1500), fetcher, false);
+        // The step group of the recording: 3 s.
+        page.run_event_loop(Duration::from_millis(3000), Duration::from_secs(60));
+        let got = value(&mut page, include_str!("data/videojs-no-mse-record.txt"));
+        let got: Value = serde_json::from_str(got.as_str().unwrap()).unwrap();
+        let chromium: Value =
+            serde_json::from_str(include_str!("data/videojs-no-mse-chromium.json")).unwrap();
+        let want = &chromium[1];
+        // The events without their times and messages.
+        let events = |record: &Value| -> Vec<String> {
+            array(&record["ev"])
+                .iter()
+                .map(|e| {
+                    let e = e.as_str().unwrap();
+                    let e = e.split_once(' ').map_or(e, |(_, rest)| rest);
+                    let e = e.split(" src=").next().unwrap();
+                    e.split_once(':').map_or(e, |(code, _)| code).to_owned()
+                })
+                .collect()
+        };
+        assert_eq!(
+            events(want),
+            ["loadstart ns=2 rs=0 err=-", "error ns=3 rs=0 err=4"]
+        );
+        // With the feature `media` (it plays MP4) the playlist's bytes
+        // arrive and the demuxer cannot open them: `progress` and `suspend`
+        // come before the `error`, as for any file that arrived and does
+        // not open (probe rows of `media-states.json`). Chromium's built-in
+        // HLS player instead fails at the rendition playlist, which the
+        // fixture lacks, before any `progress`.
+        let mut expected = events(want);
+        let media = value(
+            &mut page,
+            "document.createElement('video').canPlayType('video/mp4')",
+        ) != json!("");
+        if media {
+            expected.splice(
+                1..1,
+                [
+                    "progress ns=3 rs=0 err=4".to_owned(),
+                    "suspend ns=3 rs=0 err=4".to_owned(),
+                ],
+            );
+        }
+        assert_eq!(events(&got), expected, "{got}");
+        assert_eq!((&got["ns"], &got["rs"]), (&want["ns"], &want["rs"]));
+        assert_eq!(got["err"][0], want["err"][0]);
+        assert_eq!(got["src"], want["src"]);
+        assert_eq!(got["text"], json!(true));
+        // The dialog: its elements and texts (the ids carry a React id).
+        let dialog = |record: &Value| -> Vec<String> {
+            array(&record["dlg"])
+                .iter()
+                .map(|d| {
+                    let d = d.as_str().unwrap();
+                    let (tag, rest) = d.split_once('#').unwrap();
+                    let text = rest.split_once(' ').map_or("", |(_, t)| t);
+                    format!("{tag} {text}")
+                })
+                .collect()
+        };
+        assert_eq!(dialog(&got), dialog(want));
     });
 }
 

@@ -1,0 +1,1797 @@
+{
+  "cases": [
+    {
+      "name": "fetch-mp4-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [],
+            "s0": {
+              "rs": 0,
+              "ns": 1,
+              "dur": NaN,
+              "buf": ""
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [
+              "a.mp4 bytes=0- -> 206 55902"
+            ],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp4-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.mp4 bytes=0- -> 206 55902"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp4-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.mp4 bytes=0- -> 206 55902"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp4-moov-end-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [],
+            "s0": {
+              "rs": 0,
+              "ns": 1,
+              "dur": NaN,
+              "buf": ""
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [
+              "a.mp4 bytes=0- -> 206 55902"
+            ],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp4-moov-end-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.mp4 bytes=0- -> 206 55902"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp4-moov-end-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.mp4 bytes=0- -> 206 55902"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp4-long-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [],
+            "s0": {
+              "rs": 0,
+              "ns": 1,
+              "dur": NaN,
+              "buf": ""
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-10",
+              "paused": false
+            },
+            "play": [
+              "a.mp4 bytes=0- -> 206 302913"
+            ],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 6,
+              "buf": "0-10",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp4-long-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.mp4 bytes=0- -> 206 302913"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 10,
+              "buf": "0-10"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-10",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 6,
+              "buf": "0-10",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-webm-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [],
+            "s0": {
+              "rs": 0,
+              "ns": 1,
+              "dur": NaN,
+              "buf": ""
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [
+              "a.webm bytes=0- -> 206 78263"
+            ],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-webm-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.webm bytes=0- -> 206 78263"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2.003,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-webm-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.webm bytes=0- -> 206 78263"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2.003,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-m4a-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [],
+            "s0": {
+              "rs": 0,
+              "ns": 1,
+              "dur": NaN,
+              "buf": ""
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "-0.02-2",
+              "paused": false
+            },
+            "play": [
+              "a.m4a bytes=0- -> 206 17252"
+            ],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "-0.02-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-m4a-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.m4a bytes=0- -> 206 17252"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-m4a-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.m4a bytes=0- -> 206 17252"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "-0.02-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "-0.02-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "-0.02-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-ogg-vorbis-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [],
+            "s0": {
+              "rs": 0,
+              "ns": 1,
+              "dur": NaN,
+              "buf": ""
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [
+              "a.ogg bytes=0- -> 206 10422"
+            ],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2.17",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-ogg-vorbis-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.ogg bytes=0- -> 206 10422"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2.17",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-ogg-vorbis-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.ogg bytes=0- -> 206 10422"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2.17",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp3-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [],
+            "s0": {
+              "rs": 0,
+              "ns": 1,
+              "dur": NaN,
+              "buf": ""
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2.01",
+              "paused": false
+            },
+            "play": [
+              "a.mp3 bytes=0- -> 206 16508"
+            ],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2.01",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp3-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.mp3 bytes=0- -> 206 16508"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2.01",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2.01",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp3-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.mp3 bytes=0- -> 206 16508"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2.01"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2.01",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2.01",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-wav-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [],
+            "s0": {
+              "rs": 0,
+              "ns": 1,
+              "dur": NaN,
+              "buf": ""
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [
+              "a.wav bytes=0- -> 206 176444"
+            ],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-wav-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.wav bytes=0- -> 206 176444"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-wav-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.wav bytes=0- -> 206 176444"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-flac-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [],
+            "s0": {
+              "rs": 0,
+              "ns": 1,
+              "dur": NaN,
+              "buf": ""
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [
+              "a.flac bytes=0- -> 206 36540"
+            ],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-flac-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.flac bytes=0- -> 206 36540"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-flac-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.flac bytes=0- -> 206 36540"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-aac-adts-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [],
+            "s0": {
+              "rs": 0,
+              "ns": 1,
+              "dur": NaN,
+              "buf": ""
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2.03",
+              "paused": false
+            },
+            "play": [
+              "a.aac bytes=0- -> 206 16746"
+            ],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.22,
+              "buf": "0-2.03",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-aac-adts-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.aac bytes=0- -> 206 16746"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2.027269,
+              "buf": "0-2.03"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2.03",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.22,
+              "buf": "0-2.03",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-aac-adts-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.aac bytes=0- -> 206 16746"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2.027269,
+              "buf": "0-2.03"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2.03",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.22,
+              "buf": "0-2.03",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp4-no-ranges-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.mp4 bytes=0- -> 200 55902"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 0,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp4-no-ranges-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.mp4 bytes=0- -> 200 55902"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 0,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp4-moov-end-no-ranges-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.mp4 bytes=0- -> 200 55902"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 0,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp4-moov-end-no-ranges-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.mp4 bytes=0- -> 200 55902"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 0,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-webm-no-ranges-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.webm bytes=0- -> 200 78263"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2.003,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 0,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-webm-no-ranges-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.webm bytes=0- -> 200 78263"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2.003,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 0,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-m4a-no-ranges-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.m4a bytes=0- -> 200 17252"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "-0.02-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "-0.02-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 0,
+              "buf": "-0.02-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-m4a-no-ranges-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.m4a bytes=0- -> 200 17252"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "-0.02-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "-0.02-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 0,
+              "buf": "-0.02-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-ogg-vorbis-no-ranges-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.ogg bytes=0- -> 200 10422"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 1.986757,
+              "buf": "0-1.99"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-1.99",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 0,
+              "buf": "0-1.99",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-ogg-vorbis-no-ranges-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.ogg bytes=0- -> 200 10422"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 1.986757,
+              "buf": "0-1.99"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-1.99",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 0,
+              "buf": "0-1.99",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp3-no-ranges-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.mp3 bytes=0- -> 200 16508"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2.01"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2.01",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 0,
+              "buf": "0-2.01",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-mp3-no-ranges-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.mp3 bytes=0- -> 200 16508"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2.01"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2.01",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 0,
+              "buf": "0-2.01",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-wav-no-ranges-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.wav bytes=0- -> 200 176444"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 0,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-wav-no-ranges-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)};\n  v.muted = true;\n  v.play().catch(e => out.playError = e.name);\n  await sleep(900);\n  out.afterPlay = {rs: v.readyState, ns: v.networkState, ct: cq(v), buf: rng(v.buffered), paused: v.paused};\n  v.pause();\n  out.play = await take();\n  const d = v.duration;\n  if (d > 0) {\n    v.currentTime = d * 0.6;\n    await once(v, 'seeked', 3000);\n    await sleep(700);\n  }\n  out.afterSeek = {rs: v.readyState, ct: cq(v), buf: rng(v.buffered), seeking: v.seeking};\n  out.seek = await take();\n  v.currentTime = 0.1;\n  await once(v, 'seeked', 3000);\n  await sleep(500);\n  out.seekBack = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.wav bytes=0- -> 200 176444"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2"
+            },
+            "afterPlay": {
+              "rs": 4,
+              "ns": 1,
+              "ct": 0.75,
+              "buf": "0-2",
+              "paused": false
+            },
+            "play": [],
+            "afterSeek": {
+              "rs": 4,
+              "ct": 0,
+              "buf": "0-2",
+              "seeking": false
+            },
+            "seek": [],
+            "seekBack": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-ignore-range-accept-ranges-small",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, seek: rng(v.seekable), buf: rng(v.buffered)};\n  v.currentTime = v.duration * 0.6;\n  out.seeked = await once(v, 'seeked', 3000);\n  await sleep(700);\n  out.afterSeek = {rs: v.readyState, ct: r2(v.currentTime), buf: rng(v.buffered), seek: rng(v.seekable), seeking: v.seeking, err: v.error ? v.error.code : null};\n  out.seek = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.mp4 bytes=0- -> 200 55902"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "seek": "0-2",
+              "buf": "0-2"
+            },
+            "seeked": "seeked",
+            "afterSeek": {
+              "rs": 4,
+              "ct": 1.2,
+              "buf": "0-2",
+              "seek": "0-2",
+              "seeking": false,
+              "err": null
+            },
+            "seek": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fetch-ignore-range-accept-ranges-long",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, seek: rng(v.seekable), buf: rng(v.buffered)};\n  v.currentTime = v.duration * 0.6;\n  out.seeked = await once(v, 'seeked', 3000);\n  await sleep(700);\n  out.afterSeek = {rs: v.readyState, ct: r2(v.currentTime), buf: rng(v.buffered), seek: rng(v.seekable), seeking: v.seeking, err: v.error ? v.error.code : null};\n  out.seek = await take();\n  return out;\n})()\n",
+          "value": {
+            "load": [
+              "a.mp4 bytes=0- -> 200 302913"
+            ],
+            "s0": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 10,
+              "seek": "0-10",
+              "buf": "0-6.36"
+            },
+            "seeked": "seeked",
+            "afterSeek": {
+              "rs": 4,
+              "ct": 6,
+              "buf": "0-10",
+              "seek": "0-10",
+              "seeking": false,
+              "err": null
+            },
+            "seek": [
+              "a.mp4 bytes=163840- -> 200 302913",
+              "a.mp4 bytes=294912- -> 200 302913"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -51,8 +51,10 @@ enum Kind {
     Style,
     /// An HTML `link`: maybe an external stylesheet.
     Link,
-    /// An HTML `video`: its poster.
+    /// An HTML `video`: its poster, and a media element.
     Video,
+    /// An HTML `audio`: a media element.
+    Audio,
     /// An HTML `img`.
     Img,
     /// An HTML `picture`: a change of its children selects its images
@@ -84,6 +86,7 @@ impl Kind {
             local_name!("style") => Kind::Style,
             local_name!("link") => Kind::Link,
             local_name!("video") => Kind::Video,
+            local_name!("audio") => Kind::Audio,
             local_name!("img") => Kind::Img,
             local_name!("picture") => Kind::Picture,
             local_name!("source") => Kind::Source,
@@ -140,6 +143,35 @@ struct Batch {
     /// yet: their indexes in `frames.attributes`. Any of them can be the one
     /// that commits, because the page can drop the later ones.
     open_frame_sets: HashMap<NodeId, Vec<usize>>,
+    /// What the batch changed in the media elements (M14 feature 6a).
+    media: MediaBatch,
+}
+
+/// The changes of media elements in one drain.
+#[derive(Default)]
+struct MediaBatch {
+    /// The elements whose `src` was set, in order of the first set: each
+    /// runs the load algorithm once.
+    src: Vec<NodeId>,
+    src_seen: HashSet<NodeId>,
+    /// The elements whose `preload` changed.
+    preload: Vec<NodeId>,
+    /// The elements that got a `source` child.
+    sources: Vec<NodeId>,
+    /// The elements that were inserted, in tree order of the walk.
+    inserted: Vec<NodeId>,
+    /// Children removed from media elements, in the order of the journal:
+    /// the parent, the removed children and the child before them.
+    removals: Vec<(NodeId, Vec<NodeId>, Option<NodeId>)>,
+}
+
+impl MediaBatch {
+    /// Notes a set of the `src` of the media element `node`.
+    fn note_src(&mut self, node: NodeId) {
+        if self.src_seen.insert(node) {
+            self.src.push(node);
+        }
+    }
 }
 
 impl Batch {
@@ -262,11 +294,16 @@ impl DocumentState {
         self.frame_changes.rescan = true;
         let mut owners = Vec::new();
         let mut videos = Vec::new();
+        let mut media = Vec::new();
         let mut images = Vec::new();
         for node in dom.shadow_including_descendants(NodeId::DOCUMENT) {
             match dom.element(node).and_then(Kind::of) {
                 Some(Kind::Style | Kind::Link) => owners.push(node),
-                Some(Kind::Video) => videos.push(node),
+                Some(Kind::Video) => {
+                    videos.push(node);
+                    media.push(node);
+                }
+                Some(Kind::Audio) => media.push(node),
                 Some(Kind::Img) => images.push(node),
                 _ => {}
             }
@@ -297,6 +334,10 @@ impl DocumentState {
                 self.watch_image(node);
             }
         }
+        // Media elements that were not found before load now.
+        for node in media {
+            self.media_discovered(node);
+        }
         self.clean_up_states();
         self.invalidate_style();
     }
@@ -324,6 +365,7 @@ impl DocumentState {
                     parent,
                     added,
                     removed,
+                    prev_sibling,
                     ..
                 } => {
                     for &root in added {
@@ -332,6 +374,26 @@ impl DocumentState {
                     batch.removal |= !removed.is_empty();
                     for &root in removed {
                         self.collect_subtree(root, &mut removed_visited, &mut batch, true);
+                    }
+                    if matches!(
+                        self.dom.element(parent).and_then(Kind::of),
+                        Some(Kind::Video | Kind::Audio)
+                    ) {
+                        // The pointer of the resource selection moves with
+                        // the removals, in the order of the journal.
+                        if !removed.is_empty() {
+                            batch
+                                .media
+                                .removals
+                                .push((parent, removed.to_vec(), prev_sibling));
+                        }
+                        // A `source` that was inserted into a media element.
+                        if added
+                            .iter()
+                            .any(|&n| self.dom.is_html_element(n, &local_name!("source")))
+                        {
+                            batch.media.sources.push(parent);
+                        }
                     }
                     self.children_changed(parent, &mut batch);
                 }
@@ -354,6 +416,21 @@ impl DocumentState {
                         }
                         if kind == Kind::Source {
                             self.picture_images(element, &mut batch);
+                        }
+                        if matches!(kind, Kind::Video | Kind::Audio) {
+                            match &*name.local {
+                                // Removing `src` loads nothing (measured).
+                                "src"
+                                    if self
+                                        .dom
+                                        .element(element)
+                                        .is_some_and(|e| e.attr("src").is_some()) =>
+                                {
+                                    batch.media.note_src(element);
+                                }
+                                "preload" => batch.media.preload.push(element),
+                                _ => {}
+                            }
                         }
                         if kind == Kind::Img && matches!(&*name.local, "src" | "srcset" | "sizes") {
                             batch.attr_images.insert(element);
@@ -400,6 +477,9 @@ impl DocumentState {
         while let Some(node) = stack.pop() {
             if let Some(kind) = dom.element(node).and_then(Kind::of) {
                 batch.note(node, kind, removed);
+                if !removed && matches!(kind, Kind::Video | Kind::Audio) {
+                    batch.media.inserted.push(node);
+                }
             }
             let first = stack.len();
             for child in dom.children(node) {
@@ -557,6 +637,7 @@ impl DocumentState {
             for node in batch.removed {
                 if !in_document(&self.dom, node) {
                     self.forget_image(node);
+                    self.media_removed(node);
                 }
             }
             self.clean_up_states();
@@ -577,7 +658,31 @@ impl DocumentState {
         for node in batch.loading_images {
             self.lazy_loading_changed(node);
         }
+        self.apply_media_batch(batch.media);
         self.invalidate_for_batch(stylist_dirty, batch.in_document);
+    }
+
+    /// Tells the media state what a drain changed: a `src` that was set
+    /// loads before the insertion of its element and of its `source`
+    /// children (the order of the load algorithm).
+    fn apply_media_batch(&mut self, batch: MediaBatch) {
+        // The pointers of the selections move first: nothing between the
+        // removals and here reads or sets them.
+        for (parent, removed, before) in &batch.removals {
+            self.media_children_removed(*parent, removed, *before);
+        }
+        for node in batch.src {
+            self.media_src_changed(node);
+        }
+        for node in batch.inserted {
+            self.media_discovered(node);
+        }
+        for node in batch.sources {
+            self.media_source_inserted(node);
+        }
+        for node in batch.preload {
+            self.media_preload_changed(node);
+        }
     }
 
     /// True if the sheets of `placed` are in tree order with their

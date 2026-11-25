@@ -80,6 +80,9 @@ pub(crate) fn spawn(shared: &Arc<Shared>, run: u64, slot: Slot) {
         let mut st = shared.lock();
         if st.run == run {
             st.place = Some((run, Arc::clone(&place)));
+        } else {
+            // The run ended before its thread started.
+            place.end(shared.stall_limit);
         }
     }
     let thread_shared = Arc::clone(shared);
@@ -741,4 +744,57 @@ pub(crate) fn frames_to_us(frames: u64) -> i64 {
 pub(crate) fn us_to_frames(us: i64) -> u64 {
     let us = u128::try_from(us).unwrap_or(0);
     u64::try_from((us * u128::from(OUTPUT_RATE) + 500_000) / 1_000_000).unwrap_or(u64::MAX)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Mutex;
+    use std::time::{Duration, Instant};
+
+    use super::super::opener::SourceOpener;
+    use super::super::shared::{MAX_PACKET_BYTES, STALL_LIMIT, Settings};
+    use super::super::slots::PipelineSlots;
+    use super::*;
+
+    /// A run that ended before its thread started (the owner suspended
+    /// between the place and the spawn) puts its place in transit, so that
+    /// the next waiter's owner counts the handover as pending work.
+    #[test]
+    fn a_run_that_ended_before_its_thread_started_is_in_transit() {
+        let slots = PipelineSlots::new(1);
+        slots.set_handover_delay(Duration::from_millis(300));
+        let shared = Arc::new(Shared::new(
+            SourceOpener::memory(Vec::new(), true),
+            slots.clone(),
+            Arc::new(|| {}),
+            &Settings {
+                tracks: (true, true),
+                max_packet_bytes: MAX_PACKET_BYTES,
+                stall_limit: STALL_LIMIT,
+                painted: true,
+            },
+        ));
+        let held: Arc<Mutex<Option<Slot>>> = Arc::default();
+        let h = Arc::clone(&held);
+        slots.acquire(
+            1,
+            Arc::new(|| {}),
+            Box::new(move |s| {
+                *h.lock().expect("lock") = Some(s);
+                None
+            }),
+        );
+        let slot = held.lock().expect("lock").take().expect("a place");
+        // Run 1 is over: the current run is 2.
+        shared.lock().run = 2;
+        spawn(&shared, 1, slot);
+        // The thread ends at once and waits before it hands the place on.
+        assert_eq!(slots.in_transit(), 1);
+        let started = Instant::now();
+        while slots.in_transit() > 0 {
+            assert!(started.elapsed() < Duration::from_secs(10), "stuck");
+            thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(slots.open_count(), 0);
+    }
 }

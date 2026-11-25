@@ -1282,3 +1282,282 @@ implementation (`crates/media/src/pipeline/`, `clock.rs`, `ring.rs`,
   buffered ranges and pushes the end of the stream only for its own run;
   when the source opened after the run ended (the opener may undo a
   cancel), the thread cancels the source again and ends.
+
+## Implementation notes (M14 feature 6a)
+
+Decisions that sections 3, 5, 6, 7 and 10 left open, and findings of the
+implementation (`crates/engine/src/media/`, `document/media.rs`,
+`page/media.rs`, `crates/web/src/media_element.rs`,
+`crates/media/src/can_play.rs`).
+
+- **Where the state lives.** `engine/src/media/` has `Media` (a field of
+  `DocumentState`: a `BTreeMap` of `Element` by node, the queue of events,
+  the next error number), `select.rs` (resource selection), `load.rs` (the
+  load algorithm and failures), `step.rs` (what the pump does with a
+  fetch), `backend.rs` (`Fetch`, with and without the feature). An element
+  has a record from its first load (a `src`, a `source` child, `load()`).
+  `engine` depends on `swb-media` always (`can_play_type`, the types) and
+  turns on `swb-media/ffmpeg` and `swb-media/net` with its feature `media`;
+  `swb`'s `media` is `swb-engine/media`. The bound on open pipelines is
+  the process's (`PipelineSlots::global()`, section 6, also the bound on
+  detached threads), shared by all pages through each page's
+  `MediaContext` (handed to its documents). Tests that run pages in
+  parallel in one test binary give each page places of its own
+  (`Page::isolate_media`, called by the pages of the engine's and the
+  automation's test helpers), so that they do not wait for each other's
+  places (review S4). The table has at most 16,384 elements; at the limit
+  the records of elements outside the document go.
+- **Without the feature** `Fetch::start` fails with code 4 and
+  `MEDIA_ELEMENT_ERROR: Format error` one step later (so that `loadstart`
+  comes first, with `networkState` 2 at its dispatch); no request. A
+  `<source type>` is skipped by `can_play_type`, which answers `""`.
+- **Stable state.** The load algorithm's synchronous part runs when the
+  drain of the DOM changes processes the `src` (or at a read of a script:
+  `EngineHost::media_state` drains first): `abort`, `emptied`,
+  `timeupdate` (also when the position is 0, as Chromium), the reset,
+  `networkState` 3. The part that HTML runs "in a stable state" (the mode,
+  `NETWORK_LOADING`, `loadstart`, the fetch) is the next unit of the pump.
+  `Page::pump_media` delivers the queued events *before* it steps, so
+  `abort` is dispatched in the state of the synchronous part (rs 0, ns 3),
+  as Chromium shows. A `src` that is set several times in one task loads
+  once (the drain coalesces them; HTML would run two load algorithms).
+- **Lockstep.** The state that scripts read changes only in `Media::step`,
+  one unit for each element, and the page delivers the events of a unit
+  before the next. So `readyState` and `networkState` at an event are the
+  same on every run. In virtual time (`strict`) one unit goes at a time, by
+  the first element in node order that can do one, and an element that
+  waits for its threads holds the later ones back: the events of different
+  elements come in the same order on every run (a test: 36 pages at once
+  and a busy thread per core). In real time every element goes on as soon
+  as it can.
+- **Reports become events** (probe `media-states`): the metadata note waits
+  until the byte source is idle or has read 1 MiB (a small file is read
+  whole before the first event: `progress` and `suspend` come before
+  `durationchange`, as Chromium); then `progress`, `suspend` (the network
+  is idle), `durationchange`, `resize` (a video with a size),
+  `loadedmetadata`; the first-data note waits for
+  `Pipeline::has_enough_data()`, and then `loadeddata`, `canplay` and
+  `canplaythrough` come together with `readyState` 4 (Chromium goes from
+  `HAVE_METADATA` to `HAVE_ENOUGH_DATA`: `loadeddata` is dispatched with
+  rs 4). `HAVE_CURRENT_DATA` and `HAVE_FUTURE_DATA` are never visible. A
+  failure before the metadata is `error` (progress and suspend first when
+  bytes arrived), at the element in attribute mode, at the `source` in
+  children mode (then the next candidate). The two waits (the byte source
+  settled for the metadata, `has_enough_data` for the first data) apply
+  only in virtual time, where they make the state at the events the same
+  on every run. In real time each note is handled when it comes, as
+  Chromium fires `loadedmetadata` at the parse and `loadeddata` at the
+  first frame, also on a slow link (review S3; tests: a slow link gives the
+  events of a fast one in virtual time, and in real time `loadedmetadata`
+  with ns 2 long before `suspend`).
+- **`has_enough_data`** (`HAVE_ENOUGH_DATA`, `canplaythrough`): the
+  proposal of feature 5 (queues full) is "the threads have settled": the
+  first data was reported, no seek runs, no underrun, and every track is
+  decoded to its end or each thread waits for room that only the owner
+  frees, or for nothing more to read (`stalled_on_owner`). A small file is
+  settled when it is read whole; a large one when the decoded queues are
+  full, so the 4K file at `metadata` has rs 4 at `loadeddata` with the
+  frames and samples that fit the queues (Chromium: 3 to 6 s buffered). It
+  depends only on what the threads decoded, so the buffered ranges are
+  final when it holds. While it is false the owner needs data: the
+  no-progress limit (10 s) applies, so a source that stalls after the first
+  frame fails the pipeline.
+- **`Pipeline::has_unread_reports()`** (new): while a thread's report
+  waits for `update`, `has_pending_work` is false. An owner that waits for
+  the pipeline asks this too; without it, virtual time jumped (or the
+  strict order moved on to another element) in the moment between the
+  report and the update (the test of the events failed 1 in 20 without
+  it).
+- **The handover of a place** (review S1). A run that ends (the pipeline
+  suspends, closes or fails) keeps its place until its threads have ended,
+  and the last of them hands it to the first waiter. Before, a waiter had
+  no pending work until it had the place, so virtual time could jump while
+  the threads of a suspended run ended, and the waiter's events came at a
+  page time that depended on the machine (the 1,000-element test failed
+  about 2 in 47 runs under load). Now the place is *in transit* from the
+  end of the run until the waiter has it (`PipelineSlots::in_transit`):
+  `RunPlace::end` marks it in the same critical section that ends the run
+  (`Pipeline::end_run`, `Shared::fail`, the watchdog's detach, and a run
+  that ended before its thread started), and the transit ends after the
+  next pipeline has its place, so there is no moment in which the run has
+  ended and no one has pending work. A pipeline that waits while a place is
+  in transit has pending work (`Pipeline::awaits_handover`, part of the
+  element's `Fetch::pending`); every waiter's owner is notified when a
+  transit ends. Nothing here depends on how fast a thread is: the owner
+  never waits for a thread (`suspend` returns at once), and virtual time
+  waits for the transit, which only the threads end. The other design, a
+  `suspend` that hands the place on at once, lets the old threads run on
+  beside the new ones without a bound on their number (or counts them as
+  detached, so that a burst of suspends fails new pipelines). A thread that
+  stays blocked (in FFmpeg) would hold the transit for ever: the watchdog
+  checks each ended place one no-progress limit (10 s) after its end and
+  detaches it if it is still in transit (its threads then count as
+  detached, section 11). Test hook: `PipelineSlots::set_handover_delay`
+  makes the last thread wait before it hands the place on
+  (`Page::isolate_media(delay)`); both exist for tests only, and
+  `set_handover_delay` does nothing on the process's slots
+  (`PipelineSlots::global`). The engine test with 300 ms per handover
+  fails without the rule (one run in one) and passes with it.
+  Second fix round: `Fetch::pending` reads `awaits_handover` before
+  `has_pending_work`. A waiting pipeline has no pending work, so if the
+  handover ended between the two reads (the other order), both were false
+  although the pipeline then had the place and work to do, and virtual time
+  could move; in this order a handover that ends after the first read is
+  seen by the second. No test can hit that window; the order has a
+  comment. The end paths of a run each have a test that fails without the
+  call of `end` there: `Pipeline::end_run` and `Shared::fail` (a waiter's
+  `awaits_handover` stays true until it has the place, with a handover
+  delay of 1 s), a run that ended before its thread started
+  (`demux::spawn`, a unit test), and the watchdog (`check_progress`: the
+  place goes on at once, so the test checks that every waiter's owner is
+  woken, also the one that does not get the place). A notify of a
+  transit's end sees `in_transit() == 0` (a unit test of the slots).
+  `check_progress` marks the place in transit without a watchdog entry
+  (`RunPlace::end_before_detach`), as it detaches it at once.
+- **Late failures.** A pipeline failure after the metadata (the damage lies
+  later in the file) is kept, and the load goes on as if the first data had
+  come: Chromium loads such a file (rs 4) and fails when it plays there
+  (`err-corrupt-mp4` and the others: code 3 at 0.5 s of play). Feature 6b
+  surfaces it when the playback reaches the damage; until then the element
+  does not report it. Without this rule the events would depend on when the
+  threads met the damage.
+- **`buffered`** is the whole timeline once the byte source holds all of the
+  resource (a truncated or damaged file that arrived whole is `0-duration`,
+  Chromium), else the ranges that the demuxer read, clamped to the
+  duration. `seekable` is `0-duration` for a resource that can seek, `0-0`
+  for a stream, empty before the metadata. `currentTime` is the pipeline's
+  position (the start time after the metadata). `paused` is true, `seeking`
+  false until feature 6b.
+- **`preload`**: a missing attribute and `metadata` read ahead `METADATA`
+  (3 s; Chromium's default is `metadata`: the IDL value, and the cases
+  `real-preload-*` of `media-real-files.json`, three equal runs: after 1.5 s
+  the 4K file has under 10 s buffered without the attribute and with
+  `metadata`, over 10 s with `auto`; test data
+  `tests/data/media-preload-default.json`; a 10 s WAV file of 1 MiB per
+  second in the engine test tells the two apart: `metadata` buffers 5.06 s,
+  `auto` all), `auto` and the empty
+  string `AUTO`; `none` fetches nothing (`loadstart` with rs 0 and ns 1,
+  then `suspend`) until `load()` (measured: the diagnosis says `load()`
+  starts it) or a change of the attribute to another value.
+  `load()` ignores `preload=none` for that load only. `crossorigin`,
+  cookies and credentials follow HTML's "potentially CORS-enabled fetch"
+  (`backend::request_for`); the request carries no referrer (as images:
+  `Request` has none). A `blob:` URL fails (the engine holds no blobs;
+  backlog).
+- **The 15 s suspend** (`SUSPEND_AFTER_MS`): an element with rs 4 and a
+  running pipeline is idle from the step where it became so; at 15 s of
+  page time (`Page::next_task_time` includes the due time, also without
+  JavaScript) its pipeline suspends. An element removed from the document
+  with rs 4 suspends at once; one that still loads goes on (HTML pauses a
+  removed element, feature 6b, and does not stop its load; before review S2
+  the pipeline suspended with no data, and the element stayed at ns 2, rs 0
+  for ever), and the 15 s rule suspends it later. The record, the metadata
+  and `buffered` stay. Re-insertion does not resume a suspended pipeline
+  (feature 6b).
+  1,000 `<video preload=metadata>` load in virtual time, 16 pipelines at a
+  time, in 0.5 s of real time (63 rounds of 15 s of virtual time).
+- **The wake-up.** The pipeline's notify and the byte source's (a new
+  `MediaHandle::set_notify`, called from the jobs when a block arrives, a
+  job ends or the resource fails) are `Loader::waker()`: a completion that
+  no request owns (`id` 0, client `WAKE_CLIENT`), which `recv_timeout`
+  returns and `Page::accept_completion` drops, so the loops that wait for
+  completions (the GUI's wake-up, `run_until`) wake for media.
+  `MediaStats::idle` (no job runs or waits) is the network's `suspend`.
+- **A server that answers 200 with `Accept-Ranges: bytes` and a
+  `Content-Length`** (probe `fetch-ignore-range-accept-ranges-*`, three
+  runs): Chromium treats the resource as seekable (`seekable` `0-10` for
+  the 10 s file), sends `bytes=N-` at a seek, gets the whole body again
+  (status 200) and plays from the right place (`currentTime` 6, `buffered`
+  `0-10` after it). The byte source does the same: such a first response
+  makes the resource seekable with the length as its size
+  (`State::ignores_range`); a later request that gets a 200 reads the body
+  from byte 0 and discards the blocks before the one that the reader needs
+  (`Conn::sequential`); a far block ahead of a running body of this kind
+  does not replace the job (without that rule each read reopened the
+  body). A 200 whose length differs from the size fails the resource. A
+  200 without `Accept-Ranges` stays a stream (a seek ends at 0, 14 rows).
+  The bytes that a job reads and discards so are bounded per seek (review
+  N3, changed in the second fix round): the count restarts when a seek opens
+  a new request (the reopening after a failed read goes on counting, so a
+  server that cuts its bodies short cannot be read again and again), and
+  one seek may discard at most `MAX_DISCARDED_BYTES` (256 MiB), also for a
+  resource without a known size. A seek that needs more fails the resource
+  (`NetError::Range`). Chromium has no such bound and reads on; without it
+  a server that claims a length that it does not have (1 GiB of endless
+  bytes in the test) cost the bandwidth of a read to the target, 900 MiB
+  for a seek to 900 MiB. The first version of the bound was cumulative per
+  resource (four times the size): the 8th far seek in a 100 MB file failed.
+  Now scrubbing in such a file keeps working (a test with 60 far seeks that
+  discard 300 MiB together); the cost: on such a server a seek that needs
+  more than 256 MiB of discarded bytes (a file of over 256 MiB, a seek
+  past that point) fails, where Chromium reads on.
+- **Rows for the timeline rules** (probe `format-timeline-table`, three
+  equal runs, new files `mp4-h264-aac-fragmented.mp4`,
+  `mp4-h264-aac-bframes-no-edit-list.mp4`, `mp4-opus.mp4`): a fragmented
+  MP4 (duration 2.08, start 0), an MP4 with B-frames and without an edit
+  list (video starts at 0.08, duration 2.08) and Opus in MP4 (2) agree with
+  `swb_media::timeline` without a change. One departure: at `loadedmetadata`
+  Chromium has `currentTime` 0 and the duration 2.023991 for the MP4 with a
+  start time of 1.5 s, and 150 ms later 1.476009 and 3.496145 (the rule's
+  values); swb has the later values at `loadedmetadata`. The MP4 rule rests
+  on two rows now (one more would need a file with another start time).
+- **`canPlayType`** (`swb_media::can_play_type`): Chromium's 149 rows with
+  two departures (the 5 HLS types and the 3 `av01` types answer `""`),
+  derived rules: the type is case-insensitive; `codecs` missing, empty or
+  unterminated gives `maybe` (`probably` for a bare MP3, AAC or FLAC type);
+  one unknown codec gives `""`; the codec strings are case-sensitive;
+  `avc1.PPCCLL` is `probably` for the profiles 42, 4D and 64 and `maybe`
+  for the others; `vp09.PP.LL.DD`. A `<source>` with `type=""` has no type.
+- **Not matched** (departures, in the tests' lists): a second `suspend` after
+  `canplaythrough` for the 78 KB WebM file at `preload` `metadata`
+  (Chromium; not for the MP4 or MP3); Chromium's `buffered` end differs by
+  0.01 to 0.02 s for some files (the tests compare within 0.02 s); MP3, WAV
+  and Ogg served as a 200 without `Range` have no duration (`Infinity`;
+  Chromium knows it from `Content-Length`: backlog); `sel-first-404-then-ok`
+  had one Chromium run with a second request and a second `progress` (the
+  data file has the other runs'); the `at loadedmetadata` values of the MP4
+  with a start time.
+- **videojs.org** (found in this feature). Its video gets the HLS playlist
+  as `src` (no `MediaSource`); the load fails with code 4 (with the
+  feature: the replay returns the playlist body and FFmpeg cannot open it,
+  `PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open
+  context failed`; without: no fetch, `MEDIA_ELEMENT_ERROR: Format
+  error`), and Video.js opens its error dialog ("This media could not be
+  loaded..."), which the Chromium recording of the M13 exit test (it has
+  Media Source Extensions and plays the stream) does not have: 288 and 56
+  differences in `values` and `events` of
+  `crates/automation/tests/videojs.rs`. Chromium 148 without `MediaSource`
+  shows the same dialog (review of this feature; the diagnosis, section
+  10, is corrected): `loadstart` (ns 2, rs 0), then `error` (ns 3, rs 0,
+  code 4, `PipelineStatus::DEMUXER_ERROR_COULD_NOT_PARSE`: its HLS player
+  fails at the rendition playlist, which the fixture lacks). Video.js opens
+  the dialog on any `error` of the element, so swb needs no change. The two
+  recorded sequences load with `Page::set_media(false)` (media elements
+  load nothing and fire no events, as before M14;
+  `load_at_capture_without_media`), so that they still measure the page;
+  `without_media_source_the_player_fails_and_shows_its_error_dialog` loads
+  the page with media on (with and without the feature) against
+  Chromium's records without `MediaSource` (the replay tool with an init
+  script that deletes it, three equal runs, `data/videojs-no-mse-*`; swb's
+  test inserts the same script at the start of the document). Departures:
+  the message, `progress` and `suspend` before the `error` with the
+  feature (bytes arrived), and `canPlayType` of HLS (`""`). A real visit
+  to videojs.org shows the dialog until M15, as Chromium without
+  `MediaSource` does.
+- **The selection pointer** (review N1): the position of the resource
+  selection in the `source` children is HTML's *pointer*, kept as the child
+  before it (`select::Pointer`): the next candidate is found from there, not
+  by a scan from the first child (O(n) for n skipped sources instead of
+  O(n²): 20,000 took 515 ms before). A removal of the child before the
+  pointer moves it to the child before the removed ones (from the
+  `Change::Children` of the journal, in its order), so the pointer does not
+  move relative to the children that stay; an insertion at the pointer
+  comes after it.
+- **Hostile cases** (`tools/swbtools/hostile_cases/media.py`, default build):
+  20,000 `<source media='not all'>` (0.15 s), one million `load()` calls in
+  one task (2 s, 149 MiB: the event queue is not bounded, backlog), 16,000
+  `<video src>` (2.2 s, 131 MiB).
+- **Measured**: the 65 cases of `media-states` (62 compared; 3 skipped: two
+  play or seek, one has only a layout row), the 45 cases of `media-fetch`, the 149 types
+  of `media-can-play-type`: all equal to Chromium's except the departures
+  above. The whole `media_states` binary takes 0.2 s in virtual time.

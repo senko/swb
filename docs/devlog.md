@@ -4,6 +4,37 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-25: M14 feature 6a, the core of the media element
+
+- `<video>` and `<audio>` select a resource (`src`, `<source>` with
+  `type` and `media`), load it through the pipeline and fire their events
+  in Chromium's order: 62 of the 65 `media-states` cases, the load part of
+  the 45 `media-fetch` cases and 149 `canPlayType` answers match. It works
+  with JavaScript off; without the feature `media` a load fails with code
+  4 and makes no request.
+- Events in virtual time come in lockstep: the page delivers the events
+  of one unit of media work before it steps the next, so listeners see
+  the same values on every run. A test under load found a race between a
+  report and the next update (2 of 25 runs); `has_unread_reports` closed
+  it.
+- New probe rows: Chromium seeks in a resource that answers 200 with
+  `Accept-Ranges: bytes` by reading the body again from the start; the
+  byte source does the same. Three new MP4 files confirm the timeline
+  rules of feature 5 without a change. `canplaythrough` comes together
+  with `loadeddata` in every row.
+- videojs.org now shows Video.js's error dialog, because its HLS `src`
+  fails. The review measured Chromium without `MediaSource`: it shows the
+  same dialog. The diagnosis had said otherwise and is corrected. The
+  dialog stays until M15.
+- The review found that virtual time could move while a pipeline's place
+  passed to a waiting pipeline (the 1,000-element test failed 2 of 47
+  runs under load). The handover is now pending work. Also fixed: a
+  removed element that stopped loading, real-time events that waited for
+  data that Chromium does not wait for, 16 places per page instead of per
+  process, a quadratic scan of `<source>` children, and no bound on the
+  bytes read and dropped for a seek on a server that ignores `Range`.
+- Next: feature 6b, the playback API.
+
 ## 2026-11-25: M14 feature 5, the media pipeline
 
 - `swb-media` plays a resource with a demux thread and a video thread per

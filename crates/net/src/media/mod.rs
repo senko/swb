@@ -11,7 +11,16 @@
 //! **HTTP(S).** The first request is `GET` with `Range: bytes=0-` and
 //! `Accept-Encoding: identity`. A 206 with `Content-Range` gives the size
 //! and makes the resource seekable; a 200 makes it a stream: [`size`] is
-//! `None` and seeks fail. Other statuses fail the resource with
+//! `None` and seeks fail. Exception (M14 feature 6a, measured in Chromium):
+//! a 200 with `Accept-Ranges: bytes` and a `Content-Length` makes the
+//! resource seekable too, with the length as its size. The server ignores
+//! `Range`, so a later request gets the whole body from byte 0; the job
+//! reads it and discards the bytes before the block that the reader needs
+//! (Chromium does the same: it sends `bytes=N-` and reads the 200). The
+//! bytes read and discarded so are bounded per seek
+//! ([`MAX_DISCARDED_BYTES`], 256 MiB): a seek that needs more fails the
+//! resource, so a server that claims a length that it does not have costs
+//! a bounded amount of bandwidth. Other statuses fail the resource with
 //! [`NetError::Status`]. Redirects, CORS and cookies are those of the
 //! request (`fetch_request_with`); the later requests go to the final URL.
 //!
@@ -141,6 +150,12 @@ pub struct MediaStats {
     pub seekable: bool,
     /// The size in bytes, when known and seekable.
     pub size: Option<u64>,
+    /// True when no request runs or waits for a place: the cache holds
+    /// what the read-ahead asks for, or all of the resource, or the
+    /// resource failed or was cancelled. Always true for a local file and
+    /// for bytes in memory (nothing is fetched). The element's `suspend`
+    /// event (HTML: the user agent stops fetching) is the first idle.
+    pub idle: bool,
 }
 
 /// Where the resource is.
@@ -155,7 +170,11 @@ pub(crate) enum Status {
 /// How the first response opened the resource.
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum FirstResponse {
-    Seekable { size: u64 },
+    /// A 206 with the total, or a 200 that claims ranges (`ignores_range`).
+    Seekable {
+        size: u64,
+        ignores_range: bool,
+    },
     Stream,
 }
 
@@ -164,6 +183,10 @@ pub(crate) struct JobInfo {
     /// The block that the job reads next (for the check of the reader's
     /// position against the job's).
     pub(crate) cur: u64,
+    /// The job reads a whole body from byte 0 (a server that ignores
+    /// `Range`): a block ahead of `cur` of any distance is reached by
+    /// reading on, so a far block does not replace the job.
+    pub(crate) sequential: bool,
     /// Its place in the pool, when it has started.
     pub(crate) slot: Option<Arc<Slot>>,
 }
@@ -172,6 +195,10 @@ pub(crate) struct JobInfo {
 pub(crate) struct State {
     pub(crate) status: Status,
     pub(crate) seekable: bool,
+    /// The server answered the first request with 200, `Accept-Ranges:
+    /// bytes` and a `Content-Length`: it ignores `Range`, and a later
+    /// request gets the whole body.
+    pub(crate) ignores_range: bool,
     /// The size, for a seekable resource.
     pub(crate) size: Option<u64>,
     /// Where the bytes end, when known (the size; for a stream, where the
@@ -190,15 +217,34 @@ pub(crate) struct State {
     pub(crate) final_url: Url,
     pub(crate) requests: u64,
     pub(crate) stalled: bool,
+    /// Bytes of a body from byte 0 (a server that ignores `Range`) that the
+    /// job read and discarded to reach the block that the reader needs: the
+    /// count of the current seek, bounded by [`MAX_DISCARDED_BYTES`]. A
+    /// seek that opens a new request starts it at 0; the reopening after a
+    /// failed read goes on counting.
+    pub(crate) discarded: u64,
 }
+
+/// The most bytes that a job may read and discard to reach the block that
+/// the reader needs, on a server that ignores `Range`: the bound is per
+/// seek, not per resource, so a page that scrubs in a large file keeps
+/// working (as in Chromium, which reads on). A server that claims a length
+/// that it does not have then costs a bounded amount of bandwidth per seek;
+/// a seek that needs more fails the resource. It applies to a resource
+/// without a known size as well.
+pub const MAX_DISCARDED_BYTES: u64 = 256 << 20;
 
 impl State {
     /// The first response arrived.
     pub(crate) fn apply_first(&mut self, url: &Url, response: FirstResponse) {
         self.final_url = url.clone();
         match response {
-            FirstResponse::Seekable { size } => {
+            FirstResponse::Seekable {
+                size,
+                ignores_range,
+            } => {
                 self.seekable = true;
+                self.ignores_range = ignores_range;
                 self.size = Some(size);
                 self.end = Some(size);
             }
@@ -271,12 +317,15 @@ impl State {
             // never reads a far block through a body that cannot reach it
             // cheaply, whichever side sees the move first.
             Some(job) if job.cur <= want && want - job.cur <= FAR_BLOCKS => return action,
+            // A body from byte 0 reaches any block ahead by reading on.
+            Some(job) if job.sequential && job.cur <= want => return action,
             Some(job) => action.release.clone_from(&job.slot),
             None => {}
         }
         self.epoch += 1;
         self.job = Some(JobInfo {
             cur: want,
+            sequential: false,
             slot: None,
         });
         action.spawn = Some(Job::new(Arc::clone(inner), self.epoch, false));
@@ -303,11 +352,30 @@ pub(crate) struct Inner {
     /// The request of the resource; the jobs add `Range`.
     pub(crate) template: Request,
     pool: Arc<MediaPool>,
+    /// The owner's wake-up ([`MediaHandle::set_notify`]).
+    owner: Mutex<Option<OwnerNotify>>,
 }
+
+/// A callback that tells the owner of a resource that its state changed.
+pub type OwnerNotify = Arc<dyn Fn() + Send + Sync>;
 
 impl Inner {
     pub(crate) fn lock(&self) -> MutexGuard<'_, State> {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Wakes the reader and the owner: a block, the end, a failure, the
+    /// first response, or the end of a job.
+    pub(crate) fn signal(&self) {
+        self.reader_cv.notify_all();
+        let notify = self
+            .owner
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone();
+        if let Some(notify) = notify {
+            notify();
+        }
     }
 
     /// Starts the job that sends the first request.
@@ -319,7 +387,11 @@ impl Inner {
     /// The job that sends the first request, as the current job of `st`.
     fn first_job(this: &Arc<Self>, st: &mut State) -> Job {
         st.epoch += 1;
-        st.job = Some(JobInfo { cur: 0, slot: None });
+        st.job = Some(JobInfo {
+            cur: 0,
+            sequential: false,
+            slot: None,
+        });
         Job::new(Arc::clone(this), st.epoch, true)
     }
 
@@ -471,6 +543,7 @@ impl Inner {
             stalled: st.stalled,
             seekable: st.seekable,
             size: st.size,
+            idle: st.job.is_none(),
         }
     }
 }
@@ -573,6 +646,7 @@ impl MediaResource {
             state: Mutex::new(State {
                 status: Status::Opening,
                 seekable: false,
+                ignores_range: false,
                 size: None,
                 end: None,
                 cache: Cache::new(options.cache_bytes, options.keep_behind_bytes, budget),
@@ -585,6 +659,7 @@ impl MediaResource {
                 final_url: request.url.clone(),
                 requests: 0,
                 stalled: false,
+                discarded: 0,
             }),
             reader_cv: Condvar::new(),
             job_cv: Condvar::new(),
@@ -592,6 +667,7 @@ impl MediaResource {
             preflights: PreflightCache::new(),
             template: request,
             pool,
+            owner: Mutex::new(None),
         });
         inner.start();
         MediaResource::new(Kind::Net(inner))
@@ -711,6 +787,16 @@ impl MediaHandle {
         }
     }
 
+    /// Sets the callback that the resource's jobs call (from a pool
+    /// thread) when a block arrives, a job ends or the resource fails.
+    /// The element wakes its page with it. It must not block and must not
+    /// call back into the resource.
+    pub fn set_notify(&self, notify: OwnerNotify) {
+        if let Kind::Net(inner) = &self.control.kind {
+            *inner.owner.lock().unwrap_or_else(PoisonError::into_inner) = Some(notify);
+        }
+    }
+
     /// Tells the duration in seconds, for [`ReadAhead::Seconds`].
     pub fn set_duration(&self, seconds: Option<f64>) {
         if let Kind::Net(inner) = &self.control.kind {
@@ -729,6 +815,7 @@ impl MediaHandle {
                 stalled: false,
                 seekable: true,
                 size: Some(*size),
+                idle: true,
             },
             Kind::Memory(data) => MediaStats {
                 cached_bytes: 0,
@@ -737,6 +824,7 @@ impl MediaHandle {
                 stalled: false,
                 seekable: true,
                 size: Some(data.len() as u64),
+                idle: true,
             },
             Kind::Failed(_) => MediaStats {
                 cached_bytes: 0,
@@ -745,6 +833,7 @@ impl MediaHandle {
                 stalled: false,
                 seekable: false,
                 size: None,
+                idle: true,
             },
         }
     }

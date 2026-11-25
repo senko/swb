@@ -860,6 +860,7 @@ impl Page {
         changed |= tasks > 0;
         changed |= self.deliver_element_events();
         changed |= self.deliver_frame_element_events();
+        changed |= self.pump_media();
         changed |= self.run_frame_refreshes();
         changed |= self.check_frame_loads();
         // The removal of a frame may leave nothing that delays the load.
@@ -955,9 +956,12 @@ impl Page {
         // The declarative refreshes of frame documents (also with
         // JavaScript off).
         let refresh = self.next_frame_refresh();
+        // The suspend of an idle media pipeline (ADR 0047 section 6; also
+        // with JavaScript off).
+        let media = self.media_next_due();
         if !self.agents.enabled {
             // The animations run without scripts (ADR 0044 section 2).
-            return [refresh, self.frame_time()]
+            return [refresh, self.frame_time(), media]
                 .into_iter()
                 .flatten()
                 .reduce(f64::min);
@@ -966,6 +970,7 @@ impl Page {
             self.frame_time(),
             self.idle_time(),
             refresh,
+            media,
             self.next_task_of_all(),
         ]
         .into_iter()
@@ -1005,6 +1010,7 @@ impl Page {
             || !self.traversals.is_empty()
             || self.frames_busy()
             || self.has_held_requests()
+            || self.media_pending()
         {
             return false;
         }
@@ -1014,6 +1020,7 @@ impl Page {
             .into_iter()
             .chain(self.frame_work_due())
             .chain(self.next_frame_refresh())
+            .chain(self.media_next_due())
             .any(|time| time <= horizon)
             || self.idle_work_before(horizon)
         {
@@ -1050,7 +1057,10 @@ impl Page {
                 continue;
             }
             let next = self.next_task_time();
-            let loading = self.is_loading() || self.has_pending_api_fetches() || self.frames_busy();
+            let loading = self.is_loading()
+                || self.has_pending_api_fetches()
+                || self.frames_busy()
+                || self.media_pending();
             // A completion that waits for a rendering update (`completions.rs`)
             // is pending work that only the next frame ends: time may jump.
             let held = self.held_completions_ready();

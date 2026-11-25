@@ -13,9 +13,10 @@ workspace = true
 
 [features]
 # Media playback with FFmpeg (ADR 0047 section 3). Off by default: the
-# default build needs no C library. M14 feature 3 uses it for `--version`
-# and `--licenses`; later features pass it on to swb-engine.
-media = ["swb-media/ffmpeg", "swb-media/net"]
+# default build needs no C library. `swb-engine/media` turns on
+# `swb-media/ffmpeg` and `swb-media/net` (`swb` reads the version lines of
+# `swb-media`, which the same features enable).
+media = ["swb-engine/media"]
 
 [dependencies]
 anyhow.workspace = true

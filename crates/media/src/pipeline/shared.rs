@@ -577,6 +577,11 @@ impl Shared {
         log::debug!("media pipeline: {error}");
         st.events.push_back(ThreadEvent::Failed(error));
         st.run += 1;
+        if let Some((r, place)) = &st.place
+            && *r == run
+        {
+            place.end(self.stall_limit);
+        }
         drop(st);
         self.demux_cv.notify_all();
         self.video_cv.notify_all();
@@ -631,7 +636,11 @@ impl Shared {
         st.watch.needs_data = false;
         st.watch.lost = None;
         let place = match st.place.take() {
-            Some((r, place)) if r == run => Some(place),
+            Some((r, place)) if r == run => {
+                // In transit until the detach below hands it on.
+                place.end_before_detach();
+                Some(place)
+            }
             other => {
                 st.place = other;
                 None

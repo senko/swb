@@ -77,6 +77,8 @@ pub(crate) enum Slot {
     Collection(crate::dom::DocCollection),
     /// `validity` of a form control (`ValidityState`).
     Validity,
+    /// `error` of a media element (`MediaError`).
+    MediaError,
     /// `document.styleSheets` (`StyleSheetList`).
     StyleSheets,
 }
@@ -657,6 +659,23 @@ pub(crate) fn same_object(
     let object = create(rt)?;
     state_mut(rt)?.doc.side.insert((node, slot), object);
     Ok(object)
+}
+
+/// The object in `slot` of `node`, if there is one (for a slot whose object
+/// the caller replaces when its data changes).
+pub(crate) fn side_object(rt: &Runtime, node: NodeId, slot: Slot) -> VmResult<Option<Gc<Object>>> {
+    Ok(state(rt)?.doc.side.get(&(node, slot)).copied())
+}
+
+/// Puts `object` in `slot` of `node`, replacing the one that was there.
+pub(crate) fn set_side_object(
+    rt: &mut Runtime,
+    node: NodeId,
+    slot: Slot,
+    object: Gc<Object>,
+) -> VmResult<()> {
+    state_mut(rt)?.doc.side.insert((node, slot), object);
+    Ok(())
 }
 
 /// The wrapper of `node` of the current document, made with `proto` as its

@@ -628,11 +628,22 @@ Release build of the base commit (`target/release/swb`), `just probe
   (`rendition.m3u8`, not in the fixture) and the element ends with `error`
   code 4 (`PipelineStatus::DEMUXER_ERROR_COULD_NOT_PARSE` with the fixture
   that lacks the rendition playlist). So **Video.js falls back to native HLS
-  (`video.src = master playlist`), shows no error text and no fallback to
-  `highest.mp4`**. With swb after M14 (`canPlayType` `""` for HLS) the same
-  `src` fails with `MEDIA_ERR_SRC_NOT_SUPPORTED` at once. M14 item 8 can
-  therefore show: the media element API exists, the video has its poster and
-  the controls of the page; the hero cannot play before M15.
+  (`video.src = master playlist`) and does not fall back to `highest.mp4`**.
+  Correction (review of M14 feature 6a, three equal runs of the replay with
+  the init script, `crates/automation/tests/data/videojs-no-mse-*`): the
+  events are `loadstart` (ns 2, rs 0) and, about 50 ms later, `error` (ns
+  3, rs 0, code 4), and **Video.js shows its error dialog** ("Something went
+  wrong. This media could not be loaded. It may be unavailable, or your
+  browser may not support its format."): its player store opens the dialog
+  on any `error` event of the element. swb with media on (M14 feature 6a)
+  gives the same states and the same dialog. The departures: swb's message
+  is `PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open
+  context failed` (the replay returns the playlist body and FFmpeg has no
+  HLS demuxer), `progress` and `suspend` come before the `error` (bytes
+  arrived), and `canPlayType` of HLS is `""`. M14 item 8 can therefore show:
+  the media element API exists, the video has its poster and the controls of
+  the page; the hero cannot play before M15, and until then the page shows
+  the dialog, as Chromium without `MediaSource` does.
 
 ## 11. Changes to the plan, and open questions for the ADR (step 2)
 

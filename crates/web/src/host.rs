@@ -316,6 +316,80 @@ pub struct ImageInfo {
     pub current_src: String,
 }
 
+/// `MediaError` of a media element: its code, its message and the number of
+/// the error (a new error has a new serial, so `element.error` is the same
+/// object until the error changes).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MediaErrorInfo {
+    /// `MediaError.code`: 1 aborted, 2 network, 3 decode, 4 source not
+    /// supported.
+    pub code: u16,
+    /// `MediaError.message` (Chromium's strings, ADR 0047 section 10).
+    pub message: String,
+    /// Grows with each new error of the engine.
+    pub serial: u64,
+}
+
+/// What a `video` or `audio` element reports to the bindings (M14 feature
+/// 6a, ADR 0047 section 10). Times are in seconds.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MediaInfo {
+    /// `networkState`: 0 empty, 1 idle, 2 loading, 3 no source.
+    pub network_state: u16,
+    /// `readyState`: 0 nothing to 4 enough data.
+    pub ready_state: u16,
+    /// `currentSrc`: the absolute URL of the chosen resource, or "".
+    pub current_src: String,
+    /// `error`.
+    pub error: Option<MediaErrorInfo>,
+    /// `duration`: NaN before the metadata, infinity for a stream without
+    /// a known duration.
+    pub duration: f64,
+    /// `currentTime`: the official playback position.
+    pub current_time: f64,
+    /// `paused`.
+    pub paused: bool,
+    /// `seeking`.
+    pub seeking: bool,
+    /// `videoWidth`.
+    pub video_width: u32,
+    /// `videoHeight`.
+    pub video_height: u32,
+    /// `buffered`, as (start, end) pairs.
+    pub buffered: Vec<(f64, f64)>,
+    /// `seekable`, as (start, end) pairs.
+    pub seekable: Vec<(f64, f64)>,
+}
+
+impl Default for MediaInfo {
+    /// An element that has not started to load: `NETWORK_EMPTY`,
+    /// `HAVE_NOTHING`, no duration.
+    fn default() -> MediaInfo {
+        MediaInfo {
+            network_state: 0,
+            ready_state: 0,
+            current_src: String::new(),
+            error: None,
+            duration: f64::NAN,
+            current_time: 0.0,
+            paused: true,
+            seeking: false,
+            video_width: 0,
+            video_height: 0,
+            buffered: Vec::new(),
+            seekable: Vec::new(),
+        }
+    }
+}
+
+/// What a script asks a media element to do (feature 6a; feature 6b adds
+/// `play`, `pause` and the seek).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MediaCommand {
+    /// `load()`: HTML "media element load algorithm".
+    Load,
+}
+
 /// The state of a CSS animation for the bindings (ADR 0044 section 7).
 #[derive(Clone, Debug)]
 pub struct AnimationInfo {
@@ -946,6 +1020,27 @@ pub trait EngineHost: Any {
             complete: !has("src") && !has("srcset"),
             ..ImageInfo::default()
         }
+    }
+
+    /// The state of the `video` or `audio` element `node` (M14 feature 6a).
+    /// The engine processes the DOM changes first, so an assignment to
+    /// `src` shows at once. The default is an element that never loads.
+    fn media_state(&mut self, node: NodeId) -> MediaInfo {
+        let _ = node;
+        MediaInfo::default()
+    }
+
+    /// Runs a command of a script on the media element `node`; the events
+    /// that it causes come through [`crate::ScriptRuntime::media_events`].
+    fn media_command(&mut self, node: NodeId, command: MediaCommand) {
+        let _ = (node, command);
+    }
+
+    /// `canPlayType(mime_type)`: `""`, `"maybe"` or `"probably"` (the
+    /// default: nothing plays).
+    fn can_play_type(&mut self, mime_type: &str) -> &'static str {
+        let _ = mime_type;
+        ""
     }
 
     /// The entry list of `form` as a submission by `submitter` would send

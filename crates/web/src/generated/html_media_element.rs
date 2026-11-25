@@ -9,9 +9,43 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `HTMLMediaElement`.
 pub trait HTMLMediaElementImpl: b::Host {
-}
+    /// `readonly attribute USVString currentSrc`.
+    fn current_src(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
 
-impl<T: b::Host> HTMLMediaElementImpl for T {}
+    /// `readonly attribute unsigned short networkState`.
+    fn network_state(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<u16>;
+
+    /// `readonly attribute TimeRanges buffered`.
+    fn buffered(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `readonly attribute unsigned short readyState`.
+    fn ready_state(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<u16>;
+
+    /// `readonly attribute boolean seeking`.
+    fn seeking(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `readonly attribute double currentTime`.
+    fn current_time(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<f64>;
+
+    /// `readonly attribute unrestricted double duration`.
+    fn duration(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<f64>;
+
+    /// `readonly attribute boolean paused`.
+    fn paused(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `readonly attribute TimeRanges seekable`.
+    fn seekable(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `readonly attribute MediaError? error`.
+    fn error(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
+
+    /// `undefined load()`.
+    fn load(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<()>;
+
+    /// `DOMString canPlayType(DOMString type)`.
+    fn can_play_type(cx: &mut b::Cx<'_>, this: b::NodeId, type_: String) -> b::Result<String>;
+
+}
 
 fn get_src<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "src"), super::DOM_EXCEPTION, |rt| {
@@ -28,6 +62,40 @@ fn set_src<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nat
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
         b::ce::scope(rt, |rt| b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "src", &value))?;
         Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_current_src<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "currentSrc"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = <H as HTMLMediaElementImpl>::current_src(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn get_cross_origin<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "crossOrigin"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = b::reflect::get_nullable_enumerated::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "crossorigin", &b::reflect::Keywords { keywords: &[("", "anonymous"), ("anonymous", "anonymous"), ("use-credentials", "use-credentials")], missing: None, invalid: Some("anonymous") })?;
+        Ok((match result { Some(x0) => b::to_js::string(rt, &x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn set_cross_origin<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLMediaElement", "crossOrigin"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(b::Exception::nested)?;
+        b::ce::scope(rt, |rt| b::reflect::set_nullable_string::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "crossorigin", value.as_deref()))?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_network_state<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "networkState"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = <H as HTMLMediaElementImpl>::network_state(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::number(f64::from(result)))?)
     })
 }
 
@@ -49,21 +117,59 @@ fn set_preload<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
     })
 }
 
-fn get_cross_origin<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "crossOrigin"), super::DOM_EXCEPTION, |rt| {
+fn get_buffered<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "buffered"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
-        let result = b::reflect::get_nullable_enumerated::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "crossorigin", &b::reflect::Keywords { keywords: &[("", "anonymous"), ("anonymous", "anonymous"), ("use-credentials", "use-credentials")], missing: None, invalid: Some("anonymous") })?;
-        Ok((match result { Some(x0) => b::to_js::string(rt, &x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+        let result = <H as HTMLMediaElementImpl>::buffered(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
 
-fn set_cross_origin<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Setter("HTMLMediaElement", "crossOrigin"), super::DOM_EXCEPTION, |rt| {
+fn get_ready_state<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "readyState"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
-        let v = rt.arg(call, 0);
-        let value = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(b::Exception::nested)?;
-        b::ce::scope(rt, |rt| b::reflect::set_nullable_string::<H>(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, "crossorigin", value.as_deref()))?;
-        Ok(swb_js::Value::Undefined)
+        let result = <H as HTMLMediaElementImpl>::ready_state(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::number(f64::from(result)))?)
+    })
+}
+
+fn get_seeking<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "seeking"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = <H as HTMLMediaElementImpl>::seeking(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn get_current_time<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "currentTime"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = <H as HTMLMediaElementImpl>::current_time(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::number(result))?)
+    })
+}
+
+fn get_duration<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "duration"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = <H as HTMLMediaElementImpl>::duration(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::number(result))?)
+    })
+}
+
+fn get_paused<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "paused"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = <H as HTMLMediaElementImpl>::paused(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn get_seekable<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "seekable"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = <H as HTMLMediaElementImpl>::seekable(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
 
@@ -139,6 +245,33 @@ fn set_default_muted<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &s
     })
 }
 
+fn get_error<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "error"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = <H as HTMLMediaElementImpl>::error(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn op_load<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLMediaElement", "load"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        <H as HTMLMediaElementImpl>::load(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_can_play_type<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLMediaElement", "canPlayType"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let result = <H as HTMLMediaElementImpl>::can_play_type(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, a0)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
 /// Creates the interface object and the prototype of `HTMLMediaElement` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
@@ -146,12 +279,42 @@ pub fn define<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> 
     let target = interface.prototype;
     let _ = target;
     rt.define_accessor(realm, target, "src", (Some(get_src::<H> as swb_js::NativeFn), Some(set_src::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
-    rt.define_accessor(realm, target, "preload", (Some(get_preload::<H> as swb_js::NativeFn), Some(set_preload::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "currentSrc", (Some(get_current_src::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "crossOrigin", (Some(get_cross_origin::<H> as swb_js::NativeFn), Some(set_cross_origin::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "networkState", (Some(get_network_state::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "preload", (Some(get_preload::<H> as swb_js::NativeFn), Some(set_preload::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "buffered", (Some(get_buffered::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "readyState", (Some(get_ready_state::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "seeking", (Some(get_seeking::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "currentTime", (Some(get_current_time::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "duration", (Some(get_duration::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "paused", (Some(get_paused::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "seekable", (Some(get_seekable::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "autoplay", (Some(get_autoplay::<H> as swb_js::NativeFn), Some(set_autoplay::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "loop", (Some(get_loop::<H> as swb_js::NativeFn), Some(set_loop::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "controls", (Some(get_controls::<H> as swb_js::NativeFn), Some(set_controls::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "defaultMuted", (Some(get_default_muted::<H> as swb_js::NativeFn), Some(set_default_muted::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "error", (Some(get_error::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_value(interface.object, "NETWORK_EMPTY", swb_js::Value::Int(0), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.prototype, "NETWORK_EMPTY", swb_js::Value::Int(0), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.object, "NETWORK_IDLE", swb_js::Value::Int(1), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.prototype, "NETWORK_IDLE", swb_js::Value::Int(1), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.object, "NETWORK_LOADING", swb_js::Value::Int(2), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.prototype, "NETWORK_LOADING", swb_js::Value::Int(2), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.object, "NETWORK_NO_SOURCE", swb_js::Value::Int(3), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.prototype, "NETWORK_NO_SOURCE", swb_js::Value::Int(3), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.object, "HAVE_NOTHING", swb_js::Value::Int(0), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.prototype, "HAVE_NOTHING", swb_js::Value::Int(0), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.object, "HAVE_METADATA", swb_js::Value::Int(1), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.prototype, "HAVE_METADATA", swb_js::Value::Int(1), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.object, "HAVE_CURRENT_DATA", swb_js::Value::Int(2), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.prototype, "HAVE_CURRENT_DATA", swb_js::Value::Int(2), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.object, "HAVE_FUTURE_DATA", swb_js::Value::Int(3), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.prototype, "HAVE_FUTURE_DATA", swb_js::Value::Int(3), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.object, "HAVE_ENOUGH_DATA", swb_js::Value::Int(4), swb_js::Attributes::CONSTANT)?;
+    rt.define_value(interface.prototype, "HAVE_ENOUGH_DATA", swb_js::Value::Int(4), swb_js::Attributes::CONSTANT)?;
+    rt.define_method(realm, target, "canPlayType", 1, op_can_play_type::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "load", 0, op_load::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

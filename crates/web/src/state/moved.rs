@@ -25,6 +25,7 @@ fn node_slots() -> impl Iterator<Item = Slot> {
         Slot::ClassName,
         Slot::Style,
         Slot::Validity,
+        Slot::MediaError,
         Slot::TokenList("rel"),
         Slot::TokenList("sizes"),
         Slot::TokenList("blocking"),

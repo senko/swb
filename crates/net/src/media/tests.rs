@@ -331,6 +331,152 @@ fn a_server_without_range_gives_a_stream_that_cannot_seek() {
     assert_eq!(ranges(&server), ["/v.mp4 bytes=0-"]);
 }
 
+/// M14 feature 6a (probe `fetch-ignore-range-accept-ranges-*`): Chromium
+/// seeks in a resource that the server sends as a 200 with `Accept-Ranges:
+/// bytes` and a `Content-Length`. It sends `bytes=N-`, gets the whole body
+/// and uses it.
+#[test]
+fn a_200_that_claims_ranges_seeks_by_reading_the_whole_body_again() {
+    let len = 6 * MIB + 12_345;
+    let server = TestServer::start(vec![(
+        "/v.mp4",
+        Route::bytes(pattern(len))
+            .without_ranges()
+            .with_header("Accept-Ranges", "bytes"),
+    )]);
+    let loader = loader();
+    // A cache that cannot hold the file, so that a far seek needs a request.
+    let opts = options(2 * MIB, MIB / 4, ReadAhead::Bytes(MIB as u64 / 2));
+    let mut resource = loader.open_media_with(request(server.url("/v.mp4")), opts);
+    // The size is the `Content-Length`; the resource seeks.
+    assert_eq!(resource.size(), Some(len as u64));
+    assert!(resource.handle().stats().seekable);
+    assert_eq!(read_exact(&mut resource, 3 * MIB), pattern(3 * MIB));
+    // A seek far ahead: the bytes arrive from the whole body, in order.
+    let target = 5 * MIB + 100;
+    assert_eq!(resource.seek(target as u64).unwrap(), target as u64);
+    assert_eq!(
+        read_exact(&mut resource, 5000),
+        pattern(target + 5000)[target..]
+    );
+    // A seek back to the start of the file (its blocks are gone).
+    resource.seek(0).unwrap();
+    assert_eq!(read_exact(&mut resource, 3000), pattern(3000));
+    // The far seek ahead reads on in the running body (it reaches any
+    // block ahead by reading); the seek back opens a request. The server
+    // answers each with the whole body (a 200), and the job uses it.
+    let log = ranges(&server);
+    assert!(log.iter().all(|r| r.contains("bytes=")), "{log:?}");
+    // The first request, the ones that the read-ahead reopens and the one
+    // of the seek back (a handful, as the threads' timing decides); a far
+    // block ahead does not replace the running job: without that rule each
+    // read reopened the body, hundreds of requests.
+    assert!((2..=8).contains(&log.len()), "{log:?}");
+    assert!((2..=8).contains(&resource.handle().stats().requests));
+}
+
+/// M14 feature 6a (second delta review, finding 4): the bound of discarded
+/// bytes is per seek. Many far seeks in a file of a few MB, each of which
+/// reads the body again from byte 0, all succeed: the bytes that they
+/// discard together are over the bound of one seek (`MAX_DISCARDED_BYTES`)
+/// and over four times the size (the earlier bound of the resource).
+#[test]
+fn many_far_seeks_on_a_server_that_ignores_range_all_succeed() {
+    let len = 6 * MIB + 777;
+    let server = TestServer::start(vec![(
+        "/v.mp4",
+        Route::bytes(pattern(len))
+            .without_ranges()
+            .with_header("Accept-Ranges", "bytes"),
+    )]);
+    let loader = loader();
+    let opts = options(2 * MIB, MIB / 4, ReadAhead::Bytes(MIB as u64 / 2));
+    let mut resource = loader.open_media_with(request(server.url("/v.mp4")), opts);
+    assert_eq!(read_exact(&mut resource, 3 * MIB), pattern(3 * MIB));
+    // Each far seek ahead discards about 5 MiB: 60 of them are over 300 MiB.
+    for round in 0..120usize {
+        // Far ahead and back to the start, alternately.
+        let target = if round % 2 == 0 {
+            5 * MIB + 1000 + round
+        } else {
+            round
+        };
+        assert_eq!(resource.seek(target as u64).unwrap(), target as u64);
+        assert_eq!(
+            read_exact(&mut resource, 3000),
+            pattern(target + 3000)[target..],
+            "round {round}"
+        );
+    }
+    let sent = server.bytes_sent();
+    // The premise of the test: the server sent more than one seek may
+    // discard.
+    assert!(sent > MAX_DISCARDED_BYTES, "{sent} bytes sent");
+}
+
+/// M14 feature 6a (review N3): a server that ignores `Range` and claims a
+/// length that it does not have (1 GiB, with bytes without an end). A seek
+/// far into the claimed length reads the body from byte 0 and discards it
+/// up to the bound of one seek (`MAX_DISCARDED_BYTES`), then the resource
+/// fails: it does not read 900 MiB.
+#[test]
+fn a_lying_length_costs_a_bounded_number_of_discarded_bytes() {
+    const CLAIMED: u64 = 1 << 30;
+    let server = TestServer::start(vec![(
+        "/v.mp4",
+        Route::new(Body::Endless)
+            .without_ranges()
+            .with_header("Accept-Ranges", "bytes")
+            .with_header("Content-Length", &CLAIMED.to_string()),
+    )]);
+    let loader = loader();
+    let opts = options(2 * MIB, MIB / 4, ReadAhead::Bytes(MIB as u64 / 2));
+    let mut resource = loader.open_media_with(request(server.url("/v.mp4")), opts);
+    assert_eq!(resource.size(), Some(CLAIMED));
+    assert_eq!(read_exact(&mut resource, 1000), pattern(1000));
+    let target = 900 << 20;
+    assert_eq!(resource.seek(target).unwrap(), target);
+    let mut buf = [0u8; 100];
+    let error = resource.read(&mut buf);
+    assert!(error.is_err(), "{error:?}");
+    let sent = server.bytes_sent();
+    // The bound, the blocks of the first request, and what the sockets
+    // held when the jobs stopped.
+    assert!(
+        sent < MAX_DISCARDED_BYTES + 64 * MIB as u64,
+        "{sent} bytes sent"
+    );
+}
+
+/// M14 feature 6a: the owner's notify and the `idle` flag of the stats (the
+/// element's `suspend` event and the wake-up of its page).
+#[test]
+fn the_owner_is_notified_and_the_resource_goes_idle_when_the_cache_holds_enough() {
+    let server = TestServer::start(vec![("/v.mp4", Route::bytes(pattern(300_000)))]);
+    let loader = loader();
+    let resource = loader.open_media(request(server.url("/v.mp4")));
+    let handle = resource.handle();
+    let notified = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counter = Arc::clone(&notified);
+    handle.set_notify(Arc::new(move || {
+        counter.fetch_add(1, Ordering::Relaxed);
+    }));
+    // Nobody reads: the job reads the whole small file (below the least
+    // read-ahead) and ends.
+    wait_for("the resource is idle", || {
+        let stats = handle.stats();
+        stats.idle && stats.cached_bytes >= 300_000
+    });
+    assert!(notified.load(Ordering::Relaxed) > 0);
+    // Files and memory are idle at once.
+    assert!(
+        MediaResource::from_bytes(vec![1u8; 10])
+            .handle()
+            .stats()
+            .idle
+    );
+}
+
 #[test]
 fn an_endless_stream_stays_within_its_memory_and_ends_with_the_reader() {
     let server = TestServer::start(vec![("/v.mp4", Route::new(Body::Endless))]);

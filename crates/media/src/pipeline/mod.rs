@@ -359,6 +359,7 @@ impl Pipeline {
         let weak = Arc::downgrade(&self.shared);
         self.shared.slots.acquire(
             self.shared.id,
+            Arc::clone(&self.shared.notify),
             Box::new(move |slot| {
                 let Some(shared) = weak.upgrade() else {
                     return Some(slot);
@@ -388,7 +389,14 @@ impl Pipeline {
             st.ring_base = None;
             st.audio_end_us = None;
             st.watch.needs_data = false;
-            (st.frames.take_all(), st.place.take())
+            let place = st.place.take();
+            // In the same critical section as the end of the run: no
+            // waiter's owner sees the run ended and the place not yet in
+            // transit.
+            if let Some((_, place)) = &place {
+                place.end(self.shared.stall_limit);
+            }
+            (st.frames.take_all(), place)
         };
         drop(frames);
         // The threads hold the place until they end.
@@ -443,6 +451,17 @@ impl Pipeline {
     pub fn is_waiting(&self) -> bool {
         let st = self.shared.lock();
         self.phase == Phase::Running && st.active_run != st.run
+    }
+
+    /// Whether the pipeline waits for a place while a place is in transit
+    /// (the run of another pipeline ended and its threads are ending; see
+    /// [`PipelineSlots::in_transit`]): the place may come to this pipeline
+    /// at any moment. An owner in virtual time counts it as pending work,
+    /// so that the time at which the place arrives does not depend on how
+    /// fast the ending threads are (M14 feature 6a). When the transit ends,
+    /// the pipeline calls the owner's notify.
+    pub fn awaits_handover(&self) -> bool {
+        self.is_waiting() && self.shared.slots.in_transit() > 0
     }
 
     /// The media time of the last update, or the target of a seek: the
@@ -779,6 +798,51 @@ impl Pipeline {
             watchdog::watch(&self.shared, due);
         }
         pending
+    }
+
+    /// Whether a thread reported something that [`Pipeline::update`] has not
+    /// handled (the open, a failure): while it is true,
+    /// [`Pipeline::has_pending_work`] is false until the owner updates. An
+    /// owner that decides to wait for the pipeline asks this too, so that it
+    /// does not take the moment between the report and its update for "no
+    /// work" (M14 feature 6a).
+    pub fn has_unread_reports(&self) -> bool {
+        !self.reports.is_empty() || !self.shared.lock().events.is_empty()
+    }
+
+    /// Whether the decoded data is enough to play through
+    /// (`HAVE_ENOUGH_DATA`, `canplaythrough`; M14 feature 6a, ADR 0047
+    /// "Implementation notes of feature 6a"): the first data was reported,
+    /// no seek runs and no underrun, and the threads have settled: every
+    /// track is decoded to its end, or each thread waits for room in a
+    /// queue that only the owner frees (the demux thread at its packet
+    /// bound or the sample ring, the video thread at its frame cap) or for
+    /// nothing more to read. So the whole resource is read (a small file),
+    /// or the decoded queues are full (a large one). It depends only on what
+    /// the threads decoded, so it is the same on every run once they have
+    /// settled; the buffered ranges are final then too. While it returns
+    /// false the owner needs data: the pipeline calls the owner's notify
+    /// when a thread makes progress or all wait, and the no-progress limit
+    /// applies (a source that stalls after the first frame fails the
+    /// pipeline with a decode error, as for [`Pipeline::has_pending_work`]).
+    pub fn has_enough_data(&self) -> bool {
+        let mut st = self.shared.lock();
+        let live = self.phase == Phase::Running
+            && st.active_run == st.run
+            && self.first_frame_reported
+            && self.seeking.is_none()
+            && !self.underrun
+            && st.events.is_empty();
+        let enough = live && (st.stalled_on_owner() || drained(&st));
+        if live && !enough {
+            st.wants_notify = true;
+            let watch = self.note_needs(&mut st, true);
+            drop(st);
+            if let Some(due) = watch {
+                watchdog::watch(&self.shared, due);
+            }
+        }
+        enough
     }
 
     /// With an external consumer, which takes samples outside the lock and

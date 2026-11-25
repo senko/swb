@@ -130,6 +130,7 @@ mod image_events;
 mod intersection_observer;
 mod location;
 mod matrix;
+mod media_element;
 mod media_queries;
 mod message_port;
 mod messaging;
@@ -165,9 +166,9 @@ pub use events::{DispatchTarget, EventInterface, TrustedEvent, UserEvent, UserKi
 pub use host::{
     AnimationCommand, AnimationInfo, ControlSnapshot, ControlValidity, ControlWrite, DomRect,
     EngineHost, EventOrigins, FormDataEntry, FormDataValue, FrameHost, ImageInfo, KeyframeInfo,
-    LentDocuments, NavigationInfo, NavigationKind, NewFrame, ObservedBox, ObservedPosition,
-    OffsetMetrics, RangeTextMode, RetiredFrame, ScrollAlign, ScrollMetrics, ScrollRequest,
-    SelectionKey, SelectionRange, Viewport,
+    LentDocuments, MediaCommand, MediaErrorInfo, MediaInfo, NavigationInfo, NavigationKind,
+    NewFrame, ObservedBox, ObservedPosition, OffsetMetrics, RangeTextMode, RetiredFrame,
+    ScrollAlign, ScrollMetrics, ScrollRequest, SelectionKey, SelectionRange, Viewport,
 };
 pub use idle_callbacks::IDLE_PERIOD_MS;
 pub use messaging::{Mail, MailTarget};

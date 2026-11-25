@@ -2727,6 +2727,7 @@ dependencies = [
  "swb-js-regexp",
  "swb-js-text",
  "swb-layout",
+ "swb-media",
  "swb-net",
  "swb-paint",
  "swb-style",

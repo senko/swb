@@ -274,6 +274,27 @@ def entries() -> dict[str, list[str]]:
         "-movflags",
         "+faststart",
     ]
+    # Rows for the timeline rules (M14 feature 6a, `swb_media::timeline`):
+    # a fragmented MP4 (an empty `moov`, one `moof` per key frame), an MP4
+    # with B-frames and without an edit list (the first frame has a time
+    # offset that no edit list compensates), and Opus in MP4.
+    e["mp4-h264-aac-fragmented.mp4"] = [
+        *av(2),
+        *H264_HIGH,
+        *AAC,
+        "-movflags",
+        "+frag_keyframe+empty_moov",
+    ]
+    e["mp4-h264-aac-bframes-no-edit-list.mp4"] = [
+        *av(2),
+        *H264_HIGH,
+        *AAC,
+        "-use_editlist",
+        "0",
+        "-movflags",
+        "+faststart",
+    ]
+    e["mp4-opus.mp4"] = [*a_only(2), *OPUS, "-strict", "-2", "-movflags", "+faststart"]
     # Longer files for seeking: 10 s, a key frame every second.
     e["mp4-h264-aac-long.mp4"] = [*av(10), *H264_HIGH, *AAC, "-movflags", "+faststart"]
     e["mp3-long.mp3"] = [

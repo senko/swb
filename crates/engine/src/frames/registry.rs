@@ -57,6 +57,9 @@ pub(crate) struct DocumentMaker {
     /// The animation records that the page's documents have room for
     /// (ADR 0044 section 11: one limit for all of them).
     pub(crate) animation_room: swb_style::animation::RecordRoom,
+    /// What the media elements of the page's documents share (the bound on
+    /// open pipelines).
+    pub(crate) media: crate::media::MediaContext,
 }
 
 /// A parsed frame document and what it starts with.
@@ -124,6 +127,7 @@ impl DocumentMaker {
                 origin: self.clock.borrow().now(),
                 room: Some(Rc::clone(&self.animation_room)),
             },
+            media: self.media.clone(),
         }));
         doc.history = init.history;
         doc.sandboxed_origin = init.sandboxed_origin;

@@ -1,0 +1,42 @@
+[
+ {
+  "ev": [
+   "1318 loadstart ns=2 rs=0 err=- src=hnHm02Y34zI1nlMuMQfAbl3dM.m3u8",
+   "1376 error ns=3 rs=0 err=4:PipelineStatus::DEMUXER_ERROR_COULD_NOT_PARSE src=hnHm02Y34zI1nlMuMQfAbl3dM.m3u8"
+  ],
+  "ns": 3,
+  "rs": 0,
+  "err": [
+   4,
+   "PipelineStatus::DEMUXER_ERROR_COULD_NOT_PARSE"
+  ],
+  "src": "https://stream.mux.com/BV3YZtogl89mg9VcNBhhnHm02Y34zI1nlMuMQfAbl3dM.m3u8",
+  "text": true,
+  "dlg": [
+   "DIV#error-dialog-popup-_r50R_4_ Something went wrong.This media could not be loaded. It may be unavailable, or your browser may not  hidden=false open=undefined",
+   "H2#error-dialog-title-_r50R_4H1_ Something went wrong. hidden=false open=undefined",
+   "P#error-dialog-desc-_r50R_4H2_ This media could not be loaded. It may be unavailable, or your browser may not support its format. hidden=false open=undefined"
+  ],
+  "cpt": "maybe"
+ },
+ {
+  "ev": [
+   "1318 loadstart ns=2 rs=0 err=- src=hnHm02Y34zI1nlMuMQfAbl3dM.m3u8",
+   "1376 error ns=3 rs=0 err=4:PipelineStatus::DEMUXER_ERROR_COULD_NOT_PARSE src=hnHm02Y34zI1nlMuMQfAbl3dM.m3u8"
+  ],
+  "ns": 3,
+  "rs": 0,
+  "err": [
+   4,
+   "PipelineStatus::DEMUXER_ERROR_COULD_NOT_PARSE"
+  ],
+  "src": "https://stream.mux.com/BV3YZtogl89mg9VcNBhhnHm02Y34zI1nlMuMQfAbl3dM.m3u8",
+  "text": true,
+  "dlg": [
+   "DIV#error-dialog-popup-_r50R_4_ Something went wrong.This media could not be loaded. It may be unavailable, or your browser may not  hidden=false open=undefined",
+   "H2#error-dialog-title-_r50R_4H1_ Something went wrong. hidden=false open=undefined",
+   "P#error-dialog-desc-_r50R_4H2_ This media could not be loaded. It may be unavailable, or your browser may not support its format. hidden=false open=undefined"
+  ],
+  "cpt": "maybe"
+ }
+]

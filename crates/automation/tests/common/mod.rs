@@ -93,6 +93,8 @@ pub(crate) fn open_script_page(fetcher: Arc<dyn Fetcher>, url: Url, size: Size) 
         scripts_allowed: true,
     };
     let mut page = Page::new(config, FontContext::for_tests(), size, 1.0);
+    // The tests of a binary run in parallel: own places for media pipelines.
+    page.isolate_media(Duration::ZERO);
     page.set_javascript(true);
     page.navigate(url);
     assert!(page.wait_until_loaded(Duration::from_secs(30)));
@@ -291,6 +293,8 @@ pub(crate) fn replay_page_with(
         Size::new(1280.0, 800.0),
         1.0,
     );
+    // The tests of a binary run in parallel: own places for media pipelines.
+    page.isolate_media(Duration::ZERO);
     page.set_javascript(javascript);
     // Chromium's references are taken with animations off (ADR 0044
     // section 10, docs/testing.md "Animations in the references").
@@ -332,7 +336,33 @@ pub(crate) fn load_at_capture_animated(
     fetcher: Arc<dyn Fetcher>,
     animations: bool,
 ) -> Page {
+    load_at_capture_media(dir, settle, fetcher, animations, true)
+}
+
+/// [`load_at_capture_animated`] with the loads of media elements off
+/// (`Page::set_media`): for the exit test of videojs.org, whose Chromium
+/// recording plays the HLS stream through Media Source Extensions (M15). In
+/// swb the element's `src` fails, and Video.js shows an error dialog that the
+/// recording does not have (Chromium without `MediaSource` shows the same
+/// dialog: `videojs.rs`, `without_media_source_the_player_fails_and_shows_its_error_dialog`).
+pub(crate) fn load_at_capture_without_media(
+    dir: &Path,
+    settle: Duration,
+    fetcher: Arc<dyn Fetcher>,
+    animations: bool,
+) -> Page {
+    load_at_capture_media(dir, settle, fetcher, animations, false)
+}
+
+fn load_at_capture_media(
+    dir: &Path,
+    settle: Duration,
+    fetcher: Arc<dyn Fetcher>,
+    animations: bool,
+    media: bool,
+) -> Page {
     let (mut page, url) = replay_page_with(dir, true, fetcher, animations);
+    page.set_media(media);
     let captured: jiff::Timestamp = fixture_meta(dir)["captured"]
         .as_str()
         .unwrap()

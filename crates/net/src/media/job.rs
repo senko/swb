@@ -17,7 +17,7 @@ use url::Url;
 
 use super::cache::{BLOCK, BLOCK_U64};
 use super::pool::Slot;
-use super::{FAR_BLOCKS, FirstResponse, Inner, State, Status};
+use super::{FAR_BLOCKS, FirstResponse, Inner, MAX_DISCARDED_BYTES, State, Status};
 use crate::cors_fetch::fetch_request_with;
 use crate::error::NetError;
 use crate::range::{ContentRange, parse_content_range};
@@ -48,6 +48,10 @@ struct Conn {
     body: Box<dyn Read + Send>,
     /// The next block that the body gives.
     next: u64,
+    /// The body is a whole one from byte 0 of a seekable resource (a server
+    /// that ignores `Range`): the blocks before the one that the reader
+    /// needs are discarded, and the job reads on to reach it.
+    sequential: bool,
 }
 
 /// An answer to a range request that passed the checks.
@@ -55,6 +59,9 @@ struct Opened {
     body: Box<dyn Read + Send>,
     /// The `Content-Range` of a 206.
     range: Option<ContentRange>,
+    /// The `Content-Length` of a 200 with `Accept-Ranges: bytes`: the
+    /// server claims ranges and ignores them.
+    claimed: Option<u64>,
     url: Url,
 }
 
@@ -108,13 +115,16 @@ impl Job {
                 st.status = Status::Failed(Arc::new(error));
             }
         }
-        self.inner.reader_cv.notify_all();
+        self.inner.signal();
     }
 
     fn work(&self) -> Result<(), NetError> {
         let inner = &*self.inner;
         let mut conn: Option<Conn> = None;
         let mut failures = 0;
+        // The connection was lost and the next one continues the same seek:
+        // the bytes that it discards count with those of the lost one.
+        let mut retried = false;
         if self.first {
             let opened = self.open(0, true)?;
             let mut st = inner.lock();
@@ -122,11 +132,16 @@ impl Job {
                 return Ok(());
             }
             st.apply_first(&opened.url, first_response(&opened));
-            inner.reader_cv.notify_all();
+            inner.signal();
+            let sequential = st.ignores_range;
             conn = Some(Conn {
                 body: opened.body,
                 next: 0,
+                sequential,
             });
+            if let Some(job) = st.job.as_mut() {
+                job.sequential = sequential;
+            }
         }
         loop {
             let (want, seekable) = {
@@ -139,7 +154,7 @@ impl Job {
                     // The cache holds enough, or everything.
                     None if st.seekable || st.end.is_some() => {
                         st.job = None;
-                        inner.reader_cv.notify_all();
+                        inner.signal();
                         return Ok(());
                     }
                     // A stream cannot reopen: the connection waits.
@@ -155,9 +170,9 @@ impl Job {
             // check from the reader's side; either alone is enough for a
             // right result, both exist because the position changes between
             // the two checks.
-            let fits = conn
-                .as_ref()
-                .is_some_and(|c| !seekable || (c.next <= want && want - c.next <= FAR_BLOCKS));
+            let fits = conn.as_ref().is_some_and(|c| {
+                !seekable || (c.next <= want && (c.sequential || want - c.next <= FAR_BLOCKS))
+            });
             if !fits {
                 if failures >= MAX_FAILURES {
                     return Err(NetError::Range(
@@ -171,21 +186,36 @@ impl Job {
                 if !self.current(&st) {
                     return Ok(());
                 }
+                // A 206 starts at the wanted block; a 200 (a server that
+                // ignores `Range`) at byte 0.
+                let sequential = opened.range.is_none();
+                let next = if sequential { 0 } else { want };
+                // The bound of discarded bytes is per seek: a new seek
+                // starts the count, the reopening after a failure does not
+                // (else a server that cuts its bodies short would be read
+                // again and again without a bound).
+                if !retried {
+                    st.discarded = 0;
+                }
+                retried = false;
                 if let Some(job) = st.job.as_mut() {
-                    job.cur = want;
+                    job.cur = next;
+                    job.sequential = sequential;
                 }
                 conn = Some(Conn {
                     body: opened.body,
-                    next: want,
+                    next,
+                    sequential,
                 });
             }
             let Some(open) = conn.as_mut() else {
                 continue;
             };
-            match self.read_block(open)? {
+            match self.read_block(open, want)? {
                 Step::Block => failures = 0,
                 Step::Retry => {
                     failures += 1;
+                    retried = true;
                     conn = None;
                 }
                 Step::Wait => {}
@@ -195,8 +225,9 @@ impl Job {
     }
 
     /// Reads the block `conn.next` into the cache (or skips it when it is
-    /// there already).
-    fn read_block(&self, conn: &mut Conn) -> Result<Step, NetError> {
+    /// there already, or, for a body from byte 0, when it is before the
+    /// block `want` that the reader needs).
+    fn read_block(&self, conn: &mut Conn, want: u64) -> Result<Step, NetError> {
         let inner = &*self.inner;
         let index = conn.next;
         let skip = {
@@ -204,7 +235,13 @@ impl Job {
             if !self.current(&st) {
                 return Ok(Step::Gone);
             }
-            let skip = st.cache.contains(index);
+            let skip = st.cache.contains(index) || (conn.sequential && index < want);
+            if skip && conn.sequential && st.discarded >= MAX_DISCARDED_BYTES {
+                return Err(NetError::Range(format!(
+                    "the server ignores Range: {} bytes were read and discarded to reach the wanted block",
+                    st.discarded
+                )));
+            }
             if !skip {
                 let read_block = st.pos / BLOCK_U64;
                 let room = st.cache.reserve(read_block, BLOCK);
@@ -221,6 +258,9 @@ impl Job {
         let mut data = Vec::with_capacity(if skip { 0 } else { BLOCK });
         let (filled, read) = fill(conn.body.as_mut(), &mut data, skip);
         let mut st = inner.lock();
+        if skip && conn.sequential {
+            st.discarded = st.discarded.saturating_add(read as u64);
+        }
         if !self.current(&st) {
             if !skip {
                 st.cache.unreserve(BLOCK);
@@ -268,7 +308,7 @@ impl Job {
             }
         }
         drop(st);
-        inner.reader_cv.notify_all();
+        inner.signal();
         Ok(step)
     }
 
@@ -277,10 +317,10 @@ impl Job {
     fn open(&self, block: u64, first_open: bool) -> Result<Opened, NetError> {
         let inner = &*self.inner;
         let mut request = inner.template.clone();
-        let (url, size) = {
+        let (url, size, ignores) = {
             let mut st = inner.lock();
             st.requests += 1;
-            (st.final_url.clone(), st.size)
+            (st.final_url.clone(), st.size, st.ignores_range)
         };
         request.url = url;
         request
@@ -293,10 +333,17 @@ impl Job {
                 Ok((streamed.head, streamed.body))
             })?;
         let head = fetched.response;
-        let range = check_response(&head, block, size, first_open)?;
+        let range = check_response(&head, block, size, first_open, ignores)?;
+        let claimed = claimed_length(&head).filter(|_| range.is_none());
+        if ignores && range.is_none() && claimed != size {
+            return Err(NetError::Range(
+                "the size changed in a response that ignores Range".into(),
+            ));
+        }
         Ok(Opened {
             body,
             range,
+            claimed,
             url: head.url,
         })
     }
@@ -327,7 +374,7 @@ impl Drop for Job {
             )));
         }
         drop(st);
-        self.inner.reader_cv.notify_all();
+        self.inner.signal();
     }
 }
 
@@ -362,13 +409,36 @@ fn fill(body: &mut dyn Read, data: &mut Vec<u8>, skip: bool) -> (Filled, usize) 
     (Filled::Full, total)
 }
 
+/// The `Content-Length` of a 200 that says `Accept-Ranges: bytes`: the
+/// server claims that it serves ranges, and the body is the whole resource.
+fn claimed_length(head: &Response) -> Option<u64> {
+    if head.status != 200 {
+        return None;
+    }
+    let accepts = head.headers.get("accept-ranges").is_some_and(|value| {
+        value
+            .split(',')
+            .any(|unit| unit.trim().eq_ignore_ascii_case("bytes"))
+    });
+    if !accepts {
+        return None;
+    }
+    head.headers
+        .get("content-length")
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|&length| length > 0)
+}
+
 /// Checks the status and the `Content-Range` of the answer to the request
-/// for `block`.
+/// for `block`. `ignores` is true for a resource whose server answered the
+/// first request with a 200 that claims ranges: it answers 200 to the later
+/// ones too.
 fn check_response(
     head: &Response,
     block: u64,
     size: Option<u64>,
     first: bool,
+    ignores: bool,
 ) -> Result<Option<ContentRange>, NetError> {
     match head.status {
         206 => {
@@ -395,7 +465,7 @@ fn check_response(
         }
         // The whole body from byte 0: a server that ignores `Range`. For a
         // later request it is an answer only when it starts at byte 0.
-        200 if first || block == 0 => Ok(None),
+        200 if first || block == 0 || ignores => Ok(None),
         200 => Err(NetError::Range(
             "the server answered 200 to a request for a later range".into(),
         )),
@@ -407,7 +477,17 @@ fn first_response(opened: &Opened) -> FirstResponse {
     match opened.range {
         Some(ContentRange {
             total: Some(size), ..
-        }) => FirstResponse::Seekable { size },
-        _ => FirstResponse::Stream,
+        }) => FirstResponse::Seekable {
+            size,
+            ignores_range: false,
+        },
+        // A 200 that claims ranges (see the module comment of `media`).
+        None => opened
+            .claimed
+            .map_or(FirstResponse::Stream, |size| FirstResponse::Seekable {
+                size,
+                ignores_range: true,
+            }),
+        Some(_) => FirstResponse::Stream,
     }
 }

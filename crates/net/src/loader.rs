@@ -62,6 +62,10 @@ pub type ClientId = u64;
 /// The client of requests that name none.
 pub const NO_CLIENT: ClientId = 0;
 
+/// The client of the completions that [`Loader::waker`] queues: a wake-up
+/// of the loop that waits for completions, not the answer to a request.
+pub const WAKE_CLIENT: ClientId = ClientId::MAX;
+
 /// The number of worker threads for the requests of [`Loader::start_api`].
 pub const API_WORKERS: usize = 8;
 
@@ -151,6 +155,9 @@ struct Shared {
     preflights: PreflightCache,
     /// The workers in state [`JobState::Detached`].
     detached: AtomicUsize,
+    /// A wake-up completion of [`Loader::waker`] is queued and not read yet
+    /// (a flood of wake-ups queues one).
+    wake_pending: AtomicBool,
 }
 
 impl Shared {
@@ -272,6 +279,7 @@ impl Loader {
             clients: Mutex::new(HashMap::new()),
             preflights: PreflightCache::new(),
             detached: AtomicUsize::new(0),
+            wake_pending: AtomicBool::new(false),
         });
         let page = Pool::new(PoolKind::Page);
         for index in 0..workers.max(1) {
@@ -454,12 +462,20 @@ impl Loader {
 
     /// Returns the next completion if one is ready. Does not block.
     pub fn try_recv(&self) -> Option<Completion> {
-        self.completions.try_recv().ok()
+        self.read(self.completions.try_recv().ok())
     }
 
     /// Waits up to `timeout` for the next completion.
     pub fn recv_timeout(&self, timeout: Duration) -> Option<Completion> {
-        self.completions.recv_timeout(timeout).ok()
+        self.read(self.completions.recv_timeout(timeout).ok())
+    }
+
+    /// Notes that the owner read a completion: a wake-up can queue again.
+    fn read(&self, completion: Option<Completion>) -> Option<Completion> {
+        if completion.as_ref().is_some_and(|c| c.client == WAKE_CLIENT) {
+            self.shared.wake_pending.store(false, Ordering::Release);
+        }
+        completion
     }
 
     /// Returns the cookie jar of the fetcher, if it has one.
@@ -485,6 +501,28 @@ impl Loader {
             &self.media_budget,
             options,
         )
+    }
+
+    /// A callback that wakes whoever waits for this loader's completions
+    /// ([`Loader::recv_timeout`], the loader's `notify`), from any thread.
+    /// It queues a completion that no request owns (`id` 0, `client`
+    /// [`WAKE_CLIENT`]), which the owner ignores; while one is queued and
+    /// unread, further wake-ups queue nothing. The media elements use it as
+    /// the notify of their pipelines (M14 feature 6a).
+    pub fn waker(&self) -> Arc<dyn Fn() + Send + Sync> {
+        let shared = Arc::clone(&self.shared);
+        Arc::new(move || {
+            // One queued wake-up is enough for the owner, who looks at all
+            // that changed when it reads it.
+            if shared.wake_pending.swap(true, Ordering::AcqRel) {
+                return;
+            }
+            shared.complete(Completion::failed(
+                0,
+                WAKE_CLIENT,
+                NetError::Internal("wake".into()),
+            ));
+        })
     }
 
     /// The budget that all media resources of this loader share (512 MiB,
@@ -658,6 +696,40 @@ mod tests {
 
     fn no_notify() -> Notify {
         Arc::new(|| {})
+    }
+
+    /// M14 feature 6a: the waker of the media elements queues a completion
+    /// that no request owns, and one is enough while it is unread.
+    #[test]
+    fn a_flood_of_wakeups_queues_one_completion_and_the_next_one_after_the_read() {
+        let (fetcher, _release) = echo();
+        let notifications = Arc::new(AtomicUsize::new(0));
+        let counter = Arc::clone(&notifications);
+        let notify: Notify = Arc::new(move || {
+            counter.fetch_add(1, Ordering::Relaxed);
+        });
+        let loader = Loader::new(fetcher, 1, notify);
+        let waker = loader.waker();
+        for _ in 0..1000 {
+            waker();
+        }
+        assert_eq!(notifications.load(Ordering::Relaxed), 1);
+        let wake = loader.try_recv().expect("a wake-up completion");
+        assert_eq!((wake.id, wake.client), (0, WAKE_CLIENT));
+        assert!(loader.try_recv().is_none(), "one completion only");
+        // After the read the next wake-up queues again.
+        waker();
+        assert_eq!(notifications.load(Ordering::Relaxed), 2);
+        assert!(loader.try_recv().is_some());
+        // A request completes beside the wake-ups.
+        let id = loader.start(request("/x"));
+        waker();
+        let mut clients = Vec::new();
+        for _ in 0..2 {
+            clients.push(loader.recv_timeout(Duration::from_secs(10)).unwrap());
+        }
+        assert!(clients.iter().any(|c| c.id == id));
+        assert!(clients.iter().any(|c| c.client == WAKE_CLIENT));
     }
 
     #[test]

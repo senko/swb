@@ -590,6 +590,9 @@ def test_parse_http_ranges_and_shot_step():
         case_json(http=True, ranges=False, javascript=True, steps=[{"shot": "a-1.b"}])
     )
     assert (case.http, case.ranges, case.steps) == (True, False, ({"shot": "a-1.b"},))
+    # M14 feature 6a: a server that claims `Accept-Ranges` and answers 200.
+    (case,) = parse_cases(case_json(http=True, ranges="ignore"))
+    assert (case.http, case.ranges) == (True, "ignore")
     for bad in (
         {"http": 1},
         {"ranges": "no"},
@@ -628,10 +631,14 @@ def test_case_server_serves_files_with_ranges_and_logs_them(tmp_path):
     source.write_bytes(bytes(range(200)))
     case = Case("c", "<p>x", (400, 300), (), files=(("m.bin", source),), http=True)
     plain = Case("p", "<p>x", (400, 300), (), files=(("m.bin", source),), http=True, ranges=False)
+    claims = Case(
+        "i", "<p>x", (400, 300), (), files=(("m.bin", source),), http=True, ranges="ignore"
+    )
     server = CaseServer(tmp_path)
     try:
         _serve_case(case, 1, tmp_path, server)
         _serve_case(plain, 2, tmp_path, server)
+        _serve_case(claims, 3, tmp_path, server)
         parts = urlsplit(server.origin)
 
         def get(folder, headers=None, method="GET"):
@@ -658,6 +665,10 @@ def test_case_server_serves_files_with_ranges_and_logs_them(tmp_path):
         assert (status, headers["Content-Length"], data) == (200, "200", b"")
         status, headers, data = get("case-2", {"Range": "bytes=10-19"})
         assert (status, len(data), "Accept-Ranges" in headers) == (200, 200, False)
+        # `ranges: "ignore"`: the whole body with `Accept-Ranges: bytes`.
+        status, headers, data = get("case-3", {"Range": "bytes=10-19"})
+        assert (status, len(data), headers["Accept-Ranges"]) == (200, 200, "bytes")
+        assert "Content-Range" not in headers
         assert get("case-1/nope")[0] == 404
         connection = http.client.HTTPConnection(parts.hostname, parts.port)
         connection.request("GET", "/case-1/__log")

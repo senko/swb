@@ -47,8 +47,9 @@ class CaseServer:
         self.media_folders: set[str] = set()
         """The folders of the cases with `http: true`: their files are served
         with `Range` support and the log has `status` and `sent`."""
-        self.ranges: dict[str, bool] = {}
-        """Case folder to whether the server honors `Range` there."""
+        self.ranges: dict[str, bool | str] = {}
+        """Case folder to whether the server honors `Range` there (`False`:
+        no, and no `Accept-Ranges`; `"ignore"`: no, with `Accept-Ranges`)."""
         self._lock = threading.Lock()
         self._httpds = [self._listen(directory, name) for name in ("main", "other")]
         for httpd in self._httpds:
@@ -90,10 +91,12 @@ class CaseServer:
                             entry.update(status=404, sent=0)
                     return
                 size = file.stat().st_size
-                ranged = server.ranges.get(folder, True)
+                mode = server.ranges.get(folder, True)
+                ranged = mode is True
                 spec = _range_of(self.headers.get("Range"), size) if ranged else "full"
                 headers = [("Content-Type", self.guess_type(str(file)))]
-                if ranged:
+                # `"ignore"`: claims `Accept-Ranges` and answers 200.
+                if mode is not False:
                     headers.append(("Accept-Ranges", "bytes"))
                 if spec is None:
                     status, start, end = 416, 0, -1

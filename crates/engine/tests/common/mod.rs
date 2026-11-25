@@ -5,6 +5,7 @@
 #![allow(dead_code)] // Each test binary uses a different subset.
 
 pub(crate) mod damage;
+pub(crate) mod media_site;
 pub(crate) mod probe_rows;
 
 use std::collections::HashMap;
@@ -269,7 +270,11 @@ pub(crate) fn new_page_at_scale(
         // trivial scripts (`var a = 1`) on the test thread.
         scripts_allowed: true,
     };
-    Page::new(config, FontContext::for_tests(), viewport, scale)
+    let mut page = Page::new(config, FontContext::for_tests(), viewport, scale);
+    // The tests of a binary run in parallel: each page has its own places
+    // for open media pipelines, not the process's.
+    page.isolate_media(Duration::ZERO);
+    page
 }
 
 /// Renders the viewport of `page` into a new pixmap of its size.

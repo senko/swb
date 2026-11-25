@@ -14,6 +14,7 @@ mod history;
 mod hit_test;
 mod image_source;
 mod input;
+mod media;
 mod page;
 mod referrer;
 mod resources;

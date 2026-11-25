@@ -577,6 +577,34 @@
     }
    ],
    "ranges": false
+  },
+  {
+   "name": "fetch-ignore-range-accept-ranges-small",
+   "html": "<!DOCTYPE html><script>\nconst r2 = x => Math.round(x * 100) / 100;\nconst rng = t => Array.from({length: t.length}, (_, i) => r2(t.start(i)) + '-' + r2(t.end(i))).join(',');\nconst sleep = ms => new Promise(r => setTimeout(r, ms));\nconst once = (m, n, ms = 4000) => new Promise(r => { const to = setTimeout(() => r('timeout'), ms); m.addEventListener(n, () => { clearTimeout(to); r(n); }, {once: true}); });\nconst log = () => fetch('__log').then(r => r.json()).then(j => j.map(e => e.path + ' ' + (e.headers.range || '-') + ' -> ' + e.status + ' ' + e.sent));\n</script><video id=v src=a.mp4 preload=auto muted></video>",
+   "http": true,
+   "files": {
+    "a.mp4": "fixtures/media/mp4-h264-high-aac.mp4"
+   },
+   "measure": [
+    {
+     "js": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, seek: rng(v.seekable), buf: rng(v.buffered)};\n  v.currentTime = v.duration * 0.6;\n  out.seeked = await once(v, 'seeked', 3000);\n  await sleep(700);\n  out.afterSeek = {rs: v.readyState, ct: r2(v.currentTime), buf: rng(v.buffered), seek: rng(v.seekable), seeking: v.seeking, err: v.error ? v.error.code : null};\n  out.seek = await take();\n  return out;\n})()\n"
+    }
+   ],
+   "ranges": "ignore"
+  },
+  {
+   "name": "fetch-ignore-range-accept-ranges-long",
+   "html": "<!DOCTYPE html><script>\nconst r2 = x => Math.round(x * 100) / 100;\nconst rng = t => Array.from({length: t.length}, (_, i) => r2(t.start(i)) + '-' + r2(t.end(i))).join(',');\nconst sleep = ms => new Promise(r => setTimeout(r, ms));\nconst once = (m, n, ms = 4000) => new Promise(r => { const to = setTimeout(() => r('timeout'), ms); m.addEventListener(n, () => { clearTimeout(to); r(n); }, {once: true}); });\nconst log = () => fetch('__log').then(r => r.json()).then(j => j.map(e => e.path + ' ' + (e.headers.range || '-') + ' -> ' + e.status + ' ' + e.sent));\n</script><video id=v src=a.mp4 preload=metadata muted></video>",
+   "http": true,
+   "files": {
+    "a.mp4": "fixtures/media/mp4-h264-aac-long.mp4"
+   },
+   "measure": [
+    {
+     "js": "\n(async () => {\n  const out = {};\n  let n = 0;\n  const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; };\n  await sleep(1200);\n  out.load = await take();\n  out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, seek: rng(v.seekable), buf: rng(v.buffered)};\n  v.currentTime = v.duration * 0.6;\n  out.seeked = await once(v, 'seeked', 3000);\n  await sleep(700);\n  out.afterSeek = {rs: v.readyState, ct: r2(v.currentTime), buf: rng(v.buffered), seek: rng(v.seekable), seeking: v.seeking, err: v.error ? v.error.code : null};\n  out.seek = await take();\n  return out;\n})()\n"
+    }
+   ],
+   "ranges": "ignore"
   }
  ]
 }

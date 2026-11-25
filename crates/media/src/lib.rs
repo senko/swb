@@ -15,6 +15,7 @@
 //! This crate is safe Rust; the C boundary and all `unsafe` code are in
 //! `swb-media-ffi`.
 
+mod can_play;
 mod clock;
 mod error;
 mod info;
@@ -32,6 +33,7 @@ mod file;
 #[cfg(feature = "ffmpeg")]
 pub mod pipeline;
 
+pub use can_play::{CanPlay, can_play_type};
 pub use clock::{ClockSource, MediaClock};
 pub use error::MediaError;
 pub use info::{

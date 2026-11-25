@@ -9,9 +9,13 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `HTMLVideoElement`.
 pub trait HTMLVideoElementImpl: b::Host {
-}
+    /// `readonly attribute unsigned long videoWidth`.
+    fn video_width(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<u32>;
 
-impl<T: b::Host> HTMLVideoElementImpl for T {}
+    /// `readonly attribute unsigned long videoHeight`.
+    fn video_height(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<u32>;
+
+}
 
 fn get_width<H: HTMLVideoElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("HTMLVideoElement", "width"), super::DOM_EXCEPTION, |rt| {
@@ -46,6 +50,22 @@ fn set_height<H: HTMLVideoElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let value = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(b::Exception::nested)?;
         b::ce::scope(rt, |rt| b::reflect::set_unsigned_long::<H>(&mut b::Cx::new(rt, call, super::HTML_VIDEO_ELEMENT), this, "height", b::reflect::UnsignedLimit::None, None, value))?;
         Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_video_width<H: HTMLVideoElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLVideoElement", "videoWidth"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_VIDEO_ELEMENT)?;
+        let result = <H as HTMLVideoElementImpl>::video_width(&mut b::Cx::new(rt, call, super::HTML_VIDEO_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::number(f64::from(result)))?)
+    })
+}
+
+fn get_video_height<H: HTMLVideoElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLVideoElement", "videoHeight"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_VIDEO_ELEMENT)?;
+        let result = <H as HTMLVideoElementImpl>::video_height(&mut b::Cx::new(rt, call, super::HTML_VIDEO_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::number(f64::from(result)))?)
     })
 }
 
@@ -102,6 +122,8 @@ pub fn define<H: HTMLVideoElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> 
     let _ = target;
     rt.define_accessor(realm, target, "width", (Some(get_width::<H> as swb_js::NativeFn), Some(set_width::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "height", (Some(get_height::<H> as swb_js::NativeFn), Some(set_height::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "videoWidth", (Some(get_video_width::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "videoHeight", (Some(get_video_height::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "poster", (Some(get_poster::<H> as swb_js::NativeFn), Some(set_poster::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "playsInline", (Some(get_plays_inline::<H> as swb_js::NativeFn), Some(set_plays_inline::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;

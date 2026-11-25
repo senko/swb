@@ -698,3 +698,99 @@ fn a_dropped_pipeline_gives_its_place_back() {
     drop(q);
     wait_until("the threads end", || slots.live_threads() == 0);
 }
+
+/// How long the last thread of an ended run waits before it hands its place
+/// on, in the tests of the handover.
+const HANDOVER_DELAY: Duration = Duration::from_millis(1000);
+
+/// Follows the handover to the waiting pipeline `b`: its place is in
+/// transit from the end of another run (which the caller has caused) until
+/// `b` has it, and `b` waits for it with `awaits_handover` true throughout
+/// (M14 feature 6a: an owner in virtual time does not move the clock then).
+fn follow_handover(b: &Pipeline, slots: &PipelineSlots) {
+    let started = Instant::now();
+    while !b.awaits_handover() {
+        assert!(b.is_waiting(), "the place came without a transit");
+        assert!(started.elapsed() < HANG, "the run does not end");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    while b.awaits_handover() {
+        assert!(started.elapsed() < HANG, "the place does not come");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    assert!(!b.is_waiting(), "the transit ended without the place");
+    assert_eq!(slots.in_transit(), 0);
+}
+
+#[test]
+fn a_run_that_fails_hands_its_place_on_through_a_transit() {
+    // The demux thread fails to open the file (`Shared::fail`): the run
+    // ends and the place stays in transit while the thread ends.
+    let slots = PipelineSlots::new(1);
+    slots.set_handover_delay(HANDOVER_DELAY);
+    let waker_a = Arc::new(Waker::default());
+    let waker_b = Arc::new(Waker::default());
+    let mut oa = options(&waker_a);
+    oa.slots = slots.clone();
+    let mut a = open_fixture_with("garbage.mp4", oa);
+    let mut ob = options(&waker_b);
+    ob.slots = slots.clone();
+    let b = open_fixture_with("mp4-h264-high-aac.mp4", ob);
+    assert!(b.is_waiting());
+    follow_handover(&b, &slots);
+    let mut reports = Vec::new();
+    settle_update(&mut a, &waker_a, 0, &mut reports);
+    assert!(error_code(&reports).is_some(), "{reports:?}");
+    drop(b);
+}
+
+#[test]
+fn a_run_that_the_owner_suspends_hands_its_place_on_through_a_transit() {
+    let slots = PipelineSlots::new(1);
+    slots.set_handover_delay(HANDOVER_DELAY);
+    let waker_a = Arc::new(Waker::default());
+    let waker_b = Arc::new(Waker::default());
+    let mut oa = options(&waker_a);
+    oa.slots = slots.clone();
+    let mut a = open_fixture_with("mp4-h264-high-aac.mp4", oa);
+    let mut ob = options(&waker_b);
+    ob.slots = slots.clone();
+    let b = open_fixture_with("mp4-h264-high-aac.mp4", ob);
+    assert!(b.is_waiting());
+    a.suspend(0);
+    follow_handover(&b, &slots);
+    drop(b);
+}
+
+#[test]
+fn a_run_that_the_watchdog_detaches_wakes_every_waiter() {
+    // The run's thread blocks in the source (it opens), and the owner
+    // waits for data: the watchdog fails the run and detaches it, so the
+    // place goes on at once, and the owners of the waiters are woken, also
+    // the one that does not get the place.
+    let name = "mp4-h264-high-aac.mp4";
+    let slots = PipelineSlots::new(1);
+    slots.set_handover_delay(HANDOVER_DELAY);
+    let gate = Arc::new(Gate::default());
+    let waker_a = Arc::new(Waker::default());
+    let waker_b = Arc::new(Waker::default());
+    let waker_c = Arc::new(Waker::default());
+    let mut oa = options(&waker_a);
+    oa.slots = slots.clone();
+    oa.stall_limit = Duration::from_millis(200);
+    let a = Pipeline::open(stalling(name, 0, &gate), oa);
+    let open_waiter = |waker: &Arc<Waker>| {
+        let mut o = options(waker);
+        o.slots = slots.clone();
+        open_fixture_with(name, o)
+    };
+    let b = open_waiter(&waker_b);
+    let c = open_waiter(&waker_c);
+    assert!(b.is_waiting() && c.is_waiting());
+    assert!(a.has_pending_work(), "opening");
+    wait_until("b has the place", || !b.is_waiting());
+    wait_until("c is woken", || waker_c.count() > 0);
+    assert!(c.is_waiting());
+    assert_eq!(slots.in_transit(), 0);
+    drop((a, b, c));
+}

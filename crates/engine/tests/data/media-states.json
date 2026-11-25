@@ -1,0 +1,3609 @@
+{
+  "cases": [
+    {
+      "name": "load-mp4-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=1 ct=0 P",
+              "suspend ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-mp4-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": [
+              "a.mp4 bytes=0- -> 206 55902"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-mp4-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": [
+              "a.mp4 bytes=0- -> 206 55902"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-mp4-preload-default",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": [
+              "a.mp4 bytes=0- -> 206 55902"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-webm-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=1 ct=0 P",
+              "suspend ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": null,
+              "src": "a.webm"
+            },
+            "log": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-webm-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "suspend ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2.003,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.webm"
+            },
+            "log": [
+              "a.webm bytes=0- -> 206 78263"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-webm-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2.003,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.webm"
+            },
+            "log": [
+              "a.webm bytes=0- -> 206 78263"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-webm-preload-default",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "suspend ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2.003,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.webm"
+            },
+            "log": [
+              "a.webm bytes=0- -> 206 78263"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-mp3-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=1 ct=0 P",
+              "suspend ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "n/a",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": null,
+              "src": "a.mp3"
+            },
+            "log": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-mp3-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "n/a",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp3"
+            },
+            "log": [
+              "a.mp3 bytes=0- -> 206 16508"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-mp3-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "n/a",
+              "buf": "0-2.01",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp3"
+            },
+            "log": [
+              "a.mp3 bytes=0- -> 206 16508"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-mp3-preload-default",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "n/a",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp3"
+            },
+            "log": [
+              "a.mp3 bytes=0- -> 206 16508"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-mp4-no-ranges-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-0",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": [
+              "a.mp4 bytes=0- -> 200 55902"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-mp4-moov-at-end-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": [
+              "a.mp4 bytes=0- -> 206 55902"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-mp4-moov-at-end-no-ranges-preload-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-0",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": [
+              "a.mp4 bytes=0- -> 200 55902"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-mp4-no-ranges-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-0",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": [
+              "a.mp4 bytes=0- -> 200 55902"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-mp4-moov-at-end-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": [
+              "a.mp4 bytes=0- -> 206 55902"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-mp4-moov-at-end-no-ranges-preload-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-0",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": [
+              "a.mp4 bytes=0- -> 200 55902"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "size-video-no-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#v, #w, #a, #b)[1]",
+          "tag": "video",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            300.0,
+            150.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#v, #w, #a, #b)[2]",
+          "tag": "video",
+          "index": 5,
+          "rect": [
+            308.0,
+            8.0,
+            300.0,
+            150.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#v, #w, #a, #b)[3]",
+          "tag": "audio",
+          "index": 6,
+          "rect": [
+            8.0,
+            162.0,
+            300.0,
+            54.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#v, #w, #a, #b)[4]",
+          "tag": "audio",
+          "index": 7,
+          "rect": null
+        }
+      ]
+    },
+    {
+      "name": "size-video-after-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "Promise.all([v, w, x, y].map(m => m.readyState ? 1 : once(m, 'loadedmetadata'))).then(() => [v, w, x, y].map(m => m.videoWidth + 'x' + m.videoHeight))",
+          "value": [
+            "320x240",
+            "320x240",
+            "321x241",
+            "321x241"
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#v, #w, #x, #y)[1]",
+          "tag": "video",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            320.0,
+            240.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#v, #w, #x, #y)[2]",
+          "tag": "video",
+          "index": 5,
+          "rect": [
+            328.0,
+            173.0,
+            100.0,
+            75.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#v, #w, #x, #y)[3]",
+          "tag": "video",
+          "index": 6,
+          "rect": [
+            428.0,
+            97.86,
+            200.0,
+            150.14
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#v, #w, #x, #y)[4]",
+          "tag": "video",
+          "index": 7,
+          "rect": [
+            628.0,
+            148.0,
+            133.19,
+            100.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "size-video-poster",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "once(w, 'loadedmetadata').then(() => sleep(200)).then(() => [w.videoWidth, w.videoHeight])",
+          "value": [
+            320,
+            240
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#v, #w)[1]",
+          "tag": "video",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            200.0,
+            100.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#v, #w)[2]",
+          "tag": "video",
+          "index": 5,
+          "rect": [
+            208.0,
+            8.0,
+            200.0,
+            100.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "size-video-odd-321x241",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "once(v, 'loadedmetadata').then(() => sleep(200)).then(() => [v.videoWidth, v.videoHeight])",
+          "value": [
+            321,
+            241
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "#v[1]",
+          "tag": "video",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            321.0,
+            241.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "size-audio-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "once(a, 'loadedmetadata').then(() => sleep(200)).then(() => [a.duration, a.videoWidth])",
+          "value": [
+            2,
+            null
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #b)[1]",
+          "tag": "audio",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            300.0,
+            54.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#a, #b)[2]",
+          "tag": "audio",
+          "index": 5,
+          "rect": null
+        }
+      ]
+    },
+    {
+      "name": "size-video-fixed-height-aspect",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "Promise.all([v, w].map(m => m.readyState ? 1 : once(m, 'loadedmetadata'))).then(() => sleep(200)).then(() => 'ok')",
+          "value": "ok"
+        },
+        {
+          "kind": "boxes",
+          "label": "(#v, #w)[1]",
+          "tag": "video",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            160.0,
+            120.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#v, #w)[2]",
+          "tag": "video",
+          "index": 5,
+          "rect": [
+            8.0,
+            132.0,
+            784.0,
+            588.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "err-missing-file",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "error rs=0 ns=3 ct=0 P"
+              ],
+              "s": {
+                "rs": 0,
+                "ns": 3,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": NaN,
+                "size": "0x0",
+                "buf": "",
+                "seek": "",
+                "played": "",
+                "err": "4: MEDIA_ELEMENT_ERROR: Format error",
+                "src": "nothere.mp4"
+              }
+            },
+            "play": "NotSupportedError: The element has no supported sources.",
+            "after": [
+              "volumechange rs=0 ns=3 ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": "4: MEDIA_ELEMENT_ERROR: Format error",
+              "src": "nothere.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-text-file",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "progress ct=0 P",
+                "suspend ct=0 P",
+                "error rs=0 ns=3 ct=0 P"
+              ],
+              "s": {
+                "rs": 0,
+                "ns": 3,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": NaN,
+                "size": "0x0",
+                "buf": "",
+                "seek": "",
+                "played": "",
+                "err": "4: PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed",
+                "src": "a.txt"
+              }
+            },
+            "play": "NotSupportedError: The element has no supported sources.",
+            "after": [
+              "volumechange rs=0 ns=3 ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": "4: PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed",
+              "src": "a.txt"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-html-as-video",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "progress ct=0 P",
+                "suspend ct=0 P",
+                "error rs=0 ns=3 ct=0 P"
+              ],
+              "s": {
+                "rs": 0,
+                "ns": 3,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": NaN,
+                "size": "0x0",
+                "buf": "",
+                "seek": "",
+                "played": "",
+                "err": "4: PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed",
+                "src": "a.mp4"
+              }
+            },
+            "play": "NotSupportedError: The element has no supported sources.",
+            "after": [
+              "volumechange rs=0 ns=3 ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": "4: PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed",
+              "src": "a.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-empty-file",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "progress ct=0 P",
+                "suspend ct=0 P",
+                "error rs=0 ns=3 ct=0 P"
+              ],
+              "s": {
+                "rs": 0,
+                "ns": 3,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": NaN,
+                "size": "0x0",
+                "buf": "",
+                "seek": "",
+                "played": "",
+                "err": "4: PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed",
+                "src": "a.mp4"
+              }
+            },
+            "play": "NotSupportedError: The element has no supported sources.",
+            "after": [
+              "volumechange rs=0 ns=3 ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": "4: PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed",
+              "src": "a.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-status-500",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "error rs=0 ns=3 ct=0 P"
+              ],
+              "s": {
+                "rs": 0,
+                "ns": 3,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": NaN,
+                "size": "0x0",
+                "buf": "",
+                "seek": "",
+                "played": "",
+                "err": "4: MEDIA_ELEMENT_ERROR: Format error",
+                "src": "a.mp4"
+              }
+            },
+            "play": "NotSupportedError: The element has no supported sources.",
+            "after": [
+              "volumechange rs=0 ns=3 ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": "4: MEDIA_ELEMENT_ERROR: Format error",
+              "src": "a.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-redirect",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "progress ct=0 P",
+                "suspend ct=0 P",
+                "durationchange ct=0 P",
+                "resize ct=0 P",
+                "loadedmetadata ct=0 P",
+                "loadeddata rs=4 ns=1 ct=0 P",
+                "canplay rs=4 ns=1 ct=0 P",
+                "canplaythrough rs=4 ns=1 ct=0 P"
+              ],
+              "s": {
+                "rs": 4,
+                "ns": 1,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": 2,
+                "size": "320x240",
+                "buf": "0-2",
+                "seek": "0-2",
+                "played": "",
+                "err": null,
+                "src": "r.mp4"
+              }
+            },
+            "play": "resolved",
+            "after": [
+              "volumechange rs=4 ns=1 ct=0",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "pause rs=4 ns=1 ct=2 P",
+              "ended rs=4 ns=1 ct=2 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": true,
+              "seeking": false,
+              "ct": 2,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-2",
+              "err": null,
+              "src": "r.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-garbage-mp4",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "progress ct=0 P",
+                "suspend ct=0 P",
+                "error rs=0 ns=3 ct=0 P"
+              ],
+              "s": {
+                "rs": 0,
+                "ns": 3,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": NaN,
+                "size": "0x0",
+                "buf": "",
+                "seek": "",
+                "played": "",
+                "err": "4: PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed",
+                "src": "a.mp4"
+              }
+            },
+            "play": "NotSupportedError: The element has no supported sources.",
+            "after": [
+              "volumechange rs=0 ns=3 ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": "4: PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed",
+              "src": "a.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-corrupt-mp4",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(2500).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "progress ct=0 P",
+                "suspend ct=0 P",
+                "durationchange ct=0 P",
+                "resize ct=0 P",
+                "loadedmetadata ct=0 P",
+                "loadeddata rs=4 ns=1 ct=0 P",
+                "canplay rs=4 ns=1 ct=0 P",
+                "canplaythrough rs=4 ns=1 ct=0 P"
+              ],
+              "s": {
+                "rs": 4,
+                "ns": 1,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": 2,
+                "size": "320x240",
+                "buf": "0-2",
+                "seek": "0-2",
+                "played": "",
+                "err": null,
+                "src": "a.mp4"
+              }
+            },
+            "play": "resolved",
+            "after": [
+              "volumechange rs=4 ns=1 ct=0",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "error rs=4 ns=1 ct=0.5 P",
+              "timeupdate rs=4 ns=1 ct=0.5 P",
+              "pause rs=4 ns=1 ct=0.5 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-0.5",
+              "err": "3: PipelineStatus::PIPELINE_ERROR_DECODE: Failed to send audio packet for decoding: {timestamp=859138 duration=23220 size=202 is_key_frame=1 encrypted=0}",
+              "src": "a.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-corrupt-webm",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(2500).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "progress ct=0 P",
+                "suspend ct=0 P",
+                "durationchange ct=0 P",
+                "resize ct=0 P",
+                "loadedmetadata ct=0 P",
+                "loadeddata rs=4 ns=1 ct=0 P",
+                "canplay rs=4 ns=1 ct=0 P",
+                "canplaythrough rs=4 ns=1 ct=0 P"
+              ],
+              "s": {
+                "rs": 4,
+                "ns": 1,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": 2.003,
+                "size": "320x240",
+                "buf": "0-2",
+                "seek": "0-2",
+                "played": "",
+                "err": null,
+                "src": "a.webm"
+              }
+            },
+            "play": "resolved",
+            "after": [
+              "volumechange rs=4 ns=1 ct=0",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "pause rs=4 ns=1 ct=2 P",
+              "ended rs=4 ns=1 ct=2 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": true,
+              "seeking": false,
+              "ct": 2,
+              "dur": 2.003,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-2",
+              "err": null,
+              "src": "a.webm"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-truncated-mp4",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(2500).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "progress ct=0 P",
+                "suspend ct=0 P",
+                "durationchange ct=0 P",
+                "resize ct=0 P",
+                "loadedmetadata ct=0 P",
+                "loadeddata rs=4 ns=1 ct=0 P",
+                "canplay rs=4 ns=1 ct=0 P",
+                "canplaythrough rs=4 ns=1 ct=0 P"
+              ],
+              "s": {
+                "rs": 4,
+                "ns": 1,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": 2,
+                "size": "320x240",
+                "buf": "0-2",
+                "seek": "0-2",
+                "played": "",
+                "err": null,
+                "src": "a.mp4"
+              }
+            },
+            "play": "resolved",
+            "after": [
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "error rs=4 ns=1 ct=0.75 P",
+              "timeupdate rs=4 ns=1 ct=0.75 P",
+              "pause rs=4 ns=1 ct=0.75 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0.75,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-0.75",
+              "err": "3: PipelineStatus::PIPELINE_ERROR_DECODE: video decode error!",
+              "src": "a.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-no-moov-mp4",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(2500).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "progress ct=0 P",
+                "suspend ct=0 P",
+                "error rs=0 ns=3 ct=0 P"
+              ],
+              "s": {
+                "rs": 0,
+                "ns": 3,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": NaN,
+                "size": "0x0",
+                "buf": "",
+                "seek": "",
+                "played": "",
+                "err": "4: PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed",
+                "src": "a.mp4"
+              }
+            },
+            "play": "NotSupportedError: The element has no supported sources.",
+            "after": [
+              "volumechange rs=0 ns=3 ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": "4: PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed",
+              "src": "a.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-truncated-webm",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(2500).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "progress ct=0 P",
+                "suspend ct=0 P",
+                "durationchange ct=0 P",
+                "resize ct=0 P",
+                "loadedmetadata ct=0 P",
+                "loadeddata rs=4 ns=1 ct=0 P",
+                "canplay rs=4 ns=1 ct=0 P",
+                "canplaythrough rs=4 ns=1 ct=0 P"
+              ],
+              "s": {
+                "rs": 4,
+                "ns": 1,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": 2.003,
+                "size": "320x240",
+                "buf": "0-2",
+                "seek": "0-2",
+                "played": "",
+                "err": null,
+                "src": "a.webm"
+              }
+            },
+            "play": "resolved",
+            "after": [
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "pause rs=4 ns=1 ct=2 P",
+              "ended rs=4 ns=1 ct=2 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": true,
+              "seeking": false,
+              "ct": 2,
+              "dur": 2.003,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-2",
+              "err": null,
+              "src": "a.webm"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-truncated-mp3",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(2500).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "progress ct=0 P",
+                "suspend ct=0 P",
+                "durationchange ct=0 P",
+                "loadedmetadata ct=0 P",
+                "loadeddata rs=4 ns=1 ct=0 P",
+                "canplay rs=4 ns=1 ct=0 P",
+                "canplaythrough rs=4 ns=1 ct=0 P"
+              ],
+              "s": {
+                "rs": 4,
+                "ns": 1,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": 2,
+                "size": "n/a",
+                "buf": "0-2",
+                "seek": "0-2",
+                "played": "",
+                "err": null,
+                "src": "a.mp3"
+              }
+            },
+            "play": "resolved",
+            "after": [
+              "volumechange rs=4 ns=1 ct=0",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "pause rs=4 ns=1 ct=2 P",
+              "ended rs=4 ns=1 ct=2 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": true,
+              "seeking": false,
+              "ct": 2,
+              "dur": 2,
+              "size": "n/a",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-2",
+              "err": null,
+              "src": "a.mp3"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-wrong-mime-webm-as-mp4",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(2000).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "progress ct=0 P",
+                "suspend ct=0 P",
+                "durationchange ct=0 P",
+                "resize ct=0 P",
+                "loadedmetadata ct=0 P",
+                "loadeddata rs=4 ns=1 ct=0 P",
+                "canplay rs=4 ns=1 ct=0 P",
+                "canplaythrough rs=4 ns=1 ct=0 P"
+              ],
+              "s": {
+                "rs": 4,
+                "ns": 1,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": 2.003,
+                "size": "320x240",
+                "buf": "0-2",
+                "seek": "0-2",
+                "played": "",
+                "err": null,
+                "src": "a.mp4"
+              }
+            },
+            "play": "resolved",
+            "after": [
+              "volumechange rs=4 ns=1 ct=0",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "pause rs=4 ns=1 ct=2 P",
+              "ended rs=4 ns=1 ct=2 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": true,
+              "seeking": false,
+              "ct": 2,
+              "dur": 2.003,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-2",
+              "err": null,
+              "src": "a.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-wrong-mime-mp4-as-webm",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(2000).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "progress ct=0 P",
+                "suspend ct=0 P",
+                "durationchange ct=0 P",
+                "resize ct=0 P",
+                "loadedmetadata ct=0 P",
+                "loadeddata rs=4 ns=1 ct=0 P",
+                "canplay rs=4 ns=1 ct=0 P",
+                "canplaythrough rs=4 ns=1 ct=0 P"
+              ],
+              "s": {
+                "rs": 4,
+                "ns": 1,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": 2,
+                "size": "320x240",
+                "buf": "0-2",
+                "seek": "0-2",
+                "played": "",
+                "err": null,
+                "src": "a.webm"
+              }
+            },
+            "play": "resolved",
+            "after": [
+              "volumechange rs=4 ns=1 ct=0",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "pause rs=4 ns=1 ct=2 P",
+              "ended rs=4 ns=1 ct=2 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": true,
+              "seeking": false,
+              "ct": 2,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-2",
+              "err": null,
+              "src": "a.webm"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-wrong-mime-mp4-as-txt",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(2000).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "progress ct=0 P",
+                "suspend ct=0 P",
+                "durationchange ct=0 P",
+                "resize ct=0 P",
+                "loadedmetadata ct=0 P",
+                "loadeddata rs=4 ns=1 ct=0 P",
+                "canplay rs=4 ns=1 ct=0 P",
+                "canplaythrough rs=4 ns=1 ct=0 P"
+              ],
+              "s": {
+                "rs": 4,
+                "ns": 1,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": 2,
+                "size": "320x240",
+                "buf": "0-2",
+                "seek": "0-2",
+                "played": "",
+                "err": null,
+                "src": "a.txt"
+              }
+            },
+            "play": "resolved",
+            "after": [
+              "volumechange rs=4 ns=1 ct=0",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "pause rs=4 ns=1 ct=2 P",
+              "ended rs=4 ns=1 ct=2 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": true,
+              "seeking": false,
+              "ct": 2,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-2",
+              "err": null,
+              "src": "a.txt"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-connection-refused",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "error rs=0 ns=3 ct=0 P"
+              ],
+              "s": {
+                "rs": 0,
+                "ns": 3,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": NaN,
+                "size": "0x0",
+                "buf": "",
+                "seek": "",
+                "played": "",
+                "err": "4: MEDIA_ELEMENT_ERROR: Format error",
+                "src": "x.mp4"
+              }
+            },
+            "play": "NotSupportedError: The element has no supported sources.",
+            "after": [
+              "volumechange rs=0 ns=3 ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": "4: MEDIA_ELEMENT_ERROR: Format error",
+              "src": "x.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-unsupported-codec-hevc-like",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(async () => { const pre = {ev: evs(), s: S(v)}; const n = EVO.length; v.muted = true; const play = await v.play().then(() => 'resolved', e => e.name + ': ' + e.message); await Promise.race([once(v, 'ended', 3000), once(v, 'error', 3000)]); await sleep(300); return {pre, play, after: evs().slice(n), s: S(v)}; })",
+          "value": {
+            "pre": {
+              "ev": [
+                "loadstart rs=0 ns=2 ct=0 P",
+                "progress ct=0 P",
+                "suspend ct=0 P",
+                "error rs=0 ns=3 ct=0 P"
+              ],
+              "s": {
+                "rs": 0,
+                "ns": 3,
+                "paused": true,
+                "ended": false,
+                "seeking": false,
+                "ct": 0,
+                "dur": NaN,
+                "size": "0x0",
+                "buf": "",
+                "seek": "",
+                "played": "",
+                "err": "4: PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed",
+                "src": "a.mp4"
+              }
+            },
+            "play": "NotSupportedError: The element has no supported sources.",
+            "after": [
+              "volumechange rs=0 ns=3 ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": "4: PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed",
+              "src": "a.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-source-type-unsupported",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(800).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=3 ct=0 P",
+              "error@s1 rs=undefined ns=undefined ct=NaN"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": null,
+              "src": ""
+            },
+            "log": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "err-source-all-bad",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1200).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "error@s1 rs=undefined ns=undefined ct=NaN",
+              "error@s2 rs=undefined ns=undefined ct=NaN"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": null,
+              "src": "missing2.webm"
+            },
+            "log": [
+              "missing1.mp4 bytes=0- -> 404 0",
+              "missing2.webm bytes=0- -> 404 0"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-type-skips-unsupported",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1200).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "error@s1 rs=undefined ns=undefined ct=NaN",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "suspend ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2.003,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "b.webm"
+            },
+            "log": [
+              "b.webm bytes=0- -> 206 78263"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-first-404-then-ok",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1200).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "error@s1 rs=undefined ns=undefined ct=NaN",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": [
+              "missing.mp4 bytes=0- -> 404 0",
+              "a.mp4 bytes=0- -> 206 55902"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-first-garbage-then-ok",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1200).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "error@s1 rs=undefined ns=undefined ct=NaN",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": [
+              "g.mp4 bytes=0- -> 206 4096",
+              "a.mp4 bytes=0- -> 206 55902"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-media-attribute-no-match",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1200).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "error@s1 rs=undefined ns=undefined ct=NaN",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "suspend ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2.003,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "b.webm"
+            },
+            "log": [
+              "b.webm bytes=0- -> 206 78263"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-media-attribute-match",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1200).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": [
+              "a.mp4 bytes=0- -> 206 55902"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-src-attribute-wins",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1200).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "suspend ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2.003,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "b.webm"
+            },
+            "log": [
+              "b.webm bytes=0- -> 206 78263"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-src-fails-sources-ignored",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1200).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "error rs=0 ns=3 ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": "4: MEDIA_ELEMENT_ERROR: Format error",
+              "src": "missing.webm"
+            },
+            "log": [
+              "missing.webm bytes=0- -> 404 0"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-source-no-src",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1200).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": [
+              "a.mp4 bytes=0- -> 206 55902"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-source-added-later",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(300).then(() => { const s = document.createElement('source'); s.src = 'a.mp4'; v.appendChild(s); return sleep(1000); }).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": [
+              "a.mp4 bytes=0- -> 206 55902"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-source-added-later-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(300).then(() => { const s = document.createElement('source'); s.src = 'a.mp4'; v.appendChild(s); return sleep(1000); }).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=1 ct=0 P",
+              "suspend ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-src-set-later",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(300).then(() => { v.src = 'a.mp4'; return sleep(1000); }).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": [
+              "a.mp4 bytes=0- -> 206 55902"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-src-changed-while-loaded",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(800).then(() => { EVO.push({n: '--- set src', tag: '', k: 1, t: 0, rs: v.readyState, ns: v.networkState, ct: cq(v), p: v.paused}); v.src = 'b.webm'; return sleep(1000); }).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "--- set src rs=4 ns=1 ct=0 P",
+              "abort rs=0 ns=3 ct=0 P",
+              "emptied rs=0 ns=3 ct=0 P",
+              "timeupdate rs=0 ns=3 ct=0 P",
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2.003,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "b.webm"
+            },
+            "log": [
+              "a.mp4 bytes=0- -> 206 55902",
+              "b.webm bytes=0- -> 206 78263"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-src-removed",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(800).then(() => { EVO.push({n: '--- removeAttribute(src)', tag: '', k: 1, t: 0, rs: v.readyState, ns: v.networkState, ct: cq(v), p: v.paused}); v.removeAttribute('src'); return sleep(500); }).then(async () => ({ev: evs(), s: S(v)}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "--- removeAttribute(src) rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-source-removed-while-loading",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(300).then(() => { v.load(); s1.remove(); return sleep(800); }).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=1 ct=0 P",
+              "suspend ct=0 P",
+              "abort rs=0 ns=3 ct=0 P",
+              "emptied rs=0 ns=3 ct=0 P",
+              "timeupdate rs=0 ns=3 ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 0,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "log": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-currentSrc-url",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1000).then(() => ({cs: v.currentSrc.replace(location.origin, 'O'), src: v.src.replace(location.origin, 'O'), attr: v.getAttribute('src'), ct: v.currentTime, s: S(v)}))",
+          "value": {
+            "cs": "O/case-59/a.mp4?x=1#t=1",
+            "src": "O/case-59/a.mp4?x=1#t=1",
+            "attr": "a.mp4?x=1#t=1",
+            "ct": 1,
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 1,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4?x=1#t=1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-fragment-time",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1200).then(() => ({ct: v.currentTime, s: S(v), ev: evs()}))",
+          "value": {
+            "ct": 1,
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 1,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4#t=1.0"
+            },
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=1 P",
+              "resize ct=1 P",
+              "loadedmetadata ct=1 P",
+              "seeking rs=1 ns=1 ct=1 P",
+              "timeupdate rs=4 ns=1 ct=1 P",
+              "seeked rs=4 ns=1 ct=1 P",
+              "loadeddata rs=4 ns=1 ct=1 P",
+              "canplay rs=4 ns=1 ct=1 P",
+              "canplaythrough rs=4 ns=1 ct=1 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-source-srcset-like-and-empty-src",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(500).then(() => ({s: S(v), ev: evs(), attr: v.src.replace(location.origin, 'O'), cs: v.currentSrc}))",
+          "value": {
+            "s": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": "4: MEDIA_ELEMENT_ERROR: Empty src attribute",
+              "src": ""
+            },
+            "ev": [
+              "loadstart rs=0 ns=3 ct=0 P",
+              "error rs=0 ns=3 ct=0 P"
+            ],
+            "attr": "O/case-61/case-61.html",
+            "cs": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "sel-swap-sources-after-error",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(500).then(() => { s1.src = 'a.mp4'; return sleep(800); }).then(async () => ({ev: evs(), s: S(v), log: await log()}))",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P"
+            ],
+            "s": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": null,
+              "src": "missing.mp4"
+            },
+            "log": [
+              "missing.mp4 bytes=0- -> 404 0"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "format-metadata-table",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const names = [[\"mp4-h264-high-aac.mp4\", \"video\"], [\"mp4-h264-baseline-aac.mp4\", \"video\"], [\"mp4-h264-high-aac-moov-at-end.mp4\", \"video\"], [\"m4a-aac.m4a\", \"audio\"], [\"webm-vp8-vorbis.webm\", \"video\"], [\"webm-vp9-opus.webm\", \"video\"], [\"ogg-vorbis.ogg\", \"audio\"], [\"ogg-opus.opus\", \"audio\"], [\"ogg-flac.oga\", \"audio\"], [\"mp3.mp3\", \"audio\"], [\"flac.flac\", \"audio\"], [\"wav-pcm-s16.wav\", \"audio\"], [\"aac-adts.aac\", \"audio\"], [\"mp4-h264-video-only.mp4\", \"video\"], [\"webm-vp8-video-only.webm\", \"video\"], [\"webm-vp8-321x241.webm\", \"video\"], [\"webm-vp9-321x241.webm\", \"video\"], [\"mp4-h264-bt709.mp4\", \"video\"], [\"mp4-h264-bt601.mp4\", \"video\"], [\"mp4-h264-untagged-bt709.mp4\", \"video\"], [\"mp4-h264-fullrange-bt709.mp4\", \"video\"], [\"webm-vp8-vorbis-start1500.webm\", \"video\"], [\"mp4-h264-aac-start1500.mp4\", \"video\"], [\"mp4-h264-aac-long.mp4\", \"video\"], [\"mp3-long.mp3\", \"audio\"]];\n  const rows = [];\n  for (const [name, tag] of names) {\n    const m = document.createElement(tag);\n    m.preload = 'metadata';\n    m.muted = true;\n    document.body.appendChild(m);\n    const loaded = once(m, 'loadedmetadata', 3000);\n    m.src = name;\n    const how = await loaded;\n    await sleep(150);\n    rows.push([name, how, 'rs=' + m.readyState, 'ns=' + m.networkState, 'dur=' + m.duration, m.videoWidth + 'x' + m.videoHeight, 'ct=' + m.currentTime, 'seek=' + rng(m.seekable), m.error ? 'err=' + m.error.code : '']);\n    m.remove();\n  }\n  return rows;\n})()\n",
+          "value": [
+            [
+              "mp4-h264-high-aac.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "320x240",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "mp4-h264-baseline-aac.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "320x240",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "mp4-h264-high-aac-moov-at-end.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "320x240",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "m4a-aac.m4a",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "undefinedxundefined",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "webm-vp8-vorbis.webm",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2.003",
+              "320x240",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "webm-vp9-opus.webm",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2.008",
+              "320x240",
+              "ct=0",
+              "seek=0-2.01",
+              ""
+            ],
+            [
+              "ogg-vorbis.ogg",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "undefinedxundefined",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "ogg-opus.opus",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2.0065",
+              "undefinedxundefined",
+              "ct=0",
+              "seek=0-2.01",
+              ""
+            ],
+            [
+              "ogg-flac.oga",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "undefinedxundefined",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "mp3.mp3",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "undefinedxundefined",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "flac.flac",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "undefinedxundefined",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "wav-pcm-s16.wav",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "undefinedxundefined",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "aac-adts.aac",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2.027269",
+              "undefinedxundefined",
+              "ct=0",
+              "seek=0-2.03",
+              ""
+            ],
+            [
+              "mp4-h264-video-only.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "320x240",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "webm-vp8-video-only.webm",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "320x240",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "webm-vp8-321x241.webm",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "321x241",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "webm-vp9-321x241.webm",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "321x241",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "mp4-h264-bt709.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "320x240",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "mp4-h264-bt601.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "320x240",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "mp4-h264-untagged-bt709.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "320x240",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "mp4-h264-fullrange-bt709.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=2",
+              "320x240",
+              "ct=0",
+              "seek=0-2",
+              ""
+            ],
+            [
+              "webm-vp8-vorbis-start1500.webm",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=3.5",
+              "320x240",
+              "ct=1.497",
+              "seek=0-3.5",
+              ""
+            ],
+            [
+              "mp4-h264-aac-start1500.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=3.496145",
+              "320x240",
+              "ct=1.476009",
+              "seek=0-3.5",
+              ""
+            ],
+            [
+              "mp4-h264-aac-long.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=10",
+              "320x240",
+              "ct=0",
+              "seek=0-10",
+              ""
+            ],
+            [
+              "mp3-long.mp3",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "dur=10",
+              "undefinedxundefined",
+              "ct=0",
+              "seek=0-10",
+              ""
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "format-timeline-table",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const names = [[\"mp4-h264-high-aac.mp4\", \"video\"], [\"mp4-h264-aac-start1500.mp4\", \"video\"], [\"mp4-h264-aac-fragmented.mp4\", \"video\"], [\"mp4-h264-aac-bframes-no-edit-list.mp4\", \"video\"], [\"mp4-opus.mp4\", \"audio\"], [\"mp4-h264-video-only.mp4\", \"video\"]];\n  const rows = [];\n  for (const [name, tag] of names) {\n    const m = document.createElement(tag);\n    m.preload = 'auto';\n    m.muted = true;\n    document.body.appendChild(m);\n    const loaded = once(m, 'loadedmetadata', 3000);\n    m.src = name;\n    const how = await loaded;\n    const atMeta = 'ct=' + r2(m.currentTime) + ' dur=' + r2(m.duration) + ' seek=' + rng(m.seekable);\n    await sleep(300);\n    rows.push([name, how, 'rs=' + m.readyState, 'ns=' + m.networkState, atMeta, 'later ct=' + r2(m.currentTime) + ' dur=' + r2(m.duration) + ' seek=' + rng(m.seekable) + ' buf=' + rng(m.buffered), m.error ? 'err=' + m.error.code : '']);\n    m.remove();\n  }\n  return rows;\n})()\n",
+          "value": [
+            [
+              "mp4-h264-high-aac.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "ct=0 dur=2 seek=0-2",
+              "later ct=0 dur=2 seek=0-2 buf=0-2",
+              ""
+            ],
+            [
+              "mp4-h264-aac-start1500.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "ct=0 dur=2.023991 seek=0-2.023991",
+              "later ct=1.476009 dur=3.496145 seek=0-3.496145 buf=0-3.496145",
+              ""
+            ],
+            [
+              "mp4-h264-aac-fragmented.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "ct=0 dur=2.08 seek=0-2.08",
+              "later ct=0 dur=2.08 seek=0-2.08 buf=0-2.08",
+              ""
+            ],
+            [
+              "mp4-h264-aac-bframes-no-edit-list.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "ct=0 dur=2.08 seek=0-2.08",
+              "later ct=0 dur=2.08 seek=0-2.08 buf=0-2.08",
+              ""
+            ],
+            [
+              "mp4-opus.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "ct=0 dur=2 seek=0-2",
+              "later ct=0 dur=2 seek=0-2 buf=0-2",
+              ""
+            ],
+            [
+              "mp4-h264-video-only.mp4",
+              "loadedmetadata",
+              "rs=4",
+              "ns=1",
+              "ct=0 dur=2 seek=0-2",
+              "later ct=0 dur=2 seek=0-2 buf=0-2",
+              ""
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "format-play-to-end-table",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "\n(async () => {\n  const names = [[\"mp4-h264-high-aac.mp4\", \"video\"], [\"mp4-h264-baseline-aac.mp4\", \"video\"], [\"mp4-h264-high-aac-moov-at-end.mp4\", \"video\"], [\"m4a-aac.m4a\", \"audio\"], [\"webm-vp8-vorbis.webm\", \"video\"], [\"webm-vp9-opus.webm\", \"video\"], [\"ogg-vorbis.ogg\", \"audio\"], [\"ogg-opus.opus\", \"audio\"], [\"ogg-flac.oga\", \"audio\"], [\"mp3.mp3\", \"audio\"], [\"flac.flac\", \"audio\"], [\"wav-pcm-s16.wav\", \"audio\"], [\"aac-adts.aac\", \"audio\"], [\"mp4-h264-video-only.mp4\", \"video\"], [\"webm-vp8-video-only.webm\", \"video\"], [\"webm-vp8-321x241.webm\", \"video\"], [\"webm-vp9-321x241.webm\", \"video\"], [\"mp4-h264-bt709.mp4\", \"video\"], [\"mp4-h264-bt601.mp4\", \"video\"], [\"mp4-h264-untagged-bt709.mp4\", \"video\"], [\"mp4-h264-fullrange-bt709.mp4\", \"video\"], [\"webm-vp8-vorbis-start1500.webm\", \"video\"], [\"mp4-h264-aac-start1500.mp4\", \"video\"]];\n  const rows = [];\n  for (const [name, tag] of names) {\n    const m = document.createElement(tag);\n    m.muted = true;\n    document.body.appendChild(m);\n    m.src = name;\n    const t0 = performance.now();\n    const pr = m.play().then(() => 'ok', e => e.name);\n    const end = await once(m, 'ended', 5000);\n    rows.push([name, await pr, end, 'ct=' + r2(m.currentTime), 'dur=' + m.duration, 'played=' + rngq(m.played), 'buf=' + rng(m.buffered), 'wall=' + (Math.round((performance.now() - t0) / 250) * 0.25), m.error ? 'err=' + m.error.code : '']);\n    m.remove();\n  }\n  return rows;\n})()\n",
+          "value": [
+            [
+              "mp4-h264-high-aac.mp4",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "mp4-h264-baseline-aac.mp4",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "mp4-h264-high-aac-moov-at-end.mp4",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "m4a-aac.m4a",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=-0.02-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "webm-vp8-vorbis.webm",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2.003",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "webm-vp9-opus.webm",
+              "ok",
+              "ended",
+              "ct=2.01",
+              "dur=2.008",
+              "played=0-2",
+              "buf=0-2.01",
+              "wall=2",
+              ""
+            ],
+            [
+              "ogg-vorbis.ogg",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "ogg-opus.opus",
+              "ok",
+              "ended",
+              "ct=2.01",
+              "dur=2.0065",
+              "played=0-2",
+              "buf=0-2.01",
+              "wall=2",
+              ""
+            ],
+            [
+              "ogg-flac.oga",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "mp3.mp3",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2.01",
+              "wall=2",
+              ""
+            ],
+            [
+              "flac.flac",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "wav-pcm-s16.wav",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "aac-adts.aac",
+              "ok",
+              "ended",
+              "ct=2.03",
+              "dur=2.027269",
+              "played=0-2",
+              "buf=0-2.03",
+              "wall=2",
+              ""
+            ],
+            [
+              "mp4-h264-video-only.mp4",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "webm-vp8-video-only.webm",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "webm-vp8-321x241.webm",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "webm-vp9-321x241.webm",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "mp4-h264-bt709.mp4",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "mp4-h264-bt601.mp4",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "mp4-h264-untagged-bt709.mp4",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "mp4-h264-fullrange-bt709.mp4",
+              "ok",
+              "ended",
+              "ct=2",
+              "dur=2",
+              "played=0-2",
+              "buf=0-2",
+              "wall=2",
+              ""
+            ],
+            [
+              "webm-vp8-vorbis-start1500.webm",
+              "ok",
+              "ended",
+              "ct=3.5",
+              "dur=3.5",
+              "played=0-3.5",
+              "buf=0-3.5",
+              "wall=2",
+              ""
+            ],
+            [
+              "mp4-h264-aac-start1500.mp4",
+              "ok",
+              "ended",
+              "ct=3.5",
+              "dur=3.496145",
+              "played=0-3.5",
+              "buf=0-3.5",
+              "wall=2",
+              ""
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

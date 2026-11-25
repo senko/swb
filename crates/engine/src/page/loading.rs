@@ -396,6 +396,7 @@ impl Page {
                 origin: self.clock.now(),
                 room: Some(Rc::clone(&self.maker.animation_room)),
             },
+            media: self.maker.media.clone(),
         });
         // Set without a restyle: the styles of the new document are not
         // computed yet.

@@ -44,6 +44,7 @@ mod history_api;
 mod inner_text;
 mod lazy;
 mod loads;
+mod media;
 pub use frame_damage::FrameDamage;
 #[cfg(debug_assertions)]
 mod paint_check;
@@ -186,6 +187,9 @@ pub(crate) struct DocumentInit {
     /// The page's animation setting (`--animations`, ADR 0044 section 10)
     /// and the page time of the document's time origin.
     pub(crate) animations: AnimationSetting,
+    /// What the media elements of the page share (the bound on open
+    /// pipelines).
+    pub(crate) media: crate::media::MediaContext,
 }
 
 /// The animation setting of a new document: on or off, the page time of
@@ -277,6 +281,9 @@ pub struct DocumentState {
     /// The `load` and `error` events of images and style sheets that wait
     /// for the script runtime.
     pub(crate) element_events: element_events::ElementEvents,
+    /// The `video` and `audio` elements that load or have loaded (M14
+    /// feature 6a).
+    pub(crate) media: crate::media::Media,
     /// True while the journal drain processes a step of the parser: the
     /// style sheets that it finds block scripts.
     parser_drain: bool,
@@ -521,6 +528,7 @@ impl DocumentState {
             script_fetches: ScriptFetches::default(),
             api_fetches: ApiFetches::default(),
             element_events: element_events::ElementEvents::default(),
+            media: crate::media::Media::new(init.media),
             parser_drain: false,
             parser_links: Vec::new(),
             base_url: Derived::new(base_fallback.clone()),
@@ -944,6 +952,20 @@ impl swb_web::EngineHost for DocumentState {
         DocumentState::image_info(self, node)
     }
 
+    fn media_state(&mut self, node: NodeId) -> swb_web::MediaInfo {
+        self.media_info(node)
+    }
+
+    fn media_command(&mut self, node: NodeId, command: swb_web::MediaCommand) {
+        match command {
+            swb_web::MediaCommand::Load => self.media_load(node),
+        }
+    }
+
+    fn can_play_type(&mut self, mime_type: &str) -> &'static str {
+        swb_media::can_play_type(mime_type).as_str()
+    }
+
     fn form_entries(
         &mut self,
         form: NodeId,
@@ -1267,6 +1289,8 @@ impl DocumentState {
         self.script_fetches = ScriptFetches::default();
         self.api_fetches = ApiFetches::default();
         self.element_events = element_events::ElementEvents::default();
+        // The pipelines close: a retired document loads nothing.
+        self.media.clear();
         self.release_fonts_in_task();
         self.stylist = None;
         self.styles = None;

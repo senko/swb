@@ -178,6 +178,45 @@
      "js": "(async () => { v.play(); await once(v, 'playing', 5000); await sleep(500); const s = S(v); v.pause(); return {s, log: await log()}; })()"
     }
    ]
+  },
+  {
+   "name": "real-preload-default-mux-highest-mp4",
+   "html": "<!DOCTYPE html><script>\nconst sleep = ms => new Promise(r => setTimeout(r, ms));\nconst ahead = m => { const b = m.buffered; const end = b.length ? b.end(b.length - 1) : 0; return end > 10 ? 'over 10 s' : 'under 10 s'; };\n</script><video id=v src=a.mp4></video>",
+   "http": true,
+   "files": {
+    "a.mp4": "fixtures/js/media/mux-highest.mp4"
+   },
+   "measure": [
+    {
+     "js": "sleep(1500).then(() => ({preload: v.preload, rs: v.readyState, buffered: ahead(v)}))"
+    }
+   ]
+  },
+  {
+   "name": "real-preload-metadata-mux-highest-mp4",
+   "html": "<!DOCTYPE html><script>\nconst sleep = ms => new Promise(r => setTimeout(r, ms));\nconst ahead = m => { const b = m.buffered; const end = b.length ? b.end(b.length - 1) : 0; return end > 10 ? 'over 10 s' : 'under 10 s'; };\n</script><video id=v src=a.mp4 preload=metadata></video>",
+   "http": true,
+   "files": {
+    "a.mp4": "fixtures/js/media/mux-highest.mp4"
+   },
+   "measure": [
+    {
+     "js": "sleep(1500).then(() => ({preload: v.preload, rs: v.readyState, buffered: ahead(v)}))"
+    }
+   ]
+  },
+  {
+   "name": "real-preload-auto-mux-highest-mp4",
+   "html": "<!DOCTYPE html><script>\nconst sleep = ms => new Promise(r => setTimeout(r, ms));\nconst ahead = m => { const b = m.buffered; const end = b.length ? b.end(b.length - 1) : 0; return end > 10 ? 'over 10 s' : 'under 10 s'; };\n</script><video id=v src=a.mp4 preload=auto></video>",
+   "http": true,
+   "files": {
+    "a.mp4": "fixtures/js/media/mux-highest.mp4"
+   },
+   "measure": [
+    {
+     "js": "sleep(1500).then(() => ({preload: v.preload, rs: v.readyState, buffered: ahead(v)}))"
+    }
+   ]
   }
  ]
 }

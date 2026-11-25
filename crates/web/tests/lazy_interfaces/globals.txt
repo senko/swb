@@ -344,6 +344,8 @@ HTMLEmbedElement:dwc
 HTMLObjectElement:dwc
 HTMLMediaElement:dwc
 HTMLVideoElement:dwc
+MediaError:dwc
+TimeRanges:dwc
 HTMLAudioElement:dwc
 HTMLTrackElement:dwc
 HTMLMapElement:dwc

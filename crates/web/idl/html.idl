@@ -620,15 +620,41 @@ interface HTMLObjectElement : HTMLElement {
   undefined setCustomValidity(DOMString error);
 };
 
+// M14 feature 6a (ADR 0047 section 10): the core of the media element. The
+// members of the playback API (`play()`, `pause()`, the setter of
+// `currentTime`, `ended`, `played`, `volume`, `muted`, `loop` behavior) come
+// with feature 6b.
 [Exposed=Window]
 interface HTMLMediaElement : HTMLElement {
+  const unsigned short NETWORK_EMPTY = 0;
+  const unsigned short NETWORK_IDLE = 1;
+  const unsigned short NETWORK_LOADING = 2;
+  const unsigned short NETWORK_NO_SOURCE = 3;
+  const unsigned short HAVE_NOTHING = 0;
+  const unsigned short HAVE_METADATA = 1;
+  const unsigned short HAVE_CURRENT_DATA = 2;
+  const unsigned short HAVE_FUTURE_DATA = 3;
+  const unsigned short HAVE_ENOUGH_DATA = 4;
+
   [CEReactions, ReflectURL] attribute USVString src;
-  [CEReactions, Reflect, SwbKeywords="=auto none metadata auto", SwbMissing="metadata", SwbInvalid="metadata"] attribute DOMString preload;
+  readonly attribute USVString currentSrc;
   [CEReactions, Reflect, SwbKeywords="=anonymous anonymous use-credentials", SwbInvalid="anonymous"] attribute DOMString? crossOrigin;
+  readonly attribute unsigned short networkState;
+  [CEReactions, Reflect, SwbKeywords="=auto none metadata auto", SwbMissing="metadata", SwbInvalid="metadata"] attribute DOMString preload;
+  [NewObject] readonly attribute TimeRanges buffered;
+  undefined load();
+  DOMString canPlayType(DOMString type);
+  readonly attribute unsigned short readyState;
+  readonly attribute boolean seeking;
+  readonly attribute double currentTime;
+  readonly attribute unrestricted double duration;
+  readonly attribute boolean paused;
+  [NewObject] readonly attribute TimeRanges seekable;
   [CEReactions, Reflect] attribute boolean autoplay;
   [CEReactions, Reflect] attribute boolean loop;
   [CEReactions, Reflect] attribute boolean controls;
   [CEReactions, Reflect="muted"] attribute boolean defaultMuted;
+  readonly attribute MediaError? error;
 };
 
 [Exposed=Window]
@@ -636,8 +662,27 @@ interface HTMLVideoElement : HTMLMediaElement {
   [HTMLConstructor] constructor();
   [CEReactions, Reflect] attribute unsigned long width;
   [CEReactions, Reflect] attribute unsigned long height;
+  readonly attribute unsigned long videoWidth;
+  readonly attribute unsigned long videoHeight;
   [CEReactions, ReflectURL] attribute USVString poster;
   [CEReactions, Reflect] attribute boolean playsInline;
+};
+
+[Exposed=Window]
+interface MediaError {
+  const unsigned short MEDIA_ERR_ABORTED = 1;
+  const unsigned short MEDIA_ERR_NETWORK = 2;
+  const unsigned short MEDIA_ERR_DECODE = 3;
+  const unsigned short MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
+  readonly attribute unsigned short code;
+  readonly attribute DOMString message;
+};
+
+[Exposed=Window]
+interface TimeRanges {
+  readonly attribute unsigned long length;
+  double start(unsigned long index);
+  double end(unsigned long index);
 };
 
 [Exposed=Window]

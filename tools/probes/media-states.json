@@ -920,6 +920,24 @@
    ]
   },
   {
+   "name": "format-timeline-table",
+   "html": "<!DOCTYPE html><script>\nconst r2 = x => Math.round(x * 1000000) / 1000000;\nconst rng = t => Array.from({length: t.length}, (_, i) => r2(t.start(i)) + '-' + r2(t.end(i))).join(',');\nconst sleep = ms => new Promise(r => setTimeout(r, ms));\nconst once = (m, n, ms = 4000) => new Promise(r => { const to = setTimeout(() => r('timeout'), ms); m.addEventListener(n, () => { clearTimeout(to); r(n); }, {once: true}); });\n</script><body></body>",
+   "http": true,
+   "files": {
+    "mp4-h264-high-aac.mp4": "fixtures/media/mp4-h264-high-aac.mp4",
+    "mp4-h264-aac-start1500.mp4": "fixtures/media/mp4-h264-aac-start1500.mp4",
+    "mp4-h264-aac-fragmented.mp4": "fixtures/media/mp4-h264-aac-fragmented.mp4",
+    "mp4-h264-aac-bframes-no-edit-list.mp4": "fixtures/media/mp4-h264-aac-bframes-no-edit-list.mp4",
+    "mp4-opus.mp4": "fixtures/media/mp4-opus.mp4",
+    "mp4-h264-video-only.mp4": "fixtures/media/mp4-h264-video-only.mp4"
+   },
+   "measure": [
+    {
+     "js": "\n(async () => {\n  const names = [[\"mp4-h264-high-aac.mp4\", \"video\"], [\"mp4-h264-aac-start1500.mp4\", \"video\"], [\"mp4-h264-aac-fragmented.mp4\", \"video\"], [\"mp4-h264-aac-bframes-no-edit-list.mp4\", \"video\"], [\"mp4-opus.mp4\", \"audio\"], [\"mp4-h264-video-only.mp4\", \"video\"]];\n  const rows = [];\n  for (const [name, tag] of names) {\n    const m = document.createElement(tag);\n    m.preload = 'auto';\n    m.muted = true;\n    document.body.appendChild(m);\n    const loaded = once(m, 'loadedmetadata', 3000);\n    m.src = name;\n    const how = await loaded;\n    const atMeta = 'ct=' + r2(m.currentTime) + ' dur=' + r2(m.duration) + ' seek=' + rng(m.seekable);\n    await sleep(300);\n    rows.push([name, how, 'rs=' + m.readyState, 'ns=' + m.networkState, atMeta, 'later ct=' + r2(m.currentTime) + ' dur=' + r2(m.duration) + ' seek=' + rng(m.seekable) + ' buf=' + rng(m.buffered), m.error ? 'err=' + m.error.code : '']);\n    m.remove();\n  }\n  return rows;\n})()\n"
+    }
+   ]
+  },
+  {
    "name": "format-play-to-end-table",
    "html": "<!DOCTYPE html><script>\nconst EVN = ['loadstart','progress','suspend','abort','error','emptied','stalled','loadedmetadata','loadeddata','canplay','canplaythrough','playing','waiting','seeking','seeked','ended','durationchange','timeupdate','play','pause','ratechange','resize','volumechange'];\nconst EVO = [];\nconst r2 = x => Math.round(x * 100) / 100;\nconst q4 = x => Math.round(x * 4) / 4;\nconst cq = m => (m.paused || m.seeking) && !m.error ? r2(m.currentTime) : q4(m.currentTime);\nconst rngq = t => Array.from({length: t.length}, (_, i) => q4(t.start(i)) + '-' + q4(t.end(i))).join(',');\nconst QUIET = new Set(['progress', 'suspend', 'durationchange', 'resize', 'loadedmetadata']);\nconst rng = t => Array.from({length: t.length}, (_, i) => r2(t.start(i)) + '-' + r2(t.end(i))).join(',');\nfunction watch(m, tag = '', names = EVN) {\n  names.forEach(n => m.addEventListener(n, e => {\n    const last = EVO[EVO.length - 1];\n    if ((n === 'timeupdate' || n === 'progress' || n === 'suspend') && last && last.n === n && last.tag === tag) { last.k++; return; }\n    EVO.push({n, tag, k: 1, t: e.timeStamp, rs: m.readyState, ns: m.networkState, ct: cq(m), p: m.paused});\n  }));\n}\nconst evs = () => EVO.map(o => o.n + (o.tag ? '@' + o.tag : '') + (o.k > 1 ? '*' : '') + (QUIET.has(o.n) ? '' : ' rs=' + o.rs + ' ns=' + o.ns) + ' ct=' + o.ct + (o.p ? ' P' : ''));\nconst evt = (step = 50) => EVO.map(o => o.n + ' ' + (Math.round((o.t - EVO[0].t) / step) * step));\nconst S = m => ({rs: m.readyState, ns: m.networkState, paused: m.paused, ended: m.ended, seeking: m.seeking, ct: cq(m), dur: m.duration, size: m.videoWidth === undefined ? 'n/a' : m.videoWidth + 'x' + m.videoHeight, buf: rng(m.buffered), seek: rng(m.seekable), played: rngq(m.played), err: m.error ? m.error.code + ': ' + m.error.message : null, src: m.currentSrc.split('/').pop()});\nconst sleep = ms => new Promise(r => setTimeout(r, ms));\nconst once = (m, n, ms = 4000) => new Promise(r => { const to = setTimeout(() => r('timeout'), ms); m.addEventListener(n, () => { clearTimeout(to); r(n); }, {once: true}); });\nconst log = () => fetch('__log').then(r => r.json()).then(j => j.map(e => e.path + ' ' + (e.headers.range || '-') + ' -> ' + e.status + ' ' + e.sent));\nconst settle = async (m, ms) => { await sleep(ms); };\nconst frame = m => new Promise(r => { if (m.requestVideoFrameCallback) { m.requestVideoFrameCallback(() => r('rvfc')); setTimeout(() => r('rvfc-timeout'), 1500); } else r('none'); });\nconst raf2 = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));\nconst seekTo = async (m, t) => { m.currentTime = t; await once(m, 'seeked'); const f = frame(m); await raf2(); const how = await Promise.race([f, sleep(300).then(() => 'nocb')]); await sleep(100); await raf2(); return how; };\n</script><body></body>",
    "http": true,

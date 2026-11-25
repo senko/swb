@@ -88,6 +88,12 @@ fn hovers_start_the_transitions_of_the_page() {
     let Some(lists) = on_page_thread(|| {
         let mut page = load_fixture("videojs", true, Size::new(1280.0, 800.0), |page| {
             page.set_animations(true);
+            // The recording has Media Source Extensions (M15 in swb). With
+            // media on, the player's HLS source fails and Video.js opens an
+            // error dialog over the controls that the test hovers, as
+            // Chromium does without `MediaSource` (the automation test
+            // `without_media_source_the_player_fails_and_shows_its_error_dialog`).
+            page.set_media(false);
             page.set_clock(PageClock::new(ClockMode::Virtual, None));
             page.set_paints_frames(true);
         })?;

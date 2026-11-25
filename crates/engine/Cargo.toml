@@ -11,6 +11,12 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[features]
+# Media playback with FFmpeg (ADR 0047 section 3): the media element opens
+# pipelines and fetches media. Off: the element exists and every load fails
+# with code 4 without a fetch. (`pipewire` joins in M14 feature 8.)
+media = ["swb-media/ffmpeg", "swb-media/net"]
+
 [dependencies]
 encoding_rs.workspace = true
 log.workspace = true
@@ -19,6 +25,7 @@ swb-dom.workspace = true
 swb-js-regexp.workspace = true
 swb-js-text.workspace = true
 swb-layout.workspace = true
+swb-media.workspace = true
 swb-net.workspace = true
 swb-paint.workspace = true
 swb-style.workspace = true

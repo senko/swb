@@ -62,8 +62,8 @@ pub use escape::escape_html;
 pub use fetch::{Fetcher, StreamResponse, fetch_following_redirects};
 pub use fixture::{ExtendingFetcher, RecordingFetcher, ReplayFetcher};
 pub use headers::{Headers, is_token};
-pub use loader::{API_WORKERS, ClientId, Completion, Loader, NO_CLIENT, RequestId};
-pub use media::{MediaHandle, MediaOptions, MediaResource, MediaStats, ReadAhead};
+pub use loader::{API_WORKERS, ClientId, Completion, Loader, NO_CLIENT, RequestId, WAKE_CLIENT};
+pub use media::{MediaHandle, MediaOptions, MediaResource, MediaStats, OwnerNotify, ReadAhead};
 pub use network::{NetworkFetcher, USER_AGENT};
 pub use request::{
     CredentialsMode, Destination, Method, RedirectMode, Request, RequestMode, Tainting,

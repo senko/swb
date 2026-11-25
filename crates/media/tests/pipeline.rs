@@ -761,3 +761,53 @@ fn reports_come_in_order() {
     assert_eq!(p.position(), 0);
     assert!(p.next_due().is_none(), "paused: nothing is due");
 }
+
+/// M14 feature 6a: `has_enough_data` is false until the first data was
+/// reported and the threads have settled (the whole small file is read, or
+/// the decoded queues are full), and true after, for every format; it needs
+/// no `play`. A seek makes it false again.
+#[test]
+fn enough_data_comes_when_the_threads_have_settled() {
+    for name in PLAYABLE {
+        let waker = Arc::new(Waker::default());
+        let mut p = open_fixture(name, &waker);
+        assert!(!p.has_enough_data(), "{name}: before anything is decoded");
+        let started = Instant::now();
+        let mut reports = Vec::new();
+        loop {
+            let seen = waker.count();
+            reports.extend(p.update(0));
+            if p.has_enough_data() {
+                break;
+            }
+            assert!(started.elapsed() < HANG, "{name}: no enough data");
+            waker.wait_past(seen, Duration::from_secs(1));
+        }
+        assert!(reports.contains(&Report::FirstFrame), "{name}: {reports:?}");
+        assert!(!p.has_pending_work(), "{name}");
+        // It stays true while nothing changes, and the ranges are final.
+        let buffered = p.buffered();
+        std::thread::sleep(Duration::from_millis(30));
+        p.update(0);
+        assert!(p.has_enough_data(), "{name}");
+        assert_eq!(p.buffered(), buffered, "{name}");
+        p.seek(500_000);
+        assert!(!p.has_enough_data(), "{name}: during a seek");
+    }
+}
+
+/// M14 feature 6a: between a thread's report and the owner's `update`,
+/// `has_pending_work` is false but the owner must not take that for "no
+/// work": `has_unread_reports` is true.
+#[test]
+fn a_report_that_waits_for_the_update_is_visible() {
+    let waker = Arc::new(Waker::default());
+    let p = open_fixture("mp4-h264-high-aac.mp4", &waker);
+    let started = Instant::now();
+    // The open ends: a thread event waits for `update`.
+    while !p.has_unread_reports() {
+        assert!(started.elapsed() < HANG, "the open does not end");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    assert!(!p.has_pending_work(), "events wait for the update");
+}

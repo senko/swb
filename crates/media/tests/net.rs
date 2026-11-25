@@ -76,6 +76,51 @@ fn a_file_over_range_requests_opens_seeks_and_decodes_like_the_file() {
     assert_eq!(server.requests()[0].range.as_deref(), Some("bytes=0-"));
 }
 
+/// M14 feature 6a (probe `fetch-ignore-range-accept-ranges-*`): a server
+/// that answers 200 with `Accept-Ranges: bytes` and `Content-Length` to
+/// every request, whatever its `Range`. Chromium seeks in such a resource;
+/// so does swb: the demuxer opens, seeks to the middle (in the 300 KB file
+/// with its index at the end, to the index and back) and decodes the frames
+/// that the file gives.
+#[test]
+fn a_200_that_claims_ranges_opens_seeks_and_decodes_like_the_file() {
+    let name = "mp4-h264-aac-long.mp4";
+    let server = TestServer::start(vec![(
+        "/mp4-h264-aac-long.mp4",
+        Route::bytes(fixture_bytes(name))
+            .without_ranges()
+            .with_header("Accept-Ranges", "bytes"),
+    )]);
+    let loader = loader();
+    let (opened, handle) = open_net(&loader, &server, name);
+    let mut net = opened.expect("opens over the server");
+    let mut local = open(name).expect("opens from the file");
+    assert!(net.info().seekable);
+    assert!(handle.stats().seekable);
+    assert_eq!(
+        handle.stats().size,
+        Some(fixture_bytes(name).len() as u64),
+        "the size is the Content-Length"
+    );
+    assert_eq!(net.info().duration_us, local.info().duration_us);
+    let target = net.info().duration_us.expect("a duration") * 6 / 10;
+    net.seek(target).expect("seeks");
+    local.seek(target).expect("seeks");
+    assert_eq!(video_times(&mut net, 5), video_times(&mut local, 5));
+    net.seek(0).expect("seeks back");
+    local.seek(0).expect("seeks back");
+    assert_eq!(video_times(&mut net, 5), video_times(&mut local, 5));
+    // Every request asked for a range; the server sent the whole body.
+    assert!(
+        server
+            .requests()
+            .iter()
+            .all(|r| r.range.as_deref().is_some_and(|r| r.starts_with("bytes="))),
+        "{:?}",
+        server.requests()
+    );
+}
+
 #[test]
 fn a_seek_back_to_the_start_after_the_end_decodes_again() {
     let name = "mp4-h264-high-aac.mp4";
