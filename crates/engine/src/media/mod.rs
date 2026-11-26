@@ -68,6 +68,7 @@ use swb_net::Url;
 use swb_web::{MediaDelivery, MediaErrorInfo, MediaInfo, MediaTask};
 
 pub(crate) use backend::MediaContext;
+pub use backend::MediaCounters;
 use backend::{Failure, Fetch, Preload};
 pub(crate) use frames::VideoView;
 pub(crate) use select::Cx;
@@ -436,11 +437,11 @@ impl Element {
     /// next frame, `timeupdate` point or end of the pipeline, the next tick
     /// or the damage of a playback without a pipeline, the suspend of an
     /// idle pipeline.
-    fn next_due(&self) -> Option<f64> {
+    fn next_due(&self, coarse: bool) -> Option<f64> {
         let idle = self
             .idle_since
             .map(|since| since.saturating_add(SUSPEND_AFTER_US) as f64 / 1000.0);
-        let pipeline = self.fetch.as_ref().and_then(Fetch::next_due);
+        let pipeline = self.fetch.as_ref().and_then(|f| f.next_due(coarse));
         let emulation = self
             .emulation
             .as_ref()
@@ -681,11 +682,13 @@ impl Media {
 
     /// The page time (ms) of the next media due time: a frame or
     /// `timeupdate` point of a playing pipeline, the damage of a playback
-    /// that counts its own time, the suspend of an idle pipeline.
-    pub(crate) fn next_due(&self) -> Option<f64> {
+    /// that counts its own time, the suspend of an idle pipeline. With
+    /// `coarse` (a real-time page), a video that is not painted has no frame
+    /// times (`Pipeline::next_wake`).
+    pub(crate) fn next_due(&self, coarse: bool) -> Option<f64> {
         self.elements
             .values()
-            .filter_map(Element::next_due)
+            .filter_map(|e| e.next_due(coarse))
             .reduce(f64::min)
     }
 

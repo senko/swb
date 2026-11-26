@@ -823,6 +823,7 @@ impl Page {
             return;
         }
         self.layout_frames();
+        self.update_frames_shown();
         for id in self.frames.tree_order().into_iter().skip(1) {
             let Some(frame) = self.frames.get(id).filter(|f| f.has_box) else {
                 continue;

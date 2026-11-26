@@ -184,12 +184,13 @@ steps, median, p90, style and layout runs).
 
 ### The frame log of the GUI (M11)
 
-`RUST_LOG=swb::gui=debug swb URL` makes the GUI print two kinds of lines on
+`RUST_LOG=swb::gui=debug swb URL` makes the GUI print three kinds of lines on
 standard error, with times in seconds of `CLOCK_MONOTONIC` (six decimals):
 
 ```
 batch start=12.500000 end=12.562500 moves=3 wheels=1 presses=0 releases=2 keys=4 frame=1
 frame at=100.250000 render=0.010000 compose=0.003000 present=0.001500 full=0 rects=2 pixels=31500
+media at=100.500000 wakeups=640 shown=300 dropped=0 decoded=306 converted=300
 ```
 
 - `batch`: one per batch of window events that had input, from the start of
@@ -211,6 +212,11 @@ frame at=100.250000 render=0.010000 compose=0.003000 present=0.001500 full=0 rec
   were rasterized and `pixels` the device pixels rasterized; all 0 when the
   page was not drawn (a frame for the toolbar or the bubble only, or a frame
   without damage).
+- `media at=T wakeups=N shown=N dropped=N decoded=N converted=N` (M14
+  feature 7b): at most twice a second, and only when a number changed.
+  `wakeups` counts the wake-ups of the event loop since the start (one per
+  `new_events`); the other four are the counters of the video pipelines of
+  the page: frames shown, dropped, decoded, and converted to pixels.
 
 The log costs a few counters per event; the clock reads and the lines exist
 only at the debug level. `swbtools gui-latency` (docs/testing.md) reads

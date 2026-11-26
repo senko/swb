@@ -49,6 +49,9 @@ pub(crate) struct HeadlessOptions<'a> {
     pub(crate) clock: (ClockMode, Option<f64>),
     /// The page time to run the event loop after the load (`--settle-ms`).
     pub(crate) settle: Duration,
+    /// How long to run the window's frame loop after the settle
+    /// (`--frame-loop-ms`); zero: not at all.
+    pub(crate) frame_loop: Duration,
 }
 
 /// Runs a headless page with the automation server until a client sends
@@ -97,6 +100,9 @@ pub(crate) fn run(fonts: FontContext, options: &HeadlessOptions<'_>) -> Result<(
     }
     if !options.settle.is_zero() {
         page.run_event_loop(options.settle, options.timeout);
+    }
+    if !options.frame_loop.is_zero() {
+        frame_loop(&mut page, options.frame_loop);
     }
     if let Some(error) = page.error() {
         // The `--eval` contract: a page that does not load prints no
@@ -152,6 +158,71 @@ pub(crate) fn run(fonts: FontContext, options: &HeadlessOptions<'_>) -> Result<(
         log::info!("saved {}", path.display());
     }
     Ok(())
+}
+
+/// The slowest frame decision that the frame loop accepts (`frame_loop`).
+const SLOWEST_DECISION: Duration = Duration::from_millis(50);
+
+/// The window's frame loop without a window (`--frame-loop-ms`; M14 feature
+/// 7b), in real time with painted frames: each turn pumps the page, takes the
+/// frame decision (`Page::frame_outdated`, timed), renders the damage if the
+/// frame is outdated, and waits for the next due time (at most 5 ms: nothing
+/// wakes this loop on a network completion); every 100 ms the page scrolls
+/// 240 px down, back to the top at the end. Prints a warning with the counts:
+/// `frame loop ok` if no decision took more than [`SLOWEST_DECISION`].
+fn frame_loop(page: &mut Page, duration: Duration) {
+    page.set_paints_frames(true);
+    let Ok((width, height)) = swb_engine::device_size(page.viewport(), page.scale()) else {
+        return;
+    };
+    let Some(mut pixmap) = swb_engine::Pixmap::new(width, height) else {
+        return;
+    };
+    page.render(&mut pixmap);
+    let started = std::time::Instant::now();
+    let mut next_scroll = started + Duration::from_millis(100);
+    let (mut frames, mut decisions, mut slowest) = (0u32, 0u32, Duration::ZERO);
+    let mut top = 0.0f32;
+    while started.elapsed() < duration {
+        let now = std::time::Instant::now();
+        if now >= next_scroll {
+            next_scroll += Duration::from_millis(100);
+            let reach = (page.content_size().height - page.viewport().height).max(0.0);
+            top = if top + 240.0 > reach {
+                0.0
+            } else {
+                top + 240.0
+            };
+            page.scroll_to(swb_engine::Point::new(0.0, top));
+        }
+        page.process_network();
+        page.pump();
+        let asked = std::time::Instant::now();
+        let outdated = page.frame_outdated();
+        slowest = slowest.max(asked.elapsed());
+        decisions += 1;
+        if outdated {
+            page.render_update(&mut pixmap);
+            frames += 1;
+        }
+        let now = std::time::Instant::now();
+        let until = page
+            .next_task_instant()
+            .map_or(next_scroll, |t| t.min(next_scroll))
+            .min(now + Duration::from_millis(5));
+        std::thread::sleep(until.saturating_duration_since(now));
+    }
+    let verdict = if slowest <= SLOWEST_DECISION {
+        "ok"
+    } else {
+        "slow"
+    };
+    log::warn!(
+        "frame loop {verdict}: {frames} frames, {decisions} decisions, slowest decision {:.2} ms, \
+         {} frames converted",
+        slowest.as_secs_f64() * 1000.0,
+        page.media_counters().converted
+    );
 }
 
 /// Evaluates each expression in order and prints one line per expression

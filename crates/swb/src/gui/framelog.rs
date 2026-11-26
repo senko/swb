@@ -19,6 +19,13 @@
 //!   section 18): `full` 1 for a full raster, the number of rectangles and
 //!   the device pixels rasterized (all 0 when the page was not drawn).
 //!
+//! - `media at=T wakeups=N shown=N dropped=N decoded=N converted=N`
+//!   (M14 feature 7b): at most twice per second, when something changed:
+//!   the wake-ups of the event loop since the start (each `new_events`),
+//!   and the counters of the video pipelines of the page
+//!   (`Page::media_counters`). For the measurements of video playback; the
+//!   reader of the other lines ignores it.
+//!
 //! The cost without the debug level is a few counters per event and three
 //! `Instant` reads per frame (the start, the end of the page render and the
 //! end of the composition). The log lines and the clock reads of batches
@@ -26,7 +33,7 @@
 
 use std::time::{Duration, Instant};
 
-use swb_engine::FrameDamage;
+use swb_engine::{FrameDamage, MediaCounters};
 
 /// The target of the log lines.
 const TARGET: &str = "swb::gui";
@@ -59,7 +66,14 @@ pub(crate) struct FrameLog {
     enabled: bool,
     counts: InputCounts,
     batch_start: f64,
+    /// The batches so far: the wake-ups of the event loop.
+    wakeups: u64,
+    /// What the last `media` line said: its time and the numbers.
+    media_logged: (f64, u64, MediaCounters),
 }
+
+/// The least time between two `media` lines, in seconds.
+const MEDIA_LINE_EVERY: f64 = 0.5;
 
 impl FrameLog {
     /// A frame log that prints if the debug level of `swb::gui` is on now.
@@ -68,12 +82,15 @@ impl FrameLog {
             enabled: log::log_enabled!(target: TARGET, log::Level::Debug),
             counts: InputCounts::default(),
             batch_start: 0.0,
+            wakeups: 0,
+            media_logged: (0.0, 0, MediaCounters::default()),
         }
     }
 
     /// A batch of window events starts (`new_events`).
     pub(crate) fn begin_batch(&mut self) {
         self.counts = InputCounts::default();
+        self.wakeups += 1;
         if self.enabled {
             self.batch_start = monotonic_seconds();
         }
@@ -85,12 +102,26 @@ impl FrameLog {
     }
 
     /// The batch ends (the end of `about_to_wait`): prints its line if it
-    /// had input. `frame` is true if the batch requested a redraw.
-    pub(crate) fn end_batch(&mut self, frame: bool) {
-        if !self.enabled || self.counts.is_empty() {
+    /// had input. `frame` is true if the batch requested a redraw. `media`
+    /// reads the counters of the page's videos; it runs only when a
+    /// `media` line may be due.
+    pub(crate) fn end_batch(&mut self, frame: bool, media: impl FnOnce() -> MediaCounters) {
+        if !self.enabled {
             return;
         }
-        let line = batch_line(self.batch_start, monotonic_seconds(), &self.counts, frame);
+        let now = monotonic_seconds();
+        if now - self.media_logged.0 >= MEDIA_LINE_EVERY {
+            let counters = media();
+            if (self.wakeups, counters) != (self.media_logged.1, self.media_logged.2) {
+                let line = media_line(now, self.wakeups, &counters);
+                log::debug!(target: TARGET, "{line}");
+                self.media_logged = (now, self.wakeups, counters);
+            }
+        }
+        if self.counts.is_empty() {
+            return;
+        }
+        let line = batch_line(self.batch_start, now, &self.counts, frame);
         log::debug!(target: TARGET, "{line}");
         self.counts = InputCounts::default();
     }
@@ -154,6 +185,15 @@ pub(crate) fn frame_line(
         compose.as_secs_f64(),
         present.as_secs_f64(),
         u8::from(full)
+    )
+}
+
+/// The text of a media line: the wake-ups of the event loop so far and the
+/// counters of the video pipelines.
+pub(crate) fn media_line(at: f64, wakeups: u64, counters: &MediaCounters) -> String {
+    format!(
+        "media at={at:.6} wakeups={wakeups} shown={} dropped={} decoded={} converted={}",
+        counters.shown, counters.dropped, counters.decoded, counters.converted
     )
 }
 
@@ -222,17 +262,43 @@ mod tests {
     }
 
     #[test]
-    fn a_batch_without_input_prints_nothing() {
-        let mut log = FrameLog {
-            enabled: true,
-            counts: InputCounts::default(),
-            batch_start: 0.0,
+    fn media_line_format() {
+        let counters = MediaCounters {
+            shown: 250,
+            dropped: 2,
+            decoded: 260,
+            converted: 255,
         };
+        assert_eq!(
+            media_line(7.5, 301, &counters),
+            "media at=7.500000 wakeups=301 shown=250 dropped=2 decoded=260 converted=255"
+        );
+    }
+
+    #[test]
+    fn a_batch_without_input_prints_nothing() {
+        let mut log = FrameLog::new();
+        log.enabled = true;
         log.begin_batch();
         assert!(log.counts.is_empty());
         log.counts_mut().moves += 1;
         assert!(!log.counts.is_empty());
-        log.end_batch(false);
+        log.end_batch(false, MediaCounters::default);
         assert!(log.counts.is_empty());
+    }
+
+    #[test]
+    fn the_media_counters_are_read_at_most_twice_per_second() {
+        let mut log = FrameLog::new();
+        log.enabled = true;
+        let mut reads = 0;
+        for _ in 0..3 {
+            log.begin_batch();
+            log.end_batch(false, || {
+                reads += 1;
+                MediaCounters::default()
+            });
+        }
+        assert_eq!(reads, 1, "the second and the third batch come at once");
     }
 }

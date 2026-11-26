@@ -58,6 +58,35 @@ impl Media {
         }
     }
 
+    /// Whether a video that is painted has a converted frame due at page
+    /// time `now_us` that is not the one it shows (M14 feature 7b, ADR 0047
+    /// "Implementation notes (M14 feature 7b)": the frame decision). It runs
+    /// at each batch of the GUI: it converts and polls nothing, and an
+    /// element without a running pipeline costs a test of its flags.
+    pub(crate) fn frame_due(&self, now_us: i64) -> bool {
+        self.elements.values().any(|element| {
+            element.video
+                && element.painted
+                && element
+                    .fetch
+                    .as_ref()
+                    .is_some_and(|fetch| fetch.frame_due(now_us))
+        })
+    }
+
+    /// The counters of the video pipelines, summed.
+    pub(crate) fn counters(&self) -> super::backend::MediaCounters {
+        let mut sum = super::backend::MediaCounters::default();
+        for element in self.elements.values() {
+            if element.video
+                && let Some(fetch) = &element.fetch
+            {
+                sum += fetch.counters();
+            }
+        }
+        sum
+    }
+
     /// What the video element `node` shows; `None` for an element without a
     /// state and for an `audio` element.
     pub(crate) fn video_view(&self, node: NodeId) -> Option<VideoView> {

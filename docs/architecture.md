@@ -417,9 +417,15 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
   shell decides once per batch (`about_to_wait`, after the pump and the
   input) whether a frame is due: `Page::frame_outdated` (the inputs of the
   last `Page::render` against the current ones: display list serials,
-  scroll offsets, viewport; no style or layout work) or a change of the
-  toolbar, the status bubble or the window size. It then calls
-  `request_redraw`; a task that changes nothing draws nothing. The frame
+  scroll offsets, viewport; no style or layout work; since M14 feature 7b
+  also a converted frame that a playing video has due, `Pipeline::frame_due`)
+  or a change of the toolbar, the status bubble or the window size. It then
+  calls `request_redraw`; a task that changes nothing draws nothing. The
+  painted flag of each video (`DocumentState::update_media_visibility`)
+  follows the layout, the display list, the scroll offset and the viewport
+  (in the GUI only a video within one viewport of the visible area converts
+  frames), and the shell tells the page when the window is hidden
+  (`Page::set_window_hidden`: a size of 0, `Occluded`, minimized). The frame
   (`gui/compose.rs`) keeps its pixmaps between frames: the page area, drawn
   only when the page is outdated, and then only its damage
   (`Page::render_update`, ADR 0044 section 18), and the toolbar and status

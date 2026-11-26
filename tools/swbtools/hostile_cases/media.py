@@ -199,3 +199,21 @@ def media_reload_loop_screenshot() -> Page:
         "setTimeout(()=>console.warn('reload loop '+(n>0?'ran':'idle')),1200);</script>"
     )
     return Page(doc(body), {"a.mp4": FIXTURE_VIDEO.read_bytes()})
+
+
+@case(
+    "1,000 muted `autoplay loop` videos of 320 x 240 in a page that scrolls, in the frame loop of "
+    "the GUI (M14 feature 7b, ADR 0047 section 9 and its notes: `--frame-loop-ms` runs the pump, "
+    "the frame decision `frame_outdated`, the render of the damage and a scroll every 100 ms in "
+    "real time with painted frames): 16 pipelines run, only the videos near the viewport convert "
+    "frames, and the frame decision (it reads the frame queue of each running pipeline) stays "
+    "below 50 ms (a media build plays them; the default build fails each load)",
+    time_limit_s=40,
+    rss_limit_mib=1536,
+    swb_args=("--js", "--frame-loop-ms", "6000"),
+    expect_log="frame loop ok",
+    forbid_log="frame loop slow",
+)
+def media_1000_playing_videos_frame_loop() -> Page:
+    videos = "<video src=a.mp4 muted autoplay loop width=320 height=240></video>" * 1000
+    return Page(doc(videos), {"a.mp4": FIXTURE_VIDEO.read_bytes()})

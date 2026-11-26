@@ -13,8 +13,30 @@ use swb_dom::NodeId;
 use swb_web::MediaInfo;
 
 use super::Page;
-use crate::document::DocumentState;
+use crate::document::{DocumentState, MediaGeometry};
 use crate::frames::FrameId;
+
+/// What one frame adds to [`FramesShownKey`].
+#[derive(Clone, Debug, PartialEq)]
+struct FrameKey {
+    id: FrameId,
+    parent: Option<FrameId>,
+    container: Option<NodeId>,
+    has_box: bool,
+    has_media: bool,
+    /// What the frame's document was told last.
+    shown: bool,
+    parent_shown: bool,
+    /// The inputs of the window test of the container in the parent.
+    parent_geometry: Option<MediaGeometry>,
+}
+
+/// What [`Page::update_frames_shown`] depends on.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct FramesShownKey {
+    hidden: bool,
+    frames: Vec<FrameKey>,
+}
 
 /// The most rounds of a pump: a step and the delivery of its events. A
 /// page whose listeners start loads again and again does not hold the pump.
@@ -108,13 +130,166 @@ impl Page {
             .any(|frame| self.doc_of(frame).is_some_and(DocumentState::media_pending))
     }
 
-    /// The page time of the next media due time (the suspend of an idle
-    /// pipeline), if any.
+    /// The page time of the next media due time (the frames of the painted
+    /// videos, the `timeupdate` points and ends, the suspend of an idle
+    /// pipeline), if any. In real time a video that is not painted has no
+    /// frame times: nobody sees them (`Pipeline::next_wake`); virtual time
+    /// keeps them, so its jumps do not depend on the paint.
     pub(super) fn media_next_due(&self) -> Option<f64> {
+        let coarse = !self.clock.is_virtual();
         self.media_frames()
             .into_iter()
-            .filter_map(|frame| self.doc_of(frame)?.media_next_due())
+            .filter_map(|frame| self.doc_of(frame)?.media_next_due(coarse))
             .reduce(f64::min)
+    }
+
+    /// True if a video that is painted has a converted frame due at the page
+    /// time now that it does not show yet (M14 feature 7b): the frame is
+    /// outdated, and the next render draws it ([`Page::frame_outdated`]). It
+    /// polls and converts nothing; for each video it reads the frame queue
+    /// of a running pipeline under a short lock. The video thread converts
+    /// the frames ahead of time, so no frame waits for a conversion here.
+    pub(super) fn media_frame_due(&self) -> bool {
+        if self.lent {
+            return false;
+        }
+        let now = crate::media::ms_to_us(self.clock.now());
+        self.media_frames()
+            .into_iter()
+            .any(|frame| self.doc_of(frame).is_some_and(|d| d.media_frame_due(now)))
+    }
+
+    /// How many walks of a fragment tree the window test of the videos ran,
+    /// summed over the documents (tests: a render without a change runs
+    /// none).
+    #[doc(hidden)]
+    pub fn media_window_walks(&self) -> u64 {
+        self.media_frames()
+            .into_iter()
+            .filter_map(|frame| self.doc_of(frame))
+            .map(DocumentState::media_window_walks)
+            .sum()
+    }
+
+    /// What the video pipelines of the page counted so far (summed over the
+    /// documents): for the GUI's frame log and the measurements.
+    pub fn media_counters(&self) -> crate::media::MediaCounters {
+        let mut sum = crate::media::MediaCounters::default();
+        for frame in self.media_frames() {
+            if let Some(doc) = self.doc_of(frame) {
+                sum += doc.media_counters();
+            }
+        }
+        sum
+    }
+
+    /// Tells the frame documents that have videos, and the frames above
+    /// them, whether their parent shows them (ADR 0047 notes of feature 7b):
+    /// the frame has a box that is painted and, with the viewport rule, lies
+    /// within the margin of the parent's viewport, and the parent is shown
+    /// itself. The videos of a frame that is not shown convert no frames. It
+    /// runs at each render of a page with frames, but looks only when its
+    /// key changed (the frames, and for each the layout, display list,
+    /// scroll and viewport of the parent, and the window state); a render
+    /// without a change walks nothing. A look walks a parent's boxes only
+    /// for the frames that lead to a video.
+    pub(super) fn update_frames_shown(&mut self) {
+        if self.frames.count() == 0 {
+            return;
+        }
+        let order = self.frames.tree_order();
+        if self.frames_shown.as_ref() == Some(&self.frames_shown_key(&order)) {
+            return;
+        }
+        self.look_at_frames_shown(&order);
+        // The key after the look: the look changed what the frames show.
+        self.frames_shown = Some(self.frames_shown_key(&order));
+    }
+
+    /// What [`Page::update_frames_shown`] depends on, for the frames in
+    /// `order`.
+    fn frames_shown_key(&self, order: &[FrameId]) -> FramesShownKey {
+        let frames = order
+            .iter()
+            .skip(1)
+            .filter_map(|&id| {
+                let frame = self.frames.get(id)?;
+                let doc = frame.doc.as_deref();
+                let parent_doc = frame.parent.and_then(|p| self.doc_of(p));
+                Some(FrameKey {
+                    id,
+                    parent: frame.parent,
+                    container: frame.container,
+                    has_box: frame.has_box,
+                    has_media: doc.is_some_and(DocumentState::has_media),
+                    shown: doc.is_some_and(DocumentState::media_is_shown),
+                    parent_shown: parent_doc.is_some_and(DocumentState::media_is_shown),
+                    parent_geometry: parent_doc.map(DocumentState::media_geometry),
+                })
+            })
+            .collect();
+        FramesShownKey {
+            hidden: self.maker.media.window_hidden(),
+            frames,
+        }
+    }
+
+    /// The look of [`Page::update_frames_shown`].
+    fn look_at_frames_shown(&mut self, order: &[FrameId]) {
+        let mut needed: std::collections::HashSet<FrameId> = std::collections::HashSet::new();
+        for &id in order.iter().skip(1) {
+            let has_media = self
+                .frames
+                .get(id)
+                .and_then(|f| f.doc.as_deref())
+                .is_some_and(DocumentState::has_media);
+            let mut current = has_media.then_some(id);
+            while let Some(frame) = current {
+                if !needed.insert(frame) {
+                    break;
+                }
+                current = self.frames.get(frame).and_then(|f| f.parent);
+            }
+        }
+        // Parents come before their children.
+        for &id in order.iter().skip(1).filter(|id| needed.contains(id)) {
+            let Some(frame) = self.frames.get(id) else {
+                continue;
+            };
+            let (parent, container, has_box) = (frame.parent, frame.container, frame.has_box);
+            let shown = has_box
+                && parent.zip(container).is_some_and(|(parent, container)| {
+                    let parent_doc = self.doc_of(parent);
+                    parent_doc.is_some_and(|d| {
+                        (parent == FrameId::TOP || d.media_is_shown())
+                            && d.element_in_media_window(container)
+                    })
+                });
+            if let Some(doc) = self.frames.get_mut(id).and_then(|f| f.doc.as_deref_mut()) {
+                doc.set_media_shown(shown);
+            }
+        }
+    }
+
+    /// Tells the page that the window is hidden (minimized, or fully
+    /// covered where the platform says so) or shown again (ADR 0047 notes of
+    /// feature 7b): while it is hidden no video converts frames. Decoding,
+    /// the clocks and the events go on. A video that is shown again shows
+    /// its frame (a paused one through the quiet seek of
+    /// `Pipeline::set_painted`). Does nothing if the state is the same.
+    pub fn set_window_hidden(&mut self, hidden: bool) {
+        if self.maker.media.window_hidden() == hidden {
+            return;
+        }
+        self.maker.media.set_window_hidden(hidden);
+        // The layout that exists now is enough: the flags follow the next
+        // layout and paint as they do for a scroll.
+        self.update_frames_shown();
+        for frame in self.media_frames() {
+            if let Some(doc) = self.doc_of_mut(frame) {
+                doc.update_media_visibility();
+            }
+        }
     }
 
     /// Brings the images of the videos to the media time of the page clock

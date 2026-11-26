@@ -23,6 +23,12 @@ pub(crate) struct MediaContext {
     slots: std::sync::Arc<std::sync::Mutex<swb_media::pipeline::PipelineSlots>>,
     /// False: media elements do not start loads ([`crate::Page::set_media`]).
     enabled: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// True: only a video near the viewport converts frames (the page paints
+    /// frames, the GUI; [`crate::Page::set_paints_frames`]).
+    viewport_rule: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// True: the window is hidden (minimized or occluded) and no video
+    /// converts frames ([`crate::Page::set_window_hidden`]).
+    window_hidden: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl MediaContext {
@@ -35,7 +41,33 @@ impl MediaContext {
                 swb_media::pipeline::PipelineSlots::global(),
             )),
             enabled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
+            viewport_rule: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            window_hidden: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
+    }
+
+    /// Whether only a video near the viewport converts frames.
+    pub(crate) fn viewport_rule(&self) -> bool {
+        self.viewport_rule
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Turns the viewport rule on or off.
+    pub(crate) fn set_viewport_rule(&self, on: bool) {
+        self.viewport_rule
+            .store(on, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Whether the window is hidden.
+    pub(crate) fn window_hidden(&self) -> bool {
+        self.window_hidden
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Tells that the window is hidden or shown.
+    pub(crate) fn set_window_hidden(&self, hidden: bool) {
+        self.window_hidden
+            .store(hidden, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Whether media elements start loads.
@@ -147,6 +179,31 @@ pub(crate) struct Failure {
     pub(crate) at_us: Option<i64>,
 }
 
+/// What the video pipelines of a page counted (M14 feature 7b; the GUI's
+/// frame log and the measurements). All zero without the feature `media`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct MediaCounters {
+    /// Frames that were shown (made current).
+    pub shown: u64,
+    /// Frames that were dropped, because their successor was due as well
+    /// or because they were late when decoded
+    /// (`getVideoPlaybackQuality().droppedVideoFrames`).
+    pub dropped: u64,
+    /// Frames decoded.
+    pub decoded: u64,
+    /// Frames converted to pixels.
+    pub converted: u64,
+}
+
+impl std::ops::AddAssign for MediaCounters {
+    fn add_assign(&mut self, other: MediaCounters) {
+        self.shown += other.shown;
+        self.dropped += other.dropped;
+        self.decoded += other.decoded;
+        self.converted += other.converted;
+    }
+}
+
 /// The message of a failed request or a bad URL (Chromium's).
 pub(crate) const FORMAT_ERROR: &str = "MEDIA_ELEMENT_ERROR: Format error";
 
@@ -192,7 +249,9 @@ pub(crate) fn request_for(
 mod stub {
     //! Without the feature: nothing is fetched.
 
-    use super::{FORMAT_ERROR, Failure, Loader, MediaContext, Note, Preload, Request};
+    use super::{
+        FORMAT_ERROR, Failure, Loader, MediaContext, MediaCounters, Note, Preload, Request,
+    };
 
     /// A load that fails at once.
     pub(crate) struct Fetch {
@@ -301,7 +360,7 @@ mod stub {
         pub(crate) fn set_gain(&mut self, _gain: f32) {}
 
         /// The page time (ms) of the next frame, `timeupdate` point or end.
-        pub(crate) fn next_due(&self) -> Option<f64> {
+        pub(crate) fn next_due(&self, _coarse: bool) -> Option<f64> {
             None
         }
 
@@ -340,6 +399,16 @@ mod stub {
         pub(crate) fn frames_converted(&self) -> u64 {
             0
         }
+
+        /// No pipeline, no frame.
+        pub(crate) fn frame_due(&self, _now_us: i64) -> bool {
+            false
+        }
+
+        /// No pipeline, no counters.
+        pub(crate) fn counters(&self) -> MediaCounters {
+            MediaCounters::default()
+        }
     }
 }
 
@@ -353,7 +422,9 @@ mod real {
     use swb_media::pipeline::{Pipeline, PipelineOptions, Report, SourceOpener};
     use swb_net::{MediaHandle, MediaOptions, ReadAhead};
 
-    use super::{FORMAT_ERROR, Failure, Loader, MediaContext, Meta, Note, Preload, Request};
+    use super::{
+        FORMAT_ERROR, Failure, Loader, MediaContext, MediaCounters, Meta, Note, Preload, Request,
+    };
 
     /// The metadata waits until the byte source has read this much (or all
     /// of a smaller resource): a small file is read whole before the first
@@ -413,7 +484,7 @@ mod real {
             options.video = video;
             options.slots = ctx.slots();
             // Painted from the open; the first layout without a box for the
-            // element says otherwise (`DocumentState::sync_media_painted`).
+            // element says otherwise (`DocumentState::update_media_visibility`).
             options.painted = true;
             let pipeline = Pipeline::open(SourceOpener::net(handle.clone()), options);
             Fetch {
@@ -675,12 +746,19 @@ mod real {
         }
 
         /// The page time (ms) of the next frame, `timeupdate` point or end
-        /// while the clock runs.
-        pub(crate) fn next_due(&self) -> Option<f64> {
+        /// while the clock runs. With `coarse` (a real-time page), a video
+        /// that is not painted has no frame times
+        /// ([`swb_media::pipeline::Pipeline::next_wake`]).
+        pub(crate) fn next_due(&self, coarse: bool) -> Option<f64> {
             if self.suspended {
                 return None;
             }
-            self.pipeline.next_due().map(|us| us as f64 / 1000.0)
+            let due = if coarse {
+                self.pipeline.next_wake()
+            } else {
+                self.pipeline.next_due()
+            };
+            due.map(|us| us as f64 / 1000.0)
         }
 
         /// The failure that came after the metadata.
@@ -709,12 +787,17 @@ mod real {
         }
 
         /// The pixels of the frame shown now, as the last `poll` left it
-        /// (`None` before the first frame, and for a frame that was decoded
-        /// while the video was not painted).
+        /// (`None` before the first frame). A frame that was decoded while
+        /// the video was not painted has no pixels: the last frame that was
+        /// converted shows until a converted one comes (a video that scrolls
+        /// back into view shows its old frame for a moment, not a hole; ADR
+        /// 0047 notes of feature 7b).
         pub(crate) fn frame_image(&self) -> Option<std::sync::Arc<swb_paint::Pixmap>> {
-            self.pipeline
-                .current_frame()
-                .and_then(|frame| frame.image.clone())
+            let frame = self.pipeline.current_frame()?;
+            frame
+                .image
+                .clone()
+                .or_else(|| self.pipeline.current_image().cloned())
         }
 
         /// Whether the video is painted: frames that are not are decoded
@@ -726,6 +809,25 @@ mod real {
         /// The frames converted so far (tests).
         pub(crate) fn frames_converted(&self) -> u64 {
             self.pipeline.stats().frames_converted
+        }
+
+        /// Whether a poll at clock time `now_us` would show a frame with
+        /// pixels that is not the one shown (the frame decision of the GUI;
+        /// see [`Pipeline::frame_due`]).
+        pub(crate) fn frame_due(&self, now_us: i64) -> bool {
+            !self.suspended && self.pipeline.frame_due(now_us)
+        }
+
+        /// The counters of the pipeline.
+        pub(crate) fn counters(&self) -> MediaCounters {
+            let quality = self.pipeline.quality();
+            let stats = self.pipeline.stats();
+            MediaCounters {
+                shown: quality.total_frames.saturating_sub(quality.dropped_frames),
+                dropped: quality.dropped_frames,
+                decoded: stats.frames_decoded,
+                converted: stats.frames_converted,
+            }
         }
     }
 }

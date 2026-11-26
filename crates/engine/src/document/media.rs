@@ -9,10 +9,57 @@
 //! environment, the loader, the origin, the user activation).
 
 use swb_dom::NodeId;
+use swb_layout::{Point, Rect, Size};
 use swb_web::{MediaCommand, MediaInfo, PlayStart};
 
 use super::DocumentState;
 use crate::media::Cx;
+
+/// How far outside the viewport a video still converts frames, in viewports
+/// on each side (ADR 0047 "Implementation notes (M14 feature 7b)"): a
+/// video that scrolls into view has converted frames by then. After a
+/// painted flag turns on, the first converted frame is current after the
+/// frames that the pipeline queued while it was not painted (at most 6, so
+/// 240 ms at 25 fps); a margin of one viewport covers a scroll of that
+/// length at up to 3,000 px/s in a 720 px viewport, and a page-down.
+const VIDEO_MARGIN: f32 = 1.0;
+
+/// What the painted flag of the videos depends on (see
+/// [`DocumentState::update_media_visibility`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct VisibilityKey {
+    geometry: MediaGeometry,
+    shown: bool,
+}
+
+/// What decides whether a box of a document lies in the window of the
+/// videos ([`video_window`]): the layout, the display list (element
+/// scrolls), the viewport scroll offset and size, and the viewport rule.
+/// The page keys its look at the frame containers by the geometry of the
+/// parent document (`Page::update_frames_shown`).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct MediaGeometry {
+    layout: u64,
+    list: u64,
+    scroll: Point,
+    viewport: Size,
+    rule: bool,
+}
+
+/// The rectangle around the viewport (at `scroll`) in which a video is
+/// painted: the viewport grown by [`VIDEO_MARGIN`].
+fn video_window(scroll: Point, viewport: Size) -> Rect {
+    let (mx, my) = (
+        viewport.width * VIDEO_MARGIN,
+        viewport.height * VIDEO_MARGIN,
+    );
+    Rect::new(
+        scroll.x - mx,
+        scroll.y - my,
+        viewport.width + 2.0 * mx,
+        viewport.height + 2.0 * my,
+    )
+}
 
 impl DocumentState {
     /// Runs `f` on the media state with the context of the document at page
@@ -235,26 +282,126 @@ impl DocumentState {
         self.media.touch(node);
     }
 
-    /// Tells the media elements which videos have a box after a layout: a
-    /// video without one (`display: none`, not in the document) converts no
-    /// frames, and one that gets a box again shows the frame at its position
-    /// (ADR 0047 section 6, "Hidden elements").
-    pub(super) fn sync_media_painted(&mut self) {
+    /// The painted flag of the videos (ADR 0047 section 6, "Hidden
+    /// elements", and the notes of feature 7b): tells the media elements
+    /// which videos are painted. A video that is not converts no frames; one
+    /// that is again shows the frame at its position. A video is painted when
+    /// its box is painted (not `display: none`, not in the document, not in
+    /// the skipped contents of `content-visibility` or a closed `details`),
+    /// its `visibility` is `visible`, and the document is shown (the window
+    /// is not hidden, and a frame document lies in its parent's viewport);
+    /// with the viewport rule (the page paints frames: the GUI), also when
+    /// the box lies within [`VIDEO_MARGIN`] viewports of the document's
+    /// viewport. Headless pages draw whole pages (a full-page screenshot
+    /// shows the videos below the viewport), so they have no viewport rule.
+    /// It runs after a layout and a display list, when the scroll offset
+    /// or the viewport changed, and when the page changes the inputs
+    /// (`key`); a paint where nothing changed does nothing.
+    pub(crate) fn update_media_visibility(&mut self) {
         if self.media.is_empty() {
             return;
         }
         let Some(tree) = &self.fragments else {
             return;
         };
-        let mut boxes = std::collections::HashSet::new();
-        tree.walk(|fragment, _| {
-            if let swb_layout::FragmentRef::Box(b) = fragment
-                && let swb_layout::BoxContent::Media(m) = &b.content
-            {
-                boxes.insert(m.node);
-            }
-        });
-        self.media.set_painted(&boxes);
+        let shown = self.media_shown && !self.media.ctx.window_hidden();
+        let key = VisibilityKey {
+            geometry: self.media_geometry(),
+            shown,
+        };
+        if self.media_visibility == Some(key) {
+            return;
+        }
+        self.media_visibility = Some(key);
+        let mut painted = std::collections::HashSet::new();
+        if shown {
+            self.walk_boxes_in_window(tree, |b| {
+                if let swb_layout::BoxContent::Media(m) = &b.content {
+                    painted.insert(m.node);
+                }
+            });
+        }
+        self.media.set_painted(&painted);
+    }
+
+    /// The inputs of the window test of the boxes of this document.
+    pub(crate) fn media_geometry(&self) -> MediaGeometry {
+        MediaGeometry {
+            layout: self.layout_serial,
+            list: self.list_serial,
+            scroll: self.scroll,
+            viewport: self.view.viewport,
+            rule: self.media.ctx.viewport_rule(),
+        }
+    }
+
+    /// Calls `found` for each box that paint visits, whose `visibility` is
+    /// `visible`, and that lies in the window of the videos (with the
+    /// viewport rule; else wherever it is). One walk of the whole tree.
+    fn walk_boxes_in_window(
+        &self,
+        tree: &swb_layout::FragmentTree,
+        mut found: impl FnMut(&swb_layout::BoxFragment),
+    ) {
+        self.media_window_walks
+            .set(self.media_window_walks.get() + 1);
+        let rule = self.media.ctx.viewport_rule();
+        let window = video_window(self.scroll, self.view.viewport);
+        tree.walk_painted(
+            self.scrollers.offsets(),
+            self.scroll,
+            |fragment, rect, matrix| {
+                if let swb_layout::FragmentRef::Box(b) = fragment
+                    && b.style.visibility == swb_style::Visibility::Visible
+                    && (!rule || matrix.map_rect(&rect).intersection(&window).is_some())
+                {
+                    found(b);
+                }
+            },
+        );
+    }
+
+    /// How many walks of the fragment tree for the window test this document
+    /// ran (tests: a render without a change runs none).
+    pub(crate) fn media_window_walks(&self) -> u64 {
+        self.media_window_walks.get()
+    }
+
+    /// Whether the parent shows the document ([`DocumentState::set_media_shown`]).
+    pub(crate) fn media_is_shown(&self) -> bool {
+        self.media_shown
+    }
+
+    /// Tells the document whether its parent shows it (a frame document;
+    /// see [`DocumentState::update_media_visibility`]). True at the start.
+    pub(crate) fn set_media_shown(&mut self, shown: bool) {
+        self.media_shown = shown;
+        self.update_media_visibility();
+    }
+
+    /// True if the box of the element `node` is painted and lies within the
+    /// margin of the viewport ([`VIDEO_MARGIN`]) when the page applies the
+    /// viewport rule (else only that it is painted): the frame of a frame
+    /// document shows if this holds for its container. False without a
+    /// layout.
+    pub(crate) fn element_in_media_window(&self, node: NodeId) -> bool {
+        let Some(tree) = &self.fragments else {
+            return false;
+        };
+        let mut found = false;
+        self.walk_boxes_in_window(tree, |b| found |= b.node == Some(node));
+        found
+    }
+
+    /// True if a painted video has a converted frame due at page time
+    /// `now_us` that it does not show yet ([`crate::media::Media::frame_due`]).
+    pub(crate) fn media_frame_due(&self, now_us: i64) -> bool {
+        !self.media.is_empty() && self.media.frame_due(now_us)
+    }
+
+    /// The counters of the video pipelines of the document.
+    pub(crate) fn media_counters(&self) -> crate::media::MediaCounters {
+        self.media.counters()
     }
 
     /// True if a media element has a state in this document.
@@ -299,7 +446,9 @@ impl DocumentState {
 
     /// The page time (ms) of the next media due time (a frame or a
     /// `timeupdate` point of a playing pipeline, the suspend of an idle one).
-    pub(crate) fn media_next_due(&self) -> Option<f64> {
-        self.media.next_due()
+    /// A real-time page passes `coarse`: a video that is not painted has no
+    /// frame times.
+    pub(crate) fn media_next_due(&self, coarse: bool) -> Option<f64> {
+        self.media.next_due(coarse)
     }
 }

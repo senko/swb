@@ -43,6 +43,43 @@ const MULTI_CLICK_DISTANCE: f32 = 4.0;
 /// The window size (CSS px) that the page uses before the window exists.
 const SIZE_WITHOUT_WINDOW: Size = Size::new(1024.0, 768.0);
 
+/// The least time between two wake-ups of the event loop that changed
+/// nothing (ADR 0047 notes of feature 7b): a due time that the page cannot
+/// consume (a frame that waits for the video thread) does not make the loop
+/// run again at once.
+const MIN_IDLE_WAKE: Duration = Duration::from_millis(2);
+
+/// When the event loop wakes up next: at `deadline` (the earliest due time
+/// of the page and of the automation server, if any). A wake-up that
+/// changed nothing (`progressed` false: no task ran and no frame was
+/// requested) does not come sooner than [`MIN_IDLE_WAKE`] after `now`, so
+/// that a due time in the past does not make the loop spin. The price: a
+/// frame that is due within 2 ms after a wake-up that changed nothing waits
+/// up to 2 ms (a notify of the video thread that arrives just before a
+/// frame time; a painted video then draws up to 2 ms late).
+fn wake_deadline(deadline: Option<Instant>, now: Instant, progressed: bool) -> Option<Instant> {
+    deadline.map(|d| {
+        if progressed {
+            d
+        } else {
+            d.max(now + MIN_IDLE_WAKE)
+        }
+    })
+}
+
+/// True if the window shows nothing: its size is zero (minimized on some
+/// platforms), the platform said it is fully covered (`WindowEvent::Occluded`:
+/// winit sends it on X11 from the visibility events, and on macOS and
+/// iOS; not on Wayland and Windows), or the window manager says it is
+/// minimized (`Window::is_minimized`: X11 reads `_NET_WM_STATE_HIDDEN`,
+/// Windows and macOS know it, Wayland always gives `None`). On Wayland a
+/// hidden surface gets no frame callbacks, so no frame is drawn
+/// (ADR 0040 section 3), but the page cannot tell and keeps converting
+/// frames.
+fn window_hidden(size: (u32, u32), occluded: bool, minimized: Option<bool>) -> bool {
+    size.0 == 0 || size.1 == 0 || occluded || minimized == Some(true)
+}
+
 /// Events sent to the event loop from other threads.
 #[derive(Debug, Clone, Copy)]
 enum UserEvent {
@@ -133,6 +170,12 @@ struct App {
     frame_log: FrameLog,
     /// The kept pixmaps of the frame (`None` before the first frame).
     composer: Option<Composer>,
+    /// The window size in device pixels at the last `Resized` event.
+    window_pixels: (u32, u32),
+    /// The last `WindowEvent::Occluded` (the window is fully covered).
+    occluded: bool,
+    /// `Window::is_minimized` as of the last event that can change it.
+    minimized: Option<bool>,
 }
 
 /// What a frame shows besides the page (see [`App::frame_wanted`]).
@@ -222,7 +265,31 @@ impl App {
             shown_cursor: ShownCursor::Unset,
             frame_log: FrameLog::new(),
             composer: None,
+            window_pixels: (1, 1),
+            occluded: false,
+            minimized: None,
         }
+    }
+
+    /// Tells the page whether the window is hidden, so that the videos
+    /// convert no frames (ADR 0047 notes of feature 7b).
+    fn sync_window_hidden(&mut self) {
+        if self.gfx.is_none() {
+            return;
+        }
+        // The size comes from the last `Resized` event: reading it from the
+        // window costs a request to the X server at each wake-up.
+        let hidden = window_hidden(self.window_pixels, self.occluded, self.minimized);
+        self.page.set_window_hidden(hidden);
+    }
+
+    /// Reads the window manager's idea of the minimized state, after an
+    /// event that can change it (it costs a property read on X11, also at
+    /// each `Resized` of an interactive resize: dozens a second;
+    /// kept because a window manager need not send `Occluded` or
+    /// `Focused` when it minimizes, and untested on a real one).
+    fn read_minimized(&mut self) {
+        self.minimized = self.gfx.as_ref().and_then(|g| g.window.is_minimized());
     }
 
     /// Scrolls by the whole pixels of the wheel delta collected since the
@@ -983,31 +1050,47 @@ impl ApplicationHandler<UserEvent> for App {
         // One frame decision per batch, after the pump and the input
         // (ADR 0040 section 2).
         self.sync_address();
+        self.sync_window_hidden();
         let frame = self.frame_wanted();
         if frame {
             self.request_redraw();
         }
         // Wake up when the next task is due or a waiting automation request
-        // times out; otherwise wait for input or the network.
+        // times out; otherwise wait for input or the network. A due time
+        // that the pump could not consume does not spin the loop.
         let deadline = self.automation.as_ref().and_then(Automation::next_deadline);
         let deadline = match (deadline, self.page.next_task_instant()) {
             (Some(a), Some(b)) => Some(a.min(b)),
             (a, b) => a.or(b),
         };
+        let deadline = wake_deadline(deadline, Instant::now(), pump.changed || frame);
         event_loop.set_control_flow(deadline.map_or(ControlFlow::Wait, ControlFlow::WaitUntil));
-        self.frame_log.end_batch(frame);
+        let page = &self.page;
+        self.frame_log.end_batch(frame, || page.media_counters());
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+                if let WindowEvent::Resized(size) = event {
+                    self.window_pixels = (size.width, size.height);
+                }
                 // The page's pointer state comes first: a new viewport
                 // moves the content under the pointer.
                 self.flush_move();
                 self.update_viewport();
+                self.read_minimized();
                 self.frame_failed = false;
             }
+            WindowEvent::Occluded(occluded) => {
+                // Fully covered or minimized, where the platform says so:
+                // the videos convert no frames (`about_to_wait`).
+                self.occluded = occluded;
+                self.read_minimized();
+                self.frame_failed = false;
+            }
+            WindowEvent::Focused(_) => self.read_minimized(),
             WindowEvent::RedrawRequested => {
                 // winit delivers the redraw after the turn's window events
                 // and before `about_to_wait`: the frame shows the pending
@@ -1076,4 +1159,43 @@ fn damage_rects(rows: &[std::ops::Range<usize>], width: NonZeroU32) -> Vec<softb
             })
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_window_is_hidden_when_it_has_no_pixels_or_the_platform_says_so() {
+        assert!(!window_hidden((1280, 900), false, None));
+        assert!(!window_hidden((1280, 900), false, Some(false)));
+        assert!(window_hidden((0, 900), false, None), "no width");
+        assert!(window_hidden((1280, 0), false, None), "no height");
+        assert!(window_hidden((1280, 900), true, None), "occluded");
+        assert!(window_hidden((1280, 900), false, Some(true)), "minimized");
+    }
+
+    #[test]
+    fn a_wake_up_that_changed_nothing_waits_at_least_the_idle_floor() {
+        let past = Instant::now();
+        let now = past + Duration::from_millis(5);
+        let soon = now + Duration::from_millis(1);
+        let later = now + Duration::from_millis(30);
+        // Nothing is due: wait for input.
+        assert_eq!(wake_deadline(None, now, false), None);
+        assert_eq!(wake_deadline(None, now, true), None);
+        // A due time in the past that nothing consumed: not at once.
+        assert_eq!(
+            wake_deadline(Some(past), now, false),
+            Some(now + MIN_IDLE_WAKE)
+        );
+        assert_eq!(
+            wake_deadline(Some(soon), now, false),
+            Some(now + MIN_IDLE_WAKE)
+        );
+        // A wake-up that ran a task or drew a frame goes on at the due time.
+        assert_eq!(wake_deadline(Some(past), now, true), Some(past));
+        // A due time beyond the floor is kept.
+        assert_eq!(wake_deadline(Some(later), now, false), Some(later));
+    }
 }

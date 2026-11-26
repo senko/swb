@@ -448,3 +448,64 @@ fn animation_frames_are_asked_for_when_pixels_change() {
         }
     }
 }
+
+/// A playing video in real time with painted frames (M14 feature 7b): the
+/// frame decision and the pixels agree. At each step the loop pumps, asks
+/// `frame_outdated()` and renders; a render whose pixels differ from the
+/// last one after a decision of "not outdated" fails, unless the next
+/// due time of the page came after the decision was asked for (a frame that
+/// became due during the render is not a miss).
+#[cfg(feature = "media")]
+#[test]
+fn a_playing_video_asks_for_frames_when_its_pixels_change() {
+    use common::media_site::MediaSite;
+    use std::time::Instant;
+    on_page_thread(|| {
+        let mut site = MediaSite::new(
+            "case-1",
+            "<!DOCTYPE html><style>body{margin:0;background:#ccc}\
+            video{display:block;margin:100px 0 0 200px}</style>\
+            <video id=v src=a.mp4 preload=auto muted loop autoplay></video>",
+        );
+        site.add_file("a.mp4", "fixtures/media/mp4-h264-high-aac.mp4");
+        let mut page = new_page(
+            Arc::new(site) as Arc<dyn Fetcher>,
+            2,
+            Size::new(800.0, 600.0),
+        );
+        page.set_javascript(true);
+        page.set_paints_frames(true);
+        page.set_clock(PageClock::new(ClockMode::Real, None));
+        page.navigate(Url::parse(&MediaSite::page_url("case-1")).unwrap());
+        assert!(page.wait_until_loaded(Duration::from_secs(30)));
+        let mut target = swb_engine::Pixmap::new(800, 600).unwrap();
+        let (mut last, mut frames, mut checks, mut raced) = (None::<Vec<u8>>, 0, 0, 0);
+        let started = Instant::now();
+        while started.elapsed() < Duration::from_millis(2500) {
+            page.process_network();
+            page.pump();
+            let due = page.next_task_instant();
+            let asked = Instant::now();
+            let outdated = page.frame_outdated();
+            page.render(&mut target);
+            let data = target.data().to_vec();
+            if outdated {
+                frames += 1;
+            } else {
+                checks += 1;
+                if last.as_ref().is_some_and(|last| *last != data) {
+                    assert!(
+                        due.is_some_and(|t| t > asked),
+                        "the frame was not outdated, but the pixels changed (due {due:?})"
+                    );
+                    raced += 1;
+                }
+            }
+            last = Some(data);
+            std::thread::sleep(Duration::from_millis(3));
+        }
+        // 25 fps for the part of the 2.5 s after the first frame.
+        assert!(frames >= 25, "{frames} outdated frames, {checks} checks");
+        assert!(raced <= 3, "{raced} frames came during a render");
+    });
+}

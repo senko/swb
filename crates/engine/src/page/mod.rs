@@ -411,6 +411,9 @@ pub struct Page {
     /// state. Completions stay queued in the loader meanwhile (the
     /// requests map is in the state).
     lent: bool,
+    /// What [`Page::update_frames_shown`] last saw: it runs again when this
+    /// changes (`media.rs`).
+    frames_shown: Option<media::FramesShownKey>,
     /// The JavaScript setting. A new document takes the value it has when
     /// the document is created; the current document keeps its own
     /// ([`Document::scripting`]), so a change applies to the next
@@ -551,6 +554,7 @@ impl Page {
             evaluation_activation: true,
             clock: swb_web::PageClock::real(),
             lent: false,
+            frames_shown: None,
             javascript: false,
             animations: true,
             paints_frames: false,
@@ -600,6 +604,10 @@ impl Page {
     /// `steps()`); without, only at its event times (ADR 0044 section 8).
     pub fn set_paints_frames(&mut self, paints: bool) {
         self.paints_frames = paints;
+        // Only a video near the viewport converts frames (ADR 0047 notes
+        // of feature 7b); the documents see it at their next layout, list or
+        // scroll.
+        self.maker.media.set_viewport_rule(paints);
     }
 
     // ----- JavaScript setting -----

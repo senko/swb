@@ -63,7 +63,7 @@ mod shadow_styles;
 mod tests;
 pub(crate) mod top_layer;
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
@@ -87,6 +87,7 @@ use swb_dom::LiveRange;
 
 pub(crate) use derived::Derived;
 pub(crate) use history_api::{HistoryInfo, StateChange};
+pub(crate) use media::MediaGeometry;
 pub(crate) use paint_stamp::PaintStamp;
 pub(crate) use pipeline::Rendering;
 pub use queries::ElementScroll;
@@ -183,7 +184,7 @@ pub(crate) struct DocumentInit {
     pub(crate) fonts: Rc<crate::frames::registry::LentFonts>,
     /// The nodes that the budget for frame documents has room for; `None`
     /// for the top-level document.
-    pub(crate) node_room: Option<Rc<std::cell::Cell<usize>>>,
+    pub(crate) node_room: Option<Rc<Cell<usize>>>,
     /// The page's animation setting (`--animations`, ADR 0044 section 10)
     /// and the page time of the document's time origin.
     pub(crate) animations: AnimationSetting,
@@ -264,7 +265,7 @@ pub struct DocumentState {
     /// layout.
     pub(crate) retired: bool,
     /// See [`DocumentInit::node_room`].
-    node_room: Option<Rc<std::cell::Cell<usize>>>,
+    node_room: Option<Rc<Cell<usize>>>,
     /// The content box of each `iframe` element at a layout serial.
     frame_box_cache: Option<(u64, std::collections::HashMap<NodeId, Size>)>,
     /// The `iframe` elements that the drain saw change, for the page.
@@ -383,6 +384,17 @@ pub struct DocumentState {
     /// list serial, the viewport scroll offset and size; ADR 0044 section
     /// 8): it runs again when one of them changes.
     pub(crate) animation_visibility: Option<(u64, Point, Size)>,
+    /// What the painted flag of the videos last saw (`media.rs`): it runs
+    /// again when one of these changes.
+    media_visibility: Option<media::VisibilityKey>,
+    /// False for a frame document that its parent does not show (its frame
+    /// lies outside the parent's viewport or the parent is not shown):
+    /// its videos convert no frames. The page sets it (ADR 0047 "Implementation
+    /// notes (M14 feature 7b)").
+    media_shown: bool,
+    /// The walks of the fragment tree for the window test of the videos
+    /// (`media.rs`; tests).
+    media_window_walks: Cell<u64>,
     /// The owners of the composited groups of the display list (ADR 0044
     /// section 19): the running animations of `transform` and `opacity`
     /// when the list was built. A change drops the list.
@@ -567,6 +579,9 @@ impl DocumentState {
             animations: RefCell::new(init.animations.records()),
             animations_enabled: init.animations.enabled,
             animation_visibility: None,
+            media_visibility: None,
+            media_shown: true,
+            media_window_walks: Cell::new(0),
             list_composited: std::collections::HashSet::new(),
             styles: None,
             stale_styles: None,

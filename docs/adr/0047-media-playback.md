@@ -482,8 +482,10 @@ needs data (`play()`, a seek). Chromium suspends idle players too; the
 loads them all, 16 at a time, with bounded threads.
 
 **Hidden elements.** A playing element that is not painted (`display:
-none`, outside the viewport, in a hidden window) keeps decoding (the
-decoder state and the clock need it) but does not convert frames. An
+none`, `visibility: hidden`, skipped contents, outside the viewport and
+its margin, in a hidden window; the rules are in "Implementation notes
+(M14 feature 7b)") keeps decoding (the decoder state and the clock need
+it) but does not convert frames. An
 element removed from the document pauses (measured: `timeupdate`,
 `pause`) and suspends as above. Paused, ended and suspended elements use
 no CPU: no thread runs and no timer is scheduled (the diagnosis budget:
@@ -646,13 +648,18 @@ probe rows (`format-metadata-table`).
   controls, as now). The default poster (#333, a video with controls and
   without a `poster` attribute) shows only while the video has no frame:
   with a frame the letterbox is transparent (measured in feature 7a).
-- **The frame loop.** `Page::frame_time()` includes, for each playing
-  video that is painted, the presentation time of its next frame mapped
-  to page time through the media clock. The GUI wakes at that time
-  (`ControlFlow::WaitUntil`), the frame pacing of ADR 0040 applies
-  (Wayland frame callbacks), and `frame_outdated()` sees the new
-  generation. A paint that comes after the next frame's time shows the
-  newest due frame (dropped frames are counted, never queued). A paused
+- **The frame loop** (corrected in feature 7b: the frame times are not in
+  `Page::frame_time()`; see "Implementation notes (M14 feature 7b)").
+  The presentation time of the next frame of a playing video, mapped to
+  page time through the media clock, is one of the media due times that
+  `Page::next_task_time()` takes (`media_next_due`). The GUI wakes at that
+  time (`ControlFlow::WaitUntil`), the pump polls the pipelines, the frame
+  pacing of ADR 0040 applies (Wayland frame callbacks), and
+  `frame_outdated()` is true when a painted video has a converted frame
+  due that it does not show (`Pipeline::frame_due`: it asks, and takes
+  nothing) or when the new frame bumped the generation of its image. A
+  paint that comes after the next frame's time shows the newest due frame
+  (dropped frames are counted, never queued). A paused, ended or stalled
   video schedules nothing.
 - **Headless screenshots** draw the frame at the media time of the page
   clock; in virtual time the pipeline has settled before the screenshot
@@ -2201,3 +2208,321 @@ Video frames in paint, headless: what a screenshot and the display list show
   `loadstart` listener that reloads the video from a timer: the screenshot at the
   end is bounded). No fixture has a stream whose frame size changes: that case is
   not run.
+
+## Implementation notes (M14 feature 7b)
+
+The GUI frame loop for video: what makes the page's frame outdated at a video
+frame's time, which videos convert frames (the painted flag), and what a
+window costs. Code: `crates/media/src/pipeline/mod.rs` (`frame_due`),
+`crates/engine/src/media/frames.rs`, `document/media.rs`, `page/media.rs`,
+`page/pipeline.rs`, `crates/swb/src/gui/`. Playback is silent (audio is
+feature 8).
+
+- **The frame decision.** `Page::frame_outdated()` is true when a painted
+  video has a converted frame due that it does not show
+  (`Page::media_frame_due`, then `Media::frame_due`, `Fetch::frame_due`,
+  `Pipeline::frame_due`). `Pipeline::frame_due(now)` is false at once unless
+  the pipeline plays with a running clock, no seek and no underrun (a paused,
+  ended, stalled, suspended or failed pipeline costs no lock). Else it takes
+  the pipeline's lock, walks the frame queue (at most 6 frames) and tells
+  whether the last frame due at the media time has pixels. It polls nothing,
+  converts nothing and takes nothing: the frame stays in the queue for the
+  next poll. A due frame without pixels (decoded while the video was not
+  painted) does not count: paint would show the same picture. With 1,000
+  playing videos on a page (16 pipelines run), the slowest decision in 6 s of
+  scrolling was 0.02 ms (hostile case `media-1000-playing-videos-frame-loop`).
+  Before 7b the GUI already drew each frame: the pump polled the pipelines at
+  each wake-up (`step_element` polls every fetching element), the poll bumped
+  the generation of the image, and the generation made the frame outdated.
+  The new test means the decision no longer depends on a poll that something
+  else ran (`the_frame_decision_sees_a_due_frame_without_a_poll`: reads only,
+  no `pump`), and the frame is outdated at the time the frame is due, not at
+  the next batch.
+- **Where the frame time goes.** Not into `Page::frame_time()` (the answer to
+  the question of 7b; section 9 said so and is corrected). `frame_time()` is
+  the time of the next rendering update: it runs the `requestAnimationFrame`
+  callbacks, `ResizeObserver` and the animation steps, it lies on the 60 Hz
+  grid and at least one frame after the last update. Frame times of a video
+  there would run a rendering update (and the callbacks of any page that
+  waits for one) at 25 or 30 Hz for nothing, and would move each frame to the
+  grid (25 fps is 2.4 grid steps: judder). A video frame changes no script
+  state and needs no style or layout. So the frame time stays where it was
+  since 6a: in `next_task_time()` through `media_next_due` (the GUI's
+  `WaitUntil`), at the exact time of the frame, and the frame decision reads
+  the queue.
+- **No busy loop.** The pipeline's next due time is the first queued frame, the
+  next `timeupdate` point or the end, and only while the clock runs (for a
+  video that is not painted, in real time, the frame in the middle of the
+  queue: "No frame times" below). A video
+  that is paused, ended, seeking, stalled (an underrun stops the clock) or
+  suspended has none: measured, 0 wake-ups and 0.0 % CPU in 10 s for the three
+  files, paused and ended. A frame that the video thread has not queued yet
+  is not due: while the queue is empty the next due time is a `timeupdate`
+  point or the end, and the pipeline arms a notify (`arm_frame_notify`), so
+  the loop wakes when the thread queues a frame, once, not repeatedly at the
+  late time. A due time that nothing consumes does not spin the GUI either:
+  `wake_deadline` makes a wake-up that ran no task and requested no frame wait
+  2 ms before the next (`MIN_IDLE_WAKE`; a frame that is due within 2 ms
+  after a wake-up that changed nothing waits up to 2 ms). Tests (`media_frame_loop.rs`,
+  real time, the GUI's loop without a window): a paused video and an ended one
+  give no render, no wake-up and no spin in 1 s, and their next due time is
+  the 15 s suspend; a video on a slow link (2 KB every 250 ms, it stalls)
+  neither spins nor draws more than its frames; the loop of a playing video
+  has at most its frames and its `timeupdate` points as wake-ups.
+- **A freeze at the wrap of a loop** (found while testing, a bug since feature
+  5). A seek while playing (the wrap of `loop`) left `media_now` at the old
+  position until the owner's next update, which waits for the seek. The video
+  thread drops a frame as late when its successor is due at `media_now`, so
+  every frame after the target frame of the seek counted as late and was
+  dropped: 31 of 50 frames of the 2 s file, and the picture stood still for
+  1.3 s at each wrap. `request_seek` now sets `media_now` to the target.
+  Tests: `a_seek_while_playing_does_not_drop_the_frames_after_the_target_as_late`
+  (44 frames dropped without the fix), `a_looping_video_goes_on_after_its_wrap`.
+- **The painted rules** (`DocumentState::update_media_visibility`, replacing
+  `sync_media_painted`). A video is painted when (1) the fragment walk that
+  paint uses (`FragmentTree::walk_painted`) visits its box: it has a box, and
+  it is not in skipped contents (`content-visibility: hidden`, a closed
+  `details`); (2) its computed `visibility` is `visible`; (3) its document is
+  shown: the window is not hidden, and a frame document lies in its parent's
+  window (below); and (4) with painted frames (`Page::set_paints_frames(true)`,
+  the GUI), its box, after the transforms and the scroll offsets of the walk,
+  meets the viewport grown by one viewport on each side (`VIDEO_MARGIN`).
+  Headless pages have no viewport rule: a full-page screenshot draws the
+  videos outside the viewport; they keep the 7a rule plus (1) and (2), which
+  a screenshot shows too. The flag changes only the conversion: decoding,
+  the clock, the events and what scripts read do not change. It is computed
+  after a layout and after a display list or scroll (the key is the layout
+  serial, the list serial, the viewport scroll offset, the viewport size and
+  the inputs of the page), so a page without a change does not walk; a page
+  without media elements does not look at all. A video that is painted again
+  shows its frame: a paused one through the quiet seek of 7a; a playing one
+  with the next frames that the video thread converts.
+- **The margin, measured.** After the flag turns on while the video plays,
+  the frames in the queue were decoded without pixels (at most 6: 240 ms at 25
+  fps; in a test the first converted frame was current 241 ms after the
+  flag, at the 6th render of 41 ms). A video that becomes visible within that
+  time has no current frame; the last converted frame shows in its place (a
+  hole is worse than an old picture: `Fetch::frame_image` falls back to the
+  last converted frame). A margin of one viewport makes the flag turn on a
+  viewport before the video is visible: for a window of 720 px that is a
+  scroll of 3,000 px/s for 240 ms, and a page-down (the flag is on before the
+  jump). The test `a_video_that_scrolls_in_shows_its_frame_when_it_comes_into_view`
+  scrolls 60 px per render at 25 renders per second (1,500 px/s; 600 px
+  window, video 1,800 px down): the video is visible at render 20 and its
+  current frame (3 or more frames converted after the flag) shows in render
+  20: "in the first frame where it is visible". With a margin of 0 the frame
+  comes at render 27, 7 renders (280 ms) after the video is visible, and the
+  test fails (checked). A jump of more than a viewport (`End`, the
+  scrollbar) shows the old frame for up to 240 ms.
+- **Frame documents.** The page tells each frame document whether its parent
+  shows it (`Page::update_frames_shown`, at each render of a page with
+  frames, parents first): the frame has a box that is painted and, with the
+  viewport rule, within the margin of the parent's viewport, and the parent
+  is shown itself. The videos of a frame that is not shown convert no
+  frames; the frame's own viewport and scroll decide for the others. Only the
+  frames that lead to a video are looked at (one walk of the parent's boxes
+  each), and only when the key of the look changed (fix round 1, below).
+- **The hidden window** (`Page::set_window_hidden`; the GUI calls it from
+  `about_to_wait`). Rule (`window_hidden` in `gui/mod.rs`): the window has no
+  pixels (`Resized` to 0 in a width or height; minimized on Windows), or
+  `WindowEvent::Occluded(true)`, or `Window::is_minimized() == Some(true)`
+  (read after `Resized`, `Occluded` and `Focused`). Per platform, from the
+  documentation and the X11 and Wayland backends of winit 0.30.13: **X11**:
+  `Occluded` comes from the visibility events (fully obscured; measured on
+  Xvfb by mapping an opaque window over the swb window: no frame is converted
+  or drawn), `is_minimized` reads `_NET_WM_STATE_HIDDEN` (the window manager's
+  state is not testable on Xvfb, which has none); **Wayland**: `Occluded` is
+  not sent and `is_minimized` is always `None`; the compositor stops the
+  frame callbacks of a hidden surface, so no frame is drawn (ADR 0040
+  section 3), but the page cannot tell and keeps converting; **Windows**: no
+  `Occluded`, a minimized window has the size 0; **macOS and iOS**:
+  `Occluded` and `is_minimized`. While the window is hidden no video
+  converts; the clocks and events go on (test
+  `a_hidden_window_converts_no_frames`: the position moves on); the frames
+  come back when it is shown again, a paused video through the quiet seek
+  (`a_paused_video_shows_its_frame_after_the_window_was_hidden`). The size
+  comes from the last `Resized` event: reading it at each wake-up costs an X
+  request (190 against 310 main-thread context switches per second while
+  playing).
+- **Damage.** A new frame repaints only the video: the generation of the
+  image gives the damage of its box (the display list stays), and the region
+  raster draws it (ADR 0044). Measured in the GUI (the `frame` lines of the
+  frame log, 640 x 360 box at 100, 100 in a 1280 x 720 window): the 1080p file
+  draws 232,404 px per frame, the 642 x 362 of the box, no full raster, 1
+  rectangle; the 320 x 240 file in the same box draws 174,484 px (482 x 362:
+  `object-fit: contain` puts the 4:3 picture in the middle of the 16:9
+  box). The changed rows are the rows of the damage rectangles, in the
+  window's whole width (`Composer::note_changed`); the toolbar is not drawn
+  again. A video that fills the window damages more than half of the
+  viewport, so each frame is a full raster of the page (870,400 px, the page
+  area; the table below). Rows that are as wide as the window are a
+  gap (the buffer write and the present damage of a narrow video cover the
+  window's width): backlog.
+- **Measured in a window** (release build with media, a private Xvfb, window
+  1280 x 720 (viewport 1280 x 680 under the toolbar), `RUST_LOG=swb::gui=debug`;
+  each file in a page of its own, `muted autoplay loop`, 4 s to settle, then
+  10 s, one run each, one machine; the tool is `measure.py` of the 7b notes
+  file, not in the repository). Columns: frames drawn per second (`frame` lines
+  of the frame log) against the file's rate; dropped frames (the pipeline's
+  counters, the new `media` line of the frame log); CPU of the whole process
+  (`/proc/PID/stat` before and after); resident memory; the median damage of a
+  frame in device pixels; wake-ups of the event loop per second (the `wakeups`
+  of the `media` line: one per `new_events`). The video fills the window
+  (`object-fit: contain`) except in the two "box" rows (640 x 360).
+
+  This is the first run, before the fix round (below): its wake-up column
+  is the one of the first build; the re-measured rows follow the table.
+
+  | File and state | drawn/s (file) | dropped | CPU % | RSS MiB | damage px/frame | wake-ups/s |
+  |---|---|---|---|---|---|---|
+  | 1080p, 30 fps, playing | 30.0 (30) | 0 | 41.6 | 240 | 870,400 (full) | 95 |
+  | paused (10 s) | 0 | 0 | 0.0 | 232 | 0 | 0 |
+  | ended | 0 | 0 | 0.0 | 223 | 0 | 0 |
+  | playing, below the viewport | 0 | 0 | 12.7 | 174 | 0 | 64 |
+  | playing, window covered (`Occluded`) | 0 | 0 | 13.2 | 232 | 0 | 64 |
+  | Wikimedia, 2558 x 1626, 25 fps, playing | 25.0 (25) | 0 | 49.9 | 317 | 870,400 (full) | 79 |
+  | paused / ended | 0 | 0 | 0.0 / 0.0 | 296 / 302 | 0 | 0 / 0 |
+  | playing, below the viewport | 0 | 0 | 5.8 | 161 | 0 | 55 |
+  | `mux-highest.mp4`, 4K, 24.02 fps, playing | 24.0 (24.02) | 0 | 109.7 | 505 | 870,400 (full) | 76 |
+  | paused / ended | 0 | 0 | 0.0 / 0.0 | 458 / 507 | 0 | 0 / 0 |
+  | playing, below the viewport | 0 | 0 | 51.8 | 331 | 0 | 52 |
+  | 320 x 240, 25 fps, playing | 25.0 (25) | 0 | 17.4 | 97 | 870,400 (full) | 56 |
+  | paused / ended | 0 | 0 | 0.0 / 0.0 | 99 / 101 | 0 | 0 / 0 |
+  | playing, below the viewport | 0 | 0 | 1.0 | 95 | 0 | 55 |
+  | 1080p in a 640 x 360 box | 30.0 (30) | 0 | 33.5 | 248 | 232,404 (1 rect) | 96 |
+  | 320 x 240 in a 640 x 360 box | 25.0 (25) | 0 | 6.2 | 101 | 174,484 (1 rect) | 61 |
+
+  Before the change (the same build without `frame_due`, the viewport rule
+  and the window rule): the three playing files drew the same frames, and the
+  three below the viewport drew 30, 25 and 24 frames per second of nothing
+  (damage 0) and converted every frame, with 14.9, 14.0 and 58.4 % CPU, 242,
+  318 and 495 MiB, and 185, 77 and 326 wake-ups per second. The 4K file
+  (`mux-highest.mp4`) is a 24.02 fps file (`avg_frame_rate` 77490000/3225877,
+  861 frames in 35.8 s; the 47.95 of `r_frame_rate` is the stream's time base,
+  not its rate): swb draws 24.0 frames a second and drops none, so it plays
+  it in real time at 110 % CPU, like Chromium (240 frames in 10 s, 93.2 %).
+  The first draft of these notes took 47.95 for the rate and called the file
+  decode-bound; there is no gap (found in the review). Neither an underrun
+  nor `waiting` was measured at 4K.
+  **Against the budgets of the diagnosis (section 6):** 1080p: 300 frames in
+  10 s, 0 dropped, 41.6 % CPU (budget 150 %, Chromium 24.9 %), 240 MiB
+  (budget 600 MiB above the idle page); Wikimedia: 0 dropped, 49.9 % (150 %;
+  Chromium 21.6 %), 317 MiB; 4K: all 24.0 frames a second, 0 dropped,
+  109.7 % CPU (Chromium 93.2 %), 505 MiB (1.5 GiB); paused, ended: 0.0 %
+  (budget 0.0 %) and no wake-up. Gap: the CPU of 1.7 and 2.3 times
+  Chromium's for 1080p and Wikimedia (the full-window raster of each frame
+  takes 8.5 and 13.5 ms of it). Not measured: a minimized window (Xvfb has no
+  window manager; the covered window is the same rule through `Occluded`,
+  which Xvfb reports).
+- **The wake-ups (fix round 1 of 7b).** The first run had 95 wake-ups a
+  second for a painted 30 fps video and 55 to 65 for a playing video that
+  nobody sees. The cause is not "the redraw and a notify": `end_update` armed
+  the owner's notify whenever `pending()` was true, and while playing
+  `pending()` is true when less than `READY_AHEAD_US` (200 ms) is decoded
+  ahead. The queue holds 6 frames (200 to 240 ms), so each frame that the
+  owner takes makes it "not ready", and the video thread's next push woke the
+  loop although the owner's next due time (the queued frame) had not changed.
+  Per frame: the due time and two such notifies (a traced run: 204 timer and
+  360 notify wake-ups in 6 s). Fix (`Pipeline::end_update`): no notify while
+  the pipeline plays with a running clock, no seek, and a queued frame of
+  the current epoch (then that frame is a due time). The review of the
+  fixes found that the first version (playing and a queued frame) lost the
+  end of a seek while playing: the clock stops during a seek, the frame at
+  the target can be queued while the seek still waits for its audio, and
+  only the notify tells a real-time owner that the seek can end (the
+  late-audio file with a 4 KiB packet bound: no `SeekDone` in 12 of 12
+  seeks; test `a_seek_while_playing_ends_for_an_owner_that_waits_for_the_notify`).
+  An owner that
+  waits for the pipeline (virtual time: `Media::pending`, `settle_media`,
+  `run_until`) calls `has_pending_work`, which arms the notify itself, so
+  virtual time is unaffected: the media suites of the engine
+  (`media_playback`, `media_states`, `media_video_paint`, `media_frames`,
+  `media_element`, `media_frame_loop`) pass with the same times (3 runs each,
+  within 0.1 s of the times before). Measured (the same machine and window;
+  one 10 s run each; "before" is the build of the first run):
+
+  | Case | before: wake-ups/s | after item 2 | after item 3 | drawn/s | dropped | CPU % before / after |
+  |---|---|---|---|---|---|---|
+  | 1080p painted, full window | 95.4 | 64.5 | 64.6 | 30.0 | 0 | 42.2 / 42.9 |
+  | 1080p painted, 640 x 360 box | 95.5 | 64.8 | 64.1 | 30.0 | 0 | 33.7 / 34.2 |
+  | 320 x 240 painted, 640 x 360 box | 57.3 | 54.0 | 54.9 | 25.0 | 0 | 6.7 / 6.7 |
+  | 1080p playing below the viewport | 65.5 | 34.9 | 11.6 | 0 | 0 | 12.8 / 13.3 |
+  | 320 x 240 playing below the viewport | 60.2 | 30.9 | 13.4 | 0 | 0 | 1.0 / 0.7 |
+  | 1080p paused | 0 | 0 | 0 | 0 | 0 | 0.0 / 0.0 |
+  | 4K playing, full window | 75.6 | 52.0 | 51.8 | 23.9 | 0 | 115.4 / 111.6 |
+
+  A painted video still wakes twice per frame (64 for 30 fps; 54 for 25 fps
+  with the `timeupdate` points): the due time and, it seems, the redraw turn
+  that winit delivers after `request_redraw` (not traced). A video that
+  nobody sees woke once per frame after item 2 (the due time).
+- **No frame times for a video that nobody sees (item 3 of the fix round).**
+  In real time, the page's next media due time of a pipeline that is not
+  painted leaves out its frame times (`Pipeline::next_wake`; the `timeupdate`
+  points, the end and the suspend stay): it is the frame in the middle of the
+  queue, so the owner takes the 6 queued frames in two or three batches.
+  Never the last frame: with the queue taken to its end the video thread
+  starts again from an empty queue, and an underrun is near (`covered` is
+  the end of the current frame when the queue is empty). The frames that a
+  batch passes over count as shown, not as dropped (an unpainted video drops
+  nothing that anyone sees; `Pipeline::quality`). Virtual time keeps
+  `next_due` (the first frame): its jumps and results do not depend on the
+  paint (the page passes `coarse = !clock.is_virtual()`). A video that
+  becomes painted has the exact frame time again at once (the owner reads the
+  due time after each render), and shows the frame at its position as
+  before; the scroll-in test is unchanged. Measured above: a playing video
+  below the viewport wakes 11.6 and 13.4 times a second (one batch in three
+  frames, 4 `timeupdate` points a second), 0 dropped, CPU unchanged.
+- **The look at the frame containers is keyed.** `Page::update_frames_shown`
+  and `DocumentState::element_in_media_window` walked the parent's fragment
+  tree once per frame document that leads to a video at each render. The
+  page keeps the key of the last look (for each frame: its parent, container,
+  box, whether it has media, whether it was told "shown", whether its parent
+  is shown, and the parent's layout serial, list serial, scroll offset,
+  viewport and rule; and the window state), computed again after the look. A
+  render without a change walks nothing (test
+  `renders_without_a_change_walk_no_fragment_tree`: 25 renders of a playing
+  video in a frame, 0 walks; unkeyed, 25 walks). The walk closure that
+  `update_media_visibility` and `element_in_media_window` shared is one
+  function (`walk_boxes_in_window`).
+- **Chromium, one row** (`tools/probes/media-frame-loop.json`, case
+  `autoplay-muted-scrolled-out`, three equal runs): a muted `autoplay` video
+  that starts out of the viewport does not play (`paused` true, no `play`
+  event) until it is scrolled into view; scrolled out again it pauses (a
+  `pause` event) and plays again when scrolled back (`play`, `playing`).
+  swb does none of it: its autoplay video plays wherever it is and keeps
+  its state (backlog; nothing implemented).
+- **Tests.** `crates/engine/tests/media_frame_loop.rs` (13, real time, the
+  GUI's loop without a window), `frame_oracle.rs`
+  `a_playing_video_asks_for_frames_when_its_pixels_change`,
+  `crates/media/tests/pipeline.rs` (`frame_due_*`, the seek, and from fix
+  round 1 `a_playing_pipeline_with_a_queued_frame_is_not_notified_at_each_frame`
+  and `a_video_that_is_not_painted_wakes_its_owner_in_batches`), unit tests in
+  `gui/mod.rs` (the hidden window, `wake_deadline`) and `framelog.rs`, and
+  the hostile case `media-1000-playing-videos-frame-loop` (`swb --headless
+  --js --frame-loop-ms 6000`: 1,000 playing 320 x 240 videos, the pump, the
+  frame decision, the damage render and a scroll every 100 ms; slowest
+  decision 0.02 ms, 308 MiB). Mutations that make a test fail (checked): no
+  `media_frame_due` in `frame_outdated` (`the_frame_decision_sees_a_due_frame_
+  without_a_poll` and the oracle), a margin of 0, no `visibility` test, skipped
+  contents counted (`walk_painted_with_hidden`), no viewport rule, a window
+  that is never hidden, frame documents always shown, no fallback to the last
+  converted frame (`a_hidden_window_converts_no_frames`), the old `media_now`
+  at a seek. Fix round 1, mutations that make a test fail (checked): the
+  notify armed at each update (105 notifies for 50 frames against a bound of
+  16; `a_playing_pipeline_with_a_queued_frame_...`), the frame look without
+  the key (60 walks against 35: `renders_without_a_change_walk_no_fragment_tree`),
+  the first queued frame as the wake-up of an unpainted video (`..._wakes_its_owner_in_batches`
+  and 29 wake-ups against a bound of 18 in
+  `a_video_outside_the_viewport_converts_no_frames`), the frames passed over
+  counted as dropped (`..._wakes_its_owner_in_batches`).
+- **Open (backlog).** A painted video wakes the loop twice per frame (the
+  due time and, it seems, the redraw turn of winit; not traced). A video
+  that nobody sees wakes 12 to 13 times a second at 25 to 30 fps (one batch of
+  three frames and the `timeupdate` points): a longer queue for unpainted
+  pipelines, or one wake-up per `timeupdate`, would go lower, but the queue
+  is 6 frames and the owner must take it before it runs dry. The first converted frame of a video that
+  becomes painted while it plays comes after the 6 queued frames (240 ms at
+  25 fps; the old frame shows meanwhile). A clipped-away, covered or
+  `opacity: 0` video counts as painted. The changed rows of the window are
+  whole rows. The state of a minimized window is untested on a real window
+  manager.

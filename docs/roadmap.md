@@ -7217,11 +7217,82 @@ Steps:
             screenshot that ran page tasks and could wait 30 s, the odd
             frame sizes, a test of the real-time render path; then the
             heap overflow and the last columns.
-      7b. The GUI frame loop (`implementer`): `Page::frame_time` with the
-          frame times of playing videos, the GUI's wake-ups, damage
-          rectangles of a new frame in a window, the viewport and
-          hidden-window rules of the painted flag, measurements in a
-          window.
+      7b. The GUI frame loop (`implementer`): the frame decision for
+          playing videos, the GUI's wake-ups, damage rectangles of a new
+          frame in a window, the painted rules of the viewport,
+          `visibility`, skipped contents, frame documents and the hidden
+          window, measurements in a window.
+
+          Done (2026-11-26, ADR 0047 "Implementation notes (M14 feature
+          7b)"):
+          - The frame decision: `Page::frame_outdated()` is true when a
+            painted video has a converted frame due that it does not show
+            (`Pipeline::frame_due`: a short lock over at most 6 queued
+            frames; no poll, no conversion). The frame time is not in
+            `Page::frame_time()`, which is the rendering update on the
+            60 Hz grid with the `requestAnimationFrame` callbacks; the
+            wake-up at the frame's time is in `next_task_time` through
+            `media_next_due`.
+          - No busy loop: a paused, ended or stalled video schedules no
+            wake-up (0 wake-ups and 0.0 % CPU in 10 s, measured); a frame
+            that the video thread has not queued yet wakes the loop when
+            it is queued (the pipeline's notify); a wake-up that changed
+            nothing does not come again within 2 ms (`wake_deadline`).
+          - Fewer wake-ups (review): the pipeline no longer notifies the
+            owner at each push while it plays with a running clock, no
+            seek and a queued frame (`end_update`; virtual time asks
+            `has_pending_work`, which arms the notify itself); in real
+            time a page wakes for an
+            unpainted video at the middle of its frame queue, not at each
+            frame (`Pipeline::next_wake`). Wake-ups a second: painted
+            1080p 95 to 64, below the viewport 65 to 12 (1080p) and 60 to
+            13 (320 x 240); frames, drops and CPU unchanged.
+          - Found and fixed (since feature 5): after a seek while playing
+            (the wrap of a `loop`) the video thread dropped the frames
+            after the target as late, because it compared them with the
+            position from before the seek: 31 of 50 frames dropped and
+            the picture still for 1.3 s at each wrap of a 2 s file.
+          - The painted rules (`DocumentState::update_media_visibility`,
+            keyed by the layout, the display list, the scroll offset, the
+            viewport and the window state): a painted box (not skipped by
+            `content-visibility` or a closed `details`), `visibility:
+            visible`, a shown document (the window is not hidden; a frame
+            document lies in its parent's window), and in the GUI the box
+            within one viewport of the viewport. Headless pages keep "has
+            a box" (a full-page screenshot draws all videos). The look at
+            frame documents is keyed too (a render without a change walks
+            no fragment tree).
+          - The hidden window: `Page::set_window_hidden`; the GUI sets it
+            from a size of 0, `WindowEvent::Occluded` (X11, macOS, iOS)
+            and `Window::is_minimized` (X11, Windows, macOS). Wayland
+            reports neither.
+          - Measured in a 1280 x 720 window on Xvfb, 10 s each (table in
+            the ADR notes): 1080p 30 fps: 30.0 frames drawn a second, 0
+            dropped, 41.6 % CPU (budget 150 %, Chromium 24.9 %), 240 MiB;
+            the Wikimedia file (25 fps): 25.0, 0 dropped, 49.9 % (Chromium
+            21.6 %), 317 MiB; the 4K file (24.02 fps): 24.0, 0 dropped,
+            109.7 % (Chromium 93.2 %), 505 MiB; 320 x 240: 25.0, 17.4 %.
+            Paused and ended: 0.0 % CPU. Playing below the viewport or in
+            a covered window: no frame converted or drawn (before: every
+            frame converted and 24 to 30 empty frames drawn a second). A
+            video in a 640 x 360 box damages its picture only (one
+            rectangle, no full raster).
+          - Chromium pauses a muted `autoplay` video that is out of the
+            viewport (probe `media-frame-loop.json`); swb does not
+            (backlog).
+          - Tests: `media_frame_loop.rs` (13), `frame_oracle.rs`, pipeline
+            tests of `frame_due`, the seek, the notify and the batched
+            wake-up, GUI unit tests, the hostile case
+            `media-1000-playing-videos-frame-loop` (`swb --headless
+            --frame-loop-ms`).
+          - Review fixes (one round, then a review of the fixes): the 4K
+            "gap" was a measuring error (47.95 is `r_frame_rate`, the
+            time base, not the frame rate), the extra wake-ups, the
+            unkeyed look at frame documents. The review of the fixes
+            found that the first notify rule lost the end of a seek while
+            playing (the clock stops during a seek; only the notify tells
+            a real-time owner that it can end), and two tests that raced
+            with the video thread under load.
    8. Audio output through PipeWire (`implementer`): the stream, the
       mix of several elements, volume and mute, a missing server or
       device.
@@ -7328,7 +7399,8 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Tests (found in feature 4): `probe_net
   module_graph_probe_cases_match_chromium` (`import-call-base-inserted`)
   failed once in a loaded `just check-media` run (two module loads in the
-  other order; a 900 ms timer) and passed in the next two runs.
+  other order; a 900 ms timer) and passed in the next two runs. Again in
+  the `just check-media` run of feature 7b (passed 3 of 3 alone).
 - Media pipeline (feature 5): the time of `Report::Buffered` depends on
   the demuxer's read-ahead and is not deterministic in virtual time
   (like network progress).
@@ -7353,9 +7425,45 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Media (feature 7a): a change of the frame size in the stream fires no
   `resize` and gives no new layout (no fixture has one); frames are
   drawn into the natural size of the metadata.
-- Media (feature 7a, for 7b): `visibility: hidden`, `content-visibility`,
-  an element clipped away or outside the viewport still converts its
-  frames.
+- Media pipeline (feature 7b, for feature 10): a painted video wakes the
+  loop twice per frame (64 wake-ups a second at 30 fps: the due time and,
+  it seems, the redraw turn that winit delivers after `request_redraw`;
+  not traced). A playing video that nobody sees wakes 12 to 13 times a
+  second (a batch of three frames, and the `timeupdate` points); fewer
+  needs a longer frame queue for unpainted pipelines (it is 6 frames,
+  and the owner must take them before it runs dry).
+- Media paint (feature 7b): the first converted frame of a video that
+  becomes painted while it plays comes after the 6 frames that the
+  pipeline queued unpainted (240 ms at 25 fps); the last converted frame
+  shows meanwhile. The margin of one viewport hides it for a scroll of
+  up to about 3,000 px/s. A shorter queue for unpainted pipelines, or a
+  conversion of the decoder's frame at `set_painted`, would remove it.
+- Media paint (feature 7b): a video clipped away by an ancestor
+  (`overflow: hidden`, a carousel), covered by other boxes, or at
+  `opacity: 0` counts as painted (it converts its frames).
+- GUI (feature 7b): the changed rows of a video frame are whole window
+  rows (the buffer write and the present damage have the window's width:
+  1280 px for a 640 px video); damage rectangles with columns would
+  halve them.
+- GUI (feature 7b): `Window::is_minimized` and `Occluded` are not tested
+  on a real window manager (Xvfb has none). Wayland reports neither: the
+  compositor stops the frame callbacks, so no frame is drawn, but the
+  videos of a minimized window go on converting their frames.
+- Media (feature 7b): Chromium does not start a muted `autoplay` video
+  that is outside the viewport (`paused` stays true, no `play`), pauses a
+  playing one that is scrolled out (`pause`), and plays it again when it
+  is scrolled back (`play`, `playing`; probe `media-frame-loop.json`,
+  three equal runs). swb plays such a video wherever it is. The painted
+  flag already knows which videos are in view.
+- Media (feature 7b): `getVideoPlaybackQuality()` is not in the IDL; the
+  GUI's frame log (`RUST_LOG=swb::gui=debug`) prints a `media` line with
+  the counters of the pipelines instead. The frames that a real-time page
+  passes over for an unpainted video (it takes them in batches) count as
+  shown, not dropped; Chromium's numbers for an offscreen video are not
+  measured. The GUI measurements of 7b used
+  a script that is not committed (`out/m14-f7b-measure.py` on the
+  development machine: its own Xvfb, a page per file and state, CPU from
+  `/proc`); feature 10 makes a tool of it for the budgets in the GUI.
 - Media (feature 7a): Chromium's rows `poster-play-pause-at-start`,
   `poster-play-and-run` and two cases of
   `frames-color-untagged-bt709-1280x7xx` vary between its runs under
@@ -8822,7 +8930,11 @@ Source Extensions, AV1 (dav1d), YouTube.
   failed once next to a cargo build; `ars_technica_works_with_javascript_on`
   failed once in `just check` with "grid settings: active element
   differs" (feature 5 fix round; passed alone 4 of 4 times and in the
-  next full run).
+  next full run), and again in a `just check-media` run of M14 feature 7b
+  (passed alone 3 of 3; that run also had the `probe_net` module-graph
+  failure above in another attempt). M14 feature 7b's real-time video
+  tests decode on their own threads while the other test binaries run,
+  which adds load.
 - `:focus-visible`: in Chromium a Shift key alone sets the keyboard
   modality, Control and Alt alone do not; swb sets it for every key.
   No input path sends a modifier key alone today.

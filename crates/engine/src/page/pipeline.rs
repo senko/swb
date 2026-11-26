@@ -144,14 +144,16 @@ impl Page {
     /// is not one of them (the shell draws the status bubble over the
     /// page's pixels; ADR 0040 section 5). It is also true if the pipeline
     /// has work that can change the pixels (changes of the DOM that it has
-    /// not taken, outdated styles, layout or display lists), and before the
-    /// first render. False negatives would leave a stale window; false
-    /// positives cost a frame.
+    /// not taken, outdated styles, layout or display lists), if a painted
+    /// video has a converted frame due that it does not show (M14 feature
+    /// 7b; it takes and converts nothing), and before the first render.
+    /// False negatives would leave a stale window; false positives cost a
+    /// frame.
     pub fn frame_outdated(&self) -> bool {
         let Some(drawn) = &self.drawn else {
             return true;
         };
-        *drawn != self.frame_record() || self.render_pending()
+        *drawn != self.frame_record() || self.render_pending() || self.media_frame_due()
     }
 
     /// The inputs of a render now.

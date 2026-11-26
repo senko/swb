@@ -686,6 +686,13 @@ impl Pipeline {
             st.epoch += 1;
             let epoch = st.epoch;
             st.seek = Some(SeekCmd { epoch, target_us });
+            // The video thread drops a frame as late when its successor is
+            // due at `media_now` (M14 feature 7b): until the owner's next
+            // update (which waits for the seek), the position is the target.
+            // With the old position (the end of a loop) the frames that
+            // follow the target frame were all late, and the picture froze
+            // for the rest of the file's length.
+            st.media_now = target_us;
             st.video_drained = None;
             st.audio_drained = None;
             st.video_end_us = None;
@@ -808,18 +815,32 @@ impl Pipeline {
     /// The next due media time while the clock runs: the next frame, the
     /// next `timeupdate` point, the end.
     fn next_due_media(&self, st: &State) -> Option<i64> {
+        self.due_media(st, true)
+    }
+
+    /// [`Pipeline::next_due_media`]; with `exact_frames` false and the
+    /// video not painted, the frame term is the frame in the middle of the
+    /// queue, not the first: nobody sees the frames, so the owner takes
+    /// them in batches (see [`Pipeline::next_wake`]).
+    fn due_media(&self, st: &State, exact_frames: bool) -> Option<i64> {
         if !self.clock.is_running() {
             return None;
         }
-        let frame = st
-            .frames
-            .iter()
-            .find(|f| f.epoch == st.epoch)
-            .map(|f| f.pts_us);
-        [frame, self.next_timeupdate, Some(self.end_time(st))]
-            .into_iter()
-            .flatten()
-            .min()
+        let mut frames = st.frames.iter().filter(|f| f.epoch == st.epoch);
+        let frame = if exact_frames || st.painted {
+            frames.next()
+        } else {
+            let queued = frames.clone().count();
+            frames.nth(queued / 2)
+        };
+        [
+            frame.map(|f| f.pts_us),
+            self.next_timeupdate,
+            Some(self.end_time(st)),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
     }
 
     /// The clock time of the next due item (a frame, a `timeupdate` point,
@@ -830,6 +851,56 @@ impl Pipeline {
         self.arm_frame_notify(&mut st);
         let t = self.next_due_media(&st)?;
         self.clock.clock_time(t)
+    }
+
+    /// The clock time at which a real-time owner needs to call
+    /// [`Pipeline::update`] next. It is [`Pipeline::next_due`], except that
+    /// a video that is not painted has no frame times: nobody sees its
+    /// frames, so the owner takes the queue in batches, at the frame in the
+    /// middle of it (a wake-up every 3 frames of the 6 queued, not every
+    /// frame; the video thread refills the queue with the room that the
+    /// update makes). The frames passed over are counted as shown, not as
+    /// dropped ([`Pipeline::quality`]). A virtual-time owner uses
+    /// `next_due`: its jumps and its results do not depend on the paint.
+    pub fn next_wake(&self) -> Option<i64> {
+        let mut st = self.shared.lock();
+        self.arm_frame_notify(&mut st);
+        let t = self.due_media(&st, false)?;
+        self.clock.clock_time(t)
+    }
+
+    /// Whether [`Pipeline::update`] at clock time `now` would show a frame
+    /// that has pixels and is not the one shown (M14 feature 7b: the owner's
+    /// frame decision, which runs at each batch of the GUI). It converts and
+    /// takes nothing; it holds the lock for a walk over at most the frame
+    /// queue (6 frames), and none while the clock does not run (paused,
+    /// ended, seeking, in an underrun, suspended, failed) or while the
+    /// queue holds no frame that is due. A due frame that has no pixels (it
+    /// was decoded while the video was not painted) changes nothing that
+    /// paint shows, so it does not count: the video thread converts the
+    /// frames that come after [`Pipeline::set_painted`].
+    pub fn frame_due(&self, now: i64) -> bool {
+        if !self.playing
+            || self.phase != Phase::Running
+            || self.seeking.is_some()
+            || self.underrun
+            || !self.clock.is_running()
+        {
+            return false;
+        }
+        let media = self.clock.media_time(now);
+        let st = self.shared.lock();
+        let mut shown = false;
+        for frame in st.frames.iter() {
+            if frame.epoch != st.epoch {
+                continue;
+            }
+            if frame.pts_us > media {
+                break;
+            }
+            shown = frame.image.is_some();
+        }
+        shown
     }
 
     /// While playing without a queued frame, the next due time changes when
@@ -975,9 +1046,30 @@ impl Pipeline {
     /// notify the owner when they have made progress, and the no-progress
     /// limit applies (also in real time, where the owner may never ask
     /// [`Pipeline::has_pending_work`]).
+    ///
+    /// While the pipeline plays with a frame of the current epoch queued, it
+    /// is "pending" only because less than [`READY_AHEAD_US`] is decoded
+    /// ahead (the queue holds 6 frames, about 200 ms, so each frame taken
+    /// makes it so), and the next push of the video thread changes nothing
+    /// that the owner waits for: its next due time is the queued frame. The
+    /// notify is not armed then (M14 feature 7b, review: it woke the GUI
+    /// once more per frame). A virtual-time owner that waits for the data
+    /// asks [`Pipeline::has_pending_work`], which arms the notify itself; an
+    /// owner in real time does not wait for the pipeline.
+    ///
+    /// The rule needs a running clock and no seek: then the queued frame is
+    /// a due time of [`Pipeline::next_due`]. During a seek while playing the
+    /// clock stops, so no due time comes; the frame at the target can be
+    /// queued while the seek still waits for its audio, and only the notify
+    /// tells a real-time owner that the seek can end (review of the fixes
+    /// of 7b: `SeekDone` never came for `mp4-h264-aac-late-audio.mp4`).
     fn end_update(&self, mut st: std::sync::MutexGuard<'_, State>) {
         let pending = self.pending(&st);
-        if pending {
+        let queued_frame = self.playing
+            && self.seeking.is_none()
+            && self.clock.is_running()
+            && st.frames.iter().any(|f| f.epoch == st.epoch);
+        if pending && !queued_frame {
             st.wants_notify = true;
         }
         let watch = self.note_needs(&mut st, pending);
@@ -1202,7 +1294,12 @@ impl Pipeline {
                 .is_some_and(|n| n.epoch == st.epoch && n.pts_us <= m);
             if next_due {
                 self.quality.total_frames += 1;
-                self.quality.dropped_frames += 1;
+                // A video that is not painted takes its frames in batches
+                // ([`Pipeline::next_wake`]): the ones passed over are not
+                // drops that anyone could see.
+                if st.painted {
+                    self.quality.dropped_frames += 1;
+                }
                 self.shared.recycle(f);
             } else {
                 self.show(f);

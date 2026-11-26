@@ -167,6 +167,20 @@ struct Args {
     #[arg(long, value_name = "MS", default_value_t = 0, requires = "headless")]
     settle_ms: u64,
 
+    /// Headless, in real time: after the load and the settle, run the
+    /// window's frame loop for this many milliseconds with painted frames
+    /// (the pump, the frame decision, the render of the damage, a scroll of
+    /// the page every 100 ms), and print its counts as a warning. For the
+    /// hostile media pages (docs/testing.md).
+    #[arg(
+        long,
+        value_name = "MS",
+        default_value_t = 0,
+        requires = "headless",
+        conflicts_with = "virtual_time"
+    )]
+    frame_loop_ms: u64,
+
     /// Start the automation server on this port of 127.0.0.1 (0 picks a
     /// free port; the port is printed). In headless mode, swb then runs
     /// until a client sends `browser.close`. See docs/automation.md.
@@ -350,6 +364,7 @@ fn main() -> Result<()> {
             steps: args.steps.as_deref(),
             clock,
             settle: Duration::from_millis(args.settle_ms),
+            frame_loop: Duration::from_millis(args.frame_loop_ms),
         };
         return stack::on_page_thread(|| headless::run(fonts, &options))?;
     }

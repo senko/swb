@@ -517,6 +517,41 @@ fn a_video_that_is_not_painted_decodes_without_converting() {
     assert!(p.current_image().is_some());
 }
 
+/// A real-time owner of a video that is not painted wakes at the frame in
+/// the middle of the queue, not at each frame (`Pipeline::next_wake`, M14
+/// feature 7b); the frames it passes over are not drops. A painted video
+/// wakes at its next frame. `next_due` (virtual time) is the first frame in
+/// both cases.
+#[test]
+fn a_video_that_is_not_painted_wakes_its_owner_in_batches() {
+    let waker = Arc::new(Waker::default());
+    let mut o = common::driver::options(&waker);
+    o.painted = false;
+    let mut p = Pipeline::open(
+        SourceOpener::file(common::fixture("mp4-h264-high-aac.mp4")),
+        o,
+    );
+    let mut reports = Vec::new();
+    settle_update(&mut p, &waker, 0, &mut reports);
+    p.play(0);
+    // The queue fills (6 frames of 40 ms: 40 to 240 ms). The video thread
+    // counts a frame as decoded before it waits for room and queues it, so
+    // the 7th decoded frame may not be queued yet; the 8th is decoded only
+    // after the 7th is queued (it then waits for room).
+    wait_decoded(&p, 8);
+    let first = p.next_due().expect("a frame is due");
+    let wake = p.next_wake().expect("a wake-up is due");
+    assert_eq!(first, 40_000);
+    assert_eq!(wake, 160_000, "the 4th of 6 queued frames");
+    // The owner updates at the wake-up: no drop.
+    let _ = p.update(wake);
+    assert_eq!(p.quality().dropped_frames, 0);
+    assert!(p.quality().total_frames >= 4, "{:?}", p.quality());
+    // Painted: the next frame.
+    p.set_painted(true);
+    assert_eq!(p.next_wake(), p.next_due());
+}
+
 /// A video that was not painted has a current frame without pixels; when it
 /// is painted again while paused it brings the pixels of the frame at its
 /// position back by a seek that the owner does not see (M14 feature 7a: the
@@ -546,7 +581,9 @@ fn a_paused_video_that_becomes_painted_gets_the_pixels_of_its_frame() {
     let frame = p.current_frame().expect("a frame");
     assert_eq!(frame.pts_us, 440_000);
     assert!(frame.image.is_some(), "the frame has its pixels");
-    assert_eq!(p.stats().frames_converted, converted + 1);
+    // At least the frame at the position; the video thread may convert a
+    // frame of its refill before the settle returns (seen under load).
+    assert!(p.stats().frames_converted > converted);
     assert_eq!(p.position(), 440_000);
     assert!(
         !reports.iter().any(|r| matches!(r, Report::SeekDone { .. })),
@@ -719,6 +756,86 @@ fn tracks_far_apart_in_the_file_play_in_real_time() {
     }
 }
 
+/// A pipeline that plays in real time with a frame queued asks for no
+/// notify at each frame it takes (M14 feature 7b, review): the video thread's
+/// push after a pop changes nothing that the owner waits for (the next due
+/// time is the queued frame), and each notify wakes the GUI's loop. 25 fps for
+/// 2 s are 50 frames; the notifies stay far below that (the first ones come
+/// while the queue fills).
+#[test]
+fn a_playing_pipeline_with_a_queued_frame_is_not_notified_at_each_frame() {
+    let waker = Arc::new(Waker::default());
+    let mut p = open_fixture("mp4-h264-aac-long.mp4", &waker);
+    let mut reports = Vec::new();
+    settle_update(&mut p, &waker, 0, &mut reports);
+    p.play(0);
+    let started = Instant::now();
+    let micros = || i64::try_from(started.elapsed().as_micros()).expect("fits");
+    // Let the queue fill, then count.
+    while micros() < 500_000 {
+        let seen = waker.count();
+        p.update(micros());
+        waker.wait_past(seen, Duration::from_millis(5));
+    }
+    let (notified, shown) = (waker.count(), p.quality().total_frames);
+    while micros() < 2_500_000 {
+        let seen = waker.count();
+        p.update(micros());
+        let wait = p
+            .next_due()
+            .map_or(5_000, |due| (due - micros()).clamp(0, 5_000));
+        waker.wait_past(seen, Duration::from_micros(wait.unsigned_abs()));
+    }
+    let frames = p.quality().total_frames - shown;
+    let notifies = waker.count() - notified;
+    assert!(frames >= 40, "{frames} frames shown in 2 s");
+    assert!(
+        notifies * 3 < frames,
+        "{notifies} notifies for {frames} frames"
+    );
+}
+
+/// A seek while playing ends for an owner in real time that calls `update`
+/// only when the pipeline notifies it. In the late-audio file with a 4 KiB
+/// packet bound the frame at the target is queued while the seek still
+/// waits for its audio, and the clock stops during the seek, so no due time
+/// wakes the owner: only the notify does (M14 feature 7b, review of the
+/// fixes: without it no seek ended).
+#[test]
+fn a_seek_while_playing_ends_for_an_owner_that_waits_for_the_notify() {
+    let waker = Arc::new(Waker::default());
+    let mut p = open_late_audio_stalling(&waker);
+    let mut reports = Vec::new();
+    settle_update(&mut p, &waker, 0, &mut reports);
+    p.play(0);
+    let started = Instant::now();
+    let micros = || i64::try_from(started.elapsed().as_micros()).expect("fits");
+    for i in 0..4i64 {
+        let target = 200_000 + i * 300_000;
+        let asked = Instant::now();
+        p.seek(target);
+        let mut done = false;
+        while !done && asked.elapsed() < Duration::from_secs(5) {
+            let seen = waker.count();
+            done = p
+                .update(micros())
+                .iter()
+                .any(|r| matches!(r, Report::SeekDone { .. }));
+            if !done {
+                waker.wait_past(seen, Duration::from_secs(5));
+            }
+        }
+        assert!(done, "seek {i} to {target}: no SeekDone within 5 s");
+        // Some playback between the seeks.
+        let playing = Instant::now();
+        while playing.elapsed() < Duration::from_millis(150) {
+            let seen = waker.count();
+            p.update(micros());
+            waker.wait_past(seen, Duration::from_millis(5));
+        }
+    }
+}
+
 /// Opens the late-audio file with a 4 KiB packet bound (the threads stall
 /// on the owner: no audio before 3 s in the file) and a no-progress limit
 /// that never comes in a test (the watchdog would wake a thread that missed
@@ -857,6 +974,73 @@ fn many_seeks_while_the_video_thread_works_show_the_last_one() {
     let offset = (7_310_000 * 48 / 1000) as usize;
     let diff = best_diff(&audio[..9600], &reference.samples, offset, 0);
     assert!(diff < 0.007, "the samples after the seek differ by {diff}");
+}
+
+/// A seek while playing (the wrap of a loop): the video thread compares the
+/// frames after the target with the position of the seek, not with the one
+/// from before it. With the old position (the end of the file) every frame
+/// after the target frame counted as late and was dropped, so the picture
+/// stood still for the length of the file (M14 feature 7b).
+#[test]
+fn a_seek_while_playing_does_not_drop_the_frames_after_the_target_as_late() {
+    let waker = Arc::new(Waker::default());
+    let mut p = open_fixture("mp4-h264-high-aac.mp4", &waker);
+    let played = play_virtual(&mut p, &waker, 0, 1_800_000);
+    assert!(p.is_playing());
+    let (late, decoded) = (p.stats().late_frames, p.stats().frames_decoded);
+    p.seek(0);
+    // The owner does not update (a slow loop): the threads decode ahead.
+    let started = Instant::now();
+    while p.stats().frames_decoded < decoded + 7 {
+        assert!(started.elapsed() < HANG, "the video thread does not decode");
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    // A dropped frame is not queued: a thread that dropped them all would
+    // have decoded the whole file by now.
+    std::thread::sleep(Duration::from_millis(50));
+    assert_eq!(p.stats().late_frames, late, "frames dropped as late");
+    assert!(
+        p.stats().frames_decoded <= decoded + 9,
+        "{} frames decoded after the seek",
+        p.stats().frames_decoded - decoded
+    );
+    let mut reports = Vec::new();
+    settle_update(&mut p, &waker, played.now, &mut reports);
+    assert!(
+        reports
+            .iter()
+            .any(|r| matches!(r, Report::SeekDone { media_us: 0 })),
+        "{reports:?}"
+    );
+}
+
+/// `frame_due` (M14 feature 7b, the frame decision of the GUI) says whether
+/// an update at a clock time would show a frame with pixels that is not the
+/// one shown, without taking it: no while paused, no before the next frame's
+/// time, yes from it until an update takes it.
+#[test]
+fn frame_due_tells_when_an_update_shows_a_new_frame() {
+    let waker = Arc::new(Waker::default());
+    let mut p = open_fixture("mp4-h264-high-aac.mp4", &waker);
+    let mut reports = Vec::new();
+    settle_update(&mut p, &waker, 0, &mut reports);
+    assert!(!p.frame_due(500_000), "paused");
+    p.play(0);
+    settle_update(&mut p, &waker, 0, &mut reports);
+    // The frames are 40 ms apart; the first is shown.
+    assert_eq!(p.current_frame().map(|f| f.pts_us), Some(0));
+    assert!(!p.frame_due(0));
+    assert!(!p.frame_due(39_000));
+    assert!(p.frame_due(40_000));
+    assert!(p.frame_due(300_000), "several frames are due");
+    // Asking took nothing.
+    assert_eq!(p.current_frame().map(|f| f.pts_us), Some(0));
+    p.update(40_000);
+    assert_eq!(p.current_frame().map(|f| f.pts_us), Some(40_000));
+    assert!(!p.frame_due(79_000));
+    assert!(p.frame_due(80_000));
+    p.pause(60_000);
+    assert!(!p.frame_due(500_000), "paused again");
 }
 
 #[test]

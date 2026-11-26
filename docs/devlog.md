@@ -4,6 +4,31 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-26: M14 feature 7b, the GUI frame loop for video
+
+- A playing video now draws each frame in the window at its time, and
+  only its rectangle is redrawn. The frame decision reads the frame queue
+  of each painted video; it converts nothing.
+- Measured in a 1280 x 720 window on Xvfb: 1080p 30 fps at 30 frames a
+  second with no drops and 42 % of one core (Chromium 25 %); the 2558 px
+  Wikipedia file at 25 with 50 %; the 4K file at 24 with 110 %
+  (Chromium 93 %). Paused and ended videos cost 0.0 % CPU.
+- A video that nobody sees converts no frames: outside the viewport (with
+  a margin of one viewport), `visibility: hidden`, skipped contents, a
+  hidden frame document, a minimized or covered window. Wayland does not
+  report a minimized window, so there the videos keep converting.
+- Found: since feature 5, a seek while playing (the wrap of a `loop`)
+  made the video thread drop the next frames as late; the picture froze
+  for 1.3 s at each wrap.
+- The review found the cause of extra wake-ups (a notify at each decoded
+  frame) and a measuring error: 47.95 is the 4K file's time base, not its
+  frame rate (24.02). Wake-ups of a painted 1080p video went from 95 to
+  64 a second, of a hidden one from 65 to 12. The review of that fix
+  found that its first version lost the end of a seek while playing.
+- Chromium pauses a muted `autoplay` video that is out of view and plays
+  it again when it is scrolled back; swb does not yet (backlog).
+- Next: feature 8, audio output through PipeWire.
+
 ## 2026-11-26: M14 feature 7a, video frames in paint (headless)
 
 - Feature 7 is split: 7a is what a headless screenshot shows, 7b the GUI

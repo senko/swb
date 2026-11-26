@@ -1,0 +1,22 @@
+{
+ "javascript": true,
+ "viewport": [
+  800,
+  600
+ ],
+ "cases": [
+  {
+   "name": "autoplay-muted-scrolled-out",
+   "html": "<!DOCTYPE html><style>body{margin:0}video{display:block;margin-top:3000px}</style><script>window.sleep = ms => new Promise(r => setTimeout(r, ms));</script><video id=v src=a.mp4 autoplay muted loop></video><div style='height:3000px'></div>",
+   "http": true,
+   "files": {
+    "a.mp4": "fixtures/media/mp4-h264-aac-long.mp4"
+   },
+   "measure": [
+    {
+     "js": "(async () => { const log = []; for (const n of ['play', 'pause', 'playing']) v.addEventListener(n, () => log.push(n + '@' + Math.round(scrollY))); const adv = async () => { const a = v.currentTime; await sleep(900); return {paused: v.paused, advanced: v.currentTime - a > 0.5}; }; const out = {}; await sleep(800); out.out_of_view_first = await adv(); scrollTo(0, 2900); await sleep(300); out.scrolled_in = await adv(); scrollTo(0, 0); await sleep(300); out.scrolled_out_again = await adv(); scrollTo(0, 2900); await sleep(300); out.scrolled_back_in = await adv(); out.events = log; return out; })()"
+    }
+   ]
+  }
+ ]
+}

@@ -833,7 +833,7 @@ impl DocumentState {
         self.scrollers.update(&fragments);
         self.fragments = Some(fragments);
         self.layout_serial += 1;
-        self.sync_media_painted();
+        self.update_media_visibility();
         self.keep_control_scroll();
         self.select_auto_sized_images();
         true
@@ -883,6 +883,7 @@ impl DocumentState {
         if self.display_list.is_some() || self.fragments.is_none() {
             // A scroll or a resize keeps the list.
             self.update_animation_visibility();
+            self.update_media_visibility();
             return;
         }
         let page = self.visible_selection();
@@ -911,6 +912,7 @@ impl DocumentState {
         #[cfg(debug_assertions)]
         self.check_paint_refresh(fonts, page, control);
         self.update_animation_visibility();
+        self.update_media_visibility();
     }
 
     /// The display list of `fragments` with the document's selection
