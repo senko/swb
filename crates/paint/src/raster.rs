@@ -158,6 +158,15 @@ pub trait ImageSource {
         0
     }
 
+    /// Whether the rectangle of `image` snaps to whole pixels by rounding its
+    /// origin and its size each (a video frame: Chromium draws the frame of
+    /// a 320 x 240 video that `object-fit: contain` puts at 66.67 to 333.33
+    /// into the pixels 67 to 333, 267 wide), not by rounding the edges (an
+    /// image: 67 to 332, 266 wide). Default: no.
+    fn rounds_size(&self, _image: &ImageRef) -> bool {
+        false
+    }
+
     /// The cache of the pixels of earlier rasters of the document
     /// (`raster/cache.rs`, ADR 0044 section 19). Without one, everything is
     /// drawn in every raster. The default has none.
@@ -712,7 +721,12 @@ impl Rasterizer<'_> {
                 clip,
             } => {
                 if let Some(decoded) = images.image(image) {
-                    self.decoded_image(decoded, images.vector_cache(), *rect, *tile, *clip);
+                    self.decoded_image(
+                        decoded,
+                        images.vector_cache(),
+                        (*rect, *tile, *clip),
+                        images.rounds_size(image),
+                    );
                 }
             }
             DisplayItem::LinearGradient {
@@ -1323,18 +1337,23 @@ impl Rasterizer<'_> {
     // ----- Images and gradients -----
 
     /// Draws a raster image, or a vector image rendered for the device
-    /// pixel size of `tile`.
+    /// pixel size of `tile`. `rounds_size`: the rectangle snaps by rounding
+    /// its origin and size ([`ImageSource::rounds_size`]).
     fn decoded_image(
         &mut self,
         image: &DecodedImage,
         cache: Option<&VectorCache>,
-        area: Rect,
-        tile: Rect,
-        clip: Rect,
+        (area, tile, clip): (Rect, Rect, Rect),
+        rounds_size: bool,
     ) {
         let svg = match image.kind() {
             ImageKind::Raster(pixmap) => {
-                return self.image(pixmap, Some(image.reductions()), (area, tile, clip));
+                return self.image(
+                    pixmap,
+                    Some(image.reductions()),
+                    (area, tile, clip),
+                    rounds_size,
+                );
             }
             ImageKind::Vector(svg) => svg,
         };
@@ -1350,17 +1369,22 @@ impl Rasterizer<'_> {
             None => None,
         };
         if let Some(pixmap) = pixmap {
-            self.image(&pixmap, None, (area, tile, clip));
+            self.image(&pixmap, None, (area, tile, clip), false);
         }
     }
 
     /// Draws `pixmap` as `tile` inside `area` and `clip`. With `levels`, a
     /// large reduction is drawn from a reduced level (see [`crate::reduce`]).
+    /// With `rounds_size` a single image snaps to the pixels by rounding the
+    /// origin and the size of its rectangle (a video frame, see
+    /// [`ImageSource::rounds_size`]), and its area is that rectangle inside
+    /// the snapped clip.
     fn image(
         &mut self,
         pixmap: &Pixmap,
         levels: Option<&Reductions>,
         (area, tile, clip): (Rect, Rect, Rect),
+        rounds_size: bool,
     ) {
         if tile.width <= 0.0 || tile.height <= 0.0 {
             return;
@@ -1369,10 +1393,20 @@ impl Rasterizer<'_> {
             return;
         };
         let tiled = is_tiled(area, tile);
-        let tile = self.to_device(tile);
+        let device_tile = self.to_device(tile);
         // Chromium draws a single image into its pixel-snapped rectangle.
-        let tile = if tiled { tile } else { snap(tile) };
-        let area = snap(self.to_device(area));
+        let (tile, area) = if tiled {
+            (device_tile, snap(self.to_device(area)))
+        } else if rounds_size {
+            let tile = snap_by_size(device_tile);
+            let area = tile.intersection(&snap(self.to_device(clip)));
+            let Some(area) = area else {
+                return;
+            };
+            (tile, area)
+        } else {
+            (snap(device_tile), snap(self.to_device(area)))
+        };
         let pieces = self.pieces(area);
         if pieces.is_empty() {
             return;
@@ -1530,7 +1564,7 @@ impl Rasterizer<'_> {
             }
             TilePlan::Rendered { size, .. } => {
                 if let Some(pixmap) = gradient_tile(gradient, current, tile, size) {
-                    self.image(&pixmap, None, (area, tile, area));
+                    self.image(&pixmap, None, (area, tile, area), false);
                 }
             }
             TilePlan::Nothing => {}
@@ -1715,6 +1749,19 @@ fn snap(r: Rect) -> Rect {
             b = a + 1.0;
         }
         (a, (b - a).max(0.0))
+    };
+    let (x, width) = snap_axis(r.x, r.width);
+    let (y, height) = snap_axis(r.y, r.height);
+    Rect::new(x, y, width, height)
+}
+
+/// Rounds the origin and the size of a rectangle to whole pixels, each by
+/// itself (a video frame; [`ImageSource::rounds_size`]). A rectangle that is
+/// not empty stays at least one pixel wide and high.
+fn snap_by_size(r: Rect) -> Rect {
+    let snap_axis = |start: f32, size: f32| {
+        let width = size.round();
+        (start.round(), if size > 0.0 { width.max(1.0) } else { 0.0 })
     };
     let (x, width) = snap_axis(r.x, r.width);
     let (y, height) = snap_axis(r.y, r.height);

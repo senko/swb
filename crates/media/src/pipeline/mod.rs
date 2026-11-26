@@ -256,6 +256,9 @@ struct Seeking {
     target_us: i64,
     /// Report `SeekDone` (not for the seek of a reopen).
     report: bool,
+    /// `ended` after the seek (a seek that only brings back the pixels of
+    /// the frame at the position, [`Pipeline::set_painted`], keeps it).
+    ended: bool,
 }
 
 /// A media pipeline. Dropping it closes it.
@@ -580,8 +583,27 @@ impl Pipeline {
     /// Whether the video is painted: frames that are not painted are
     /// decoded (the decoder and the clock need them) but not converted
     /// (ADR 0047 section 6, "Hidden elements").
+    ///
+    /// A video that becomes painted while the current frame has no pixels
+    /// (it was decoded while the video was not painted) and that is not
+    /// playing seeks to its position and shows the frame there, without a
+    /// `SeekDone` report and without a change of the position or of `ended`
+    /// (the seek that the element does not see). A playing video shows its
+    /// next frame; a suspended one has to be opened first (the owner's
+    /// `play` or `seek`).
     pub fn set_painted(&mut self, painted: bool) {
-        self.shared.lock().painted = painted;
+        let was = std::mem::replace(&mut self.shared.lock().painted, painted);
+        let stale = self.current.as_ref().is_some_and(|c| c.image.is_none());
+        if painted
+            && !was
+            && stale
+            && !self.playing
+            && self.seeking.is_none()
+            && self.phase == Phase::Running
+            && self.metadata.is_some()
+        {
+            self.start_seek(self.position, false, self.ended);
+        }
     }
 
     /// Starts playing at clock time `now` (a suspended pipeline opens
@@ -621,13 +643,20 @@ impl Pipeline {
     /// one runs). Before the metadata it waits for it; a suspended pipeline
     /// opens again; a source that cannot seek plays again from the start.
     pub fn seek(&mut self, target_us: i64) {
+        self.start_seek(target_us, true, false);
+    }
+
+    /// The seek of [`Pipeline::seek`]; `report` says whether `SeekDone`
+    /// comes, `ended` whether the pipeline is at its end after the seek.
+    fn start_seek(&mut self, target_us: i64, report: bool, ended: bool) {
         match self.phase {
             Phase::Failed | Phase::Closed => return,
             Phase::Suspended => {
                 self.seeking = Some(Seeking {
                     epoch: 0,
                     target_us,
-                    report: true,
+                    report,
+                    ended,
                 });
                 self.position = target_us;
                 self.resume();
@@ -639,7 +668,8 @@ impl Pipeline {
         self.seeking = Some(Seeking {
             epoch,
             target_us,
-            report: true,
+            report,
+            ended,
         });
         self.position = target_us;
         self.clock.set(target_us);
@@ -692,12 +722,14 @@ impl Pipeline {
         }
         let target = self.seeking.map_or(self.position, |s| s.target_us);
         let report = self.seeking.is_some_and(|s| s.report);
+        let ended = self.seeking.is_some_and(|s| s.ended);
         if self.metadata.is_some() || self.seeking.is_some() {
             let epoch = self.request_seek(target);
             self.seeking = Some(Seeking {
                 epoch,
                 target_us: target,
                 report,
+                ended,
             });
         }
         self.start_run();
@@ -1077,7 +1109,7 @@ impl Pipeline {
         self.seeking = None;
         self.position = position;
         self.clock.set(position);
-        self.ended = false;
+        self.ended = s.ended;
         self.underrun = false;
         self.audio_gap = false;
         self.next_timeupdate = None;

@@ -111,6 +111,7 @@ impl DocumentState {
         self.process_changes();
         let now = self.media_now();
         self.with_media(now, |media, cx| media.load_algorithm(cx, node, true));
+        self.sync_media_images(None);
     }
 
     /// A command of a script (`pause()`, a seek, `volume`, `muted`, the
@@ -131,19 +132,31 @@ impl DocumentState {
             MediaCommand::SetPlaybackRate(rate) => media.set_rate(cx, node, rate, false),
             MediaCommand::SetDefaultPlaybackRate(rate) => media.set_rate(cx, node, rate, true),
         });
+        self.sync_media_images(None);
     }
 
     /// `play()` of the media element `node`.
     pub(crate) fn media_play(&mut self, node: NodeId) -> PlayStart {
         self.process_changes();
         let now = self.media_now();
-        self.with_media(now, |media, cx| media.play(cx, node))
+        let start = self.with_media(now, |media, cx| media.play(cx, node));
+        self.sync_media_images(None);
+        start
     }
 
     /// One step of the media elements at page time `now_ms`; `strict` in
     /// virtual time (see [`crate::media::Media::step`]). Returns true if one
-    /// did something.
+    /// did something. The images of the videos follow the step, so that the
+    /// events that the step queued see the layout that they imply (a
+    /// `loadedmetadata` listener reads the new size).
     pub(crate) fn media_step(&mut self, now_ms: f64, strict: bool) -> bool {
+        let progressed = self.media_step_units(now_ms, strict);
+        self.sync_media_images(None);
+        progressed
+    }
+
+    /// The units of [`DocumentState::media_step`].
+    fn media_step_units(&mut self, now_ms: f64, strict: bool) -> bool {
         let queued = self.media.event_count();
         self.process_changes();
         if self.media.event_count() != queued {
@@ -158,6 +171,100 @@ impl DocumentState {
             return false;
         }
         self.with_media(now_ms, |media, cx| media.step(cx, strict))
+    }
+
+    /// Brings the images of the `<video>` elements up to date: the natural
+    /// size of the stream, the poster or the frame that shows, and the
+    /// current frame (ADR 0047 section 9). With `poll_at_us` the pipelines
+    /// first take the frames that are due at that page time (a paint). A new
+    /// frame bumps the content generation of the video's image, and the
+    /// display list stays; a change of the natural size (or of what shows,
+    /// when the sizes differ) makes the layout outdated. Without
+    /// `poll_at_us` only the elements that a unit of a step or a script
+    /// touched are looked at (a page with 16,000 videos does not look at all
+    /// of them after each unit); a paint looks at all.
+    pub(crate) fn sync_media_images(&mut self, poll_at_us: Option<i64>) {
+        if self.media.is_empty() && self.images.no_videos() {
+            return;
+        }
+        if let Some(now) = poll_at_us {
+            self.media.poll_frames(now);
+        }
+        let touched = self.media.take_touched();
+        let all = self.media.take_resync_all() || poll_at_us.is_some();
+        let mut layout = false;
+        if all {
+            let mut live = std::collections::HashSet::new();
+            for (node, view) in self.media.video_views() {
+                layout |= self.set_video_image(node, view);
+                live.insert(node);
+            }
+            layout |= self.images.retain_videos(|node| live.contains(&node));
+        } else {
+            for node in touched {
+                layout |= match self.media.video_view(node) {
+                    Some(view) => self.set_video_image(node, view),
+                    None => self.images.forget_video(node),
+                };
+            }
+        }
+        if layout {
+            self.invalidate_layout();
+        }
+    }
+
+    /// Gives `Images` what the video `node` shows. True if the layout is
+    /// outdated.
+    fn set_video_image(&mut self, node: NodeId, view: crate::media::VideoView) -> bool {
+        let poster = self
+            .dom
+            .element(node)
+            .and_then(|e| e.attr("poster"))
+            .is_some_and(|p| !p.trim_matches(swb_dom::is_html_whitespace).is_empty());
+        // The poster shows while the flag is set, and also with the flag
+        // clear while the current load has no frame yet (`play()` before the
+        // first frame, a decode failure; measured in Chromium).
+        let poster_mode = poster && (view.show_poster || view.frame.is_none());
+        self.images
+            .set_video(node, view.natural, poster_mode, view.frame)
+    }
+
+    /// The `poster` attribute of the `<video>` `node` changed (or it got a
+    /// poster): its images may have changed.
+    pub(super) fn media_poster_changed(&mut self, node: NodeId) {
+        self.media.touch(node);
+    }
+
+    /// Tells the media elements which videos have a box after a layout: a
+    /// video without one (`display: none`, not in the document) converts no
+    /// frames, and one that gets a box again shows the frame at its position
+    /// (ADR 0047 section 6, "Hidden elements").
+    pub(super) fn sync_media_painted(&mut self) {
+        if self.media.is_empty() {
+            return;
+        }
+        let Some(tree) = &self.fragments else {
+            return;
+        };
+        let mut boxes = std::collections::HashSet::new();
+        tree.walk(|fragment, _| {
+            if let swb_layout::FragmentRef::Box(b) = fragment
+                && let swb_layout::BoxContent::Media(m) = &b.content
+            {
+                boxes.insert(m.node);
+            }
+        });
+        self.media.set_painted(&boxes);
+    }
+
+    /// True if a media element has a state in this document.
+    pub(crate) fn has_media(&self) -> bool {
+        !self.media.is_empty()
+    }
+
+    /// The frames that the pipeline of the video `node` converted (tests).
+    pub(crate) fn media_frames_converted(&self, node: NodeId) -> Option<u64> {
+        self.media.frames_converted(node)
     }
 
     /// Takes the media events for the script runtime.

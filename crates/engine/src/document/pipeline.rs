@@ -833,6 +833,7 @@ impl DocumentState {
         self.scrollers.update(&fragments);
         self.fragments = Some(fragments);
         self.layout_serial += 1;
+        self.sync_media_painted();
         self.keep_control_scroll();
         self.select_auto_sized_images();
         true

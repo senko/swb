@@ -584,6 +584,24 @@ pub(crate) struct Images {
     /// The number of generation bumps in the document: the paint stamp
     /// holds it, so that a bump makes the frame outdated.
     pub(crate) media_generation: u64,
+    /// What each `<video>` with a media state shows besides its poster: the
+    /// natural size of its stream and its current frame (M14 feature 7a;
+    /// [`Images::set_video`]).
+    videos: HashMap<NodeId, VideoImage>,
+}
+
+/// What a `<video>` element shows (ADR 0047 section 9).
+struct VideoImage {
+    /// The natural size of the stream (`videoWidth`, `videoHeight`), after
+    /// the metadata.
+    natural: Option<(u32, u32)>,
+    /// The element represents its poster: it has a `poster` attribute and
+    /// HTML's show poster flag is set. The poster shows if it is loaded;
+    /// otherwise nothing shows (a poster that fails shows the background).
+    poster_mode: bool,
+    /// The current frame: the pixels of the pipeline and the image that
+    /// shares them (the pool takes the pixels back when this goes).
+    frame: Option<(Arc<swb_paint::Pixmap>, Arc<DecodedImage>)>,
 }
 
 impl Images {
@@ -758,13 +776,104 @@ impl Images {
 
     fn get(&self, image: &ImageRef) -> Option<&Arc<DecodedImage>> {
         let url = match image {
-            ImageRef::Node(node) => self.by_node.get(node)?.url.clone(),
+            ImageRef::Node(node) => {
+                if let Some(video) = self.videos.get(node)
+                    && !video.poster_mode
+                {
+                    return video.frame.as_ref().map(|(_, image)| image);
+                }
+                self.by_node.get(node)?.url.clone()
+            }
             ImageRef::Url(url) => Url::parse(url).ok()?,
         };
         match self.by_url.get(&url)? {
             ImageState::Loaded(image) => Some(image),
             _ => None,
         }
+    }
+
+    /// What the `<video>` element `node` shows: `natural` is the size of its
+    /// stream, `poster_mode` whether it represents its poster, `frame` the
+    /// pixels of its current frame. A new frame bumps the content generation
+    /// of the node's image; a change of the natural size (also by a change
+    /// of what shows) returns true: the layout is outdated. The display list
+    /// does not change when only the frame does (ADR 0047 section 9).
+    pub(crate) fn set_video(
+        &mut self,
+        node: NodeId,
+        natural: Option<(u32, u32)>,
+        poster_mode: bool,
+        frame: Option<Arc<swb_paint::Pixmap>>,
+    ) -> bool {
+        let image = ImageRef::Node(node);
+        let shown = |images: &Images| images.get(&image).map(Arc::as_ptr);
+        let (size_before, shown_before) = (self.size(&image), shown(self));
+        let frame_before = self.shows_frame(node);
+        let entry = self.videos.entry(node).or_insert(VideoImage {
+            natural: None,
+            poster_mode: true,
+            frame: None,
+        });
+        entry.natural = natural;
+        entry.poster_mode = poster_mode;
+        let unchanged = match (&entry.frame, &frame) {
+            (Some((old, _)), Some(new)) => Arc::ptr_eq(old, new),
+            (None, None) => true,
+            _ => false,
+        };
+        if !unchanged {
+            entry.frame = frame.map(|pixels| {
+                let image = Arc::new(DecodedImage::from_shared_pixmap(Arc::clone(&pixels)));
+                (pixels, image)
+            });
+        }
+        let (size_after, shown_after) = (self.size(&image), shown(self));
+        if shown_before != shown_after {
+            self.bump_generation(image);
+        }
+        // The layout reads the size and whether a frame shows (the default
+        // poster).
+        size_before != size_after || frame_before != self.shows_frame(node)
+    }
+
+    /// Forgets the video `node` (its media state is gone). True if the layout
+    /// is outdated.
+    pub(crate) fn forget_video(&mut self, node: NodeId) -> bool {
+        if !self.videos.contains_key(&node) {
+            return false;
+        }
+        self.retain_videos(|n| n != node)
+    }
+
+    /// Whether the `<video>` element `node` shows a frame of its video now.
+    pub(crate) fn shows_frame(&self, node: NodeId) -> bool {
+        self.videos
+            .get(&node)
+            .is_some_and(|v| !v.poster_mode && v.frame.is_some())
+    }
+
+    /// Forgets the videos whose node `keep` does not accept (their media
+    /// state is gone). Returns true if one that had a size went.
+    pub(crate) fn retain_videos(&mut self, mut keep: impl FnMut(NodeId) -> bool) -> bool {
+        let gone: Vec<NodeId> = self
+            .videos
+            .keys()
+            .copied()
+            .filter(|&node| !keep(node))
+            .collect();
+        let mut changed = false;
+        for node in gone {
+            let before = (self.size(&ImageRef::Node(node)), self.shows_frame(node));
+            self.videos.remove(&node);
+            changed |= before != (self.size(&ImageRef::Node(node)), self.shows_frame(node));
+            self.bump_generation(ImageRef::Node(node));
+        }
+        changed
+    }
+
+    /// True if no `<video>` has a media image.
+    pub(crate) fn no_videos(&self) -> bool {
+        self.videos.is_empty()
     }
 }
 
@@ -773,7 +882,30 @@ impl ImageSizes for Images {
     /// the density-corrected natural size
     /// (<https://html.spec.whatwg.org/multipage/images.html#density-corrected-natural-width-and-height>),
     /// which layout and `object-fit` use.
+    ///
+    /// For a `<video>` with a media state (ADR 0047 section 9; HTML "the
+    /// natural size"): the poster's while the element represents its poster
+    /// and the poster is loaded, else the size of the stream (the display
+    /// size, `videoWidth` by `videoHeight`), else none.
     fn size(&self, image: &ImageRef) -> Option<NaturalSize> {
+        if let ImageRef::Node(node) = image
+            && let Some(video) = self.videos.get(node)
+        {
+            let poster = || {
+                let size = self.get(image)?.natural_size();
+                Some(density_corrected(size, self.by_node.get(node)?.density))
+            };
+            let stream = || {
+                video
+                    .natural
+                    .map(|(w, h)| NaturalSize::fixed(w as f32, h as f32))
+            };
+            return if video.poster_mode {
+                poster().or_else(stream)
+            } else {
+                stream()
+            };
+        }
         let size = self.get(image)?.natural_size();
         match image {
             ImageRef::Node(node) => Some(density_corrected(size, self.by_node.get(node)?.density)),
@@ -795,6 +927,12 @@ impl ImageSource for Images {
         self.generations.get(image).copied().unwrap_or(0)
     }
 
+    /// A frame of a video snaps by size (the poster is an image).
+    fn rounds_size(&self, image: &ImageRef) -> bool {
+        matches!(image, ImageRef::Node(node)
+            if self.videos.get(node).is_some_and(|v| !v.poster_mode))
+    }
+
     fn raster_cache(&self) -> Option<&RasterCache> {
         Some(&self.raster_cache)
     }
@@ -804,6 +942,10 @@ impl swb_layout::ReplacedSizes for Images {
     /// The density-corrected natural size of the image of `node`.
     fn natural_size(&self, node: NodeId) -> Option<NaturalSize> {
         self.size(&ImageRef::Node(node))
+    }
+
+    fn shows_video_frame(&self, node: NodeId) -> bool {
+        self.shows_frame(node)
     }
 }
 
@@ -927,6 +1069,86 @@ mod tests {
         };
         assert_eq!(density_corrected(ratio_only, 2.0), ratio_only);
         assert_eq!(density_corrected(size, -0.0).width, Some(0.0));
+    }
+
+    /// A frame of `width` x `height` pixels, as the media pipeline holds it.
+    fn frame(width: u32, height: u32) -> Arc<swb_paint::Pixmap> {
+        Arc::new(swb_paint::Pixmap::new(width, height).unwrap())
+    }
+
+    /// The images of a `<video>` (ADR 0047 section 9): the poster shows
+    /// while the element represents it and it is loaded, else the frame; the
+    /// natural size is the poster's then, else the stream's; a new frame
+    /// bumps the content generation, and the layout is outdated only when the
+    /// size or whether a frame shows changes.
+    #[test]
+    fn a_video_shows_its_poster_then_its_frames() {
+        let node = NodeId::from_index(5).unwrap();
+        let shown = ImageRef::Node(node);
+        let mut images = Images::default();
+        let poster = image("p.png", 1.0);
+        images.by_url.insert(poster.url.clone(), loaded());
+        images.by_node.insert(node, poster);
+        // The poster is 4 x 2; the stream is 320 x 240.
+        let size = |images: &Images| {
+            images
+                .size(&shown)
+                .map(|s| (s.width.unwrap() as u32, s.height.unwrap() as u32))
+        };
+        assert_eq!(size(&images), Some((4, 2)));
+        // The metadata and no frame yet, in poster mode: the poster's size
+        // (nothing changes for the layout, the generation stays).
+        assert!(!images.set_video(node, Some((320, 240)), true, None));
+        assert_eq!(size(&images), Some((4, 2)));
+        assert_eq!(images.generation(&shown), 0);
+        assert!(!images.rounds_size(&shown));
+        // `play()`: the frame, the stream's size: a new layout, a new image.
+        let first = frame(320, 240);
+        assert!(images.set_video(node, Some((320, 240)), false, Some(Arc::clone(&first))));
+        assert_eq!(size(&images), Some((320, 240)));
+        assert_eq!(images.generation(&shown), 1);
+        assert!(images.rounds_size(&shown));
+        assert!(images.shows_frame(node));
+        assert_eq!(images.image(&shown).unwrap().raster().unwrap().width(), 320);
+        // The same frame again: nothing changes. Another frame: the
+        // generation goes up and the layout stays.
+        assert!(!images.set_video(node, Some((320, 240)), false, Some(first)));
+        assert_eq!(images.generation(&shown), 1);
+        let id = images.image(&shown).unwrap().id();
+        assert!(!images.set_video(node, Some((320, 240)), false, Some(frame(320, 240))));
+        assert_eq!(images.generation(&shown), 2);
+        assert_ne!(images.image(&shown).unwrap().id(), id);
+        assert_eq!(images.media_generation, 2);
+        // A frame without pixels (the video has no box): no image, and the
+        // stream's size stays.
+        assert!(images.set_video(node, Some((320, 240)), false, None));
+        assert!(images.image(&shown).is_none());
+        assert_eq!(size(&images), Some((320, 240)));
+        // `load()`: the poster again, with its size.
+        assert!(images.set_video(node, None, true, None));
+        assert_eq!(size(&images), Some((4, 2)));
+        assert!(images.image(&shown).is_some());
+        assert!(!images.shows_frame(node));
+        // The state is gone with the element: the poster's size, and the
+        // layout is outdated only if something changed.
+        assert!(!images.retain_videos(|_| false));
+        assert!(images.no_videos());
+    }
+
+    /// A poster that did not load (`poster_mode` with no image) draws
+    /// nothing, and the layout takes the stream's size when it has one.
+    #[test]
+    fn a_failed_poster_shows_nothing_and_the_stream_gives_the_size() {
+        let node = NodeId::from_index(6).unwrap();
+        let shown = ImageRef::Node(node);
+        let mut images = Images::default();
+        let poster = image("missing.png", 1.0);
+        images.by_url.insert(poster.url.clone(), ImageState::Failed);
+        images.by_node.insert(node, poster);
+        assert!(images.set_video(node, Some((320, 240)), true, Some(frame(320, 240))));
+        assert!(images.image(&shown).is_none(), "the frame stays hidden");
+        assert_eq!(images.size(&shown).unwrap().width, Some(320.0));
+        assert!(!images.shows_frame(node));
     }
 
     fn image(name: &str, density: f32) -> SelectedImage {

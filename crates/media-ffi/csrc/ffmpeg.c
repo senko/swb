@@ -12,6 +12,8 @@
 #include <libavformat/avformat.h>
 #include <libavutil/avutil.h>
 #include <libavutil/channel_layout.h>
+#include <libavutil/common.h>
+#include <libavutil/imgutils.h>
 #include <libavutil/mem.h>
 #include <libavutil/pixdesc.h>
 #include <libswresample/swresample.h>
@@ -54,6 +56,12 @@ struct SwbScaler {
      * context). */
     int src_w, src_h, src_format, dst_w, dst_h;
     int matrix, full_range;
+    /* Buffers kept between frames, freed with the scaler: the source copy
+     * padded to a multiple of 64 pixels (`ensure_padded`) and the RGBA
+     * scratch (`scratch_rgba`). */
+    AVFrame *pad;
+    uint8_t *buf;
+    size_t buf_size;
 };
 
 struct SwbResampler {
@@ -599,21 +607,116 @@ SwbScaler *swb_scaler_new(void) {
     return s;
 }
 
-int swb_scaler_rgba(SwbScaler *s, const SwbFrame *f, int matrix, int full_range,
-                    int dst_w, int dst_h, uint8_t *dst, int dst_stride, size_t dst_len) {
-    if (!s || !f || !dst)
-        return AVERROR(EINVAL);
-    const AVFrame *fr = f->frame;
-    const AVPixFmtDescriptor *desc = video_desc(fr);
+/* A frame with subsampled planar chroma whose width is not a multiple of 64
+ * or whose height is odd (with vertically subsampled chroma). Two problems:
+ *  - With an odd size, the chroma planes have ceil(size / 2) samples.
+ *    swscale scales a chroma plane by the ratio of the plane sizes (161 / 321
+ *    for 321 px), not by exactly 2, so the chroma drifts against the luma by
+ *    up to half a chroma sample across the frame. Chromium upsamples the
+ *    chroma exactly twice (measured: the dense row `frames-dense-contain-odd`,
+ *    M14 feature 7a review).
+ *  - swscale's SIMD paths convert the last columns of a row separately when
+ *    the width is not a multiple of the vector width (measured: the last 2 to
+ *    6 columns of 322, 854 and 1366 differ by up to 84 levels), and they write
+ *    up to 15 pixels past the end of the last row of `dst` for 8-bit 4:2:0 and
+ *    4:2:2 (1918 x 1078 by 8 bytes, 2 x 2 by 56).
+ * The caller converts a copy padded to a multiple of 64 pixels and an even
+ * height (`ensure_padded`), into a scratch buffer, and crops the result.
+ * Excluded: packed YUV (uyvy422, yuyv422), RGB, palette and bitstream formats,
+ * and formats with fewer than 3 components; the build's decoders (h264, vp8,
+ * vp9; tools/ffmpeg/build.sh) output only planar YUV formats. */
+static int needs_padding(const AVFrame *fr, const AVPixFmtDescriptor *desc) {
+    if (!(desc->flags & AV_PIX_FMT_FLAG_PLANAR) ||
+        (desc->flags & (AV_PIX_FMT_FLAG_RGB | AV_PIX_FMT_FLAG_PAL | AV_PIX_FMT_FLAG_BITSTREAM)) ||
+        desc->nb_components < 3 || (!desc->log2_chroma_w && !desc->log2_chroma_h))
+        return 0;
+    return (fr->width & 63) || ((fr->height & 1) && desc->log2_chroma_h);
+}
+
+/* `n` rounded up to a multiple of 64 (n > 0, below INT_MAX / 4). */
+static int round_up_64(int n) {
+    return (n + 63) & ~63;
+}
+
+/* Fills `p` (of the size `pw` x `ph`, at least the frame's in each direction)
+ * with `fr` and repeats the last column and row of each plane. Returns 0, or
+ * an error if a plane does not fit. */
+static int fill_padded(AVFrame *p, const AVFrame *fr, int pw, int ph) {
+    const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((enum AVPixelFormat)fr->format);
     if (!desc)
         return AVERROR(EINVAL);
-    if (matrix != SWB_MATRIX_BT601 && matrix != SWB_MATRIX_BT709)
+    if (p->width != pw || p->height != ph || pw < fr->width || ph < fr->height)
         return AVERROR(EINVAL);
-    if (dst_w <= 0 || dst_h <= 0 || dst_w > INT_MAX / 4 || dst_stride < dst_w * 4)
-        return AVERROR(EINVAL);
-    if ((uint64_t)dst_stride * (uint64_t)dst_h > dst_len)
-        return AVERROR(EINVAL);
-    full_range = full_range ? 1 : 0;
+    int planes = av_pix_fmt_count_planes((enum AVPixelFormat)fr->format);
+    for (int i = 0; i < planes; i++) {
+        int shift = (i == 1 || i == 2) ? desc->log2_chroma_h : 0;
+        int src_rows = AV_CEIL_RSHIFT(fr->height, shift);
+        int dst_rows = AV_CEIL_RSHIFT(ph, shift);
+        int src_bytes = av_image_get_linesize((enum AVPixelFormat)fr->format, fr->width, i);
+        int dst_bytes = av_image_get_linesize((enum AVPixelFormat)fr->format, pw, i);
+        if (src_bytes <= 0 || dst_bytes < src_bytes || src_rows <= 0 || !fr->data[i] ||
+            !p->data[i] || p->linesize[i] < dst_bytes)
+            return AVERROR(EINVAL);
+        /* The bytes of one sample of the plane (a pixel's, for packed chroma). */
+        int step = src_bytes / AV_CEIL_RSHIFT(fr->width, (i == 1 || i == 2) ? desc->log2_chroma_w : 0);
+        if (step <= 0)
+            return AVERROR(EINVAL);
+        for (int y = 0; y < dst_rows; y++) {
+            const uint8_t *src = fr->data[i] + (ptrdiff_t)(y < src_rows ? y : src_rows - 1) *
+                                                   (ptrdiff_t)fr->linesize[i];
+            uint8_t *dst = p->data[i] + (ptrdiff_t)y * (ptrdiff_t)p->linesize[i];
+            memcpy(dst, src, (size_t)src_bytes);
+            for (int k = src_bytes; k < dst_bytes; k++)
+                dst[k] = src[src_bytes - step + (k - src_bytes) % step];
+        }
+    }
+    return 0;
+}
+
+/* The scaler's padded copy of `fr` (size `pw` x `ph`), kept between frames
+ * while the format and size stay the same. NULL if the allocation or the copy
+ * fails (the scaler then holds no copy). */
+static AVFrame *ensure_padded(SwbScaler *s, const AVFrame *fr, int pw, int ph) {
+    if (s->pad && (s->pad->format != fr->format || s->pad->width != pw || s->pad->height != ph))
+        av_frame_free(&s->pad);
+    if (!s->pad) {
+        AVFrame *p = av_frame_alloc();
+        if (!p)
+            return NULL;
+        p->format = fr->format;
+        p->width = pw;
+        p->height = ph;
+        if (av_frame_get_buffer(p, 0) < 0) {
+            av_frame_free(&p);
+            return NULL;
+        }
+        s->pad = p;
+    }
+    if (fill_padded(s->pad, fr, pw, ph) < 0) {
+        av_frame_free(&s->pad);
+        return NULL;
+    }
+    return s->pad;
+}
+
+/* The scaler's RGBA scratch: `rows` rows of `stride` bytes and one more row of
+ * slack, so that a write of swscale past the last row stays inside it. NULL if
+ * the size is above the allocator's limit. */
+static uint8_t *scratch_rgba(SwbScaler *s, int stride, int rows) {
+    uint64_t need = (uint64_t)stride * ((uint64_t)rows + 1);
+    if (need > (uint64_t)INT_MAX)
+        return NULL;
+    if (need > s->buf_size) {
+        av_free(s->buf);
+        s->buf = av_malloc((size_t)need);
+        s->buf_size = s->buf ? (size_t)need : 0;
+    }
+    return s->buf;
+}
+
+/* swscale: `fr` to RGBA of the size `dst_w` x `dst_h` into `dst`. */
+static int scale_rgba(SwbScaler *s, const AVFrame *fr, int matrix, int full_range, int dst_w,
+                      int dst_h, uint8_t *dst, int dst_stride) {
     s->sws = sws_getCachedContext(s->sws, fr->width, fr->height, (enum AVPixelFormat)fr->format,
                                   dst_w, dst_h, AV_PIX_FMT_RGBA, SWS_BILINEAR, NULL, NULL, NULL);
     if (!s->sws) {
@@ -649,6 +752,58 @@ int swb_scaler_rgba(SwbScaler *s, const SwbFrame *f, int matrix, int full_range,
     int dst_strides[4] = {dst_stride, 0, 0, 0};
     int r = sws_scale(s->sws, (const uint8_t *const *)fr->data, fr->linesize, 0, fr->height,
                       dst_planes, dst_strides);
+    return r < 0 ? r : SWB_OK;
+}
+
+int swb_scaler_rgba(SwbScaler *s, const SwbFrame *f, int matrix, int full_range,
+                    int dst_w, int dst_h, uint8_t *dst, int dst_stride, size_t dst_len) {
+    if (!s || !f || !dst)
+        return AVERROR(EINVAL);
+    const AVFrame *fr = f->frame;
+    const AVPixFmtDescriptor *desc = video_desc(fr);
+    if (!desc)
+        return AVERROR(EINVAL);
+    if (matrix != SWB_MATRIX_BT601 && matrix != SWB_MATRIX_BT709)
+        return AVERROR(EINVAL);
+    /* The height bound keeps `fr->height + 1` below (the padded rows) in int. */
+    if (dst_w <= 0 || dst_h <= 0 || dst_w > INT_MAX / 4 - 64 || dst_h > INT_MAX - 2 ||
+        dst_stride < dst_w * 4)
+        return AVERROR(EINVAL);
+    if ((uint64_t)dst_stride * (uint64_t)dst_h > dst_len)
+        return AVERROR(EINVAL);
+    full_range = full_range ? 1 : 0;
+    /* swscale never writes into `dst` unless the width is a multiple of 64
+     * pixels (its SIMD paths write up to a vector past the last row, and the
+     * vector width depends on the CPU) and no padding is needed. Otherwise it
+     * converts into the scaler's scratch buffer (width rounded up to 64, one
+     * slack row) and the visible part is copied. `Decoder::convert` always
+     * passes the frame size, so the padded source applies to every frame with
+     * subsampled chroma; a scaled destination converts the unpadded frame
+     * (and keeps the chroma drift of odd sizes). */
+    const AVFrame *src = fr;
+    int sw = dst_w, sh = dst_h;
+    if (dst_w == fr->width && dst_h == fr->height && needs_padding(fr, desc)) {
+        sw = round_up_64(fr->width);
+        sh = fr->height + ((fr->height & 1) && desc->log2_chroma_h);
+        src = ensure_padded(s, fr, sw, sh);
+        if (!src)
+            return AVERROR(ENOMEM);
+    }
+    int r;
+    if (src == fr && dst_w % 64 == 0) {
+        r = scale_rgba(s, fr, matrix, full_range, dst_w, dst_h, dst, dst_stride);
+    } else {
+        int stride = round_up_64(sw) * 4;
+        uint8_t *rgba = scratch_rgba(s, stride, sh);
+        if (!rgba)
+            return AVERROR(ENOMEM);
+        r = scale_rgba(s, src, matrix, full_range, sw, sh, rgba, stride);
+        if (r >= 0) {
+            for (int y = 0; y < dst_h; y++)
+                memcpy(dst + (size_t)y * (size_t)dst_stride, rgba + (size_t)y * (size_t)stride,
+                       (size_t)dst_w * 4);
+        }
+    }
     if (r < 0)
         return r;
     if (desc->flags & AV_PIX_FMT_FLAG_ALPHA) {
@@ -666,6 +821,8 @@ void swb_scaler_free(SwbScaler *s) {
     if (!s)
         return;
     sws_freeContext(s->sws);
+    av_frame_free(&s->pad);
+    av_free(s->buf);
     av_free(s);
 }
 

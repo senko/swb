@@ -517,6 +517,70 @@ fn a_video_that_is_not_painted_decodes_without_converting() {
     assert!(p.current_image().is_some());
 }
 
+/// A video that was not painted has a current frame without pixels; when it
+/// is painted again while paused it brings the pixels of the frame at its
+/// position back by a seek that the owner does not see (M14 feature 7a: the
+/// backlog item of feature 5): the position, the frame time and `ended` stay,
+/// and no `SeekDone` comes.
+#[test]
+fn a_paused_video_that_becomes_painted_gets_the_pixels_of_its_frame() {
+    let waker = Arc::new(Waker::default());
+    let mut o = common::driver::options(&waker);
+    o.painted = false;
+    let mut p = Pipeline::open(
+        SourceOpener::file(common::fixture("mp4-h264-high-aac.mp4")),
+        o,
+    );
+    let mut reports = Vec::new();
+    settle_update(&mut p, &waker, 0, &mut reports);
+    // A seek to 0.44 s while hidden: the frame is there, without pixels.
+    p.seek(440_000);
+    settle_update(&mut p, &waker, 0, &mut reports);
+    assert_eq!(p.current_frame().map(|f| f.pts_us), Some(440_000));
+    assert!(p.current_frame().is_some_and(|f| f.image.is_none()));
+    let converted = p.stats().frames_converted;
+    reports.clear();
+    p.set_painted(true);
+    assert!(p.has_pending_work(), "the refresh is a seek");
+    settle_update(&mut p, &waker, 0, &mut reports);
+    let frame = p.current_frame().expect("a frame");
+    assert_eq!(frame.pts_us, 440_000);
+    assert!(frame.image.is_some(), "the frame has its pixels");
+    assert_eq!(p.stats().frames_converted, converted + 1);
+    assert_eq!(p.position(), 440_000);
+    assert!(
+        !reports.iter().any(|r| matches!(r, Report::SeekDone { .. })),
+        "{reports:?}"
+    );
+    // Painted twice does nothing more.
+    p.set_painted(true);
+    assert!(!p.has_pending_work());
+}
+
+#[test]
+fn an_ended_video_that_becomes_painted_stays_ended() {
+    let waker = Arc::new(Waker::default());
+    let mut o = common::driver::options(&waker);
+    o.painted = false;
+    let mut p = Pipeline::open(
+        SourceOpener::file(common::fixture("mp4-h264-high-aac.mp4")),
+        o,
+    );
+    let played = play_virtual(&mut p, &waker, 0, i64::MAX);
+    assert_eq!(played.ended, Some(2_000_000));
+    assert!(p.is_ended());
+    assert!(p.current_frame().is_some_and(|f| f.image.is_none()));
+    p.set_painted(true);
+    let mut reports = Vec::new();
+    settle_update(&mut p, &waker, played.now, &mut reports);
+    assert!(p.is_ended(), "still ended");
+    assert_eq!(p.position(), 2_000_000);
+    let frame = p.current_frame().expect("a frame");
+    assert_eq!(frame.pts_us, 1_960_000);
+    assert!(frame.image.is_some());
+    assert!(!reports.iter().any(|r| matches!(r, Report::SeekDone { .. })));
+}
+
 #[test]
 fn playback_reuses_the_pixmaps() {
     let waker = Arc::new(Waker::default());

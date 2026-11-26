@@ -112,9 +112,15 @@ fn frame_at(name: &str, time_us: i64) -> VideoFrame {
 #[test]
 fn frames_match_chromium_within_3_levels() {
     let samples = samples();
-    // 11 cases: 4 times of the `frames-times-*` cases, two point sets
-    // (bars and the frame counter) per time.
-    assert_eq!(samples.len(), 43);
+    // 24 cases: the 4 `frames-times-*` cases at 4 times with two point sets
+    // (bars and the frame counter) each, the 4 `frames-color-*` cases of the
+    // 320 x 240 files, and the 14 untagged files of other sizes (one point
+    // set each: the matrix follows the height rule of `conversion`), and the
+    // 2 `frames-color-odd-columns-*` cases (854 x 480 and 322 x 242 with
+    // smooth gradients; the points include the last 8 and 9 columns, where
+    // swscale's own tail differed by up to 84 levels from the padded
+    // conversion; M14 feature 7a, fix round 2).
+    assert_eq!(samples.len(), 56);
     let mut failures = Vec::new();
     let mut points = 0;
     let mut worst = 0;
@@ -272,4 +278,83 @@ fn the_color_rule_of_the_test_files() {
         swb_media::conversion(colors, swb_media::ColorTags::UNSPECIFIED, size.1).matrix,
         Matrix::Bt709
     );
+}
+
+/// The untagged files of the boundary (feature 7a): the height decides, as
+/// in Chromium (the pixels of every one of them are compared in
+/// `frames_match_chromium_within_3_levels`).
+#[test]
+fn the_untagged_files_follow_the_height_rule() {
+    for (name, matrix) in [
+        ("mp4-h264-untagged-bt709-1280x544.mp4", Matrix::Bt601),
+        ("mp4-h264-untagged-bt709-720x720.mp4", Matrix::Bt709),
+        ("mp4-h264-untagged-bt709-960x720.mp4", Matrix::Bt709),
+        ("mp4-h264-untagged-bt709-1024x576.mp4", Matrix::Bt601),
+        ("mp4-h264-untagged-bt709-960x540.mp4", Matrix::Bt601),
+        ("mp4-h264-untagged-bt709-1280x480.mp4", Matrix::Bt601),
+        ("mp4-h264-untagged-bt709-1280x600.mp4", Matrix::Bt601),
+        ("mp4-h264-untagged-bt709-1024x640.mp4", Matrix::Bt601),
+        ("mp4-h264-untagged-bt709-1280x704.mp4", Matrix::Bt601),
+        ("mp4-h264-untagged-bt709-1280x718.mp4", Matrix::Bt601),
+        ("mp4-h264-untagged-bt709-1920x1080.mp4", Matrix::Bt709),
+    ] {
+        let file = open(name).expect("opens");
+        let v = file.info().video.clone().expect("video");
+        assert_eq!(v.colors.matrix, swb_media::MatrixTag::Unspecified, "{name}");
+        let got =
+            swb_media::conversion(v.colors, swb_media::ColorTags::UNSPECIFIED, v.coded_size.1);
+        assert_eq!(got.matrix, matrix, "{name}");
+    }
+}
+
+/// The Wikipedia VP8 file (`fixtures/js/media/`, local only: not
+/// committed; the test passes without it): its container says BT.709, and
+/// FFmpeg's VP8 decoder tags every frame BT.601. Chromium shows BT.709 (the
+/// probe case `real-frames-color-wikimedia-vp8`, three equal runs; data in
+/// `tests/data/media-frames-real.json`): the stream's tag wins over the
+/// frame's. Frame 398 is the frame at 16.02 s (the file's frame times are
+/// not on a grid), and the matrix is told apart by the points where BT.601
+/// and BT.709 differ by 8 levels or more.
+#[test]
+fn the_wikimedia_file_converts_by_its_container_tag() {
+    let path = repo_path("fixtures/js/media/wikimedia-web-browser-demo.webm");
+    if !path.exists() {
+        eprintln!("skipped: {} is not there (local fixture)", path.display());
+        return;
+    }
+    let data = json(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/media-frames-real.json"),
+    );
+    let case = &data["cases"][0];
+    let results = case["results"].as_array().expect("results");
+    let pixels = results
+        .iter()
+        .find(|r| r["kind"] == "pixels")
+        .expect("pixels");
+    let points = pixels["points"].as_array().expect("points");
+    let want = pixels["pixels"].as_array().expect("pixels");
+    let source = swb_media::FileSource::open(&path).expect("the file opens");
+    let mut file = swb_media::MediaFile::open(Box::new(source)).expect("opens");
+    let video = file.info().video.clone().expect("video");
+    assert_eq!(video.colors.matrix, swb_media::MatrixTag::Bt709);
+    file.seek(16_020_000).expect("seeks");
+    let frame = file
+        .next_video_frame()
+        .expect("decodes")
+        .expect("a frame at the time");
+    let mut worst = 0;
+    for (point, want) in points.iter().zip(want) {
+        let (x, y) = (
+            u32::try_from(point[0].as_u64().expect("x")).expect("x fits"),
+            u32::try_from(point[1].as_u64().expect("y")).expect("y fits"),
+        );
+        let got = rgb(&frame.image, x, y).expect("inside the frame");
+        for i in 0..3 {
+            let w = want[i].as_i64().expect("a level") as i32;
+            worst = worst.max((i32::from(got[i]) - w).abs());
+        }
+    }
+    // 601 would differ by 8 to 24 levels at these points (23 and more at
+    // five of them); the points on the edge of a shape give 5.
+    assert!(worst <= 5, "worst difference {worst}");
 }

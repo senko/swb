@@ -596,7 +596,12 @@ probe rows (`format-metadata-table`).
 - **Conversion on the video thread**, with `swscale` through the C
   boundary, into RGBA at the frame's native size, written directly into
   a pooled `tiny_skia::Pixmap` (opaque pixels, so straight and
-  premultiplied alpha are the same; no extra copy). The frame becomes the
+  premultiplied alpha are the same; no extra copy) **only when the width is
+  a multiple of 64 pixels and the frame needs no padding; otherwise
+  `swscale` writes into a buffer of the scaler (width rounded up to 64, one
+  slack row) and the visible part is copied**: `swscale`'s SIMD paths write
+  up to a vector past the last row of the destination (see the notes of
+  feature 7a, fix round 2). The frame becomes the
   `DecodedImage` of the element; paint and raster draw it as any image.
   Measured: 0.6 ms per 1080p frame, 3.4 ms per 4K frame.
 - **Colors as Chromium shows them** (section "The spike"): the matrix is
@@ -604,11 +609,12 @@ probe rows (`format-metadata-table`).
   container or the bitstream: `AVCOL_SPC_BT709` → BT.709; BT.470BG and
   SMPTE 170M → BT.601), else the frame's tag, else the untagged rule: an
   untagged stream is BT.601 below 720 lines and BT.709 from 720 (the
-  diagnosis's three sizes; feature 7 measures where the boundary lies:
-  lines, width or area). Open for feature 7: the Wikipedia VP8 file has
-  BT.709 in its container while FFmpeg's VP8 decoder tags every frame
-  BT.601 (the test files' VP8 is untagged and matches as BT.601 either
-  way); a probe of that file's pixels decides. The range is the stream's
+  height of the stream alone decides (the cropped height: 1280 x 718 is 718
+  lines): measured in feature 7a, see "Implementation
+  notes (M14 feature 7a)"). The stream's tag wins over the frame's: the
+  Wikipedia VP8 file has BT.709 in its container while FFmpeg's VP8
+  decoder tags every frame BT.601, and Chromium shows BT.709 (measured in
+  feature 7a). The range is the stream's
   (`color_range`, else the frame's); for limited range, the
   Cb-to-B coefficient of the table is capped at 2.0 (`swscale`'s
   coefficient table, `sws_setColorspaceDetails`). Flags: `SWS_BILINEAR`
@@ -631,12 +637,15 @@ probe rows (`format-metadata-table`).
   changes only at `resize` (a new layout then).
 - **The poster** (diagnosis section 8): each element has a "show poster"
   flag. It is set at each load; it is cleared by `play()` and by a seek
-  that has data (also a seek to 0); while it is set and a poster image
-  exists, the poster shows, else the current frame; without a poster
+  after the metadata (also a seek to 0); while it is set and the element
+  has a `poster` attribute, the poster shows (nothing while it loads or
+  after it failed), else the current frame; without a poster
   attribute the first frame shows as soon as it is decoded; `load()`
   sets it again; `ended` keeps the last frame. With `preload=none` and no
   data, the poster or nothing (no #333 with JavaScript on and without
-  controls, as now).
+  controls, as now). The default poster (#333, a video with controls and
+  without a `poster` attribute) shows only while the video has no frame:
+  with a frame the letterbox is transparent (measured in feature 7a).
 - **The frame loop.** `Page::frame_time()` includes, for each playing
   video that is painted, the presentation time of its next frame mapped
   to page time through the media clock. The GUI wakes at that time
@@ -649,8 +658,12 @@ probe rows (`format-metadata-table`).
   clock; in virtual time the pipeline has settled before the screenshot
   (section 7), so screenshots are deterministic.
 - **The natural size** is the stream's display size (`videoWidth`,
-  `videoHeight`; the sample aspect ratio applied; 321 x 241 stays
-  exact).
+  `videoHeight`; the sample aspect ratio applied, measured in feature 7a:
+  160 x 120 with 2:1 is 320 x 120 and with 1:2 is 160 x 240; 321 x 241
+  stays exact), except while the element represents its poster and the
+  poster is loaded: then it is the poster's (measured: a 200 x 100 poster
+  on a 320 x 240 video gives a box of 200 x 100 until `play()`, 320 x 240
+  after it, and 200 x 100 again after `load()`).
 
 ### 10. The element
 
@@ -1938,3 +1951,253 @@ sections 3, 7 and 10 left open, and findings of the implementation.
 - **`media_autoplay.rs`**: the data pins swb to one of the two outcomes of
   Chromium for `attr-autoplay-muted-then-unmuted-by-script`; `DEPARTURES` is
   empty because swb does not differ from Chromium.
+
+## Implementation notes (M14 feature 7a)
+
+Video frames in paint, headless: what a screenshot and the display list show
+(`crates/engine/src/media/frames.rs`, `resources.rs`, `document/media.rs`,
+`page/media.rs`; `crates/paint`; `crates/media`). The GUI frame loop is feature
+7b. Decisions that section 9 left open, and findings of the implementation.
+
+- **The color rule, measured** (probe cases `frames-color-untagged-bt709-WxH`
+  of `tools/probes/media-frames.json`, three equal runs; 11 new files made by
+  `tools/media/generate.py`, 0.6 s each, content converted with BT.709 and not
+  tagged). Chromium converts an untagged stream as BT.709 when its height is
+  720 lines or more, else as BT.601: 1280 x 544, 1280 x 480, 1024 x 576, 960 x
+  540, 1280 x 600, 1024 x 640, 1280 x 704 and 1280 x 718 are BT.601 (the
+  conversion within 3 levels; BT.709 would be off by 21), 720 x 720, 960 x 720
+  and 1920 x 1080 are BT.709 (601 would be off by 23). Width and area do not
+  decide (a wide, low frame is 601; a narrow, tall one is 709): the rule of
+  `swb_media::info::conversion` (`UNTAGGED_BT709_LINES` = 720, the height of
+  the stream: the cropped height, so 1280 x 718 is 718 and BT.601) was right
+  and did not change; its comment and tests record the
+  numbers. `frames.rs` compares 1,556 points of 54 frames (22 cases; the 11 new
+  files and the 3 of the diagnosis among them) within 3 levels (worst 3), and
+  `the_untagged_files_follow_the_height_rule` checks the matrix of each file.
+- **The Wikipedia VP8 file** (container BT.709, FFmpeg's decoder tags every
+  frame BT.601): the probe case `real-frames-color-wikimedia-vp8` (in
+  `media-real-files.json`; 20 points on saturated areas of the frame at
+  16.02 s, which is frame 398 of the file: its frame times are not on a grid)
+  shows Chromium on BT.709 (at most 5 levels from the BT.709 conversion, the
+  points at an edge; 601 differs by 24 and more). So the stream's tag wins over
+  the frame's, as `conversion` already had it; the test
+  `the_wikimedia_file_converts_by_its_container_tag` reads the local file and
+  passes without it (a message). Without a stream tag, the frame's tag still
+  applies (a stream that FFmpeg tags only on its frames).
+- **The frame as the image** (`Images::videos`). For each video with a media
+  state the document keeps the natural size of the stream, whether the element
+  represents its poster, and the current frame: the pipeline's pooled pixmap
+  (`Arc<Pixmap>`) under a `DecodedImage` that shares it
+  (`DecodedImage::from_shared_pixmap`, `ImageKind::Raster(Arc<Pixmap>)`: no
+  copy; the pool takes a pixmap back when the image goes). `Images::get` for
+  `ImageRef::Node` of a video returns the frame, or the poster in poster mode.
+  `DocumentState::sync_media_images` brings it up to date after each step of
+  the media, after a command or `play()` of a script (so a listener sees the
+  layout), and before a paint (the pipelines first take the frames due at the
+  page time, `Page::sync_media_frames`; in virtual time only when no media has
+  pending work). A new frame bumps the node's content generation
+  (`ImageSource::generation`), so the frame is outdated and the damage is the
+  item's bounds; the layout and the display list stay (`FlushCounters::
+  layout_runs` does not move). The layout is outdated only when the natural
+  size changes or whether a frame shows changes (the first frame, `load()`).
+- **The poster flag** (`Element::show_poster`): set at each load, cleared by
+  `play()` (the internal play steps), by an `autoplay` start and by a seek after
+  the metadata (also a seek to 0; a `currentTime` before the metadata only sets
+  the start position, so `preload=none` and `currentTime = 1` keep the poster).
+  Poster mode is the flag with a non-blank `poster` attribute: the poster shows
+  when it is loaded, nothing while it loads and after it failed (the page
+  background, as Chromium: row `poster-missing-file`); `removeAttribute('poster')`
+  shows the first frame at once. **A loaded poster also shows with the flag
+  clear while the current load has no frame** (review of 7a, finding 1;
+  `set_video_image`: poster mode is `poster && (flag || no frame)`): a video
+  with a poster and no `src` shows the poster after `play()` (Chromium row
+  `poster-play-no-src`, three equal runs), and so does one whose file fails to
+  open after `play()` (`poster-play-garbage-file`); the gap between `play()` and
+  the first frame of a slow load is the same rule, tested in real time over a
+  slow link (`a_loaded_poster_shows_after_play_until_the_video_has_a_frame`; the
+  probe tool's server has no delay, so Chromium has no row for the gap).
+  The 24 cases of `media-poster.json` (21, `poster-failed-file-with-frame` and
+  the two above) match Chromium on every `pixels` row; two rows
+  (`poster-play-pause-at-start`, `poster-play-and-run`) differ between runs of
+  Chromium by the frame that its real-time clock shows, so a row passes when swb
+  equals one of the three recorded runs.
+- **The natural size** (`ImageSizes::size`): the poster's while the element
+  represents its poster and the poster is loaded, else the stream's display size
+  (`videoWidth` by `videoHeight`). Measured (`frames-natural-size-*`): a 200 x
+  100 poster on a 320 x 240 video gives a box of 200 x 100, 320 x 240 after
+  `play()` and 200 x 100 after `load()`; without a poster and with `preload=none`
+  the box is 300 x 150 until the load; a stream with the sample aspect ratio 2:1
+  (160 x 120) is 320 x 120 and with 1:2 is 160 x 240 (as `natural_size` already
+  had it; two new files `mp4-h264-sar-2x1.mp4`, `-1x2.mp4`); 321 x 241 is exact.
+  A change gives a new layout in the step that brought it, before the events of
+  that step are delivered (`resize`, `loadedmetadata` listeners read the new
+  size). No fixture has a stream whose frame size changes: swb draws the frames
+  into the natural size of the metadata and fires no `resize` for a change
+  (backlog).
+- **Placement** (the 42 cases of the engine's data `tests/data/media-frames.json`:
+  30 placement cases, the first frame and the end, `frames-dense-contain-320`,
+  `frames-dense-contain-odd`, the natural-size, controls and `display` cases;
+  all `pixels` rows within 3 levels except the points of the departures below).
+  Four findings:
+  1. Chromium draws the frame into a rectangle whose origin and size are
+     rounded each: a 320 x 240 video that `object-fit: contain` puts at 66.67 to
+     333.33 of a 400 x 200 box covers the pixels 67 to 333 (267 wide), and the
+     321 x 241 video 67 to 332 (266). An image snaps by its edges (67 to 332).
+     `ImageSource::rounds_size` is true for a frame (`snap_by_size` in
+     `raster.rs`); the dense row `frames-dense-contain-320` (560 points) matches.
+  2. `border-radius` clips the video's content (the user-agent style sheet gives
+     it `overflow: clip`); the paint of the box drew the content before the
+     overflow clip, so the content now has its own rounded clip of the padding
+     edge (as the frame of an `iframe`). `<img>` has the same gap (backlog).
+  3. The default poster (#333; a video with controls and without a `poster`
+     attribute) is under the frame only until the first frame: with a frame the
+     letterbox is transparent (`frames-controls-letterbox`: page background at
+     the sides, with the controls' gradient over the bottom). The layout gives the
+     fragment `default_poster` only while no frame shows (`ReplacedSizes::
+     shows_video_frame`), and the display list pushes the poster fill and the
+     image both (it pushed only the fill).
+  4. Poster and frame are drawn by the same item; a frame at a transform, scale
+     or filter draws as an image (the transform, scale, opacity, filter, clip-path
+     and overlap cases pass).
+  Departures (`DEPARTURES` of `media_frames.rs`, 2 points): the anti-aliased
+  edge of a circle clip (6 levels); one point of the frame drawn at 0.37 of its
+  size (14 levels: swb draws it from an averaged level, `swb_paint::reduce`).
+  **Odd frames** (review of 7a, finding 4; the 321 x 241 video): the first
+  version allowed 10 points of up to 140 levels and left the dense row
+  `frames-dense-contain-odd` (560 points, three equal Chromium runs, now in the
+  data) uncompared; it differed at 223 points, up to 190 levels. The cause is
+  in the conversion, not in the placement: the chroma planes of an odd frame
+  have ceil(size / 2) samples (161 x 121), and swscale scales a chroma plane by
+  the ratio of the plane sizes to the output size (161 / 321, not 1 / 2), so
+  the chroma drifts against the luma by up to half a chroma sample across the
+  frame (Chromium upsamples exactly twice). `swb_scaler_rgba` (`ffmpeg.c`) now
+  converts such a frame from a copy padded to a multiple of 16 in width and to
+  an even height (the last column and row repeat) and crops the result
+  (planar YUV with subsampled chroma only; a conversion that also scales keeps
+  the old path; fix round 2 below changed the multiple to 64 and the cases to
+  every width that is not a multiple of 64). A padding to the
+  next even width alone left the last column wrong (swscale's tail of a width
+  that is not a multiple of 16: the last column came out as a mix); the multiple
+  of 16 gives the exact data. All 560 points of the dense row and every odd-frame
+  point now match within 3 levels, so those departures are gone.
+  **Fix round 2: a heap overflow in the conversion** (delta review of the fixes
+  of 7a, finding 1; it exists since feature 3). For 8-bit 4:2:0 and 4:2:2 frames
+  (`yuva420p`, `yuvj*` too) whose width is not a multiple of 16, `swscale`
+  wrote up to 15 pixels past the end of the last row of `dst`: 8 bytes for
+  1918 x 1078, 24 for 426 x 240, 56 for 2 x 2 (0 for 4:4:4, 10-bit and NV12).
+  `Decoder::convert` passes the exact `Pixmap` buffer, and the size is the
+  media's, so the content controlled a write past a heap block (the sanitizers
+  do not see it: FFmpeg is not instrumented). The same SIMD tail made the last 2
+  to 6 columns of even widths with `w % 16` of 2, 6 or 10 (322, 854, 1366) differ
+  from the padded conversion by up to 84 levels (finding 2). The rule now:
+  - `swscale` writes into the caller's buffer only if the width is a multiple of
+    64 pixels (1920, 1280, 3840, 640 and 320 are) and the frame needs no
+    padding. The vector width depends on the CPU, so "a multiple of 16" is not
+    enough on a machine with wider vector units; 64 pixels is a 256-byte row.
+  - Otherwise it converts into the scaler's scratch buffer (stride rounded up to
+    64 pixels, `rows + 1` rows, so a write past the last row stays inside) and
+    copies the visible part row by row. The scratch and the padded copy of the
+    source are kept between frames and freed with the scaler (no allocation at a
+    steady size). The size of the scratch is computed in 64 bits and refused above
+    `INT_MAX` (section 11 allows 16,384 x 4,352 pixels: 285 MB at most;
+    `dst_w > INT_MAX / 4 - 64` is refused before).
+  - Planar YUV with subsampled chroma converts from the source padded to a
+    multiple of 64 in width and an even height (when the chroma is subsampled
+    vertically), so `swscale` converts a plane of the padded size to the same
+    size and has no tail; this fixes finding 2. `needs_padding` excludes packed
+    YUV (`uyvy422`, `yuyv422`), RGB, palette and bitstream formats and formats
+    with fewer than 3 components: the build's decoders (H.264, VP8, VP9;
+    `tools/ffmpeg/configure.txt`) output planar YUV and `gbrp` (RGB: scratch,
+    no padding).
+  Tests: `the_conversion_stays_in_its_buffer` (`boundary.rs`) has an exact-size
+  destination with a 256-byte sentinel for 12 files (new fixtures `webm-vp8-
+  321x240`, `webm-vp8-320x241`, `mp4-h264-854x480`, `mp4-h264-322x242` and its
+  4:4:4, 4:2:2 and 10-bit variants; H.264 4:2:0 cannot have an odd size); with the
+  conversion of the first fixes (padding for odd sizes only, direct otherwise)
+  it fails on the first new file; `frames_match_chromium_within_3_levels` has two
+  new cases, `frames-color-odd-columns-854x480` and `-322x242` (smooth
+  gradients, 3 equal Chromium runs), whose points cover the last 8 and 9
+  columns (they also fail with that conversion). The cost (release build,
+  `-O2`, 4:2:0, best of 5 runs of 50 frames, before to after): a frame that is
+  not a multiple of 64 wide costs one more copy of the RGBA. 1920 x 1080 0.42 to
+  0.42 ms (direct), 1280 x 720 0.18 to 0.18, 3840 x 2160 1.94 to 1.94, 1919 x 1079
+  0.90 to 0.90 (padded before as well), 854 x 480 0.08 to 0.18, 2558 x 1626
+  (the Wikipedia file) 0.86 to 2.8. The last is 17 % of a 60 fps frame; most of
+  it is the copy of 16 MB out of the scratch.
+  The retained frames have no byte budget yet (review of 7a, finding 3):
+  every element that decoded a frame keeps one converted frame
+  (`Images::videos`), also a suspended or detached one (300 paused
+  `preload=auto` videos of 320 x 240 hold 300 frames after 300 s of virtual
+  time, +257 MiB; 16,384 videos would hold 5 GB at 320 x 240 and 136 GB at
+  1080p). A total pixel budget in `Images` (drop the frame of a suspended or
+  not visible element and convert it again at `play()`, a seek or a box) and a
+  hostile case of many 1080p `preload=auto` videos are feature 10, with the
+  viewport rule of 7b.
+- **Screenshots** (`Page::screenshot`, which the automation `screenshot` step,
+  `page.screenshot` and the probe tool's swb side call). In virtual time the
+  screenshot first lays the page out (a video's box says whether it is painted),
+  then settles the media (`Page::settle_media`: so a hidden video that got a
+  box has decoded its frame; the page time does not move), then takes the frame
+  at the media time of the page clock (`Pipeline::update` at that time). **The
+  settle is bounded and runs no page task** (review of 7a, finding 2; it ran
+  `pump` for up to 30 s, so a `loadstart` listener that reloads the video from
+  a timer made a screenshot take 30 s and ran timers and scripts in it): it
+  steps only the media (`pump_media`: a step, then the delivery of the events
+  that it queued, which the lockstep of `crate::media` needs, so the listeners
+  of those events run) and waits for the pipelines' threads on the loader's
+  wake-up, for at most 256 steps and 2 s of real time; then it draws what is
+  there and logs a warning. No timer, animation frame or fetch of the page
+  runs. A listener that calls `v.load()` itself from its media event is bounded
+  by the steps and the 2 s. Tests: `a_screenshot_runs_no_page_task_and_ends_in_
+  bounded_time`, hostile case `media-reload-loop-screenshot`. The media due times already stop virtual time at every frame, so the
+  frame is the one that a playback shows at that page time: `a_screenshot_shows_
+  the_frame_at_the_media_time_of_the_page_clock` (playing for 600 ms equals a
+  pause at the same `currentTime` and a seek there), and 8 pages at once with a
+  busy thread per core, 3 rounds, give the same pixels as one page
+  (`screenshots_of_playing_videos_are_the_same_on_every_run_also_under_load`). In
+  real time a render polls the pipelines and shows what is due (the GUI's frame
+  loop is 7b): `a_render_in_real_time_shows_the_frame_that_the_clock_reached`
+  (renders only, no step in between, until a newer frame shows; a bound of 10 s,
+  not a fixed wait; it fails without `sync_media_frames` in `render_frame`).
+- **The painted flag** (`Media::set_painted`, `Pipeline::set_painted`). The
+  pipeline opens painted. After each layout (`run_layout`) the document tells the
+  elements which videos have a box (a `BoxContent::Media` fragment): a video
+  without one (`display: none`, not in the document) converts no frame (its
+  pipeline decodes: the clock needs it), and the flag is kept across loads. A
+  paused or ended pipeline that gets a box again and whose current frame has no
+  pixels seeks quietly to its position (no `SeekDone`, position and `ended`
+  unchanged: `Seeking::ended`): the backlog item of feature 5, tests
+  `a_paused_video_that_becomes_painted_gets_the_pixels_of_its_frame`,
+  `an_ended_video_that_becomes_painted_stays_ended`, and in the page
+  `a_hidden_video_converts_no_frame_and_shows_its_frame_when_it_gets_a_box`. A
+  playing video shows its next frame, a suspended one nothing until `play()` or a
+  seek (backlog). The first layout may come after the first frames (a hidden video
+  converts the frames that were decoded before it, at most the queue); the viewport
+  and the hidden window are 7b.
+- **Measured** (`just probe --with-swb` on `media-frames.json` (66 cases) and
+  `media-poster.json` (22) with the release build: the probe's own comparison,
+  exact for colors, so a point that differs by 1 level counts). Rows equal to
+  Chromium's, of 242: **32 before** (the build without the feature, which draws
+  no frame, as swb did before 7a: 15 of 127 `pixels` rows, 11 of 109 `js`
+  rows, 6 of 6 `boxes` rows) and **183 after** (with the feature: 71 `pixels`
+  rows, 106 `js` rows, 6 `boxes` rows). The `pixels` rows that differ in the exact
+  comparison are within 3 levels in `media_frames.rs` (conversion and
+  interpolation differ by 1 to 3 levels; the Rust tests list the points that
+  differ more). Three equal Chromium runs for each file, except two rows of
+  `media-poster.json` (above) and two cases of `media-frames.json` whose rows
+  varied in full runs and not alone (`frames-color-untagged-bt709-1280x704`
+  and `-1280x718`, 3 points each: four runs of the two cases alone were equal and
+  are the data).
+- **A regression that the hostile case found** (`media-16000-videos` in a media
+  build, 60 s against 1.9 s): the first version of `sync_media_images` looked at
+  every video after each unit of a step, which costs the square of the number of
+  elements in virtual time (one unit at a time). It looks now at the elements
+  that a unit or a script touched (`Media::touched`), and at all of them only
+  for a paint or after the table was purged.
+- **Hostile cases** (`hostile_cases/media.py`, a media build decodes):
+  `media-100-autoplay-videos` (100 muted `autoplay loop` videos on screen) and
+  `media-huge-object-fit-none-box` (a box of 10^6 px square with `object-fit:
+  none` and a video scaled 1,000 times) and `media-reload-loop-screenshot` (a
+  `loadstart` listener that reloads the video from a timer: the screenshot at the
+  end is bounded). No fixture has a stream whose frame size changes: that case is
+  not run.

@@ -680,7 +680,11 @@ fn replaced(
     let media = if element.is_html_named(&local_name!("img")) {
         None
     } else {
-        Some(Media::of(ctx.doc, node)?)
+        let media = Media::of(ctx.doc, node)?;
+        Some(Media {
+            frame: !media.audio && ctx.replaced.shows_video_frame(node),
+            ..media
+        })
     };
     let natural_size = ctx.replaced.natural_size(node);
     let natural_size = if style.contain.size || style.container_type == ContainerType::Size {

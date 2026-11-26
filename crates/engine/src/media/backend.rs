@@ -327,6 +327,19 @@ mod stub {
 
         /// Adds a note (a seek of a pipeline that cannot seek ends at once).
         pub(crate) fn push_note(&mut self, _note: Note) {}
+
+        /// The pixels of the frame shown now.
+        pub(crate) fn frame_image(&self) -> Option<std::sync::Arc<swb_paint::Pixmap>> {
+            None
+        }
+
+        /// Whether the video is painted (frames are converted).
+        pub(crate) fn set_painted(&mut self, _painted: bool) {}
+
+        /// The frames converted so far (tests).
+        pub(crate) fn frames_converted(&self) -> u64 {
+            0
+        }
     }
 }
 
@@ -399,8 +412,9 @@ mod real {
             let mut options = PipelineOptions::new(loader.waker());
             options.video = video;
             options.slots = ctx.slots();
-            // No frame is painted before feature 7.
-            options.painted = false;
+            // Painted from the open; the first layout without a box for the
+            // element says otherwise (`DocumentState::sync_media_painted`).
+            options.painted = true;
             let pipeline = Pipeline::open(SourceOpener::net(handle.clone()), options);
             Fetch {
                 pipeline,
@@ -692,6 +706,26 @@ mod real {
         /// Adds a note (a seek of a pipeline that cannot seek ends at once).
         pub(crate) fn push_note(&mut self, note: Note) {
             self.notes.push_back(note);
+        }
+
+        /// The pixels of the frame shown now, as the last `poll` left it
+        /// (`None` before the first frame, and for a frame that was decoded
+        /// while the video was not painted).
+        pub(crate) fn frame_image(&self) -> Option<std::sync::Arc<swb_paint::Pixmap>> {
+            self.pipeline
+                .current_frame()
+                .and_then(|frame| frame.image.clone())
+        }
+
+        /// Whether the video is painted: frames that are not are decoded
+        /// but not converted (ADR 0047 section 6, "Hidden elements").
+        pub(crate) fn set_painted(&mut self, painted: bool) {
+            self.pipeline.set_painted(painted);
+        }
+
+        /// The frames converted so far (tests).
+        pub(crate) fn frames_converted(&self) -> u64 {
+            self.pipeline.stats().frames_converted
         }
     }
 }

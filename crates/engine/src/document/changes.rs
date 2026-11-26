@@ -855,6 +855,8 @@ impl DocumentState {
     /// poster loads like an image; the media resource itself is never
     /// fetched (swb plays no media).
     fn reconcile_poster(&mut self, node: NodeId, plan: &mut LoadPlan) {
+        // Whether the video shows its poster depends on the attribute.
+        self.media_poster_changed(node);
         let poster = self
             .dom
             .element(node)

@@ -1,6 +1,7 @@
 //! Image decoding: raster formats into premultiplied RGBA pixmaps, SVG
 //! into a vector image (see [`crate::svg`]).
 
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use image::ImageDecoder;
@@ -56,8 +57,9 @@ pub struct DecodedImage {
 /// The two kinds of images.
 #[derive(Debug)]
 pub(crate) enum ImageKind {
-    /// Pixels, premultiplied RGBA. One pixel is one CSS px.
-    Raster(Pixmap),
+    /// Pixels, premultiplied RGBA. One pixel is one CSS px. Shared, so
+    /// that a video frame is not copied ([`DecodedImage::from_shared_pixmap`]).
+    Raster(Arc<Pixmap>),
     /// An SVG image, rendered at the size it is drawn at.
     Vector(Box<SvgImage>),
 }
@@ -77,9 +79,17 @@ impl DecodedImage {
     /// The pixels of a raster image; `None` for a vector image.
     pub fn raster(&self) -> Option<&Pixmap> {
         match &self.kind {
-            ImageKind::Raster(pixmap) => Some(pixmap),
+            ImageKind::Raster(pixmap) => Some(pixmap.as_ref()),
             ImageKind::Vector(_) => None,
         }
+    }
+
+    /// An image that shares `pixmap` (premultiplied RGBA, one pixel per CSS
+    /// px): a frame of a video, which the media pipeline's pool takes back
+    /// when no image holds it any more (ADR 0047 section 9). Each call makes
+    /// a new image with a new [`DecodedImage::id`].
+    pub fn from_shared_pixmap(pixmap: Arc<Pixmap>) -> DecodedImage {
+        DecodedImage::new(ImageKind::Raster(pixmap))
     }
 
     /// A number that no other decoded image of the process has: the damage
@@ -110,7 +120,7 @@ impl DecodedImage {
 
     #[cfg(test)]
     pub(crate) fn from_pixmap(pixmap: Pixmap) -> Self {
-        DecodedImage::new(ImageKind::Raster(pixmap))
+        DecodedImage::new(ImageKind::Raster(Arc::new(pixmap)))
     }
 }
 
@@ -182,7 +192,7 @@ pub fn decode(data: &[u8]) -> Result<DecodedImage, ImageError> {
         }
         let (_, width, height) = check_raster(&patched)?;
         let pixmap = Pixmap::new(width.max(1), height.max(1)).ok_or(error)?;
-        Ok(DecodedImage::new(ImageKind::Raster(pixmap)))
+        Ok(DecodedImage::new(ImageKind::Raster(Arc::new(pixmap))))
     })
 }
 
@@ -200,7 +210,7 @@ fn decode_raster(data: &[u8]) -> Result<DecodedImage, ImageError> {
         // A zero-size image: use one transparent pixel.
         None => Pixmap::new(1, 1).ok_or(ImageError::TooLarge(w, h))?,
     };
-    Ok(DecodedImage::new(ImageKind::Raster(pixmap)))
+    Ok(DecodedImage::new(ImageKind::Raster(Arc::new(pixmap))))
 }
 
 /// The size of the color table that [`gif_with_color_table`] adds: 256

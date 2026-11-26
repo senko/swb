@@ -174,15 +174,23 @@ pub struct Conversion {
     pub full_range: bool,
 }
 
-/// The first line count of an untagged stream that is converted as BT.709
-/// (Chromium: 576 lines are BT.601, 720 are BT.709; the boundary between
-/// them is measured in feature 7).
+/// The first line count of an untagged stream that is converted as BT.709.
+/// Measured in Chromium 148 (M14 feature 7a, `frames-color-untagged-bt709-*`
+/// of `tools/probes/media-frames.json`, three equal runs): the height
+/// decides, not the width and not the area. 718 lines (1280 x 718) are
+/// BT.601, 720 lines (720 x 720, 960 x 720, 1280 x 720) are BT.709; 1280 x
+/// 544 and 1280 x 480 (wide) are BT.601, as 1920 x 1080 is BT.709 (tall and
+/// narrow, wide and low: only the height moves the result).
 pub const UNTAGGED_BT709_LINES: u32 = 720;
 
 /// The conversion of a frame (ADR 0047 section 9): the matrix of the
 /// stream's tag, else the frame's tag, else BT.601 below 720 lines and
-/// BT.709 from 720; the range of the stream, else the frame's, else
-/// limited.
+/// BT.709 from 720 (`height` is the height of the stream, the cropped one:
+/// 1280 x 718 gives 718); the range of the stream,
+/// else the frame's, else limited. The stream's tag (the container's or the
+/// bitstream's, from the codec parameters) wins over the frame's: FFmpeg's
+/// VP8 decoder tags every frame BT.601, and Chromium shows the Wikipedia
+/// VP8 file, whose container says BT.709, as BT.709 (measured, feature 7a).
 pub fn conversion(stream: ColorTags, frame: ColorTags, height: u32) -> Conversion {
     let tagged = |m: MatrixTag| match m {
         MatrixTag::Bt709 => Some(Matrix::Bt709),
@@ -208,8 +216,9 @@ pub fn conversion(stream: ColorTags, frame: ColorTags, height: u32) -> Conversio
 
 /// The natural size of a video: the coded size with the sample aspect
 /// ratio applied. A ratio above 1 widens the picture, a ratio below 1 makes
-/// it taller; the size never shrinks. Not measured in Chromium (the test
-/// files have square pixels); feature 7 checks it.
+/// it taller; the size never shrinks. Measured in Chromium (feature 7a, the
+/// files `mp4-h264-sar-1x2.mp4` and `-2x1.mp4`): `videoWidth` and
+/// `videoHeight` follow this rule.
 pub fn natural_size(coded: (u32, u32), sample_aspect: Option<(u32, u32)>) -> (u32, u32) {
     let (w, h) = coded;
     let Some((num, den)) = sample_aspect.filter(|(n, d)| *n > 0 && *d > 0 && n != d) else {
@@ -261,6 +270,26 @@ mod tests {
         let c = conversion(other, none, 1080);
         assert_eq!(c.matrix, Matrix::Bt709);
         assert!(c.full_range);
+    }
+
+    /// The boundary is the height (Chromium, measured in feature 7a): the
+    /// function takes no width, and 718 lines are still BT.601.
+    #[test]
+    fn the_untagged_boundary_is_the_height() {
+        let none = ColorTags::UNSPECIFIED;
+        for (height, matrix) in [
+            (480, Matrix::Bt601),
+            (544, Matrix::Bt601),
+            (576, Matrix::Bt601),
+            (600, Matrix::Bt601),
+            (640, Matrix::Bt601),
+            (704, Matrix::Bt601),
+            (718, Matrix::Bt601),
+            (720, Matrix::Bt709),
+            (1080, Matrix::Bt709),
+        ] {
+            assert_eq!(conversion(none, none, height).matrix, matrix, "{height}");
+        }
     }
 
     #[test]

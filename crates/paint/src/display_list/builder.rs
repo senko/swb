@@ -819,14 +819,7 @@ impl Builder<'_> {
         let content = b.content_rect().translate(origin);
         match &b.content {
             BoxContent::Image(node) => self.replaced_image(*node, style, content),
-            BoxContent::Media(m) => {
-                if let Some(fill) = media::default_poster(m, content) {
-                    self.list.push(fill);
-                } else if !m.audio {
-                    self.replaced_image(m.node, style, content);
-                }
-                self.list.extend(media::controls(m, content));
-            }
+            BoxContent::Media(m) => self.media_content(b, origin, m, content),
             BoxContent::Svg(svg) => {
                 crate::inline_svg::paint(&mut self.list, svg, style, content, self.scale);
             }
@@ -850,6 +843,40 @@ impl Builder<'_> {
                 }
             }
             _ => {}
+        }
+    }
+
+    /// The content of a media element in its content box `content`: the
+    /// default poster, the poster or frame of a video, and the controls. The
+    /// `border-radius` clips the content of a video (the user-agent style
+    /// sheet gives it `overflow: clip`), as it clips a frame.
+    fn media_content(
+        &mut self,
+        b: &BoxFragment,
+        origin: Point,
+        m: &swb_layout::MediaContent,
+        content: Rect,
+    ) {
+        let padding = b.padding_rect().translate(origin);
+        let rounded = (!m.audio)
+            .then(|| padding_radii(b, origin))
+            .flatten()
+            .filter(|r| rounded_clip(padding, r).is_some());
+        if rounded.is_some() {
+            self.list.push(clip_item(padding, rounded));
+        }
+        if let Some(fill) = media::default_poster(m, content) {
+            self.list.push(fill);
+        }
+        // The poster or the frame of a video, over the default poster (which
+        // only a video without a `poster` attribute has: its frames cover it,
+        // ADR 0047 section 9).
+        if !m.audio {
+            self.replaced_image(m.node, &b.style, content);
+        }
+        self.list.extend(media::controls(m, content));
+        if rounded.is_some() {
+            self.list.push(unclip_item(rounded));
         }
     }
 

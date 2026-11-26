@@ -7131,14 +7131,97 @@ Steps:
             counter between the handover and the end of the transit and
             failed under load and with the sanitizers; they now wait for
             the end of the transit.
-   7. Video frames in paint and in the GUI frame loop (`implementer`):
-      the poster rules (diagnosis section 8), the natural size from the
-      stream, BT.601 and BT.709 by Chromium's rule, `object-fit`,
-      rounded clips and transforms, paint-only frames with damage
-      rectangles; frames at paused times against Chromium's
-      (`media-frames`, `media-poster`; 3 levels). Measure where the
-      untagged BT.601/BT.709 boundary lies and which tag wins for the
-      Wikipedia VP8 file (container BT.709, decoder BT.601).
+   7. Video frames in paint and in the GUI frame loop, in two parts:
+      7a. Headless (`implementer`): the poster rules (diagnosis section
+          8), the natural size from the stream, BT.601 and BT.709 by
+          Chromium's rule, `object-fit`, rounded clips and transforms;
+          frames at paused times against Chromium's (`media-frames`,
+          `media-poster`; 3 levels); screenshots in virtual time. Measure
+          where the untagged BT.601/BT.709 boundary lies and which tag
+          wins for the Wikipedia VP8 file (container BT.709, decoder
+          BT.601).
+
+          Done (2026-11-26, ADR 0047 "Implementation notes (M14 feature
+          7a)"):
+          - The color rule, measured with 11 new untagged files: the
+            stream's height decides (BT.601 up to 718 lines, BT.709 from
+            720), not the width and not the area. The stream's tag wins
+            over the frame's: Chromium shows the Wikipedia VP8 file as
+            BT.709 (its container's tag; FFmpeg tags the frames BT.601).
+            `swb_media::info::conversion` already did both.
+          - The frame is the image of the element: `Images` keeps, for
+            each video, its natural size, whether it shows its poster and
+            its current frame (`DecodedImage::from_shared_pixmap`: the
+            pipeline's pooled pixmap is shared, not copied). A new frame
+            bumps the node's content generation; the display list stays;
+            the layout is outdated only when the natural size changes or
+            a frame starts to show.
+          - The poster: the show-poster flag is set at each load and
+            cleared by `play()`, autoplay and a seek after the metadata;
+            a loaded poster shows while the flag is set or no frame of
+            the load exists (Chromium keeps the poster after `play()`
+            until a frame comes). The natural size is the poster's while
+            it shows, else the stream's display size (sample aspect ratio
+            applied; 2:1 and 1:2 files measured).
+          - Placement, measured: Chromium rounds a frame's origin and size
+            separately (267 px for 266.67; `ImageSource::rounds_size`);
+            `border-radius` clips the video's content; the default poster
+            (#333) shows only until the first frame.
+          - Odd frame sizes: `swscale` scales the chroma of a 321 px
+            frame by 161/321, not by 2, so the chroma drifts against the
+            luma; Chromium upsamples by exactly 2. The C boundary converts
+            planar YUV frames with subsampled chroma from a copy padded to
+            a width multiple of 64 and an even height, and crops (560
+            measured points: 223 differed, now 0).
+          - A heap overflow, present since feature 3 (found by the review
+            of the fixes): for 8-bit 4:2:0 and 4:2:2 frames whose width is
+            not a multiple of 16 (854 x 480, 1366 x 768), `swscale` wrote
+            up to 15 pixels (60 bytes) past the end of the frame's
+            `Pixmap`, and got the last 2 to 6 columns wrong by up to 84
+            levels. ASan did not see it (FFmpeg is not instrumented).
+            Now `swscale` converts straight into the caller's buffer only
+            for widths that are a multiple of 64 (1920, 1280, 3840, 640);
+            other widths convert into a buffer of the scaler (rows rounded
+            up to 64 pixels, one slack row, kept between frames), and the
+            visible part is copied. The cost: 2558 x 1626 (the Wikipedia
+            file) 0.86 to 2.8 ms per frame, 854 x 480 0.08 to 0.18 ms;
+            direct sizes unchanged.
+          - Headless screenshots: `Page::screenshot` in virtual time lays
+            out (which videos have a box), steps only the media until the
+            pipelines have their frames (no timer, task or fetch of the
+            page; at most 256 steps and 2 s), and draws the frame at the
+            media time of the page clock. Equal on every run, also with 8
+            pages and a busy thread per core.
+          - The painted flag: a video without a box converts no frame;
+            a paused or ended one that gets a box shows the frame at its
+            position (a quiet seek, `Pipeline::set_painted`; the backlog
+            item of feature 5).
+          - Found: the first version synchronized the images of all videos
+            after each unit of media work (the hostile case
+            `media-16000-videos` took 60 s; now 1.9 s, only the touched
+            elements).
+          - Tests: `media_frames.rs` (42 placement and natural-size cases,
+            24 poster cases; 3 levels, 2 listed departure points),
+            `media_video_paint.rs`, `crates/media/tests/frames.rs` (1,625
+            points, the height rule, the Wikipedia file, the last columns
+            of 854 x 480 and 322 x 242), `the_conversion_stays_in_its_buffer`
+            with 7 new files (fails without the overflow fix), pipeline
+            tests of `set_painted`, hostile cases `media-100-autoplay-videos`,
+            `media-huge-object-fit-none-box`,
+            `media-reload-loop-screenshot`. `just probe --with-swb` on
+            `media-frames` and `media-poster`: 183 of 242 rows equal by
+            the probe's exact comparison (32 before); the other `pixels`
+            rows are within 3 levels in the Rust tests.
+          - Review fixes (two rounds, each followed by a review of the
+            fixes): the poster after `play()` before the first frame, a
+            screenshot that ran page tasks and could wait 30 s, the odd
+            frame sizes, a test of the real-time render path; then the
+            heap overflow and the last columns.
+      7b. The GUI frame loop (`implementer`): `Page::frame_time` with the
+          frame times of playing videos, the GUI's wake-ups, damage
+          rectangles of a new frame in a window, the viewport and
+          hidden-window rules of the painted flag, measurements in a
+          window.
    8. Audio output through PipeWire (`implementer`): the stream, the
       mix of several elements, volume and mute, a missing server or
       device.
@@ -7246,16 +7329,58 @@ Source Extensions, AV1 (dav1d), YouTube.
   module_graph_probe_cases_match_chromium` (`import-call-base-inserted`)
   failed once in a loaded `just check-media` run (two module loads in the
   other order; a 900 ms timer) and passed in the next two runs.
-- Media pipeline (feature 5): after `set_painted(true)` while paused, the
-  current frame has no image until the next frame or a seek (feature 7
-  may seek to the position).
 - Media pipeline (feature 5): the time of `Report::Buffered` depends on
   the demuxer's read-ahead and is not deterministic in virtual time
   (like network progress).
 - Media pipeline (feature 5, for feature 10): a process-wide budget for
   decoded frames. Each pipeline holds about its frame queue plus 3
   pixmaps: at the frame size limit (8192 x 4352, 142.6 MB) about 713 MB
-  per pipeline, 11.4 GB for 16.
+  per pipeline, 11.4 GB for 16. Also the retained frames (review of
+  feature 7a): every element that has decoded a frame keeps one
+  converted frame in `Images` (also suspended, off-screen and detached
+  elements, until the 16,384-element purge), with no byte budget.
+  Measured: 300 paused 320 x 240 videos hold 300 frames after 300 s of
+  virtual time (+257 MiB); 16,384 1080p videos would hold about 136 GB.
+  Fix: a byte budget that drops the frames of elements without a box
+  first (the painted flag's quiet seek gives them back).
+- Media paint (feature 7a): a playing video that gets a box has no image
+  until its next frame (`Pipeline::set_painted` refreshes only a paused
+  or ended pipeline); a suspended pipeline that gets a box shows nothing
+  until `play()` or a seek.
+- Media paint (feature 7a): `<img>` and posters with `border-radius` are
+  not clipped by it (`replaced_image`); the video's content is. The same
+  clip would fix `<img>`; check it with a probe first.
+- Media (feature 7a): a change of the frame size in the stream fires no
+  `resize` and gives no new layout (no fixture has one); frames are
+  drawn into the natural size of the metadata.
+- Media (feature 7a, for 7b): `visibility: hidden`, `content-visibility`,
+  an element clipped away or outside the viewport still converts its
+  frames.
+- Media (feature 7a): Chromium's rows `poster-play-pause-at-start`,
+  `poster-play-and-run` and two cases of
+  `frames-color-untagged-bt709-1280x7xx` vary between its runs under
+  load; the data holds the variants (a row passes only when swb equals
+  one recorded run).
+- Media (feature 7a): `played` after `play()` without a `src` is "0-0"
+  in swb and empty in Chromium (row `poster-play-no-src`; its `js` row
+  leaves `played` out).
+- Probe tool (feature 7a): the static server has no delay option, so a
+  row of a poster during a slow first frame cannot be recorded; a Rust
+  test over a slow link covers it.
+- Media paint (feature 7a): a frame whose width is not a multiple of 64
+  costs 2.8 to 3.5 ms to convert at 2558 x 1626 (0.9 ms direct): the
+  padded source 0.5 ms, the copy out of the 16 MB scratch 1.1 ms, and
+  cache misses from the second 16 MB buffer. Proposal of the review:
+  convert in bands of 64 rows (even start row) into a scratch of about
+  0.6 MB that stays in the L2 cache, and copy each band out; this is
+  local to `ffmpeg.c`. Measure in feature 10.
+- Media paint (feature 7a): the reviewer's row
+  `x-poster-attr-set-after-play` differs by 6 levels at one point (not
+  investigated). The row `poster-play-audio-only` (an audio-only file in
+  a `<video poster>` after `play()`) is not measured.
+- Media paint (feature 7a): `settle_media` counts a wait for the loader
+  as one of its 256 rounds, so a decode that needs more wake-ups stops
+  early (not reachable in the tests).
 - Media pipeline (feature 5): a file whose tracks lie further apart than
   the audio backlog (4 MiB) plays with gaps in the audio or frozen video
   until the reader catches up. A demuxer reader per track would play it

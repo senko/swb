@@ -59,6 +59,7 @@ impl Page {
     /// Renders a frame: in full, or with `kept` only the damage.
     fn render_frame(&mut self, target: &mut Pixmap, kept: bool) -> FrameDamage {
         self.catch_up_animations();
+        self.sync_media_frames();
         let damage = match self.parts() {
             None => {
                 swb_paint::fill(target, swb_style::Rgba::WHITE);
@@ -85,6 +86,7 @@ impl Page {
     /// parts must equal a full render bit for bit.
     pub fn render_regions(&mut self, target: &mut Pixmap, rects: &[swb_paint::PixelRect]) {
         self.catch_up_animations();
+        self.sync_media_frames();
         let Some((doc, fonts)) = self.parts() else {
             return;
         };
@@ -198,6 +200,7 @@ impl Page {
     /// so that the first paint shows the frames (ADR 0031 section 4).
     fn render_in_strips(&mut self, target: &mut Pixmap, strip_rows: u32, what: Rendering) {
         self.catch_up_animations();
+        self.sync_media_frames();
         let Some((doc, fonts)) = self.parts() else {
             swb_paint::fill(target, swb_style::Rgba::WHITE);
             return;
@@ -242,6 +245,7 @@ impl Page {
     /// more: the rasterizer's budgets (group layers, masks, transform
     /// layers) apply to each strip as to a window.
     pub fn screenshot(&mut self, full_page: bool) -> Result<Pixmap, ScreenshotError> {
+        self.settle_media_for_screenshot();
         let (viewport, scale) = (self.view.viewport, self.view.scale);
         let size = if full_page {
             let content = self.content_size();

@@ -111,6 +111,24 @@ VORBIS = ["-c:a", "libvorbis", "-q:a", "2"]
 OPUS = ["-c:a", "libopus", "-b:a", "48k", "-ar", "48000"]
 
 
+# Frame sizes of the short untagged files (the 2 s files above keep 640x480,
+# 720x576 and 1280x720).
+UNTAGGED_SIZES = [
+    (1280, 544),
+    (720, 720),
+    (960, 720),
+    (1024, 576),
+    (960, 540),
+    (1280, 480),
+    # Heights between 576 and 720, and a large frame.
+    (1280, 600),
+    (1024, 640),
+    (1280, 704),
+    (1280, 718),
+    (1920, 1080),
+]
+
+
 # Colors: the pixel format conversion with a given matrix and the tags that
 # say which matrix a decoder must use. `testsrc2` makes yuv420p directly, so
 # the scale filter converts its frames from the BT.601 matrix that ffmpeg
@@ -189,6 +207,44 @@ def entries() -> dict[str, list[str]]:
         *VP9,
         "-an",
     ]
+    # Sizes whose width is not a multiple of 16 (M14 feature 7a fix round 2:
+    # swscale converted the last columns separately and wrote past the end of
+    # the destination for these). Odd sizes in one direction only (VP8; H.264
+    # 4:2:0 cannot crop to an odd size), even sizes with H.264 in 4:2:0, 4:2:2,
+    # 4:4:4 and 10-bit 4:2:0, 0.4 s each.
+    for crop_w, crop_h in ((321, 240), (320, 241)):
+        e[f"webm-vp8-{crop_w}x{crop_h}.webm"] = [
+            *video_src(0.4, (crop_w + 1, crop_h + 1)),
+            "-vf",
+            f"crop={crop_w}:{crop_h}:0:0:exact=1",
+            *VP8,
+            "-an",
+        ]
+    # These two have smooth color gradients (the `gradients` source, fixed
+    # seed), so that the last columns show a conversion error: the bars of
+    # `testsrc2` are flat there.
+    for width, height in ((854, 480), (322, 242)):
+        e[f"mp4-h264-{width}x{height}.mp4"] = [
+            "-f",
+            "lavfi",
+            "-i",
+            f"gradients=size=854x480:rate={FPS}:duration=0.4:seed=7:speed=0.005:nb_colors=4",
+            "-vf",
+            f"scale={width}:{height},setsar=1,format=yuv420p",
+            *H264_HIGH,
+            "-an",
+            "-movflags",
+            "+faststart",
+        ]
+    for pix_fmt, label in (("yuv444p", "444"), ("yuv422p", "422"), ("yuv420p10le", "10bit")):
+        e[f"mp4-h264-322x242-{label}.mp4"] = [
+            *video_src(0.4, (322, 242)),
+            # No `-profile:v`: x264 picks the profile that the format needs.
+            *["-c:v", "libx264", "-preset", "medium", "-crf", "30", "-pix_fmt", pix_fmt],
+            "-an",
+            "-movflags",
+            "+faststart",
+        ]
     # Color tags. 709 and 601: content converted with that matrix and tagged;
     # untagged-709: converted with 709 and not tagged (the decoder must guess);
     # full range: JPEG range, tagged.
@@ -227,6 +283,33 @@ def entries() -> dict[str, list[str]]:
             *H264_HIGH,
             "-level",
             "4.0",
+            "-crf",
+            "40",
+            "-an",
+            "-movflags",
+            "+faststart",
+        ]
+    # Non-square pixels (M14 feature 7a: the natural size is the display size):
+    # 160x120 with a sample aspect ratio of 2:1 and of 1:2.
+    for sar in ("2x1", "1x2"):
+        e[f"mp4-h264-sar-{sar}.mp4"] = [
+            *video_src(0.6, (160, 120)),
+            "-vf",
+            f"setsar={sar.replace('x', '/')},format=yuv420p",
+            *H264_HIGH,
+            "-an",
+            "-movflags",
+            "+faststart",
+        ]
+    # The boundary of that guess (M14 feature 7a): 0.6 s (15 frames) at sizes
+    # that separate "lines", "width" and "area" as the rule.
+    for width, height in UNTAGGED_SIZES:
+        e[f"mp4-h264-untagged-bt709-{width}x{height}.mp4"] = [
+            *video_src(0.6, (width, height)),
+            *scale_matrix("bt709"),
+            *H264_HIGH,
+            "-level",
+            "5.1",
             "-crf",
             "40",
             "-an",

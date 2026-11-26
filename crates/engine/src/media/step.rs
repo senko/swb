@@ -101,6 +101,7 @@ impl Media {
     }
 
     fn step_element(&mut self, cx: &Cx<'_>, node: NodeId, strict: bool) -> bool {
+        self.touched.insert(node);
         let now_us = self.now_us;
         if self.step_loop(node) || self.step_autoplay(cx, node) || self.step_emulation(node) {
             return true;

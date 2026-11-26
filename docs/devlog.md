@@ -4,6 +4,42 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-26: M14 feature 7a, video frames in paint (headless)
+
+- Feature 7 is split: 7a is what a headless screenshot shows, 7b the GUI
+  frame loop.
+- A `<video>` now shows its poster or its decoded frame by Chromium's
+  rules: 42 placement and natural-size cases and 24 poster cases match
+  Chromium's pixels within 3 levels, except 2 points.
+- The color rule is measured: Chromium converts an untagged stream as
+  BT.709 from 720 lines and as BT.601 below (718 lines is BT.601); the
+  width and the area play no part. The stream's tag wins over the
+  frame's, so the Wikipedia VP8 file is BT.709. The existing code already
+  did this.
+- Chromium rules found on the way: a frame snaps by its rounded origin
+  and its rounded size (267 px for 266.67); `border-radius` clips the
+  video's content; the #333 default poster shows only until the first
+  frame; a loaded poster stays after `play()` until a frame comes.
+- Odd frame sizes differed from Chromium over wide areas. Cause:
+  `swscale` scales the chroma of a 321 px frame by 161/321, not by 2.
+  swb now converts such frames from a padded copy.
+- The review of the fixes found a heap overflow from feature 3:
+  `swscale` wrote up to 60 bytes past the end of the frame buffer for
+  widths that are not a multiple of 16 (854, 1366), in media builds only.
+  ASan did not see it, because FFmpeg is not instrumented; a sentinel
+  after the buffer did. `swscale` now writes into the caller's buffer
+  only for widths that are a multiple of 64, else into its own buffer
+  with slack, and the visible part is copied (about +2 ms per frame for
+  the 2558 px Wikipedia file). A sentinel test with 7 new files fails
+  without the fix.
+- The hostile case with 16,000 videos found a quadratic image sync
+  (60 s; 1.9 s after the fix). The review found a screenshot that ran
+  page timers and could wait 30 s; the settle now steps only the media,
+  for at most 2 s.
+- Open: each video keeps one converted frame with no byte budget
+  (feature 10); `<img>` is not clipped by `border-radius`.
+- Next: feature 7b, the GUI frame loop.
+
 ## 2026-11-26: M14 feature 6b, the playback API
 
 - `play()` and its promise, `pause()`, seeking and `#t=`, the end and

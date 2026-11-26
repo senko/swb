@@ -105,6 +105,15 @@ pub trait ReplacedSizes {
     /// source of an `<img>`, the poster of a `<video>`), or `None` if it is
     /// not loaded or broken.
     fn natural_size(&self, node: NodeId) -> Option<NaturalSize>;
+
+    /// Whether the `<video>` element `node` shows a frame of its video (not
+    /// its poster, and not nothing): the default poster (#333) of a video
+    /// without a `poster` attribute shows only while it does not (M14
+    /// feature 7a, measured: with a frame the letterbox is transparent).
+    /// The default has none.
+    fn shows_video_frame(&self, _node: NodeId) -> bool {
+        false
+    }
 }
 
 /// A `ReplacedSizes` that knows no sizes.

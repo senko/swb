@@ -62,6 +62,13 @@ fn table() -> Vec<(&'static str, Expect)> {
         ("mp3-long.mp3", ok(A, Complete, 0)),
         ("mp3-truncated.mp3", ok(A, Complete, HOSTILE)),
         ("mp3.mp3", ok(A, Complete, 0)),
+        // M14 feature 7a, fix round 2: widths that are not a multiple of 16
+        // (0.4 s each).
+        ("mp4-h264-322x242-10bit.mp4", ok(V, Complete, 10)),
+        ("mp4-h264-322x242-422.mp4", ok(V, Complete, 10)),
+        ("mp4-h264-322x242-444.mp4", ok(V, Complete, 10)),
+        ("mp4-h264-322x242.mp4", ok(V, Complete, 10)),
+        ("mp4-h264-854x480.mp4", ok(V, Complete, 10)),
         // M14 feature 6a: rows for the timeline rules.
         (
             "mp4-h264-aac-bframes-no-edit-list.mp4",
@@ -85,9 +92,24 @@ fn table() -> Vec<(&'static str, Expect)> {
         ("mp4-h264-high-aac-no-moov.mp4", Err(not_media)),
         ("mp4-h264-high-aac-truncated.mp4", ok(AV, DecodeError, 0)),
         ("mp4-h264-high-aac.mp4", ok(AV, Complete, 50)),
+        // M14 feature 7a: non-square pixels (160 x 120, 2:1 and 1:2), and the
+        // untagged files of the color boundary (0.6 s each).
+        ("mp4-h264-sar-1x2.mp4", ok(V, Complete, 15)),
+        ("mp4-h264-sar-2x1.mp4", ok(V, Complete, 15)),
+        ("mp4-h264-untagged-bt709-1024x576.mp4", ok(V, Complete, 15)),
+        ("mp4-h264-untagged-bt709-1024x640.mp4", ok(V, Complete, 15)),
+        ("mp4-h264-untagged-bt709-1280x480.mp4", ok(V, Complete, 15)),
+        ("mp4-h264-untagged-bt709-1280x544.mp4", ok(V, Complete, 15)),
+        ("mp4-h264-untagged-bt709-1280x600.mp4", ok(V, Complete, 15)),
+        ("mp4-h264-untagged-bt709-1280x704.mp4", ok(V, Complete, 15)),
+        ("mp4-h264-untagged-bt709-1280x718.mp4", ok(V, Complete, 15)),
         ("mp4-h264-untagged-bt709-1280x720.mp4", ok(V, Complete, 50)),
+        ("mp4-h264-untagged-bt709-1920x1080.mp4", ok(V, Complete, 15)),
         ("mp4-h264-untagged-bt709-640x480.mp4", ok(V, Complete, 50)),
         ("mp4-h264-untagged-bt709-720x576.mp4", ok(V, Complete, 50)),
+        ("mp4-h264-untagged-bt709-720x720.mp4", ok(V, Complete, 15)),
+        ("mp4-h264-untagged-bt709-960x540.mp4", ok(V, Complete, 15)),
+        ("mp4-h264-untagged-bt709-960x720.mp4", ok(V, Complete, 15)),
         ("mp4-h264-untagged-bt709.mp4", ok(V, Complete, 50)),
         ("mp4-h264-video-only.mp4", ok(V, Complete, 50)),
         ("mp4-opus.mp4", ok(A, Complete, 0)),
@@ -97,6 +119,8 @@ fn table() -> Vec<(&'static str, Expect)> {
         ("poster-200x100.png", Err(not_media)),
         ("poster-320x240.png", Err(not_media)),
         ("wav-pcm-s16.wav", ok(A, Complete, 0)),
+        ("webm-vp8-320x241.webm", ok(V, Complete, 10)),
+        ("webm-vp8-321x240.webm", ok(V, Complete, 10)),
         ("webm-vp8-321x241.webm", ok(V, Complete, 50)),
         ("webm-vp8-video-only.webm", ok(V, Complete, 50)),
         ("webm-vp8-vorbis-corrupt.webm", ok(AV, Complete, HOSTILE)),

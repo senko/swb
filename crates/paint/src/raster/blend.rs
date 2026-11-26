@@ -116,7 +116,12 @@ impl Rasterizer<'_> {
         };
         self.image_blend = Some((blend_mode(*blend), opacity.min(1.0)));
         if let Some(decoded) = images.image(image) {
-            self.decoded_image(decoded, images.vector_cache(), *rect, *tile, *clip);
+            self.decoded_image(
+                decoded,
+                images.vector_cache(),
+                (*rect, *tile, *clip),
+                images.rounds_size(image),
+            );
         }
         self.image_blend = None;
         Some(pop_at + 1)

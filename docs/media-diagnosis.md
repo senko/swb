@@ -500,7 +500,16 @@ points along the counter row, per time, 0 / 0.44 / 1.0 / 1.6 s):
 So: **Chromium takes an untagged stream as BT.601 at 640 x 480 and
 720 x 576 and as BT.709 at 1280 x 720**. Width and height grow together in
 these three sizes, so the boundary (the number of lines, the width or the
-area) is open; feature 7 adds sizes such as 1280 x 544 and 720 x 720. A
+area) was open. Feature 7a measured it with 11 more files
+(`mp4-h264-untagged-bt709-WxH.mp4`, three equal runs): **the height
+decides**. BT.601: 1280 x 544, 1280 x 480, 1024 x 576, 960 x 540, 1280 x
+600, 1024 x 640, 1280 x 704 and 1280 x 718 (the 601 conversion is within 3
+levels, 709 is off by 21); BT.709: 720 x 720, 960 x 720, 1280 x 720 and
+1920 x 1080 (709 is the closer one, 601 is off by 23; swb's conversion is
+within 3 levels of Chromium's, see ADR 0047 section 9). Width and area do not
+matter (a wide 1280 x 718 is 601, a narrow 720 x 720 is 709), and the step is
+at 720 lines. The Wikipedia VP8 file (container BT.709, FFmpeg's decoder tags
+its frames BT.601): Chromium shows BT.709, so the stream's tag wins. A
 tagged stream is taken by its tag (`smpte170m` = 601,
 `bt709`, range by `color_range`). The conversion matches FFmpeg's `swscale`
 within 3 levels except for BT.709 limited range, where Chromium differs by
@@ -516,7 +525,10 @@ Placement (pixels, 400 x 200 box, 320 x 240 video, page background #ccc):
 the letterbox area is **transparent** (the page background shows; no black);
 `object-fit: fill` interpolates the video bilinearly (a pixel on the bar edge
 is 128/128/1 at x=67); `contain` and `scale-down` give the box 66.67 to
-333.33 wide, snapped to whole pixels (pixel 66 is background, 67 is video);
+333.33 wide, snapped to whole pixels (pixel 66 is background, 67 is video):
+Feature 7a's dense rows show that the rectangle's origin and its size are rounded
+each, so the video covers the pixels 67 to 333 (267 wide, 266.67 rounded), and the
+321 x 241 video 67 to 332 (266 wide); an image snaps by its edges;
 `cover` shows the middle 400 x 300 scaled; `none` is centered and clipped;
 `object-position` (`0 0`, `100% 100%`, `25% 75%`, `10px 20px`) as for images.
 `padding` and `border` of the video element are painted and the video is in

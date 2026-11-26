@@ -143,6 +143,8 @@ impl Media {
             return;
         };
         element.can_autoplay = false;
+        // HTML internal play steps: the poster goes.
+        element.show_poster = false;
         if element.paused {
             element.paused = false;
             element.muted_exempt = exempt;
@@ -325,6 +327,9 @@ impl Media {
         element.emulation = None;
         element.ended = false;
         element.seeking = true;
+        // A seek with data (also to 0) takes the poster away: the metadata
+        // is there. One before it only sets the start position (`seek`).
+        element.show_poster = false;
         element.frozen = None;
         let was = element.ready_state;
         element.ready_state = element.ready_state.min(HAVE_METADATA);
@@ -564,6 +569,7 @@ impl Media {
         };
         element.paused = false;
         element.can_autoplay = false;
+        element.show_poster = false;
         element.muted_exempt = exempt;
         self.queue(node, "play");
     }

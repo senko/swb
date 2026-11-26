@@ -95,7 +95,12 @@ impl Rasterizer<'_> {
             }
             MaskLayerImage::Image { image, area, tile } => {
                 if let Some(decoded) = images.image(image) {
-                    self.decoded_image(decoded, images.vector_cache(), *area, *tile, *area);
+                    self.decoded_image(
+                        decoded,
+                        images.vector_cache(),
+                        (*area, *tile, *area),
+                        false,
+                    );
                 }
             }
             MaskLayerImage::Gradient {

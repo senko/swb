@@ -185,13 +185,24 @@ fn bad_arguments_are_errors() {
 
 /// `swscale` writes only the rows of the destination: the bytes after the
 /// last row stay as they were (the sanitizers do not see FFmpeg's writes).
+/// Without the scratch buffer for widths that are not a multiple of 64, the
+/// 8-bit 4:2:0 and 4:2:2 files overrun the destination by up to 60 bytes (M14
+/// feature 7a, fix round 2).
 #[test]
 fn the_conversion_stays_in_its_buffer() {
     for (name, w, h) in [
         ("webm-vp9-321x241.webm", 321u32, 241u32),
         ("webm-vp8-321x241.webm", 321, 241),
+        ("webm-vp8-321x240.webm", 321, 240),
+        ("webm-vp8-320x241.webm", 320, 241),
         ("mp4-h264-high-aac.mp4", 320, 240),
         ("mp4-h264-fullrange-bt709.mp4", 320, 240),
+        ("mp4-h264-854x480.mp4", 854, 480),
+        ("mp4-h264-322x242.mp4", 322, 242),
+        ("mp4-h264-322x242-444.mp4", 322, 242),
+        ("mp4-h264-322x242-422.mp4", 322, 242),
+        ("mp4-h264-322x242-10bit.mp4", 322, 242),
+        ("mp4-h264-untagged-bt709-1920x1080.mp4", 1920, 1080),
     ] {
         let mut d = open(name, &LIMITS).expect("opens");
         let v = video_stream(&d);

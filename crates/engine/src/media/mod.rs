@@ -55,6 +55,7 @@
 //! pipeline again.
 
 mod backend;
+mod frames;
 mod load;
 mod playback;
 mod select;
@@ -68,6 +69,7 @@ use swb_web::{MediaDelivery, MediaErrorInfo, MediaInfo, MediaTask};
 
 pub(crate) use backend::MediaContext;
 use backend::{Failure, Fetch, Preload};
+pub(crate) use frames::VideoView;
 pub(crate) use select::Cx;
 
 /// `networkState` values (HTML "network states").
@@ -279,6 +281,13 @@ pub(crate) struct Element {
     pub(crate) emulation: Option<Emulation>,
     /// The position of an element whose pipeline failed.
     pub(crate) frozen: Option<f64>,
+    /// HTML "show poster flag": set at each load, cleared by `play()` and by
+    /// a seek after the metadata. While it is set a video with a `poster`
+    /// attribute shows its poster, else its frame (ADR 0047 section 9).
+    pub(crate) show_poster: bool,
+    /// The element has a box (`false`: `display: none`, or not in the
+    /// document): its frames are not converted (ADR 0047 section 6).
+    pub(crate) painted: bool,
 }
 
 impl Element {
@@ -322,6 +331,8 @@ impl Element {
             damage: None,
             emulation: None,
             frozen: None,
+            show_poster: true,
+            painted: true,
         }
     }
 
@@ -460,6 +471,15 @@ pub(crate) struct Media {
     /// The page time of the last step, in microseconds.
     pub(super) now_us: i64,
     pub(super) warned: bool,
+    /// The elements whose images (the natural size, the frame, whether the
+    /// poster shows) may have changed since the document last took them
+    /// ([`Media::take_touched`]): the node of each unit of a step and of each
+    /// call of a script. A document with thousands of media elements does not
+    /// look at all of them after each unit.
+    pub(super) touched: BTreeSet<NodeId>,
+    /// The states of elements went (the table purged, the document left):
+    /// the next sync looks at all of them.
+    pub(super) resync_all: bool,
 }
 
 impl Media {
@@ -473,6 +493,8 @@ impl Media {
             error_serial: 0,
             now_us: 0,
             warned: false,
+            touched: BTreeSet::new(),
+            resync_all: false,
         }
     }
 
@@ -481,6 +503,23 @@ impl Media {
     pub(crate) fn clear(&mut self) {
         self.elements.clear();
         self.events.clear();
+        self.resync_all = true;
+    }
+
+    /// Notes that the images of the element `node` may have changed.
+    pub(crate) fn touch(&mut self, node: NodeId) {
+        self.touched.insert(node);
+    }
+
+    /// The elements noted by [`Media::touch`] since the last call.
+    pub(crate) fn take_touched(&mut self) -> Vec<NodeId> {
+        std::mem::take(&mut self.touched).into_iter().collect()
+    }
+
+    /// Whether the document has to look at all elements ([`Media::resync_all`]);
+    /// clears the flag.
+    pub(crate) fn take_resync_all(&mut self) -> bool {
+        std::mem::take(&mut self.resync_all)
     }
 
     /// True if no media element has a state.

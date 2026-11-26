@@ -41,12 +41,14 @@ impl Media {
         if !self.ctx.enabled() {
             return None;
         }
+        self.touched.insert(node);
         if !self.elements.contains_key(&node) {
             if self.elements.len() >= MAX_ELEMENTS {
                 // The states of elements outside the document go first (not
                 // those that play: a `new Audio()` lives while it plays).
                 self.elements
                     .retain(|&n, e| cx.dom.is_connected(n) || !e.paused);
+                self.resync_all = true;
             }
             if self.elements.len() >= MAX_ELEMENTS {
                 if !self.warned {
@@ -117,6 +119,7 @@ impl Media {
         element.damage = None;
         element.emulation = None;
         element.frozen = None;
+        element.show_poster = true;
         element.rate = element.default_rate;
         element.pending_upto = None;
         let unsettled = (element.play_last > element.play_delivered).then_some(element.play_last);
@@ -226,6 +229,7 @@ impl Media {
     /// ("await a stable state"): chooses the mode, sets `NETWORK_LOADING`,
     /// queues `loadstart` and goes on with the resource.
     pub(super) fn selection_step(&mut self, cx: &Cx<'_>, node: NodeId) {
+        self.touched.insert(node);
         let resumed = {
             let Some(element) = self.elements.get_mut(&node) else {
                 return;
@@ -371,6 +375,11 @@ impl Media {
         } else {
             element.volume as f32
         });
+        // An element that has no box converts no frame (it keeps its flag
+        // across loads).
+        if !element.painted {
+            fetch.set_painted(false);
+        }
         element.fetch = Some(fetch);
         element.phase = Phase::Fetching;
         element.network_state = NETWORK_LOADING;
@@ -417,6 +426,7 @@ impl Media {
     /// or about to pauses (`timeupdate`, `pause`) and the pending `play()`
     /// promises reject with `NotSupportedError`. True if it did the unit.
     pub(super) fn step_failed(&mut self, node: NodeId) -> bool {
+        self.touched.insert(node);
         let Some(element) = self.elements.get_mut(&node) else {
             return false;
         };

@@ -105,6 +105,9 @@ pub(crate) struct Media {
     /// True if the element shows its controls: it has the `controls`
     /// attribute, or scripting is disabled for the document.
     pub(crate) controls: bool,
+    /// True if the video shows a frame of its video (the engine knows;
+    /// [`crate::ReplacedSizes::shows_video_frame`]).
+    pub(crate) frame: bool,
 }
 
 impl Media {
@@ -129,6 +132,7 @@ impl Media {
             poster: !audio && present(element.attr("poster")),
             source,
             controls: !doc.scripting() || element.has_attr("controls"),
+            frame: false,
         })
     }
 }
@@ -149,8 +153,10 @@ pub(crate) fn content(
     MediaContent {
         node,
         // Chromium paints the dark fill of a video without a poster as part
-        // of its controls: a video without controls paints nothing.
-        default_poster: !media.audio && !media.poster && media.controls,
+        // of its controls: a video without controls paints nothing. A frame
+        // of the video covers it, and not only where it draws: the
+        // letterbox of a frame is transparent (measured, M14 feature 7a).
+        default_poster: !media.audio && !media.poster && media.controls && !media.frame,
         audio: media.audio,
         parts,
     }
