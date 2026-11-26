@@ -10,8 +10,8 @@ const LICENSE: &str = include_str!("../../../LICENSE");
 const NOTICES: &str = include_str!("../../../THIRD_PARTY_NOTICES.md");
 
 /// The text of `--version`: swb's version, then one line per media
-/// component of the build (FFmpeg's version and configure line), or a line
-/// that says the build has no media support.
+/// component of the build (FFmpeg's version and configure line, PipeWire's
+/// headers version), or a line that says the build has no media support.
 pub(crate) fn long_version() -> &'static str {
     static TEXT: OnceLock<String> = OnceLock::new();
     TEXT.get_or_init(|| {
@@ -65,6 +65,8 @@ mod tests {
         if swb_media::ENABLED {
             assert!(v.contains("FFmpeg "), "{v}");
             assert!(v.contains("LGPL-2.1-or-later"), "{v}");
+            // The audio output (M14 feature 8): the system's PipeWire.
+            assert!(v.contains("PipeWire (MIT; the system's libpipewire"), "{v}");
         } else {
             assert!(v.contains("media: not in this build"), "{v}");
         }
@@ -76,6 +78,10 @@ mod tests {
         assert!(l.contains("MIT License"));
         assert!(l.contains("# Third-party notices"));
         assert!(l.contains("FFmpeg"));
+        // The notice of PipeWire's headers is in the notices, with or
+        // without the feature (the file is one text).
+        assert!(l.contains("## PipeWire (MIT)"));
+        assert!(l.contains("Wim Taymans"));
         assert_eq!(
             l.contains("GNU LESSER GENERAL PUBLIC LICENSE"),
             swb_media::ENABLED

@@ -169,14 +169,11 @@ impl SampleRing {
     }
 }
 
-/// The producer (the pipeline's demux thread, which serializes its writes).
-#[cfg_attr(
-    not(feature = "ffmpeg"),
-    allow(dead_code, reason = "the producer is the pipeline, which needs FFmpeg")
-)]
+/// The producer: the pipeline's demux thread, which serializes its writes
+/// (one producer at a time; public for the tests of the output).
 impl SampleRing {
     /// Frames that the producer can write now.
-    pub(crate) fn free(&self) -> u64 {
+    pub fn free(&self) -> u64 {
         let used = self
             .write
             .load(Ordering::Relaxed)
@@ -186,7 +183,7 @@ impl SampleRing {
 
     /// Writes as many frames of `samples` (interleaved stereo) as fit;
     /// returns the frames written.
-    pub(crate) fn push(&self, samples: &[f32]) -> usize {
+    pub fn push(&self, samples: &[f32]) -> usize {
         let frames = (samples.len() / CHANNELS).min(usize::try_from(self.free()).unwrap_or(0));
         let start = self.write.load(Ordering::Relaxed);
         for (i, pair) in samples
@@ -208,7 +205,7 @@ impl SampleRing {
     }
 
     /// Writes up to `frames` frames of silence; returns the frames written.
-    pub(crate) fn push_silence(&self, frames: u64) -> u64 {
+    pub fn push_silence(&self, frames: u64) -> u64 {
         let n = frames.min(self.free());
         let start = self.write.load(Ordering::Relaxed);
         for pos in start..start + n {
@@ -224,7 +221,7 @@ impl SampleRing {
 
     /// Discards every frame written so far (a seek or a flush); returns the
     /// write position, where the next frames start.
-    pub(crate) fn discard_all(&self) -> u64 {
+    pub fn discard_all(&self) -> u64 {
         let w = self.write.load(Ordering::Relaxed);
         self.discard.fetch_max(w, Ordering::SeqCst);
         // The cell stores of the frames after the discard come after this
@@ -238,7 +235,7 @@ impl SampleRing {
 
     /// Publishes the base of the frames from `base.position` on (before the
     /// first of them is written).
-    pub(crate) fn set_base(&self, base: RingBase) {
+    pub fn set_base(&self, base: RingBase) {
         // Only the producer writes the counter, so it is even here.
         let seq = self.base_seq.load(Ordering::Relaxed);
         self.base_seq.store(seq + 1, Ordering::Relaxed);
@@ -256,10 +253,19 @@ impl SampleRing {
     /// with the gain applied; returns the frames read. Frames that the
     /// producer discarded while they were copied come out as silence.
     pub fn pop(&self, out: &mut [f32]) -> usize {
+        self.pop_with_gain(out, self.gain())
+    }
+
+    /// [`SampleRing::pop`] with the samples as written (the mixer applies
+    /// its own gain, with a ramp).
+    pub fn pop_unscaled(&self, out: &mut [f32]) -> usize {
+        self.pop_with_gain(out, 1.0)
+    }
+
+    fn pop_with_gain(&self, out: &mut [f32], gain: f32) -> usize {
         let start = self.read_position();
         let w = self.write.load(Ordering::Acquire);
         let n = (out.len() / CHANNELS).min(usize::try_from(w.saturating_sub(start)).unwrap_or(0));
-        let gain = self.gain();
         for (i, pair) in out
             .as_chunks_mut::<CHANNELS>()
             .0

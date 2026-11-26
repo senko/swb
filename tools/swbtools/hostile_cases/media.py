@@ -217,3 +217,55 @@ def media_reload_loop_screenshot() -> Page:
 def media_1000_playing_videos_frame_loop() -> Page:
     videos = "<video src=a.mp4 muted autoplay loop width=320 height=240></video>" * 1000
     return Page(doc(videos), {"a.mp4": FIXTURE_VIDEO.read_bytes()})
+
+
+FIXTURE_AUDIO = Path(__file__).resolve().parents[3] / "fixtures/media/m4a-aac.m4a"
+"""A 2 s test audio file (AAC in MP4): the cases below play it."""
+
+
+@case(
+    "100 muted `autoplay loop` elements that play audio (M14 feature 8, ADR 0047 sections 6 and "
+    "8): each has its own pipeline and a ring of samples; 16 pipelines run at a time, the others "
+    "wait for a place, and the silent output consumes the samples (headless mode never opens the "
+    "audio output); time and memory stay bounded (a media build plays them, the default build "
+    "fails each load)",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+    swb_args=virtual_run(3000),
+    expect_log="audio elements 100",
+)
+def media_100_playing_audio_elements() -> Page:
+    videos = "<video src=a.m4a muted autoplay loop></video>" * 100
+    script = (
+        "<script>setTimeout(()=>console.warn('audio elements '+"
+        "document.querySelectorAll('video').length),2500);</script>"
+    )
+    return Page(doc(videos + script), {"a.m4a": FIXTURE_AUDIO.read_bytes()})
+
+
+@case(
+    "`play()`, `pause()`, `volume` and `muted` toggled from a script in a loop (M14 feature 8, "
+    "ADR 0047 sections 8 and 10): 20,000 rounds in one task and a 1 ms timer for 2.5 s of virtual "
+    "time on one video with audio; each change of the gain reaches the pipeline; the queue of "
+    "media tasks stays bounded, every promise settles, no crash. The run is headless: it never "
+    "opens the audio output, so it does not reach the mixer (the mixer's churn is in the engine "
+    "tests with the fake device)",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+    swb_args=virtual_run(3000),
+    expect_log="toggles 20000 timer",
+)
+def media_play_pause_volume_toggle_loop() -> Page:
+    script = (
+        "<script>const v=document.querySelector('video');let n=0,t=0;"
+        "for(let i=0;i<20000;i++){v.volume=(i%3)/2;v.muted=i%2==0;"
+        "v.play().catch(()=>{});if(i%5==0)v.pause();n++;}"
+        "const id=setInterval(()=>{v.volume=(t%3)/2;v.muted=t%2==0;"
+        "if(++t%2)v.play().catch(()=>{});else v.pause();},1);"
+        "setTimeout(()=>{clearInterval(id);console.warn('toggles '+n+' '+(t>100?'timer':'none'));},"
+        "2500);</script>"
+    )
+    return Page(
+        doc(f"<video src=a.m4a muted></video>{script}"),
+        {"a.m4a": FIXTURE_AUDIO.read_bytes()},
+    )

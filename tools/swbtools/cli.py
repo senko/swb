@@ -1,12 +1,13 @@
 """Command line: `uv run swbtools <command>`. See docs/testing.md."""
 
 import argparse
+import json
 import logging
 import os
 import sys
 from pathlib import Path
 
-from swbtools import paths, swb
+from swbtools import paths, pw_private, swb
 from swbtools.animation_survey import animation_cpu, animation_survey
 from swbtools.capture import DEFAULT_MAX_RESPONSES, capture, capture_missing, directory_size
 from swbtools.compare import Options, compare_fixture, update_scores
@@ -254,6 +255,33 @@ def cmd_media_cpu(args: argparse.Namespace) -> int:
         log.error("--window: expected WIDTHxHEIGHT, got %r", args.window)
         return 2
     return media_cpu(args.files, (int(width), int(height)), args.seconds, Path(args.out))
+
+
+def cmd_pw_private(args: argparse.Namespace) -> int:
+    directory = Path(args.dir) if args.dir else pw_private.default_dir()
+    try:
+        match args.action:
+            case "start":
+                print(json.dumps(pw_private.start(directory), indent=2))
+            case "stop":
+                stopped = pw_private.stop(directory)
+                print("stopped" if stopped else "no private daemon runs")
+            case "status":
+                print(json.dumps(pw_private.status(directory), indent=2))
+            case "env":
+                print("\n".join(pw_private.env_lines(pw_private.check_dir(directory))))
+            case "watch":
+                made = pw_private.watch(directory, args.seconds)
+                print(f"{made} links made")
+            case "record":
+                if not args.out:
+                    log.error("record needs --out FILE")
+                    return 2
+                return pw_private.record(directory, Path(args.out), args.seconds)
+    except pw_private.IsolationError as e:
+        log.error("isolation: %s", e)
+        return 3
+    return 0
 
 
 def cmd_media_fixture(args: argparse.Namespace) -> int:
@@ -708,6 +736,31 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seconds", type=float, default=10.0, help="time per phase (default 10)")
     p.add_argument("--out", default="out/media/cpu.json", help="output file")
     p.set_defaults(func=cmd_media_cpu)
+
+    p = commands.add_parser(
+        "pw-private",
+        help="start and stop a private PipeWire daemon (a null sink, no device) for audio runs",
+        description=(
+            "A PipeWire daemon of its own for swb's audio measurements (docs/testing.md, "
+            "'Audio output'): its own runtime directory (tmp/pw-private/), a configuration file "
+            "of its own, no session manager and no device, one null sink. `start` proves the "
+            "isolation first (pw-cli info 0 fails without the daemon; pw-dump shows no "
+            "alsa/bluez5/v4l2 property and one Audio/Sink) and prints the proof. `env` prints "
+            "the two variables for swb. `watch` links swb's stream to the sink (and the monitor "
+            "to the recorder); `record` writes the monitor to a WAV file. Never use the owner's "
+            "daemon."
+        ),
+    )
+    p.add_argument("action", choices=["start", "stop", "status", "env", "watch", "record"])
+    p.add_argument("--dir", help="the private runtime directory (default tmp/pw-private)")
+    p.add_argument(
+        "--seconds",
+        type=float,
+        default=0.0,
+        help="watch: how long (0: until SIGTERM); record: how long",
+    )
+    p.add_argument("--out", help="record: the WAV file (32-bit float, stereo, 48 kHz)")
+    p.set_defaults(func=cmd_pw_private)
 
     p = commands.add_parser(
         "media-fixture",

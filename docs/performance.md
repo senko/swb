@@ -217,6 +217,17 @@ media at=100.500000 wakeups=640 shown=300 dropped=0 decoded=306 converted=300
   `wakeups` counts the wake-ups of the event loop since the start (one per
   `new_events`); the other four are the counters of the video pipelines of
   the page: frames shown, dropped, decoded, and converted to pixels.
+- `sync at=T video=S media=S audio=A` (M14 feature 8): after each
+  present, one line per playing painted video. `video` is the
+  presentation time of the frame drawn, `media` the element's media time
+  on its clock at the present, and `audio` 1 when that clock is the audio
+  clock. `media - video` is at most a frame period plus the time to draw.
+  Measured on a private PipeWire daemon (docs/testing.md "Audio output")
+  over 180 s of `mux-1080p30-20s.mp4` (`loop`, muted, 1280 x 720): `media -
+  video` 0.07 to 16.0 ms, no frame over the frame period (33.3 ms), 0
+  dropped; after 10 seeks 0 to 18.6 ms. Sound costs 0.3 to 0.4 % of a
+  core for an AAC file; the demux thread wakes about twice a second per
+  playing audio element (the timed wait for room in the ring).
 
 The log costs a few counters per event; the clock reads and the lines exist
 only at the debug level. `swbtools gui-latency` (docs/testing.md) reads

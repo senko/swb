@@ -9,8 +9,10 @@
 //! the video on another, with bounded queues, the media clock,
 //! synchronization, seeking and virtual time (ADR 0047 sections 6 and 7).
 //! Without the feature only the byte sources, the metadata types, the
-//! color rules, the timeline rules ([`timeline`]), the media clock and the
-//! sample ring exist.
+//! color rules, the timeline rules ([`timeline`]), the media clock, the
+//! sample ring and the audio output ([`output`]: the mixer, the audio clock
+//! and the device behind a trait; the PipeWire device needs the feature
+//! `pipewire`) exist.
 //!
 //! This crate is safe Rust; the C boundary and all `unsafe` code are in
 //! `swb-media-ffi`.
@@ -20,6 +22,7 @@ mod clock;
 mod error;
 mod info;
 mod origin;
+pub mod output;
 mod ring;
 mod source;
 
@@ -91,6 +94,11 @@ pub const ENABLED: bool = cfg!(feature = "ffmpeg");
 /// One line per media component of this build, for `swb --version`
 /// (ADR 0047 section 2). Empty without media support.
 pub fn version_lines() -> Vec<String> {
+    #[cfg_attr(
+        not(any(feature = "ffmpeg", feature = "pipewire")),
+        allow(unused_mut, reason = "the lines come from the features")
+    )]
+    let mut lines = Vec::new();
     #[cfg(feature = "ffmpeg")]
     {
         use swb_media_ffi::ffmpeg;
@@ -101,16 +109,18 @@ pub fn version_lines() -> Vec<String> {
             .filter(|o| !o.starts_with("--prefix="))
             .map(|o| o.replace('\'', ""))
             .collect();
-        vec![format!(
+        lines.push(format!(
             "FFmpeg {} (LGPL-2.1-or-later; configure: {})",
             ffmpeg::version(),
             configure.join(" ")
-        )]
+        ));
     }
-    #[cfg(not(feature = "ffmpeg"))]
-    {
-        Vec::new()
-    }
+    #[cfg(feature = "pipewire")]
+    lines.push(format!(
+        "PipeWire (MIT; the system's libpipewire, linked dynamically; headers {})",
+        swb_media_ffi::pipewire::HEADERS_VERSION
+    ));
+    lines
 }
 
 /// The license texts of the media components of this build, as (title,

@@ -34,7 +34,7 @@ pub use frames::{
 };
 pub use hit_test::HitResult;
 pub use input::{Key, Modifiers, MouseButton};
-pub use media::MediaCounters;
+pub use media::{MediaCounters, MediaSync};
 pub use page::{
     AgentLimits, ElementScroll, FlushCounters, LoadState, MAX_AGENTS, MAX_SCALE,
     MAX_SCREENSHOT_PIXELS, MAX_VIEWPORT_SIDE, Page, PageConfig, Pump, RestylePaths,

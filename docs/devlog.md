@@ -4,6 +4,45 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-26: M14 feature 8, audio output through PipeWire
+
+- In the GUI, `<audio>` and `<video>` play their sound through PipeWire:
+  one stream for the process, one mixer for all elements (32 slots),
+  `volume` and `muted` with a 10 ms ramp, and the element's clock follows
+  the device.
+- The mixer's real-time callback never waits for a lock, allocates or
+  frees: a slot is an atomic state and a mutex that both sides only
+  `try_lock`, so no unlock is a system call and no last reference to a
+  ring is dropped on the real-time thread. A test with a counting global
+  allocator shows 0 calls (the allocator's `unsafe` is in
+  `swb-media-ffi`, the one crate that has it).
+- No measurement played sound on the development machine: every run with
+  the output used a private PipeWire daemon (a null sink, no device, no
+  session manager) after a proof that its clients cannot reach the
+  owner's daemon. Recording the null sink checks the output by numbers:
+  levels, frequencies and the sum of two elements are exact.
+- The audio clock needed a rule that the ADR did not have: a null sink
+  reports a delay of 0 but plays a cycle's frames after its callback, so
+  the clock uses at least one cycle of delay. Over 180 s of a looping
+  1080p file the frame drawn is at most 16.0 ms from the audio clock
+  (frame period 33.3 ms), with no frame dropped.
+- A page thread held for 2 s no longer starves the sound: the demux
+  thread refills the ring on a timed wait.
+- The review found a bug older than this feature: an MP3 or ADTS file
+  decoded nothing after a seek to the start, so a looping MP3 was silent
+  after its first round. The audio-only seek went to `target - 200 ms`,
+  a negative time for a target under 200 ms, which those demuxers refuse,
+  and the error was logged at `debug!` only. The seek time is now never
+  below 0, and a failed seek retries at the start with a `warn!`.
+- The review also found a race in the mixer (a stalled callback could
+  fade a new source in a reused slot) and a test that failed under load
+  because a global counter saw a parallel test's calls. Both are fixed.
+- The stream now runs on for 0.5 s after the last source left. The
+  restart at each loop wrap cost less than the review estimated (the
+  measured gap is 16 ms before and after): the gap comes from the leave
+  and the join, so a gapless loop is a backlog item.
+- Next: feature 9, the default controls.
+
 ## 2026-11-26: M14 feature 7b, the GUI frame loop for video
 
 - A playing video now draws each frame in the window at its time, and

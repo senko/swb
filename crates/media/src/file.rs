@@ -17,6 +17,13 @@ const AUDIO_PREROLL_US: i64 = 200_000;
 /// or, for audio alone, to the audio packet at or before the target minus
 /// the preroll (audio decoders need the packets before the target: MP3's
 /// bit reservoir, Opus's pre-skip; every audio packet is a key frame).
+///
+/// The seek time is never below 0 (the MP3 and ADTS demuxers refuse a seek
+/// to a negative time, so a loop to the start or a seek under the preroll
+/// would fail and leave the demuxer at its end). If a seek fails for another
+/// reason than the source, it tries once more at the start of the stream;
+/// the caller still drops the samples and frames before the target. If that
+/// fails too, the error goes to the caller.
 pub(crate) fn seek_demux(
     demux: &mut Demux,
     video_stream: Option<usize>,
@@ -28,7 +35,14 @@ pub(crate) fn seek_demux(
         (None, Some(a)) => (a, target_us.saturating_sub(AUDIO_PREROLL_US)),
         (None, None) => return Err(MediaError::Seek("no track is on".to_owned())),
     };
-    demux.seek(stream, demux_target)
+    let demux_target = demux_target.max(0);
+    match demux.seek(stream, demux_target) {
+        Err(e @ MediaError::Seek(_)) if demux_target > 0 => {
+            log::warn!("media: seek to {demux_target} us failed ({e}); trying the start");
+            demux.seek(stream, 0)
+        }
+        result => result,
+    }
 }
 
 /// The video frames after an exact seek: the frames before the target are

@@ -137,9 +137,10 @@ impl Page {
     /// keeps them, so its jumps do not depend on the paint.
     pub(super) fn media_next_due(&self) -> Option<f64> {
         let coarse = !self.clock.is_virtual();
+        let now = crate::media::ms_to_us(self.clock.now());
         self.media_frames()
             .into_iter()
-            .filter_map(|frame| self.doc_of(frame)?.media_next_due(coarse))
+            .filter_map(|frame| self.doc_of(frame)?.media_next_due(coarse, now))
             .reduce(f64::min)
     }
 
@@ -181,6 +182,24 @@ impl Page {
             }
         }
         sum
+    }
+
+    /// The synchronization of each video that plays and is painted now (the
+    /// frame that is current and the media time on the element's clock), for
+    /// the GUI's frame log: the sync trace of M14 feature 8 (ADR 0047
+    /// section 7). Reads only; empty without a playing video.
+    pub fn media_sync_samples(&self) -> Vec<crate::media::MediaSync> {
+        if self.lent {
+            return Vec::new();
+        }
+        let now = crate::media::ms_to_us(self.clock.now());
+        let mut samples = Vec::new();
+        for frame in self.media_frames() {
+            if let Some(doc) = self.doc_of(frame) {
+                samples.extend(doc.media_sync_samples(now));
+            }
+        }
+        samples
     }
 
     /// Tells the frame documents that have videos, and the frames above
@@ -380,6 +399,18 @@ impl Page {
     /// would show an error dialog that the recording does not have.
     pub fn set_media(&mut self, enabled: bool) {
         self.maker.media.set_enabled(enabled);
+    }
+
+    /// Gives the page's media elements an audio output (M14 feature 8, ADR
+    /// 0047 section 8): the elements that play with audio join its mixer, and
+    /// take their media time from it (the audio clock). The GUI calls it at
+    /// the start; headless mode, the automation server and the tests never
+    /// do, so their elements use the silent output. `None` takes the output
+    /// away: elements that play leave the mixer at their next step and
+    /// continue on the page clock from their current media time.
+    #[cfg(feature = "media")]
+    pub fn set_audio_output(&mut self, output: Option<std::sync::Arc<swb_media::output::Output>>) {
+        self.maker.media.set_output(output);
     }
 
     /// Exists for tests only (the product never calls it). Gives the page

@@ -609,8 +609,10 @@ impl Worker {
                     }
                     return Err(e);
                 }
-                // A demuxer that cannot seek decodes on from where it is.
-                Err(e) => log::debug!("media pipeline: {e}"),
+                // `seek_demux` already retried at the start. A demuxer that
+                // cannot seek at all decodes on from where it is (at its end
+                // after a play to the end: silence); that is a warning.
+                Err(e) => log::warn!("media pipeline: the seek failed, decoding on: {e}"),
             }
         } else {
             // A stream: from the start (ADR 0047 section 7; Chromium).

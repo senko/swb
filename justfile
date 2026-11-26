@@ -74,10 +74,10 @@ test-media: ffmpeg
 lint-media: ffmpeg
     cargo clippy --workspace --all-targets --locked --features swb/media -- -D warnings
 
-# Run the decode tests with AddressSanitizer and UndefinedBehaviorSanitizer on the C boundary (own target directory).
+# Run the decode tests with AddressSanitizer and UndefinedBehaviorSanitizer on the C boundary, FFmpeg's and PipeWire's file (own target directory).
 media-asan: ffmpeg
     SWB_MEDIA_ASAN=1 ASAN_OPTIONS=verify_asan_link_order=0:detect_leaks=1 UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 \
-        cargo test --locked --target-dir target/media-asan -p swb-media-ffi -p swb-media --features swb-media/ffmpeg
+        cargo test --locked --target-dir target/media-asan -p swb-media-ffi -p swb-media --features swb-media/ffmpeg,swb-media/pipewire
 
 # Every check of a media commit (with `just check`): FFmpeg, clippy and tests with media, cargo-deny, the sanitizers.
 check-media: ffmpeg lint-media test-media deny media-asan

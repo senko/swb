@@ -12,6 +12,13 @@ publish.workspace = true
 # FFmpeg (static, LGPL-2.1-or-later; ADR 0047 sections 1 and 2). Off: the
 # crate is empty and the build script does nothing.
 ffmpeg = ["dep:cc", "dep:log", "dep:thiserror"]
+# The PipeWire output (libpipewire, dynamic, MIT; ADR 0047 sections 3 and
+# 8): `csrc/pipewire.c` and the safe stream type. Found with pkg-config.
+pipewire = ["dep:cc", "dep:pkg-config", "dep:thiserror"]
+# A global allocator that counts the calls of tracked threads, for tests of
+# real-time code (dev-dependencies only; needs `unsafe`, which only this
+# crate has).
+counting-allocator = []
 
 [dependencies]
 log = { workspace = true, optional = true }
@@ -19,6 +26,7 @@ thiserror = { workspace = true, optional = true }
 
 [build-dependencies]
 cc = { workspace = true, optional = true }
+pkg-config = { workspace = true, optional = true }
 
 # A copy of the workspace tables (root Cargo.toml) with `unsafe_code`
 # allowed and four stricter lints (ADR 0047 section 4). The test

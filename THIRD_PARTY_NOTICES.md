@@ -13,8 +13,8 @@ This file lists:
   Public Suffix List and one file derived from Servo, both MPL-2.0; in
   builds with the `media` feature, FFmpeg, LGPL-2.1-or-later)
   and material under CC BY 4.0 (from the WHATWG HTML Standard);
-- the system libraries that builds with the `media` feature link
-  (PipeWire, MIT);
+- the system library that builds with the `media` feature link, and the
+  headers of which they compile (PipeWire, MIT);
 - parts of swb's source code that are derived from the source code of
   other projects: from Chromium and Skia (BSD-3-Clause; copies of swb's
   source code and binaries must include their license texts below) and
@@ -117,12 +117,39 @@ says which kind a binary is.
 
 ## PipeWire (MIT), in builds with the `media` feature
 
-Builds with the `media` feature will link the system's PipeWire client
-library (`libpipewire-0.3`, https://pipewire.org/, MIT) dynamically for
-audio output, and compile PipeWire's SPA headers (MIT) into a C file of
-`crates/media-ffi`. The audio output is not in swb yet (M14 feature 8):
-until it is, no build links PipeWire, and this section gets PipeWire's
-copyright and permission notice with it.
+Builds with the `media` feature link the system's PipeWire client library
+(`libpipewire-0.3`, version 0.3.50 or later, https://pipewire.org/, MIT)
+dynamically for audio output (ADR 0047 section 8). `swb` contains no
+PipeWire code of its own: `crates/media-ffi/csrc/pipewire.c` is swb's code
+and includes PipeWire's public headers (`pipewire/pipewire.h`,
+`spa/param/audio/format-utils.h`, and the SPA headers that they include;
+MIT), whose inline functions and macros are compiled into it. The library
+itself is not part of swb's binary: the system provides it, and a build
+needs `libpipewire-0.3-dev` (or the equivalent). The notice of the headers:
+
+    Copyright © 2018 Wim Taymans (the PipeWire and SPA headers), and the
+    other authors named in PipeWire's source and in its `COPYING` file.
+    SPDX-License-Identifier: MIT
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to
+    the following conditions:
+
+    The above copyright notice and this permission notice (including the
+    next three paragraphs) shall be included in all copies or substantial
+    portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ## WHATWG HTML Standard (CC BY 4.0)
 

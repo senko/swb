@@ -15,6 +15,10 @@ workspace = true
 # Demuxing and decoding with FFmpeg (ADR 0047 section 3). Off: the byte
 # sources, the metadata types and the color rules only.
 ffmpeg = ["swb-media-ffi/ffmpeg"]
+# The audio output over PipeWire (`output::Output::pipewire`, M14 feature
+# 8; ADR 0047 section 3). Off: the mixer, the output and the fake device
+# exist, and no device connects to PipeWire.
+pipewire = ["swb-media-ffi/pipewire"]
 # `NetSource`, the byte source over swb-net's `MediaResource` (M14 feature
 # 4). Off in the sanitizer build (`just media-asan`): linking swb-net's
 # dependencies before the sanitizer runtime breaks the runtime's start.
@@ -29,6 +33,8 @@ tiny-skia.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
+# The counting allocator of tests/mix_realtime.rs.
+swb-media-ffi = { workspace = true, features = ["counting-allocator"] }
 # The local server with `Range` for tests/net.rs.
 swb-net = { workspace = true, features = ["test-server"] }
 

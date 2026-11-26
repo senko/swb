@@ -56,6 +56,9 @@ similar = "2"
 # media-ffi (build script, with the `ffmpeg` feature only): compiles the C
 # boundary file (ADR 0047 section 4).
 cc = "1"
+# media-ffi (build script, with the `pipewire` feature only): finds
+# libpipewire (ADR 0047 section 3). Already in the tree.
+pkg-config = "0.3"
 
 # automation
 data-encoding = "2"

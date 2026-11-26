@@ -68,8 +68,8 @@ use swb_net::Url;
 use swb_web::{MediaDelivery, MediaErrorInfo, MediaInfo, MediaTask};
 
 pub(crate) use backend::MediaContext;
-pub use backend::MediaCounters;
 use backend::{Failure, Fetch, Preload};
+pub use backend::{MediaCounters, MediaSync};
 pub(crate) use frames::VideoView;
 pub(crate) use select::Cx;
 
@@ -437,11 +437,11 @@ impl Element {
     /// next frame, `timeupdate` point or end of the pipeline, the next tick
     /// or the damage of a playback without a pipeline, the suspend of an
     /// idle pipeline.
-    fn next_due(&self, coarse: bool) -> Option<f64> {
+    fn next_due(&self, coarse: bool, now_us: i64) -> Option<f64> {
         let idle = self
             .idle_since
             .map(|since| since.saturating_add(SUSPEND_AFTER_US) as f64 / 1000.0);
-        let pipeline = self.fetch.as_ref().and_then(|f| f.next_due(coarse));
+        let pipeline = self.fetch.as_ref().and_then(|f| f.next_due(coarse, now_us));
         let emulation = self
             .emulation
             .as_ref()
@@ -684,11 +684,13 @@ impl Media {
     /// `timeupdate` point of a playing pipeline, the damage of a playback
     /// that counts its own time, the suspend of an idle pipeline. With
     /// `coarse` (a real-time page), a video that is not painted has no frame
-    /// times (`Pipeline::next_wake`).
-    pub(crate) fn next_due(&self, coarse: bool) -> Option<f64> {
+    /// times (`Pipeline::next_wake`). `now_us` is the page time now: an
+    /// element on the audio clock converts its due time to page time with it
+    /// (ADR 0047 notes of feature 8).
+    pub(crate) fn next_due(&self, coarse: bool, now_us: i64) -> Option<f64> {
         self.elements
             .values()
-            .filter_map(|e| e.next_due(coarse))
+            .filter_map(|e| e.next_due(coarse, now_us))
             .reduce(f64::min)
     }
 

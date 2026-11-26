@@ -7296,6 +7296,59 @@ Steps:
    8. Audio output through PipeWire (`implementer`): the stream, the
       mix of several elements, volume and mute, a missing server or
       device.
+
+      Done (2026-11-26, ADR 0047 "Implementation notes (M14 feature 8)"):
+      - The C boundary (`csrc/pipewire.c`, 3 functions, the safe
+        `AudioStream`) and the feature `pipewire` (`swb-media-ffi`,
+        `swb-media`, `swb-engine/media`); `just media-asan` compiles it
+        too.
+      - The mixer (`swb_media::output`): 32 slots, a protocol in which the
+        real-time callback never waits for a lock, allocates or frees (0
+        allocator calls, tested with a counting global allocator), a
+        10 ms gain ramp, the sum clamped; the output with its states,
+        timers and fallback (no server: at once; no stream in 2 s; an
+        error while playing), and a fake device for deterministic tests.
+      - The audio clock: the frames mixed minus the delay (at least one
+        cycle: a null sink reports 0), interpolated between callbacks,
+        never back; the rules for the join, the leave, a seek, an
+        underrun, the end of the audio track and a failed device, none
+        with a jump of the media time.
+      - Sound does not depend on the page thread: the demux thread refills
+        the ring on a timed wait (about 2 wake-ups a second); a page thread
+        held for 2 s leaves the sound unbroken.
+      - The GUI turns the output on (`--no-audio-output` keeps it off;
+        headless mode and the automation server never turn it on); the
+        frame log has the sync trace (`sync` lines).
+      - `swbtools pw-private`: a private PipeWire daemon (a null sink, no
+        device, no session manager) with an isolation proof, a linker and
+        a recorder. Every run with sound used it; none reached the
+        owner's daemon.
+      - Measured on the private daemon: the stream opens in 1 to 4 ms and
+        streams 18 to 42 ms after the connect; the recorded levels at
+        `volume` 1, 0.5 and 0 are 1.0000, 0.5000 and 0 of the file's,
+        frequencies 440.00003 and 660.00005 Hz, two elements sum and clamp;
+        pause and play without a click; CPU 0.3 to 0.4 % of a core
+        playing; the fallbacks and the 30 s close; the sync trace over
+        180 s of the looping 1080p file: the frame drawn at most 16.0 ms
+        from the audio clock (18.6 ms after 10 seeks), against a frame
+        period of 33.3 ms, 0 dropped.
+      - Tests: `crates/media/src/output/`, `mix_realtime.rs`,
+        `output_pipeline.rs`, `media_audio_output.rs`, the hostile cases
+        `media-100-playing-audio-elements` and
+        `media-play-pause-volume-toggle-loop`; the test of the C boundary
+        against the private daemon is `#[ignore]`.
+      - Review fixes: an MP3 or ADTS file decoded nothing after a seek to
+        the start (a looping MP3 was silent after its first round; older
+        than this feature): the audio-only seek time is never below 0, and
+        a failed seek retries at the start with a `warn!`. The callback
+        reads a slot's state again under the slot's lock (a stalled
+        callback could fade a new source). The stream runs on for 0.5 s
+        after the last source left, so a loop's wrap or a seek does not
+        restart it. A failed output or a full table is not asked at every
+        poll (703 and 6838 requests in 2 s before, 2 and under 150 after).
+        The allocator test counts per thread (it failed 6 of 10 runs under
+        load). Stronger tests of the audio clock and of the delay
+        alignment.
    9. The default controls respond (`implementer`): play and pause,
       seek by click and drag, mute and the volume slider, the time
       during playback, auto-hide, the states that Chromium draws
@@ -7344,6 +7397,18 @@ Source Extensions, AV1 (dav1d), YouTube.
 
 - Media (owner, 2026-11-24): `playbackRate` other than 1. Chromium keeps
   the pitch, which needs time stretching of the audio.
+- Audio output (feature 8): a seek cuts the old sound without a fade (a
+  click, 3.9 times the sine's largest step); a short fade of the
+  discarded part of the ring would remove it.
+- Audio output (feature 8): `loop` is not gapless. At each wrap the
+  source leaves (a 10 ms fade-out), the demuxer seeks to the start, and
+  the new source joins with a fade-in and the one-cycle delay: 16 ms of
+  silence per wrap (measured on the private daemon with
+  `wav-pcm-s16.wav`). Chromium has no gap. A gapless loop would decode
+  the start of the file before the end and join the two in the ring.
+- Audio output (feature 8): the device delay on real hardware is measured
+  only by the spike (512 frames); the private daemon's null sink reports
+  0. A measurement on the owner's sound card needs the owner.
 - Media (feature 3): video with alpha (VP8 and VP9 in WebM) shows
   opaque; matrices other than BT.601 and BT.709 (BT.2020, SMPTE 240M)
   and 10-bit formats have no probe; the natural size of a stream with a
@@ -7526,7 +7591,8 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Tests (found in feature 5): `swb-engine --test script_location`
   `at_most_sixty_four_traversals_wait_and_reloads_are_one` failed once in
   a loaded `just check-media` run (4 document requests, the test allows
-  3) and passed in the next 6 runs.
+  3) and passed in the next 6 runs. Again in a `just check` of feature 8
+  (4 requests; passed alone 5 of 5).
 - Media (feature 6a): MP3, WAV and Ogg served as a 200 without `Range`
   have no duration (`Infinity`); Chromium knows it from
   `Content-Length`. Give FFmpeg the length of a 200 as its size
@@ -8934,7 +9000,10 @@ Source Extensions, AV1 (dav1d), YouTube.
   (passed alone 3 of 3; that run also had the `probe_net` module-graph
   failure above in another attempt). M14 feature 7b's real-time video
   tests decode on their own threads while the other test binaries run,
-  which adds load.
+  which adds load. `osm_zagreb_without_the_transport_map_matches_chromium`
+  failed once in `just check` of M14 feature 8: the first two Leaflet
+  markers had the other order (`.leaflet-marker-pane > *` #1 and #2
+  swapped); it passed alone 3 of 3 times.
 - `:focus-visible`: in Chromium a Shift key alone sets the keyboard
   modality, Control and Alt alone do not; swb sets it for every key.
   No input path sends a modifier key alone today.

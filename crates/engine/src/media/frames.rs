@@ -87,6 +87,17 @@ impl Media {
         sum
     }
 
+    /// The synchronization of each video that plays and is painted at page
+    /// time `now_us`: the frame that is current and the media time (the
+    /// frame log's sync trace, M14 feature 8).
+    pub(crate) fn sync_samples(&self, now_us: i64) -> Vec<super::backend::MediaSync> {
+        self.elements
+            .values()
+            .filter(|e| e.video && e.painted && !e.paused)
+            .filter_map(|e| e.fetch.as_ref()?.sync_sample(now_us))
+            .collect()
+    }
+
     /// What the video element `node` shows; `None` for an element without a
     /// state and for an `audio` element.
     pub(crate) fn video_view(&self, node: NodeId) -> Option<VideoView> {

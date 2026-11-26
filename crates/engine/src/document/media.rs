@@ -404,6 +404,12 @@ impl DocumentState {
         self.media.counters()
     }
 
+    /// The synchronization of the playing, painted videos of the document at
+    /// page time `now_us` (microseconds).
+    pub(crate) fn media_sync_samples(&self, now_us: i64) -> Vec<crate::media::MediaSync> {
+        self.media.sync_samples(now_us)
+    }
+
     /// True if a media element has a state in this document.
     pub(crate) fn has_media(&self) -> bool {
         !self.media.is_empty()
@@ -447,8 +453,8 @@ impl DocumentState {
     /// The page time (ms) of the next media due time (a frame or a
     /// `timeupdate` point of a playing pipeline, the suspend of an idle one).
     /// A real-time page passes `coarse`: a video that is not painted has no
-    /// frame times.
-    pub(crate) fn media_next_due(&self, coarse: bool) -> Option<f64> {
-        self.media.next_due(coarse)
+    /// frame times. `now_us` is the page time now (microseconds).
+    pub(crate) fn media_next_due(&self, coarse: bool, now_us: i64) -> Option<f64> {
+        self.media.next_due(coarse, now_us)
     }
 }

@@ -191,10 +191,28 @@ struct Args {
     )]
     remote_port: Option<u16>,
 
+    /// Window: play no sound. Media elements use the silent output (their
+    /// clocks, events and video work as with sound) and swb never connects
+    /// to PipeWire. The window plays the sound of `<audio>` and `<video>`
+    /// through PipeWire otherwise (builds with `--features media`); headless
+    /// mode and the automation server (`--remote-port`) never play sound.
+    #[arg(long)]
+    no_audio_output: bool,
+
     /// Print swb's license, the third-party notices and the license texts
     /// of the components that this build contains, then exit.
     #[arg(long)]
     licenses: bool,
+}
+
+impl Args {
+    /// Whether the window turns the audio output (PipeWire) on: only the
+    /// window without `--no-audio-output`, and not while it serves the
+    /// automation protocol (a script-driven browser stays silent and
+    /// deterministic). Headless mode never gets here.
+    fn audio_output(&self) -> bool {
+        !self.headless && !self.no_audio_output && self.remote_port.is_none()
+    }
 }
 
 fn parse_size(s: &str) -> Result<Size, String> {
@@ -375,6 +393,7 @@ fn main() -> Result<()> {
         args.remote_port,
         (javascript, animations),
         args.now,
+        args.audio_output(),
     )
 }
 
@@ -418,6 +437,32 @@ mod tests {
                 (frame("#h"), "e".to_owned()),
             ]
         );
+    }
+
+    fn parse(arguments: &[&str]) -> Args {
+        let matches = Args::command().get_matches_from(arguments);
+        Args::from_arg_matches(&matches).expect("the arguments are valid")
+    }
+
+    /// The audio output (PipeWire) is for the window alone: headless mode,
+    /// the automation server and `--no-audio-output` never turn it on (M14
+    /// feature 8).
+    #[test]
+    fn only_a_plain_window_plays_sound() {
+        assert!(parse(&["swb", "about:blank"]).audio_output());
+        assert!(parse(&["swb"]).audio_output());
+        assert!(!parse(&["swb", "--no-audio-output", "about:blank"]).audio_output());
+        assert!(!parse(&["swb", "--headless", "about:blank"]).audio_output());
+        assert!(!parse(&["swb", "--headless", "--remote-port", "0"]).audio_output());
+        // The window with the automation server is silent too.
+        assert!(!parse(&["swb", "--remote-port", "0", "about:blank"]).audio_output());
+        assert!(!parse(&["swb", "--headless", "--bench", "3", "about:blank"]).audio_output());
+    }
+
+    #[test]
+    fn the_help_names_the_audio_option() {
+        let help = Args::command().render_long_help().to_string();
+        assert!(help.contains("--no-audio-output"), "{help}");
     }
 
     #[test]

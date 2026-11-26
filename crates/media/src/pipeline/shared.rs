@@ -346,6 +346,12 @@ pub(crate) struct State {
     pub(crate) ring: Option<Arc<SampleRing>>,
     /// The gain of the rings.
     pub(crate) gain: f32,
+    /// Another consumer (the audio mixer, on its real-time thread) reads the
+    /// ring and notifies nobody: the demux thread, which waits for room in
+    /// the ring, wakes by itself (a timed wait,
+    /// [`State::external_wait`]), so a page thread that is busy does not
+    /// starve the audio (M14 feature 8).
+    pub(crate) external: bool,
     /// The ring position and media time of the first sample of
     /// `demux_epoch` (`None` before the first sample).
     pub(crate) ring_base: Option<(u64, i64)>,
@@ -480,6 +486,7 @@ impl Shared {
                 audio_drained: None,
                 ring: None,
                 gain: 1.0,
+                external: false,
                 ring_base: None,
                 audio_end_us: None,
                 demux_wait: None,
@@ -530,7 +537,8 @@ impl Shared {
         wait: DemuxWait,
     ) -> MutexGuard<'a, State> {
         guard.demux_wait = Some((run, wait));
-        let mut guard = self.park(guard, &self.demux_cv, &self.counters.demux_wakeups);
+        let timeout = guard.external_wait(wait);
+        let mut guard = self.park(guard, &self.demux_cv, &self.counters.demux_wakeups, timeout);
         if guard.demux_wait.is_some_and(|(r, _)| r == run) {
             guard.demux_wait = None;
         }
@@ -545,7 +553,7 @@ impl Shared {
         wait: VideoWait,
     ) -> MutexGuard<'a, State> {
         guard.video_wait = Some((run, wait));
-        let mut guard = self.park(guard, &self.video_cv, &self.counters.video_wakeups);
+        let mut guard = self.park(guard, &self.video_cv, &self.counters.video_wakeups, None);
         if guard.video_wait.is_some_and(|(r, _)| r == run) {
             guard.video_wait = None;
         }
@@ -554,12 +562,15 @@ impl Shared {
 
     /// Waits on `cv`; but when the owner waits for data and this wait
     /// stalls the pipeline on its owner, wakes the owner instead and
-    /// returns (the caller checks its condition again and waits then).
+    /// returns (the caller checks its condition again and waits then). With
+    /// a `timeout` (an external consumer of the ring), the wait ends by
+    /// itself after it.
     fn park<'a>(
         &'a self,
         mut guard: MutexGuard<'a, State>,
         cv: &Condvar,
         wakeups: &AtomicU64,
+        timeout: Option<Duration>,
     ) -> MutexGuard<'a, State> {
         if guard.wants_notify && guard.stalled_on_owner() {
             guard.wants_notify = false;
@@ -567,7 +578,14 @@ impl Shared {
             (self.notify)();
             return self.lock();
         }
-        let guard = cv.wait(guard).unwrap_or_else(PoisonError::into_inner);
+        let guard = match timeout {
+            Some(timeout) => {
+                cv.wait_timeout(guard, timeout)
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .0
+            }
+            None => cv.wait(guard).unwrap_or_else(PoisonError::into_inner),
+        };
         Counters::add(wakeups);
         guard
     }
@@ -704,6 +722,35 @@ impl State {
     /// the output consumes).
     pub(crate) fn ring_full(&self) -> bool {
         self.ring.as_ref().is_some_and(|r| r.free() == 0)
+    }
+
+    /// How long the demux thread waits for `wait` when an external consumer
+    /// reads the ring and notifies nobody; `None` otherwise (the owner's
+    /// notifies are enough). The consumer takes 48,000 frames a second, so
+    /// the wait ends when the ring has fallen to about twice
+    /// [`AUDIO_LOW_FRAMES`] (the video packet queue's 2 s bound lifts below
+    /// [`AUDIO_LOW_FRAMES`]), between 20 and 500 ms: a refill of up to half
+    /// a ring about twice a second while the ring is full, and a look every
+    /// 20 ms once it is low.
+    pub(crate) fn external_wait(&self, wait: DemuxWait) -> Option<Duration> {
+        if !self.external
+            || !matches!(
+                wait,
+                DemuxWait::Ring
+                    | DemuxWait::Packets {
+                        audio_pending: true
+                    }
+            )
+        {
+            return None;
+        }
+        let spare = self
+            .ring
+            .as_ref()
+            .map_or(0, |r| r.available())
+            .saturating_sub(AUDIO_LOW_FRAMES);
+        let ms = (spare * 1000 / u64::from(OUTPUT_RATE)).clamp(20, 500);
+        Some(Duration::from_millis(ms))
     }
 
     /// Whether the ring has less than [`AUDIO_LOW_FRAMES`] of an audio track

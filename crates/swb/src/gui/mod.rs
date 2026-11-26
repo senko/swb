@@ -98,6 +98,7 @@ pub(crate) fn run(
     remote_port: Option<u16>,
     (javascript, animations): (bool, bool),
     now: Option<f64>,
+    audio_output: bool,
 ) -> Result<()> {
     let event_loop = EventLoop::<UserEvent>::with_user_event()
         .build()
@@ -121,6 +122,7 @@ pub(crate) fn run(
     let mut app = App::new(fetcher, fonts, start_url, proxy, javascript);
     app.page.set_clock(PageClock::new(ClockMode::Real, now));
     app.page.set_animations(animations);
+    app.audio_output(audio_output);
     app.automation = automation;
     event_loop.run_app(&mut app).context("event loop failed")?;
     Ok(())
@@ -269,6 +271,22 @@ impl App {
             occluded: false,
             minimized: None,
         }
+    }
+
+    /// Turns the audio output on (M14 feature 8, ADR 0047 section 8): the
+    /// media elements that play with audio join the PipeWire mixer. The
+    /// device opens when an element first plays with audio; no server or no
+    /// device leaves the elements on the silent output. Without the feature
+    /// `media` there is nothing to play.
+    #[cfg_attr(not(feature = "media"), allow(clippy::unused_self))]
+    fn audio_output(&mut self, on: bool) {
+        #[cfg(feature = "media")]
+        if on {
+            self.page
+                .set_audio_output(Some(swb_media::output::Output::pipewire()));
+        }
+        #[cfg(not(feature = "media"))]
+        let _ = on;
     }
 
     /// Tells the page whether the window is hidden, so that the videos
@@ -532,6 +550,8 @@ impl App {
         presented.map_err(|e| anyhow::anyhow!("present failed: {e}"))?;
         self.frame_log
             .frame(started, rendered, composed, composer.damage.as_ref());
+        let page = &self.page;
+        self.frame_log.sync(|| page.media_sync_samples());
         self.drawn = self.frame_key();
         Ok(())
     }

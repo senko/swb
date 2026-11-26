@@ -11,6 +11,72 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     #[cfg(feature = "ffmpeg")]
     ffmpeg::build();
+    #[cfg(feature = "pipewire")]
+    pipewire::build();
+}
+
+/// With the feature `pipewire`: compiles `csrc/pipewire.c` (warnings are
+/// errors; with `SWB_MEDIA_ASAN=1` under the sanitizers) against the
+/// headers of libpipewire (`pkg-config libpipewire-0.3 >= 0.3.50`, the
+/// version that has `pw_stream_get_time_n`) and links the shared library.
+#[cfg(feature = "pipewire")]
+mod pipewire {
+    use std::env;
+
+    pub(super) fn build() {
+        println!("cargo:rerun-if-env-changed=SWB_MEDIA_ASAN");
+        println!("cargo:rerun-if-changed=csrc/pipewire.c");
+        println!("cargo:rerun-if-changed=csrc/pipewire.h");
+        // The link flags come after the C file's archive (below), so that
+        // a linker that drops unused shared libraries sees the references
+        // first.
+        let library = match pkg_config::Config::new()
+            .atleast_version("0.3.50")
+            .cargo_metadata(false)
+            .probe("libpipewire-0.3")
+        {
+            Ok(library) => library,
+            Err(e) => {
+                eprintln!(
+                    "error: libpipewire-0.3 >= 0.3.50 is needed for the feature `pipewire` \
+                     (Debian and Ubuntu: libpipewire-0.3-dev): {e}"
+                );
+                std::process::exit(1);
+            }
+        };
+        let mut c = cc::Build::new();
+        c.file("csrc/pipewire.c")
+            .std("c11")
+            .warnings(true)
+            .extra_warnings(true)
+            .warnings_into_errors(true)
+            // PipeWire's and SPA's macros leave struct fields out.
+            .flag("-Wno-unused-parameter")
+            .flag_if_supported("-Wno-missing-field-initializers");
+        for path in &library.include_paths {
+            c.include(path);
+        }
+        if env::var_os("SWB_MEDIA_ASAN").is_some_and(|v| v == "1") {
+            c.flag("-fsanitize=address,undefined")
+                .flag("-fno-sanitize-recover=undefined")
+                .flag("-fno-omit-frame-pointer");
+            println!("cargo:rustc-link-lib=dylib=asan");
+            println!("cargo:rustc-link-lib=dylib=ubsan");
+        }
+        c.compile("swb_pipewire");
+        for path in &library.link_paths {
+            println!("cargo:rustc-link-search=native={}", path.display());
+        }
+        for name in &library.libs {
+            println!("cargo:rustc-link-lib=dylib={name}");
+        }
+        // The version of the headers that the C file was compiled against
+        // (`swb --version`).
+        println!(
+            "cargo:rustc-env=SWB_PIPEWIRE_HEADERS_VERSION={}",
+            library.version
+        );
+    }
 }
 
 #[cfg(feature = "ffmpeg")]

@@ -497,9 +497,13 @@ Each element has a `MediaClock`: media time = anchor media time + (clock
 now − anchor clock time) while playing (rate 1; `playbackRate` is in the
 backlog). The clock source:
 
-- **audio**, when the element has an audio track and the PipeWire output
-  runs: the frames of this element that the mixer consumed, divided by
-  48,000, minus the output delay that `pw_stream_get_time_n` reports;
+- **audio**, when the element has an audio track and is in the mixer of the
+  PipeWire output: the frames of this element that the mixer consumed,
+  divided by 48,000, minus the output delay that `pw_stream_get_time_n`
+  reports (at least one cycle: a cycle's frames play after its callback),
+  with an interpolation between the callbacks. The rules for the join, the
+  leave, a seek, an underrun and the end of the audio are in "Implementation
+  notes (M14 feature 8)";
 - **monotonic** (`Instant`), in the GUI for an element without an audio
   track, and for all elements while no PipeWire output runs (a muted
   element with audio feeds the mixer at gain 0, so its clock stays the
@@ -563,17 +567,22 @@ probe rows (`format-metadata-table`).
   (`PW_DIRECTION_OUTPUT`, `AUTOCONNECT | MAP_BUFFERS | RT_PROCESS`), F32
   interleaved, stereo, 48 kHz, `node.latency` 1024/48000, `media.role`
   `Movie`, application name `swb`. PipeWire converts to the device's
-  format. Measured: 512 frames per cycle, 10.7 ms delay. It closes 30 s
-  after the last element stopped.
+  format. Measured: 512 frames per cycle, 10.7 ms delay. The stream is
+  inactive (`pw_stream_set_active(false)`: no callback runs) while no
+  element is in the mixer, and it closes 30 s after the last element
+  stopped. The connect does not wait for `STREAMING`: the elements play on
+  the silent output until the stream streams and join the mixer then.
 - **The mix** runs in the stream's process callback (PipeWire's real-time
   thread), in Rust, called through the C boundary: at most 32 sources
   (elements with audio that play), each a single-producer
   single-consumer ring of samples with an atomic gain; the callback sums
   `sample × gain`, clamps to [−1, 1], and counts the frames it took from
-  each source (the audio clock of section 7). The callback does not lock,
-  allocate or log. Sources are added and removed through a fixed table of
-  atomic slots. A 33rd playing element is mixed as silence (its clock is
-  the monotonic clock).
+  each source (the audio clock of section 7). The callback does not
+  block, allocate, free or log. Sources are added and removed through a
+  fixed table of 32 slots (an atomic state and a mutex per slot, which the
+  callback only `try_lock`s: the protocol and its proof are in the notes of
+  feature 8). A 33rd playing element is not mixed: it plays on the silent
+  output, and its clock is the page's (the monotonic clock in the GUI).
 - **`volume` and `muted`**: the gain is `volume` (linear) or 0 when
   muted, applied with a 10 ms linear ramp to avoid clicks (swb's choice;
   not measured). `volumechange` fires on a change only (section 10).
@@ -584,7 +593,8 @@ probe rows (`format-metadata-table`).
   device: the stream does not reach `STREAMING`, not measured). It consumes each element's samples at the rate of its
   clock (page time, or monotonic), so `timeupdate` and `ended` come at
   the right times. One `warn!` per process. The GUI tries PipeWire again
-  at the next `play()` after 30 s.
+  at the next `play()` after 30 s (measured: no server fails in 1 ms, a
+  stream without a link in 2.0 s).
 - **Errors while playing** (the server goes away, the stream goes to
   `ERROR`): the elements continue on the monotonic clock from their
   current media time (no jump), with the silent output.
@@ -855,10 +865,12 @@ implementation:
   `out/ffmpeg/`.
 - **Linking**: FFmpeg's pkg-config files ask for `-lm -latomic -pthread`;
   the build script links `m`, `atomic` and `pthread` dynamically.
-- **The feature `pipewire`** of section 3 is not defined until feature 8
-  adds the PipeWire C file. `swb`'s feature `media` is `swb-media/ffmpeg`
-  for now (`swb` depends on `swb-media` for `--version` and `--licenses`);
-  features 5 and 6 make it `swb-engine/media`.
+- **The feature `pipewire`** of section 3 was not defined until feature 8
+  added the PipeWire C file (it exists now: "Implementation notes (M14
+  feature 8)"). `swb`'s feature `media` was `swb-media/ffmpeg` at feature
+  3 (`swb` depends on `swb-media` for `--version` and `--licenses`);
+  features 5 and 6 made it `swb-engine/media`, and feature 8 added
+  `swb-media/pipewire` to it.
 - **`just test-media` runs the whole workspace** with
   `--features swb/media`. Feature unification changes only the crates that
   depend on `swb-media` (today `swb-media-ffi`, `swb-media` and `swb`), so
@@ -891,7 +903,15 @@ implementation:
   (MP3's bit reservoir and Opus's pre-skip need the packets before it;
   without the preroll the first MP3 frame after a seek is silent) and
   drops the samples before the target. With video, the demuxer seeks to
-  the video's key frame, which is earlier.
+  the video's key frame, which is earlier. **The seek time is never below
+  0** (the MP3 and ADTS demuxers refuse a negative time, so a loop to the
+  start and a seek under 200 ms failed and left the demuxer at its end: a
+  looping MP3 or ADTS file was silent after its first round; fixed in the
+  fix round of feature 8). **A failed seek is not silent:** `seek_demux`
+  logs it at `warn!` and tries once at the start of the stream (the
+  decoder still drops what is before the target); if that fails as well, the
+  pipeline logs `warn!` and decodes on from where the demuxer is (a source
+  error still fails the pipeline).
 - **Colors**: matrices other than BT.601 and BT.709 (BT.2020, SMPTE 240M)
   take the untagged rule; a pixel format with alpha is shown opaque (the C
   side sets alpha to 255). Both are in the backlog.
@@ -2526,3 +2546,318 @@ feature 8).
   `opacity: 0` video counts as painted. The changed rows of the window are
   whole rows. The state of a minimized window is untested on a real window
   manager.
+
+## Implementation notes (M14 feature 8)
+
+Audio output through PipeWire: the C boundary, the mixer, the audio clock,
+the refill without the page thread, the fallback, and the private daemon
+that makes the measurements safe. Code: `crates/media-ffi/csrc/pipewire.{c,h}`,
+`src/pipewire.rs`, `src/counting.rs`; `crates/media/src/output/` (`mix.rs`,
+`control.rs`, `source.rs`, `fake.rs`, `pw.rs`); `pipeline/mod.rs`,
+`pipeline/shared.rs`; `crates/engine/src/media/backend.rs`;
+`crates/swb/src/gui/`; `tools/swbtools/pw_private.py`.
+
+- **The C boundary** has three functions (`swb_audio_open`,
+  `swb_audio_set_active`, `swb_audio_close`; section 4 said about four) and
+  two callbacks: the fill callback on PipeWire's real-time thread (the buffer
+  and the delay, in frames at 48 kHz, from `pw_stream_get_time_n`; 0 when
+  PipeWire gives none) and the state callback on the loop thread. The open
+  does not wait for `STREAMING` (the spike's did): it makes the stream,
+  connects it and starts the thread loop (1 to 4 ms), and a connect without a
+  server fails at once (`-EHOSTDOWN`, 1 ms). `csrc/pipewire.c` is C11 with
+  `_GNU_SOURCE` (the SPA headers use `locale_t` and `ssize_t`) and compiles
+  with `-Wall -Wextra -Werror` (also with `-fsanitize=address,undefined` in
+  `just media-asan`, which now builds the feature `pipewire` too). The build
+  script finds libpipewire with `pkg-config` (`>= 0.3.50`; the new build
+  dependency `pkg-config` was already in the tree), compiles the C file, and
+  prints the link flags after its archive. The Rust type `AudioStream` owns the
+  handle, is `Send`, and has `set_active` and `Drop`; both callbacks catch
+  panics (the fill then writes silence); each callback borrows only its own
+  field of the callback state (leaked with `Box::into_raw` and freed with
+  `Box::from_raw` after `swb_audio_close`, so the pointer that the C side keeps
+  does not come from a moved box), so the two threads never hold references
+  that overlap. `swb --version` prints the headers' version. The tests of the
+  boundary against a real server are `#[ignore]`d
+  (`crates/media-ffi/tests/pipewire.rs`) and refuse to run outside a
+  `pw-private` runtime directory.
+- **The mixer** (`output/mix.rs`) is a table of 32 slots; a slot has an atomic
+  state (`FREE`, `ACTIVE`, `FADING`, `FADED`), an attachment number, the
+  frames mixed for the source (`taken`), a starved flag, and
+  `Mutex<Option<SlotData>>` (the element's ring, the ramp's gain, the silence
+  to play first). **The protocol, and why the callback never frees or blocks:**
+  1. The callback visits a slot only in the state `ACTIVE` or `FADING` (an
+     acquire load) and takes its mutex with `try_lock`; when the lock is
+     held it skips the slot for this cycle. It borrows the ring from the
+     guard and never clones or drops the `Arc`. **The state that decides is
+     read again under the lock** (the first load only says that the slot may
+     be mixed): a callback that stalled between the load and the lock (the
+     owner can free the slot and attach another source meanwhile) would
+     otherwise apply the `FADING` of the old source to the new one, store
+     `FADED` over its `ACTIVE`, and leave it silent in a slot that leaks.
+     Proof that the state read under the lock agrees with the data: the owner
+     changes the data only under the lock; it sets `FADED` before it takes the
+     data out (so a callback that holds the lock and reads `ACTIVE` or
+     `FADING` sees data that still belongs to that state), and sets `ACTIVE`
+     (release) only after it put the new data in and left the lock; the only
+     transition after the callback's read is `ACTIVE` to `FADING` (the new
+     source's own fade), which the callback then applies to the right data.
+     The unit test `a_stalled_callback_does_not_fade_the_source_that_took_the_slot`
+     runs the interleaving with the stale first look as a parameter.
+  2. The owner takes a slot's lock only with `try_lock` in a loop with
+     `yield_now`, never with `lock()`. So the mutex never has a waiter, and
+     its unlock in the callback is a store, not a futex wake (a system call).
+  3. The owner puts the data into a `FREE` slot under the lock and then sets
+     `ACTIVE` with a release store. It ends a source in two steps: `FADING`
+     (the callback ramps the gain to 0 in 480 frames, then sets `FADED`), then
+     it takes the data out under the lock, sets `FREE` and drops the data
+     after the unlock, on its own thread. When the owner holds the lock the
+     callback holds no reference to the data, and it cannot get one without
+     the lock, so the last `Arc` of a ring is never dropped on the real-time
+     thread. The owner frees a fading source that no callback fades (the
+     device is stuck) after 100 ms.
+  4. The mix is `sample × gain` summed per slot in chunks of 1,024 frames in
+     one 8 KiB scratch buffer on the stack (zeroed once per cycle, not once
+     per slot), then clamped to [-1, 1] (NaN becomes 0). The gain moves
+     toward the ring's gain (`volume`, 0 when muted) by 1/480 per frame: a
+     change takes at most 10 ms. A source starts at gain 0 (a fade-in).
+  5. Per cycle the callback publishes, under a sequence counter, the time of
+     the callback, the device's delay and the frames of the cycle, and per
+     slot the frames mixed (`taken`: the frames of the ring and the frames of
+     silence that align the source, not the frames of an empty ring) and
+     whether the ring was empty; the owner reads one consistent snapshot
+     (`Mix::reading`).
+  Tests: `crates/media/tests/mix_realtime.rs` runs the callback on a thread
+  with a counting global allocator (`swb-media-ffi`'s feature
+  `counting-allocator`, for dev-dependencies: a `GlobalAlloc` needs `unsafe`,
+  which only that crate has) while the owner adds, changes and fades 32
+  sources and a producer fills the rings: 0 allocator calls on the callback
+  thread. The unit tests of `mix.rs` run add and remove under a thread that
+  loops the callback, and hold a slot's lock to show the skip.
+- **The output** (`output/control.rs`): `Output` has the states `Closed`,
+  `Connecting`, `Running`, `Parked`, `Waking` and `Failed`. `request()` (an
+  element plays with audio) opens the device when there is none, or starts a
+  parked one; it returns at once. A device that reports `Streaming` is
+  `Running`; elements join it then (`attach`). While it is `Connecting` the
+  elements play on the silent output, so a missing link or device freezes
+  nothing. `Connecting` and `Waking` end with an error, or after 2 s without
+  `Streaming` (no device or no link), in `Failed`: the device closes, every
+  source is gone, one `warn!` for the process, and `request(…, retry)` tries
+  again only for a `play()` 30 s after the failure (the steps of an element that
+  already plays do not retry). A `Running` device without a mixed source (and
+  not asked for in the last 100 ms, so an element that is about to join does
+  not find it stopped, and in which no source left in the last 500 ms, so a
+  loop's wrap or a seek, which drops the source and attaches a new one
+  within moments, does not stop the stream and start it again) is stopped with
+  `pw_stream_set_active(false)`: no callback runs, the process uses no CPU; it
+  closes after 30 s. (A pause therefore costs 0.5 s of callbacks.) A stream that
+  goes to `Paused` while `Running` (its link went away) is `Waking`: the
+  elements leave the mixer until it streams or the 2 s end. A timer thread
+  (`swb-audio-timer`, started at the first request) ticks at the deadlines
+  (the 2 s, the 100 ms of a fade, the 30 s) and when the device reports a
+  state, and calls the wakers that the elements registered (the page's
+  wake-up), so no element polls. The state callback of the device only stores
+  an atomic and wakes the timer thread: nothing in it takes the control lock,
+  so the control lock can be held while the device is called (`set_active`, the
+  drop). Time comes from an injected `MonoClock`; `Output::manual` has no
+  thread and a test calls `tick`. `output/fake.rs` is the fake device: a test
+  pulls N frames with a delay it gives and reports the stream's states.
+- **The audio clock** (`output/source.rs`): `Source::clock_us()` is `taken`
+  (the frames mixed for the element) minus the delay, over 48,000. **The
+  delay used is at least one cycle**: the frames of a cycle are handed over
+  at its callback and play during the cycle after it at the earliest, and a
+  null sink reports 0 (measured: a card reports 512 frames, a null sink 0).
+  **Interpolation:** between callbacks (every 512 frames, 10.7 ms) the clock
+  adds the time since the last callback (read from `MonoClock`), up to the
+  delay, and never more than `taken`; while the ring was empty in the last cycle
+  it adds nothing. **Never back:** the value returned is the largest so far.
+  The rules:
+  - *Join and leave.* An element is in the mixer exactly while its pipeline's
+    clock runs (playing, no seek, no underrun, not ended), its ring exists,
+    the device streams and a slot is free. It joins at `play()` or at the
+    first step after the clock runs, and leaves at a pause, a seek, an
+    underrun, the end, a suspend, the end of its audio track, a failed device,
+    and when the page takes the output away. A source that leaves fades out;
+    its slot is freed by the next tick. A page that goes away drops its
+    elements, and so their sources: no slot leaks.
+  - *Alignment.* A source joins with `lead` frames: the media time of the
+    ring's next frame (from `SampleRing::base`) minus the element's media
+    time. A positive lead is silence that the mixer plays first, a negative
+    lead frames that it skips, so the sound is at the clock's time after a
+    pause, a seek and a switch from the silent output (which keeps the ring at
+    the media time).
+  - *Switches never jump.* `MediaClock::rebase` keeps the media time and
+    moves the anchor to the other source's clock time: page clock to audio
+    clock at the join, back at the leave (the pipeline passes `Report`s and
+    asks `time_at` as before; `Fetch` converts the page time to the clock's
+    on the way in and the due times back on the way out). After a device
+    failure `Source::clock_us` goes on in real time from the last reading at
+    the failure, so the element loses no time before its next step.
+  - *Seek.* The element leaves at the seek (the ring is discarded), and joins
+    when the seek ends and the clock runs. The old sound is cut without a
+    fade (measured: the largest sample step at a seek is 3.9 times the
+    sine's own; the pause and the volume changes have no step above the
+    sine's).
+  - *Underrun.* With the audio clock a ring that the mixer emptied is the
+    underrun: the mixer plays silence for the element and counts no frame, so
+    its clock stands still; the pipeline sees the empty ring
+    (`Pipeline::audio_starved`) and reports `Underrun` at the clock's media
+    time (also when the owner looks late), the element leaves the mixer, and
+    on `Resumed` (250 ms decoded) it joins again with a lead.
+  - *End of the audio before the video.* When the audio track is decoded to
+    its end and the ring is empty (`Pipeline::audio_finished`) the element
+    leaves the mixer and the clock goes on from there on the page (monotonic)
+    clock, so the video and the end do not wait for a clock that stopped.
+  - *Without audio, or without an output,* the clock is the page clock. A
+    muted element (gain 0) stays in the mixer; its clock stays the audio
+    clock.
+  - *The wake-ups.* `Fetch::next_due` converts the pipeline's due time (audio
+    clock time) to page time with the two clocks now. A source whose clock
+    does not move (no callbacks) is polled again after the time that is left,
+    so it does not spin.
+- **The refill without the page thread.** `AudioOutput::External` (the
+  pipeline does not consume the ring; the mixer does) used to need the
+  owner's `update` or `has_pending_work` to wake the demux thread when the
+  ring had room. Now `Pipeline::set_output(External)` sets a flag, and the
+  demux thread that waits for room in the ring (or for room in the video
+  packets while audio waits) uses a timed wait: from 20 ms to 500 ms, so that
+  it wakes when the ring has fallen to about twice the level at which the
+  2 s bound of the video packets lifts (250 ms). No condition variable or
+  lock is in the real-time callback. Measured: 2.0 wake-ups a second of the
+  demux thread for one audio element (3 s, release build); a page thread that
+  a script holds for 2 s leaves the audio unbroken (no quiet run of 4 ms
+  in the recording, the 440 Hz level unchanged, `currentTime` 4.0 s at the end
+  of the 2 s, no `waiting`).
+- **The engine and the GUI.** `Page::set_audio_output(Option<Arc<Output>>)`
+  (feature `media`) gives the elements of a page their output. `Fetch`
+  (`backend.rs`) holds the element's `Source` while it is mixed and passes
+  the pipeline the audio clock's time instead of the page's; the changes of
+  state are in `sync_audio` (at each poll, `play` and `pause`); a poll of an
+  element that is not mixed looks at the output's phase first and does
+  nothing when nothing can change (the output has failed and no `play()` asks
+  for a new try; the table is full: the 33rd element), instead of `request`
+  (a lock, a tick, a wake-up of the timer thread) and two moves of the
+  pipeline between the outputs at every poll. The GUI turns
+  the output on at the start (`Output::pipewire()`); `swb --no-audio-output`
+  keeps it on the silent output, and the window with `--remote-port`, headless
+  mode and `--bench` never turn it on (a unit test of `Args::audio_output`).
+  The frame log has a new line `sync at=T video=S media=S audio=A` after each
+  presented frame of a playing, painted video: the presentation time of the
+  frame drawn and the element's media time (works item 4).
+- **The private daemon** (`swbtools pw-private`, `tools/swbtools/pw_private.py`):
+  a PipeWire daemon of its own with a runtime directory under `tmp/`, a
+  configuration file of its own, no session manager and no device, one null
+  sink (stereo, 48 kHz, with a monitor), for every run that plays sound. Its
+  clients get the same two environment variables and a client configuration
+  that makes their streams create ports (`adapter.auto-port-config`: without a
+  session manager nothing does, and the stream stays at `Paused`). `start`
+  proves the isolation: (a) with the daemon not running, `pw-cli info 0`
+  under the same environment fails (`failed to connect: Host is down`: the
+  client does not fall back to the owner's daemon); (b) `pw-dump` of the
+  daemon shows no object with an `api.alsa`, `api.bluez5` or `api.v4l2`
+  property or a `device.api` of these, no device object, and exactly one
+  `Audio/Sink`. `watch` links swb's `output_FL/FR` to the sink within 20 ms of
+  their appearance, and the sink's monitor to the recorder; `record` writes the
+  monitor to a WAV file (32-bit float). The tool refuses a directory outside
+  the checkout or the owner's runtime directory, and stops the daemon by its pid
+  after it checked its command line.
+- **Measured** (release build, development machine, GUI on a private Xvfb,
+  the private daemon; the null sink reports a delay of 0):
+  - *The stream.* Open 1.2 to 4 ms; `STREAMING` 18 to 42 ms after the connect
+    (the watcher's 20 ms poll is in it); restart from a stopped stream within
+    the tick; 48,000 to 48,075 frames a second (cycle 512).
+  - *Levels* (`mp3-long.mp3`, 440 Hz left, 660 Hz right; the recorded null
+    sink monitor against the file decoded with `ffmpeg`): `volume` 1 RMS
+    1.0000 of the file's, 0.5 gives 0.5000, 0 and `muted` give 0.0 (digital
+    silence); 440.00003 Hz and 660.00005 Hz; the amplitude of the 440 Hz
+    component 0.118714 against the file's 0.118714. Two elements at once (330
+    and 550 Hz at 0.25): each component keeps 0.25000 alone and together; two
+    at 0.8 sum to 1.0 and clamp (56,544 samples at 1.0, none above). Pause and
+    play: the silence lasts 1.003 s for a pause of 1.0 s, and the largest
+    sample step is 0.93 and 0.97 of the sine's own (no click); volume changes
+    0.93 and 0.46; a seek 3.86 and 3.07 (the cut).
+  - *The page thread blocked for 2 s* (a script loop): no quiet run of 4 ms or
+    more in the recording (`mp3-long.mp3`), audible length 5.993 s against 6.0
+    expected, the 440 Hz amplitude in the busy window 0.11873 against 0.11871.
+  - *CPU* (`mux-audio.m4a`, AAC): playing 0.3 to 0.4 % of a core (budget 3 %).
+    After a pause: 0 ticks in the 3 s from 0.5 s after the pause in 2 of 3
+    runs, one tick (10 ms) of the PipeWire loop thread in the third; the next
+    3 s had 0 ticks (one run of 3 had one, in a different window); no periodic
+    wake-up (the budget's 0.0 % is within the tick of the measurement).
+  - *Fallback.* No server (an empty runtime directory): the `warn!` comes 10 ms
+    after `play()`, one line, `currentTime` goes on (6.0 s at 6.0 s, worst step
+    error 0.1 ms). A daemon without links: the `warn!` at 2.002 s, the element
+    on the page clock from the start (6.0 s at 6.0 s). The daemon stopped while
+    playing: the `warn!` at once (3.006 s after `play()`, the daemon was
+    stopped at 3.005 s), `currentTime` goes on with a worst step error of 9.4
+    ms (the audio clock's own jitter before the failure), the events still come;
+    a new try at the next `play()` after 30 s (33 s: the connect opens in
+    0.9 ms, streams after 24 ms). The stream closes 30 s after the last element
+    stopped (`pw-dump`: present at 29.2 s, gone at 30.2 s after the pause).
+  - *The sync trace* (`mux-1080p30-20s.mp4`, `loop`, muted, a 1280 x 720
+    window): over 180 s, 5,422 presented frames (5,403 on the audio clock, the
+    first 19 before the stream joined), `media - video` from 0.07 to 16.0 ms
+    (mean 9.8, 99th percentile 14.1), 0 frames over the frame period (33.3 ms),
+    0 dropped. After 10 seeks of 3 s each: 1,013 frames, 0.0 to 18.6 ms, 0 over
+    the period; the first frame after a seek was presented 22 to 65 ms after
+    the seek, 0 to 12 ms off the media time. (The difference has the mean of
+    half a frame period: the frame shown is the last at or before the media
+    time.)
+- **Tests** (each new test failed when its fix was reverted: the list is in the
+  notes of the task). `swb-media`: `output::mix` (sum, clamp, ramp, counts, 32
+  and the 33rd, add and remove under a running callback, the skip), `output::
+  control` (states, timers with the injected clock, fallback, retry only at
+  `play()`, wakers, the 33rd source, the drop), `output::source` (delay,
+  interpolation, never back, empty ring, seek, silence, failure),
+  `tests/mix_realtime.rs`, `tests/output_pipeline.rs` (a real pipeline on the
+  fake device: the media time follows the pulled frames, a busy page thread, an
+  underrun, the end of the audio, a seek to the start, a looping file decodes
+  as many samples in its second round as in its first, a seek to 0.1 s of an
+  MP3 lands at 0.1 s). `swb-engine`: `tests/media_audio_output.rs` (12, a
+  thread that pulls a fake device in real time: the clock of an element is the
+  device, joining and leaving, gain, error, no server, retry, busy page, 42
+  elements in 3 pages with 32 mixed, slots freed, no output, the alignment
+  after a pause and a resume, the time while the device does not pull). `swb`:
+  the options and the frame log's line. Tools: `tools/tests/test_pw_private.py`,
+  and the hostile cases `media-100-playing-audio-elements` and
+  `media-play-pause-volume-toggle-loop` (silent output; headless mode never
+  opens the device, so the two cases do not reach the mixer: its churn is in
+  the engine tests with the fake device).
+- **Review fixes (round 1).** (1) The allocator counter is per thread (a
+  thread-local count), so `the_counter_sees_the_calls_of_a_tracked_thread` does
+  not add to the count of the real-time test: the flaky `mix_realtime` failed
+  6 of 10 runs with a busy loop per core before, 0 of 10 after. (2) The MP3 and
+  ADTS loop (see "Seeking audio alone" in section 7). (3) The slot re-check
+  under the lock (point 1 of the protocol above). (4) and (5) The alignment
+  and the clock are tested in `swb-engine`: with the device held between two
+  cycles and a manual output clock, the first sound after a pause and a resume
+  is at frame `512 + max(delay, 512)` of the join (fails without the lead, and
+  without the one-cycle floor of the delay on a device that reports 0), and
+  `currentTime` moves at most 40 ms while the device does not pull for 400 ms
+  and follows the frames at half speed (fails with the page time instead of the
+  audio clock). (6) The stream runs on for 0.5 s after the last source left.
+  Measured on the private daemon (`wav-pcm-s16.wav`, 2 s of sines, `loop`, 9 s,
+  the null sink's monitor recorded): before, the stream stopped and started at
+  every wrap (4 restarts in 9 s, "ran 2008 ms") and the longest run of exact
+  zero frames at a wrap was 16.0 to 18.0 ms; after, one run of 9,471 ms and no
+  restart, the run of zeros 15.9 to 16.0 ms. So the gap is not the restart (the
+  restart of a parked stream took 0 ms after `set_active`): it is the leave and
+  the join (the lead of one cycle plus the 10 ms fade-in). The reviewer's
+  estimate of 50 to 100 ms was too high; Chromium has no gap. (7) A poll of an
+  element that is not mixed does nothing when the output has failed or the
+  table is full (`Output::is_full`; `OutputStats::requests` counts the
+  requests: 703 in 2 s of play with a failed output before, 2 or fewer after;
+  6,838 before and fewer than 150 after with the 10 elements that have no
+  slot). (8) The scratch buffer is one per cycle, the NaN test checks NaN and
+  both infinities after the ramp, the callback state of the PipeWire stream
+  comes from `Box::into_raw` and goes through `Box::from_raw`, the comment in
+  `mix.rs` says "no blocking system call" (the clock read is a vDSO call), and
+  the two hostile cases say that they do not reach the mixer.
+- **Open (backlog).** (1) A seek cuts the old sound without a fade (a click
+  of 3.9 times the sine's step). (2) The loop is not gapless: 16 ms of silence
+  at each wrap (a gapless loop would decode the start of the file before the
+  end and join the two in the ring). (3) The device's delay on a real card was
+  measured only by the spike (512 frames); the private daemon's null sink
+  reports 0, so the clock's lag on hardware is the 512 reported. (4) The
+  sink's volume and mute of the desktop apply on top of the element's gain
+  (PipeWire's; nothing to do). (5) `playbackRate` other than 1, Web Audio and
+  `setSinkId` are not in feature 8.

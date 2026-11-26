@@ -21,6 +21,12 @@ pub(crate) struct MediaContext {
     /// unless [`MediaContext::isolate`] gave the page its own.
     #[cfg(feature = "media")]
     slots: std::sync::Arc<std::sync::Mutex<swb_media::pipeline::PipelineSlots>>,
+    /// The audio output that the elements that play with audio join, if the
+    /// page has one ([`crate::Page::set_audio_output`]; the GUI sets it,
+    /// headless mode, the automation server and the tests never do: their
+    /// pipelines use the silent output).
+    #[cfg(feature = "media")]
+    output: std::sync::Arc<std::sync::Mutex<Option<std::sync::Arc<swb_media::output::Output>>>>,
     /// False: media elements do not start loads ([`crate::Page::set_media`]).
     enabled: std::sync::Arc<std::sync::atomic::AtomicBool>,
     /// True: only a video near the viewport converts frames (the page paints
@@ -40,6 +46,8 @@ impl MediaContext {
             slots: std::sync::Arc::new(std::sync::Mutex::new(
                 swb_media::pipeline::PipelineSlots::global(),
             )),
+            #[cfg(feature = "media")]
+            output: std::sync::Arc::new(std::sync::Mutex::new(None)),
             enabled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
             viewport_rule: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             window_hidden: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -99,6 +107,24 @@ impl MediaContext {
         }
         #[cfg(not(feature = "media"))]
         let _ = handover_delay;
+    }
+
+    /// Sets (or removes) the audio output of the page's media elements.
+    #[cfg(feature = "media")]
+    pub(crate) fn set_output(&self, output: Option<std::sync::Arc<swb_media::output::Output>>) {
+        *self
+            .output
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = output;
+    }
+
+    /// The audio output, if the page has one.
+    #[cfg(feature = "media")]
+    pub(crate) fn output(&self) -> Option<std::sync::Arc<swb_media::output::Output>> {
+        self.output
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
     }
 
     /// The places that a new pipeline uses.
@@ -193,6 +219,20 @@ pub struct MediaCounters {
     pub decoded: u64,
     /// Frames converted to pixels.
     pub converted: u64,
+}
+
+/// One look at the synchronization of a playing, painted video (M14 feature
+/// 8, ADR 0047 section 7): the frame that is current and the element's media
+/// time, as the GUI's frame log records them at a present.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MediaSync {
+    /// The presentation time of the frame that is current (microseconds).
+    pub pts_us: i64,
+    /// The media time of the element at the look, on its clock: the audio
+    /// clock while the element is in the audio mixer (microseconds).
+    pub media_us: i64,
+    /// Whether the element's clock is the audio clock.
+    pub audio_clock: bool,
 }
 
 impl std::ops::AddAssign for MediaCounters {
@@ -360,7 +400,7 @@ mod stub {
         pub(crate) fn set_gain(&mut self, _gain: f32) {}
 
         /// The page time (ms) of the next frame, `timeupdate` point or end.
-        pub(crate) fn next_due(&self, _coarse: bool) -> Option<f64> {
+        pub(crate) fn next_due(&self, _coarse: bool, _now_us: i64) -> Option<f64> {
             None
         }
 
@@ -409,6 +449,11 @@ mod stub {
         pub(crate) fn counters(&self) -> MediaCounters {
             MediaCounters::default()
         }
+
+        /// No pipeline, nothing to look at.
+        pub(crate) fn sync_sample(&self, _now_us: i64) -> Option<super::MediaSync> {
+            None
+        }
     }
 }
 
@@ -418,8 +463,9 @@ mod real {
 
     use std::collections::VecDeque;
 
-    use swb_media::MediaError;
-    use swb_media::pipeline::{Pipeline, PipelineOptions, Report, SourceOpener};
+    use swb_media::output::{Phase, Source, lead_frames};
+    use swb_media::pipeline::{AudioOutput, Pipeline, PipelineOptions, Report, SourceOpener};
+    use swb_media::{ClockSource, MediaError};
     use swb_net::{MediaHandle, MediaOptions, ReadAhead};
 
     use super::{
@@ -452,6 +498,21 @@ mod real {
         /// that the events do not depend on when the threads met the damage.
         late: Option<Failure>,
         suspended: bool,
+        /// The page's media context: its audio output, looked up when the
+        /// element plays.
+        ctx: MediaContext,
+        /// The page's wake-up (the audio output calls it when the device
+        /// streams or fails).
+        waker: std::sync::Arc<dyn Fn() + Send + Sync>,
+        /// The element's place in the audio mixer, while it plays with
+        /// audio and the output streams. Then the clock time that the
+        /// pipeline gets is the source's audio clock; else it is the page
+        /// time (ADR 0047 section 7, "Implementation notes (M14 feature
+        /// 8)").
+        audio: Option<Source>,
+        /// `play()` came and the output was not asked since: the next
+        /// request may try a failed output again.
+        retry_output: bool,
     }
 
     fn read_ahead(preload: Preload) -> ReadAhead {
@@ -497,7 +558,103 @@ mod real {
                 first_data_held: false,
                 late: None,
                 suspended: false,
+                ctx: ctx.clone(),
+                waker: loader.waker(),
+                audio: None,
+                retry_output: false,
             }
+        }
+
+        // ----- The audio clock (ADR 0047 section 7) -----
+
+        /// The clock time that the pipeline gets at page time `now_us`: the
+        /// audio clock of the element's source in the mixer, else the page
+        /// time.
+        fn clock_now(&self, now_us: i64) -> i64 {
+            self.audio.as_ref().map_or(now_us, Source::clock_us)
+        }
+
+        /// Whether the element should be in the mixer: it plays, its clock
+        /// runs, its audio has samples to count.
+        fn wants_mixing(&self) -> bool {
+            !self.suspended
+                && self.pipeline.is_playing()
+                && self.pipeline.is_clock_running()
+                && self.pipeline.samples().is_some()
+                && !self.pipeline.audio_finished()
+        }
+
+        /// Moves the element into or out of the audio mixer, as the state
+        /// of its playback and of the output says (at each poll, `play` and
+        /// `pause`). It joins when its clock runs and the device streams;
+        /// it leaves when its clock stops (a pause, a seek, an underrun, the
+        /// end), when its audio ends before the video, when the device
+        /// failed (its source is gone), and when the page has no output any
+        /// more. Both moves keep the media time (no jump): the clock is
+        /// rebased from one source to the other at the same moment.
+        fn sync_audio(&mut self, now_us: i64) {
+            let Some(output) = self.ctx.output() else {
+                self.detach_audio(now_us);
+                return;
+            };
+            match &self.audio {
+                Some(source) => {
+                    if !source.is_live() || !self.wants_mixing() {
+                        self.detach_audio(now_us);
+                    }
+                }
+                None if self.wants_mixing() => {
+                    // Nothing can change while the output has failed (until
+                    // a `play()` may try it again) or the table is full (the
+                    // 33rd element): do not call `request` (a lock, a
+                    // tick, a wake-up of the timer thread) and do not move
+                    // the pipeline between the outputs at every poll.
+                    match output.phase() {
+                        Phase::Failed if !self.retry_output => return,
+                        Phase::Running if output.is_full() => return,
+                        _ => {}
+                    }
+                    // A failed output is tried again by a `play()`, not by
+                    // the steps of an element that already plays.
+                    let retry = std::mem::take(&mut self.retry_output);
+                    output.request(Some(&self.waker), retry);
+                    if !output.is_ready() {
+                        return;
+                    }
+                    let Some(ring) = self.pipeline.samples() else {
+                        return;
+                    };
+                    // The ring is where the media clock is, or ahead of it
+                    // (silence first) or behind it (frames skipped).
+                    let lead = lead_frames(&ring, self.pipeline.time_at(now_us));
+                    self.pipeline.set_output(AudioOutput::External);
+                    match output.attach(ring, lead) {
+                        Some(source) => {
+                            let audio_now = source.clock_us();
+                            self.pipeline
+                                .rebase_clock(ClockSource::Audio, now_us, audio_now);
+                            self.audio = Some(source);
+                        }
+                        // The 33rd element: it stays on the silent output.
+                        None => self.pipeline.set_output(AudioOutput::Silent),
+                    }
+                }
+                None => {}
+            }
+        }
+
+        /// Takes the element out of the mixer (its source fades out) and
+        /// goes on at page time `now_us` from the media time that the audio
+        /// clock had.
+        fn detach_audio(&mut self, now_us: i64) {
+            let Some(source) = self.audio.take() else {
+                return;
+            };
+            let audio_now = source.clock_us();
+            drop(source);
+            self.pipeline.set_output(AudioOutput::Silent);
+            self.pipeline
+                .rebase_clock(ClockSource::Page, audio_now, now_us);
         }
 
         /// Takes the reports of the pipeline at page time `now_us`.
@@ -505,7 +662,13 @@ mod real {
             if self.suspended {
                 return;
             }
-            for report in self.pipeline.update(now_us) {
+            self.poll_pipeline(now_us);
+            self.sync_audio(now_us);
+        }
+
+        fn poll_pipeline(&mut self, now_us: i64) {
+            let clock_now = self.clock_now(now_us);
+            for report in self.pipeline.update(clock_now) {
                 match report {
                     Report::Metadata(m) => {
                         self.metadata_seen = true;
@@ -684,7 +847,8 @@ mod real {
         /// Closes the threads of the pipeline and gives its place to the
         /// next one; the metadata, the position and the byte cache stay.
         pub(crate) fn suspend(&mut self, now_us: i64) {
-            self.pipeline.suspend(now_us);
+            self.pipeline.suspend(self.clock_now(now_us));
+            self.detach_audio(now_us);
             self.suspended = true;
         }
 
@@ -702,13 +866,17 @@ mod real {
         /// pipeline opens again (ADR 0047 section 6).
         pub(crate) fn play(&mut self, now_us: i64) {
             self.suspended = false;
-            self.pipeline.play(now_us);
+            self.retry_output = true;
+            self.pipeline.play(self.clock_now(now_us));
+            self.sync_audio(now_us);
         }
 
-        /// Stops the media clock at clock time `now_us`.
+        /// Stops the media clock at page time `now_us`; the element leaves
+        /// the audio mixer.
         pub(crate) fn pause(&mut self, now_us: i64) {
             if !self.suspended {
-                self.pipeline.pause(now_us);
+                self.pipeline.pause(self.clock_now(now_us));
+                self.detach_audio(now_us);
             }
         }
 
@@ -732,12 +900,16 @@ mod real {
                 self.first_data_held = true;
             }
             self.pipeline.seek(target_us);
+            // The clock stops at the seek, and the ring is discarded: the
+            // element leaves the mixer and joins again when the clock runs.
+            // (A clock that is stopped has no time to rebase.)
+            self.detach_audio(0);
             true
         }
 
-        /// The playback position at clock time `now_us`, in seconds.
+        /// The playback position at page time `now_us`, in seconds.
         pub(crate) fn position_at(&self, now_us: i64) -> f64 {
-            self.pipeline.time_at(now_us) as f64 / 1e6
+            self.pipeline.time_at(self.clock_now(now_us)) as f64 / 1e6
         }
 
         /// The gain of the audio (`volume`, 0 when muted).
@@ -749,7 +921,7 @@ mod real {
         /// while the clock runs. With `coarse` (a real-time page), a video
         /// that is not painted has no frame times
         /// ([`swb_media::pipeline::Pipeline::next_wake`]).
-        pub(crate) fn next_due(&self, coarse: bool) -> Option<f64> {
+        pub(crate) fn next_due(&self, coarse: bool, now_us: i64) -> Option<f64> {
             if self.suspended {
                 return None;
             }
@@ -757,8 +929,15 @@ mod real {
                 self.pipeline.next_wake()
             } else {
                 self.pipeline.next_due()
+            }?;
+            // The pipeline's due time is on its clock; the page waits on
+            // its own: the audio clock runs at the rate of real time, so the
+            // time that is left is the same (ADR 0047 notes of feature 8).
+            let due = match &self.audio {
+                Some(source) => now_us.saturating_add(due.saturating_sub(source.clock_us())),
+                None => due,
             };
-            due.map(|us| us as f64 / 1000.0)
+            Some(due as f64 / 1000.0)
         }
 
         /// The failure that came after the metadata.
@@ -815,7 +994,21 @@ mod real {
         /// pixels that is not the one shown (the frame decision of the GUI;
         /// see [`Pipeline::frame_due`]).
         pub(crate) fn frame_due(&self, now_us: i64) -> bool {
-            !self.suspended && self.pipeline.frame_due(now_us)
+            !self.suspended && self.pipeline.frame_due(self.clock_now(now_us))
+        }
+
+        /// The frame that is current and the media time at page time
+        /// `now_us`, while the video plays (the frame log's sync trace).
+        pub(crate) fn sync_sample(&self, now_us: i64) -> Option<super::MediaSync> {
+            if self.suspended || !self.pipeline.is_playing() || !self.pipeline.is_clock_running() {
+                return None;
+            }
+            let frame = self.pipeline.current_frame()?;
+            Some(super::MediaSync {
+                pts_us: frame.pts_us,
+                media_us: self.pipeline.time_at(self.clock_now(now_us)),
+                audio_clock: self.audio.is_some(),
+            })
         }
 
         /// The counters of the pipeline.

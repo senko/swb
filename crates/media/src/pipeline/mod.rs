@@ -72,13 +72,14 @@ pub enum AudioOutput {
     /// up to the media time (headless mode, tests, no audio device).
     #[default]
     Silent,
-    /// Another consumer reads the ring ([`Pipeline::samples`]; feature 8's
-    /// mixer). The ring has one consumer only, so the pipeline consumes
-    /// nothing. The consumer does not wake the demux thread (it must not
-    /// take the pipeline's lock): only the owner's [`Pipeline::update`] and
-    /// [`Pipeline::has_pending_work`] wake it when the ring has room again,
-    /// so the owner calls one of them at least every 0.75 s while the
-    /// consumer reads (the ring holds 1 s).
+    /// Another consumer reads the ring ([`Pipeline::samples`]: the audio
+    /// mixer, `crate::output`). The ring has one consumer only, so the
+    /// pipeline consumes nothing. The consumer does not wake the demux
+    /// thread (it must not take the pipeline's lock, and it runs on a
+    /// real-time thread): the demux thread that waits for room in the ring
+    /// wakes by itself, on a timer ([`State::external_wait`]: between 20 and
+    /// 500 ms), so the audio does not depend on the owner's thread. The owner
+    /// switches with [`Pipeline::set_output`].
     External,
 }
 
@@ -333,7 +334,11 @@ impl Pipeline {
             capture: capture_audio.then(Vec::new),
             reports: Vec::new(),
         };
-        p.shared.lock().wants_notify = true;
+        {
+            let mut st = p.shared.lock();
+            st.wants_notify = true;
+            st.external = output == AudioOutput::External;
+        }
         p.start_run();
         p
     }
@@ -559,6 +564,61 @@ impl Pipeline {
     /// to media times without the pipeline's lock.
     pub fn samples(&self) -> Option<Arc<SampleRing>> {
         self.shared.lock().ring.clone()
+    }
+
+    /// Who consumes the samples now.
+    pub fn output(&self) -> AudioOutput {
+        self.output
+    }
+
+    /// Changes the consumer of the ring (M14 feature 8): `External` while the
+    /// element is in the audio mixer, `Silent` otherwise. The owner switches
+    /// to `External` before it adds the ring to the mixer and to `Silent`
+    /// when it takes it out (the mixer may read a few more frames while its
+    /// fade-out ends: both consumers only read, so frames are skipped at
+    /// worst). With `External` the demux thread refills the ring by itself
+    /// (a timed wait), as the mixer notifies nobody.
+    pub fn set_output(&mut self, output: AudioOutput) {
+        if self.output == output {
+            return;
+        }
+        self.output = output;
+        self.shared.lock().external = output == AudioOutput::External;
+        // A demux thread that waits for room without a timeout looks again.
+        self.shared.demux_cv.notify_all();
+    }
+
+    /// The source of the clock time that the owner passes.
+    pub fn clock_source(&self) -> ClockSource {
+        self.clock.source()
+    }
+
+    /// Whether the media clock runs (playing, with its data, no seek, no
+    /// underrun, not at the end).
+    pub fn is_clock_running(&self) -> bool {
+        self.clock.is_running()
+    }
+
+    /// Moves the clock to another source without a jump: the media time
+    /// that the old source's clock time `old_now` gives stays, and the new
+    /// source's `new_now` is the same moment ([`MediaClock::rebase`]). From
+    /// then on the owner passes the clock time of the new source. With
+    /// [`ClockSource::Audio`] an empty ring is an underrun (the mixer's clock
+    /// stands still), and the end of the audio track ends the audio clock
+    /// ([`Pipeline::audio_finished`]).
+    pub fn rebase_clock(&mut self, source: ClockSource, old_now: i64, new_now: i64) {
+        self.clock.rebase(source, old_now, new_now);
+    }
+
+    /// Whether the audio track is decoded to its end and the ring is empty:
+    /// nothing is left for the audio clock to count (the owner then takes the
+    /// clock back to the page clock: the video, or the end of the media,
+    /// goes on). False without an audio track.
+    pub fn audio_finished(&self) -> bool {
+        let st = self.shared.lock();
+        st.audio_on
+            && st.audio_drained == Some(st.epoch)
+            && st.ring.as_ref().is_none_or(|r| r.available() == 0)
     }
 
     /// Sets the gain of the samples (the element's `volume`, 0 when muted),
@@ -799,6 +859,21 @@ impl Pipeline {
                 .map_or(self.position, |c| c.pts_us.saturating_add(c.duration_us));
         }
         i64::MAX
+    }
+
+    /// Whether the mixer has taken every decoded sample and the audio has
+    /// not ended: with the audio clock ([`ClockSource::Audio`]) the clock
+    /// stands still then (the mixer plays silence for the element and counts
+    /// no frame), so the clock never passes the end of the decoded data, and
+    /// this is how an underrun shows. With the page clock the media time
+    /// passes the decoded data, which `covered` compares.
+    fn audio_starved(&self, st: &State) -> bool {
+        self.clock.source() == ClockSource::Audio
+            && st.audio_on
+            && !self.audio_gap
+            && st.demux_epoch == st.epoch
+            && st.audio_drained != Some(st.epoch)
+            && st.ring.as_ref().is_some_and(|r| r.available() == 0)
     }
 
     /// Whether the data at the position is there for the first time.
@@ -1242,8 +1317,14 @@ impl Pipeline {
         }
         if self.clock.is_running() {
             let covered = self.covered(st);
-            if m > covered && !stalled {
-                m = covered.max(self.position);
+            // With the audio clock a starved ring is the underrun itself:
+            // the clock does not pass the data, it stops at it, so `m` is
+            // where the sound stopped (also when the owner looks late).
+            let starved = self.audio_starved(st);
+            if (starved || m > covered) && !stalled {
+                if !starved {
+                    m = covered.max(self.position);
+                }
                 self.clock.set(m);
                 self.underrun = true;
                 out.push(Report::Underrun { media_us: m });

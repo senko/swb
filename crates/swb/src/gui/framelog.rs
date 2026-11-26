@@ -26,6 +26,14 @@
 //!   (`Page::media_counters`). For the measurements of video playback; the
 //!   reader of the other lines ignores it.
 //!
+//! - `sync at=T video=S media=S audio=A` (M14 feature 8): one per playing,
+//!   painted video at each presented frame (after its `frame` line): `video`
+//!   is the presentation time of the frame that was drawn and `media` the
+//!   element's media time at the present, both in seconds of media time (six
+//!   decimals); `audio` is 1 while the element's clock is the audio clock.
+//!   The sync trace of ADR 0047 section 7 (works item 4): `media - video`
+//!   is at most a frame period plus the time that the page took to draw.
+//!
 //! The cost without the debug level is a few counters per event and three
 //! `Instant` reads per frame (the start, the end of the page render and the
 //! end of the composition). The log lines and the clock reads of batches
@@ -33,7 +41,7 @@
 
 use std::time::{Duration, Instant};
 
-use swb_engine::{FrameDamage, MediaCounters};
+use swb_engine::{FrameDamage, MediaCounters, MediaSync};
 
 /// The target of the log lines.
 const TARGET: &str = "swb::gui";
@@ -152,6 +160,33 @@ impl FrameLog {
     }
 }
 
+impl FrameLog {
+    /// The sync trace (M14 feature 8): after a present, one `sync` line for
+    /// each playing, painted video. `samples` reads them; it runs only at
+    /// the debug level.
+    pub(crate) fn sync(&self, samples: impl FnOnce() -> Vec<MediaSync>) {
+        if !self.enabled {
+            return;
+        }
+        let at = monotonic_seconds();
+        for sample in samples() {
+            log::debug!(target: TARGET, "{}", sync_line(at, &sample));
+        }
+    }
+}
+
+/// The text of a sync line: the time of the present, the presentation time
+/// of the frame that was drawn and the media time of the element, in
+/// seconds, and whether the element's clock is the audio clock.
+pub(crate) fn sync_line(at: f64, sample: &MediaSync) -> String {
+    format!(
+        "sync at={at:.6} video={:.6} media={:.6} audio={}",
+        sample.pts_us as f64 / 1e6,
+        sample.media_us as f64 / 1e6,
+        u8::from(sample.audio_clock)
+    )
+}
+
 /// The text of a batch line.
 pub(crate) fn batch_line(start: f64, end: f64, counts: &InputCounts, frame: bool) -> String {
     format!(
@@ -252,6 +287,24 @@ mod tests {
             frame_line(1.0, ms(1), ms(1), ms(1), Some(&damage))
                 .ends_with(" full=0 rects=1 pixels=200")
         );
+    }
+
+    #[test]
+    fn sync_line_format() {
+        let sample = MediaSync {
+            pts_us: 1_040_000,
+            media_us: 1_052_345,
+            audio_clock: true,
+        };
+        assert_eq!(
+            sync_line(7.5, &sample),
+            "sync at=7.500000 video=1.040000 media=1.052345 audio=1"
+        );
+        let page_clock = MediaSync {
+            audio_clock: false,
+            ..sample
+        };
+        assert!(sync_line(7.5, &page_clock).ends_with(" audio=0"));
     }
 
     #[test]

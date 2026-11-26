@@ -12,10 +12,11 @@ publish.workspace = true
 workspace = true
 
 [features]
-# Media playback with FFmpeg (ADR 0047 section 3): the media element opens
-# pipelines and fetches media. Off: the element exists and every load fails
-# with code 4 without a fetch. (`pipewire` joins in M14 feature 8.)
-media = ["swb-media/ffmpeg", "swb-media/net"]
+# Media playback with FFmpeg and audio output through PipeWire (ADR 0047
+# section 3): the media element opens pipelines and fetches media, and the
+# GUI can play the sound (`Page::set_audio_output`). Off: the element exists
+# and every load fails with code 4 without a fetch.
+media = ["swb-media/ffmpeg", "swb-media/net", "swb-media/pipewire"]
 
 [dependencies]
 encoding_rs.workspace = true
