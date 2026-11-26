@@ -7592,7 +7592,8 @@ Source Extensions, AV1 (dav1d), YouTube.
   `at_most_sixty_four_traversals_wait_and_reloads_are_one` failed once in
   a loaded `just check-media` run (4 document requests, the test allows
   3) and passed in the next 6 runs. Again in a `just check` of feature 8
-  (4 requests; passed alone 5 of 5).
+  (4 requests; passed alone 5 of 5) and in the check of the next commit
+  (passed alone 3 of 3): the most frequent load-sensitive failure.
 - Media (feature 6a): MP3, WAV and Ogg served as a 200 without `Range`
   have no duration (`Infinity`); Chromium knows it from
   `Content-Length`. Give FFmpeg the length of a 200 as its size

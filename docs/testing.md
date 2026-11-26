@@ -1910,10 +1910,11 @@ it and need no C library.
 |---|---|
 | `just ffmpeg` | `tools/ffmpeg/build.sh`: download `ffmpeg-VERSION.tar.xz` and its `.asc` into `out/ffmpeg/` when missing, check the size, the SHA-256 and (with `gpg`; a signature by a subkey of the pinned key counts) the signature against `tools/ffmpeg/release-key.asc`, configure with `tools/ffmpeg/configure.txt`, `make -j` (at most 8), install into `out/ffmpeg/VERSION/` with `swb-build.txt`. A no-op when that file matches the pins. 30 s here (8 jobs, 2 min 44 s of CPU); 25 MB in `out/ffmpeg/` with the tarball. `SWB_FFMPEG_DIR` points the build at another install prefix. |
 | `just build-media`, `just run-media ARGS` | The release binary with media. |
-| `just test-media` | `cargo test --workspace --features swb/media`: all tests; only the crates that depend on `swb-media` build a second time. |
+| `just test-media` | `cargo test --no-fail-fast --features swb/media` of the crates that the feature builds again (`swb-media-ffi`, `swb-media`, `swb-engine`, `swb-automation`, `swb`). The other crates build without a change, so their test binaries are the ones that `just test` runs (measured: a workspace build after this one compiles nothing). A new crate that depends on `swb-media` goes on the list. |
 | `just lint-media` | clippy of the workspace with media. |
 | `just media-asan` | The tests of `swb-media-ffi` and `swb-media` with `-fsanitize=address,undefined` on the C boundary (FFmpeg itself is not instrumented), in `target/media-asan/`; leaks are checked. |
-| `just check-media` | `ffmpeg`, `lint-media`, `test-media`, `deny`, `media-asan`. A commit that changes media code passes it as well as `just check`. |
+| `just check-media` | `ffmpeg`, `lint-media`, `deny`, `media-asan`, `test-media` (the tests last, so a failing test does not skip the other steps). A commit that changes media code passes it as well as `just check`. |
+| `just check-media-no-asan` | `check-media` without `media-asan`: enough for a media commit that changes neither `crates/media` nor `crates/media-ffi` (a change in `swb-media` alone still needs the sanitizers: new Rust code can pass new inputs to the C code). CI always runs `check-media`. |
 
 CI runs `just check` in the job `check` and `just check-media` in the job
 `check-media`, which caches `out/ffmpeg/` under a key of the runner image,

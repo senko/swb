@@ -27,7 +27,8 @@ Standing rules:
   new scripts.
 - Build only with your worktree's own target directory.
 - Tests: unit tests, layout tests against Chromium for the scope's cases,
-  the hostile-page set. `just check` must pass.
+  the hostile-page set. Run the checks that CLAUDE.md "Checks" names for
+  your task: the full checks at the hand-back of a feature.
 - Do not run your own review rounds; the orchestrator starts one review.
 - Report in at most 30 lines: what changed, tests, scores, open issues,
   proposed text for docs that you must not edit. Put details in a notes

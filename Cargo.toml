@@ -152,9 +152,14 @@ dbg_macro = "warn"
 todo = "warn"
 
 [profile.dev]
-# Layout and rasterization are too slow without optimizations; keep debug
-# info but optimize dependencies.
+# Layout and rasterization are too slow without optimizations; optimize
+# dependencies. Debug info: line tables only (backtraces keep files and
+# lines; no variables for a debugger). Full debug info made each test
+# binary about 540 MB and a target directory 83 GB (168 MB and 29 GB now),
+# and a cold build of the tests 232 s instead of 158 s. Debug assertions
+# and overflow checks stay on.
 opt-level = 1
+debug = "line-tables-only"
 
 [profile.dev.package."*"]
 opt-level = 3

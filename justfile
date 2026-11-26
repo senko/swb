@@ -11,8 +11,8 @@ export TMPDIR := justfile_directory() + "/tmp"
 
 default: check
 
-# Run every check that must pass before a commit.
-check: fmt-check lint test deny tools-check
+# Run every check that must pass before a commit. The tests run last, so a failing test does not skip the other steps.
+check: fmt-check lint deny tools-check test
 
 # Format all code.
 fmt:
@@ -26,9 +26,9 @@ fmt-check:
 lint:
     cargo clippy --workspace --all-targets --locked -- -D warnings
 
-# Run all tests.
+# Run all tests. A failing test binary does not stop the others (CLAUDE.md "Checks": what to do with a failure).
 test:
-    cargo test --workspace --locked
+    cargo test --workspace --locked --no-fail-fast
 
 # Generate the Web API binding glue from crates/web/idl/ (and the test IDL) with swb-webidl; the freshness test fails until this ran.
 bindings:
@@ -66,9 +66,9 @@ build-media: ffmpeg
 run-media *ARGS: ffmpeg
     cargo run --release -p swb --features media -- {{ARGS}}
 
-# Run all tests with media (the whole workspace: only the crates that depend on swb-media build a second time).
+# Run the tests with media of the crates that depend on swb-media. The other crates build without a change, so their test binaries are the ones of `just test` (measured: a workspace build after this one compiles nothing).
 test-media: ffmpeg
-    cargo test --workspace --locked --features swb/media
+    cargo test --locked --no-fail-fast --features swb/media -p swb-media-ffi -p swb-media -p swb-engine -p swb-automation -p swb
 
 # Run clippy with media on all crates and targets; warnings are errors.
 lint-media: ffmpeg
@@ -80,7 +80,10 @@ media-asan: ffmpeg
         cargo test --locked --target-dir target/media-asan -p swb-media-ffi -p swb-media --features swb-media/ffmpeg,swb-media/pipewire
 
 # Every check of a media commit (with `just check`): FFmpeg, clippy and tests with media, cargo-deny, the sanitizers.
-check-media: ffmpeg lint-media test-media deny media-asan
+check-media: ffmpeg lint-media deny media-asan test-media
+
+# `check-media` without the sanitizers: enough for a commit that changes neither crates/media nor crates/media-ffi (CLAUDE.md). CI runs `check-media`.
+check-media-no-asan: ffmpeg lint-media deny test-media
 
 # --- JavaScript engine tools (crates/js, tools/). See docs/testing.md. ---
 

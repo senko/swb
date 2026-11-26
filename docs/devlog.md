@@ -4,6 +4,30 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-26: fewer and faster check runs
+
+- Feature 8 ran the full checks about six times (the implementer, the fix
+  round, three times in main): about 2 h 15 min, where one green run on
+  the committed code gives the same guarantee. Two of the reruns in main
+  came from load-sensitive tests: `cargo test` stopped at the first
+  failing binary, so each flaky failure cost a full rerun.
+- CLAUDE.md "Checks": the implementer runs the full checks at hand-back,
+  a fix round runs clippy and the tests of the crates it changed, main
+  runs the full checks once on the final code. Tests run with
+  `--no-fail-fast` and as the last step of the check recipes (a failed
+  test no longer skips cargo-deny, the tools' tests or the sanitizers);
+  a known load-sensitive failure that passes alone needs no full rerun.
+- Dev builds keep line tables only: a cold build of the test binaries
+  158 s instead of 232 s, a target directory 29 GB instead of 83 GB
+  (each test binary 168 MB instead of 540 MB), so target directories can
+  stay between commits.
+- `just test-media` runs only the crates that the feature builds again;
+  the other crates' test binaries are the same as in `just test` (about
+  7 min of test time ran twice). `just check-media-no-asan` leaves out
+  the sanitizers for media commits that do not change `crates/media` or
+  `crates/media-ffi`.
+- Next: M14 feature 9, the default controls.
+
 ## 2026-11-26: M14 feature 8, audio output through PipeWire
 
 - In the GUI, `<audio>` and `<video>` play their sound through PipeWire:

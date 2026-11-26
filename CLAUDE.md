@@ -15,15 +15,24 @@ Before you start work, read:
 ## Commands
 
 - `just check`: format check, clippy (warnings are errors), all tests,
-  cargo-deny. Must pass before every commit.
+  cargo-deny. Must pass before every commit. The tests run last and
+  with `--no-fail-fast`: a failing test binary stops neither the other
+  test binaries nor the other steps (see "Checks" below for what to do
+  with a failure).
 - `just fmt`, `just lint`, `just test`: the individual steps.
 - `just run <url>`: build and run the browser.
 - `just ffmpeg`: download, check and build the pinned FFmpeg into
   `out/ffmpeg/` (once; needs a C compiler, `make`, `nasm`). Media builds
   (the Cargo feature `media`, ADR 0047) need it; default builds do not.
-- `just check-media`: clippy, all tests and the sanitizers with media. A
-  commit that changes media code (`crates/media*`, or code behind the
-  feature) passes `just check-media` as well as `just check`.
+- `just check-media`: clippy with media, the tests of the crates that
+  depend on `swb-media` with media (the other crates' test binaries are
+  the same as in `just check`), cargo-deny, and the sanitizers. A commit
+  that changes media code (`crates/media*`, or code behind the feature)
+  passes `just check-media` as well as `just check`. When it changes
+  neither `crates/media` nor `crates/media-ffi`, `just
+  check-media-no-asan` (the same without the sanitizers) is enough. A
+  change in `swb-media` alone still needs the sanitizers: new Rust code
+  can pass new inputs to the C code.
 - Use the rustup toolchain in `~/.cargo/bin`. `/usr/bin/cargo` is too old.
   The justfile sets `PATH`. In raw shell commands, run
   `export PATH="$HOME/.cargo/bin:$PATH"` first.
@@ -41,7 +50,8 @@ Work on one feature at a time:
 
 1. Plan the milestone as an ordered list of features in `docs/roadmap.md`.
    For each feature, state its scope: the cases that the target pages need.
-2. Implement the feature on top of `main`, with tests. Run `just check`.
+2. Implement the feature on top of `main`, with tests. Run the checks
+   (see "Checks" below).
 3. Review: one sub-agent with a clean context (type `reviewer`) reviews the
    final diff with the checklist below. Fix what it finds. Review the fixes
    again only if they are large or concern security or performance, and
@@ -57,6 +67,30 @@ separate.
 
 Findings outside the feature's scope go to the backlog in
 `docs/roadmap.md`. Do not fix them in the same task.
+
+### Checks
+
+The full checks (`just check`, and `just check-media` for media code)
+take about 20 minutes each, mostly test time. Each commit gets one
+green run of them on the exact code that it commits. Do not run them
+more often than this:
+
+- The implementer of a feature runs the full checks once, at hand-back.
+- A fix round runs clippy for both feature sets (`just lint`, and
+  `just lint-media` for media code) and the tests of the crates that it
+  changed (`cargo test -p <crate>`, with `--features swb/media` for
+  media code), not the full checks.
+- The orchestrator runs the full checks once in main on the final code,
+  before the commit. When that code is byte-identical to a tree in
+  which the full checks passed (compare the patches with `cmp`) and only
+  docs changed since, it does not run them again.
+- A failed test: run it alone up to 3 times. If it passes and it is in
+  the roadmap backlog item "Load-sensitive tests" (or the other backlog
+  lines for flaky tests), add a line to that item, and the run counts as
+  green: do not run the whole check again. Any other failure is a real
+  failure until shown otherwise.
+- Do not `cargo clean` before a check: incremental builds are reliable.
+  Clean only for disk space (below 60 GB free).
 
 ### Agents
 
