@@ -1107,6 +1107,18 @@ impl Page {
         self.evaluate_with_timeout(source, form, EVALUATION_TIMEOUT)
     }
 
+    /// [`Page::evaluate`] for a script of the automation's own (the `focus`
+    /// step calls `focus()`): it gives no user activation, as Playwright's
+    /// own calls (`locator.focus()`) give none. Only a request of the user or
+    /// of the automation client (`--eval`, `eval`, `record`, `page.evaluate`)
+    /// goes through [`Page::evaluate`] (ADR 0047 section 10).
+    pub fn evaluate_internal(&mut self, source: &str, form: JsonForm) -> Option<Evaluation> {
+        let activation = std::mem::replace(&mut self.evaluation_activation, false);
+        let evaluation = self.evaluate(source, form);
+        self.evaluation_activation = activation;
+        evaluation
+    }
+
     /// [`Page::evaluate`], waiting at most `timeout` of real time for a
     /// promise to settle.
     pub fn evaluate_with_timeout(
@@ -1148,6 +1160,9 @@ impl Page {
         }
         self.frames.get(id)?;
         self.ensure_frame_realm(id);
+        if self.evaluation_activation {
+            self.note_activation(id);
+        }
         let agent = self.frames.get(id)?.script?.agent();
         let start = self.run_task_in(id, |script| script.start_evaluation(source, form))?;
         let id = match start {
@@ -1174,7 +1189,18 @@ impl Page {
         if self.script.is_none() && self.scripts_dropped {
             return Some(EvaluationStart::Done(Evaluation::Error(DROPPED.to_owned())));
         }
+        if self.evaluation_activation {
+            self.note_activation(FrameId::TOP);
+        }
         self.run_task(|script| script.start_evaluation(source, form))
+    }
+
+    /// Whether an evaluation gives the top-level document a user activation
+    /// (sticky and transient) before it runs, as Playwright's `evaluate` does
+    /// (ADR 0047 section 10): a script of `--eval`, an `eval` step or
+    /// `page.evaluate` can then `play()` media with sound.
+    pub fn set_evaluation_activation(&mut self, enabled: bool) {
+        self.evaluation_activation = enabled;
     }
 
     /// The result of a pending evaluation once its promise settled, else

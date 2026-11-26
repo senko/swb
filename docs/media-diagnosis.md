@@ -282,7 +282,8 @@ varies). A line is `event rs ns` at dispatch (rs = `readyState`, ns =
   an index out of range throws `IndexSizeError: Failed to execute 'end' on
   'TimeRanges': The index provided (5) is greater than the maximum bound (1).`).
   `played` ranges merge adjacent time and keep separate ranges after a seek
-  (`0-0.5,6-6.5`).
+  (`0-0.5,6-6.5`). A pause that comes at once leaves `0-0`; the end of a
+  media that `play()` started at its end leaves none.
 - An element removed from the document **pauses** (`timeupdate`, `pause`);
   it does not resume when inserted again. A `display: none` video plays.
 - `playbackRate = 2` fires `ratechange` (not in M14).
@@ -322,10 +323,9 @@ Measured (`media-autoplay.json`, script at load, no activation):
 | `autoplay muted` (attribute) | plays: `play` and `playing` after `canplaythrough`; also with `preload=none`, with a `<source>` child, and when `autoplay` is set by script before the load |
 | `autoplay` set by script after `canplaythrough` | stays paused |
 | a video created by script and not attached, `play()` unmuted | rejects |
-| a video created by script and attached, `play()` unmuted | the promise stays **pending**, the video stays paused |
 | `play()` after a click (in the handler, in a later script) or after `keydown` | resolves; the probe's own `evaluate` calls also give activation, so these rows do not show which input gives it (see the note below). The HTML activation-triggering events are `keydown` (not Escape), `mousedown`, `pointerdown` (mouse), `pointerup` (not mouse) and `touchend`; `mousemove` is not one |
 | `autoplay` video inserted by a click handler | plays |
-| a muted playing video that a script unmutes without activation | keeps playing, unmuted (`volumechange`) |
+| a muted playing video that a script unmutes without activation | pauses (`volumechange`, `timeupdate`, `pause`) in two of three runs; keeps playing, unmuted, when the probe's first evaluation (an activation) comes before the unmute (corrected in M14 feature 6b) |
 | `muted = true` and `play()` again after a blocked `play()` | resolves |
 
 Note: the probe tool's own `evaluate` calls (the font wait before the steps,
@@ -345,8 +345,10 @@ these values must give `--eval` the same activation.
 - GUI: the same rules, with real input as the activation; no engagement
   index; every window starts without activation (a page that autoplays with
   sound waits for the first click), which is Chrome's behavior for a first
-  visit. A pending `play()` of the "attached, unmuted" row is a quirk that
-  swb does not copy: it rejects with the same `NotAllowedError`.
+  visit. (A first version of the table had a row "a video created by
+  script and attached, `play()` unmuted: the promise stays pending". That
+  case's script ran before `<body>` existed, so `appendChild` threw and
+  `play()` never ran; M14 feature 6b removed the row.)
 - The flag `--autoplay-policy` is not needed; a test that wants "no
   restriction" starts the page with a click step first.
 

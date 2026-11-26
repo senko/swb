@@ -76,6 +76,11 @@ fn table() -> Vec<(&'static str, Expect)> {
         ("mp4-h264-bt709.mp4", ok(V, Complete, 50)),
         ("mp4-h264-fullrange-bt709.mp4", ok(V, Complete, 50)),
         ("mp4-h264-high-aac-corrupt.mp4", ok(AV, DecodeError, 0)),
+        // 600 damaged bytes at 30, 60, 80 and 90 percent of the file.
+        ("mp4-h264-high-aac-damaged-30.mp4", ok(AV, DecodeError, 0)),
+        ("mp4-h264-high-aac-damaged-60.mp4", ok(AV, DecodeError, 0)),
+        ("mp4-h264-high-aac-damaged-80.mp4", ok(AV, DecodeError, 0)),
+        ("mp4-h264-high-aac-damaged-90.mp4", ok(AV, DecodeError, 0)),
         ("mp4-h264-high-aac-moov-at-end.mp4", ok(AV, Complete, 50)),
         ("mp4-h264-high-aac-no-moov.mp4", Err(not_media)),
         ("mp4-h264-high-aac-truncated.mp4", ok(AV, DecodeError, 0)),

@@ -359,6 +359,18 @@ pub struct MediaInfo {
     pub buffered: Vec<(f64, f64)>,
     /// `seekable`, as (start, end) pairs.
     pub seekable: Vec<(f64, f64)>,
+    /// `played`, as (start, end) pairs (feature 6b).
+    pub played: Vec<(f64, f64)>,
+    /// `ended`.
+    pub ended: bool,
+    /// `volume`.
+    pub volume: f64,
+    /// `muted`.
+    pub muted: bool,
+    /// `playbackRate` (a value only: the playback runs at 1).
+    pub playback_rate: f64,
+    /// `defaultPlaybackRate`.
+    pub default_playback_rate: f64,
 }
 
 impl Default for MediaInfo {
@@ -378,16 +390,89 @@ impl Default for MediaInfo {
             video_height: 0,
             buffered: Vec::new(),
             seekable: Vec::new(),
+            played: Vec::new(),
+            ended: false,
+            volume: 1.0,
+            muted: false,
+            playback_rate: 1.0,
+            default_playback_rate: 1.0,
         }
     }
 }
 
-/// What a script asks a media element to do (feature 6a; feature 6b adds
-/// `play`, `pause` and the seek).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// What a script asks a media element to do (features 6a and 6b).
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MediaCommand {
     /// `load()`: HTML "media element load algorithm".
     Load,
+    /// `pause()`: HTML "internal pause steps".
+    Pause,
+    /// `currentTime = seconds` (a finite number): HTML "seek".
+    Seek(f64),
+    /// `volume = value` (checked to be in 0 to 1).
+    SetVolume(f64),
+    /// `muted = value`.
+    SetMuted(bool),
+    /// `playbackRate = value`.
+    SetPlaybackRate(f64),
+    /// `defaultPlaybackRate = value`.
+    SetDefaultPlaybackRate(f64),
+}
+
+/// What the engine says to `play()` (feature 6b, HTML `play()` steps).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlayStart {
+    /// The call made the promise with this number (the numbers of an
+    /// element grow); the engine settles it with a [`MediaTask`].
+    Pending(u64),
+    /// Not allowed to play: `NotAllowedError` (the autoplay policy).
+    NotAllowed,
+    /// The element has no supported sources: `NotSupportedError`.
+    NotSupported,
+    /// Too many promises wait: `AbortError`.
+    TooMany,
+}
+
+/// Why the engine rejects the pending `play()` promises.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlayRejection {
+    /// `pause()`, the end of playback and the like: "interrupted by a call
+    /// to `pause()`".
+    Pause,
+    /// A new load: "interrupted by a new load request".
+    Load,
+    /// The resource failed: `NotSupportedError`.
+    NotSupported,
+}
+
+/// A task of the media element task source with the media element it
+/// belongs to and the epoch of that element when it was queued (a load of the
+/// element drops the tasks of older epochs, also those that were handed over
+/// but not run yet: [`EngineHost::media_task_begin`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MediaDelivery {
+    /// The node that the task is for: the media element, or one of its
+    /// `source` children (their `error`).
+    pub target: NodeId,
+    /// The media element.
+    pub owner: NodeId,
+    /// The epoch of the media element.
+    pub epoch: u32,
+    /// What to do.
+    pub task: MediaTask,
+}
+
+/// What the engine delivers to a media element, in order: an event, or the
+/// settling of `play()` promises (all promises of the element with a
+/// number up to `upto`, HTML "media element event task source").
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MediaTask {
+    /// A simple event (`loadstart`, `play`, ...).
+    Event(&'static str),
+    /// Resolve the pending `play()` promises up to the number.
+    ResolvePlay(u64),
+    /// Reject the pending `play()` promises up to the number.
+    RejectPlay(u64, PlayRejection),
 }
 
 /// The state of a CSS animation for the bindings (ADR 0044 section 7).
@@ -1034,6 +1119,25 @@ pub trait EngineHost: Any {
     /// that it causes come through [`crate::ScriptRuntime::media_events`].
     fn media_command(&mut self, node: NodeId, command: MediaCommand) {
         let _ = (node, command);
+    }
+
+    /// `play()` of the media element `node` (feature 6b): the engine runs
+    /// the `play()` steps of HTML (the autoplay policy, the internal play
+    /// steps) and says whether the call made a promise. The default has no
+    /// media: nothing is supported.
+    fn media_play(&mut self, node: NodeId) -> PlayStart {
+        let _ = node;
+        PlayStart::NotSupported
+    }
+
+    /// A media task is about to run: false if its element was loaded again
+    /// since the engine queued it (HTML "media element load algorithm" drops
+    /// the queued tasks; one that was handed over in a batch is dropped
+    /// here). For a task that settles promises, the engine notes that the
+    /// settling is delivered.
+    fn media_task_begin(&mut self, owner: NodeId, epoch: u32, task: MediaTask) -> bool {
+        let _ = (owner, epoch, task);
+        true
     }
 
     /// `canPlayType(mime_type)`: `""`, `"maybe"` or `"probably"` (the

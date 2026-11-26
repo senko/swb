@@ -1,0 +1,1270 @@
+{
+  "cases": [
+    {
+      "name": "script-play-unmuted-at-load",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "activation false",
+              "play() rejected NotAllowedError: play() failed because the user didn't interact with the document first. https://goo.gl/xX8pDD"
+            ],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "script-play-muted-at-load",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "play() resolved"
+            ],
+            "ev": [
+              "play rs=0 ns=2 ct=0",
+              "waiting rs=0 ns=2 ct=0",
+              "loadstart rs=0 ns=2 ct=0",
+              "progress ct=0",
+              "suspend ct=0",
+              "durationchange ct=0",
+              "resize ct=0",
+              "loadedmetadata ct=0",
+              "loadeddata rs=4 ns=1 ct=0",
+              "canplay rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "canplaythrough rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-1.5",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "script-play-muted-property-at-load",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "play() resolved"
+            ],
+            "ev": [
+              "volumechange rs=0 ns=2 ct=0",
+              "play rs=0 ns=2 ct=0",
+              "waiting rs=0 ns=2 ct=0",
+              "loadstart rs=0 ns=2 ct=0",
+              "progress ct=0",
+              "suspend ct=0",
+              "durationchange ct=0",
+              "resize ct=0",
+              "loadedmetadata ct=0",
+              "loadeddata rs=4 ns=1 ct=0",
+              "canplay rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "canplaythrough rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-1.5",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "script-play-volume-zero-at-load",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "play() resolved"
+            ],
+            "ev": [
+              "volumechange rs=0 ns=2 ct=0",
+              "play rs=0 ns=2 ct=0",
+              "waiting rs=0 ns=2 ct=0",
+              "loadstart rs=0 ns=2 ct=0",
+              "progress ct=0",
+              "suspend ct=0",
+              "durationchange ct=0",
+              "resize ct=0",
+              "loadedmetadata ct=0",
+              "loadeddata rs=4 ns=1 ct=0",
+              "canplay rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "canplaythrough rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-1.5",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "script-play-video-only-unmuted-at-load",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "play() rejected NotAllowedError: play() failed because the user didn't interact with the document first. https://goo.gl/xX8pDD"
+            ],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "vo.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "attr-autoplay-unmuted",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "attr-autoplay-muted",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-1.5",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "attr-autoplay-muted-then-unmuted-by-script",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "playing, now unmute",
+              "after unmute: paused=true muted=false"
+            ],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "volumechange rs=4 ns=1 ct=0 P",
+              "timeupdate rs=4 ns=1 ct=0 P",
+              "pause rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-0",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "attr-autoplay-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-1.5",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "attr-autoplay-audio-unmuted",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "n/a",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp3"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "attr-autoplay-set-by-script",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-1.5",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "attr-autoplay-set-after-load",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "set autoplay after canplaythrough"
+            ],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "attr-autoplay-source-child",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-1.5",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "new-audio-play-at-load",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "activation false",
+              "play() rejected NotAllowedError: play() failed because the user didn't interact with the document first. https://goo.gl/xX8pDD"
+            ],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "n/a",
+              "buf": "0-2.01",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp3"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "new-audio-muted-play-at-load",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "play() rejected NotAllowedError: play() failed because the user didn't interact with the document first. https://goo.gl/xX8pDD"
+            ],
+            "ev": [
+              "volumechange rs=0 ns=2 ct=0 P",
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "n/a",
+              "buf": "0-2.01",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp3"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "created-video-play-at-load",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "created-video-unattached-play-at-load",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "play() rejected NotAllowedError: play() failed because the user didn't interact with the document first. https://goo.gl/xX8pDD"
+            ],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "play-in-timer-at-load",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "timer, activation true",
+              "play() resolved"
+            ],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.25,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-1.25",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "play-in-click-handler",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "click, activation true/true",
+              "play() resolved"
+            ],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-1.5",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "play-after-earlier-click",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "later, activation true/true",
+              "play() resolved"
+            ],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-1.5",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "play-in-mouse-move-handler",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "mousemove, activation true",
+              "play() resolved"
+            ],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-1.5",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "play-in-keydown-handler",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "keydown, activation true",
+              "play() resolved"
+            ],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-1.5",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "autoplay-attr-after-earlier-click",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "video added by click"
+            ],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0",
+              "canplay rs=4 ns=1 ct=0",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "canplaythrough rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-1.5",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "evaluate-carries-user-activation",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "navigator.userActivation.hasBeenActive",
+          "value": true
+        },
+        {
+          "kind": "js",
+          "label": "v.play().then(() => 'resolved', e => e.name)",
+          "value": "resolved"
+        },
+        {
+          "kind": "js",
+          "label": "sleep(300).then(() => { v.pause(); return [v.paused, navigator.userActivation.isActive, navigator.userActivation.hasBeenActive]; })",
+          "value": [
+            true,
+            true,
+            true
+          ]
+        }
+      ]
+    },
+    {
+      "name": "unmute-by-script-without-gesture",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "play() resolved",
+              "unmuted by script",
+              "300 ms later: paused=false muted=false"
+            ],
+            "ev": [
+              "play rs=0 ns=2 ct=0",
+              "waiting rs=0 ns=2 ct=0",
+              "loadstart rs=0 ns=2 ct=0",
+              "progress ct=0",
+              "suspend ct=0",
+              "durationchange ct=0",
+              "resize ct=0",
+              "loadedmetadata ct=0",
+              "loadeddata rs=4 ns=1 ct=0",
+              "canplay rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "canplaythrough rs=4 ns=1 ct=0",
+              "volumechange rs=4 ns=1 ct=0.25",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-1.5",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "unmute-by-click-while-playing",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "play() resolved",
+              "unmuted by click",
+              "300 ms later: paused=false muted=false"
+            ],
+            "ev": [
+              "play rs=0 ns=2 ct=0",
+              "waiting rs=0 ns=2 ct=0",
+              "loadstart rs=0 ns=2 ct=0",
+              "progress ct=0",
+              "suspend ct=0",
+              "durationchange ct=0",
+              "resize ct=0",
+              "loadedmetadata ct=0",
+              "loadeddata rs=4 ns=1 ct=0",
+              "canplay rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "canplaythrough rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "volumechange rs=4 ns=1 ct=0.5",
+              "timeupdate* rs=4 ns=1 ct=0.75",
+              "seeking rs=1 ns=1 ct=0",
+              "waiting rs=1 ns=1 ct=0",
+              "timeupdate rs=4 ns=1 ct=0",
+              "seeked rs=4 ns=1 ct=0",
+              "canplay rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "canplaythrough rs=4 ns=1 ct=0"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-2",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "volume-change-no-gesture-unmuted-autoplay-blocked",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "sleep(1500).then(() => ({R, ev: evs(), s: S(v), act: navigator.userActivation.hasBeenActive}))",
+          "value": {
+            "R": [
+              "play() rejected NotAllowedError: play() failed because the user didn't interact with the document first. https://goo.gl/xX8pDD",
+              "play() resolved"
+            ],
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "volumechange rs=4 ns=1 ct=0",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.25,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-1.25",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "act": true
+          }
+        }
+      ]
+    }
+  ]
+}

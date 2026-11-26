@@ -620,10 +620,11 @@ interface HTMLObjectElement : HTMLElement {
   undefined setCustomValidity(DOMString error);
 };
 
-// M14 feature 6a (ADR 0047 section 10): the core of the media element. The
-// members of the playback API (`play()`, `pause()`, the setter of
-// `currentTime`, `ended`, `played`, `volume`, `muted`, `loop` behavior) come
-// with feature 6b.
+// M14 features 6a and 6b (ADR 0047 section 10): the media element. Feature 6a
+// has the core (the load, the states, `buffered`, `seekable`, `error`);
+// feature 6b the playback API (`play()`, `pause()`, the setter of
+// `currentTime`, `ended`, `played`, `volume`, `muted`, `playbackRate` as a
+// value, and the factory `Audio`).
 [Exposed=Window]
 interface HTMLMediaElement : HTMLElement {
   const unsigned short NETWORK_EMPTY = 0;
@@ -646,13 +647,21 @@ interface HTMLMediaElement : HTMLElement {
   DOMString canPlayType(DOMString type);
   readonly attribute unsigned short readyState;
   readonly attribute boolean seeking;
-  readonly attribute double currentTime;
+  attribute double currentTime;
   readonly attribute unrestricted double duration;
   readonly attribute boolean paused;
+  attribute double defaultPlaybackRate;
+  attribute double playbackRate;
+  [NewObject] readonly attribute TimeRanges played;
   [NewObject] readonly attribute TimeRanges seekable;
+  readonly attribute boolean ended;
   [CEReactions, Reflect] attribute boolean autoplay;
   [CEReactions, Reflect] attribute boolean loop;
+  Promise<undefined> play();
+  undefined pause();
   [CEReactions, Reflect] attribute boolean controls;
+  attribute double volume;
+  attribute boolean muted;
   [CEReactions, Reflect="muted"] attribute boolean defaultMuted;
   readonly attribute MediaError? error;
 };
@@ -685,7 +694,8 @@ interface TimeRanges {
   double end(unsigned long index);
 };
 
-[Exposed=Window]
+[Exposed=Window,
+ LegacyFactoryFunction=Audio(optional DOMString src)]
 interface HTMLAudioElement : HTMLMediaElement {
   [HTMLConstructor] constructor();
 };

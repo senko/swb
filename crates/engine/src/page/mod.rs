@@ -401,6 +401,10 @@ pub struct Page {
     /// True if the current document's runtime was dropped after it reached
     /// the heap limit.
     scripts_dropped: bool,
+    /// An evaluation ([`Page::evaluate`]) gives the document a user
+    /// activation first, as Playwright's `evaluate` does
+    /// ([`Page::set_evaluation_activation`]).
+    evaluation_activation: bool,
     /// The page clock: timers, `Date`, `performance` (ADR 0028 section 7).
     clock: swb_web::PageClock,
     /// True between [`Page::take_document_state`] and the return of the
@@ -544,6 +548,7 @@ impl Page {
             agents: agents::Agents::default(),
             scripts_allowed: config.scripts_allowed,
             scripts_dropped: false,
+            evaluation_activation: true,
             clock: swb_web::PageClock::real(),
             lent: false,
             javascript: false,
@@ -649,7 +654,10 @@ impl Page {
     pub fn take_document_state(&mut self) -> Option<Box<DocumentState>> {
         // A task reads the animations at the time of the frame grid now.
         self.catch_up_animations();
-        let state = self.doc.take()?;
+        let mut state = self.doc.take()?;
+        // The media elements know the page time of the task (`play()` and
+        // `currentTime` in a task that a jump of virtual time started).
+        state.set_media_time(self.clock.now());
         self.lent = true;
         let fonts = std::mem::replace(&mut self.fonts, FontContext::empty());
         *self.lent_fonts.borrow_mut() = Some(fonts);

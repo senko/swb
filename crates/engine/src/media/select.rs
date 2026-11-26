@@ -27,6 +27,9 @@ pub(crate) struct Cx<'a> {
     pub(crate) file_document: bool,
     /// The page time in milliseconds.
     pub(crate) now_ms: f64,
+    /// The document has sticky user activation (HTML "has sticky
+    /// activation"): the autoplay policy lets media with sound play.
+    pub(crate) activated: bool,
 }
 
 impl Cx<'_> {

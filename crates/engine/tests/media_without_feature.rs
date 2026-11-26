@@ -134,6 +134,65 @@ fn without_scripts_the_element_ends_in_the_same_state() {
     });
 }
 
+/// Without the feature `play()` rejects as Chromium without codecs does
+/// (ADR 0047 section 3), `autoplay` does nothing that shows, and the rest of
+/// the playback API keeps its values (M14 feature 6b).
+#[test]
+fn play_rejects_and_autoplay_does_nothing_without_the_feature() {
+    on_page_thread(|| {
+        let html = format!(
+            "<!DOCTYPE html>{PROBE_SCRIPT}<video id=v src=a.mp4 muted></video>\
+            <video id=w muted autoplay src=b.webm></video><video id=x></video>\
+            <script>watch(v, '', ['loadstart','error','play','playing','pause'])</script>"
+        );
+        let (mut page, site) = page_for(&html, true);
+        let out = evaluate(
+            &mut page,
+            "(async () => { const r = []; \
+                for (const m of [v, w, x]) r.push(await Promise.race([m.play().then(() => 'resolved', e => e.name + ': ' + e.message), new Promise(f => setTimeout(() => f('pending'), 500))])); \
+                v.volume = 0.5; v.currentTime = 1; \
+                return {r, v: [v.paused, v.volume, v.muted, v.ended, v.currentTime, v.networkState, v.readyState, v.played.length, v.error && v.error.code], \
+                    w: [w.paused, w.networkState, w.error && w.error.code], ev: EVO.slice(), audio: typeof Audio, a: new Audio('a.mp3').preload}; })()",
+        );
+        assert_eq!(
+            out["r"],
+            json!([
+                "NotSupportedError: The element has no supported sources.",
+                "NotSupportedError: The element has no supported sources.",
+                "pending"
+            ])
+        );
+        // The failed element is paused; `currentTime` after the failure is
+        // the position that the script set (no metadata); `autoplay` did not
+        // play.
+        assert_eq!(out["v"], json!([true, 0.5, true, false, 1, 3, 0, 0, 4]));
+        assert_eq!(out["w"], json!([true, 3, 4]));
+        assert_eq!(out["audio"], "function");
+        assert_eq!(out["a"], "auto");
+        assert!(site.log_lines().is_empty(), "no request");
+    });
+}
+
+/// A script that calls `load()` before the first step leaves markers of
+/// the stable-state step of older loads in the queue, in front of tasks that
+/// the page must still deliver (feature 6b: they stalled the page for ever).
+#[test]
+fn loads_in_the_parse_script_leave_stale_markers_that_do_not_stall_the_queue() {
+    on_page_thread(|| {
+        let html = format!(
+            "<!DOCTYPE html>{PROBE_SCRIPT}<video id=v src=a.mp4></video>\
+            <script>watch(v, '', names); v.load(); v.load(); v.load();</script>"
+        );
+        let (mut page, _site) = page_for(&html, true);
+        let out = evaluate(&mut page, "({ev: EVO.slice(), ns: v.networkState})");
+        assert_eq!(out["ns"], 3, "{out}");
+        assert_eq!(
+            out["ev"].as_array().unwrap().last().unwrap(),
+            "error rs=0 ns=3"
+        );
+    });
+}
+
 #[test]
 fn load_without_the_feature_fails_again() {
     on_page_thread(|| {

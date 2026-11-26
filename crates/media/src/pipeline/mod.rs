@@ -64,9 +64,6 @@ pub const TIMEUPDATE_INTERVAL_US: i64 = 250_000;
 /// After an underrun, playback resumes when this much audio is decoded
 /// past the media time (or the audio ended, or the ring is full).
 const RESUME_AHEAD_US: i64 = 250_000;
-/// Streams that end this much before the duration are a cut file: the
-/// media ends with the data (swb's choice; not measured).
-const CUT_FILE_US: i64 = 1_000_000;
 
 /// Who consumes the samples of the ring.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -189,8 +186,8 @@ pub enum Report {
         media_us: i64,
     },
     /// Every track is decoded to the end (the duration, or the end of the
-    /// data of a cut file) and the media time reached it: the clock stopped
-    /// there and the pipeline no longer plays.
+    /// data when the file has no duration) and the media time reached it: the
+    /// clock stopped there and the pipeline no longer plays.
     Ended {
         /// The media time at the end.
         media_us: i64,
@@ -442,6 +439,30 @@ impl Pipeline {
         self.phase == Phase::Suspended
     }
 
+    /// Where the playback fails, in media time (microseconds), once the
+    /// pipeline failed: the end of the frames or samples that the failing
+    /// thread had decoded, less [`READY_AHEAD_US`] (Chromium's `error` comes
+    /// about that much before the damage). It depends on the data alone, so an
+    /// owner that plays on to it gets the same events whatever the speed of
+    /// the threads, and an owner in virtual time has not played past it when
+    /// the failure arrives (an owner in real time may have: the clock runs by
+    /// itself). `None` for a failure without a place in the media (the
+    /// source, the demuxer of a file without audio, the no-progress limit).
+    pub fn failed_at(&self) -> Option<i64> {
+        if self.phase != Phase::Failed {
+            return None;
+        }
+        let at = self.shared.lock().failed_at?;
+        Some(at.saturating_sub(READY_AHEAD_US).max(0))
+    }
+
+    /// The media time of the next `timeupdate` point of a clock that runs
+    /// (or ran when the pipeline failed): an owner that plays on after a
+    /// failure continues the same points.
+    pub fn next_timeupdate(&self) -> Option<i64> {
+        self.next_timeupdate
+    }
+
     /// Whether the pipeline failed.
     pub fn is_failed(&self) -> bool {
         self.phase == Phase::Failed
@@ -468,6 +489,24 @@ impl Pipeline {
     /// official playback position.
     pub fn position(&self) -> i64 {
         self.position
+    }
+
+    /// The media time at clock time `now`, for a read of `currentTime`
+    /// between two updates (M14 feature 6b): while the clock runs, the clock
+    /// time moves it on from the last update (up to the end); else the last
+    /// position. It changes nothing: the reports and the frames wait for
+    /// [`Pipeline::update`].
+    pub fn time_at(&self, now: i64) -> i64 {
+        if !self.clock.is_running() {
+            return self.position;
+        }
+        let end = {
+            let st = self.shared.lock();
+            self.end_time(&st)
+        };
+        self.clock
+            .media_time(now)
+            .clamp(self.position, end.max(self.position))
     }
 
     /// The frame shown now.
@@ -674,19 +713,20 @@ impl Pipeline {
         self.phase = Phase::Closed;
     }
 
-    /// The end of the media: the duration. When the streams ended more than
-    /// `CUT_FILE_US` before it (a cut file), or the duration is unknown, the
-    /// end of the data (never before the position). Data that ends a little
-    /// before the duration (Opus: FFmpeg's duration counts the padding)
+    /// The end of the media: the duration. Data that ends before it (Opus:
+    /// FFmpeg's duration counts the padding; a file that was cut: the
+    /// truncated WebM and MP3 of the probe `media-states`, M14 feature 6b)
     /// plays on to the duration, as Chromium's `currentTime` is the
-    /// duration at `ended`.
+    /// duration at `ended` (silence, and the last frame, where the data
+    /// ends). Only a duration that the file does not tell makes the end of
+    /// the data the end (never before the position).
     fn end_time(&self, st: &State) -> i64 {
         let duration = self
             .metadata
             .as_ref()
             .and_then(|m| m.timeline.duration_us)
             .unwrap_or(i64::MAX);
-        if !drained(st) {
+        if duration != i64::MAX || !drained(st) {
             return duration;
         }
         let audio = if st.audio_on && st.demux_epoch == st.epoch {
@@ -695,12 +735,7 @@ impl Pipeline {
             None
         };
         let video = if st.video_on { st.video_end_us } else { None };
-        let data_end = audio.max(video).unwrap_or(self.position).max(self.position);
-        if data_end.saturating_add(CUT_FILE_US) < duration {
-            data_end
-        } else {
-            duration
-        }
+        audio.max(video).unwrap_or(self.position).max(self.position)
     }
 
     /// The media time up to which the decoded data reaches (the audio when
@@ -1105,6 +1140,7 @@ impl Pipeline {
             self.next_timeupdate = None;
             out.push(Report::Ended { media_us: end });
         } else if self.clock.is_running()
+            && m < end
             && let Some(t) = self.next_timeupdate
             && m >= t
         {
@@ -1202,21 +1238,35 @@ impl Drop for Pipeline {
     }
 }
 
-/// Whether the data for the media time `t` is decoded: the frame that is
-/// current at `t` and the samples up to `t` (or the queue or the ring is
-/// full, so nothing more can be decoded before the owner moves on).
+/// How far the decoding is ahead of the media time that the owner waits for
+/// (M14 feature 6b, review fix): the owner in virtual time goes on to the
+/// media time `t` only when the data up to `t` + this is decoded, or the
+/// decoders are done or stopped. So when a decoder fails at the place `F`
+/// (the end of its last good frame or samples), the owner has not played
+/// past `F` minus this: the playback can go on from where it is to a place
+/// that depends on the data alone ([`Pipeline::failed_at`]). Chromium also
+/// decodes about 0.2 s ahead of its playback (its `error` comes 0.15 to
+/// 0.25 s before the place of swb's decoder in the probe rows
+/// `late-failure-damage-*`).
+const READY_AHEAD_US: i64 = 200_000;
+
+/// Whether the data for the media time `t` is decoded, and a little more
+/// ([`READY_AHEAD_US`]): the frame that is current at `t` and the samples up
+/// to `t` (or the queue or the ring is full, so nothing more can be decoded
+/// before the owner moves on).
 fn ready_for(st: &State, t: i64) -> bool {
+    let ahead = t.saturating_add(READY_AHEAD_US);
     let video = !st.video_on
         || st.video_drained == Some(st.epoch)
         || st.frames.len() >= st.frame_cap
         || st
             .frames
             .iter()
-            .any(|f| f.epoch == st.epoch && f.pts_us >= t);
+            .any(|f| f.epoch == st.epoch && f.pts_us >= ahead);
     let audio = !st.audio_on
         || st.audio_drained == Some(st.epoch)
         || (st.demux_epoch == st.epoch
-            && (st.ring_full() || st.audio_end_us.is_some_and(|e| e >= t)));
+            && (st.ring_full() || st.audio_end_us.is_some_and(|e| e >= ahead)));
     video && audio
 }
 
@@ -1260,4 +1310,77 @@ fn seek_ready(st: &State, s: Seeking) -> bool {
         || st.audio_drained == Some(s.epoch)
         || (st.demux_epoch == s.epoch && st.audio_end_us.is_some());
     video && audio
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pipeline::opener::SourceOpener;
+    use crate::pipeline::slots::PipelineSlots;
+
+    /// A pipeline whose threads are gone (they fail to open the empty
+    /// source) and whose state the test sets: the video plays, its decoder
+    /// has not drained, a frame lasts past the end.
+    fn playing_near_the_end(duration_us: i64) -> Pipeline {
+        let mut options = PipelineOptions::new(Arc::new(|| {}));
+        options.slots = PipelineSlots::new(1);
+        let mut p = Pipeline::open(SourceOpener::memory(Vec::new(), true), options);
+        p.end_run();
+        p.metadata = Some(Metadata {
+            info: MediaInfo {
+                container: String::new(),
+                duration_us: Some(duration_us),
+                start_us: Some(0),
+                seekable: true,
+                stream_count: 1,
+                video: None,
+                audio: None,
+            },
+            timeline: Timeline {
+                offset_us: 0,
+                start_us: 0,
+                duration_us: Some(duration_us),
+            },
+        });
+        p.current = Some(CurrentFrame {
+            pts_us: 0,
+            duration_us: i64::MAX / 2,
+            image: None,
+            generation: 0,
+        });
+        p.playing = true;
+        p.position = duration_us - 100_000;
+        p.clock.set(p.position);
+        p.clock.start(0);
+        p.next_timeupdate = Some(p.position);
+        p.shared.lock().video_on = true;
+        p
+    }
+
+    /// The clock reaches the end before the decoder drained: no
+    /// `TimeUpdate` there (the end reports the last one), then `Ended`
+    /// when the decoder drains, whatever the threads' speed.
+    #[test]
+    fn the_end_owns_the_last_timeupdate() {
+        let end = 1_000_000;
+        let mut p = playing_near_the_end(end);
+        let shared = Arc::clone(&p.shared);
+        let mut st = shared.lock();
+        let mut out = Vec::new();
+        p.advance(200_000, &mut st, &mut out);
+        assert!(
+            out.iter()
+                .all(|r| !matches!(r, Report::TimeUpdate { .. } | Report::Ended { .. })),
+            "{out:?}"
+        );
+        assert_eq!(p.position, end);
+        // The clock is at the end and the decoder is not done.
+        p.advance(300_000, &mut st, &mut out);
+        assert!(out.is_empty(), "{out:?}");
+        assert!(p.playing && !p.ended);
+        // The decoder drains: the end.
+        st.video_drained = Some(st.epoch);
+        p.advance(400_000, &mut st, &mut out);
+        assert!(matches!(out.as_slice(), [Report::Ended { media_us }] if *media_us == end));
+    }
 }

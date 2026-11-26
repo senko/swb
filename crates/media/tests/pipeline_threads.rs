@@ -719,7 +719,10 @@ fn follow_handover(b: &Pipeline, slots: &PipelineSlots) {
         std::thread::sleep(Duration::from_millis(1));
     }
     assert!(!b.is_waiting(), "the transit ended without the place");
-    assert_eq!(slots.in_transit(), 0);
+    // The transit ends just after `b` has the place (`Slot::drop` hands the
+    // place on, then ends the transit and wakes the waiters), so this thread
+    // may look between the two steps (slow threads, the sanitizers).
+    wait_until("the transit ends", || slots.in_transit() == 0);
 }
 
 #[test]

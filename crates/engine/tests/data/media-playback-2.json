@@ -1,0 +1,624 @@
+{
+  "cases": [
+    {
+      "name": "play-after-seek-to-end",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  v.currentTime = 99;\n  await once(v, 'seeked');\n  await sleep(100);\n  const atEnd = S(v);\n  mark(v, 'play()');\n  const pr = v.play().then(() => 'resolved', e => e.name);\n  await sleep(600);\n  const after = S(v);\n  v.pause();\n  return {atEnd, promise: await pr, after, ev: evs()};\n})()",
+          "value": {
+            "atEnd": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 2,
+              "dur": 2,
+              "played": "",
+              "err": null
+            },
+            "promise": "resolved",
+            "after": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": true,
+              "seeking": false,
+              "ct": 2,
+              "dur": 2,
+              "played": "",
+              "err": null
+            },
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "seeking rs=1 ns=1 ct=2 P",
+              "timeupdate rs=4 ns=1 ct=2 P",
+              "seeked rs=4 ns=1 ct=2 P",
+              "canplay rs=4 ns=1 ct=2 P",
+              "canplaythrough rs=4 ns=1 ct=2 P",
+              "--- play() rs=4 ns=1 ct=2 P",
+              "play rs=4 ns=1 ct=2",
+              "playing rs=4 ns=1 ct=2",
+              "timeupdate rs=4 ns=1 ct=2 P",
+              "pause rs=4 ns=1 ct=2 P",
+              "ended rs=4 ns=1 ct=2 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "removed-then-play-again",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  const m = v;\n  await once(m, 'canplaythrough');\n  m.play();\n  await once(m, 'playing');\n  await sleep(600);\n  m.remove();\n  await sleep(300);\n  document.body.appendChild(m);\n  await sleep(300);\n  const back = S(m);\n  mark(m, 'play() after re-insertion');\n  const pr = m.play().then(() => 'resolved', e => e.name);\n  await sleep(600);\n  const after = S(m);\n  m.pause();\n  return {back, promise: await pr, after, ev: evs()};\n})()",
+          "value": {
+            "back": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0.56,
+              "dur": 2,
+              "played": "0-0.5",
+              "err": null
+            },
+            "promise": "resolved",
+            "after": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.25,
+              "dur": 2,
+              "played": "0-1.25",
+              "err": null
+            },
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "pause rs=4 ns=1 ct=0.56 P",
+              "--- play() after re-insertion rs=4 ns=1 ct=0.56 P",
+              "play rs=4 ns=1 ct=0.5",
+              "playing rs=4 ns=1 ct=0.5",
+              "timeupdate* rs=4 ns=1 ct=0.75"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "autoplay-cancelled-by-pause",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await sleep(1500);\n  return {v: S(v), ev: evs()};\n})()",
+          "value": {
+            "v": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "played": "",
+              "err": null
+            },
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "autoplay-cancelled-by-pause-at-canplay",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await sleep(1500);\n  return {v: S(v), ev: evs()};\n})()",
+          "value": {
+            "v": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "played": "",
+              "err": null
+            },
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "pause-during-seek",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  v.play();\n  await once(v, 'playing');\n  await sleep(300);\n  mark(v, 'seek and pause');\n  v.currentTime = 1.5;\n  v.pause();\n  const sync = S(v);\n  await sleep(700);\n  return {sync, end: S(v), ev: evs()};\n})()",
+          "value": {
+            "sync": {
+              "rs": 1,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": true,
+              "ct": 1.5,
+              "dur": 2,
+              "played": "0-0.25",
+              "err": null
+            },
+            "end": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.5,
+              "dur": 2,
+              "played": "0-0.25",
+              "err": null
+            },
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate rs=4 ns=1 ct=0.25",
+              "--- seek and pause rs=4 ns=1 ct=0.25",
+              "seeking rs=1 ns=1 ct=1.5 P",
+              "waiting rs=1 ns=1 ct=1.5 P",
+              "timeupdate rs=1 ns=1 ct=1.5 P",
+              "pause rs=1 ns=1 ct=1.5 P",
+              "timeupdate rs=4 ns=1 ct=1.5 P",
+              "seeked rs=4 ns=1 ct=1.5 P",
+              "canplay rs=4 ns=1 ct=1.5 P",
+              "canplaythrough rs=4 ns=1 ct=1.5 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "late-failure-damage-30",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  if (v.readyState < 4) await once(v, 'canplaythrough', 3000);\n  await sleep(300);\n  const before = S(v);\n  let errAt = null;\n  v.addEventListener('error', () => { errAt = r2(v.currentTime); });\n  mark(v, 'play()');\n  const pr = v.play().then(() => 'resolved', e => e.name + ': ' + e.message);\n  await Promise.race([once(v, 'error', 4000), once(v, 'ended', 4000)]);\n  await sleep(300);\n  const after = S(v);\n  v.pause();\n  return {before, promise: await pr, errAt, after, ev: evs()};\n})()",
+          "value": {
+            "before": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "played": "",
+              "err": null
+            },
+            "promise": "resolved",
+            "errAt": 0.12,
+            "after": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "played": "0-0",
+              "err": 3
+            },
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "--- play() rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "error rs=4 ns=1 ct=0 P",
+              "timeupdate rs=4 ns=1 ct=0 P",
+              "pause rs=4 ns=1 ct=0 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "late-failure-damage-60",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  if (v.readyState < 4) await once(v, 'canplaythrough', 3000);\n  await sleep(300);\n  const before = S(v);\n  let errAt = null;\n  v.addEventListener('error', () => { errAt = r2(v.currentTime); });\n  mark(v, 'play()');\n  const pr = v.play().then(() => 'resolved', e => e.name + ': ' + e.message);\n  await Promise.race([once(v, 'error', 4000), once(v, 'ended', 4000)]);\n  await sleep(300);\n  const after = S(v);\n  v.pause();\n  return {before, promise: await pr, errAt, after, ev: evs()};\n})()",
+          "value": {
+            "before": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "played": "",
+              "err": null
+            },
+            "promise": "resolved",
+            "errAt": 0.81,
+            "after": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0.75,
+              "dur": 2,
+              "played": "0-0.75",
+              "err": 3
+            },
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "--- play() rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "error rs=4 ns=1 ct=0.75 P",
+              "timeupdate rs=4 ns=1 ct=0.75 P",
+              "pause rs=4 ns=1 ct=0.75 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "late-failure-damage-80",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  if (v.readyState < 4) await once(v, 'canplaythrough', 3000);\n  await sleep(300);\n  const before = S(v);\n  let errAt = null;\n  v.addEventListener('error', () => { errAt = r2(v.currentTime); });\n  mark(v, 'play()');\n  const pr = v.play().then(() => 'resolved', e => e.name + ': ' + e.message);\n  await Promise.race([once(v, 'error', 4000), once(v, 'ended', 4000)]);\n  await sleep(300);\n  const after = S(v);\n  v.pause();\n  return {before, promise: await pr, errAt, after, ev: evs()};\n})()",
+          "value": {
+            "before": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "played": "",
+              "err": null
+            },
+            "promise": "resolved",
+            "errAt": 1.22,
+            "after": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.25,
+              "dur": 2,
+              "played": "0-1.25",
+              "err": 3
+            },
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "--- play() rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "error rs=4 ns=1 ct=1.25 P",
+              "timeupdate rs=4 ns=1 ct=1.25 P",
+              "pause rs=4 ns=1 ct=1.25 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "late-failure-damage-90",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  if (v.readyState < 4) await once(v, 'canplaythrough', 3000);\n  await sleep(300);\n  const before = S(v);\n  let errAt = null;\n  v.addEventListener('error', () => { errAt = r2(v.currentTime); });\n  mark(v, 'play()');\n  const pr = v.play().then(() => 'resolved', e => e.name + ': ' + e.message);\n  await Promise.race([once(v, 'error', 4000), once(v, 'ended', 4000)]);\n  await sleep(300);\n  const after = S(v);\n  v.pause();\n  return {before, promise: await pr, errAt, after, ev: evs()};\n})()",
+          "value": {
+            "before": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "played": "",
+              "err": null
+            },
+            "promise": "resolved",
+            "errAt": 1.44,
+            "after": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.5,
+              "dur": 2,
+              "played": "0-1.5",
+              "err": 3
+            },
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "--- play() rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "error rs=4 ns=1 ct=1.5 P",
+              "timeupdate rs=4 ns=1 ct=1.5 P",
+              "pause rs=4 ns=1 ct=1.5 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "play-pending-src-empty",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  v.setAttribute('src', \"\");\n  const pr = v.play().then(() => 'resolved', e => e.name + ': ' + e.message);\n  const r = await Promise.race([pr, sleep(2500).then(() => 'pending')]);\n  await sleep(100);\n  return {promise: r, state: S(v), ev: evs()};\n})()",
+          "value": {
+            "promise": "NotSupportedError: Failed to load because no supported source was found.",
+            "state": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "played": "",
+              "err": 4
+            },
+            "ev": [
+              "play rs=0 ns=3 ct=0",
+              "waiting rs=0 ns=3 ct=0",
+              "loadstart rs=0 ns=3 ct=0",
+              "error rs=0 ns=3 ct=0 P",
+              "timeupdate rs=0 ns=3 ct=0 P",
+              "pause rs=0 ns=3 ct=0 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "play-pending-src-bad-url",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  v.setAttribute('src', \"http://[\");\n  const pr = v.play().then(() => 'resolved', e => e.name + ': ' + e.message);\n  const r = await Promise.race([pr, sleep(2500).then(() => 'pending')]);\n  await sleep(100);\n  return {promise: r, state: S(v), ev: evs()};\n})()",
+          "value": {
+            "promise": "NotSupportedError: Failed to load because no supported source was found.",
+            "state": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "played": "",
+              "err": 4
+            },
+            "ev": [
+              "play rs=0 ns=3 ct=0",
+              "waiting rs=0 ns=3 ct=0",
+              "loadstart rs=0 ns=3 ct=0",
+              "error rs=0 ns=3 ct=0 P",
+              "timeupdate rs=0 ns=3 ct=0 P",
+              "pause rs=0 ns=3 ct=0 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "play-pending-src-404",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  v.setAttribute('src', \"missing.mp4\");\n  const pr = v.play().then(() => 'resolved', e => e.name + ': ' + e.message);\n  const r = await Promise.race([pr, sleep(2500).then(() => 'pending')]);\n  await sleep(100);\n  return {promise: r, state: S(v), ev: evs()};\n})()",
+          "value": {
+            "promise": "NotSupportedError: Failed to load because no supported source was found.",
+            "state": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "played": "",
+              "err": 4
+            },
+            "ev": [
+              "play rs=0 ns=2 ct=0",
+              "waiting rs=0 ns=2 ct=0",
+              "loadstart rs=0 ns=2 ct=0",
+              "error rs=0 ns=3 ct=0 P",
+              "timeupdate rs=0 ns=3 ct=0 P",
+              "pause rs=0 ns=3 ct=0 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "play-pending-src-garbage",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  v.setAttribute('src', \"a.mp4\");\n  const pr = v.play().then(() => 'resolved', e => e.name + ': ' + e.message);\n  const r = await Promise.race([pr, sleep(2500).then(() => 'pending')]);\n  await sleep(100);\n  return {promise: r, state: S(v), ev: evs()};\n})()",
+          "value": {
+            "promise": "NotSupportedError: Failed to load because no supported source was found.",
+            "state": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "played": "",
+              "err": 4
+            },
+            "ev": [
+              "play rs=0 ns=2 ct=0",
+              "waiting rs=0 ns=2 ct=0",
+              "loadstart rs=0 ns=2 ct=0",
+              "progress ct=0",
+              "suspend ct=0",
+              "error rs=0 ns=3 ct=0 P",
+              "timeupdate rs=0 ns=3 ct=0 P",
+              "pause rs=0 ns=3 ct=0 P"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

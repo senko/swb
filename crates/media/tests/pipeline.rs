@@ -433,10 +433,61 @@ fn hostile_files_play_to_where_they_can_or_fail() {
             assert_eq!(played.ended, None, "{name}");
         } else {
             assert_eq!(error, None, "{name}: {:?}", played.reports);
-            assert!(played.ended.is_some(), "{name}: {:?}", played.reports);
+            // A file whose data ends early (cut, damaged) plays on to its
+            // duration over silence and the last frame, as Chromium's
+            // `currentTime` is the duration at `ended` (M14 feature 6b: the
+            // cut-file rule is gone).
+            let duration = p.metadata().and_then(|m| m.timeline.duration_us);
+            match duration {
+                Some(d) => assert_eq!(played.ended, Some(d), "{name}: {:?}", played.reports),
+                None => assert!(played.ended.is_some(), "{name}: {:?}", played.reports),
+            }
         }
         drop(p);
     }
+}
+
+/// M14 feature 6b (review fix): a decode failure after the metadata has a
+/// place in the media time that depends on the data, so the element can play
+/// on to it. A later damage lies at a later time. When the video and the
+/// audio decoder both fail, the first to report decides (the 80 % file gives
+/// 1.2625 s or 1.28 s under load; backlog in `docs/roadmap.md`), so the test
+/// allows a spread of 25 ms; a file where one decoder fails has one place.
+#[test]
+fn a_decode_failure_has_the_same_place_on_every_run() {
+    let names = [
+        "mp4-h264-high-aac-damaged-30.mp4",
+        "mp4-h264-high-aac-damaged-60.mp4",
+        "mp4-h264-high-aac-damaged-80.mp4",
+        "mp4-h264-high-aac-damaged-90.mp4",
+    ];
+    let mut places = Vec::new();
+    for name in names {
+        let mut seen = Vec::new();
+        for _ in 0..12 {
+            let waker = Arc::new(Waker::default());
+            let mut p = open_fixture(name, &waker);
+            let played = play_virtual(&mut p, &waker, 0, i64::MAX);
+            assert!(p.is_failed(), "{name}: {:?}", played.reports);
+            // In virtual time the playback has not passed the place when the
+            // failure arrives.
+            let at = p.failed_at().unwrap_or(i64::MIN);
+            assert!(p.position() <= at, "{name}: at {} after {at}", p.position());
+            seen.push(p.failed_at().unwrap_or_else(|| panic!("{name}: no place")));
+        }
+        let (low, high) = (
+            seen.iter().copied().min().unwrap(),
+            seen.iter().copied().max().unwrap(),
+        );
+        assert!(high - low <= 25_000, "{name}: {seen:?}");
+        places.push(low);
+    }
+    // A later damage lies later, inside the 2 s of the file.
+    assert!(places.windows(2).all(|w| w[0] < w[1]), "{places:?}");
+    assert!(
+        places.iter().all(|&p| (0..2_000_000).contains(&p)),
+        "{places:?}"
+    );
 }
 
 #[test]

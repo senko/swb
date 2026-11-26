@@ -15,29 +15,180 @@
 //! a simple event (it neither bubbles nor can be canceled) at an element
 //! (also at a `source` element for its `error`).
 //!
-//! The members of feature 6b (`play`, `pause`, the setter of `currentTime`,
-//! `ended`, `played`, `volume`, `muted`, `Audio`) are not here.
+//! The playback API (feature 6b): `play()` and `pause()`, the setter of
+//! `currentTime`, `ended`, `played`, `volume`, `muted`, `playbackRate` (a
+//! stored value) and the factory `Audio` (`html/factories.rs`). The engine
+//! runs the algorithms. The promises of `play()` live here, by element and
+//! the engine's number (`DocState::plays`): the engine settles them with
+//! the same delivery as the events ([`MediaTask`]), so a promise settles in
+//! its place among the events (`play`, `playing`, then the promise).
 
 use swb_dom::NodeId;
-use swb_js::{Gc, GenericData, HostData, Object, Runtime, Tracer, VmError, VmResult};
+use swb_js::{Gc, GenericData, HostData, Object, Runtime, Tracer, Value, VmError, VmResult};
 
 use crate::bindings::{self as b, Cx, Exception, Platform};
 use crate::generated as g;
-use crate::host::{MediaCommand, MediaErrorInfo};
+use crate::host::{
+    MediaCommand, MediaDelivery, MediaErrorInfo, MediaTask, PlayRejection, PlayStart,
+};
 use crate::runtime::ScriptRuntime;
-use crate::state::{Slot, WebState, engine_mut, set_side_object, side_object};
+use crate::state::{Slot, WebState, engine_mut, set_side_object, side_object, state_mut};
 
 impl ScriptRuntime {
-    /// Fires the events of media elements and their `source` children, in
-    /// order: each `(node, type)` is a task (the type is `loadstart`,
-    /// `error`, ...).
-    pub fn media_events(&mut self, events: Vec<(NodeId, &'static str)>) {
-        for (node, kind) in events {
+    /// Delivers what the engine queued for media elements and their
+    /// `source` children, in order: each `(node, task)` is a task of its own
+    /// (an event such as `loadstart` or `error`, or the settling of the
+    /// `play()` promises of an element).
+    pub fn media_events(&mut self, events: Vec<MediaDelivery>) {
+        for delivery in events {
             let _ = self.task("a media element event", |rt| {
-                crate::scripts::fire_at_element(rt, node, kind).map_err(crate::runtime::task_error)
+                deliver(rt, delivery).map_err(crate::runtime::task_error)
             });
         }
     }
+}
+
+fn deliver(rt: &mut Runtime, delivery: MediaDelivery) -> VmResult<()> {
+    let MediaDelivery {
+        target,
+        owner,
+        epoch,
+        task,
+    } = delivery;
+    // A task that a load of its element dropped since the batch was handed
+    // over does not run.
+    if !engine_mut(rt)?.media_task_begin(owner, epoch, task) {
+        return Ok(());
+    }
+    match task {
+        MediaTask::Event(kind) => crate::scripts::fire_at_element(rt, target, kind),
+        MediaTask::ResolvePlay(upto) => settle_plays(rt, owner, upto, None),
+        MediaTask::RejectPlay(upto, why) => settle_plays(rt, owner, upto, Some(why)),
+    }
+}
+
+/// Settles the `play()` promises of `node` with a number up to `upto`:
+/// resolves them, or rejects them with `why`.
+fn settle_plays(
+    rt: &mut Runtime,
+    node: NodeId,
+    upto: u64,
+    why: Option<PlayRejection>,
+) -> VmResult<()> {
+    let mut settled = Vec::new();
+    {
+        let plays = &mut state_mut(rt)?.doc.plays;
+        if let Some(list) = plays.get_mut(&node) {
+            while list.front().is_some_and(|(id, _, _)| *id <= upto) {
+                settled.extend(list.pop_front());
+            }
+            if list.is_empty() {
+                plays.remove(&node);
+            }
+        }
+    }
+    for (_, promise, realm) in settled {
+        match why {
+            None => rt.resolve_pending_promise(promise, Value::Undefined)?,
+            Some(why) => {
+                let error = rejection(rt, realm, why)?;
+                rt.reject_pending_promise(promise, error)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The `DOMException` of a rejected `play()` (Chromium's names and
+/// messages, measured).
+fn rejection(rt: &mut Runtime, realm: u32, why: PlayRejection) -> VmResult<Value> {
+    let (name, message) = match why {
+        PlayRejection::Pause => (
+            "AbortError",
+            "The play() request was interrupted by a call to pause(). https://goo.gl/LdLk22",
+        ),
+        PlayRejection::Load => (
+            "AbortError",
+            "The play() request was interrupted by a new load request. https://goo.gl/LdLk22",
+        ),
+        PlayRejection::NotSupported => (
+            "NotSupportedError",
+            "Failed to load because no supported source was found.",
+        ),
+    };
+    Ok(b::dom_exception::create(rt, realm, g::DOM_EXCEPTION, name, message)?.into())
+}
+
+/// A promise that is already rejected with `name` and `message`.
+fn rejected(cx: &mut Cx<'_>, name: &str, message: &str) -> b::Result<Gc<Object>> {
+    let realm = cx.realm();
+    let promise = cx.rt.new_pending_promise(realm)?;
+    let error = b::dom_exception::create(cx.rt, realm, g::DOM_EXCEPTION, name, message)?;
+    cx.rt.reject_pending_promise(promise, error.into())?;
+    Ok(promise)
+}
+
+/// `play()`.
+/// <https://html.spec.whatwg.org/multipage/media.html#dom-media-play>
+fn play(cx: &mut Cx<'_>, node: NodeId) -> b::Result<Gc<Object>> {
+    match engine_mut(cx.rt)?.media_play(node) {
+        PlayStart::Pending(id) => {
+            let realm = cx.realm();
+            let promise = cx.rt.new_pending_promise(realm)?;
+            state_mut(cx.rt)?
+                .doc
+                .plays
+                .entry(node)
+                .or_default()
+                .push_back((id, promise, realm));
+            Ok(promise)
+        }
+        PlayStart::NotAllowed => rejected(
+            cx,
+            "NotAllowedError",
+            "play() failed because the user didn't interact with the document first. https://goo.gl/xX8pDD",
+        ),
+        PlayStart::NotSupported => rejected(
+            cx,
+            "NotSupportedError",
+            "The element has no supported sources.",
+        ),
+        PlayStart::TooMany => rejected(cx, "AbortError", "Too many play() requests are waiting."),
+    }
+}
+
+/// A number as Chromium writes it in the message of an exception: six
+/// significant digits. Measured (probe `media-api-edges.json`): `100000`,
+/// `12345.7`, `0.000012345` and `0.06` without trailing zeros; with a
+/// decimal exponent below -6 or above 5 (after the rounding) the form
+/// `1.50000e-7`, `1.23457e+6`, `1.00000e+9`, with the zeros and the sign.
+fn number_text(x: f64) -> String {
+    if x == 0.0 || !x.is_finite() {
+        return "0".to_owned();
+    }
+    let scientific = format!("{x:.5e}");
+    let Some((mantissa, exponent)) = scientific.split_once('e') else {
+        return scientific;
+    };
+    let exponent: i32 = exponent.parse().unwrap_or(0);
+    if !(-6..=5).contains(&exponent) {
+        let sign = if exponent < 0 { '-' } else { '+' };
+        return format!("{mantissa}e{sign}{}", exponent.abs());
+    }
+    let digits = usize::try_from(5 - exponent).unwrap_or(0);
+    let text = format!("{x:.digits$}");
+    if text.contains('.') {
+        text.trim_end_matches('0').trim_end_matches('.').to_owned()
+    } else {
+        text
+    }
+}
+
+/// Whether Chromium supports `rate` as a playback rate: 0, or from 1/16 to
+/// 16 (probe `media-api-edges.json`: 0.0625 and 16 are in, 0.0624 and 16.1
+/// are out).
+fn supported_rate(rate: f64) -> bool {
+    rate == 0.0 || (0.0625..=16.0).contains(&rate)
 }
 
 // ----- TimeRanges -----
@@ -183,12 +334,105 @@ impl g::html_media_element::HTMLMediaElementImpl for WebState {
         Ok(engine_mut(cx.rt)?.media_state(this).current_time)
     }
 
+    /// `currentTime = seconds`: HTML "seek" (a value that is no finite
+    /// number is a `TypeError` of the generated glue).
+    fn set_current_time(cx: &mut Cx<'_>, this: NodeId, value: f64) -> b::Result<()> {
+        engine_mut(cx.rt)?.media_command(this, MediaCommand::Seek(value));
+        Ok(())
+    }
+
     fn duration(cx: &mut Cx<'_>, this: NodeId) -> b::Result<f64> {
         Ok(engine_mut(cx.rt)?.media_state(this).duration)
     }
 
     fn paused(cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
         Ok(engine_mut(cx.rt)?.media_state(this).paused)
+    }
+
+    fn default_playback_rate(cx: &mut Cx<'_>, this: NodeId) -> b::Result<f64> {
+        Ok(engine_mut(cx.rt)?.media_state(this).default_playback_rate)
+    }
+
+    /// `defaultPlaybackRate = value`: a rate outside the supported range is
+    /// ignored (Chromium throws only for `playbackRate`).
+    fn set_default_playback_rate(cx: &mut Cx<'_>, this: NodeId, value: f64) -> b::Result<()> {
+        if supported_rate(value) {
+            engine_mut(cx.rt)?.media_command(this, MediaCommand::SetDefaultPlaybackRate(value));
+        }
+        Ok(())
+    }
+
+    fn playback_rate(cx: &mut Cx<'_>, this: NodeId) -> b::Result<f64> {
+        Ok(engine_mut(cx.rt)?.media_state(this).playback_rate)
+    }
+
+    /// `playbackRate = value`: `NotSupportedError` outside the supported
+    /// range (the glue adds `Failed to set the 'playbackRate' property on
+    /// 'HTMLMediaElement': `). The value is stored only: the playback runs at
+    /// rate 1 (backlog).
+    fn set_playback_rate(cx: &mut Cx<'_>, this: NodeId, value: f64) -> b::Result<()> {
+        if !supported_rate(value) {
+            return Err(Exception::dom(
+                "NotSupportedError",
+                format!(
+                    "The provided playback rate ({}) is not in the supported playback range.",
+                    number_text(value)
+                ),
+            ));
+        }
+        engine_mut(cx.rt)?.media_command(this, MediaCommand::SetPlaybackRate(value));
+        Ok(())
+    }
+
+    fn played(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Gc<Object>> {
+        let ranges = engine_mut(cx.rt)?.media_state(this).played;
+        let realm = cx.realm();
+        Ok(new_ranges(cx.rt, realm, ranges)?)
+    }
+
+    fn ended(cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
+        Ok(engine_mut(cx.rt)?.media_state(this).ended)
+    }
+
+    fn volume(cx: &mut Cx<'_>, this: NodeId) -> b::Result<f64> {
+        Ok(engine_mut(cx.rt)?.media_state(this).volume)
+    }
+
+    /// `volume = value`: `IndexSizeError` outside 0 to 1 (the glue adds
+    /// `Failed to set the 'volume' property on 'HTMLMediaElement': `).
+    fn set_volume(cx: &mut Cx<'_>, this: NodeId, value: f64) -> b::Result<()> {
+        if !(0.0..=1.0).contains(&value) {
+            return Err(Exception::dom(
+                "IndexSizeError",
+                format!(
+                    "The volume provided ({}) is outside the range [0, 1].",
+                    number_text(value)
+                ),
+            ));
+        }
+        engine_mut(cx.rt)?.media_command(this, MediaCommand::SetVolume(value));
+        Ok(())
+    }
+
+    fn muted(cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
+        Ok(engine_mut(cx.rt)?.media_state(this).muted)
+    }
+
+    fn set_muted(cx: &mut Cx<'_>, this: NodeId, value: bool) -> b::Result<()> {
+        engine_mut(cx.rt)?.media_command(this, MediaCommand::SetMuted(value));
+        Ok(())
+    }
+
+    /// `play()`.
+    fn play(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Gc<Object>> {
+        play(cx, this)
+    }
+
+    /// `pause()`: HTML "internal pause steps".
+    /// <https://html.spec.whatwg.org/multipage/media.html#dom-media-pause>
+    fn pause(cx: &mut Cx<'_>, this: NodeId) -> b::Result<()> {
+        engine_mut(cx.rt)?.media_command(this, MediaCommand::Pause);
+        Ok(())
     }
 
     fn seekable(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Gc<Object>> {
@@ -217,6 +461,13 @@ impl g::html_media_element::HTMLMediaElementImpl for WebState {
     }
 }
 
+impl g::html_audio_element::HTMLAudioElementImpl for WebState {
+    /// `new Audio(src)`.
+    fn legacy_factory_audio(cx: &mut Cx<'_>, src: Option<String>) -> b::Result<Gc<Object>> {
+        crate::html::factories::audio(cx, src.as_deref())
+    }
+}
+
 impl g::html_video_element::HTMLVideoElementImpl for WebState {
     fn video_width(cx: &mut Cx<'_>, this: NodeId) -> b::Result<u32> {
         Ok(engine_mut(cx.rt)?.media_state(this).video_width)
@@ -224,5 +475,48 @@ impl g::html_video_element::HTMLVideoElementImpl for WebState {
 
     fn video_height(cx: &mut Cx<'_>, this: NodeId) -> b::Result<u32> {
         Ok(engine_mut(cx.rt)?.media_state(this).video_height)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{number_text, supported_rate};
+
+    /// The texts of the rows `rate message *` of `media-api-edges.json`.
+    #[test]
+    fn numbers_are_written_as_chromium_writes_them() {
+        for (x, text) in [
+            (0.06, "0.06"),
+            (16.1, "16.1"),
+            (100.0, "100"),
+            (-1.0, "-1"),
+            (-0.5, "-0.5"),
+            (1.5, "1.5"),
+            (100_000.0, "100000"),
+            (12_345.678, "12345.7"),
+            (17.123_456_789, "17.1235"),
+            (0.000_123_45, "0.00012345"),
+            (0.000_012_345, "0.000012345"),
+            (1.5e-7, "1.50000e-7"),
+            (1e-9, "1.00000e-9"),
+            (-1e-9, "-1.00000e-9"),
+            (1_234_567.0, "1.23457e+6"),
+            (999_999.5, "1.00000e+6"),
+            (123_456_789.0, "1.23457e+8"),
+            (1e9, "1.00000e+9"),
+            (2.5e300, "2.50000e+300"),
+        ] {
+            assert_eq!(number_text(x), text, "{x}");
+        }
+    }
+
+    #[test]
+    fn the_rates_that_chromium_supports_are_zero_and_one_sixteenth_to_sixteen() {
+        for rate in [0.0, 0.0625, 0.07, 0.5, 1.0, 16.0] {
+            assert!(supported_rate(rate), "{rate}");
+        }
+        for rate in [0.06, 0.0624, 16.1, -1.0, 100.0, 1e-9, f64::NAN] {
+            assert!(!supported_rate(rate), "{rate}");
+        }
     }
 }

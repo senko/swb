@@ -1,4 +1,4 @@
-//! The legacy factory functions `Image` and `Option` (HTML Standard,
+//! The legacy factory functions `Image`, `Option` and `Audio` (HTML Standard,
 //! <https://html.spec.whatwg.org/multipage/embedded-content.html#dom-image>
 //! and <https://html.spec.whatwg.org/multipage/form-elements.html#dom-option>;
 //! Web IDL `[LegacyFactoryFunction]`). The generated glue checks `new` and
@@ -52,6 +52,20 @@ pub(super) fn image(
                 let value = if value > MAX_LIMITED { 0 } else { value };
                 set_attribute(cx, node, name, &value.to_string())?;
             }
+        }
+        Ok(node)
+    })
+}
+
+/// `new Audio(src)` (HTML "dom-audio"): an `audio` with the attribute
+/// `preload="auto"` and, if `src` is given, the attribute `src` (so the load
+/// starts at the next processing of the DOM changes, as for `setAttribute`).
+pub(crate) fn audio(cx: &mut Cx<'_>, src: Option<&str>) -> b::Result<Gc<Object>> {
+    wrap(cx, |cx| {
+        let node = new_html_element(cx, "audio")?;
+        set_attribute(cx, node, "preload", "auto")?;
+        if let Some(src) = src {
+            set_attribute(cx, node, "src", src)?;
         }
         Ok(node)
     })

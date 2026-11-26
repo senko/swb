@@ -1,0 +1,1418 @@
+{
+  "cases": [
+    {
+      "name": "play-pause",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  const mark = (s => EVO.push({n: '--- ' + s, tag: '', k: 1, t: performance.now(), rs: v.readyState, ns: v.networkState, ct: cq(v), p: v.paused}));\n  mark('play()');\n  const pr = v.play().then(() => 'resolved', e => e.name);\n  await once(v, 'playing');\n  await sleep(500);\n  const mid = S(v);\n  mark('pause()');\n  v.pause();\n  await sleep(300);\n  return {ev: evs(), promise: await pr, mid, end: S(v)};\n})()",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "--- play() rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate rs=4 ns=1 ct=0.25",
+              "--- pause() rs=4 ns=1 ct=0.5",
+              "timeupdate rs=4 ns=1 ct=0.46 P",
+              "pause rs=4 ns=1 ct=0.46 P"
+            ],
+            "promise": "resolved",
+            "mid": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 0.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-0.5",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "end": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0.46,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-0.5",
+              "err": null,
+              "src": "a.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "play-to-end",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  const mark = (s => EVO.push({n: '--- ' + s, tag: '', k: 1, t: performance.now(), rs: v.readyState, ns: v.networkState, ct: cq(v), p: v.paused}));\n  mark('play()');\n  v.play();\n  const wait = await once(v, 'ended', 5000);\n  await sleep(300);\n  const atEnd = S(v);\n  mark('play() again');\n  const pr = v.play().then(() => 'resolved', e => e.name);\n  await sleep(500);\n  const again = S(v);\n  v.pause();\n  return {wait, ev: evs(), atEnd, again, promise: await pr};\n})()",
+          "value": {
+            "wait": "ended",
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "--- play() rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "pause rs=4 ns=1 ct=2 P",
+              "ended rs=4 ns=1 ct=2 P",
+              "--- play() again rs=4 ns=1 ct=2 P",
+              "seeking rs=1 ns=1 ct=0",
+              "play rs=1 ns=1 ct=0",
+              "waiting rs=1 ns=1 ct=0",
+              "timeupdate rs=4 ns=1 ct=0",
+              "seeked rs=4 ns=1 ct=0",
+              "canplay rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "canplaythrough rs=4 ns=1 ct=0",
+              "timeupdate rs=4 ns=1 ct=0.25"
+            ],
+            "atEnd": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": true,
+              "seeking": false,
+              "ct": 2,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-2",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "again": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 0.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-2",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "promise": "resolved"
+          }
+        }
+      ]
+    },
+    {
+      "name": "play-to-end-audio-mp3",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  const mark = (s => EVO.push({n: '--- ' + s, tag: '', k: 1, t: performance.now(), rs: v.readyState, ns: v.networkState, ct: cq(v), p: v.paused}));\n  mark('play()');\n  v.play();\n  const wait = await once(v, 'ended', 5000);\n  await sleep(300);\n  return {wait, ev: evs(), atEnd: S(v)};\n})()",
+          "value": {
+            "wait": "ended",
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "--- play() rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "pause rs=4 ns=1 ct=2 P",
+              "ended rs=4 ns=1 ct=2 P"
+            ],
+            "atEnd": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": true,
+              "seeking": false,
+              "ct": 2,
+              "dur": 2,
+              "size": "n/a",
+              "buf": "0-2.01",
+              "seek": "0-2",
+              "played": "0-2",
+              "err": null,
+              "src": "a.mp3"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "loop",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  const mark = (s => EVO.push({n: '--- ' + s, tag: '', k: 1, t: performance.now(), rs: v.readyState, ns: v.networkState, ct: cq(v), p: v.paused}));\n  mark('play()');\n  v.play();\n  await sleep(2700);\n  const s = S(v);\n  v.pause();\n  return {ev: evs(), s, ended: v.ended, ct: cq(v), loop: v.loop};\n})()",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "--- play() rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "seeking rs=1 ns=1 ct=0",
+              "waiting rs=1 ns=1 ct=0",
+              "timeupdate rs=4 ns=1 ct=0",
+              "seeked rs=4 ns=1 ct=0",
+              "canplay rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "canplaythrough rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 0.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-2",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "ended": false,
+            "ct": 0.58,
+            "loop": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "loop-toggled-at-end",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  v.currentTime = 1.8;\n  await once(v, 'seeked');\n  const mark = (s => EVO.push({n: '--- ' + s, tag: '', k: 1, t: performance.now(), rs: v.readyState, ns: v.networkState, ct: cq(v), p: v.paused}));\n  mark('play() near the end');\n  v.play();\n  await sleep(100);\n  v.loop = true;\n  mark('loop = true');\n  await sleep(700);\n  const s = S(v);\n  v.pause();\n  return {ev: evs(), s};\n})()",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "seeking rs=1 ns=1 ct=1.8 P",
+              "timeupdate rs=4 ns=1 ct=1.8 P",
+              "seeked rs=4 ns=1 ct=1.8 P",
+              "--- play() near the end rs=4 ns=1 ct=1.8 P",
+              "canplay rs=4 ns=1 ct=1.75",
+              "canplaythrough rs=4 ns=1 ct=1.75",
+              "play rs=4 ns=1 ct=1.75",
+              "playing rs=4 ns=1 ct=1.75",
+              "--- loop = true rs=4 ns=1 ct=1.75",
+              "timeupdate rs=4 ns=1 ct=2",
+              "seeking rs=1 ns=1 ct=0",
+              "waiting rs=1 ns=1 ct=0",
+              "timeupdate rs=4 ns=1 ct=0",
+              "seeked rs=4 ns=1 ct=0",
+              "canplay rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "canplaythrough rs=4 ns=1 ct=0",
+              "timeupdate rs=4 ns=1 ct=0.25"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 0.5,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-0.5,1.75-2",
+              "err": null,
+              "src": "a.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "seek-paused",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  const mark = (s => EVO.push({n: '--- ' + s, tag: '', k: 1, t: performance.now(), rs: v.readyState, ns: v.networkState, ct: cq(v), p: v.paused}));\n  const out = {};\n  mark('currentTime = 1');\n  v.currentTime = 1;\n  out.sync = [v.currentTime, v.seeking];\n  await once(v, 'seeked');\n  await sleep(100);\n  out.after1 = S(v);\n  mark('currentTime = 99');\n  v.currentTime = 99;\n  out.sync99 = [v.currentTime, v.seeking];\n  await once(v, 'seeked');\n  await sleep(100);\n  out.after99 = S(v);\n  mark('currentTime = -5');\n  v.currentTime = -5;\n  out.syncNeg = [v.currentTime];\n  await once(v, 'seeked');\n  await sleep(100);\n  out.afterNeg = S(v);\n  for (const bad of [NaN, Infinity, -Infinity, 'x', undefined]) {\n    try { v.currentTime = bad; out['bad ' + String(bad)] = 'no error ' + v.currentTime; } catch (e) { out['bad ' + String(bad)] = e.name + ': ' + e.message; }\n  }\n  mark('currentTime = 0.5 then 1.5 then 0.25 at once');\n  v.currentTime = 0.5; v.currentTime = 1.5; v.currentTime = 0.25;\n  await sleep(500);\n  out.rapid = S(v);\n  out.ev = evs();\n  return out;\n})()",
+          "value": {
+            "sync": [
+              1,
+              true
+            ],
+            "after1": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 1,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "sync99": [
+              2,
+              true
+            ],
+            "after99": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 2,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "syncNeg": [
+              0
+            ],
+            "afterNeg": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "bad NaN": "TypeError: Failed to set the 'currentTime' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            "bad Infinity": "TypeError: Failed to set the 'currentTime' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            "bad -Infinity": "TypeError: Failed to set the 'currentTime' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            "bad x": "TypeError: Failed to set the 'currentTime' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            "bad undefined": "TypeError: Failed to set the 'currentTime' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            "rapid": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0.25,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "--- currentTime = 1 rs=4 ns=1 ct=0 P",
+              "seeking rs=1 ns=1 ct=1 P",
+              "timeupdate rs=4 ns=1 ct=1 P",
+              "seeked rs=4 ns=1 ct=1 P",
+              "canplay rs=4 ns=1 ct=1 P",
+              "canplaythrough rs=4 ns=1 ct=1 P",
+              "--- currentTime = 99 rs=4 ns=1 ct=1 P",
+              "seeking rs=1 ns=1 ct=2 P",
+              "timeupdate rs=4 ns=1 ct=2 P",
+              "seeked rs=4 ns=1 ct=2 P",
+              "canplay rs=4 ns=1 ct=2 P",
+              "canplaythrough rs=4 ns=1 ct=2 P",
+              "--- currentTime = -5 rs=4 ns=1 ct=2 P",
+              "seeking rs=1 ns=1 ct=0 P",
+              "timeupdate rs=4 ns=1 ct=0 P",
+              "seeked rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "--- currentTime = 0.5 then 1.5 then 0.25 at once rs=4 ns=1 ct=0 P",
+              "seeking rs=1 ns=1 ct=0.25 P",
+              "seeking rs=1 ns=1 ct=0.25 P",
+              "seeking rs=1 ns=1 ct=0.25 P",
+              "timeupdate rs=4 ns=1 ct=0.25 P",
+              "seeked rs=4 ns=1 ct=0.25 P",
+              "canplay rs=4 ns=1 ct=0.25 P",
+              "canplaythrough rs=4 ns=1 ct=0.25 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "seek-before-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  const out = {};\n  out.before = [v.currentTime, v.readyState];\n  v.currentTime = 1;\n  out.setBefore = [v.currentTime, v.seeking];\n  await once(v, 'loadedmetadata');\n  out.atMetadata = [v.currentTime, v.seeking];\n  await sleep(600);\n  out.after = S(v);\n  out.ev = evs();\n  return out;\n})()",
+          "value": {
+            "before": [
+              0,
+              4
+            ],
+            "setBefore": [
+              1,
+              true
+            ],
+            "atMetadata": [
+              1,
+              false
+            ],
+            "after": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 1,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "seeking rs=1 ns=1 ct=1 P",
+              "timeupdate rs=4 ns=1 ct=1 P",
+              "seeked rs=4 ns=1 ct=1 P",
+              "canplay rs=4 ns=1 ct=1 P",
+              "canplaythrough rs=4 ns=1 ct=1 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "seek-before-load-preload-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  const out = {};\n  await sleep(200);\n  v.currentTime = 1;\n  out.set = [v.currentTime, v.seeking, v.readyState];\n  await sleep(600);\n  out.after = S(v);\n  out.ev = evs();\n  out.log = await log();\n  return out;\n})()",
+          "value": {
+            "set": [
+              1,
+              false,
+              0
+            ],
+            "after": {
+              "rs": 0,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 1,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "ev": [
+              "loadstart rs=0 ns=1 ct=0 P",
+              "suspend ct=0 P"
+            ],
+            "log": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "seek-playing",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  v.play();\n  await once(v, 'playing');\n  await sleep(300);\n  const mark = (s => EVO.push({n: '--- ' + s, tag: '', k: 1, t: performance.now(), rs: v.readyState, ns: v.networkState, ct: cq(v), p: v.paused}));\n  mark('currentTime = 1.5');\n  v.currentTime = 1.5;\n  const sync = [v.currentTime, v.seeking, v.paused];\n  await once(v, 'seeked');\n  await sleep(200);\n  const after = S(v);\n  mark('currentTime = 0.2');\n  v.currentTime = 0.2;\n  await once(v, 'seeked');\n  await sleep(300);\n  v.pause();\n  return {ev: evs(), sync, after, end: S(v)};\n})()",
+          "value": {
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "play rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "timeupdate rs=4 ns=1 ct=0.25",
+              "--- currentTime = 1.5 rs=4 ns=1 ct=0.25",
+              "seeking rs=1 ns=1 ct=1.5",
+              "waiting rs=1 ns=1 ct=1.5",
+              "timeupdate rs=4 ns=1 ct=1.5",
+              "seeked rs=4 ns=1 ct=1.5",
+              "canplay rs=4 ns=1 ct=1.5",
+              "playing rs=4 ns=1 ct=1.5",
+              "canplaythrough rs=4 ns=1 ct=1.5",
+              "--- currentTime = 0.2 rs=4 ns=1 ct=1.75",
+              "seeking rs=1 ns=1 ct=0.2",
+              "waiting rs=1 ns=1 ct=0.2",
+              "timeupdate rs=4 ns=1 ct=0.25",
+              "seeked rs=4 ns=1 ct=0.25",
+              "canplay rs=4 ns=1 ct=0.25",
+              "playing rs=4 ns=1 ct=0.25",
+              "canplaythrough rs=4 ns=1 ct=0.25",
+              "timeupdate rs=4 ns=1 ct=0.5"
+            ],
+            "sync": [
+              1.5,
+              true,
+              false
+            ],
+            "after": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 1.75,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-0.25,1.5-1.75",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "end": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0.46,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-0.5,1.5-1.75",
+              "err": null,
+              "src": "a.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "seek-long-file",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  const out = {buf0: rng(v.buffered), dur: v.duration};\n  const mark = (s => EVO.push({n: '--- ' + s, tag: '', k: 1, t: performance.now(), rs: v.readyState, ns: v.networkState, ct: cq(v), p: v.paused}));\n  mark('currentTime = 7.3');\n  v.currentTime = 7.3;\n  await once(v, 'seeked');\n  await sleep(300);\n  out.after = S(v);\n  out.ev = evs();\n  out.log = await log();\n  return out;\n})()",
+          "value": {
+            "buf0": "0-10",
+            "dur": 10,
+            "after": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 7.3,
+              "dur": 10,
+              "size": "320x240",
+              "buf": "0-10",
+              "seek": "0-10",
+              "played": "",
+              "err": null,
+              "src": "long.mp4"
+            },
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "--- currentTime = 7.3 rs=4 ns=1 ct=0 P",
+              "seeking rs=1 ns=1 ct=7.3 P",
+              "timeupdate rs=4 ns=1 ct=7.3 P",
+              "seeked rs=4 ns=1 ct=7.3 P",
+              "canplay rs=4 ns=1 ct=7.3 P",
+              "canplaythrough rs=4 ns=1 ct=7.3 P"
+            ],
+            "log": [
+              "long.mp4 bytes=0- -> 206 302913"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "volume-muted",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'loadedmetadata');\n  await sleep(100);\n  const n = EVO.length;\n  const out = {initial: [v.volume, v.muted, v.defaultMuted]};\n  v.volume = 0.5; await sleep(50);\n  out.v1 = [v.volume, v.muted];\n  v.volume = 0.5; await sleep(50);\n  v.muted = true; await sleep(50);\n  out.v2 = [v.volume, v.muted];\n  v.muted = true; await sleep(50);\n  v.muted = false; await sleep(50);\n  v.volume = 0; await sleep(50);\n  out.v3 = [v.volume, v.muted];\n  for (const bad of [1.5, -0.1, NaN, Infinity, '0.3', null, undefined]) {\n    try { v.volume = bad; out['volume = ' + String(bad)] = 'ok ' + v.volume; } catch (e) { out['volume = ' + String(bad)] = e.name + ': ' + e.message; }\n  }\n  v.defaultMuted = true; await sleep(50);\n  out.defaultMuted = [v.defaultMuted, v.muted, v.hasAttribute('muted')];\n  out.ev = evs().slice(n);\n  return out;\n})()",
+          "value": {
+            "initial": [
+              1,
+              false,
+              false
+            ],
+            "v1": [
+              0.5,
+              false
+            ],
+            "v2": [
+              0.5,
+              true
+            ],
+            "v3": [
+              0,
+              false
+            ],
+            "volume = 1.5": "IndexSizeError: Failed to set the 'volume' property on 'HTMLMediaElement': The volume provided (1.5) is outside the range [0, 1].",
+            "volume = -0.1": "IndexSizeError: Failed to set the 'volume' property on 'HTMLMediaElement': The volume provided (-0.1) is outside the range [0, 1].",
+            "volume = NaN": "TypeError: Failed to set the 'volume' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            "volume = Infinity": "TypeError: Failed to set the 'volume' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            "volume = 0.3": "ok 0.3",
+            "volume = null": "ok 0",
+            "volume = undefined": "TypeError: Failed to set the 'volume' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            "defaultMuted": [
+              true,
+              false,
+              true
+            ],
+            "ev": [
+              "volumechange rs=4 ns=1 ct=0 P",
+              "volumechange rs=4 ns=1 ct=0 P",
+              "volumechange rs=4 ns=1 ct=0 P",
+              "volumechange rs=4 ns=1 ct=0 P",
+              "volumechange rs=4 ns=1 ct=0 P",
+              "volumechange rs=4 ns=1 ct=0 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "muted-attribute",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "[v.muted, v.defaultMuted, a.muted, a.defaultMuted]",
+          "value": [
+            true,
+            true,
+            true,
+            true
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(() => { v.removeAttribute('muted'); return [v.muted, v.defaultMuted]; })()",
+          "value": [
+            true,
+            false
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(() => { v.muted = false; v.setAttribute('muted', ''); return [v.muted, v.defaultMuted]; })()",
+          "value": [
+            false,
+            true
+          ]
+        }
+      ]
+    },
+    {
+      "name": "volume-during-play",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  v.play();\n  await once(v, 'playing');\n  const n = EVO.length;\n  v.volume = 0.3; v.muted = false; v.volume = 1; v.muted = true;\n  await sleep(200);\n  v.pause();\n  return {ev: evs().slice(n), s: [v.volume, v.muted]};\n})()",
+          "value": {
+            "ev": [
+              "volumechange rs=4 ns=1 ct=0",
+              "volumechange rs=4 ns=1 ct=0",
+              "volumechange rs=4 ns=1 ct=0",
+              "volumechange rs=4 ns=1 ct=0"
+            ],
+            "s": [
+              1,
+              true
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "new-audio",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  const out = {};\n  const a = new Audio('a.mp3');\n  watch(a);\n  out.sync = [a.preload, a.networkState, a.readyState, a.paused, a.src.replace(location.origin, 'O'), a.isConnected, a.getAttribute('src')];\n  await sleep(1200);\n  out.s = {rs: a.readyState, ns: a.networkState, dur: a.duration, buf: rng(a.buffered), cs: a.currentSrc.split('/').pop()};\n  out.ev = EVO.map(o => o.n + ' rs=' + o.rs);\n  out.log = await log();\n  const b = new Audio();\n  out.empty = [b.src, b.networkState, b.readyState, b.preload, b.controls, b.parentNode];\n  b.src = 'a.mp3';\n  out.afterSrc = [b.networkState, b.readyState];\n  const c = new Audio('nothere.mp3');\n  watch(c, 'c', ['error', 'loadstart']);\n  await sleep(500);\n  out.missing = [c.networkState, c.error && c.error.code];\n  return out;\n})()",
+          "value": {
+            "sync": [
+              "auto",
+              3,
+              0,
+              true,
+              "O/case-14/a.mp3",
+              false,
+              "a.mp3"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "dur": 2,
+              "buf": "0-2.01",
+              "cs": "a.mp3"
+            },
+            "ev": [
+              "loadstart rs=0",
+              "progress rs=0",
+              "suspend rs=0",
+              "durationchange rs=1",
+              "loadedmetadata rs=1",
+              "loadeddata rs=4",
+              "canplay rs=4",
+              "canplaythrough rs=4"
+            ],
+            "log": [
+              "a.mp3 bytes=0- -> 206 16508"
+            ],
+            "empty": [
+              "",
+              0,
+              0,
+              "auto",
+              false,
+              null
+            ],
+            "afterSrc": [
+              3,
+              0
+            ],
+            "missing": [
+              3,
+              4
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "new-audio-play",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  const a = new Audio('a.mp3');\n  a.muted = true;\n  watch(a);\n  const mark = (s) => EVO.push({n: '--- ' + s, tag: '', k: 1, t: performance.now(), rs: a.readyState, ns: a.networkState, ct: cq(a), p: a.paused});\n  mark('play()');\n  const pr = a.play().then(() => 'resolved', e => e.name + ': ' + e.message);\n  const wait = await once(a, 'ended', 5000);\n  return {wait, promise: await pr, ev: evs(), s: S(a)};\n})()",
+          "value": {
+            "wait": "ended",
+            "promise": "resolved",
+            "ev": [
+              "--- play() rs=0 ns=3 ct=0 P",
+              "volumechange rs=0 ns=2 ct=0",
+              "play rs=0 ns=2 ct=0",
+              "waiting rs=0 ns=2 ct=0",
+              "loadstart rs=0 ns=2 ct=0",
+              "progress ct=0",
+              "suspend ct=0",
+              "durationchange ct=0",
+              "loadedmetadata ct=0",
+              "loadeddata rs=4 ns=1 ct=0",
+              "canplay rs=4 ns=1 ct=0",
+              "playing rs=4 ns=1 ct=0",
+              "canplaythrough rs=4 ns=1 ct=0",
+              "timeupdate* rs=4 ns=1 ct=0.25",
+              "pause rs=4 ns=1 ct=2 P",
+              "ended rs=4 ns=1 ct=2 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": true,
+              "seeking": false,
+              "ct": 2,
+              "dur": 2,
+              "size": "n/a",
+              "buf": "0-2.01",
+              "seek": "0-2",
+              "played": "0-2",
+              "err": null,
+              "src": "a.mp3"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "promise-resolve-order",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  const order = [];\n  for (const n of ['play', 'playing', 'pause', 'waiting', 'seeking', 'seeked']) v.addEventListener(n, () => order.push('event ' + n));\n  const p1 = v.play().then(() => order.push('promise 1 resolved'), e => order.push('promise 1 ' + e.name));\n  const p2 = v.play().then(() => order.push('promise 2 resolved'), e => order.push('promise 2 ' + e.name));\n  order.push('same promise? ' + (v.play() === v.play()));\n  await sleep(500);\n  v.pause();\n  await sleep(100);\n  return order;\n})()",
+          "value": [
+            "same promise? false",
+            "event play",
+            "event playing",
+            "promise 1 resolved",
+            "promise 2 resolved",
+            "event pause"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "promise-abort-by-pause",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await sleep(100);\n  const out = [];\n  const p = v.play();\n  p.then(() => out.push('resolved'), e => out.push(e.name + ': ' + e.message));\n  v.pause();\n  await sleep(300);\n  out.push('paused=' + v.paused);\n  out.push(...evs());\n  return out;\n})()",
+          "value": [
+            "AbortError: The play() request was interrupted by a call to pause(). https://goo.gl/LdLk22",
+            "paused=true",
+            "loadstart rs=0 ns=1 ct=0 P",
+            "suspend ct=0 P",
+            "play rs=0 ns=2 ct=0 P",
+            "waiting rs=0 ns=2 ct=0 P",
+            "timeupdate rs=0 ns=2 ct=0 P",
+            "pause rs=0 ns=2 ct=0 P",
+            "progress ct=0 P",
+            "suspend ct=0 P",
+            "durationchange ct=0 P",
+            "resize ct=0 P",
+            "loadedmetadata ct=0 P",
+            "loadeddata rs=4 ns=1 ct=0 P",
+            "canplay rs=4 ns=1 ct=0 P",
+            "canplaythrough rs=4 ns=1 ct=0 P"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "promise-abort-by-load",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await sleep(100);\n  const out = [];\n  const p = v.play();\n  p.then(() => out.push('resolved'), e => out.push(e.name + ': ' + e.message));\n  v.load();\n  await sleep(500);\n  out.push('paused=' + v.paused);\n  out.push(...evs());\n  return out;\n})()",
+          "value": [
+            "AbortError: The play() request was interrupted by a new load request. https://goo.gl/LdLk22",
+            "paused=true",
+            "loadstart rs=0 ns=1 ct=0 P",
+            "suspend ct=0 P",
+            "abort rs=0 ns=3 ct=0 P",
+            "emptied rs=0 ns=3 ct=0 P",
+            "timeupdate rs=0 ns=3 ct=0 P",
+            "loadstart rs=0 ns=2 ct=0 P",
+            "progress ct=0 P",
+            "suspend ct=0 P",
+            "durationchange ct=0 P",
+            "resize ct=0 P",
+            "loadedmetadata ct=0 P",
+            "loadeddata rs=4 ns=1 ct=0 P",
+            "canplay rs=4 ns=1 ct=0 P",
+            "canplaythrough rs=4 ns=1 ct=0 P"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "promise-abort-by-src-change",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'loadedmetadata');\n  const out = [];\n  v.currentTime = 1;\n  const p = v.play();\n  p.then(() => out.push('resolved'), e => out.push(e.name + ': ' + e.message));\n  v.src = 'b.webm';\n  await sleep(700);\n  out.push('paused=' + v.paused);\n  return out;\n})()",
+          "value": [
+            "AbortError: The play() request was interrupted by a new load request. https://goo.gl/LdLk22",
+            "paused=true"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "promise-not-supported",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await sleep(500);\n  const out = [];\n  for (const m of [v, w, x]) {\n    const r = await Promise.race([m.play().then(() => 'resolved', e => e.name + ': ' + e.message), sleep(1500).then(() => 'pending after 1500 ms')]);\n    out.push([m.id, r, m.paused, m.networkState, m.error && m.error.code]);\n  }\n  return out;\n})()",
+          "value": [
+            [
+              "v",
+              "NotSupportedError: The element has no supported sources.",
+              true,
+              3,
+              4
+            ],
+            [
+              "w",
+              "pending after 1500 ms",
+              false,
+              0,
+              null
+            ],
+            [
+              "x",
+              "NotSupportedError: The element has no supported sources.",
+              true,
+              3,
+              4
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "promise-play-ended",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  v.currentTime = 1.95;\n  await once(v, 'seeked');\n  v.play();\n  await once(v, 'ended', 4000);\n  const out = [v.ended, v.paused, cq(v), v.played.length];\n  const p = v.play().then(() => 'resolved', e => e.name);\n  await sleep(100);\n  out.push(await p, v.ended, v.paused, cq(v));\n  v.pause();\n  return out;\n})()",
+          "value": [
+            true,
+            true,
+            2,
+            1,
+            "resolved",
+            false,
+            false,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "load-during-playback",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  v.play();\n  await once(v, 'playing');\n  await sleep(400);\n  const mark = (s => EVO.push({n: '--- ' + s, tag: '', k: 1, t: performance.now(), rs: v.readyState, ns: v.networkState, ct: cq(v), p: v.paused}));\n  const before = S(v);\n  mark('load()');\n  const n = EVO.length;\n  v.load();\n  const sync = S(v);\n  await sleep(800);\n  return {before, sync, after: S(v), ev: evs().slice(n - 1)};\n})()",
+          "value": {
+            "before": {
+              "rs": 4,
+              "ns": 1,
+              "paused": false,
+              "ended": false,
+              "seeking": false,
+              "ct": 0.25,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-0.25",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "sync": {
+              "rs": 0,
+              "ns": 3,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": NaN,
+              "size": "0x0",
+              "buf": "",
+              "seek": "",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "after": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "ev": [
+              "--- load() rs=4 ns=1 ct=0.25",
+              "abort rs=0 ns=3 ct=0 P",
+              "emptied rs=0 ns=3 ct=0 P",
+              "timeupdate rs=0 ns=3 ct=0 P",
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-after-ended-and-paused",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  v.currentTime = 1;\n  await once(v, 'seeked');\n  v.volume = 0.4;\n  v.playbackRate = 1;\n  v.loop = true;\n  const n = EVO.length;\n  v.load();\n  await sleep(800);\n  return {ev: evs().slice(n), s: S(v), kept: [v.volume, v.muted, v.loop, v.preload]};\n})()",
+          "value": {
+            "ev": [
+              "abort rs=0 ns=3 ct=0 P",
+              "emptied rs=0 ns=3 ct=0 P",
+              "timeupdate rs=0 ns=3 ct=0 P",
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ],
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "kept": [
+              0.4,
+              true,
+              true,
+              "auto"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "load-with-pending-seek",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  v.currentTime = 1.5;\n  v.load();\n  await sleep(800);\n  return {s: S(v), ev: evs()};\n})()",
+          "value": {
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "ev": [
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P",
+              "abort rs=0 ns=3 ct=0 P",
+              "emptied rs=0 ns=3 ct=0 P",
+              "timeupdate rs=0 ns=3 ct=0 P",
+              "loadstart rs=0 ns=2 ct=0 P",
+              "progress ct=0 P",
+              "suspend ct=0 P",
+              "durationchange ct=0 P",
+              "resize ct=0 P",
+              "loadedmetadata ct=0 P",
+              "loadeddata rs=4 ns=1 ct=0 P",
+              "canplay rs=4 ns=1 ct=0 P",
+              "canplaythrough rs=4 ns=1 ct=0 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "played-ranges",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  const out = {p0: rngq(v.played)};\n  v.play();\n  await sleep(500);\n  v.pause();\n  out.p1 = rngq(v.played);\n  v.currentTime = 6;\n  await once(v, 'seeked');\n  out.p2 = rngq(v.played);\n  v.play();\n  await sleep(500);\n  v.pause();\n  out.p3 = rngq(v.played);\n  out.s = S(v);\n  return out;\n})()",
+          "value": {
+            "p0": "",
+            "p1": "0-0.5",
+            "p2": "0-0.5",
+            "p3": "0-0.5,6-6.5",
+            "s": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 6.46,
+              "dur": 10,
+              "size": "320x240",
+              "buf": "0-10",
+              "seek": "0-10",
+              "played": "0-0.5,6-6.5",
+              "err": null,
+              "src": "long.mp4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "timeupdate-rate",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  const times = [];\n  v.addEventListener('timeupdate', () => times.push(cq(v)));\n  v.play();\n  await once(v, 'ended', 5000);\n  await sleep(200);\n  return {n: times.length, first: times.slice(0, 6), last: times.slice(-3)};\n})()",
+          "value": {
+            "n": 8,
+            "first": [
+              0.25,
+              0.5,
+              0.75,
+              1,
+              1.25,
+              1.5
+            ],
+            "last": [
+              1.5,
+              1.75,
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "duration-before-metadata",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "[v.duration, w.duration, Number.isNaN(v.duration), v.seekable.length, v.buffered.length]",
+          "value": [
+            2,
+            NaN,
+            false,
+            1,
+            1
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "(async () => { try { v.buffered.start(0); } catch (e) { return e.name + ': ' + e.message; } })()",
+          "value": null
+        },
+        {
+          "kind": "js",
+          "label": "once(v, 'loadedmetadata').then(() => { try { return [v.buffered.start(0), v.buffered.end(0), v.seekable.end(0), v.buffered.end(5)]; } catch (e) { return e.name + ': ' + e.message; } })",
+          "value": "IndexSizeError: Failed to execute 'end' on 'TimeRanges': The index provided (5) is greater than the maximum bound (1)."
+        }
+      ]
+    },
+    {
+      "name": "playbackrate-default",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  const out = {rate: [v.playbackRate, v.defaultPlaybackRate]};\n  v.playbackRate = 2;\n  await sleep(50);\n  out.after = [v.playbackRate, v.defaultPlaybackRate];\n  out.ev = evs().filter(e => e.startsWith('ratechange'));\n  return out;\n})()",
+          "value": {
+            "rate": [
+              1,
+              1
+            ],
+            "after": [
+              2,
+              1
+            ],
+            "ev": [
+              "ratechange rs=4 ns=1 ct=0 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "removed-from-document-while-playing",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  const m = v;\n  await once(m, 'canplaythrough');\n  m.play();\n  await once(m, 'playing');\n  const n = EVO.length;\n  m.remove();\n  await sleep(500);\n  const s = S(m);\n  document.body.appendChild(m);\n  await sleep(300);\n  const s2 = S(m);\n  m.pause();\n  return {afterRemove: s, afterReinsert: s2, ev: evs().slice(n)};\n})()",
+          "value": {
+            "afterRemove": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-0",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "afterReinsert": {
+              "rs": 4,
+              "ns": 1,
+              "paused": true,
+              "ended": false,
+              "seeking": false,
+              "ct": 0,
+              "dur": 2,
+              "size": "320x240",
+              "buf": "0-2",
+              "seek": "0-2",
+              "played": "0-0",
+              "err": null,
+              "src": "a.mp4"
+            },
+            "ev": [
+              "timeupdate rs=4 ns=1 ct=0 P",
+              "pause rs=4 ns=1 ct=0 P"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "display-none-play",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\n  await once(v, 'canplaythrough');\n  v.play();\n  await sleep(900);\n  const s = S(v);\n  v.pause();\n  return s;\n})()",
+          "value": {
+            "rs": 4,
+            "ns": 1,
+            "paused": false,
+            "ended": false,
+            "seeking": false,
+            "ct": 0.75,
+            "dur": 2,
+            "size": "320x240",
+            "buf": "0-2",
+            "seek": "0-2",
+            "played": "0-0.75",
+            "err": null,
+            "src": "a.mp4"
+          }
+        }
+      ]
+    }
+  ]
+}

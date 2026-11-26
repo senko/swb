@@ -367,6 +367,10 @@ pub(crate) struct State {
     pub(crate) playing: bool,
     /// The media time of the owner's last update.
     pub(crate) media_now: i64,
+    /// Where the failure of the run lies in media time (the end of what the
+    /// failing thread had decoded), when the thread knows; set with the
+    /// `Failed` event.
+    pub(crate) failed_at: Option<i64>,
     pub(crate) watch: Watch,
 }
 
@@ -487,6 +491,7 @@ impl Shared {
                 painted: settings.painted,
                 playing: false,
                 media_now: 0,
+                failed_at: None,
                 watch: Watch {
                     needs_data: false,
                     since: Instant::now(),
@@ -570,11 +575,20 @@ impl Shared {
     /// Reports a failure of `run` (if it is still the current run) and ends
     /// the run.
     pub(crate) fn fail(&self, run: u64, error: MediaError) {
+        self.fail_at(run, error, None);
+    }
+
+    /// [`Shared::fail`] with the media time `at_us` where the failing thread
+    /// stopped (the end of its last good frame or samples). The time depends
+    /// on the data alone, not on the speed of the threads, so the owner can
+    /// let the playback go on to it.
+    pub(crate) fn fail_at(&self, run: u64, error: MediaError, at_us: Option<i64>) {
         let mut st = self.lock();
         if st.run != run {
             return;
         }
-        log::debug!("media pipeline: {error}");
+        log::debug!("media pipeline: {error} (at {at_us:?})");
+        st.failed_at = at_us;
         st.events.push_back(ThreadEvent::Failed(error));
         st.run += 1;
         if let Some((r, place)) = &st.place

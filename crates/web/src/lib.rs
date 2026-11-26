@@ -166,9 +166,10 @@ pub use events::{DispatchTarget, EventInterface, TrustedEvent, UserEvent, UserKi
 pub use host::{
     AnimationCommand, AnimationInfo, ControlSnapshot, ControlValidity, ControlWrite, DomRect,
     EngineHost, EventOrigins, FormDataEntry, FormDataValue, FrameHost, ImageInfo, KeyframeInfo,
-    LentDocuments, MediaCommand, MediaErrorInfo, MediaInfo, NavigationInfo, NavigationKind,
-    NewFrame, ObservedBox, ObservedPosition, OffsetMetrics, RangeTextMode, RetiredFrame,
-    ScrollAlign, ScrollMetrics, ScrollRequest, SelectionKey, SelectionRange, Viewport,
+    LentDocuments, MediaCommand, MediaDelivery, MediaErrorInfo, MediaInfo, MediaTask,
+    NavigationInfo, NavigationKind, NewFrame, ObservedBox, ObservedPosition, OffsetMetrics,
+    PlayRejection, PlayStart, RangeTextMode, RetiredFrame, ScrollAlign, ScrollMetrics,
+    ScrollRequest, SelectionKey, SelectionRange, Viewport,
 };
 pub use idle_callbacks::IDLE_PERIOD_MS;
 pub use messaging::{Mail, MailTarget};

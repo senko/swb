@@ -24,8 +24,11 @@ pub trait HTMLMediaElementImpl: b::Host {
     /// `readonly attribute boolean seeking`.
     fn seeking(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
 
-    /// `readonly attribute double currentTime`.
+    /// `attribute double currentTime`.
     fn current_time(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<f64>;
+
+    /// The setter of `attribute double currentTime`.
+    fn set_current_time(cx: &mut b::Cx<'_>, this: b::NodeId, value: f64) -> b::Result<()>;
 
     /// `readonly attribute unrestricted double duration`.
     fn duration(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<f64>;
@@ -33,8 +36,38 @@ pub trait HTMLMediaElementImpl: b::Host {
     /// `readonly attribute boolean paused`.
     fn paused(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
 
+    /// `attribute double defaultPlaybackRate`.
+    fn default_playback_rate(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<f64>;
+
+    /// The setter of `attribute double defaultPlaybackRate`.
+    fn set_default_playback_rate(cx: &mut b::Cx<'_>, this: b::NodeId, value: f64) -> b::Result<()>;
+
+    /// `attribute double playbackRate`.
+    fn playback_rate(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<f64>;
+
+    /// The setter of `attribute double playbackRate`.
+    fn set_playback_rate(cx: &mut b::Cx<'_>, this: b::NodeId, value: f64) -> b::Result<()>;
+
+    /// `readonly attribute TimeRanges played`.
+    fn played(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `readonly attribute TimeRanges seekable`.
     fn seekable(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `readonly attribute boolean ended`.
+    fn ended(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `attribute double volume`.
+    fn volume(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<f64>;
+
+    /// The setter of `attribute double volume`.
+    fn set_volume(cx: &mut b::Cx<'_>, this: b::NodeId, value: f64) -> b::Result<()>;
+
+    /// `attribute boolean muted`.
+    fn muted(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// The setter of `attribute boolean muted`.
+    fn set_muted(cx: &mut b::Cx<'_>, this: b::NodeId, value: bool) -> b::Result<()>;
 
     /// `readonly attribute MediaError? error`.
     fn error(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
@@ -44,6 +77,12 @@ pub trait HTMLMediaElementImpl: b::Host {
 
     /// `DOMString canPlayType(DOMString type)`.
     fn can_play_type(cx: &mut b::Cx<'_>, this: b::NodeId, type_: String) -> b::Result<String>;
+
+    /// `Promise<undefined> play()`.
+    fn play(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `undefined pause()`.
+    fn pause(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<()>;
 
 }
 
@@ -149,6 +188,16 @@ fn get_current_time<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &sw
     })
 }
 
+fn set_current_time<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLMediaElement", "currentTime"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::double(rt, v).map_err(b::Exception::nested)?;
+        <H as HTMLMediaElementImpl>::set_current_time(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 fn get_duration<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "duration"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
@@ -165,11 +214,63 @@ fn get_paused<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
     })
 }
 
+fn get_default_playback_rate<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "defaultPlaybackRate"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = <H as HTMLMediaElementImpl>::default_playback_rate(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::number(result))?)
+    })
+}
+
+fn set_default_playback_rate<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLMediaElement", "defaultPlaybackRate"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::double(rt, v).map_err(b::Exception::nested)?;
+        <H as HTMLMediaElementImpl>::set_default_playback_rate(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_playback_rate<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "playbackRate"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = <H as HTMLMediaElementImpl>::playback_rate(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::number(result))?)
+    })
+}
+
+fn set_playback_rate<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLMediaElement", "playbackRate"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::double(rt, v).map_err(b::Exception::nested)?;
+        <H as HTMLMediaElementImpl>::set_playback_rate(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_played<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "played"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = <H as HTMLMediaElementImpl>::played(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
 fn get_seekable<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "seekable"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
         let result = <H as HTMLMediaElementImpl>::seekable(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn get_ended<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "ended"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = <H as HTMLMediaElementImpl>::ended(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
     })
 }
 
@@ -227,6 +328,42 @@ fn set_controls<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js
     })
 }
 
+fn get_volume<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "volume"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = <H as HTMLMediaElementImpl>::volume(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::number(result))?)
+    })
+}
+
+fn set_volume<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLMediaElement", "volume"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::double(rt, v).map_err(b::Exception::nested)?;
+        <H as HTMLMediaElementImpl>::set_volume(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_muted<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "muted"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = <H as HTMLMediaElementImpl>::muted(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn set_muted<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLMediaElement", "muted"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
+        <H as HTMLMediaElementImpl>::set_muted(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 fn get_default_muted<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("HTMLMediaElement", "defaultMuted"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
@@ -272,6 +409,22 @@ fn op_can_play_type<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &sw
     })
 }
 
+fn op_play<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run_promise(rt, call, b::Context::Operation("HTMLMediaElement", "play"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        let result = <H as HTMLMediaElementImpl>::play(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn op_pause<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLMediaElement", "pause"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_MEDIA_ELEMENT)?;
+        <H as HTMLMediaElementImpl>::pause(&mut b::Cx::new(rt, call, super::HTML_MEDIA_ELEMENT), this)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 /// Creates the interface object and the prototype of `HTMLMediaElement` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
@@ -286,13 +439,19 @@ pub fn define<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> 
     rt.define_accessor(realm, target, "buffered", (Some(get_buffered::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "readyState", (Some(get_ready_state::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "seeking", (Some(get_seeking::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
-    rt.define_accessor(realm, target, "currentTime", (Some(get_current_time::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "currentTime", (Some(get_current_time::<H> as swb_js::NativeFn), Some(set_current_time::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "duration", (Some(get_duration::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "paused", (Some(get_paused::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "defaultPlaybackRate", (Some(get_default_playback_rate::<H> as swb_js::NativeFn), Some(set_default_playback_rate::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "playbackRate", (Some(get_playback_rate::<H> as swb_js::NativeFn), Some(set_playback_rate::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "played", (Some(get_played::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "seekable", (Some(get_seekable::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "ended", (Some(get_ended::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "autoplay", (Some(get_autoplay::<H> as swb_js::NativeFn), Some(set_autoplay::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "loop", (Some(get_loop::<H> as swb_js::NativeFn), Some(set_loop::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "controls", (Some(get_controls::<H> as swb_js::NativeFn), Some(set_controls::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "volume", (Some(get_volume::<H> as swb_js::NativeFn), Some(set_volume::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "muted", (Some(get_muted::<H> as swb_js::NativeFn), Some(set_muted::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "defaultMuted", (Some(get_default_muted::<H> as swb_js::NativeFn), Some(set_default_muted::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "error", (Some(get_error::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_value(interface.object, "NETWORK_EMPTY", swb_js::Value::Int(0), swb_js::Attributes::CONSTANT)?;
@@ -315,6 +474,8 @@ pub fn define<H: HTMLMediaElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> 
     rt.define_value(interface.prototype, "HAVE_ENOUGH_DATA", swb_js::Value::Int(4), swb_js::Attributes::CONSTANT)?;
     rt.define_method(realm, target, "canPlayType", 1, op_can_play_type::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "load", 0, op_load::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "pause", 0, op_pause::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "play", 0, op_play::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

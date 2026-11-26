@@ -13,9 +13,10 @@
 
 use swb_dom::{Document, NodeId, local_name};
 use swb_net::Url;
-use swb_web::MediaErrorInfo;
+use swb_web::{MediaErrorInfo, MediaTask, PlayRejection};
 
 use super::backend::{self, Failure, Fetch};
+use super::playback::autoplay_attribute;
 use super::select::{self, Candidate, Cx, Pointer};
 use super::{
     Element, HAVE_ENOUGH_DATA, HAVE_NOTHING, MAX_ELEMENTS, Media, NETWORK_EMPTY, NETWORK_IDLE,
@@ -36,14 +37,16 @@ pub(super) fn preload_of(dom: &Document, node: NodeId) -> PreloadAttr {
 impl Media {
     /// The element of `node`, made if there is none (the table is
     /// bounded). `None` when the table is full.
-    fn element_mut(&mut self, cx: &Cx<'_>, node: NodeId) -> Option<&mut Element> {
+    pub(super) fn element_mut(&mut self, cx: &Cx<'_>, node: NodeId) -> Option<&mut Element> {
         if !self.ctx.enabled() {
             return None;
         }
         if !self.elements.contains_key(&node) {
             if self.elements.len() >= MAX_ELEMENTS {
-                // The states of elements outside the document go first.
-                self.elements.retain(|&n, _| cx.dom.is_connected(n));
+                // The states of elements outside the document go first (not
+                // those that play: a `new Audio()` lives while it plays).
+                self.elements
+                    .retain(|&n, e| cx.dom.is_connected(n) || !e.paused);
             }
             if self.elements.len() >= MAX_ELEMENTS {
                 if !self.warned {
@@ -55,7 +58,14 @@ impl Media {
                 return None;
             }
             let video = cx.dom.is_html_element(node, &local_name!("video"));
-            self.elements.insert(node, Element::new(video));
+            // `muted` starts as the content attribute says (HTML: the
+            // attribute at the creation of the element); it is a state of
+            // its own after that.
+            let muted = cx
+                .dom
+                .element(node)
+                .is_some_and(|e| e.attr("muted").is_some());
+            self.elements.insert(node, Element::new(video, muted));
         }
         self.elements.get_mut(&node)
     }
@@ -88,12 +98,38 @@ impl Media {
         element.suspend_sent = false;
         element.idle_since = None;
         element.forced = forced;
+        // Step 6: the tasks that are queued for the element are dropped (the
+        // epoch), and its playback starts again: paused, nothing played.
+        // `volume`, `muted` and `loop` stay; the rate goes back to the
+        // default. The promises of `play()` that no one settled yet reject.
+        element.epoch = element.epoch.wrapping_add(1);
+        element.paused = true;
+        element.can_autoplay = true;
+        element.seeking = false;
+        element.ended = false;
+        element.loop_pending = false;
+        element.autoplay_pending = false;
+        element.failed_pending = false;
+        element.first_data = false;
+        element.muted_exempt = false;
+        element.played.clear();
+        element.run_start = None;
+        element.damage = None;
+        element.emulation = None;
+        element.frozen = None;
+        element.rate = element.default_rate;
+        element.pending_upto = None;
+        let unsettled = (element.play_last > element.play_delivered).then_some(element.play_last);
         // The resource selection algorithm, step 1.
         element.network_state = NETWORK_NO_SOURCE;
         element.phase = Phase::Selecting;
         for name in queue {
             self.queue(node, name);
         }
+        if let Some(upto) = unsettled {
+            self.push_task(node, node, MediaTask::RejectPlay(upto, PlayRejection::Load));
+        }
+        self.queue_select(node);
     }
 
     /// A `source` was inserted into the media element `parent`: HTML says a
@@ -107,23 +143,25 @@ impl Media {
         let Some(element) = self.element_mut(cx, parent) else {
             return;
         };
-        match element.phase {
-            Phase::Empty | Phase::Waiting => {
-                element.network_state = NETWORK_NO_SOURCE;
-                element.phase = Phase::Selecting;
-            }
-            _ => {}
+        if matches!(element.phase, Phase::Empty | Phase::Waiting) {
+            element.network_state = NETWORK_NO_SOURCE;
+            element.phase = Phase::Selecting;
+            self.queue_select(parent);
         }
     }
 
     /// A media element was found (inserted, or walked): it loads if it has a
-    /// `src` or a `source` child.
+    /// `src` or a `source` child. It gets a state in any case (`muted` starts
+    /// as its content attribute says); one that is known already keeps its
+    /// load (a re-insertion starts nothing: a suspended pipeline opens again
+    /// when `play()` or a seek needs it).
     pub(crate) fn discovered(&mut self, cx: &Cx<'_>, node: NodeId) {
         if self.elements.contains_key(&node) {
             return;
         }
         let has_source = select::next_source(cx.dom, node, Pointer::Start).is_some();
         if select::src_attribute(cx.dom, node).is_none() && !has_source {
+            self.element_mut(cx, node);
             return;
         }
         self.load_algorithm(cx, node, false);
@@ -165,11 +203,14 @@ impl Media {
         }
     }
 
-    /// The media element `node` left the document: a pipeline that has all
-    /// its data suspends at once. A load that runs goes on (HTML pauses the
-    /// element at removal, feature 6b, and does not stop its load); the
-    /// rule of the idle pipeline suspends it 15 s after it has its data.
+    /// The media element `node` left the document: HTML runs the internal
+    /// pause steps ("When a media element is removed from a Document", as
+    /// Chromium does: `timeupdate`, `pause`), and a pipeline that has all
+    /// its data suspends at once. A load that runs goes on (HTML does not stop
+    /// its load); the rule of the idle pipeline suspends it 15 s after it has
+    /// its data.
     pub(crate) fn removed(&mut self, node: NodeId) {
+        self.pause_steps(node, PlayRejection::Pause);
         let now = self.now_us;
         if let Some(element) = self.elements.get_mut(&node)
             && element.ready_state == HAVE_ENOUGH_DATA
@@ -262,7 +303,7 @@ impl Media {
             }
             match select::candidate(cx, source) {
                 Candidate::Skip => {}
-                Candidate::Fail => self.queue(source, "error"),
+                Candidate::Fail => self.queue_for(node, source, "error"),
                 Candidate::Use(url) => {
                     if let Some(element) = self.elements.get_mut(&node) {
                         element.current_src = url.to_string();
@@ -280,8 +321,16 @@ impl Media {
     /// idle) until a load is asked for.
     fn start_resource(&mut self, cx: &Cx<'_>, node: NodeId, url: Url) {
         let preload = preload_of(cx.dom, node);
-        let forced = self.elements.get(&node).is_some_and(|e| e.forced);
-        if preload == PreloadAttr::None && !forced {
+        // An element that `play()` started loads whatever `preload` says
+        // (the deferred fetch began then), and so does an `autoplay`
+        // element that the policy lets play (Chromium, measured: the
+        // `autoplay` attribute wins over `preload=none`).
+        let wanted = self.elements.get(&node).is_some_and(|e| {
+            e.forced
+                || !e.paused
+                || (autoplay_attribute(cx, node) && super::playback::allowed_to_play(cx, e))
+        });
+        if preload == PreloadAttr::None && !wanted {
             if let Some(element) = self.elements.get_mut(&node) {
                 element.network_state = NETWORK_IDLE;
                 element.suspend_sent = true;
@@ -295,7 +344,7 @@ impl Media {
     }
 
     /// Starts the fetch of `url`.
-    fn begin_fetch(&mut self, cx: &Cx<'_>, node: NodeId, url: &Url) {
+    pub(super) fn begin_fetch(&mut self, cx: &Cx<'_>, node: NodeId, url: &Url) {
         let Some(element) = self.elements.get_mut(&node) else {
             return;
         };
@@ -310,13 +359,19 @@ impl Media {
             cx.site_for_cookies.clone(),
         );
         log::debug!("media request: {url}");
-        element.fetch = Some(Fetch::start(
+        let mut fetch = Fetch::start(
             &self.ctx,
             cx.loader,
             request,
             element.video,
             preload_of(cx.dom, node).read_ahead(),
-        ));
+        );
+        fetch.set_gain(if element.muted {
+            0.0
+        } else {
+            element.volume as f32
+        });
+        element.fetch = Some(fetch);
         element.phase = Phase::Fetching;
         element.network_state = NETWORK_LOADING;
         element.progress_sent = false;
@@ -324,7 +379,7 @@ impl Media {
     }
 
     /// A new `MediaError` for `node`.
-    fn new_error(&mut self, code: u16, message: &str) -> MediaErrorInfo {
+    pub(super) fn new_error(&mut self, code: u16, message: &str) -> MediaErrorInfo {
         self.error_serial += 1;
         MediaErrorInfo {
             code,
@@ -342,7 +397,35 @@ impl Media {
             element.network_state = NETWORK_NO_SOURCE;
             element.phase = Phase::Failed;
         }
+        self.source_failed(node);
+    }
+
+    /// The source failed (HTML "dedicated media source failure steps"): the
+    /// `error` event and the end of the playback that was asked for come in
+    /// the next unit, after the events that this unit queued were delivered
+    /// (Chromium: `play`, `waiting`, `loadstart`, `progress` and `suspend`
+    /// see `paused` false, `error` sees it true; probe rows
+    /// `play-pending-src-*`).
+    fn source_failed(&mut self, node: NodeId) {
+        if let Some(element) = self.elements.get_mut(&node) {
+            element.failed_pending = true;
+            self.failed.insert(node);
+        }
+    }
+
+    /// The unit after a failed source: `error`; an element that was playing
+    /// or about to pauses (`timeupdate`, `pause`) and the pending `play()`
+    /// promises reject with `NotSupportedError`. True if it did the unit.
+    pub(super) fn step_failed(&mut self, node: NodeId) -> bool {
+        let Some(element) = self.elements.get_mut(&node) else {
+            return false;
+        };
+        if !std::mem::take(&mut element.failed_pending) {
+            return false;
+        }
         self.queue(node, "error");
+        self.pause_steps(node, PlayRejection::NotSupported);
+        true
     }
 
     /// The load of the element failed before its metadata. With bytes that
@@ -375,10 +458,10 @@ impl Media {
                     element.network_state = NETWORK_NO_SOURCE;
                     element.phase = Phase::Failed;
                 }
-                self.queue(node, "error");
+                self.source_failed(node);
             }
             Some(source) => {
-                self.queue(source, "error");
+                self.queue_for(node, source, "error");
                 self.children_mode(cx, node);
             }
         }

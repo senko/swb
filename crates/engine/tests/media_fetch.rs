@@ -2,16 +2,16 @@
 //! element fetches and the state it reaches, against Chromium. The cases of
 //! `tools/probes/media-fetch.json` run in the engine in virtual time against
 //! the simulated case server (`common/media_site.rs`); the part of each
-//! probe query that needs no member of feature 6b (the 1.2 s after the
-//! load: the requests and `readyState`, `networkState`, `duration`,
-//! `buffered`; for the two new cases also `seekable`) is compared with
+//! probe query that loads (the 1.2 s after the load: the requests and
+//! `readyState`, `networkState`, `duration`, `buffered`) is compared with
 //! Chromium 148's answers (`tests/data/media-fetch.json`: three runs of
 //! `swbtools probe --json tools/probes/media-fetch.json`, equal except
 //! `fetch-ignore-range-accept-ranges-long`, whose request sizes and
-//! buffered end vary, like `media-real-files.json`). The part with `play()`
-//! and seeks belongs to feature 6b; the seek in a response that ignores
-//! `Range` is tested at the byte source (`swb-net`, `swb-media`
-//! `tests/net.rs`).
+//! buffered end vary, like `media-real-files.json`). The two cases of a
+//! server that ignores `Range` and claims ranges also run their seek (feature
+//! 6b: `currentTime` to 60 %, `seeked`, the state and the requests after it);
+//! the seek in a response that ignores `Range` is tested at the byte source
+//! too (`swb-net`, `swb-media` `tests/net.rs`).
 //!
 //! The files of the long MP4 (`mp4-h264-aac-long.mp4`, 300 KB) are read
 //! partly by Chromium and its requests vary: only its state is compared.
@@ -137,30 +137,40 @@ fn run_case(case: &'static Value, answer: &'static Value) -> Vec<(String, String
         "{name}: load"
     );
     // The first part of the probe's query: the requests and the state after
-    // 1.2 s.
-    let seekable = if name.contains("ignore-range") {
-        "seek: rng(v.seekable), "
+    // 1.2 s. The two cases of a server that ignores `Range` and claims
+    // ranges run all of their query (M14 feature 6b): a seek to 60 % and the
+    // state and requests after it.
+    let seek_case = name.contains("ignore-range");
+    let query = if seek_case {
+        case["measure"][0]["js"].as_str().unwrap().to_owned()
     } else {
-        ""
-    };
-    let query = format!(
-        "(async () => {{ const out = {{}}; let n = 0; \
-        const take = async () => {{ const l = await log(); const r = l.slice(n); n = l.length; return r; }}; \
+        "(async () => { const out = {}; let n = 0; \
+        const take = async () => { const l = await log(); const r = l.slice(n); n = l.length; return r; }; \
         await sleep(1200); out.load = await take(); \
-        out.s0 = {{rs: v.readyState, ns: v.networkState, dur: v.duration, {seekable}buf: rng(v.buffered)}}; \
-        return out; }})()"
-    );
+        out.s0 = {rs: v.readyState, ns: v.networkState, dur: v.duration, buf: rng(v.buffered)}; \
+        return out; })()"
+            .to_owned()
+    };
     let mut got: Value =
         match page.evaluate_with_timeout(&query, JsonForm::Strict, Duration::from_secs(60)) {
             Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
             other => panic!("{name}: {other:?}"),
         };
     let chromium = &answer["results"][0]["value"];
-    let mut want = json!({ "load": chromium["load"], "s0": chromium["s0"] });
+    let mut want = if seek_case {
+        chromium.clone()
+    } else {
+        json!({ "load": chromium["load"], "s0": chromium["s0"] })
+    };
     if name.contains("long") {
         // Chromium's requests and buffered end vary: the state only.
         for part in [&mut want, &mut got] {
-            *part = json!({ "s0": { "rs": part["s0"]["rs"], "ns": part["s0"]["ns"], "dur": part["s0"]["dur"] } });
+            let after = &part["afterSeek"];
+            *part = json!({
+                "s0": { "rs": part["s0"]["rs"], "ns": part["s0"]["ns"], "dur": part["s0"]["dur"] },
+                "seeked": part["seeked"],
+                "afterSeek": { "rs": after["rs"], "ct": after["ct"], "seeking": after["seeking"], "err": after["err"] },
+            });
         }
     }
     // `buf` within 0.02 s counts as equal.

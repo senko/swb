@@ -957,9 +957,15 @@ impl swb_web::EngineHost for DocumentState {
     }
 
     fn media_command(&mut self, node: NodeId, command: swb_web::MediaCommand) {
-        match command {
-            swb_web::MediaCommand::Load => self.media_load(node),
-        }
+        self.media_run(node, command);
+    }
+
+    fn media_play(&mut self, node: NodeId) -> swb_web::PlayStart {
+        DocumentState::media_play(self, node)
+    }
+
+    fn media_task_begin(&mut self, owner: NodeId, epoch: u32, task: swb_web::MediaTask) -> bool {
+        DocumentState::media_task_begin(self, owner, epoch, task)
     }
 
     fn can_play_type(&mut self, mime_type: &str) -> &'static str {

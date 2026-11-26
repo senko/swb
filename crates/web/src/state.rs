@@ -390,6 +390,10 @@ pub(crate) struct DocState {
     /// The `img.decode()` promises that wait for their image
     /// (`image_events.rs`).
     pub(crate) decodes: HashMap<NodeId, Vec<Gc<Object>>>,
+    /// The `play()` promises of media elements that the engine has not
+    /// settled: by element, the engine's number of the promise, the promise
+    /// and its realm, in the order of the calls (`media_element.rs`).
+    pub(crate) plays: HashMap<NodeId, VecDeque<(u64, Gc<Object>, u32)>>,
     /// The window's `CustomElementRegistry` (`custom_elements/`).
     pub(crate) custom: crate::custom_elements::Registry,
     /// The elements that scripts set as `popoverTargetElement`, by invoker
@@ -532,6 +536,9 @@ impl DocState {
             tracer.object(*reader);
         }
         for promise in self.decodes.values().flatten() {
+            tracer.object(*promise);
+        }
+        for (_, promise, _) in self.plays.values().flatten() {
             tracer.object(*promise);
         }
         self.custom.trace(tracer);

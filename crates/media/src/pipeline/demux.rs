@@ -136,7 +136,8 @@ fn main(shared: &Arc<Shared>, run: u64, place: &Arc<RunPlace>) {
         }
     };
     if let Err(e) = worker.run() {
-        shared.fail(run, e);
+        let at = worker.failure_position();
+        shared.fail_at(run, e, at);
     }
     // Dropping the worker ends and joins the video thread.
 }
@@ -269,6 +270,20 @@ impl Worker {
             audio_finishing: false,
             audio_done: false,
         })
+    }
+
+    /// Where a failure of this thread lies in media time: the end of the
+    /// audio that it decoded (the demux thread decodes the audio in order,
+    /// so the time depends on the data, not on the speed of the threads);
+    /// `None` without audio.
+    fn failure_position(&self) -> Option<i64> {
+        let st = self.shared.lock();
+        self.audio_stream?;
+        if st.demux_epoch == st.epoch {
+            st.audio_end_us
+        } else {
+            None
+        }
     }
 
     /// The main loop: commands, then packets.

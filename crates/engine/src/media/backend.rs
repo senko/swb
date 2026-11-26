@@ -106,6 +106,16 @@ pub(crate) enum Note {
     /// The load failed before the metadata, or the pipeline failed later
     /// (the element decides which it is).
     Failed(Failure),
+    /// A seek ended at this media time (seconds).
+    SeekDone(f64),
+    /// A `timeupdate` point of the playback.
+    TimeUpdate,
+    /// Playback ran out of decoded data.
+    Underrun,
+    /// Playback went on after an underrun.
+    Resumed,
+    /// Playback reached the end of the media.
+    Ended,
 }
 
 /// What the demuxer found, in seconds.
@@ -131,6 +141,10 @@ pub(crate) struct Failure {
     /// True when bytes arrived (the request itself succeeded): `progress`
     /// and `suspend` come before the `error`.
     pub(crate) bytes_arrived: bool,
+    /// For a failure of the pipeline after the metadata: the media time
+    /// (microseconds) where the playback fails (`Pipeline::failed_at`), when
+    /// the failing thread knows: the playback goes on to it, then fails.
+    pub(crate) at_us: Option<i64>,
 }
 
 /// The message of a failed request or a bad URL (Chromium's).
@@ -200,6 +214,7 @@ mod stub {
                     code: 4,
                     message: FORMAT_ERROR.to_owned(),
                     bytes_arrived: false,
+                    at_us: None,
                 }),
             }
         }
@@ -250,11 +265,6 @@ mod stub {
             Vec::new()
         }
 
-        /// The playback position in seconds.
-        pub(crate) fn position(&self) -> f64 {
-            0.0
-        }
-
         /// Whether the pipeline runs and can suspend.
         pub(crate) fn can_suspend(&self) -> bool {
             false
@@ -270,6 +280,53 @@ mod stub {
 
         /// Tells the byte source what to read ahead.
         pub(crate) fn set_preload(&mut self, _preload: Preload) {}
+
+        /// Starts the media clock (no pipeline, no clock).
+        pub(crate) fn play(&mut self, _now_us: i64) {}
+
+        /// Stops the media clock.
+        pub(crate) fn pause(&mut self, _now_us: i64) {}
+
+        /// Seeks; false when there is no pipeline to do it.
+        pub(crate) fn seek(&mut self, _target_us: i64) -> bool {
+            false
+        }
+
+        /// The playback position at clock time `now_us`, in seconds.
+        pub(crate) fn position_at(&self, _now_us: i64) -> f64 {
+            0.0
+        }
+
+        /// The gain of the audio (`volume`, 0 when muted).
+        pub(crate) fn set_gain(&mut self, _gain: f32) {}
+
+        /// The page time (ms) of the next frame, `timeupdate` point or end.
+        pub(crate) fn next_due(&self) -> Option<f64> {
+            None
+        }
+
+        /// The failure that came after the metadata.
+        pub(crate) fn late(&self) -> Option<&Failure> {
+            None
+        }
+
+        /// The media time (microseconds) of the next `timeupdate` point.
+        pub(crate) fn next_timeupdate_us(&self) -> Option<i64> {
+            None
+        }
+
+        /// Whether the note after the next one is the first data.
+        pub(crate) fn second_is_first_data(&self) -> bool {
+            false
+        }
+
+        /// Whether the next note is the end of a seek.
+        pub(crate) fn front_is_seek_done(&self) -> bool {
+            false
+        }
+
+        /// Adds a note (a seek of a pipeline that cannot seek ends at once).
+        pub(crate) fn push_note(&mut self, _note: Note) {}
     }
 }
 
@@ -301,6 +358,9 @@ mod real {
         metadata_seen: bool,
         /// The first data was reported (or made up after a late failure).
         first_data: bool,
+        /// A seek came while the note of the first data waited: the note
+        /// follows the end of the seek (see [`Fetch::seek`]).
+        first_data_held: bool,
         /// A failure that came after the metadata: the element keeps it for
         /// the playback (feature 6b) and does not report it at load, as
         /// Chromium loads a file whose damage lies later and fails when it
@@ -349,6 +409,7 @@ mod real {
                 notes: VecDeque::new(),
                 metadata_seen: false,
                 first_data: false,
+                first_data_held: false,
                 late: None,
                 suspended: false,
             }
@@ -380,10 +441,14 @@ mod real {
                         self.notes.push_back(Note::FirstData);
                     }
                     Report::Error(error) => {
-                        let failure = self.failure(&error);
+                        let mut failure = self.failure(&error);
                         if self.metadata_seen {
+                            failure.at_us = self.pipeline.failed_at();
                             self.late = Some(failure);
-                            if !self.first_data {
+                            // A note of the first data that a seek holds
+                            // (`Fetch::seek`) comes now: the failed
+                            // pipeline never reports the end of that seek.
+                            if !self.first_data || std::mem::take(&mut self.first_data_held) {
                                 self.first_data = true;
                                 self.notes.push_back(Note::FirstData);
                             }
@@ -391,9 +456,18 @@ mod real {
                             self.notes.push_back(Note::Failed(failure));
                         }
                     }
-                    // Buffered ranges are read live; the other reports
-                    // belong to playback (feature 6b).
-                    _ => {}
+                    Report::SeekDone { media_us } => {
+                        self.notes.push_back(Note::SeekDone(media_us as f64 / 1e6));
+                        if std::mem::take(&mut self.first_data_held) {
+                            self.notes.push_back(Note::FirstData);
+                        }
+                    }
+                    Report::TimeUpdate { .. } => self.notes.push_back(Note::TimeUpdate),
+                    Report::Underrun { .. } => self.notes.push_back(Note::Underrun),
+                    Report::Resumed { .. } => self.notes.push_back(Note::Resumed),
+                    Report::Ended { .. } => self.notes.push_back(Note::Ended),
+                    // Buffered ranges are read live.
+                    Report::Buffered(_) => {}
                 }
             }
         }
@@ -436,6 +510,7 @@ mod real {
                 code,
                 message,
                 bytes_arrived,
+                at_us: None,
             }
         }
 
@@ -516,11 +591,6 @@ mod real {
                 .collect()
         }
 
-        /// The playback position in seconds.
-        pub(crate) fn position(&self) -> f64 {
-            self.pipeline.position() as f64 / 1e6
-        }
-
         /// Whether the pipeline runs: it can suspend.
         pub(crate) fn can_suspend(&self) -> bool {
             !self.suspended && !self.pipeline.is_failed() && !self.pipeline.is_waiting()
@@ -541,6 +611,87 @@ mod real {
         /// Tells the byte source what to read ahead.
         pub(crate) fn set_preload(&mut self, preload: Preload) {
             self.handle.set_read_ahead(read_ahead(preload));
+        }
+
+        /// Starts the media clock at clock time `now_us`; a suspended
+        /// pipeline opens again (ADR 0047 section 6).
+        pub(crate) fn play(&mut self, now_us: i64) {
+            self.suspended = false;
+            self.pipeline.play(now_us);
+        }
+
+        /// Stops the media clock at clock time `now_us`.
+        pub(crate) fn pause(&mut self, now_us: i64) {
+            if !self.suspended {
+                self.pipeline.pause(now_us);
+            }
+        }
+
+        /// Seeks to `target_us` (a suspended pipeline opens again). False
+        /// when the pipeline failed: it cannot seek. A seek that ended and
+        /// that the element has not read is dropped: the new one replaces it.
+        /// A note of the first data that the element has not read yet (the
+        /// first frame was decoded before the seek that the metadata brings:
+        /// a position that a script set, a `#t=` fragment) moves behind the
+        /// end of the seek, where it is when the first frame comes after the
+        /// seek; the order of the notes does not depend on which thread was
+        /// faster (Chromium: `seeked` before `loadeddata`).
+        pub(crate) fn seek(&mut self, target_us: i64) -> bool {
+            if self.pipeline.is_failed() {
+                return false;
+            }
+            self.suspended = false;
+            self.notes.retain(|n| !matches!(n, Note::SeekDone(_)));
+            if let Some(at) = self.notes.iter().position(|n| matches!(n, Note::FirstData)) {
+                self.notes.remove(at);
+                self.first_data_held = true;
+            }
+            self.pipeline.seek(target_us);
+            true
+        }
+
+        /// The playback position at clock time `now_us`, in seconds.
+        pub(crate) fn position_at(&self, now_us: i64) -> f64 {
+            self.pipeline.time_at(now_us) as f64 / 1e6
+        }
+
+        /// The gain of the audio (`volume`, 0 when muted).
+        pub(crate) fn set_gain(&mut self, gain: f32) {
+            self.pipeline.set_gain(gain);
+        }
+
+        /// The page time (ms) of the next frame, `timeupdate` point or end
+        /// while the clock runs.
+        pub(crate) fn next_due(&self) -> Option<f64> {
+            if self.suspended {
+                return None;
+            }
+            self.pipeline.next_due().map(|us| us as f64 / 1000.0)
+        }
+
+        /// The failure that came after the metadata.
+        pub(crate) fn late(&self) -> Option<&Failure> {
+            self.late.as_ref()
+        }
+
+        /// The media time (microseconds) of the next `timeupdate` point.
+        pub(crate) fn next_timeupdate_us(&self) -> Option<i64> {
+            self.pipeline.next_timeupdate()
+        }
+
+        /// Whether the note after the next one is the first data.
+        pub(crate) fn second_is_first_data(&self) -> bool {
+            matches!(self.notes.get(1), Some(Note::FirstData))
+        }
+
+        /// Whether the next note is the end of a seek.
+        pub(crate) fn front_is_seek_done(&self) -> bool {
+            matches!(self.notes.front(), Some(Note::SeekDone(_)))
+        }
+
+        /// Adds a note (a seek of a pipeline that cannot seek ends at once).
+        pub(crate) fn push_note(&mut self, note: Note) {
+            self.notes.push_back(note);
         }
     }
 }

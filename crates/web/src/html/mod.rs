@@ -42,7 +42,7 @@ mod canvas;
 mod classes;
 pub(crate) mod dialog;
 pub(crate) mod element;
-mod factories;
+pub(crate) mod factories;
 pub(crate) mod focus;
 mod form_controls;
 mod forms;

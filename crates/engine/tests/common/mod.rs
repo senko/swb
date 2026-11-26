@@ -5,6 +5,7 @@
 #![allow(dead_code)] // Each test binary uses a different subset.
 
 pub(crate) mod damage;
+pub(crate) mod media_probe;
 pub(crate) mod media_site;
 pub(crate) mod probe_rows;
 

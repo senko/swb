@@ -1417,8 +1417,9 @@ implementation (`crates/engine/src/media/`, `document/media.rs`,
 - **Late failures.** A pipeline failure after the metadata (the damage lies
   later in the file) is kept, and the load goes on as if the first data had
   come: Chromium loads such a file (rs 4) and fails when it plays there
-  (`err-corrupt-mp4` and the others: code 3 at 0.5 s of play). Feature 6b
-  surfaces it when the playback reaches the damage; until then the element
+  (`err-corrupt-mp4` and the others: code 3 during the play). Feature 6b
+  surfaces it when the playback reaches the place of the failure (see
+  "Review fixes of feature 6b"); until then the element
   does not report it. Without this rule the events would depend on when the
   threads met the damage.
 - **`buffered`** is the whole timeline once the byte source holds all of the
@@ -1561,3 +1562,379 @@ implementation (`crates/engine/src/media/`, `document/media.rs`,
   play or seek, one has only a layout row), the 45 cases of `media-fetch`, the 149 types
   of `media-can-play-type`: all equal to Chromium's except the departures
   above. The whole `media_states` binary takes 0.2 s in virtual time.
+
+## Implementation notes (M14 feature 6b)
+
+The playback API of the element (`crates/engine/src/media/playback.rs`,
+`step.rs`, `load.rs`; `crates/web/src/media_element.rs`). Decisions that
+sections 3, 7 and 10 left open, and findings of the implementation.
+
+- **The API between the engine and the bindings.** `EngineHost` has
+  `media_play(node) -> PlayStart` (`Pending(id)`, `NotAllowed`,
+  `NotSupported`, `TooMany`), `media_command(node, MediaCommand)` (`Load`,
+  `Pause`, `Seek`, `SetVolume`, `SetMuted`, `SetPlaybackRate`,
+  `SetDefaultPlaybackRate`) and `media_task_begin(owner, epoch, task)`.
+  `MediaInfo` has `played`, `ended`, `volume`, `muted` and the rates. The
+  engine queues `MediaTask`s (`Event(name)`, `ResolvePlay(upto)`,
+  `RejectPlay(upto, why)`) and the page hands them to
+  `ScriptRuntime::media_events` as `MediaDelivery`s. The `play()` promises
+  live in the web crate (`DocState::plays`, by node and number); a settling
+  task settles all promises of the element with a number up to `upto`,
+  because HTML settles all pending promises together (so the engine keeps
+  one number for each element, not a list). `volume` outside 0 to 1 is
+  `IndexSizeError` in the bindings; a value that is no finite number is the
+  glue's `TypeError` (Chromium's messages, measured). `new Audio(src)` is
+  the legacy factory (`preload="auto"`, then `src`).
+- **Tasks are dropped by a load (HTML "media element load algorithm", step
+  6).** Each queued task carries the element and its epoch; a load increases
+  the epoch, and the tasks of older epochs do not run, also those that the
+  page took in a batch and has not run yet (`media_task_begin` checks at the
+  run; the first version checked only at the take, and `canplay` after a
+  `seeked` whose listener called `load()` still ran). Measured: `play()` then
+  `load()` fires no `play` and no `waiting`; `currentTime = 1.5` then `load()`
+  fires no `seeking`. The promises whose settling was dropped reject with
+  `AbortError` ("interrupted by a new load request"): the engine knows the
+  highest number that a delivered task settled.
+- **The stable-state step is a marker in the queue** (`Entry::Select`).
+  Chromium dispatches `play` and `volumechange` of a script that follows the
+  creation of the element with `networkState` 2 (the selection ran) and
+  `loadstart` after them, while `abort` and `emptied` of a `load()` see
+  `networkState` 3. The marker is queued where HTML says "await a stable
+  state": events before it are dispatched in the state of the synchronous
+  part, `Media::step` runs the selection when the marker is at the front, and
+  the events queued after it see its state; the step queues `loadstart` at the
+  end. (A marker that blocked the delivery of other elements' events made the
+  events depend on the threads: the page takes events up to the marker and
+  `step` handles it, so the events of other elements before it go first.)
+  A marker that a later load replaced is dropped where it is met, and counts
+  as progress of the step: without that, the tasks behind it waited for a
+  round that never came (a script's `load()` before the first step stalled
+  the page; `media_without_feature.rs` has the test), and a million loads
+  cost one round each (the hostile case `media-load-flood` took 30 s; it
+  takes 0.75 s now, 2 s before 6b).
+- **The policy** (measured, `media-autoplay.json`, 27 cases): `play()` is
+  allowed when the document has sticky activation, or the element is a
+  `video` that is muted or has the volume 0 (`<audio>` and `new Audio()`
+  need the activation also when muted; a `video` without an audio track too).
+  A blocked `play()` rejects with `NotAllowedError` at once and changes no
+  state; Chromium checks the policy before the error of the element. An
+  `autoplay` element that the policy allows plays from the first data. Chromium's
+  order differs by the reason: with an activation `loadeddata`, `canplay`,
+  `play`, `playing`, `canplaythrough`; as a muted `video` (no activation)
+  `loadeddata`, `canplay`, `canplaythrough` while paused, then `play`,
+  `playing` (swb makes the second start a unit of its own, so that the first
+  three are dispatched with `paused` true). `autoplay` also overrides
+  `preload=none`. A `video` that plays only because it is silent pauses (events
+  `volumechange`, `timeupdate`, `pause`) when a script unmutes it before the
+  document has an activation: this is Chromium's rule, which two of three
+  runs of `attr-autoplay-muted-then-unmuted-by-script` show (the third had the
+  activation of the probe's first evaluation before the unmute, and
+  `unmute-by-script-without-gesture`, which unmutes 200 ms after `playing`,
+  keeps playing for the same reason). Correction: the diagnosis (section 4)
+  and section 10 say that Chromium leaves the promise of `play()` pending for
+  an unmuted video that a script creates and attaches. The case
+  `created-video-play-at-load` throws at `document.body.appendChild` (the
+  script runs in the head, before `<body>`: `document.body` is null), so
+  `play()` never ran; swb's result is the same, and there is no quirk.
+- **User activation for evaluations** (the measurement that section 10
+  asked for). `Page::start_evaluation` and `evaluate_in_frame` give the
+  document the activation (`Page::note_activation`) before the script runs:
+  every `--eval`, `eval` step and `page.evaluate` (`Page::evaluate*` is their
+  one path). The tests that read the activation state were run with it on:
+  `probe_net` (9 tests, with `top_layer` and the `activation-*` rows),
+  `frames` (312, the `xo-act-*` rows), `frame_oracle`, `script_input`,
+  `top_layer`, the automation tests `popover_input`, `frame_input`,
+  `nested_activation`, `real_input`, and `swb-web`'s `input_events` (the web
+  crate's tests, `message_channel` among them, use a host of their own that
+  does not go through `Page::evaluate`; they do not measure this change).
+  No result changed, so the activation is the rule for every evaluation, not an
+  option of the media tests. `Page::set_evaluation_activation(false)` turns it
+  off (a test of a page that must see none; `evaluation_activation.rs`). The
+  scripts of the automation's own give none (review fix): the `focus` step
+  calls `focus()` through `Page::evaluate_internal`, as Playwright's
+  `locator.focus()` gives no activation; only the requests of the user or of
+  the automation client (`--eval`, the `eval` and `record` steps,
+  `page.evaluate`) go through `Page::evaluate` (`focus_activation.rs`: after
+  a `focus` step `navigator.userActivation` is false, after an `eval` step
+  true). The GUI, the shell, `javascript:` URLs and the engine's own scripts
+  do not call `Page::evaluate*`. The
+  probe tool's evaluations also carry it (rows `evaluate-carries-user-
+  activation`). The tests that compare with the autoplay rows run the case's
+  script at load without one, then give one before the first step, as the
+  probe's wait for the fonts does.
+- **Playing.** `play()` follows the HTML internal play steps: a selection for
+  `NETWORK_EMPTY`, the deferred fetch of `preload=none`, the restart at the
+  start when `ended` (the flag of the end: after a seek to the end Chromium's
+  `ended` is false, and `play()` plays on and ends at once, measured),
+  `paused` false, `play`, then `playing` and the promises if the data is
+  there, else `waiting`. The pipeline plays at "notify about playing"
+  (`playing`), pauses at the pause steps, seeks at a seek. `playing` after
+  the data came (`loadeddata`, `canplay`, `playing`, `canplaythrough`), after
+  a seek and after an underrun. The promises resolve after `playing`. `pause()`
+  fires `timeupdate` and `pause` and rejects the pending promises with
+  `AbortError` ("interrupted by a call to pause()"); a pause while nothing
+  plays fires nothing; the end rejects them too. A pause and `autoplay`
+  clear the "can autoplay" flag. A failure of the resource (review fix; rows
+  `play-pending-src-empty`, `-bad-url`, `-404`, `-garbage`: `play()` before the
+  failure) rejects pending promises with `NotSupportedError: Failed to load
+  because no supported source was found.` and pauses an element that was
+  playing or about to (`paused` true; `error`, `timeupdate`, `pause`): the
+  first version left it unpaused and rejected without a pause. The `error` and
+  the pause are a unit of their own after the events of the failing unit
+  (`failed_pending`, `step_failed`): `play`, `waiting`, `loadstart`, `progress`
+  and `suspend` see `paused` false, `error` sees it true, as Chromium's. A call
+  of `play()` on an element that already failed rejects at the call with `The
+  element has no supported sources.`. An element with no `src` and no `source`
+  keeps its promises pending (measured). `playbackRate` and
+  `defaultPlaybackRate` are stored values with `ratechange` (backlog: the
+  rate does not change the playback). A `playbackRate` outside Chromium's
+  range (0, or 1/16 to 16: 0.0625 and 16 are in, 0.0624 and 16.1 are out)
+  throws `NotSupportedError: ...The provided playback rate (N) is not in the
+  supported playback range.`, with `N` in six significant digits (`0.06`,
+  `1.00000e-9`, `1.23457e+6`: the form of `number_text`); a `defaultPlaybackRate`
+  outside it is ignored without a throw and without `ratechange`; a change of
+  either fires `ratechange` (rows of `media-api-edges.json`).
+- **Seeking.** `currentTime = t` before the metadata is the default start
+  position (reads `t`, also a negative one: `-5` reads `-5`, and the playback
+  starts at 0; no `seeking`, no load under `preload=none`); after it
+  `seeking` is true at once, `readyState` goes to 1 (with `waiting` when the
+  element plays), `seeking` is queued (once for each assignment, measured),
+  and the pipeline seeks (only the last of several seeks ends). The end:
+  `timeupdate`, `seeked`, and the data is there again (`canplay`,
+  `playing` if it plays, `canplaythrough`), waited for in virtual time as the
+  first data is (`has_enough_data`). The target clamps to 0 and the duration. A
+  position that a script set before the metadata and the start of a media
+  fragment `#t=` (`NPT`, `t=10`, `t=1:30.5`, `t=npt:...,end`; the start only)
+  seek at the unit of `loadedmetadata`: the seek ends before the first data,
+  and the unit handles both notes together (`timeupdate`, `seeked`,
+  `loadeddata`, `canplay`, `canplaythrough` with `readyState` 4, as
+  Chromium). `pause()` during a seek fires its events at once and the seek
+  ends without `playing` (`pause-during-seek`). A seek of an element whose
+  pipeline failed ends at once.
+- **The end and `loop`.** `Report::Ended` becomes `timeupdate` and then
+  `pause` and `ended` (`paused` true, `ended` true), or with `loop` a seek to
+  the start in the next unit (`seeking`, `waiting`, `timeupdate`, `seeked`,
+  `canplay`, `playing`, `canplaythrough`; no `pause` and no `ended`;
+  `loop` is read at the end, so setting it near the end works). The unit
+  after the end is a unit of its own so that `timeupdate` is dispatched at
+  `currentTime` 2 (Chromium's), not 0. Feature 5's rule of the cut file (a
+  file whose data ends more than 1 s before its duration ends with the data)
+  is gone: Chromium plays the truncated WebM and MP3 of `media-states` to the
+  duration (`ended` at `ct` 2), so a pipeline with a known duration ends at
+  the duration (silence and the last frame where the data ends); only a
+  stream without a duration ends with its data.
+- **`played`** is kept in `Element::played` (ranges that merge when they
+  touch) and the run that goes on. A run starts at `play()` (Chromium: a media
+  with a start time of 1.5 s that `play()` started before the metadata has
+  `played` 0-3.5), and goes into the ranges at a pause, a seek, the end, a
+  removal and a load that clears it. A run without time leaves a range `0-0` at
+  a pause (the removal of a playing element), and none at the end (`play()` at
+  the end after a seek to the end). An element without metadata has no media
+  to have played: `play()` then `pause()` of an element without a source
+  leaves `played` empty (review fix; the first version left `0-0`).
+- **Removal and re-insertion.** An element that leaves the document runs the
+  internal pause steps (`timeupdate`, `pause`; measured, also in the probe
+  row of the removal), and its pipeline suspends at once when it has all
+  its data. Re-insertion starts nothing (Chromium does not resume
+  playback); `play()` or a seek opens the suspended pipeline again
+  (`Fetch::play` and `Fetch::seek` clear the flag; `Pipeline::play`
+  resumes). Every media element has a state from its insertion, for
+  `muted` (its content attribute at the creation, a value of its own after)
+  and `volume`; the table is bounded as before, and the elements that go
+  first at the bound are those outside the document that do not play.
+- **`new Audio()`** is an element without a position in the document.
+  Its state lives in the same table; it takes a pipeline place as the others.
+  A state lives while its element plays (the purge at the bound keeps them) or
+  is in the document; swb does not know whether script can reach a paused
+  detached element (backlog: tell the engine when the wrapper is collected),
+  so such states stay until the bound drops them.
+- **The late failure** (rows `err-corrupt-mp4`, `err-truncated-mp4`,
+  `late-failure-damage-30`, `-60`, `-80`, `-90`; test `late_failures_follow_the_
+  damage`; the rule is the one of the review fix, see "Review fixes of feature
+  6b" below). The pipeline that meets damage after the metadata ends its run
+  and cannot play any more; Chromium loads the file and plays on, and fails
+  when the playback comes to the damaged packet (code 3, `error`,
+  `timeupdate`, `pause`). `Fetch::late` is kept as `Element::damage`; the
+  element counts the media time on the page clock (`Emulation`, whole
+  microseconds; the `timeupdate` points continue the grid of the pipeline,
+  `Pipeline::next_timeupdate`) and fails where the failing thread stopped
+  (below). The message is swb's own (`PipelineStatus::PIPELINE_ERROR_DECODE:
+  video decode error!`; Chromium names the packet).
+- **Virtual time.** The page time goes to a task as `set_media_time` (at the
+  lending of the document), so that `play()` and `currentTime` read the time
+  of the task, not of the last pump; `currentTime` while playing is
+  `Pipeline::time_at(now)` (the last position, moved on by the clock). The
+  pipeline's due times come back as page time (ms) and go in as microseconds:
+  `ms_to_us` rounds (truncating made a due point one microsecond away, so that
+  `advance_to` of virtual time jumped to it again and again). The suspend rule
+  and the emulation's due times are whole microseconds (`idle_since`,
+  `SUSPEND_AFTER_US`, `Emulation`), so they compare without a margin; the first
+  version had a margin of a nanosecond for the same one-ULP shortfall. Both
+  made the 9th of nine media played one after the other hang (`many_media_play_one_
+  after_the_other_in_one_page`); the 6a tests had whole milliseconds and did
+  not show it. A playing element is `pending` while the pipeline needs data
+  and while one of its own units waits (the end of a looping media, the start of
+  an autoplay); its due times (`Pipeline::next_due`, the emulation's) join
+  `Media::next_due`, so `Page::next_task_time` has them with JavaScript off too
+  and a page with a playing video is not idle (`wait_until_idle`).
+- **Bounds** (hostile): the queue holds at most 65,536 undelivered events,
+  and a settling of promises joins the one before it (a flood of `play()`
+  makes one entry); at most 65,536 `play()` promises of an element wait for
+  their settling, the others reject with `AbortError` ("Too many play()
+  requests are waiting"); a flood of seeks queues `seeking` up to the bound
+  (the last seek ends with the last value). Tests: 30,000 pairs of `play()`
+  and `pause()` settle every promise; 70,000 promises: 65,536 reject at the
+  `pause()`, the others at once; 200,000 seeks; 1,000 muted `autoplay`
+  videos through 16 places end (2.3 s of real time for the five tests of the
+  floods and the 1,000 videos). Hostile cases `media-play-pause-flood`,
+  `media-many-play-promises`, `media-seek-and-audio-flood`.
+- **Measured** (`media_playback.rs`, `media_autoplay.rs`; three runs of
+  each probe in Chromium 148): the 30 cases of `media-playback`, the 27 of
+  `media-autoplay`, and 5 new cases of `media-playback-2` (play after a
+  seek to the end, removal and `play()` again, `autoplay` cancelled by
+  `pause()` at `loadedmetadata` and at `canplay`, `pause()` during a seek):
+  equal to Chromium's within the rounding of the probe (0.25 s; Chromium's own
+  `ct` after a pause varies by 0.04 s between runs) except these departures.
+  `media-playback`: `new-audio` reads `readyState` 1 at `progress` and
+  `suspend` where Chromium reads 0 (the unit of the metadata, 6a).
+  `media-states` now also compares the `play` parts of the `err-*` rows,
+  `sel-fragment-time` (`progress` and `suspend` read `ct` 1 where Chromium
+  reads 0: the seek is part of the unit of the metadata), `sel-currentSrc-url`
+  and `format-play-to-end-table` (the M4A's `buffered` starts at -0.02 in
+  Chromium); `media-fetch` compares the seek of the two `ignore-range`
+  cases. Not compared: the events of two elements in one page in Chromium
+  interleave differently from swb's (the probe case that showed it was split
+  in two); `attr-autoplay-muted-then-unmuted-by-script` varies in Chromium
+  (above).
+
+### Review fixes of feature 6b
+
+- **`timeupdate` at the end.** `Pipeline::advance` emitted a `TimeUpdate` at
+  the end when the clock reached it before the decoders drained, and
+  `note_ended` queued another: 9 `timeupdate` events instead of 8 in 2 of
+  about 130 runs of `media_playback` (case `timeupdate-rate`). The end owns
+  the last one now: no `TimeUpdate` at `m >= end`. A unit test puts the
+  pipeline in that state (clock at the end, video decoder not drained:
+  `the_end_owns_the_last_timeupdate`), and 300 runs of `media_playback` (half
+  of them with two busy loops per core) pass. The other
+  places where the presence or the count of an event could depend on whether a
+  thread had finished were read: `Underrun`, `Resumed` and the audio gap
+  happen only in real time (in virtual time the owner waits for the data);
+  `Ended` waits for `end_reached`, which only grows with decoding; the first
+  frame and the end of a seek wait for the data (`step_note`, `strict`);
+  `note_time_update` drops a tick after a pause by the order of the notes,
+  which the lockstep fixes; the late failure is the next item. `suspend` and
+  `progress` depend on the byte source's state, which the 6a tests
+  (`the_events_are_the_same_on_every_run_also_under_load`) cover.
+- **The order of `loadeddata` and `seeked` after the seek of the metadata.**
+  The load check (20 runs of the four media tests with two busy loops per
+  core) failed `media_states` (`sel-fragment-time`) in 8 of 30 runs: when the
+  first frame was decoded before the unit of the metadata, the note of the
+  first data came before the end of the seek that the unit started (a `#t=`
+  fragment, a position that a script set), and `loadeddata` was dispatched
+  before `seeked`; Chromium has `seeked` first. `Fetch::seek` now moves a
+  note of the first data that waits behind the end of the seek
+  (`first_data_held`), the order that the pipeline gives when the first frame
+  comes after the seek. 0 failures in 30 runs after. The delta review found
+  that a pipeline that fails during that seek never reports its end, so the
+  held note never came and the element stayed at `HAVE_METADATA` (a `#t=1`
+  fragment of the file damaged at 60 %: 4 of 16 pages under load). A late
+  failure now gives the held note too; the test
+  `a_failure_during_the_start_seek_still_gives_the_first_data` (32 pages
+  under load) covers it. With a late failure and a `#t=` fragment the order
+  of `loadeddata` and `seeked` still varies between runs, and a failed start
+  seek fires no `seeked` (Chromium not measured; backlog).
+- **The late failure comes where the decoder stopped** (the first version
+  failed 0.5 s after the start of the playback whatever the damage: damage at
+  0.3 and 0.5 of the 2 s file gave `ct` 0.5, 0.6 gave 0.92, 0.8 gave 0.48, 0.9
+  gave 1.68; 0.8 failed before 0.9, and the time depended on the threads).
+  Measured in Chromium 148 (three runs; `late-failure-damage-*` of
+  `media-playback-2.json`, the files `mp4-h264-high-aac-damaged-N.mp4`, 600
+  bytes of a fixed generator at N percent of the file, made by `tools/media/
+  generate.py`; `late-failure-long-60` for the 10 s file `mp4-h264-aac-long.mp4`
+  damaged at 60 percent, whose damaged copy (300 KB) is made by the test):
+
+  | damage | error `ct` in Chromium | place of swb's decoder | swb's `error` |
+  |--------|------------------------|------------------------|---------------|
+  | 30 %   | 0.12                   | 0.37                   | 0.17          |
+  | 60 %   | 0.80, 0.81, 0.81       | 0.96                   | 0.76          |
+  | 80 %   | 1.22                   | 1.46                   | 1.26          |
+  | 90 %   | 1.44                   | 1.69                   | 1.49          |
+  | long 60 % | 5.64                | 5.90                   | 5.70 (5.72)   |
+  | long 70 % | 6.64                | 6.90                   | 6.70          |
+
+  The rule: the thread that fails says where it stopped (`Pipeline::failed_at`:
+  the end of the last frame that came out of the video decoder, or of the
+  audio that the demux thread decoded; the value is the same on every run, 12
+  runs of each file in `a_decode_failure_has_the_same_place_on_every_run`), the
+  pipeline lowers it by `READY_AHEAD_US` (0.2 s), and the element plays on to
+  that time and fails there. Chromium decodes about 0.2 s ahead of its playback,
+  so its error comes 0.15 to 0.26 s before the place of swb's decoder (the six
+  rows above); with 0.2 s swb's error is within 0.06 s of Chromium's in every
+  row. The same 0.2 s makes the time of the arrival harmless in virtual time:
+  the owner goes on to a media time `t` only when the data up to `t +
+  READY_AHEAD_US` is decoded (`ready_for`), so when a decoder fails at `F` the
+  playback has not passed `F - READY_AHEAD_US`, and the element's playback from
+  where it is to the place has the same events whatever the speed of the
+  threads (the first try subtracted the 0.2 s in the element only, and the
+  playback passed the place before the failure arrived in some runs: 0.92
+  instead of 0.76). The `timeupdate` points continue the pipeline's grid (`Pipeline::next_timeupdate`). The
+  requirements are met by the rule: a later damage never fails earlier (the
+  place only grows with the position of the damage; the rows above and
+  `late_failures_follow_the_damage`), `currentTime` does not pass the place
+  before the `error` (a test of the page and one of the pipeline), and the
+  events are the same on every run in virtual time (twelve pages at once,
+  three times, with a busy thread per core:
+  `a_late_failure_while_playing_has_the_same_events_on_every_run_also_under_
+  load`, with the 10 s file damaged at 70 %). Departures: (1) when the video
+  decoder and the audio decoder fail at different places, the thread that
+  reports first decides. Measured: the 10 s file damaged at 40, 60 or 90 %
+  hits both at nearly the same time, and 20 runs under a busy machine gave
+  two places 0.02 s apart (5.6975 and 5.72 s at 60 %; 19 against 1). The
+  delta review found the same for the 2 s file at 80 % (1.2625 s from the
+  video, 1.28 s from the audio; 3 of 40 runs under load), so
+  `a_decode_failure_has_the_same_place_on_every_run` allows a spread of
+  25 ms. The 10 s file at 70 % hits one decoder and has one place. A rule
+  that waits for
+  both decoders (each track ends at its damage and the pipeline reports the
+  failure at the minimum) is backlog; (2) in real time the clock runs by itself and
+  may pass the place before the failure arrives, so the error comes at the
+  position of the playback then; (3) a failure without a place (the source, the
+  demuxer of a file without audio, the no-progress limit) fails at the position
+  of the playback; (4) `err-corrupt-mp4`'s Chromium error names an audio packet
+  at 0.859 s, `ct` 0.5 (swb: 0.7); the 0.26 s tolerance of the probe test holds.
+  A seek of the element after the failure ends at once, and playing again from a
+  position past the place fails at once, at that position.
+- **`play()` before a failed source** (rows `play-pending-src-*`, the review's
+  mutation M15): see "Playing" above. The test of the rows is the probe test of
+  `media-playback-2.json`; with the rejection or the pause removed, four rows
+  fail.
+- **The `focus` step gives no activation** (`Page::evaluate_internal`, test
+  `focus_activation.rs`): see "User activation for evaluations".
+- **API edges** (`tools/probes/media-api-edges.json`, 99 rows of one query;
+  `media_api_edges.rs`; three equal runs in Chromium): `currentTime = -5` before
+  the metadata reads -5, `playbackRate` outside 0 and 1/16 to 16 throws,
+  `defaultPlaybackRate` outside it is ignored, `play()` then `pause()` without a
+  source leaves `played` empty (see "Playing", "Seeking", "`played`" above).
+- **The comparison with Chromium is exact except for times**
+  (`common/media_probe.rs`): the tolerance of 0.26 s applies to the numbers under
+  the keys of `TIME_KEYS` and to the numbers of a text that are not `rs=`,
+  `ns=` or the value of an error message; `volume`, `readyState`,
+  `networkState`, counts and rates are equal. A bias of 0.2 in `volume` now
+  fails the rows `volume-muted`, `load-after-ended-and-paused` and the edges.
+- **Whole microseconds** (see "Virtual time"): the 1 ns margins are gone; the
+  15 s suspend and `many_media_play_one_after_the_other_in_one_page` pass as
+  before.
+- **Fast failure of a loop that does not restart**
+  (`a_looping_media_seeks_to_the_start_at_its_end`): the evaluation has a 5 s
+  limit and checks `seeking` at `currentTime` 0 and no `ended`; without the
+  restart the case of the probe test spun in virtual time for the 60 s of its
+  limit.
+- **Feature 5's hostile-file test** now checks where the playback of a cut or
+  damaged file ends: at the duration.
+- **The epoch check in `take_events`** stays: `task_begin` drops the same
+  tasks at the delivery, so the check changes no result; it saves the budget
+  of a round for tasks that a load dropped (a comment says so).
+- **`media_autoplay.rs`**: the data pins swb to one of the two outcomes of
+  Chromium for `attr-autoplay-muted-then-unmuted-by-script`; `DEPARTURES` is
+  empty because swb does not differ from Chromium.

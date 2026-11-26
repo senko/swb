@@ -7,13 +7,12 @@
 //! `swbtools probe --json tools/probes/media-states.json`; the `NaN` of a
 //! duration is read as `null`).
 //!
-//! Skipped (members of feature 6b, or layout of feature 7): the cases that
-//! play (`format-play-to-end-table`, the `play` and `after` parts of the
-//! `err-*` answers), `sel-fragment-time` (`#t=`), the `boxes` rows of the
-//! `size-*` cases. The helper `S()` of the probe reads `ended` and `played`,
-//! which feature 6b adds: the test makes them `false` and `''` (the
-//! values of every case that does not play). `DEPARTURES` lists what differs
-//! from Chromium on purpose.
+//! Feature 6b runs the cases that play (`format-play-to-end-table`, the
+//! `play` and `after` parts of the `err-*` answers, `#t=` in
+//! `sel-fragment-time` and `sel-currentSrc-url`), with times compared as
+//! `common/media_probe.rs` does (Chromium plays in real time). Skipped (layout
+//! of feature 7): the `boxes` rows of the `size-*` cases. `DEPARTURES` lists
+//! what differs from Chromium on purpose.
 //!
 //! The tests need the feature `media` (`just test-media`); without it
 //! `tests/media_without_feature.rs` checks the element.
@@ -38,15 +37,31 @@ const ANSWERS: &str = include_str!("data/media-states.json");
 const PROBE: &str = "tools/probes/media-states.json";
 
 /// The cases that this test does not run, with the reason.
-const SKIPPED: &[(&str, &str)] = &[
-    ("format-play-to-end-table", "plays (feature 6b)"),
-    ("sel-fragment-time", "`#t=` seeks (feature 6b)"),
-    ("size-video-no-metadata", "only a `boxes` row (feature 7)"),
-];
+const SKIPPED: &[(&str, &str)] = &[("size-video-no-metadata", "only a `boxes` row (feature 7)")];
 
 /// Where swb differs from Chromium on purpose: (case, path in the answer,
 /// reason). A path that does not differ fails the test too.
 const DEPARTURES: &[(&str, &str, &str)] = &[
+    (
+        "err-corrupt-mp4",
+        "#0.s.err",
+        "the message of a failure that the playback meets later: Chromium names the packet (`Failed to send audio packet for decoding: {timestamp=...}`), swb has `video decode error!` (code 3 in both)",
+    ),
+    (
+        "format-play-to-end-table",
+        "#0[3][6]",
+        "the M4A file: Chromium's `buffered` starts at -0.02 (the priming of the AAC), swb's at 0 (the `buffered` rows of `format-metadata-table` compare within 0.02 s)",
+    ),
+    (
+        "sel-fragment-time",
+        "#0.ev[1]",
+        "`#t=1.0`: the unit of the metadata seeks to the start position before its events `progress` and `suspend` are dispatched, so they read `currentTime` 1 where Chromium's read 0 (`durationchange` and the later events read 1 in both)",
+    ),
+    (
+        "sel-fragment-time",
+        "#0.ev[2]",
+        "`suspend` after `progress` (see above)",
+    ),
     (
         "format-timeline-table",
         "#0[1][4]",
@@ -85,13 +100,6 @@ fn answers() -> &'static str {
     TEXT.get_or_init(|| common::media_site::chromium_json(ANSWERS))
 }
 
-/// The page of a case with `ended` and `played` of the helper `S()` made
-/// constant (they are members of feature 6b).
-fn patched(html: &str) -> String {
-    html.replace("ended: m.ended, ", "ended: false, ")
-        .replace("played: rngq(m.played), ", "played: '', ")
-}
-
 /// The folder of a probe case on the probe's server: `case-N`, N counted
 /// from 1 in the probe file (the URLs of the answers contain it).
 fn folder_of(name: &str) -> String {
@@ -113,7 +121,7 @@ fn folder_of(name: &str) -> String {
 /// The simulated server of a probe case.
 fn site_of(case: &Value) -> MediaSite {
     let name = folder_of(case["name"].as_str().unwrap());
-    let mut site = MediaSite::new(&name, &patched(case["html"].as_str().unwrap()));
+    let mut site = MediaSite::new(&name, case["html"].as_str().unwrap());
     for (served, path) in case["files"].as_object().into_iter().flatten() {
         site.add_file(served, path.as_str().unwrap());
     }
@@ -131,27 +139,12 @@ fn site_of(case: &Value) -> MediaSite {
 /// What this test compares for the case: the query of each `js` row and the
 /// part of Chromium's answer that it compares.
 fn rows(case: &Value, answer: &Value) -> Vec<(String, Value)> {
-    let name = case["name"].as_str().unwrap();
     let mut rows = Vec::new();
     for (index, query) in case["measure"].as_array().unwrap().iter().enumerate() {
         let Some(js) = query["js"].as_str() else {
             continue;
         };
-        let want = answer["results"][index]["value"].clone();
-        if name.starts_with("err-") && want.get("pre").is_some() {
-            // The part before `play()` (feature 6b).
-            let js = "sleep(1500).then(() => ({pre: {ev: evs(), s: S(v)}}))".to_owned();
-            rows.push((js, serde_json::json!({ "pre": want["pre"] })));
-        } else if name == "sel-currentSrc-url" {
-            // `ct` and `s.ct` come from `#t=1` (feature 6b).
-            let js = "sleep(1000).then(() => ({cs: v.currentSrc.replace(location.origin, 'O'), src: v.src.replace(location.origin, 'O'), attr: v.getAttribute('src')}))".to_owned();
-            rows.push((
-                js,
-                serde_json::json!({ "cs": want["cs"], "src": want["src"], "attr": want["attr"] }),
-            ));
-        } else {
-            rows.push((js.to_owned(), want));
-        }
+        rows.push((js.to_owned(), answer["results"][index]["value"].clone()));
     }
     rows
 }
@@ -182,7 +175,7 @@ fn run_case(case: &'static Value, answer: &'static Value) -> Vec<(String, String
             None => Value::String("no runtime".to_owned()),
         };
         let mut differences = Vec::new();
-        common::json_differences(&format!("#{index}"), &got, &want, &mut differences);
+        common::media_probe::fuzzy_differences(&format!("#{index}"), &got, &want, &mut differences);
         out.extend(
             differences
                 .into_iter()

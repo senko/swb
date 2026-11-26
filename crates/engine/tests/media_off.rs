@@ -48,3 +48,33 @@ fn a_media_element_loads_nothing_when_media_is_off() {
         }
     });
 }
+
+/// With media off, `play()` rejects: nothing is supported (feature 6b).
+#[test]
+fn play_rejects_when_media_is_off() {
+    on_page_thread(|| {
+        let html = "<!DOCTYPE html><video id=v src=a.mp4></video>";
+        let mut site = MediaSite::new("case-1", html);
+        site.add_file("a.mp4", "fixtures/media/mp4-h264-high-aac.mp4");
+        let site = Arc::new(site);
+        let mut page = new_page(
+            Arc::clone(&site) as Arc<dyn Fetcher>,
+            2,
+            Size::new(800.0, 600.0),
+        );
+        page.set_javascript(true);
+        page.set_media(false);
+        page.set_clock(PageClock::new(ClockMode::Virtual, None));
+        page.navigate(Url::parse(&MediaSite::page_url("case-1")).unwrap());
+        assert!(page.wait_until_loaded(Duration::from_secs(20)));
+        let got = page.evaluate(
+            "v.play().then(() => 'resolved', e => e.name + ': ' + e.message)",
+            swb_engine::JsonForm::Strict,
+        );
+        assert!(
+            matches!(&got, Some(swb_engine::Evaluation::Value(text)) if text == "\"NotSupportedError: The element has no supported sources.\""),
+            "{got:?}"
+        );
+        assert!(site.log_lines().is_empty(), "no request");
+    });
+}

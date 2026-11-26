@@ -7059,6 +7059,78 @@ Steps:
           `muted`, `autoplay` and the user activation policy (also for
           `--eval`), `new Audio()`, removal from the document. Tests:
           `media-playback`, `media-autoplay`.
+
+          Done (2026-11-26):
+          - Playback in the engine (`crates/engine/src/media/playback.rs`,
+            ADR 0047 "Implementation notes (M14 feature 6b)" and "Review
+            fixes of feature 6b"): `play()` (the autoplay policy, the
+            internal play steps; the promises are settled by the same
+            delivery as the events, at most 65,536 wait per element),
+            `pause()`, the seek (the `currentTime` setter, `seeking`,
+            `seeked`, a seek before the metadata, the start of a `#t=`
+            fragment), the end and `loop`, `played`, `volume` and `muted`
+            (`IndexSizeError`, the pipeline's gain), `autoplay` (also with
+            JavaScript off), `new Audio()`, removal (the internal pause
+            steps; `play()` and a seek open a suspended pipeline again),
+            playback in virtual time (`timeupdate` every 250 ms of media
+            time). `playbackRate` is a stored value: `ratechange` fires,
+            a value outside 0 and 1/16 to 16 throws as in Chromium, the
+            playback runs at 1 (owner's decision, backlog).
+          - Late failures: a decode failure after the metadata fires
+            `error` (code 3) where the failing decoder stopped, less
+            0.2 s (`Pipeline::failed_at`); in virtual time the page waits
+            for data 0.2 s ahead, so playback cannot pass that place
+            first. Chromium measured on a 2 s file damaged at 30, 60, 80
+            and 90 % and a 10 s file at 60 and 70 %: swb is within
+            0.06 s.
+          - Chromium's rules measured on the way: a load drops the
+            element's queued tasks (also those in a batch already handed
+            over); the stable-state step of the selection is a marker in
+            the queue; an `autoplay` start comes with `canplay`; a video
+            that plays only because it is muted pauses when a script
+            unmutes it before any activation; a seek to the end is not
+            `ended`, and `play()` there plays on; a cut file (truncated
+            WebM and MP3) plays to its duration (feature 5's end-of-data
+            rule is gone for a known duration).
+          - User activation: every `--eval`, `eval` step and
+            `page.evaluate` gives the document a user activation
+            (`Page::set_evaluation_activation`, default on). The tests
+            that read the activation state ran with it first and none
+            changed, so it is the rule for all evaluations, not a test
+            option. Internal automation scripts (the `focus` step) use
+            `Page::evaluate_internal`, which gives none.
+          - Found: two rounding errors of the page clock made virtual time
+            return to the same due time again and again once a media had
+            played 15 s (the clock now compares whole microseconds); the
+            diagnosis' "pending promise" row of a created and attached
+            video was a script error in the case page, not a Chromium
+            quirk (section 4 corrected).
+          - Tests: `media_playback.rs` (30 cases of `media-playback`, 13 of
+            `media-playback-2`), `media_autoplay.rs` (27 cases),
+            `media_api_edges.rs` (99 rows of setter edges and messages),
+            the play and seek parts of `media_states.rs` (now 64 of 65
+            cases) and `media_fetch.rs`, `media_playback_api.rs`
+            (JavaScript off, removal, late failures, floods, 1,000 playing
+            videos through 16 places, 36 pages under load),
+            `evaluation_activation.rs`, `focus_activation.rs`, and the
+            no-feature `play()` rejection. Probe numbers are compared with
+            0.26 s tolerance for times only; all other values are exact.
+            Hostile cases `media-play-pause-flood`,
+            `media-many-play-promises`, `media-seek-and-audio-flood`.
+          - Review fixes (one round, then a review of the fixes): a
+            duplicate `timeupdate` at the end that depended on thread
+            speed; the late-failure rule (the first one, 0.5 s after the
+            start, failed a later damage before an earlier one); the order
+            of `loadeddata` and `seeked` for a `#t=` fragment under load,
+            and a failure during that start seek, which left the element
+            at `HAVE_METADATA` on some runs; the rejection of a `play()`
+            that waits when the source fails; the `focus` step's
+            activation; four API edges; exact comparison of values that
+            are not times; whole microseconds instead of 1 ns margins.
+            Two handover tests of 6a (`pipeline_threads`) read the transit
+            counter between the handover and the end of the transit and
+            failed under load and with the sanitizers; they now wait for
+            the end of the transit.
    7. Video frames in paint and in the GUI frame loop (`implementer`):
       the poster rules (diagnosis section 8), the natural size from the
       stream, BT.601 and BT.709 by Chromium's rule, `object-fit`,
@@ -7174,9 +7246,6 @@ Source Extensions, AV1 (dav1d), YouTube.
   module_graph_probe_cases_match_chromium` (`import-call-base-inserted`)
   failed once in a loaded `just check-media` run (two module loads in the
   other order; a 900 ms timer) and passed in the next two runs.
-- Media pipeline (feature 5): the end of a cut file (the data ends more
-  than 1 s before the duration): swb ends at the end of the data;
-  Chromium is not measured (does it change `duration`?).
 - Media pipeline (feature 5): after `set_painted(true)` while paused, the
   current frame has no image until the next frame or a seek (feature 7
   may seek to the position).
@@ -7235,8 +7304,9 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Media (feature 6a): media elements do not delay the `load` event of
   the window (HTML "delaying the load event" until `loadeddata`).
 - Media (feature 6a): `HAVE_CURRENT_DATA` and `HAVE_FUTURE_DATA` are
-  never visible, and `progress` comes once (feature 6b: more while data
-  arrives during playback).
+  visible only after an underrun in real time (`waiting`, `canplay`,
+  `playing`), with no test (it needs a stream that slows down during
+  playback in real time); `progress` comes once.
 - Media (feature 6a): Chromium fires a second `suspend` after
   `canplaythrough` for the 78 KB WebM file at `preload=metadata`, and not
   for the MP4; swb does not.
@@ -7252,16 +7322,6 @@ Source Extensions, AV1 (dav1d), YouTube.
   three with a second request and a second `progress`;
   `fetch-ignore-range-accept-ranges-long` varies in its request sizes and
   its buffered end. Neither row is stable.
-- Media (feature 6a, for 6b): a pipeline failure after the metadata is
-  kept (`Fetch::late`) and not reported; 6b reports it (`error`, code 3)
-  when the playback reaches the damage.
-- Media (feature 6a, for 6b): a removed element whose pipeline was
-  suspended does not resume when it is inserted again
-  (`Media::discovered` returns early for a known node).
-- Media (feature 6a): the media event queue has no bound: 1,000,000
-  `load()` calls in one task give 2 million events (149 MiB, 2 s; the
-  hostile case `media-load-flood` stays within the limits). Coalesce or
-  cap.
 - Media (feature 6a): the byte source turns the read-ahead in seconds
   into bytes at 1 MiB/s until the metadata gives the bit rate. What a
   file over 1 MiB fetches before it is idle, and its `buffered`, depends
@@ -7280,7 +7340,7 @@ Source Extensions, AV1 (dav1d), YouTube.
   block of every test file holds the first frame and over 1 s of media.
   A test needs a high-bit-rate file and a body that stalls after the
   first block (`MediaSite`).
-- Media (feature 6a, measure in 6b or 10): a WAV served over the slow
+- Media (feature 6a, measure in 10): a WAV served over the slow
   test link (16 KiB per 100 ms) gave no event in 3 s of real time. Not
   investigated; FFmpeg's stream analysis at the open may read far ahead
   before the metadata. A slow network may delay `loadedmetadata` more
@@ -7293,6 +7353,56 @@ Source Extensions, AV1 (dav1d), YouTube.
   time (strict order), so a page with many elements that wait for their
   threads takes one round trip for each; fine for the tests, not
   measured for 1,000 elements with 1080p files.
+- Media (feature 6b): when the video and the audio decoder both fail at
+  different places, the first to report decides the place of the late
+  failure; a 10 s file damaged at 40, 60 or 90 % gave two places 0.02 s
+  apart (19 runs to 1 under load), the 2 s file at 80 % too (3 of 40).
+  Fix (delta review): the failing thread records its place and waits; the
+  owner reports the failure at the earlier place when the other decoder
+  has failed, drained or passed it, or the pipeline stalls on the owner.
+  A failure without a place (the source, the demuxer of a file without
+  audio) comes at the playback position and depends on the threads, and
+  in real time the clock may pass the place before the failure arrives.
+- Media (feature 6b): audio decode errors are fatal in swb, as in
+  Chromium for `err-corrupt-mp4`; whether some should be concealed is
+  not measured.
+- Media (feature 6b): `new Audio()` and other detached elements keep
+  their state until the table's bound (16,384) drops it; a hook that
+  tells the engine when the wrapper is collected would free it earlier
+  (the pipeline suspends after 15 s of idle).
+- Media (feature 6b, owner): `playbackRate` other than 1 does not change
+  the playback; `fastSeek`, `preservesPitch` and
+  `defaultPlaybackStartPosition` are missing.
+- Media (feature 6b): the end time of a media fragment (`#t=1,2`) is not
+  applied; only the start.
+- Media (feature 6b): the `play()` promises of an element that a script
+  adopts into another document stay pending.
+- Media (feature 6b): `ended` is set only by playback that reaches the
+  end (Chromium: false after a seek to the duration); a file whose
+  duration a first seek hits exactly is probed only for the MP4.
+- Media (feature 6b): `muted` follows the content attribute when the
+  state is created (insertion or the first command); Chromium may take
+  it only for parser-created elements (`createElement` then
+  `setAttribute('muted')`): not probed.
+- Media (feature 6b): a seek clamps to 0 and the duration, not to the
+  start of the timeline (a media that starts at 1.5 s seeks to 0).
+- Media (feature 6b): `played` ranges of zero length are probed only for
+  removal, the end and a play after a seek to the end.
+- Media (feature 6b): `progress` and `suspend` of the metadata unit see
+  `readyState` 1 (Chromium 0), and with a `#t=` fragment `currentTime` 1
+  (Chromium 0). Split the unit if a page reads them.
+- Media (feature 6b): Chromium interleaves the events of two elements as
+  its threads decide; swb orders them by node. No test compares across
+  elements.
+- Media (feature 6b): Chromium's `buffered` of the M4A starts at -0.02
+  (AAC priming); swb's at 0.
+- Media (feature 6b): the hold of the first-data note during a seek
+  (`Fetch::seek`, the `loadeddata` and `seeked` order of a `#t=`
+  fragment) has no test that fails without it on an idle machine;
+  `media_states` (`sel-fragment-time`) catches it under load. With a late
+  failure and a `#t=` fragment the order of `loadeddata` and `seeked`
+  still varies between runs, and a start seek that fails fires no
+  `seeked` (Chromium not measured).
 
 ## Backlog from M13
 

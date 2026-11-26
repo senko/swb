@@ -22,7 +22,9 @@ so a second run on the same ffmpeg gives the same bytes.
 Besides the media files the table has two flat-color posters, three files over
 the limits of ADR 0047 section 11 (a frame wider than 16384 pixels, a frame of
 more than 8192 x 4352 pixels, 17 streams) and the hostile files (`derived`):
-truncated, without an index, with a corrupt middle, and random bytes. These
+truncated, without an index, with a corrupt middle, with 600 damaged bytes at
+30, 60, 80 and 90 percent of the file (`-damaged-N`, see `damage`) and random
+bytes. These
 are byte changes of the media files, made in Python with fixed seeds, after
 the ffmpeg runs. The files are described in docs/testing.md
 ("Media: test files, real files and probes") and measured against Chromium in
@@ -351,6 +353,24 @@ def entries() -> dict[str, list[str]]:
     return e
 
 
+def damage(fraction: float) -> Callable[[bytes], bytes]:
+    """The byte change that puts 600 bytes of a linear congruential
+    generator (seed 16) at `fraction` of the file. The engine test
+    `late_failures_follow_the_damage` makes the same bytes (also for the
+    10 s file, whose damaged copy is too big to commit). An MP4 file has its
+    index first, so the damage lies in the sample data and the file loads."""
+
+    def change(data: bytes) -> bytes:
+        x, noise = 16, bytearray()
+        for _ in range(600):
+            x = (x * 1103515245 + 12345) & 0x7FFFFFFF
+            noise.append((x >> 16) & 0xFF)
+        at = int(len(data) * fraction)
+        return data[:at] + bytes(noise) + data[at + 600 :]
+
+    return change
+
+
 def derived() -> dict[str, tuple[str, Callable[[bytes], bytes]]]:
     """Hostile files: the name, the file that it comes from and the byte
     change. They are made after the files above and need no ffmpeg."""
@@ -364,6 +384,12 @@ def derived() -> dict[str, tuple[str, Callable[[bytes], bytes]]]:
         return data[:middle] + random.Random(14).randbytes(2000) + data[middle + 2000 :]
 
     return {
+        # Damage at a fraction of the file (percent in the name): the file
+        # loads and the playback fails at the damage.
+        **{
+            f"mp4-h264-high-aac-damaged-{p}.mp4": ("mp4-h264-high-aac.mp4", damage(p / 100))
+            for p in (30, 60, 80, 90)
+        },
         # The index is first, the data is cut: plays the start, then fails.
         "mp4-h264-high-aac-truncated.mp4": ("mp4-h264-high-aac.mp4", cut(30000)),
         # The index is last and cut off: the file has no index at all.

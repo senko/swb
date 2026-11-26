@@ -9,9 +9,10 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `HTMLAudioElement`.
 pub trait HTMLAudioElementImpl: b::Host {
-}
+    /// `new Audio(optional DOMString src)`.
+    fn legacy_factory_audio(cx: &mut b::Cx<'_>, src: Option<String>) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
-impl<T: b::Host> HTMLAudioElementImpl for T {}
+}
 
 pub(super) fn construct<H: HTMLAudioElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Constructor("HTMLAudioElement"), super::DOM_EXCEPTION, |rt| {
@@ -22,6 +23,18 @@ pub(super) fn construct<H: HTMLAudioElementImpl>(rt: &mut swb_js::Runtime, call:
     })
 }
 
+pub(super) fn construct_audio<H: HTMLAudioElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Constructor("Audio"), super::DOM_EXCEPTION, |rt| {
+        if call.new_target().is_undefined() {
+            return Err(b::Exception::type_error("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        }
+        let v = rt.arg(call, 0);
+        let a0 = if v.is_undefined() { None } else { Some(b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?) };
+        let result = <H as HTMLAudioElementImpl>::legacy_factory_audio(&mut b::Cx::new(rt, call, super::HTML_AUDIO_ELEMENT), a0)?;
+        Ok(swb_js::Value::Object(result))
+    })
+}
+
 /// Creates the interface object and the prototype of `HTMLAudioElement` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: HTMLAudioElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
@@ -29,5 +42,7 @@ pub fn define<H: HTMLAudioElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> 
     let target = interface.prototype;
     let _ = target;
     rt.end_interface(interface)?;
+    let factory = rt.define_constructor(realm, interface.prototype, "Audio", 0, construct_audio::<H>)?;
+    b::glue::keep_factory::<H>(rt, realm, "Audio", factory)?;
     Ok(interface)
 }

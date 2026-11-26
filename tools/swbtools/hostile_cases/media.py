@@ -65,3 +65,63 @@ def media_16000_videos() -> Page:
         "setTimeout(()=>console.warn('video errors '+n),2500);</script>"
     )
     return Page(doc(script + videos))
+
+
+@case(
+    "200,000 pairs of `play()` and `pause()` on one muted `<video>` without a source in one task "
+    "(M14 feature 6b, ADR 0047 section 10): each pair queues `play`, `waiting`, `timeupdate`, "
+    "`pause` and a promise that `pause()` rejects; the queue of media tasks keeps at most 65,536 "
+    "events (the settling of promises joins the one before it), every promise settles",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+    swb_args=RUNNING,
+    expect_log="play flood settled 200000",
+)
+def media_play_pause_flood() -> Page:
+    script = (
+        "<script>const p=[];for(let i=0;i<200000;i++){p.push(v.play().then(()=>'ok',e=>e.name));"
+        "v.pause();}"
+        "Promise.all(p).then(r=>console.warn("
+        "'play flood settled '+r.filter(x=>x==='AbortError').length));"
+        "</script>"
+    )
+    return Page(doc(f"<video id=v muted></video>{script}"))
+
+
+@case(
+    "100,000 `play()` calls that wait on one muted `<video>` without a source (M14 feature 6b): "
+    "at most 65,536 promises wait for their settling, the others reject at once; one `pause()` "
+    "rejects the 65,536 (one task, not one task for each)",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+    swb_args=RUNNING,
+    expect_log="many promises 65536 34464",
+)
+def media_many_play_promises() -> Page:
+    script = (
+        "<script>const p=[];for(let i=0;i<100000;i++)p.push(v.play().then(()=>'ok',e=>e.message));"
+        "v.pause();"
+        "Promise.all(p).then(r=>{const a=r.filter(x=>x.includes('pause()')).length;"
+        "console.warn('many promises '+a+' '+r.filter(x=>x.includes('Too many')).length);});"
+        "</script>"
+    )
+    return Page(doc(f"<video id=v muted></video>{script}"))
+
+
+@case(
+    "1,000,000 assignments to `currentTime` and 20,000 `new Audio(src).play()` calls in one task "
+    "(M14 feature 6b): a position set before the metadata is one number; each `new Audio` is a "
+    "detached element that gets a state (at most 16,384; the states of detached elements that do "
+    "not play go first) and its `play()` rejects (no user activation)",
+    time_limit_s=30,
+    rss_limit_mib=1536,
+    swb_args=RUNNING,
+    expect_log="audio flood 20000",
+)
+def media_seek_and_audio_flood() -> Page:
+    script = (
+        "<script>for(let i=0;i<1000000;i++)v.currentTime=i%10;"
+        "let n=0;for(let i=0;i<20000;i++)new Audio('a.mp3').play().catch(()=>n++);"
+        "setTimeout(()=>console.warn('audio flood '+n),2500);</script>"
+    )
+    return Page(doc(f"<video id=v></video>{script}"))

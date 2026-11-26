@@ -4,6 +4,34 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-26: M14 feature 6b, the playback API
+
+- `play()` and its promise, `pause()`, seeking and `#t=`, the end and
+  `loop`, `played`, `volume` and `muted`, `autoplay` and the activation
+  policy, `new Audio()`, removal and late failures. All cases of
+  `media-playback` (30), `media-autoplay` (27), 13 new playback cases and
+  99 API edge rows match Chromium in virtual time, within the probe's
+  rounding of times. Frames and sound are still missing (features 7
+  and 8).
+- Chromium rules found on the way: a load drops the element's queued
+  tasks, also those already handed to the page; the selection's stable
+  state must be a marker in the queue; a muted video that a script
+  unmutes before any activation pauses; a cut file plays to its
+  duration, so feature 5's end-of-data rule is gone.
+- Every `--eval`, `eval` step and `page.evaluate` now gives a user
+  activation. The tests that read activation did not change. The
+  automation's own scripts (`focus`) give none.
+- Late failures: the first rule (fail 0.5 s after the start) fitted two
+  files and failed a later damage before an earlier one. New Chromium
+  rows on damaged files gave the rule: fail where the decoder stopped,
+  less 0.2 s.
+- Runs under load found three results that depended on thread speed: a
+  second `timeupdate` at the end, the order of `loadeddata` and `seeked`
+  for a `#t=` fragment, and two rounding errors that made virtual time
+  return to one due time for ever after 15 s of playback. All are fixed;
+  the clock compares whole microseconds.
+- Next: feature 7, video frames in paint.
+
 ## 2026-11-25: M14 feature 6a, the core of the media element
 
 - `<video>` and `<audio>` select a resource (`src`, `<source>` with

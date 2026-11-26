@@ -346,6 +346,7 @@ HTMLMediaElement:dwc
 HTMLVideoElement:dwc
 MediaError:dwc
 TimeRanges:dwc
+Audio:dwc
 HTMLAudioElement:dwc
 HTMLTrackElement:dwc
 HTMLMapElement:dwc

@@ -44,6 +44,7 @@ pub(crate) fn spawn(
         filter: SeekFilter::default(),
         awaiting_target: false,
         last_end: None,
+        target_us: 0,
         pending: None,
         drained: false,
     };
@@ -55,7 +56,8 @@ pub(crate) fn spawn(
                 run,
             };
             if let Err(e) = worker.run() {
-                worker.shared.fail(run, e);
+                let at = worker.failure_position();
+                worker.shared.fail_at(run, e, Some(at));
             }
             drop(panic);
             drop(place);
@@ -83,6 +85,9 @@ struct Worker {
     awaiting_target: bool,
     /// The end of the last frame (media time), for frames without a time.
     last_end: Option<i64>,
+    /// The target of the last seek (0 before one), where a failure lies
+    /// when no frame came after it.
+    target_us: i64,
     /// A packet that the decoder refused because it was full.
     pending: Option<Packet>,
     /// The decoder drained (until the next flush).
@@ -161,6 +166,15 @@ impl Worker {
         self.pending = None;
         self.drained = false;
         self.last_end = None;
+        self.target_us = target_us;
+    }
+
+    /// Where a failure of the decoder lies in media time: the end of the
+    /// last frame that came out (the decoder gives frames in presentation
+    /// order), or the target of the last seek. It depends on the data, not
+    /// on the speed of the threads.
+    fn failure_position(&self) -> i64 {
+        self.last_end.unwrap_or(self.target_us)
     }
 
     /// The next item of the packet queue; blocks until there is one.

@@ -398,7 +398,8 @@ fn focus(page: &mut Page, selector: &str) -> Result<(), String> {
         "document.querySelectorAll({})[{position}].focus()",
         Value::String(css.to_owned())
     );
-    page.evaluate(&source, JsonForm::Strict);
+    // The step's own script: it gives the page no user activation.
+    page.evaluate_internal(&source, JsonForm::Strict);
     Ok(())
 }
 

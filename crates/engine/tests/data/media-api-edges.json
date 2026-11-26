@@ -1,0 +1,225 @@
+{
+  "cases": [
+    {
+      "name": "api-edges",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "(async () => {\nconst out = {};\nconst t = (name, f) => { try { out[name] = f(); } catch (e) { out[name] = 'throws ' + e.name + ': ' + e.message; } };\nt('ct NaN', () => { v.currentTime = NaN; return v.currentTime; });\nt('ct Inf', () => { v.currentTime = Infinity; return v.currentTime; });\nt('ct -5', () => { v.currentTime = -5; return v.currentTime; });\nt('ct 7', () => { v.currentTime = 7; return v.currentTime; });\nt('vol -1', () => { v.volume = -1; return v.volume; });\nt('vol NaN', () => { v.volume = NaN; return v.volume; });\nt('vol 1.5', () => { v.volume = 1.5; return v.volume; });\nt('vol 0.3', () => { v.volume = 0.3; return v.volume; });\nt('vol str', () => { v.volume = '0.7'; return v.volume; });\nt('vol 1e-7', () => { v.volume = 1e-7; return v.volume; });\nfor (const r of [0, 0.0625, 0.06, 0.0624, 0.5, 2, 4, 15.9, 16, 16.1, -1, 100, 1e-9, 1e9, 0.07]) t('rate ' + r, () => { v.playbackRate = r; return v.playbackRate; });\nfor (const r of [0, 0.0625, 0.06, 0.0624, 0.5, 2, 4, 15.9, 16, 16.1, -1, 100, 1e-9, 1e9, 0.07]) t('drate ' + r, () => { const x = document.createElement('video'); x.defaultPlaybackRate = r; return [x.defaultPlaybackRate, x.playbackRate]; });\nt('rate then drate', () => { const x = document.createElement('video'); x.playbackRate = 2; x.defaultPlaybackRate = 3; return [x.defaultPlaybackRate, x.playbackRate]; });\nt('rate str', () => { v.playbackRate = '1.5'; return v.playbackRate; });\nt('rate NaN', () => { v.playbackRate = NaN; return v.playbackRate; });\nt('rate Inf', () => { v.playbackRate = Infinity; return v.playbackRate; });\nfor (const r of [123456789, 1234567, 100000, 12345.678, 0.00012345, 0.000012345, 1.5e-7, 2.5e300, 17.123456789, 999999.5, 0.99999949, -0.5, -1e-9, -1e9]) t('rate message ' + r, () => { v.playbackRate = r; return v.playbackRate; });\nconst seq = [];\nconst y = document.createElement('video');\ny.addEventListener('ratechange', () => seq.push('ratechange ' + y.defaultPlaybackRate + '/' + y.playbackRate));\nfor (const [k, val] of [['p', 2], ['p', 100], ['p', 2], ['d', 3], ['d', 100], ['d', 3], ['d', 0.5], ['p', 0], ['d', 0], ['p', 0.0625]]) {\n  try { if (k === 'p') y.playbackRate = val; else y.defaultPlaybackRate = val; seq.push(k + val + ' ok'); } catch (e) { seq.push(k + val + ' ' + e.name); }\n  await new Promise(r => setTimeout(r, 20));\n}\nout['rate events'] = seq;\nt('muted', () => { v.muted = true; return [v.muted, v.defaultMuted, v.hasAttribute('muted')]; });\nt('defaultMuted', () => { v.defaultMuted = true; v.muted = false; return [v.muted, v.defaultMuted, v.hasAttribute('muted')]; });\nt('played empty', () => [v.played.length, v.ended, v.paused, v.seeking, v.readyState, v.networkState]);\nt('Audio()', () => { const x = new Audio(); return [x.preload, x.getAttribute('preload'), x.src, x.networkState, x.paused, x.readyState, x.muted, x.volume, x.constructor.name, x.isConnected, x.parentNode]; });\nt('Audio(src)', () => { const x = new Audio('b.mp3'); return [x.preload, x.getAttribute('src'), x.src.slice(-5), x.networkState]; });\nt('Audio called', () => Audio());\nt('Audio.length', () => [Audio.length, Audio.name, typeof Audio, Object.getOwnPropertyDescriptor(Audio.prototype === undefined ? {} : Audio, 'prototype') && Audio.prototype === HTMLAudioElement.prototype]);\nt('Audio(undefined)', () => new Audio(undefined).hasAttribute('src'));\nt('Audio(null)', () => new Audio(null).getAttribute('src'));\nt('pause returns', () => String(v.pause()));\nconst p = v.play();\nt('play no src', () => [v.paused, v.networkState]);\nlet st = 'pending';\np.then(() => st = 'resolved', e => st = e.name + ': ' + e.message);\nawait new Promise(r => setTimeout(r, 300));\nout['promise after 300'] = st;\nv.pause();\nawait new Promise(r => setTimeout(r, 10));\nout['promise after pause'] = st;\nout['paused after'] = v.paused;\nconst evs = [];\n['play','pause','timeupdate','waiting','ratechange','volumechange','emptied','loadstart','abort','error','seeking'].forEach(n => a.addEventListener(n, () => evs.push(n)));\na.play().catch(e => evs.push('rej ' + e.name));\na.volume = 0.5; a.muted = true; a.muted = true; a.playbackRate = 1; a.playbackRate = 1.5; a.defaultPlaybackRate = 1.5; a.defaultPlaybackRate = 1.5;\na.pause(); a.pause();\na.currentTime = 3;\nawait new Promise(r => setTimeout(r, 300));\nout['events'] = evs;\nout['a state'] = [a.currentTime, a.paused, a.networkState, a.readyState, a.error, a.played.length];\nt('load()', () => { a.load(); return [a.networkState, a.playbackRate, a.volume, a.muted, a.currentTime]; });\nt('played toString', () => Object.prototype.toString.call(v.played));\nt('ended loop', () => { v.loop = true; return v.ended; });\nreturn out;\n})()",
+          "value": {
+            "ct NaN": "throws TypeError: Failed to set the 'currentTime' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            "ct Inf": "throws TypeError: Failed to set the 'currentTime' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            "ct -5": -5,
+            "ct 7": 7,
+            "vol -1": "throws IndexSizeError: Failed to set the 'volume' property on 'HTMLMediaElement': The volume provided (-1) is outside the range [0, 1].",
+            "vol NaN": "throws TypeError: Failed to set the 'volume' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            "vol 1.5": "throws IndexSizeError: Failed to set the 'volume' property on 'HTMLMediaElement': The volume provided (1.5) is outside the range [0, 1].",
+            "vol 0.3": 0.3,
+            "vol str": 0.7,
+            "vol 1e-7": 1e-07,
+            "rate 0": 0,
+            "rate 0.0625": 0.0625,
+            "rate 0.06": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (0.06) is not in the supported playback range.",
+            "rate 0.0624": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (0.0624) is not in the supported playback range.",
+            "rate 0.5": 0.5,
+            "rate 2": 2,
+            "rate 4": 4,
+            "rate 15.9": 15.9,
+            "rate 16": 16,
+            "rate 16.1": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (16.1) is not in the supported playback range.",
+            "rate -1": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (-1) is not in the supported playback range.",
+            "rate 100": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (100) is not in the supported playback range.",
+            "rate 1e-9": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (1.00000e-9) is not in the supported playback range.",
+            "rate 1000000000": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (1.00000e+9) is not in the supported playback range.",
+            "rate 0.07": 0.07,
+            "drate 0": [
+              0,
+              1
+            ],
+            "drate 0.0625": [
+              0.0625,
+              1
+            ],
+            "drate 0.06": [
+              1,
+              1
+            ],
+            "drate 0.0624": [
+              1,
+              1
+            ],
+            "drate 0.5": [
+              0.5,
+              1
+            ],
+            "drate 2": [
+              2,
+              1
+            ],
+            "drate 4": [
+              4,
+              1
+            ],
+            "drate 15.9": [
+              15.9,
+              1
+            ],
+            "drate 16": [
+              16,
+              1
+            ],
+            "drate 16.1": [
+              1,
+              1
+            ],
+            "drate -1": [
+              1,
+              1
+            ],
+            "drate 100": [
+              1,
+              1
+            ],
+            "drate 1e-9": [
+              1,
+              1
+            ],
+            "drate 1000000000": [
+              1,
+              1
+            ],
+            "drate 0.07": [
+              0.07,
+              1
+            ],
+            "rate then drate": [
+              3,
+              2
+            ],
+            "rate str": 1.5,
+            "rate NaN": "throws TypeError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            "rate Inf": "throws TypeError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            "rate message 123456789": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (1.23457e+8) is not in the supported playback range.",
+            "rate message 1234567": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (1.23457e+6) is not in the supported playback range.",
+            "rate message 100000": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (100000) is not in the supported playback range.",
+            "rate message 12345.678": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (12345.7) is not in the supported playback range.",
+            "rate message 0.00012345": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (0.00012345) is not in the supported playback range.",
+            "rate message 0.000012345": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (0.000012345) is not in the supported playback range.",
+            "rate message 1.5e-7": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (1.50000e-7) is not in the supported playback range.",
+            "rate message 2.5e+300": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (2.50000e+300) is not in the supported playback range.",
+            "rate message 17.123456789": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (17.1235) is not in the supported playback range.",
+            "rate message 999999.5": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (1.00000e+6) is not in the supported playback range.",
+            "rate message 0.99999949": 0.99999949,
+            "rate message -0.5": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (-0.5) is not in the supported playback range.",
+            "rate message -1e-9": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (-1.00000e-9) is not in the supported playback range.",
+            "rate message -1000000000": "throws NotSupportedError: Failed to set the 'playbackRate' property on 'HTMLMediaElement': The provided playback rate (-1.00000e+9) is not in the supported playback range.",
+            "rate events": [
+              "p2 ok",
+              "ratechange 1/2",
+              "p100 NotSupportedError",
+              "p2 ok",
+              "d3 ok",
+              "ratechange 3/2",
+              "d100 ok",
+              "d3 ok",
+              "d0.5 ok",
+              "ratechange 0.5/2",
+              "p0 ok",
+              "ratechange 0.5/0",
+              "d0 ok",
+              "ratechange 0/0",
+              "p0.0625 ok",
+              "ratechange 0/0.0625"
+            ],
+            "muted": [
+              true,
+              false,
+              false
+            ],
+            "defaultMuted": [
+              false,
+              true,
+              true
+            ],
+            "played empty": [
+              0,
+              false,
+              true,
+              false,
+              0,
+              0
+            ],
+            "Audio()": [
+              "auto",
+              "auto",
+              "",
+              0,
+              true,
+              0,
+              false,
+              1,
+              "HTMLAudioElement",
+              false,
+              null
+            ],
+            "Audio(src)": [
+              "auto",
+              "b.mp3",
+              "b.mp3",
+              3
+            ],
+            "Audio called": "throws TypeError: Failed to construct 'Audio': Please use the 'new' operator, this DOM object constructor cannot be called as a function.",
+            "Audio.length": [
+              0,
+              "Audio",
+              "function",
+              true
+            ],
+            "Audio(undefined)": false,
+            "Audio(null)": "null",
+            "pause returns": "undefined",
+            "play no src": [
+              false,
+              3
+            ],
+            "promise after 300": "pending",
+            "promise after pause": "AbortError: The play() request was interrupted by a call to pause(). https://goo.gl/LdLk22",
+            "paused after": true,
+            "events": [
+              "play",
+              "waiting",
+              "volumechange",
+              "volumechange",
+              "ratechange",
+              "ratechange",
+              "timeupdate",
+              "pause",
+              "rej AbortError"
+            ],
+            "a state": [
+              3,
+              true,
+              0,
+              0,
+              null,
+              0
+            ],
+            "load()": [
+              3,
+              1.5,
+              0.5,
+              true,
+              3
+            ],
+            "played toString": "[object TimeRanges]",
+            "ended loop": false
+          }
+        }
+      ]
+    }
+  ]
+}
