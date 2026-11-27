@@ -7499,6 +7499,46 @@ Steps:
         with JavaScript on and off and with controls, the real files,
         videojs.org's media element API).
 
+        Done (2026-11-27, ADR 0047 "Implementation notes (M14 feature
+        10c)"):
+        - `crates/engine/tests/media_exit.rs`, one module per works item
+          (the map of the existing tests in its docs); probe files
+          `media-exit.json` (23 cases) and `media-exit-real.json` (3
+          cases), three equal Chromium runs each.
+        - Item 1: every format of the build plays from the default
+          controls in `<video>` or `<audio>` with JavaScript on (events
+          and sampled states against Chromium) and off (the sampled
+          states): play, the end, a click on the timeline after the end,
+          pause, a drag, mute, the end again. Item 8: the three real files
+          from the controls with JavaScript on and off; the Wikipedia
+          article with JavaScript off and its video from the local file
+          plays after a click on play; the Wikimedia frame at 16.02 s
+          through the element; the media API on the videojs.org fixture
+          against Chromium's members (the 43 missing ones listed with
+          their reason). Item 7: the controls of an element whose file the
+          build cannot play act as Chromium's after a failed load. Items 2,
+          3, 6: covered by the earlier features; checks that every probe
+          case of their files has an answer; the 24 frame cases that were
+          compared at the decoder only now also run through the element.
+          Items 4 and 5: named; a Python test checks that `BUDGETS` covers
+          the budgets of the works items within the diagnosis' numbers.
+        - Found and fixed: the frames of a full range H.264 stream after
+          the first were converted with BT.601 coefficients (`ffmpeg.c`
+          `scale_rgba`: `sws_getCachedContext` rebuilt the context at
+          every call for the `yuvj` formats, without the coefficients); a
+          press on an `<audio>` panel outside its parts played or paused;
+          the audio timeline took the pointer in its bar only (Chromium: a
+          32 px band, x 113.5 to 225.5 at 300 px).
+        - Works items: 1 met with three departures (Ogg duration after a
+          seek, `ended` after a seek to the end of an audio file, the
+          controls of a `<video>` with an audio-only file; backlog); 2 met;
+          3 met; 4 met (10b's sync trace: 17.0 ms against 33.3 ms); 5 met,
+          one budget excepted (a covered window with a playing video,
+          11.6 %; backlog of 10b); 6 met (`just hostile-media`, 18 of 18);
+          7 met; 8 met (the hero player of videojs.org waits for M15).
+        - Review fixes (one round): a departure hid every other difference
+          of its row; the budget test checked entries, not limits.
+
 ## M15: The videojs.org player — planned
 
 Draft, planned in detail when M14 is done:
@@ -7516,6 +7556,9 @@ Draft, planned in detail when M14 is done:
    `VTTCue`, `<track>` loading (the storyboard thumbnails of the
    timeline).
 4. The Fullscreen API and the GUI window in fullscreen.
+   The plan checks whether Video.js needs the members that M14 left out
+   (the `ABSENT` list of `crates/engine/tests/media_exit.rs`), for
+   example `srcObject` and `getVideoPlaybackQuality()`.
 5. The exit test, with the owner's list (ground rules, 2026-11-20) on a
    fixture that records the master playlist and the segments that
    Chromium fetches while it plays (the rendition URLs are signed per
@@ -7650,6 +7693,41 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Tools (feature 10b): the link watcher of `--audio pw-private` runs
   `pw-link` 20 times a second for 10 s at the start of each run (30 % of
   a core of the tool in that time), which loads the machine a little.
+- Media (feature 10c): Chromium's duration of the Ogg Vorbis and Ogg
+  FLAC test files (2 s) grows to 2.567 and 2.508 after a seek to 1.59 s,
+  with about 24 `durationchange` events (`ffprobe` and swb: 2.0); probe
+  `media-exit.json` `fmt-ogg-vorbis`, `fmt-ogg-flac`. Not Opus. Find what
+  Chromium's Ogg demuxer estimates (a longer last page?) before changing
+  swb's duration.
+- Media (feature 10c): after a seek to the duration of an audio file (a
+  click on the right end of the audio timeline) Chromium's `ended` is true
+  (HTML: the position is the end and the direction is forward); swb's is
+  true only after a playback that reaches the end (probe
+  `fmt-audio-panel-click`; the backlog line of feature 6b says false for
+  MP4, so the rule may differ by format: measure MP3, Ogg, WAV, FLAC, AAC
+  and M4A with `currentTime = duration`).
+- Media controls (feature 10c): a `<video>` with an audio-only file draws
+  an audio-style bar in Chromium (the box's width, 54 px high at the
+  bottom, no black fill; timeline 130 to 230 at 320 px) and takes the
+  clicks there; swb draws the video controls (probe `fmt-video-tag-*`).
+  Needs a layout of the controls that follows the tracks.
+- Media controls (feature 10c): the hit band of the audio timeline (32 px
+  high, 16 px past the bar to the left, 15.5 px to the right) was measured
+  at a width of 300 px only; probe other widths and the band's corners.
+- Media (feature 10c): the members of the media interfaces that M14 leaves
+  out are listed in `ABSENT` in `crates/engine/tests/media_exit.rs` (43,
+  each with its reason or milestone): for example `preservesPitch`,
+  `controlsList`, `loading`, `srcObject`, `getVideoPlaybackQuality()`.
+- Probe (feature 10c): swb's full-page screenshot is as wide as the
+  viewport; Chromium's covers the horizontal overflow (the probe `pixels`
+  rows of frames wider than 800 px need a wide viewport in the tests).
+  Check which is right for `Page::screenshot(true)`.
+- Tests (feature 10c): two probe cases of `media-frames.json`
+  (`frames-color-untagged-bt709-content`, `frames-color-vp9-webm-range-tv`)
+  have no stored answer in any test, and no test runs the `boxes` row of
+  `media-states.json` `size-video-no-metadata` (the box of a video without
+  metadata); the probe-case checks of the exit test prove that each other
+  case has data, not that a test runs it.
 - Media controls (feature 9): a change of the controls (the time text
   once a second, the thumb, a hover, 60 Hz in a fade) builds the whole
   display list again (0.54 ms at 1,943 elements). Splice the controls'

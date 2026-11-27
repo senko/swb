@@ -430,16 +430,26 @@ pub fn media_hit(content: &MediaContent, local: Point, slider: bool) -> MediaHit
         return MediaHit::Slider;
     }
     if let Some(timeline) = part(|k| matches!(k, MediaPartKind::Timeline))
-        && timeline_hit_area(timeline.rect).contains(local)
+        && timeline_hit_area(content.audio, timeline.rect).contains(local)
     {
         return MediaHit::Timeline;
     }
     MediaHit::None
 }
 
-/// The area of a timeline that takes the pointer: its bar and 9 px above
-/// and below, 6 px (the thumb's radius) left and right.
-pub(crate) fn timeline_hit_area(bar: Rect) -> Rect {
+/// The area of a timeline that takes the pointer. Video: its bar and 9 px
+/// above and below, 6 px (the thumb's radius) left and right. Audio (Chromium
+/// 148 at 300 px, clicks at 2 px steps, M14 feature 10c): a band of 32 px
+/// around the bar's center that reaches 16 px past the bar to the left (the
+/// time label's end) and 15.5 px to the right (the mute button's hit box);
+/// the thumb still maps over the bar's inner part. The audio band was
+/// measured at the width of 300 px only (no other width, no corner probe;
+/// backlog).
+pub(crate) fn timeline_hit_area(audio: bool, bar: Rect) -> Rect {
+    if audio {
+        let center = bar.y + bar.height / 2.0;
+        return Rect::new(bar.x - 16.0, center - 16.0, bar.width + 31.5, 32.0);
+    }
     Rect::new(
         bar.x - THUMB_SIZE / 2.0,
         bar.y - 9.0,
@@ -817,8 +827,10 @@ mod tests {
         assert_eq!(hit(26.0, 10.0, false), MediaHit::None);
         assert_eq!([hit(26.0, 11.0, false), hit(26.0, 42.0, false)], [play; 2]);
         assert_eq!(hit(26.0, 43.0, false), MediaHit::None);
-        // Mute: x 225.5 to 257.5; the menu starts at 258 (no overlap).
-        assert_eq!(hit(222.0, 27.0, false), MediaHit::None);
+        // Mute: x 225.5 to 257.5; the menu starts at 258 (no overlap). The
+        // timeline's box ends where the mute button's begins.
+        assert_eq!(hit(222.0, 27.0, false), MediaHit::Timeline);
+        assert_eq!(hit(225.0, 27.0, false), MediaHit::Timeline);
         assert_eq!(
             [hit(226.0, 27.0, false), hit(257.0, 27.0, false)],
             [mute; 2]
@@ -833,5 +845,33 @@ mod tests {
         // The open slider's area ends at the mute box too.
         assert_eq!(hit(180.0, 27.0, true), MediaHit::Slider);
         assert_eq!(hit(258.0, 27.0, true), menu);
+    }
+
+    /// The audio timeline takes the pointer in a band of 32 px (M14 feature
+    /// 10c; Chromium 148, `hit-audio-timeline-*` in
+    /// `tools/probes/media-exit.json`, clicks at 2 px and 1 px steps at 300
+    /// px): x from 113.5 to 225.5, y from 11 to 43; outside, no seek.
+    #[test]
+    fn the_audio_timeline_takes_the_pointer_in_a_band_of_32_px() {
+        let c = media_content("<audio controls src=a.mp3></audio>", "audio");
+        let hit = |x: f32, y: f32| media_hit(&c, Point::new(x, y), false);
+        // Left: 112 misses, 114 hits (the time label ends there).
+        assert_eq!(hit(112.0, 27.0), MediaHit::None);
+        assert_eq!(hit(114.0, 27.0), MediaHit::Timeline);
+        assert_eq!(hit(225.0, 27.0), MediaHit::Timeline);
+        // Top and bottom: 10 misses, 11 hits; 42 hits, 43 misses.
+        assert_eq!(hit(170.0, 10.0), MediaHit::None);
+        assert_eq!(hit(170.0, 11.0), MediaHit::Timeline);
+        assert_eq!(hit(170.0, 42.0), MediaHit::Timeline);
+        assert_eq!(hit(170.0, 43.0), MediaHit::None);
+        // A video's timeline keeps its box (the bar and 9 px, 6 px).
+        let v = media_content(
+            "<video controls src=a.mp4 width=320 height=240></video>",
+            "video",
+        );
+        assert_eq!(
+            media_hit(&v, Point::new(160.0, 225.0), false),
+            MediaHit::Timeline
+        );
     }
 }

@@ -51,9 +51,8 @@ struct SwbFrame {
 
 struct SwbScaler {
     struct SwsContext *sws;
-    /* The parameters that `sws` was set up with. The coefficients are set
-     * again when any of them changes (sws_getCachedContext may rebuild the
-     * context). */
+    /* The parameters that `sws` was set up with. The context is made again
+     * and its coefficients are set again when any of them changes. */
     int src_w, src_h, src_format, dst_w, dst_h;
     int matrix, full_range;
     /* Buffers kept between frames, freed with the scaler: the source copy
@@ -717,16 +716,22 @@ static uint8_t *scratch_rgba(SwbScaler *s, int stride, int rows) {
 /* swscale: `fr` to RGBA of the size `dst_w` x `dst_h` into `dst`. */
 static int scale_rgba(SwbScaler *s, const AVFrame *fr, int matrix, int full_range, int dst_w,
                       int dst_h, uint8_t *dst, int dst_stride) {
-    s->sws = sws_getCachedContext(s->sws, fr->width, fr->height, (enum AVPixelFormat)fr->format,
-                                  dst_w, dst_h, AV_PIX_FMT_RGBA, SWS_BILINEAR, NULL, NULL, NULL);
-    if (!s->sws) {
-        s->matrix = -1;
-        return AVERROR(EINVAL);
-    }
-    if (s->src_w != fr->width || s->src_h != fr->height || s->src_format != fr->format ||
-        s->dst_w != dst_w || s->dst_h != dst_h || s->matrix != matrix ||
-        s->full_range != full_range) {
+    /* The context is kept while the parameters stay the same. (Not
+     * sws_getCachedContext: for the deprecated full range formats such as
+     * yuvj420p swscale stores a different source format than the one that it
+     * was asked for, so that function rebuilds the context at every call, and
+     * the rebuilt one has the default coefficients and no details set: every
+     * frame after the first of a full range H.264 stream was converted with
+     * BT.601 coefficients. M14 feature 10c.) */
+    if (!s->sws || s->src_w != fr->width || s->src_h != fr->height ||
+        s->src_format != fr->format || s->dst_w != dst_w || s->dst_h != dst_h ||
+        s->matrix != matrix || s->full_range != full_range) {
+        sws_freeContext(s->sws);
+        s->sws = sws_getContext(fr->width, fr->height, (enum AVPixelFormat)fr->format, dst_w,
+                                dst_h, AV_PIX_FMT_RGBA, SWS_BILINEAR, NULL, NULL, NULL);
         s->matrix = -1; /* until the details are set */
+        if (!s->sws)
+            return AVERROR(EINVAL);
         const int *table = sws_getCoefficients(matrix == SWB_MATRIX_BT709 ? SWS_CS_ITU709
                                                                           : SWS_CS_ITU601);
         /* {crv, cbu, cgu, cgv} in 16.16, for limited range input. Chromium's

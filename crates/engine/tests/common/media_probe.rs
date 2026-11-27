@@ -74,6 +74,17 @@ pub(crate) fn site_of(probe: &str, case: &Value) -> MediaSite {
 
 /// The page of a case, loaded in virtual time with JavaScript on.
 pub(crate) fn load_case(probe: &str, case: &Value) -> (Page, Arc<MediaSite>) {
+    load_case_with(probe, case, true)
+}
+
+/// The page of a case, loaded in virtual time, with JavaScript on or off
+/// (M14 feature 10c: the exit test runs the markup of a case without the
+/// scripts that observe it).
+pub(crate) fn load_case_with(
+    probe: &str,
+    case: &Value,
+    javascript: bool,
+) -> (Page, Arc<MediaSite>) {
     let name = case["name"].as_str().unwrap();
     let site = Arc::new(site_of(probe, case));
     let mut page = new_page(
@@ -81,7 +92,7 @@ pub(crate) fn load_case(probe: &str, case: &Value) -> (Page, Arc<MediaSite>) {
         2,
         Size::new(800.0, 600.0),
     );
-    page.set_javascript(true);
+    page.set_javascript(javascript);
     page.set_clock(PageClock::new(ClockMode::Virtual, None));
     // The probe's own evaluations give the page activation, and the case
     // script at load runs before any of them: the page gives it by the
@@ -99,11 +110,30 @@ pub(crate) fn load_case(probe: &str, case: &Value) -> (Page, Arc<MediaSite>) {
 /// Runs the input of the steps of a case (`click` at a point, `hover`, `key`,
 /// `wait` in milliseconds of page time, `eval`).
 pub(crate) fn run_steps(page: &mut Page, case: &Value) {
+    run_steps_with(page, case, (0.0, 0.0), &mut |page, js| {
+        evaluate(page, js);
+    });
+}
+
+/// [`run_steps`] with the handling of the `eval` steps given: the exit test
+/// runs a case with JavaScript off, where an `eval` step that samples the
+/// state reads it through the engine instead. The points of the steps move
+/// by `origin` (a case's page has its video at the top left; the real page
+/// of the Wikipedia fixture does not).
+pub(crate) fn run_steps_with(
+    page: &mut Page,
+    case: &Value,
+    origin: (f32, f32),
+    on_eval: &mut dyn FnMut(&mut Page, &str),
+) {
     for step in case["steps"].as_array().into_iter().flatten() {
         let (kind, argument) = step.as_object().unwrap().iter().next().unwrap();
         let point = |argument: &Value| {
             let p = argument.as_array().unwrap();
-            (p[0].as_f64().unwrap() as f32, p[1].as_f64().unwrap() as f32)
+            (
+                p[0].as_f64().unwrap() as f32 + origin.0,
+                p[1].as_f64().unwrap() as f32 + origin.1,
+            )
         };
         match kind.as_str() {
             "click" => {
@@ -132,9 +162,7 @@ pub(crate) fn run_steps(page: &mut Page, case: &Value) {
                 let ms = argument.as_u64().unwrap();
                 page.run_event_loop(Duration::from_millis(ms), Duration::from_secs(60));
             }
-            "eval" => {
-                evaluate(page, argument.as_str().unwrap());
-            }
+            "eval" => on_eval(page, argument.as_str().unwrap()),
             // Chromium's screenshot of that moment: the pixel tests take
             // swb's at the end of the steps.
             "shot" => {}
@@ -288,6 +316,18 @@ pub(crate) fn run_case(
     case: &'static Value,
     answer: &'static Value,
 ) -> Vec<(String, String)> {
+    run_case_expecting(probe, case, answer, &|_, want| want.clone())
+}
+
+/// [`run_case`] with `expect` applied to the value of Chromium's row (the
+/// row's index and the value): a case that departs from Chromium on purpose
+/// states what swb answers there, so that no other difference is hidden.
+pub(crate) fn run_case_expecting(
+    probe: &str,
+    case: &'static Value,
+    answer: &'static Value,
+    expect: &dyn Fn(usize, &Value) -> Value,
+) -> Vec<(String, String)> {
     let (mut page, _site) = load_case(probe, case);
     page.run_event_loop(
         Duration::from_millis(FIRST_QUERY_MS),
@@ -300,9 +340,9 @@ pub(crate) fn run_case(
         let Some(js) = query["js"].as_str() else {
             continue;
         };
-        let want = &answer["results"][index]["value"];
+        let want = expect(index, &answer["results"][index]["value"]);
         let got = evaluate(&mut page, js);
-        fuzzy_differences(&format!("#{index}"), &got, want, &mut out);
+        fuzzy_differences(&format!("#{index}"), &got, &want, &mut out);
     }
     out
 }

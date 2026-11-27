@@ -166,6 +166,33 @@ fn frames_match_chromium_within_3_levels() {
     );
 }
 
+/// M14 feature 10c, found by the exit test: the frames of a full range
+/// H.264 stream (`yuvj420p`) after the first were converted with default
+/// coefficients, because `sws_getCachedContext` rebuilt the scaler's context
+/// at every call (swscale keeps another source format for the deprecated full
+/// range formats) and the details were not set again. The frames that the
+/// decoder-level test above compares were all the first conversion of a
+/// fresh file. Now a frame converted after others is the frame converted
+/// first, byte for byte, for a full range and a limited range file.
+#[test]
+fn a_frame_converts_the_same_after_other_frames_as_first() {
+    for name in ["mp4-h264-fullrange-bt709.mp4", "mp4-h264-bt709.mp4"] {
+        let mut file = open(name).expect("the file opens");
+        let mut later = None;
+        for _ in 0..12 {
+            later = file.next_video_frame().expect("decodes");
+        }
+        let later = later.expect("the file has 12 frames");
+        let time_us = later.pts_us.expect("a frame time");
+        let first = frame_at(name, time_us);
+        assert_eq!(first.pts_us, later.pts_us, "{name}");
+        assert!(
+            first.image.data() == later.image.data(),
+            "{name}: the frame at {time_us} differs after other conversions"
+        );
+    }
+}
+
 #[test]
 fn frames_are_opaque() {
     let frame = frame_at("webm-vp9-321x241.webm", 1_000_000);

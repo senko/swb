@@ -152,9 +152,16 @@ fn run_case(
     case: &'static Value,
     answer: &'static Value,
     others: &[&'static Value],
+    wide: bool,
 ) -> Vec<String> {
     let name = case["name"].as_str().unwrap();
     let (mut page, _site) = load_case(probe, case);
+    if wide {
+        // The probe's full-page screenshot covers the overflow of a video
+        // wider than the viewport (up to 1920 px); swb's is as wide as the
+        // viewport.
+        page.set_viewport(swb_engine::Size::new(2000.0, 1200.0), 1.0);
+    }
     page.run_event_loop(
         Duration::from_millis(FIRST_QUERY_MS),
         Duration::from_secs(60),
@@ -223,6 +230,7 @@ fn failures_of(
     probe: &'static str,
     text: &'static str,
     variants: Option<&'static str>,
+    wide: bool,
 ) -> Vec<String> {
     let cases = load_cases(probe, answers(text));
     let variants: Vec<&'static Value> = variants
@@ -240,7 +248,7 @@ fn failures_of(
                 .copied()
                 .filter(|v| v["name"] == answer["name"])
                 .collect();
-            move || run_case(probe, case, answer, &alternatives)
+            move || run_case(probe, case, answer, &alternatives, wide)
         })
         .collect();
     on_page_threads(runs).into_iter().flatten().collect()
@@ -248,12 +256,29 @@ fn failures_of(
 
 #[test]
 fn the_placement_of_a_video_frame_matches_chromium() {
-    let failures = failures_of(FRAMES_PROBE, FRAMES, None);
+    let failures = failures_of(FRAMES_PROBE, FRAMES, None, false);
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// M14 feature 10c (the exit test, item 3): the 24 cases of
+/// `media-frames.json` that `swb-media`'s `tests/frames.rs` compares at the
+/// decoder (the frames of each codec at paused times, the color rules of the
+/// tagged, untagged, full range and odd-width files) now also run through
+/// the element and the page's paint, at scale 1, with the same 3 levels (in a
+/// viewport as wide as the widest frame). The data is `swb-media`'s
+/// (`crates/media/tests/data/media-frames.json`: the pixels of the other 42
+/// cases are in `tests/data/media-frames.json`). It found that the frames of a
+/// full range H.264 stream after the first were converted with the wrong
+/// coefficients (`crates/media-ffi/csrc/ffmpeg.c`, `scale_rgba`).
+#[test]
+fn the_frames_of_every_codec_and_color_rule_match_chromium_through_the_element() {
+    const DECODER_DATA: &str = include_str!("../../media/tests/data/media-frames.json");
+    let failures = failures_of(FRAMES_PROBE, DECODER_DATA, None, true);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 #[test]
 fn the_poster_rules_match_chromium() {
-    let failures = failures_of(POSTER_PROBE, POSTER, Some(POSTER_VARIANTS));
+    let failures = failures_of(POSTER_PROBE, POSTER, Some(POSTER_VARIANTS), false);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

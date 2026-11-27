@@ -3618,3 +3618,141 @@ thread (the conversion, and the packet hand-off to the decoder) 8.5 to
 total. The Wikimedia budget does not need it, so `ffmpeg.c` is unchanged.
 The larger cost is the main thread (the page raster of a scaled 2558 x 1626
 frame).
+
+## Implementation notes (M14 feature 10c)
+
+The exit test of M14: each of the eight works items against Chromium, in one
+test file with one module per item (`crates/engine/tests/media_exit.rs`). A
+module starts with the map (the tests and probe files of the earlier features
+that check the item) and holds the tests for what the map found missing.
+Three bugs came out of the gaps; they are fixed (below). The remaining
+differences from Chromium are listed in the tests as departures, each with
+its backlog item.
+
+**The map in short.** Items 2 and 3 were covered (about 250 probe cases of
+`media-states`, `-playback`, `-playback-2`, `-autoplay`, `-api-edges`,
+`-can-play-type`, `-fetch`, `-frames`, `-poster` run in the engine against
+Chromium's data), with one gap in item 3. Items 4 and 5 are GUI measurements
+(`swbtools media-gui`, `docs/testing.md` "Media in the GUI"; every number of
+the works items and of `docs/media-diagnosis.md` section 6 has an entry in
+`BUDGETS`, which `tools/tests/test_media_gui.py` now checks). Item 6 is the
+hostile-page set (`just hostile-media`, 18 cases) and the bounds tests of
+`swb-media`, `swb-net` and the engine. Item 7: `media_without_feature.rs`,
+`media_can_play_type.rs`, `media_off.rs`; there is no Chromium without codecs
+to measure, so the module of item 7 runs the probe case `in-error` (a failed
+load) with a file that the build cannot play. Items 1 and 8 had the gaps that
+the roadmap named: only MP4, WebM with VP8 and MP3 had been played from the
+controls, JavaScript off had one test, and the real files had not been played
+in the engine.
+
+**Probe files** (three equal Chromium runs each; the data in
+`crates/engine/tests/data/`):
+- `tools/probes/media-exit.json` (23 cases): every format of the build in
+  `<video>` or `<audio>` with `controls` (18 cases: MP4 High and Baseline, M4A,
+  MP4 Opus, WebM VP8 and VP9, Ogg Vorbis, Opus and FLAC, MP3, FLAC, WAV, ADTS,
+  and the other element for MP3, M4A, Ogg Opus, MP4 and WebM): a click on play,
+  the sampled state, play to the end, a click on the timeline after the end,
+  play and pause, a drag of the timeline, mute and unmute, play to the end
+  again; the events of Chromium in order and 11 samples of the state. The
+  times are floors to 0.5 s (the steps' sample times lie in the middle of a
+  bucket; with a rounding to 0.25 s the three runs of Chromium differed by one
+  bucket). `fmt-audio-panel-click` (presses on the audio panel outside its
+  parts) and four `hit-audio-timeline-*` cases (clicks at 1 and 2 px steps
+  around the audio timeline). The cases run with JavaScript on (events and
+  samples) and, as markup without the observing scripts, with JavaScript off
+  (the samples, read through the engine at the same steps).
+- `tools/probes/media-exit-real.json` (3 cases, local files): the markup of
+  the Wikipedia article's video in a page of its own (Chromium runs it with
+  JavaScript on and passive scripts: the same as without scripts), Mux's
+  `highest.mp4` and `audio.m4a`: click on play, play, pause, a click near the
+  end of the timeline, play to the end.
+
+**Tests of the file.**
+- `item1_formats`: the 23 cases with JavaScript on and off; a check that
+  every case of `media-controls-input.json` and `media-exit.json` has an
+  answer or a reason.
+- `item2_scripts` and `item3_frames`: checks that every probe case of the
+  files that the existing tests run has an answer in their data, or a reason
+  (the 24 `media-frames` cases whose data is `swb-media`'s, and two with no
+  stored answer: `frames-color-untagged-bt709-content` and
+  `frames-color-vp9-webm-range-tv`).
+- `item7_without_the_feature` (default build): the case `in-error` with a
+  playable file: the events and state equal Chromium's, nothing is requested.
+- `item8_real_files`: the three real files from the controls (JavaScript on and
+  off); the Wikipedia article (`fixtures/pages/wikipedia-web-browser`,
+  JavaScript off) with the video served from the local file: a click on the
+  play button of the article's own box, the samples equal Chromium's, no
+  request before the click (`preload=none`); the Wikimedia frame at 16.02 s
+  through the element (20 points, 5 levels: the measured file frame of
+  `swb-media`); the media API on the videojs.org fixture: the rows of the probe
+  case `api-surface` (which interfaces and members exist) against Chromium's,
+  with the missing ones listed by name and reason (`ABSENT`, 43 members: Media Source
+  Extensions, text tracks, fullscreen, picture-in-picture, Web Audio,
+  `captureStream`, `requestVideoFrameCallback`, encrypted media, the playback
+  quality counters, `preservesPitch`, `controlsList`, `loading`), and the
+  page's own `<video>` is a working `HTMLVideoElement`. These tests print
+  `skipped: ...` and pass when a real file or the fixture is missing.
+- `media_frames.rs`: `the_frames_of_every_codec_and_color_rule_match_chromium_
+  through_the_element` runs the 24 `media-frames` cases whose pixels were
+  compared at the decoder only (H.264 High and Baseline, VP8, VP9 at paused
+  times; tagged, untagged by height, full range and odd widths) through the
+  element and paint, at scale 1, 3 levels (a viewport as wide as the frame:
+  swb's full-page screenshot is as wide as the viewport, Chromium's covers
+  the overflow).
+- `tools/tests/test_media_gui.py`: the budgets of the works items 4 and 5 and
+  of the diagnosis have entries in `BUDGETS`, each with a limit at most the
+  number of the works item or the diagnosis (10b set tighter limits; the idle
+  CPU limit 0.2 % allows the noise of a measurement, Chromium's numbers are 0.0
+  and 0.1); the sync limit is one frame period of the 30 fps file; every budget
+  case is in a suite.
+
+**Found and fixed.**
+1. The frames of a full range H.264 stream (`yuvj420p`) after the first were
+   converted with default (BT.601) coefficients: `scale_rgba` in
+   `crates/media-ffi/csrc/ffmpeg.c` used `sws_getCachedContext`, which
+   rebuilds the context at every call when swscale stores another source
+   format than the one asked for (the deprecated `yuvj` formats), and the
+   rebuilt context had no details set. The decoder-level tests had converted
+   only the first frame of a fresh file. A saturated bar of the test file
+   showed (242, 90, 1) instead of (255, 100, 0). The scaler now keeps its
+   context while its parameters stay and makes it again when they change.
+   Test: `a_frame_converts_the_same_after_other_frames_as_first`
+   (`swb-media` `tests/frames.rs`). Needs `just check-media`.
+2. A press on an `<audio>` panel outside the controls' parts (the time label,
+   the padding) played or paused (the rule for the picture of a video).
+   Chromium gives the page no event and does nothing (`fmt-audio-panel-click`).
+   `controls.rs`: the panel of an audio element is the controls.
+3. The audio timeline took the pointer in its bar and 6 px around (the video
+   rule). Chromium's takes it in a band of 32 px from 16 px left of the bar to
+   the mute button's box (x 113.5 to 225.5 and y 11 to 43 at 300 px: clicks at
+   1 and 2 px steps, `hit-audio-timeline-*`). Measured at the width of 300 px
+   only: the constants (16, 15.5, 32) are not checked at other widths or at the
+   corners of the band (backlog). `swb_layout::media`,
+   `timeline_hit_area`; the unit test of the audio buttons had asserted a gap
+   at x 222, which was a button measurement and not a timeline one.
+
+**Departures** (each is a list entry in the tests and a backlog item; a
+departure of `item1_formats` states swb's own answer for the value, so a lost
+`ended` event or any other difference in the same row still fails):
+- Chromium's duration of the Ogg Vorbis and Ogg FLAC test files (2 s) grows to
+  2.567 and 2.508 after a seek to 1.59 s, with about 24 `durationchange`
+  events; `ffprobe` and swb say 2.0 (`OGG_DURATION`).
+- `ended` after a seek to the duration of an audio file: Chromium true, swb
+  false (`ENDED_AFTER_SEEK`).
+- A `<video>` with an audio-only file: Chromium draws an audio-style bar of
+  the box's width at the bottom (no black fill, 54 px high, the timeline from
+  130 to 230 at 320 px) and takes the clicks there; swb draws the video
+  controls. The `video-tag-*` cases play to the first end through the play
+  button, which both layouts have at the same place.
+- The members that M14 leaves out (the list `ABSENT` of `item8_real_files`).
+
+**Items.** Item 1: met with the departures above. Item 2: met (no new test;
+the existing departures of 6a and 6b stand). Item 3: met (the full range fix).
+Item 4: met by 10b's measurement (`sync_long` 17.0 ms against 33.3 ms) and the
+fake-device tests; not repeated. Item 5: met, one budget excepted (the covered
+window with a playing video, 11.6 %; backlog of 10b). Item 6: met (`just hostile-media` after the conversion fix: 18 of
+18 cases ok in 52.5 s, the largest 2,442 MiB for 16 videos at the frame size
+limit). Item 7:
+met. Item 8: met (the Wikipedia video plays after a click with JavaScript off;
+the Mux files play; the media API exists on videojs.org, with the listed
+members missing).

@@ -210,6 +210,77 @@ def test_every_suite_case_parses_and_every_budget_names_a_state() -> None:
         assert state == "*" or state in mg.STATES or state.startswith("*")
 
 
+# The budgets of works items 4 and 5 (docs/roadmap.md "What works means at the
+# end of M14") and of docs/media-diagnosis.md section 6, each as (the case, the
+# metric, the kind, the highest limit) that `BUDGETS` must hold (M14 feature
+# 10c). A budget moved, dropped or loosened above the number fails here.
+WORKS_BUDGETS = [
+    # Item 5: the 1080p 30 fps file plays without dropped frames; CPU and memory.
+    ("1080p:playing:full", "dropped", "max", 0),
+    ("1080p:playing:full", "cpu_pct", "max", 150.0),
+    ("1080p:playing:full", "rss_above_idle_mib", "max", 600.0),
+    ("1080p:playing:full", "fps_ratio", "min", None),
+    # Section 6: the Wikimedia file, the same; the 4K file within its memory.
+    ("wiki:playing:full", "dropped", "max", 0),
+    ("wiki:playing:full", "cpu_pct", "max", 150.0),
+    ("wiki:playing:full", "rss_above_idle_mib", "max", 600.0),
+    ("4k:playing:full", "rss_peak_mib", "max", 1536.0),
+    ("4k:playing:full", "alive", "min", None),
+    # Item 5 and section 6: after pause or the end, in a hidden window, with
+    # display: none, the CPU is 0 (0.2 allows the noise of a measurement:
+    # Chromium's numbers are 0.0 and 0.1).
+    ("*:paused:full", "cpu_pct", "max", 0.2),
+    ("*:ended:full", "cpu_pct", "max", 0.2),
+    ("*:hidden-paused:full", "cpu_pct", "max", 0.2),
+    ("*:display-none:full", "cpu_pct", "max", 0.2),
+    # Section 6: audio only, the start, the seek, the controls.
+    ("m4a:playing:full", "cpu_pct", "max", 3.0),
+    ("1080p:playing:full", "loadedmetadata_ms", "max", 300),
+    ("1080p:playing:full", "first_frame_ms", "max", 500),
+    ("1080p:seek:full", "seek_to_frame_ms", "max", 250),
+    ("1080p:controls-moving:box", "cpu_pct", "max", None),
+    ("1080p:controls-paused:box", "cpu_pct", "max", 0.2),
+    # Item 4: the frame on screen at most one frame period from the audio
+    # clock, over a long playback and after seeks.
+    ("1080p:sync:full", "sync_long.max_ms", "max", 1000 / 30 + 0.05),
+    ("1080p:sync:full", "sync_seeks.max_ms", "max", 1000 / 30 + 0.05),
+]
+
+
+def test_the_budgets_cover_the_budgets_of_the_works_items() -> None:
+    # Feature 10b set limits tighter than the works items and the diagnosis
+    # (section 6): each limit here is at most theirs. A bound of None: the
+    # metric has a budget, but the works item gives no number (a ratio, or a
+    # minimum).
+    by_key = {(b.case, b.metric): b for b in mg.BUDGETS}
+    problems = []
+    for case, metric, kind, bound in WORKS_BUDGETS:
+        budget = by_key.get((case, metric))
+        if budget is None:
+            problems.append(f"no budget for {(case, metric)}")
+        elif budget.kind != kind:
+            problems.append(f"{(case, metric)} is a {budget.kind} budget, not {kind}")
+        elif bound is not None and budget.limit > bound:
+            problems.append(f"{(case, metric)}: limit {budget.limit} above {bound}")
+    assert not problems, "\n".join(problems)
+
+
+def test_the_sync_budgets_are_one_frame_period_of_the_file() -> None:
+    # The works item 4 limit: a frame period of the 30 fps file, 33.3 ms.
+    for budget in mg.BUDGETS:
+        if budget.metric in ("sync_long.max_ms", "sync_seeks.max_ms"):
+            assert budget.limit <= 1000 / 30 + 0.05, budget
+
+
+def test_every_work_budget_case_is_in_a_suite() -> None:
+    # A budget whose case no suite runs would be skipped, never checked.
+    suite_cases = {":".join(text.split(":")[:3]) for cases in mg.SUITES.values() for text in cases}
+    for case, *_rest in WORKS_BUDGETS:
+        if "*" in case:
+            continue
+        assert case in suite_cases, case
+
+
 def test_the_page_of_a_silent_case_autoplays_muted() -> None:
     html = mg.page_html(Case("1080p", "playing", "full"), FILES, sound=False)
     assert "v.muted=true" in html

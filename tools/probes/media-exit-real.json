@@ -1,0 +1,253 @@
+{
+ "javascript": true,
+ "viewport": [
+  800,
+  600
+ ],
+ "note": "Needs the local files of fixtures/js/media (docs/testing.md).",
+ "cases": [
+  {
+   "name": "real-wikipedia-video-click-play",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><video id=v preload=none controls width=250 height=159><source src=a.webm type='video/webm; codecs=\"vp8\"'><source src=b.webm type='video/webm; codecs=\"vp9, opus\"'><source src=c.mp4 type='video/mp4; codecs=\"avc1.42E01E\"'></video><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.webm": "fixtures/js/media/wikimedia-web-browser-demo.webm"
+   },
+   "steps": [
+    {
+     "wait": 600
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      24,
+      118
+     ]
+    },
+    {
+     "wait": 1400
+    },
+    {
+     "eval": "SMP('2-playing')"
+    },
+    {
+     "wait": 1000
+    },
+    {
+     "eval": "SMP('3-playing-later')"
+    },
+    {
+     "click": [
+      24,
+      118
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('4-paused')"
+    },
+    {
+     "click": [
+      224,
+      144
+     ]
+    },
+    {
+     "wait": 600
+    },
+    {
+     "eval": "SMP('5-seek-near-the-end')"
+    },
+    {
+     "click": [
+      24,
+      118
+     ]
+    },
+    {
+     "wait": 4000
+    },
+    {
+     "eval": "SMP('6-ended')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable)]"
+    }
+   ]
+  },
+  {
+   "name": "real-mux-highest-mp4-click-play",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><video id=v src=a.mp4 muted preload=metadata controls width=320 height=180></video><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.mp4": "fixtures/js/media/mux-highest.mp4"
+   },
+   "steps": [
+    {
+     "wait": 1500
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      24,
+      139
+     ]
+    },
+    {
+     "wait": 1400
+    },
+    {
+     "eval": "SMP('2-playing')"
+    },
+    {
+     "wait": 1000
+    },
+    {
+     "eval": "SMP('3-playing-later')"
+    },
+    {
+     "click": [
+      24,
+      139
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('4-paused')"
+    },
+    {
+     "click": [
+      296,
+      165
+     ]
+    },
+    {
+     "wait": 800
+    },
+    {
+     "eval": "SMP('5-seek-near-the-end')"
+    },
+    {
+     "click": [
+      24,
+      139
+     ]
+    },
+    {
+     "wait": 4000
+    },
+    {
+     "eval": "SMP('6-ended')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable)]"
+    }
+   ]
+  },
+  {
+   "name": "real-mux-audio-m4a-click-play",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><audio id=v src=a.m4a preload=metadata controls></audio><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.m4a": "fixtures/js/media/mux-audio.m4a"
+   },
+   "steps": [
+    {
+     "wait": 1000
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 1400
+    },
+    {
+     "eval": "SMP('2-playing')"
+    },
+    {
+     "wait": 1000
+    },
+    {
+     "eval": "SMP('3-playing-later')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('4-paused')"
+    },
+    {
+     "click": [
+      200,
+      27
+     ]
+    },
+    {
+     "wait": 600
+    },
+    {
+     "eval": "SMP('5-seek-near-the-end')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 4000
+    },
+    {
+     "eval": "SMP('6-ended')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable)]"
+    }
+   ]
+  }
+ ]
+}

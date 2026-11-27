@@ -20,7 +20,9 @@
 //!   are trusted), and plays or pauses after the `click` event if no
 //!   listener canceled it and the metadata is known (`readyState` at least
 //!   1); without metadata (`preload=none`, an error, no source) it does
-//!   nothing.
+//!   nothing. An `<audio>` has no picture: a press on its panel outside the
+//!   parts (the time label, the padding) gives the page no event and does
+//!   nothing either (M14 feature 10c).
 //! - The play button starts a load that `preload=none` held back; it is
 //!   disabled by an error or the lack of a source. The mute button and the
 //!   timeline need the metadata (the mute button an audio track too). A
@@ -747,9 +749,17 @@ impl Media {
             return false;
         };
         let hit = media_hit(&content, local, e.slider_open());
-        self.ui.pressed = Some(Pressed { node, hit });
+        self.ui.pressed = Some(Pressed {
+            node,
+            hit,
+            audio: content.audio,
+        });
         match hit {
-            MediaHit::None => false,
+            // An `<audio>` has no picture: its whole panel is the controls,
+            // and a press on it outside the parts gives the page no event
+            // and does nothing (Chromium 148, `fmt-audio-panel-click` in
+            // `tools/probes/media-exit.json`; M14 feature 10c).
+            MediaHit::None => content.audio,
             MediaHit::Button(_) => true,
             MediaHit::Timeline => {
                 if let Some(bar) = part_rect(&content, |k| matches!(k, MediaPartKind::Timeline)) {
@@ -821,8 +831,11 @@ impl Media {
         let node = pressed.node;
         match pressed.hit {
             MediaHit::None => {
-                self.ui.picture = Some(node);
-                false
+                // The panel of an `<audio>` is the controls (see `ui_down`).
+                if !pressed.audio {
+                    self.ui.picture = Some(node);
+                }
+                pressed.audio
             }
             MediaHit::Button(button) => {
                 let over = self.ui.boxes.get(&node).is_some_and(|b| {
@@ -966,6 +979,9 @@ pub(crate) struct Pressed {
     /// What the press started on: the picture ([`MediaHit::None`]) or a
     /// control.
     pub(crate) hit: MediaHit,
+    /// Whether the element is an `<audio>` (at the press: its panel is the
+    /// controls, and a press outside the parts is no picture click).
+    pub(crate) audio: bool,
 }
 
 /// The pointer state of the default controls of one document's media

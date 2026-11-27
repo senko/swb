@@ -1,0 +1,167 @@
+{
+  "cases": [
+    {
+      "name": "real-wikipedia-video-click-play",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart p=1 ct=0",
+            "play p=0 ct=0",
+            "waiting p=0 ct=0",
+            "durationchange p=0 ct=0",
+            "loadedmetadata p=0 ct=0",
+            "loadeddata p=0 ct=0",
+            "canplay p=0 ct=0",
+            "playing p=0 ct=0",
+            "canplaythrough p=0 ct=0",
+            "pause p=1 ct=2",
+            "seeking p=1 ct=22.75",
+            "seeked p=1 ct=22.75",
+            "canplay p=1 ct=22",
+            "canplaythrough p=1 ct=22",
+            "play p=0 ct=22",
+            "playing p=0 ct=22",
+            "pause p=1 ct=23",
+            "ended p=1 ct=23"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "SS",
+          "value": [
+            "1-loaded p=1 e=0 ct=0 m=0 rs=0 ns=1 pl= sk=0 err=0",
+            "2-playing p=0 e=0 ct=1 m=0 rs=4 ns=1 pl=0-1 sk=0 err=0",
+            "3-playing-later p=0 e=0 ct=2 m=0 rs=4 ns=1 pl=0-2 sk=0 err=0",
+            "4-paused p=1 e=0 ct=2 m=0 rs=4 ns=1 pl=0-2 sk=0 err=0",
+            "5-seek-near-the-end p=1 e=0 ct=22.5 m=0 rs=4 ns=1 pl=0-2 sk=0 err=0",
+            "6-ended p=1 e=1 ct=23 m=0 rs=4 ns=1 pl=0-2,22.5-23 sk=0 err=0"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable)]",
+          "value": [
+            23.2,
+            2558,
+            1626,
+            "0-23.2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "real-mux-highest-mp4-click-play",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart p=1 ct=0 M",
+            "durationchange p=1 ct=0 M",
+            "loadedmetadata p=1 ct=0 M",
+            "loadeddata p=1 ct=0 M",
+            "canplay p=1 ct=0 M",
+            "canplaythrough p=1 ct=0 M",
+            "play p=0 ct=0 M",
+            "playing p=0 ct=0 M",
+            "pause p=1 ct=2 M",
+            "seeking p=1 ct=35.71 M",
+            "seeked p=1 ct=35.71 M",
+            "canplay p=1 ct=35 M",
+            "canplaythrough p=1 ct=35 M",
+            "play p=0 ct=35 M",
+            "playing p=0 ct=35 M",
+            "pause p=1 ct=35 M",
+            "ended p=1 ct=35 M"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "SS",
+          "value": [
+            "1-loaded p=1 e=0 ct=0 m=1 rs=4 ns=1 pl= sk=0 err=0",
+            "2-playing p=0 e=0 ct=1 m=1 rs=4 ns=1 pl=0-1 sk=0 err=0",
+            "3-playing-later p=0 e=0 ct=2 m=1 rs=4 ns=1 pl=0-2 sk=0 err=0",
+            "4-paused p=1 e=0 ct=2 m=1 rs=4 ns=1 pl=0-2 sk=0 err=0",
+            "5-seek-near-the-end p=1 e=0 ct=35.5 m=1 rs=4 ns=1 pl=0-2 sk=0 err=0",
+            "6-ended p=1 e=1 ct=35.5 m=1 rs=4 ns=1 pl=0-2,35.5-35.5 sk=0 err=0"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable)]",
+          "value": [
+            35.968,
+            3840,
+            2160,
+            "0-35.97"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "real-mux-audio-m4a-click-play",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart p=1 ct=0",
+            "durationchange p=1 ct=0",
+            "loadedmetadata p=1 ct=0",
+            "loadeddata p=1 ct=0",
+            "canplay p=1 ct=0",
+            "canplaythrough p=1 ct=0",
+            "play p=0 ct=0",
+            "playing p=0 ct=0",
+            "pause p=1 ct=2",
+            "seeking p=1 ct=33.87",
+            "seeked p=1 ct=33.87",
+            "canplay p=1 ct=33",
+            "canplaythrough p=1 ct=33",
+            "play p=0 ct=33",
+            "playing p=0 ct=33",
+            "pause p=1 ct=35",
+            "ended p=1 ct=35"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "SS",
+          "value": [
+            "1-loaded p=1 e=0 ct=0 m=0 rs=4 ns=1 pl= sk=0 err=0",
+            "2-playing p=0 e=0 ct=1 m=0 rs=4 ns=1 pl=0-1 sk=0 err=0",
+            "3-playing-later p=0 e=0 ct=2 m=0 rs=4 ns=1 pl=0-2 sk=0 err=0",
+            "4-paused p=1 e=0 ct=2 m=0 rs=4 ns=1 pl=0-2 sk=0 err=0",
+            "5-seek-near-the-end p=1 e=0 ct=33.5 m=0 rs=4 ns=1 pl=0-2 sk=0 err=0",
+            "6-ended p=1 e=1 ct=35.5 m=0 rs=4 ns=1 pl=0-2,33.5-35.5 sk=0 err=0"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable)]",
+          "value": [
+            35.968,
+            null,
+            null,
+            "0-35.97"
+          ]
+        }
+      ]
+    }
+  ]
+}

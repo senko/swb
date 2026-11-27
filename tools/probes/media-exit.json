@@ -1,0 +1,3645 @@
+{
+ "javascript": true,
+ "viewport": [
+  400,
+  300
+ ],
+ "cases": [
+  {
+   "name": "fmt-mp4-h264-high-aac",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><video id=v src=a.mp4 controls width=320 height=240></video><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.mp4": "fixtures/media/mp4-h264-high-aac.mp4"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    },
+    {
+     "click": [
+      240,
+      225
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('5-seek-click')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('6-play-after-seek')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('7-pause')"
+    },
+    {
+     "hover": [
+      100,
+      225
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      160,
+      225
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('8-drag')"
+    },
+    {
+     "click": [
+      200,
+      191
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('9-mute')"
+    },
+    {
+     "click": [
+      200,
+      191
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('10-unmute')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 2500
+    },
+    {
+     "eval": "SMP('11-ended-again')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-mp4-h264-baseline-aac",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><video id=v src=a.mp4 controls width=320 height=240></video><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.mp4": "fixtures/media/mp4-h264-baseline-aac.mp4"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    },
+    {
+     "click": [
+      240,
+      225
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('5-seek-click')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('6-play-after-seek')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('7-pause')"
+    },
+    {
+     "hover": [
+      100,
+      225
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      160,
+      225
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('8-drag')"
+    },
+    {
+     "click": [
+      200,
+      191
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('9-mute')"
+    },
+    {
+     "click": [
+      200,
+      191
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('10-unmute')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 2500
+    },
+    {
+     "eval": "SMP('11-ended-again')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-mp4-opus",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><audio id=v src=a.mp4 controls></audio><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.mp4": "fixtures/media/mp4-opus.mp4"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    },
+    {
+     "click": [
+      170,
+      27
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('5-seek-click')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('6-play-after-seek')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('7-pause')"
+    },
+    {
+     "hover": [
+      150,
+      27
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      190,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('8-drag')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('9-mute')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('10-unmute')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 2500
+    },
+    {
+     "eval": "SMP('11-ended-again')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-m4a-aac",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><audio id=v src=a.m4a controls></audio><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.m4a": "fixtures/media/m4a-aac.m4a"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    },
+    {
+     "click": [
+      170,
+      27
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('5-seek-click')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('6-play-after-seek')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('7-pause')"
+    },
+    {
+     "hover": [
+      150,
+      27
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      190,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('8-drag')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('9-mute')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('10-unmute')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 2500
+    },
+    {
+     "eval": "SMP('11-ended-again')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-webm-vp8-vorbis",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><video id=v src=a.webm controls width=320 height=240></video><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.webm": "fixtures/media/webm-vp8-vorbis.webm"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    },
+    {
+     "click": [
+      240,
+      225
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('5-seek-click')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('6-play-after-seek')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('7-pause')"
+    },
+    {
+     "hover": [
+      100,
+      225
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      160,
+      225
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('8-drag')"
+    },
+    {
+     "click": [
+      200,
+      191
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('9-mute')"
+    },
+    {
+     "click": [
+      200,
+      191
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('10-unmute')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 2500
+    },
+    {
+     "eval": "SMP('11-ended-again')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-webm-vp9-opus",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><video id=v src=a.webm controls width=320 height=240></video><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.webm": "fixtures/media/webm-vp9-opus.webm"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    },
+    {
+     "click": [
+      240,
+      225
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('5-seek-click')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('6-play-after-seek')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('7-pause')"
+    },
+    {
+     "hover": [
+      100,
+      225
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      160,
+      225
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('8-drag')"
+    },
+    {
+     "click": [
+      200,
+      191
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('9-mute')"
+    },
+    {
+     "click": [
+      200,
+      191
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('10-unmute')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 2500
+    },
+    {
+     "eval": "SMP('11-ended-again')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-ogg-vorbis",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><audio id=v src=a.ogg controls></audio><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.ogg": "fixtures/media/ogg-vorbis.ogg"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    },
+    {
+     "click": [
+      170,
+      27
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('5-seek-click')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('6-play-after-seek')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('7-pause')"
+    },
+    {
+     "hover": [
+      150,
+      27
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      190,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('8-drag')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('9-mute')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('10-unmute')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 2500
+    },
+    {
+     "eval": "SMP('11-ended-again')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-ogg-opus",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><audio id=v src=a.opus controls></audio><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.opus": "fixtures/media/ogg-opus.opus"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    },
+    {
+     "click": [
+      170,
+      27
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('5-seek-click')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('6-play-after-seek')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('7-pause')"
+    },
+    {
+     "hover": [
+      150,
+      27
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      190,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('8-drag')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('9-mute')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('10-unmute')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 2500
+    },
+    {
+     "eval": "SMP('11-ended-again')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-ogg-flac",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><audio id=v src=a.oga controls></audio><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.oga": "fixtures/media/ogg-flac.oga"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    },
+    {
+     "click": [
+      170,
+      27
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('5-seek-click')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('6-play-after-seek')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('7-pause')"
+    },
+    {
+     "hover": [
+      150,
+      27
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      190,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('8-drag')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('9-mute')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('10-unmute')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 2500
+    },
+    {
+     "eval": "SMP('11-ended-again')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-mp3",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><audio id=v src=a.mp3 controls></audio><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.mp3": "fixtures/media/mp3.mp3"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    },
+    {
+     "click": [
+      170,
+      27
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('5-seek-click')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('6-play-after-seek')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('7-pause')"
+    },
+    {
+     "hover": [
+      150,
+      27
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      190,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('8-drag')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('9-mute')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('10-unmute')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 2500
+    },
+    {
+     "eval": "SMP('11-ended-again')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-flac",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><audio id=v src=a.flac controls></audio><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.flac": "fixtures/media/flac.flac"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    },
+    {
+     "click": [
+      170,
+      27
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('5-seek-click')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('6-play-after-seek')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('7-pause')"
+    },
+    {
+     "hover": [
+      150,
+      27
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      190,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('8-drag')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('9-mute')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('10-unmute')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 2500
+    },
+    {
+     "eval": "SMP('11-ended-again')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-wav-pcm-s16",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><audio id=v src=a.wav controls></audio><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.wav": "fixtures/media/wav-pcm-s16.wav"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    },
+    {
+     "click": [
+      170,
+      27
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('5-seek-click')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('6-play-after-seek')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('7-pause')"
+    },
+    {
+     "hover": [
+      150,
+      27
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      190,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('8-drag')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('9-mute')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('10-unmute')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 2500
+    },
+    {
+     "eval": "SMP('11-ended-again')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-aac-adts",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><audio id=v src=a.aac controls></audio><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.aac": "fixtures/media/aac-adts.aac"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    },
+    {
+     "click": [
+      170,
+      27
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('5-seek-click')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('6-play-after-seek')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('7-pause')"
+    },
+    {
+     "hover": [
+      150,
+      27
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      190,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('8-drag')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('9-mute')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('10-unmute')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 2500
+    },
+    {
+     "eval": "SMP('11-ended-again')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-video-tag-mp3",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><video id=v src=a.mp3 controls width=320 height=240></video><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.mp3": "fixtures/media/mp3.mp3"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-video-tag-m4a",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><video id=v src=a.m4a controls width=320 height=240></video><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.m4a": "fixtures/media/m4a-aac.m4a"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-video-tag-ogg-opus",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><video id=v src=a.opus controls width=320 height=240></video><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.opus": "fixtures/media/ogg-opus.opus"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      24,
+      199
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-audio-tag-mp4",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><audio id=v src=a.mp4 controls></audio><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.mp4": "fixtures/media/mp4-h264-high-aac.mp4"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    },
+    {
+     "click": [
+      170,
+      27
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('5-seek-click')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('6-play-after-seek')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('7-pause')"
+    },
+    {
+     "hover": [
+      150,
+      27
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      190,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('8-drag')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('9-mute')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('10-unmute')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 2500
+    },
+    {
+     "eval": "SMP('11-ended-again')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-audio-tag-webm-vp8",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><audio id=v src=a.webm controls></audio><script>watch(v)</script>",
+   "http": true,
+   "files": {
+    "a.webm": "fixtures/media/webm-vp8-vorbis.webm"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('2-play+0.7')"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "SMP('3-play+1.4')"
+    },
+    {
+     "wait": 2000
+    },
+    {
+     "eval": "SMP('4-ended')"
+    },
+    {
+     "click": [
+      170,
+      27
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('5-seek-click')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('6-play-after-seek')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('7-pause')"
+    },
+    {
+     "hover": [
+      150,
+      27
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      190,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "SMP('8-drag')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('9-mute')"
+    },
+    {
+     "click": [
+      244,
+      27
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "eval": "SMP('10-unmute')"
+    },
+    {
+     "click": [
+      26,
+      27
+     ]
+    },
+    {
+     "wait": 2500
+    },
+    {
+     "eval": "SMP('11-ended-again')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "fmt-audio-panel-click",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>\nconst L=[],SS=[],r2=x=>Math.round(x*100)/100,q=x=>Math.floor(x*2)/2;\nconst rg=t=>Array.from({length:t.length},(_,i)=>q(t.start(i))+'-'+q(t.end(i))).join(',');\nconst rg2=t=>Array.from({length:t.length},(_,i)=>r2(t.start(i))+'-'+r2(t.end(i))).join(',');\nconst ME=['loadstart','emptied','error','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','play','playing','waiting','pause','seeking','seeked','ended','volumechange'];\nconst CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);\nfunction watch(m){ME.forEach(n=>m.addEventListener(n,e=>L.push(e.type+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':''))))}\nconst ST=()=>'p='+(+v.paused)+' e='+(+v.ended)+' ct='+q(v.currentTime)+' m='+(+v.muted)+' rs='+v.readyState+' ns='+v.networkState+' pl='+rg(v.played)+' sk='+(+v.seeking)+' err='+(v.error?v.error.code:0);\nconst SMP=n=>{SS.push(n+' '+ST())};\n</script><audio id=v src=a.mp3 controls></audio><script>watch(v)</script><script>['pointerdown','mousedown','mouseup','click'].forEach(n=>document.addEventListener(n,e=>L.push('D:'+n+'@'+(e.target===v?'el':e.target.nodeName)),true))</script>",
+   "http": true,
+   "files": {
+    "a.mp3": "fixtures/media/mp3.mp3"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "SMP('1-loaded')"
+    },
+    {
+     "click": [
+      100,
+      27
+     ]
+    },
+    {
+     "wait": 200
+    },
+    {
+     "eval": "SMP('2-click-label')"
+    },
+    {
+     "click": [
+      6,
+      27
+     ]
+    },
+    {
+     "wait": 200
+    },
+    {
+     "eval": "SMP('3-click-left-pad')"
+    },
+    {
+     "click": [
+      222,
+      27
+     ]
+    },
+    {
+     "wait": 200
+    },
+    {
+     "eval": "SMP('4-click-timeline-right-end')"
+    },
+    {
+     "hover": [
+      100,
+      27
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      160,
+      27
+     ]
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "wait": 200
+    },
+    {
+     "eval": "SMP('5-drag-label-to-timeline')"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "SS"
+    },
+    {
+     "js": "[v.duration, v.videoWidth, v.videoHeight, rg2(v.seekable), rg2(v.buffered)]"
+    }
+   ]
+  },
+  {
+   "name": "hit-audio-timeline-left",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} audio{display:block}</style><script>const L=[];const X=(x,y)=>L.push(x+','+y+' '+Math.round(v.currentTime*100)/100+(v.paused?'':' playing'));</script><audio id=v src=a.mp3 controls preload=auto></audio>",
+   "http": true,
+   "files": {
+    "a.mp3": "fixtures/media/mp3-long.mp3"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      110,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(110,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      112,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(112,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      114,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(114,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      116,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(116,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      118,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(118,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      120,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(120,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      122,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(122,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      124,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(124,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      126,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(126,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      128,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(128,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      130,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(130,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      132,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(132,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      134,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(134,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      136,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(136,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      138,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(138,27)"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    }
+   ]
+  },
+  {
+   "name": "hit-audio-timeline-right",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} audio{display:block}</style><script>const L=[];const X=(x,y)=>L.push(x+','+y+' '+Math.round(v.currentTime*100)/100+(v.paused?'':' playing'));</script><audio id=v src=a.mp3 controls preload=auto></audio>",
+   "http": true,
+   "files": {
+    "a.mp3": "fixtures/media/mp3-long.mp3"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      200,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(200,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      202,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(202,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      204,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(204,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      206,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(206,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      208,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(208,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      210,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(210,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      212,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(212,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      214,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(214,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      216,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(216,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      218,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(218,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      220,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(220,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      222,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(222,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      224,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(224,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      226,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(226,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      228,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(228,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      230,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(230,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      232,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(232,27)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      234,
+      27
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(234,27)"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    }
+   ]
+  },
+  {
+   "name": "hit-audio-timeline-top",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} audio{display:block}</style><script>const L=[];const X=(x,y)=>L.push(x+','+y+' '+Math.round(v.currentTime*100)/100+(v.paused?'':' playing'));</script><audio id=v src=a.mp3 controls preload=auto></audio>",
+   "http": true,
+   "files": {
+    "a.mp3": "fixtures/media/mp3-long.mp3"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      6
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,6)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      7
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,7)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      8
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,8)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      9
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,9)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      10
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,10)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      11
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,11)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      12
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,12)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      13
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,13)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      14
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,14)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      15
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,15)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      16
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,16)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      17
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,17)"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    }
+   ]
+  },
+  {
+   "name": "hit-audio-timeline-bottom",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} audio{display:block}</style><script>const L=[];const X=(x,y)=>L.push(x+','+y+' '+Math.round(v.currentTime*100)/100+(v.paused?'':' playing'));</script><audio id=v src=a.mp3 controls preload=auto></audio>",
+   "http": true,
+   "files": {
+    "a.mp3": "fixtures/media/mp3-long.mp3"
+   },
+   "steps": [
+    {
+     "wait": 900
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      36
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,36)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      37
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,37)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      38
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,38)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      39
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,39)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      40
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,40)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      41
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,41)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      42
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,42)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      43
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,43)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      44
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,44)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      45
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,45)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      46
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,46)"
+    },
+    {
+     "eval": "v.pause();v.currentTime=5"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "click": [
+      170,
+      47
+     ]
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "X(170,47)"
+    }
+   ],
+   "measure": [
+    {
+     "js": "L"
+    }
+   ]
+  }
+ ]
+}

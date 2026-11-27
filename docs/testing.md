@@ -1882,8 +1882,8 @@ files in `out/media-local/`, made by `ffmpeg -f lavfi -i
 color=c=black:size=WxH:rate=25:duration=0.04 -frames:v 1 -c:v libvpx-vp9
 -b:v 0 -crf 36 -pix_fmt yuv420p -an webm-vp9-WxH.webm` for 16384x16,
 8192x8192 and 16384x8192, and `hostile-range-lie-*` need
-`fixtures/js/media/mux-1080p30-20s.mp4`) and (local files)
-`media-real-files`. They
+`fixtures/js/media/mux-1080p30-20s.mp4`), `media-exit` (M14 feature 10c)
+and (local files) `media-real-files` and `media-exit-real`. They
 use `javascript: true` and these probe features, added in M14 step 1:
 
 - `http: true` (case): the page loads over HTTP from the case server even
@@ -1953,6 +1953,29 @@ after clicks on the audio buttons, and take hover screenshots),
 testsrc2=s=320x240:r=1 -t 3725 -c:v libx264 -g 30`). The fixture
 `fixtures/media/mp4-h264-aac-flat-long.mp4` (a flat #336699 picture, 10 s
 with AAC) is made by `tools/media/generate.py`.
+
+**M14 exit test** (feature 10c). `crates/engine/tests/media_exit.rs` has one
+module per works item of M14; each starts with the map (the tests and probe
+files that already check the item) and holds the tests for what the map
+found missing. Run it with `cargo test -p swb-engine --features media
+--test media_exit` (also part of `just test-media`); the module of item 7
+runs in the build without the feature (`just test`). Its probe files are
+`tools/probes/media-exit.json` (every format of the build played from the
+default controls, in `<video>` or `<audio>`, with the events and 11 sampled
+states; the audio panel and the hit areas of the audio timeline) and
+`media-exit-real.json` (the Wikipedia video markup, `highest.mp4`,
+`audio.m4a`; local files), with their data in
+`crates/engine/tests/data/media-exit.json` and `media-exit-real.json`
+(`uv run --project tools swbtools probe --json tools/probes/FILE`, three
+runs, equal). The sampled times are floors to 0.5 s, so that the runs of
+Chromium agree (a time error below 0.5 s can pass). A departure from
+Chromium (`DEPARTURES`) names its backlog item and hides only its own
+difference. The tests of the real files (`item8_real_files`) print
+`skipped: ...` and pass when `fixtures/js/media/*`, `fixtures/js/videojs`
+or `fixtures/pages/wikipedia-web-browser` is missing.
+`tools/tests/test_media_gui.py` checks that `BUDGETS` has an entry for
+each budget of the works items 4 and 5 and of `docs/media-diagnosis.md`
+section 6, within the diagnosis' number.
 
 ### Media builds (M14 feature 3, ADR 0047)
 

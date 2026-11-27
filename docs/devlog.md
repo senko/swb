@@ -4,6 +4,26 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-27: M14 feature 10c, the exit test
+
+- Mapped each works item of M14 to its tests (the module docs of
+  `crates/engine/tests/media_exit.rs`) and filled the gaps against
+  Chromium: every format from the default controls with JavaScript on and
+  off; the real files; the Wikipedia page with its video; the media API on
+  videojs.org. Two new probe files, three equal Chromium runs each.
+- The gaps found three bugs: the frames of a full range H.264 stream after
+  the first used the wrong coefficients (swscale rebuilt its context at
+  every call for the `yuvj` formats), a press on an audio panel toggled
+  playback, and the hit area of the audio timeline was too small.
+- All eight works items are met. Departures, each asserted with its
+  backlog item: Chromium's Ogg duration grows after a seek; `ended` after a
+  seek to the end of an audio file; the audio-style controls of a
+  `<video>` with an audio-only file. Item 5 keeps the one budget of 10b
+  that is not met (a covered window with a playing video).
+- Review: a departure hid every other difference of its row, and the
+  budget test checked entries, not limits; both fixed.
+- Next: the M14 maintenance review, then M15.
+
 ## 2026-11-27: M14 feature 10b, the budgets in the GUI
 
 - `swbtools media-gui` (a private Xvfb and a capped scope per case, the
