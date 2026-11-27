@@ -158,7 +158,7 @@ def cmd_jsbench(args: argparse.Namespace) -> int:
 
 
 def cmd_hostile(args: argparse.Namespace) -> int:
-    return hostile(args.names, args.swb, args.list, args.keep)
+    return hostile(args.names, args.swb, args.list, args.keep, args.media)
 
 
 def cmd_layout_refs(args: argparse.Namespace) -> int:
@@ -461,6 +461,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--swb", type=Path, help="path of the swb binary")
     p.add_argument("--list", action="store_true", help="list the cases and their limits")
     p.add_argument("--keep", action="store_true", help="keep out/hostile/NAME of passing cases")
+    p.add_argument(
+        "--media",
+        action="store_true",
+        help="run (or list) only the cases that need a build with the feature `media` "
+        "(`just hostile-media`)",
+    )
     p.set_defaults(func=cmd_hostile)
 
     p = commands.add_parser(

@@ -35,6 +35,9 @@ pub(crate) struct MediaContext {
     /// True: the window is hidden (minimized or occluded) and no video
     /// converts frames ([`crate::Page::set_window_hidden`]).
     window_hidden: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// The budget of retained frames of each document, in bytes (M14
+    /// feature 10a; [`crate::Page::set_retained_frame_budget`] for tests).
+    retained_budget: std::sync::Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl MediaContext {
@@ -51,7 +54,22 @@ impl MediaContext {
             enabled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
             viewport_rule: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             window_hidden: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            retained_budget: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(
+                super::RETAINED_FRAME_BUDGET,
+            )),
         }
+    }
+
+    /// The budget of retained frames of each document, in bytes.
+    pub(crate) fn retained_budget(&self) -> u64 {
+        self.retained_budget
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Sets the budget of retained frames of each document.
+    pub(crate) fn set_retained_budget(&self, bytes: u64) {
+        self.retained_budget
+            .store(bytes, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Whether only a video near the viewport converts frames.
@@ -437,6 +455,32 @@ mod stub {
 
         /// Whether the video is painted (frames are converted).
         pub(crate) fn set_painted(&mut self, _painted: bool) {}
+
+        /// No pipeline, no retained frame.
+        pub(crate) fn retained_bytes(&self) -> u64 {
+            0
+        }
+
+        /// No pipeline, no retained frame.
+        pub(crate) fn drop_retained_frame(&mut self) -> bool {
+            false
+        }
+
+        /// No pipeline, no retained frame.
+        pub(crate) fn reduce_retained_frame(
+            &mut self,
+            _copy: std::sync::Arc<swb_paint::Pixmap>,
+        ) -> bool {
+            false
+        }
+
+        /// No pipeline, no reduced frame.
+        pub(crate) fn reduced_from(&self) -> Option<(u32, u32)> {
+            None
+        }
+
+        /// No pipeline.
+        pub(crate) fn restore_full_frame(&mut self) {}
 
         /// The frames converted so far (tests).
         pub(crate) fn frames_converted(&self) -> u64 {
@@ -984,9 +1028,53 @@ mod real {
         }
 
         /// Whether the video is painted: frames that are not are decoded
-        /// but not converted (ADR 0047 section 6, "Hidden elements").
+        /// but not converted (ADR 0047 section 6, "Hidden elements"). A
+        /// suspended pipeline whose frame has no pixels (decoded while it was
+        /// not painted, or dropped by the budget of retained frames) opens
+        /// again to show the frame at its position (M14 feature 10a).
         pub(crate) fn set_painted(&mut self, painted: bool) {
             self.pipeline.set_painted(painted);
+            if self.suspended && !self.pipeline.is_suspended() {
+                self.suspended = false;
+            }
+        }
+
+        /// The bytes of the frame that the element keeps while its pipeline
+        /// holds no place (the budget of retained frames, M14 feature 10a).
+        pub(crate) fn retained_bytes(&self) -> u64 {
+            self.pipeline.retained_image_bytes().unwrap_or(0)
+        }
+
+        /// Drops the frame that the element keeps while its pipeline holds no
+        /// place; it comes back when the video is painted again
+        /// ([`Fetch::set_painted`]). False if there was none to drop.
+        pub(crate) fn drop_retained_frame(&mut self) -> bool {
+            self.pipeline.drop_retained_image()
+        }
+
+        /// Replaces the frame that the element keeps while its pipeline
+        /// holds no place by a reduced copy of it, for the box (review fixes
+        /// of 10a). False if there was none to replace.
+        pub(crate) fn reduce_retained_frame(
+            &mut self,
+            copy: std::sync::Arc<swb_paint::Pixmap>,
+        ) -> bool {
+            self.pipeline.reduce_retained_image(copy)
+        }
+
+        /// The size of the full frame while the element shows a reduced copy.
+        pub(crate) fn reduced_from(&self) -> Option<(u32, u32)> {
+            self.pipeline.reduced_from()
+        }
+
+        /// The reduced copy is too small for the box now: the frame at the
+        /// position is decoded again at full size (the quiet seek; a
+        /// suspended pipeline opens again).
+        pub(crate) fn restore_full_frame(&mut self) {
+            self.pipeline.restore_full_image();
+            if self.suspended && !self.pipeline.is_suspended() {
+                self.suspended = false;
+            }
         }
 
         /// The frames converted so far (tests).

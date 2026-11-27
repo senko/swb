@@ -8,6 +8,8 @@
 //! its algorithms need from the document (the DOM, the base URL, the media
 //! environment, the loader, the origin, the user activation).
 
+use std::collections::HashMap;
+
 use swb_dom::NodeId;
 use swb_layout::{Point, Rect, Size};
 use swb_web::{MediaCommand, MediaInfo, PlayStart};
@@ -247,12 +249,21 @@ impl DocumentState {
                 live.insert(node);
             }
             layout |= self.images.retain_videos(|node| live.contains(&node));
+            self.media.rebuild_retained();
         } else {
             for node in touched {
                 layout |= match self.media.video_view(node) {
                     Some(view) => self.set_video_image(node, view),
                     None => self.images.forget_video(node),
                 };
+                self.media.note_retained(node);
+            }
+        }
+        // The budget of retained frames (M14 feature 10a): the images of
+        // the frames that it dropped go too.
+        for node in self.media.trim_retained() {
+            if let Some(view) = self.media.video_view(node) {
+                layout |= self.set_video_image(node, view);
             }
         }
         if layout {
@@ -314,14 +325,30 @@ impl DocumentState {
         }
         self.media_visibility = Some(key);
         let mut painted = std::collections::HashSet::new();
+        // The videos that have a painted box anywhere (the budget of
+        // retained frames drops the frames of the others first, and keeps
+        // the frames of the others at the size of their box; M14 feature
+        // 10a). Unknown while the document is not shown.
+        let mut boxed: HashMap<NodeId, Option<(f32, f32)>> = HashMap::new();
+        let scale = self.view.scale;
         if shown {
-            self.walk_boxes_in_window(tree, |b| {
+            self.walk_painted_boxes(tree, |b, rect, in_window| {
                 if let swb_layout::BoxContent::Media(m) = &b.content {
-                    painted.insert(m.node);
+                    // An image at its natural size (`none`) is not bounded
+                    // by the box.
+                    let size = (b.style.object_fit != swb_style::ObjectFit::None)
+                        .then_some((rect.width * scale, rect.height * scale));
+                    let entry = boxed.entry(m.node).or_insert(size);
+                    if let (Some(old), Some(new)) = (*entry, size) {
+                        *entry = Some((old.0.max(new.0), old.1.max(new.1)));
+                    }
+                    if in_window {
+                        painted.insert(m.node);
+                    }
                 }
             });
         }
-        self.media.set_painted(&painted);
+        self.media.set_painted(&painted, shown.then_some(&boxed));
     }
 
     /// The inputs of the window test of the boxes of this document.
@@ -343,6 +370,23 @@ impl DocumentState {
         tree: &swb_layout::FragmentTree,
         mut found: impl FnMut(&swb_layout::BoxFragment),
     ) {
+        self.walk_painted_boxes(tree, |b, _, in_window| {
+            if in_window {
+                found(b);
+            }
+        });
+    }
+
+    /// Calls `found` for each box that paint visits, with its border box in
+    /// painted document coordinates (the bounds after the transforms) and
+    /// whether its `visibility` is `visible` and it lies in the window of
+    /// the videos (see [`DocumentState::walk_boxes_in_window`]). One walk of
+    /// the whole tree.
+    fn walk_painted_boxes(
+        &self,
+        tree: &swb_layout::FragmentTree,
+        mut found: impl FnMut(&swb_layout::BoxFragment, Rect, bool),
+    ) {
         self.media_window_walks
             .set(self.media_window_walks.get() + 1);
         let rule = self.media.ctx.viewport_rule();
@@ -351,11 +395,11 @@ impl DocumentState {
             self.scrollers.offsets(),
             self.scroll,
             |fragment, rect, matrix| {
-                if let swb_layout::FragmentRef::Box(b) = fragment
-                    && b.style.visibility == swb_style::Visibility::Visible
-                    && (!rule || matrix.map_rect(&rect).intersection(&window).is_some())
-                {
-                    found(b);
+                if let swb_layout::FragmentRef::Box(b) = fragment {
+                    let painted = matrix.map_rect(&rect);
+                    let in_window = b.style.visibility == swb_style::Visibility::Visible
+                        && (!rule || painted.intersection(&window).is_some());
+                    found(b, painted, in_window);
                 }
             },
         );
@@ -418,6 +462,37 @@ impl DocumentState {
     /// The frames that the pipeline of the video `node` converted (tests).
     pub(crate) fn media_frames_converted(&self, node: NodeId) -> Option<u64> {
         self.media.frames_converted(node)
+    }
+
+    /// The bytes of the retained frames of the document and the number of
+    /// frames that their budget dropped (M14 feature 10a; tests).
+    pub(crate) fn media_retained(&self) -> (u64, u64) {
+        (self.media.retained.total(), self.media.retained.dropped())
+    }
+
+    /// Whether the `<video>` `node` shows a frame of its video (tests).
+    pub(crate) fn media_shows_frame(&self, node: NodeId) -> bool {
+        self.images.shows_frame(node)
+    }
+
+    /// The pixel size of the frame that the `<video>` `node` shows (tests).
+    pub(crate) fn media_frame_size(&self, node: NodeId) -> Option<(u32, u32)> {
+        self.images.frame_size(node)
+    }
+
+    /// The frames that the budget of retained frames replaced by a reduced
+    /// copy so far (tests).
+    pub(crate) fn media_reduced_frames(&self) -> u64 {
+        self.media.retained.reduced()
+    }
+
+    /// The most source pixels that one sync reduced, and the number of
+    /// syncs that reduced a frame (M14 feature 10a; tests).
+    pub(crate) fn media_reduce_work(&self) -> (u64, u64) {
+        (
+            self.media.retained.max_sync_pixels(),
+            self.media.retained.reducing_syncs(),
+        )
     }
 
     /// Takes the media events for the script runtime.

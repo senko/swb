@@ -261,6 +261,34 @@ ars-technica fixture (1,943 elements; layout 6.5 ms), at 4 Hz while the
 controls show and at 60 Hz during the 0.7 s fade (backlog: splice the
 controls' items into the list).
 
+## Media memory (M14 feature 10a)
+
+Release build with media, headless, virtual time, peak RSS (an empty page
+72 MiB); before is the binary of 0ea59c7:
+
+| Page | Before 10a | After 10a |
+|---|---|---|
+| 1 video at the size limit (8192 x 4352), playing | 1,280 MiB | 792 MiB |
+| 4 videos at the size limit, playing | 4,297 MiB | 2,230 MiB |
+| 16 videos at the size limit, playing | killed at the 16 GiB cap | 2,292 MiB |
+| 32 videos at the size limit, playing | killed at the 16 GiB cap | 2,475 MiB |
+| 16 / 32 at the size limit, `preload=auto` (paused) | 16,131 / 16,128 MiB | 2,170 / 2,191 MiB |
+| 300 paused 320 x 240 videos | 349 MiB | 361 MiB |
+| 1,000 paused 320 x 240 videos | 586 MiB | 562 MiB |
+| 300 paused 1080p videos | 4,380 MiB | 2,461 MiB |
+| 1,000 paused 1080p videos | 10,057 MiB | 2,547 MiB |
+| 1,000 `<video preload=auto>` (320 x 240) | 583 MiB | 554 MiB |
+| 16 videos that declare 16 x 16 and switch to 8192 x 4352 | over 4 GiB (killed at the cap) | 2,077 to 2,216 MiB |
+
+Bounds: 2 GiB of decoded frames per process (open runs; a frame that grows
+in the stream grows its run's share or fails the run), 256 MiB of retained
+frames per document (reduced copies at the size of the box before frames
+go; a reduction costs 3.5 to 4 ms for a 1080p frame and 14.5 ms for a 4K
+frame in a release build, at most 8 Mpx of source pixels per sync, about
+15 ms), FFmpeg's own frames on top (at most 2 frame threads above the 4K
+frame, by the declared size). ADR 0047 "Implementation notes (M14 feature
+10a)".
+
 ## Baseline
 
 2026-10-09, M5 (commit 1cbcadb). Release build, Linux, Intel Core i5-13500,

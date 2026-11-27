@@ -220,6 +220,67 @@ fn a_single_image_is_scaled_into_its_pixel_snapped_rectangle() {
     assert!((i32::from(gray) - 102).abs() <= 8, "gray {gray}");
 }
 
+/// A `width` x `height` image of pseudo-random opaque colors (a linear
+/// congruential generator), the worst case for averages.
+fn noise(width: u32, height: u32) -> Pixmap {
+    let mut image = Pixmap::new(width, height).unwrap();
+    let mut x = 7u32;
+    for px in image.data_mut().as_chunks_mut::<4>().0 {
+        for c in &mut px[..3] {
+            x = x.wrapping_mul(1_103_515_245).wrapping_add(12_345);
+            *c = (x >> 16) as u8;
+        }
+        px[3] = 255;
+    }
+    image
+}
+
+/// M14 feature 10a (review fixes, ADR 0047): a video frame that a document
+/// keeps may be replaced by `crate::reduced_copy` for its box. Drawn into a
+/// tile up to the box's size (the uniform scale that covers the box in
+/// both axes, as the engine makes it), the copy gives the pixels of the
+/// full frame within 1 in each color channel, at device scales 1 and 2,
+/// odd sizes and tiles of another aspect ratio (`contain`, `fill`).
+#[test]
+fn a_reduced_copy_draws_like_its_source() {
+    let cases: [((u32, u32), Rect); 5] = [
+        ((1920, 1080), Rect::new(2.0, 3.0, 96.0, 54.0)),
+        ((1920, 1080), Rect::new(0.0, 0.0, 96.0, 30.0)),
+        ((1920, 1080), Rect::new(10.5, 0.0, 41.0, 77.0)),
+        ((321, 241), Rect::new(0.0, 0.0, 50.0, 30.0)),
+        ((641, 359), Rect::new(1.0, 1.0, 17.0, 60.0)),
+    ];
+    for ((w, h), tile) in cases {
+        let source = noise(w, h);
+        for scale in [1.0f32, 2.0] {
+            // The box is the tile here; the copy covers it in both axes.
+            let s = (tile.width * scale / w as f32).max(tile.height * scale / h as f32);
+            let copy =
+                crate::reduced_copy(&source, w as f32 * s, h as f32 * s).expect("a reduction");
+            assert!(copy.width() < w && copy.height() < h);
+            let draw = |image: Pixmap| {
+                render_with(
+                    vec![image_item(tile, tile)],
+                    scale,
+                    &OneImage(DecodedImage::from_pixmap(image), None),
+                )
+            };
+            let (full, small) = (draw(source.clone()), draw(copy));
+            let most = full
+                .data()
+                .iter()
+                .zip(small.data())
+                .map(|(a, b)| a.abs_diff(*b))
+                .max()
+                .unwrap_or(0);
+            assert!(most <= 1, "{w}x{h} into {tile:?} at {scale}: {most}");
+        }
+    }
+    // A scale of 0.5 or more: paint draws the source itself.
+    assert!(crate::reduced_copy(&noise(64, 64), 32.0, 40.0).is_none());
+    assert!(crate::reduced_copy(&noise(64, 64), 0.0, f32::NAN).is_none());
+}
+
 fn svg(source: &str) -> DecodedImage {
     crate::decode_with_type(source.as_bytes(), Some(crate::SVG_MIME_TYPE)).unwrap()
 }

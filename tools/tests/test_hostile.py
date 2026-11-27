@@ -41,7 +41,10 @@ def test_cases_have_descriptions_and_sane_limits():
         assert case.description.strip(), case.name
         # 40 s: the budget of a document's long tasks is 30 s (ADR 0028 section 16).
         assert 0 < case.time_limit_s <= 40, case.name
-        assert 0 < case.rss_limit_mib <= 2048, case.name
+        # A media build may hold up to the runner's cap (the frame budget of
+        # the pipelines is 2 GiB, M14 feature 10a).
+        most = hostile.MAX_RSS_CAP_MIB if case.media_only else 2048
+        assert 0 < case.rss_limit_mib <= most, case.name
         assert case.known_failure is None or case.known_failure.strip(), case.name
 
 
@@ -67,6 +70,29 @@ def test_select_finds_cases_by_name():
     chosen = hostile.select([CASES[1].name, CASES[0].name]) or []
     assert [c.name for c in chosen] == [CASES[1].name, CASES[0].name]
     assert hostile.select(["no-such-case"]) is None
+
+
+def test_select_finds_the_media_cases():
+    media = hostile.select([], media=True) or []
+    assert media and all(case.media for case in media)
+    assert {case.name for case in media} == {case.name for case in CASES if case.media}
+    assert "media-16-videos-at-the-frame-size-limit" in {case.name for case in media}
+    assert all(case.media for case in CASES if case.media_only)
+
+
+def test_a_binary_without_media_skips_the_media_only_cases(tmp_path, capsys):
+    plain = tmp_path / "plain"
+    plain.write_text("#!/bin/sh\necho 'swb 0.1.0'\n")
+    plain.chmod(0o755)
+    with_media = tmp_path / "media"
+    with_media.write_text("#!/bin/sh\necho 'swb 0.1.0'\necho 'FFmpeg 9.0.2 (LGPL)'\n")
+    with_media.chmod(0o755)
+    assert not hostile.has_media(plain)
+    assert hostile.has_media(with_media)
+    assert not hostile.has_media(tmp_path / "missing")
+    only = [case for case in CASES if case.media_only][:1]
+    assert hostile.hostile([c.name for c in only], plain, False, False) == 0
+    assert "skipped (needs a media build" in capsys.readouterr().out
 
 
 def test_write_case_writes_the_page_and_its_files(tmp_path):
@@ -110,6 +136,63 @@ def test_stall_server_never_answers_or_answers_slowly(monkeypatch):
     finally:
         never.close()
         slow.close()
+
+
+def _media_answer(port: int, range_header: str | None = None, wait_s: float = 5.0) -> bytes:
+    """The bytes that the stall server sends for `/a.bin` within `wait_s`."""
+    import socket
+
+    request = "GET /a.bin HTTP/1.1\r\nHost: x\r\n"
+    if range_header:
+        request += f"Range: {range_header}\r\n"
+    data = b""
+    with socket.create_connection(("127.0.0.1", port)) as connection:
+        connection.sendall((request + "\r\n").encode())
+        connection.settimeout(wait_s)
+        try:
+            while chunk := connection.recv(1 << 16):
+                data += chunk
+        except TimeoutError:
+            pass
+    return data
+
+
+def test_stall_server_endless_mode_sends_the_file_and_holds(tmp_path, monkeypatch):
+    monkeypatch.setattr(hostile.StallServer, "HOLD_S", 0.5)
+    (tmp_path / "a.bin").write_bytes(b"x" * 1000)
+    endless = hostile.StallServer("endless", tmp_path)
+    skip = hostile.StallServer("endless-skip", tmp_path)
+    try:
+        head, _, body = _media_answer(endless.port, wait_s=0.3).partition(b"\r\n\r\n")
+        assert head.startswith(b"HTTP/1.1 200 OK") and b"Content-Length" not in head
+        assert body == b"x" * 1000, "the file, then nothing while the connection is open"
+        _, _, body = _media_answer(skip.port, wait_s=2).partition(b"\r\n\r\n")
+        assert body.startswith(b"x" * 1000)
+        assert body[1000:1008] == (1 << 16).to_bytes(4, "big") + b"free"
+        assert len(body) > 1000 + (1 << 16)
+    finally:
+        endless.close()
+        skip.close()
+
+
+def test_stall_server_lies_from_the_second_range_answer_on(tmp_path):
+    (tmp_path / "a.bin").write_bytes(bytes(range(256)) * 512)
+    shift = hostile.StallServer("lie-range", tmp_path)
+    total = hostile.StallServer("lie-total", tmp_path)
+    try:
+        first = _media_answer(shift.port, "bytes=0-")
+        assert b"Content-Range: bytes 0-131071/131072" in first
+        # Each answer closes after 64 KiB of its body.
+        assert len(first.partition(b"\r\n\r\n")[2]) == 64 << 10
+        assert b"Content-Range: bytes 65537-131071/131072" in _media_answer(
+            shift.port, "bytes=65536-"
+        )
+        assert b"/131072\r\n" in _media_answer(total.port, "bytes=0-")
+        assert b"/131073\r\n" in _media_answer(total.port, "bytes=65536-")
+        assert b"/131074\r\n" in _media_answer(total.port, "bytes=65536-")
+    finally:
+        shift.close()
+        total.close()
 
 
 def test_stall_server_big_mode_sends_the_whole_body(monkeypatch):

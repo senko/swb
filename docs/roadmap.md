@@ -7395,11 +7395,78 @@ Steps:
         overlapped by 15.5 px (now Chromium's measured 32 px boxes);
         the volume slider did not unmute a muted element (found while
         measuring the focus).
-   10. The exit test (`implementer`): the list above against Chromium,
-      the hostile media (also the new files of ADR 0047 section 11: a
-      frame size above the limit, an endless body, 1,000 elements, 100
-      streams, with Chromium's behaviour for the large frame), the
-      budgets in the GUI.
+   10. The exit, in three parts (planned 2026-11-27: one part did not fit
+      one session):
+      - 10a. Hostile media and bounded memory (`implementer-hard`): a
+        process-wide bound on decoded frames and a byte budget for the
+        retained frames (the backlog items "for feature 10"); the new
+        files and pages of ADR 0047 section 11 (a frame size above the
+        limit, an endless body, `Content-Range` lies, 1,000 elements
+        that decode, 100 streams) with Chromium's behaviour for each; a
+        stalled open against Chromium's `stalled`; a media build of the
+        hostile-page set.
+
+        Done (2026-11-27, ADR 0047 "Implementation notes (M14 feature
+        10a)"):
+        - Measured first (release, headless, virtual time): 16 videos at
+          the frame size limit passed 16 GiB (killed by the cap); 1,000
+          paused 1080p videos held 10.1 GB, 300 held 4.4 GB.
+        - The frame budget of the process (`swb_media::pipeline::slots`,
+          2 GiB): a run reserves its queue and 3 pixmaps when it knows the
+          frame size; a shorter queue when the budget is short; it waits
+          with its place (as for a place: no pending work, no
+          no-progress limit) when even 2 frames do not fit. A decoded
+          frame larger than the declared size grows the reservation at
+          once or fails the run with code 3. The pixmap pool counts
+          bytes. Videos above the 4K frame decode on 2 FFmpeg threads.
+          After: 16 videos at the limit 2.3 to 2.7 GiB; one 792 MiB
+          (1,280 before).
+        - The budget of retained frames (256 MiB per document,
+          `engine/src/media/retained.rs`): frames of elements without a
+          box go first; then painted frames become reduced copies at the
+          size of their box (paint's own reduction level, within 1 in a
+          color channel), least recently painted first; then frames go.
+          A dropped frame comes back through the painted flag's quiet
+          seek, which now also opens a suspended pipeline. 1,000 paused
+          1080p videos: 2.6 GB (10.1 before); 100 visible paused 1080p
+          videos all show their frame.
+        - Chromium measured for each hostile file (`media-hostile.json`,
+          18 cases, three runs; the probe server's new `serve` option): it
+          plays frames up to 16384 x 8192 (swb keeps 8192 x 4352: one such
+          run would pass the budget), fails a width of 16,400 with code 3
+          after the metadata, plays the 100-stream files, plays a frame
+          size that changes in the stream (with `resize`), waits on an
+          endless body, fires `stalled` after 3 s for a stalled open and
+          waits, fails a shifted `Content-Range` with code 4.
+        - Test media: the frame size limit, three 100-stream files, two
+          files whose frame size changes in the stream. Ten new hostile
+          cases; `just hostile-media` runs the 18 cases that play media
+          with the media release binary; the runner's server modes
+          `endless`, `endless-skip`, `lie-range`, `lie-total`.
+        - Tests: `frame_budget.rs`, the pool and slot unit tests,
+          `media_retained.rs`, the paint test of the reduced copy, the
+          100-stream rows in `files.rs`, `sources.rs`, `media_element.rs`.
+        - Review fixes (one round, then a review of the fixes): a
+          frame-budget waiter was failed by the no-progress limit; a file
+          that declares 16 x 16 and switches to 8192 x 4352 passed the
+          budget (16 such videos over 4 GiB, now 2.1 GiB); with 100
+          visible paused 1080p videos 64 showed nothing (now reduced
+          copies); the hostile cases checked labels, not states. Fix
+          round 2: the reductions of one sync are capped at 8 Mpx of
+          source pixels (a 1080p frame 3.5 to 4 ms, a 4K frame 14.5 ms in
+          a release build); later syncs continue through a due time, and
+          frames go past a margin of 64 MiB.
+      - 10b. The budgets in the GUI (`implementer`): a committed tool
+        for the GUI measurements of 7b and 9, the budgets of works item 5
+        and of the diagnosis (section 6) on the release build, the 150 %
+        ceiling lowered to what swb reaches, the audio-video sync trace of
+        item 4 on the private daemon, the wake-ups per frame, the cost of
+        the frame conversion at 2558 x 1626.
+      - 10c. The exit test (`implementer`): each works item against
+        Chromium in one test file, with the tests of the features that
+        already cover an item named and the gaps filled (every format
+        with JavaScript on and off and with controls, the real files,
+        videojs.org's media element API).
 
 ## M15: The videojs.org player — planned
 
@@ -7451,6 +7518,80 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Audio output (feature 8): the device delay on real hardware is measured
   only by the spike (512 frames); the private daemon's null sink reports
   0. A measurement on the owner's sound card needs the owner.
+- Media (feature 10a): MP4 and Ogg files with more than 16 streams fail
+  the open (code 4: FFmpeg's MOV and Ogg demuxers fail at the 17th stream
+  with `max_streams` 16); the Matroska demuxer keeps 16. Chromium plays
+  all three 100-stream files (probe `media-hostile.json`). A higher
+  `max_streams` (the other streams discarded) would play them; measure
+  the cost of the stream analysis of 100 streams first.
+- Media (feature 10a): Chromium plays frames up to at least 16384 x 8192
+  and fails a width of 16,400 with code 3 after `loadedmetadata`; swb
+  fails above 8192 x 4352 pixels with code 4 at the metadata. Larger
+  frames need a smaller share per run (a queue of 1) or a larger frame
+  budget.
+- Media (feature 10a): a stalled open (no byte) fails with code 3 after
+  the no-progress limit (10 s); Chromium fires `stalled` after 3 s and
+  waits without an error (also with `play()`, which stays pending). swb
+  fires no `stalled`. Fix: the byte source tells the pipeline that it
+  waits for the network (a request in flight that got nothing), so the
+  no-progress limit does not apply, and the element fires `stalled`
+  after 3 s without progress.
+- Media (feature 10a): an endless body smaller than one block (the 55 KB
+  test file in a 200 without a length, then an open connection) never
+  reaches the demuxer (a block is readable only when its 64 KiB are in,
+  backlog of feature 4), and the pipeline fails with code 3 after 10 s.
+  Chromium plays it to 0.88 s and waits.
+- Media (feature 10a): an endless stream of bytes that the demuxer skips
+  (the 2 s test file, then MP4 `free` boxes) plays to 1.0 s and waits
+  there (`readyState` 2, no error); Chromium plays to 1.98 s and waits.
+  Find where the pipeline waits. Memory stays within the byte budget
+  (Chromium reads about 9 GB from the local server in a few seconds).
+- Media (feature 10a): a byte source that fails after the open (a
+  `Content-Range` that does not fit, a total that changes) ends the
+  stream where the demuxer is, without an error event (an error after
+  the open ends the stream). Chromium fails a shifted range with code 4
+  and ignores a changing total.
+- Media (feature 10a): Chromium delays the `load` event of a document for
+  a video that stalls (3 s in a frame, probe `hostile-stalled-load-event`);
+  swb does not delay `load` for media.
+- Media (feature 10a): a frame size that changes in the stream fires no
+  `resize` and does not change `videoWidth` and `videoHeight` (swb reports
+  the declared size at the metadata only); Chromium fires `resize` and
+  reports the new size (probe `hostile-size-switch-*`).
+- Media (feature 10a): with more painted videos than the retained budget
+  holds even as reduced copies at their box size (or boxes too large for
+  a copy), frames dropped from painted videos come back only when the
+  video is painted again, plays or seeks; those videos show their poster
+  or nothing. Chromium shows all of them. A reduced frame in a frame
+  document inside a scaled ancestor may be drawn enlarged (the box size
+  uses the document's own transforms and the device pixel ratio).
+- Media (feature 10a): the retained budget (256 MiB) is per document;
+  each frame document and each tab adds its own, so the ADR's worst case
+  (about 2.3 GiB) holds per document. A bound for the process would
+  cover pages with many frame documents and many tabs.
+- Media (feature 10a): FFmpeg's own decoded frames are outside the frame
+  budget (about 0.1 to 0.3 GiB per run at the size limit with 2
+  threads); the budget counts swb's RGBA pixmaps. The 2-thread rule
+  follows the declared size, so a stream that grows past the 4K frame
+  keeps the threads of its declared size.
+- Media (feature 10a): a running video whose frames grow in the stream
+  (640 x 360 to 1280 x 720) fails with code 3 when the free frame budget
+  is below the new minimum (other runs hold the 2 GiB); Chromium plays it.
+  Decoding without converting until bytes are free (the
+  `frames_over_budget` path) would play it, but the decoder's own frames
+  are outside the budget, so a hostile file could hold them (16
+  declared-16x16 videos each decode 8192 x 4352 frames on FFmpeg's
+  automatic thread count, 2.0 to 2.2 GiB in all); measure before changing.
+- Media (feature 10a): frame-budget waiters hold their place and cannot
+  suspend, so an `<audio>` element can wait behind them (12 playing 4K
+  runs and 4 waiters hold all 16 places); which run waits depends on the
+  order in which the demux threads reach the reservation, not on the FIFO
+  of places (the counts are the same on every run in virtual time, the
+  identities are not).
+- Media (feature 10a): 100 `preload=auto` videos show all their first
+  frames only after about 100 s: paused pipelines with their frame hold
+  their place for the 15 s idle time, so the first frames come in
+  batches of 16 (older than 10a; Chromium not measured).
 - Media controls (feature 9): a change of the controls (the time text
   once a second, the thumb, a hover, 60 Hz in a fade) builds the whole
   display list again (0.54 ms at 1,943 elements). Splice the controls'
@@ -7484,8 +7625,7 @@ Source Extensions, AV1 (dav1d), YouTube.
   non-square sample aspect ratio is not measured in Chromium.
 - Media (feature 3): no test file reaches the path where a demuxer error
   ends the stream, or the refusal of `io_open` (a MOV with an external
-  data reference); which demuxers other than Matroska fail instead of
-  keeping 16 streams (feature 10's 100-stream file).
+  data reference).
 - CI (feature 3): the job `check-media` has not run on GitHub before the
   commit (the cache key, the packages, the download and the signature
   check on the runner).
@@ -7525,11 +7665,6 @@ Source Extensions, AV1 (dav1d), YouTube.
   under `just media-asan`: with `swb-net` linked, `libc` comes before the
   sanitizer runtime in `DT_NEEDED` and the runtime crashes at start. The
   link order in the build script of `swb-media-ffi` would fix it.
-- Hostile pages (feature 4, for 10): `video-endless-body` and
-  `video-range-lies` (a `Content-Range` that does not fit, a total that
-  changes) as pages; unit tests cover both today. The hostile-page set
-  builds without the feature `media`, so these pages need a media build
-  of the set.
 - Tests (found in feature 4): `probe_net
   module_graph_probe_cases_match_chromium` (`import-call-base-inserted`)
   failed once in a loaded `just check-media` run (two module loads in the
@@ -7538,21 +7673,10 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Media pipeline (feature 5): the time of `Report::Buffered` depends on
   the demuxer's read-ahead and is not deterministic in virtual time
   (like network progress).
-- Media pipeline (feature 5, for feature 10): a process-wide budget for
-  decoded frames. Each pipeline holds about its frame queue plus 3
-  pixmaps: at the frame size limit (8192 x 4352, 142.6 MB) about 713 MB
-  per pipeline, 11.4 GB for 16. Also the retained frames (review of
-  feature 7a): every element that has decoded a frame keeps one
-  converted frame in `Images` (also suspended, off-screen and detached
-  elements, until the 16,384-element purge), with no byte budget.
-  Measured: 300 paused 320 x 240 videos hold 300 frames after 300 s of
-  virtual time (+257 MiB); 16,384 1080p videos would hold about 136 GB.
-  Fix: a byte budget that drops the frames of elements without a box
-  first (the painted flag's quiet seek gives them back).
 - Media paint (feature 7a): a playing video that gets a box has no image
   until its next frame (`Pipeline::set_painted` refreshes only a paused
-  or ended pipeline); a suspended pipeline that gets a box shows nothing
-  until `play()` or a seek.
+  or ended pipeline). (A suspended pipeline that gets a box opens again
+  for the quiet seek since feature 10a.)
 - Media paint (feature 7a): `<img>` and posters with `border-radius` are
   not clipped by it (`replaced_image`); the video's content is. The same
   clip would fix `<img>`; check it with a probe first.
@@ -7630,12 +7754,6 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Media pipeline (feature 5): in real time, a file whose audio comes far
   after the video in the file gives one `Underrun` and `Resumed` at the
   start before the threads stall on the owner.
-- Media pipeline (feature 5): the no-progress limit counts source bytes
-  as progress, so an endless stream of bytes that the demuxer skips never
-  fails (memory stays bounded by the byte budget); feature 10's
-  endless-body test checks it. An open that gets no byte for 10 s on a
-  slow network fails with code 3; Chromium may fire `stalled` and wait
-  (measure in 6a or 10).
 - Media pipeline (feature 5): the watchdog keeps an entry (one wake-up
   per 10 s) for a pipeline whose owner needed data once and then stopped
   asking while its threads wait.

@@ -81,6 +81,13 @@ pub mod limits {
     pub const ONE_THREAD_BELOW_PIXELS: u64 = 1280 * 720;
     /// The most decode threads of a video.
     pub const MAX_DECODE_THREADS: u32 = 8;
+    /// Videos above this many pixels (the 4K frame, 3840 x 2160) decode on
+    /// at most `FEW_DECODE_THREADS` (M14 feature 10a): each frame thread of
+    /// FFmpeg holds a decoded frame of its own, 53.5 MB at the size limit,
+    /// which the frame budget of the pipelines does not count.
+    pub const FEW_THREADS_ABOVE_PIXELS: u64 = 3840 * 2160;
+    /// The most decode threads of a video above `FEW_THREADS_ABOVE_PIXELS`.
+    pub const FEW_DECODE_THREADS: u32 = 2;
 }
 
 /// The sample rate of decoded audio.

@@ -164,6 +164,33 @@ impl Reductions {
     }
 }
 
+/// A reduced copy of `source` for an image drawn at most `width` x `height`
+/// device pixels: the level that paint draws `source` from at that size
+/// (the averaged halvings above), made at once. `None` when paint draws
+/// `source` itself at that size (a scale of 0.5 or more in both axes), or
+/// when `source` is larger than a reduction averages.
+///
+/// The video frames that a document keeps use it (M14 feature 10a, review
+/// fixes, ADR 0047): paint draws the copy into a tile up to that size as
+/// it draws the source, because it would draw the source from this level
+/// or a smaller one, and the smaller levels of the copy are the same
+/// halvings. Only the rounding of an average can differ (by 1 in a color
+/// channel at a step), when the halvings of the copy and of the tile take
+/// the axes in another order (odd sizes).
+pub fn reduced_copy(source: &Pixmap, width: f32, height: f32) -> Option<Pixmap> {
+    let sx = width / source.width() as f32;
+    let sy = height / source.height() as f32;
+    if !(sx.is_finite() && sy.is_finite() && sx > 0.0 && sy > 0.0) {
+        return None;
+    }
+    let level = {
+        // The levels on the way go with this set.
+        let levels = Reductions::default();
+        levels.level(source, sx, sy, &mut ReduceBudget::new())?
+    };
+    Some(Arc::try_unwrap(level).unwrap_or_else(|shared| (*shared).clone()))
+}
+
 /// `source` with every pair of columns (`across`) and rows (`down`)
 /// averaged (in premultiplied color); an odd last column or row is kept as
 /// it is.

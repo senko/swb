@@ -858,6 +858,14 @@ impl Images {
             .is_some_and(|v| !v.poster_mode && v.frame.is_some())
     }
 
+    /// The pixel size of the frame that the `<video>` element `node` shows
+    /// now (a retained frame may be a reduced copy; tests).
+    pub(crate) fn frame_size(&self, node: NodeId) -> Option<(u32, u32)> {
+        let video = self.videos.get(&node).filter(|v| !v.poster_mode)?;
+        let (pixels, _) = video.frame.as_ref()?;
+        Some((pixels.width(), pixels.height()))
+    }
+
     /// Forgets the videos whose node `keep` does not accept (their media
     /// state is gone). Returns true if one that had a size went.
     pub(crate) fn retain_videos(&mut self, mut keep: impl FnMut(NodeId) -> bool) -> bool {

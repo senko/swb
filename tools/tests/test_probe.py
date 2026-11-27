@@ -593,7 +593,12 @@ def test_parse_http_ranges_and_shot_step():
     # M14 feature 6a: a server that claims `Accept-Ranges` and answers 200.
     (case,) = parse_cases(case_json(http=True, ranges="ignore"))
     assert (case.http, case.ranges) == (True, "ignore")
+    # M14 feature 10a: hostile ways to serve the media files.
+    (case,) = parse_cases(case_json(http=True, serve="endless-skip"))
+    assert case.serve == "endless-skip"
     for bad in (
+        {"http": True, "serve": "forever"},
+        {"serve": "stall"},
         {"http": 1},
         {"ranges": "no"},
         {"javascript": True, "steps": [{"shot": ""}]},
@@ -680,6 +685,61 @@ def test_case_server_serves_files_with_ranges_and_logs_them(tmp_path):
             (416, 0, "bytes=500-"),
         ]
         assert log[1]["content_range"] == "bytes 10-19/200"
+    finally:
+        server.close()
+
+
+def test_case_server_serves_media_files_in_hostile_ways(tmp_path, monkeypatch):
+    import http.client
+    import socket
+    from urllib.parse import urlsplit
+
+    from swbtools import probe_server
+    from swbtools.probe_server import CaseServer, _serve_case
+
+    monkeypatch.setattr(probe_server, "HOSTILE_HOLD_S", 0.5)
+    source = tmp_path / "source.mp4"
+    source.write_bytes(bytes(range(200)))
+    server = CaseServer(tmp_path)
+    try:
+        for number, serve in enumerate(("stall", "endless", "lie-range", "lie-total"), 1):
+            case = Case(
+                "c", "<p>x", (400, 300), (), files=(("m.mp4", source),), http=True, serve=serve
+            )
+            _serve_case(case, number, tmp_path, server)
+        parts = urlsplit(server.origin)
+
+        def raw(folder, wait_s=2.0):
+            data = b""
+            with socket.create_connection((parts.hostname, parts.port)) as connection:
+                connection.sendall(f"GET /{folder}/m.mp4 HTTP/1.1\r\nHost: x\r\n\r\n".encode())
+                connection.settimeout(wait_s)
+                try:
+                    while chunk := connection.recv(1 << 16):
+                        data += chunk
+                except TimeoutError:
+                    pass
+            return data
+
+        def ranged(folder, header):
+            connection = http.client.HTTPConnection(parts.hostname, parts.port)
+            connection.request("GET", f"/{folder}/m.mp4", headers={"Range": header})
+            response = connection.getresponse()
+            result = (response.status, response.getheader("Content-Range"), response.read())
+            connection.close()
+            return result
+
+        # `stall`: no answer while the connection is held.
+        assert raw("case-1", wait_s=0.3) == b""
+        # `endless`: 200 without a length, the file, then the open connection.
+        head, _, body = raw("case-2", wait_s=0.3).partition(b"\r\n\r\n")
+        assert head.startswith(b"HTTP/1.0 200") and b"Content-Length" not in head
+        assert body == bytes(range(200))
+        # The lies start at the second answer.
+        assert ranged("case-3", "bytes=0-")[:2] == (206, "bytes 0-199/200")
+        assert ranged("case-3", "bytes=10-")[:2] == (206, "bytes 11-199/200")
+        assert ranged("case-4", "bytes=0-")[:2] == (206, "bytes 0-199/200")
+        assert ranged("case-4", "bytes=10-")[:2] == (206, "bytes 10-199/201")
     finally:
         server.close()
 

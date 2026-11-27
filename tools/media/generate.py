@@ -21,7 +21,10 @@ so a second run on the same ffmpeg gives the same bytes.
 
 Besides the media files the table has two flat-color posters, three files over
 the limits of ADR 0047 section 11 (a frame wider than 16384 pixels, a frame of
-more than 8192 x 4352 pixels, 17 streams) and the hostile files (`derived`):
+more than 8192 x 4352 pixels, 17 streams), a video at the frame size limit and
+three files with 100 streams (M14 feature 10a), two files whose frame size
+changes in the stream (`joined`: parts joined by stream copy) and the hostile
+files (`derived`):
 truncated, without an index, with a corrupt middle, with 600 damaged bytes at
 30, 60, 80 and 90 percent of the file (`-damaged-N`, see `damage`) and random
 bytes. These
@@ -439,6 +442,68 @@ def entries() -> dict[str, list[str]]:
         "-c:a",
         "pcm_s16le",
     ]
+    # M14 feature 10a (ADR 0047 section 11): a gray VP9 video at the frame
+    # size limit (8192 x 4352 pixels, 142.6 MB per RGBA frame; 1 s at 10 fps)
+    # for the memory bound of decoded frames, and files with 100 streams (one
+    # video and 99 audio streams; Ogg: 100 Opus streams) for the stream limit
+    # of each demuxer.
+    e["webm-vp9-8192x4352.webm"] = [
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=gray:size=8192x4352:rate=10:duration=1",
+        *VP9,
+        "-an",
+    ]
+    many = 100
+
+    def split(count: int) -> list[str]:
+        return [
+            "-filter_complex",
+            f"sine=frequency=440:sample_rate=48000:duration=0.4,asplit={count}"
+            + "".join(f"[a{i}]" for i in range(count)),
+            *[arg for i in range(count) for arg in ("-map", f"[a{i}]")],
+        ]
+
+    e[f"mp4-h264-aac-{many}-streams.mp4"] = [
+        *video_src(0.4),
+        "-map",
+        "0:v",
+        *split(many - 1),
+        *H264_HIGH,
+        "-c:a",
+        "aac",
+        "-b:a",
+        "16k",
+        "-ac",
+        "1",
+        "-movflags",
+        "+faststart",
+    ]
+    e[f"webm-vp8-opus-{many}-streams.webm"] = [
+        *video_src(0.4),
+        "-map",
+        "0:v",
+        *split(many - 1),
+        *VP8,
+        "-c:a",
+        "libopus",
+        "-b:a",
+        "16k",
+        "-ac",
+        "1",
+    ]
+    e[f"ogg-opus-{many}-streams.ogg"] = [
+        *split(many),
+        "-c:a",
+        "libopus",
+        "-b:a",
+        "16k",
+        "-ac",
+        "1",
+        "-f",
+        "ogg",
+    ]
     # Posters: one flat color (#336699, a color that `testsrc2` does not draw).
     for size in ("320x240", "200x100"):
         e[f"poster-{size}.png"] = [
@@ -452,6 +517,52 @@ def entries() -> dict[str, list[str]]:
             "1",
         ]
     return e
+
+
+def joined() -> dict[str, list[list[str]]]:
+    """Files whose frame size changes in the stream (M14 feature 10a, review
+    fixes): the name and the ffmpeg arguments of each part. The parts are
+    made one by one and joined with the concat demuxer and stream copy, so
+    the container declares the first part's size and the key frames of the
+    next part carry their own."""
+
+    def gray(size: str, dur: float) -> list[str]:
+        return [
+            "-f",
+            "lavfi",
+            "-i",
+            f"color=c=gray:size={size}:rate=10:duration={dur}",
+            *VP8,
+            "-an",
+        ]
+
+    return {
+        # Hostile: 16 x 16 declared, then 1 s at 8192 x 4352 (the frame size
+        # limit; 142.6 MB per RGBA frame).
+        "webm-vp8-16x16-to-8192x4352.webm": [gray("16x16", 0.2), gray("8192x4352", 1)],
+        # A normal file whose frame grows: 640 x 360, then 1280 x 720.
+        "webm-vp8-640x360-to-1280x720.webm": [
+            [*video_src(0.4, (640, 360)), *VP8, "-an"],
+            [*video_src(0.4, (1280, 720)), *VP8, "-an"],
+        ],
+    }
+
+
+def run_joined(ffmpeg: str, out: Path, name: str, parts: list[list[str]]) -> None:
+    """Makes the parts of `name` and joins them (see `joined`)."""
+    paths = []
+    for i, args in enumerate(parts):
+        part = f".part{i}-{name}"
+        run(ffmpeg, out, part, args)
+        paths.append(out / part)
+    listing = out / f".parts-{name}.txt"
+    listing.write_text("".join(f"file '{p.name}'\n" for p in paths))
+    try:
+        run(ffmpeg, out, name, ["-f", "concat", "-safe", "0", "-i", str(listing), "-c", "copy"])
+    finally:
+        listing.unlink()
+        for p in paths:
+            p.unlink()
 
 
 def damage(fraction: float) -> Callable[[bytes], bytes]:
@@ -522,9 +633,10 @@ def main() -> int:
     ap.add_argument("names", nargs="*", help="only these files")
     ns = ap.parse_args()
     table = entries()
+    parts = joined()
     hostile = derived()
-    names = ns.names or [*table, *hostile]
-    unknown = [n for n in names if n not in table and n not in hostile]
+    names = ns.names or [*table, *parts, *hostile]
+    unknown = [n for n in names if n not in table and n not in parts and n not in hostile]
     if unknown:
         print("unknown file: " + ", ".join(unknown), file=sys.stderr)
         return 2
@@ -533,6 +645,8 @@ def main() -> int:
     for name in names:
         if name in table:
             run(ns.ffmpeg, ns.out, name, table[name])
+        elif name in parts:
+            run_joined(ns.ffmpeg, ns.out, name, parts[name])
         else:
             source, change = hostile[name]
             (ns.out / name).write_bytes(change((ns.out / source).read_bytes()))

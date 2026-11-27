@@ -555,6 +555,21 @@ fn the_hostile_media_give_their_error_codes_at_load() {
             ("webm-vp8-vorbis-corrupt.webm", 0, ""),
             ("mp3-truncated.mp3", 0, ""),
             ("mka-pcm-17-streams.mka", 0, ""),
+            // M14 feature 10a: the Matroska demuxer keeps 16 of 100 streams;
+            // the MOV and Ogg demuxers fail the open (Chromium plays all
+            // three: a departure); a video at the frame size limit loads.
+            (
+                "mp4-h264-aac-100-streams.mp4",
+                4,
+                "PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed",
+            ),
+            ("webm-vp8-opus-100-streams.webm", 0, ""),
+            (
+                "ogg-opus-100-streams.ogg",
+                4,
+                "PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed",
+            ),
+            ("webm-vp9-8192x4352.webm", 0, ""),
         ];
         let mut html = String::from("<!DOCTYPE html>");
         let mut files = Vec::new();

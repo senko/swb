@@ -18,16 +18,67 @@
 //! time on every run. When a transit ends, every waiter's owner is notified
 //! (it may have no pending work any more). A place that stays in transit
 //! for the no-progress limit (a thread blocked in FFmpeg) is detached.
+//!
+//! **The frame budget** (M14 feature 10a, ADR 0047 "Implementation notes
+//! (M14 feature 10a)"). The pipelines of the slots share a budget of bytes
+//! for their decoded frames (the RGBA pixmaps of the frame queue, the
+//! current frame, the frame being converted and the one that paint holds):
+//! [`FRAME_BUDGET_BYTES`] for the process. A run reserves its frames when
+//! its demux thread knows the frame size ([`RunPlace::reserve_frames`]): as
+//! many as its queue wants, or fewer (never below the minimum that playback
+//! needs); when even the minimum does not fit, the run waits in a FIFO with
+//! its place and without pending work, as a pipeline that waits for a place.
+//! The reservation belongs to the run's place and goes back with it (when
+//! the run's threads have ended, or at a detach), so the handover of the
+//! freed bytes to the waiters happens in the place's transit and has the
+//! same page time on every run in virtual time. A run whose decoded frames
+//! are larger than the size it reserved for (the stream changes its frame
+//! size) grows its reservation at once from the free bytes, or fails
+//! ([`RunPlace::grow_frames`]).
 
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError, Weak};
 use std::time::{Duration, Instant};
 
 use super::shared::Notify;
 
 /// The most open pipelines per process (ADR 0047 section 6).
 pub const MAX_OPEN_PIPELINES: usize = 16;
+
+/// The bytes of decoded frames that the pipelines of the process hold at
+/// most (M14 feature 10a): 2 GiB. Sixteen 1080p pipelines (74.6 MB each)
+/// and twelve 4K ones (166 MB) fit; three at the frame size limit (713 MB).
+pub const FRAME_BUDGET_BYTES: u64 = 2 << 30;
+
+/// A wake-up of a run's demux thread that waits for frame bytes (it clears
+/// the pipeline's wait flag under the pipeline's lock and notifies the
+/// thread); called without the slots' lock.
+pub(crate) type FrameWake = Box<dyn Fn() + Send + Sync>;
+
+/// The answer of [`RunPlace::reserve_frames`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Reserve {
+    /// The bytes that the run holds now.
+    Granted(u64),
+    /// The run waits in the FIFO.
+    Waiting,
+    /// The minimum is larger than the whole budget.
+    Refused,
+}
+
+/// A run that waits for frame bytes.
+struct FrameWaiter {
+    /// The pipeline's id.
+    owner: u64,
+    place: Weak<RunPlace>,
+    /// The fewest bytes that the run can play with, and the bytes it wants.
+    min: u64,
+    want: u64,
+    /// The owner's notify and the thread's wake-up.
+    notify: Notify,
+    wake: Arc<FrameWake>,
+}
 
 /// The most detached threads per process (ADR 0047 section 11): while this
 /// many run, new pipelines fail.
@@ -66,6 +117,8 @@ struct Inner {
     /// Tests: the last thread of an ended run waits this long (ms) before
     /// it gives its place back ([`PipelineSlots::set_handover_delay`]).
     handover_delay_ms: AtomicU64,
+    /// The budget of decoded frames, in bytes.
+    frame_budget: u64,
 }
 
 #[derive(Default)]
@@ -74,11 +127,23 @@ struct State {
     peak_open: usize,
     /// The waiters with the id and the notify of their pipeline.
     waiting: VecDeque<(u64, Notify, Waiter)>,
+    /// The frame bytes that the places hold now, and the most at once.
+    frames: u64,
+    peak_frames: u64,
+    /// The runs that wait for frame bytes, in order.
+    frame_waiting: VecDeque<FrameWaiter>,
 }
 
 impl PipelineSlots {
-    /// A bound of `max` open pipelines (at least 1).
+    /// A bound of `max` open pipelines (at least 1), with the frame budget
+    /// of the process ([`FRAME_BUDGET_BYTES`]).
     pub fn new(max: usize) -> PipelineSlots {
+        PipelineSlots::with_frame_budget(max, FRAME_BUDGET_BYTES)
+    }
+
+    /// A bound of `max` open pipelines whose decoded frames share
+    /// `frame_budget` bytes (tests set a small budget).
+    pub fn with_frame_budget(max: usize, frame_budget: u64) -> PipelineSlots {
         PipelineSlots(Arc::new(Inner {
             max: max.max(1),
             state: Mutex::new(State::default()),
@@ -87,7 +152,28 @@ impl PipelineSlots {
             detached: AtomicUsize::new(0),
             transit: AtomicUsize::new(0),
             handover_delay_ms: AtomicU64::new(0),
+            frame_budget,
         }))
+    }
+
+    /// The budget of decoded frames, in bytes.
+    pub fn frame_budget(&self) -> u64 {
+        self.0.frame_budget
+    }
+
+    /// The bytes of decoded frames that runs hold now.
+    pub fn frame_bytes(&self) -> u64 {
+        self.lock().frames
+    }
+
+    /// The most bytes of decoded frames that runs held at once.
+    pub fn peak_frame_bytes(&self) -> u64 {
+        self.lock().peak_frames
+    }
+
+    /// Runs that wait for frame bytes.
+    pub fn frame_waiting_count(&self) -> usize {
+        self.lock().frame_waiting.len()
     }
 
     /// The process's bound of [`MAX_OPEN_PIPELINES`].
@@ -188,6 +274,53 @@ impl PipelineSlots {
         drop(gone);
     }
 
+    /// Removes the frame waiters of the pipeline `owner` (its run ended);
+    /// the runs behind it may get their bytes now.
+    pub(crate) fn forget_frames(&self, owner: u64) {
+        let woken = {
+            let mut st = self.lock();
+            if !st.frame_waiting.iter().any(|w| w.owner == owner) {
+                return;
+            }
+            st.frame_waiting.retain(|w| w.owner != owner);
+            self.grant_frames(&mut st)
+        };
+        wake_granted(woken);
+    }
+
+    /// Gives frame bytes to the waiters in order while the first one's
+    /// minimum fits (under the lock). Returns the wake-ups and notifies of
+    /// the runs that got bytes, to call without the lock.
+    fn grant_frames(&self, st: &mut State) -> Vec<(Arc<FrameWake>, Notify)> {
+        let budget = self.0.frame_budget;
+        let mut woken = Vec::new();
+        while let Some(first) = st.frame_waiting.front() {
+            let free = budget.saturating_sub(st.frames);
+            // A waiter's minimum is within the budget (`reserve_frames`).
+            if free < first.min {
+                break;
+            }
+            let Some(w) = st.frame_waiting.pop_front() else {
+                break;
+            };
+            let grant = w.want.min(free);
+            // A run whose place is gone (detached) gets nothing.
+            if w.place.upgrade().is_some_and(|p| p.add_frames(grant, true)) {
+                st.frames += grant;
+                st.peak_frames = st.peak_frames.max(st.frames);
+                woken.push((w.wake, w.notify));
+            }
+        }
+        woken
+    }
+
+    /// Gives back the frame bytes of a place; the waiters may get them.
+    fn release_frames(&self, bytes: u64) -> Vec<(Arc<FrameWake>, Notify)> {
+        let mut st = self.lock();
+        st.frames = st.frames.saturating_sub(bytes);
+        self.grant_frames(&mut st)
+    }
+
     /// Hands a freed place to the waiters in order, or frees it.
     fn release(&self) {
         loop {
@@ -207,12 +340,14 @@ impl PipelineSlots {
         }
     }
 
-    /// The notifies of the waiters' owners.
+    /// The notifies of the waiters' owners (for a place and for frame
+    /// bytes).
     fn waiter_notifies(&self) -> Vec<Notify> {
-        self.lock()
-            .waiting
+        let st = self.lock();
+        st.waiting
             .iter()
             .map(|(_, notify, _)| Arc::clone(notify))
+            .chain(st.frame_waiting.iter().map(|w| Arc::clone(&w.notify)))
             .collect()
     }
 
@@ -233,6 +368,8 @@ pub(crate) struct Slot {
     armed: bool,
     /// The place is in transit (counted in `Inner::transit`).
     transit: bool,
+    /// The frame bytes that the run of the place holds.
+    frames: u64,
 }
 
 impl Slot {
@@ -241,22 +378,33 @@ impl Slot {
             slots,
             armed: true,
             transit: false,
+            frames: 0,
         }
     }
 }
 
 impl Drop for Slot {
     fn drop(&mut self) {
-        // The waiters' owners that may wait for this place, taken before
-        // the place goes to the first of them.
+        // The waiters' owners that may wait for this place or its frame
+        // bytes, taken before the place goes to the first of them.
         let notifies = if self.transit {
             self.slots.waiter_notifies()
+        } else {
+            Vec::new()
+        };
+        let woken = if self.frames > 0 {
+            self.slots.release_frames(std::mem::take(&mut self.frames))
         } else {
             Vec::new()
         };
         if self.armed {
             self.armed = false;
             self.slots.release();
+        }
+        // The runs that got frame bytes no longer wait, before the transit
+        // ends (an owner in virtual time then sees their pending work).
+        for (wake, _) in &woken {
+            wake();
         }
         if self.transit {
             // The transit ends after the next pipeline has its place.
@@ -266,6 +414,19 @@ impl Drop for Slot {
                 notify();
             }
         }
+        for (_, notify) in woken {
+            notify();
+        }
+    }
+}
+
+/// Calls the wake-ups and then the notifies of runs that got frame bytes.
+fn wake_granted(woken: Vec<(Arc<FrameWake>, Notify)>) {
+    for (wake, _) in &woken {
+        wake();
+    }
+    for (_, notify) in woken {
+        notify();
     }
 }
 
@@ -293,6 +454,9 @@ struct PlaceState {
     slot: Option<Slot>,
     threads: usize,
     detached: bool,
+    /// Frame bytes that the run got while it waited, until its demux thread
+    /// takes the number ([`RunPlace::take_frame_grant`]).
+    frame_grant: Option<u64>,
 }
 
 impl RunPlace {
@@ -304,12 +468,103 @@ impl RunPlace {
                 slot: Some(slot),
                 threads: 0,
                 detached: false,
+                frame_grant: None,
             }),
         })
     }
 
     fn lock(&self) -> MutexGuard<'_, PlaceState> {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Reserves between `min` and `want` bytes of decoded frames for the
+    /// run: [`Reserve::Granted`] at once when no run waits before it and
+    /// `min` fits; else [`Reserve::Waiting`], and the run waits in the FIFO:
+    /// when bytes come, `wake` is called (without the slots' lock) and
+    /// [`RunPlace::take_frame_grant`] gives the number. The bytes go back
+    /// with the place. `owner` is the pipeline's id
+    /// ([`PipelineSlots::forget_frames`]), `notify` its owner's.
+    ///
+    /// A `min` above the whole budget is [`Reserve::Refused`]: such a run
+    /// could never play within the budget (with the process's budget and
+    /// the frame size limit it does not happen: the minimum at the limit is
+    /// 713 MB of 2 GiB; a test's small budget can make it).
+    pub(crate) fn reserve_frames(
+        self: &Arc<RunPlace>,
+        owner: u64,
+        min: u64,
+        want: u64,
+        notify: Notify,
+        wake: FrameWake,
+    ) -> Reserve {
+        let budget = self.slots.0.frame_budget;
+        if min > budget {
+            return Reserve::Refused;
+        }
+        let mut st = self.slots.lock();
+        let free = budget.saturating_sub(st.frames);
+        if st.frame_waiting.is_empty() && free >= min {
+            let grant = want.max(min).min(free);
+            if self.add_frames(grant, false) {
+                st.frames += grant;
+                st.peak_frames = st.peak_frames.max(st.frames);
+            }
+            return Reserve::Granted(grant);
+        }
+        st.frame_waiting.push_back(FrameWaiter {
+            owner,
+            place: Arc::downgrade(self),
+            min,
+            want: want.max(min),
+            notify,
+            wake: Arc::new(wake),
+        });
+        Reserve::Waiting
+    }
+
+    /// Makes the run's reservation `min` to `want` bytes when it holds
+    /// fewer (a decoded frame is larger than the reservation's frame size;
+    /// review of 10a): at once, without a wait in the FIFO (a run in the
+    /// middle of its playback does not wait), from the bytes that are free
+    /// now. Returns the reservation, or `None` when `min` does not fit (or
+    /// the place is gone: the run was detached).
+    pub(crate) fn grow_frames(&self, min: u64, want: u64) -> Option<u64> {
+        let budget = self.slots.0.frame_budget;
+        let mut st = self.slots.lock();
+        let mut place = self.lock();
+        let slot = place.slot.as_mut()?;
+        let held = slot.frames;
+        if held >= min {
+            return Some(held);
+        }
+        let free = budget.saturating_sub(st.frames);
+        let extra = want.max(min).saturating_sub(held).min(free);
+        if held.saturating_add(extra) < min {
+            return None;
+        }
+        slot.frames += extra;
+        st.frames += extra;
+        st.peak_frames = st.peak_frames.max(st.frames);
+        Some(slot.frames)
+    }
+
+    /// Adds `bytes` of frames to the place (`granted`: they came to a run
+    /// that waits); false when the place is gone (the run was detached).
+    fn add_frames(&self, bytes: u64, granted: bool) -> bool {
+        let mut st = self.lock();
+        let Some(slot) = st.slot.as_mut() else {
+            return false;
+        };
+        slot.frames += bytes;
+        if granted {
+            st.frame_grant = Some(bytes);
+        }
+        true
+    }
+
+    /// The frame bytes that came to the run while it waited (once).
+    pub(crate) fn take_frame_grant(&self) -> Option<u64> {
+        self.lock().frame_grant.take()
     }
 
     /// Counts a thread of the run until the guard drops (call it before the
@@ -570,6 +825,50 @@ mod tests {
         assert_eq!(slots.open_count(), 1);
         drop(b);
         assert_eq!(slots.open_count(), 0);
+    }
+
+    /// Review of 10a: a minimum above the whole budget is refused (it never
+    /// fits); a reservation grows at once from the free bytes, or not at
+    /// all when its new minimum does not fit, and goes back with the place.
+    #[test]
+    fn reservations_are_refused_above_the_budget_and_grow_from_free_bytes() {
+        let slots = PipelineSlots::with_frame_budget(4, 100);
+        let held: Arc<StdMutex<Vec<Slot>>> = Arc::default();
+        let place = |id: u64| {
+            let h = Arc::clone(&held);
+            slots.acquire(
+                id,
+                nop(),
+                Box::new(move |s| {
+                    h.lock().expect("lock").push(s);
+                    None
+                }),
+            );
+            RunPlace::new(held.lock().expect("lock").remove(0))
+        };
+        let a = place(1);
+        let refused = a.reserve_frames(1, 101, 200, nop(), Box::new(|| {}));
+        assert_eq!(refused, Reserve::Refused);
+        assert_eq!(slots.frame_waiting_count(), 0);
+        let got = a.reserve_frames(1, 10, 30, nop(), Box::new(|| {}));
+        assert_eq!(got, Reserve::Granted(30));
+        let b = place(2);
+        assert_eq!(
+            b.reserve_frames(2, 40, 60, nop(), Box::new(|| {})),
+            Reserve::Granted(60)
+        );
+        // a grows: 10 bytes are free, its new minimum needs 35 more.
+        assert_eq!(a.grow_frames(65, 90), None);
+        assert_eq!(slots.frame_bytes(), 90);
+        // A minimum that fits: as much of the wish as is free.
+        assert_eq!(a.grow_frames(35, 90), Some(40));
+        // Already enough: nothing changes.
+        assert_eq!(a.grow_frames(20, 90), Some(40));
+        assert_eq!(slots.frame_bytes(), 100);
+        assert_eq!(slots.peak_frame_bytes(), 100);
+        drop(a);
+        drop(b);
+        assert_eq!(slots.frame_bytes(), 0);
     }
 
     /// A run that ended keeps its place in transit while its threads end

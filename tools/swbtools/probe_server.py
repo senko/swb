@@ -50,6 +50,12 @@ class CaseServer:
         self.ranges: dict[str, bool | str] = {}
         """Case folder to whether the server honors `Range` there (`False`:
         no, and no `Accept-Ranges`; `"ignore"`: no, with `Accept-Ranges`)."""
+        self.serve: dict[str, str] = {}
+        """Case folder to its hostile way of serving media files (a case's
+        `serve`, M14 feature 10a)."""
+        self.answered: dict[str, int] = {}
+        """Case folder to the number of media answers so far (for the lies
+        that start at the second answer)."""
         self._lock = threading.Lock()
         self._httpds = [self._listen(directory, name) for name in ("main", "other")]
         for httpd in self._httpds:
@@ -91,6 +97,16 @@ class CaseServer:
                             entry.update(status=404, sent=0)
                     return
                 size = file.stat().st_size
+                # Only media files are served in the hostile way (the helper
+                # scripts and documents of a case as usual).
+                media = file.suffix in (".mp4", ".webm", ".ogg", ".m4a", ".mp3", ".opus")
+                serve = server.serve.get(folder) if media else None
+                if serve in ("stall", "endless", "endless-skip"):
+                    self._send_hostile(serve, file, entry, head)
+                    return
+                with server._lock:
+                    earlier = server.answered.get(folder, 0)
+                    server.answered[folder] = earlier + 1
                 mode = server.ranges.get(folder, True)
                 ranged = mode is True
                 spec = _range_of(self.headers.get("Range"), size) if ranged else "full"
@@ -105,7 +121,10 @@ class CaseServer:
                     status, start, end = 200, 0, size - 1
                 else:
                     status, (start, end) = 206, spec
-                    headers.append(("Content-Range", f"bytes {start}-{end}/{size}"))
+                    # The lies start at the second answer, so the file opens.
+                    shown_start = start + int(serve == "lie-range" and earlier > 0)
+                    shown_total = size + (earlier if serve == "lie-total" else 0)
+                    headers.append(("Content-Range", f"bytes {shown_start}-{end}/{shown_total}"))
                 length = max(0, end - start + 1)
                 self.send_response(status)
                 for name, value in headers:
@@ -132,6 +151,42 @@ class CaseServer:
                                 sent=sent,
                                 content_range=dict(headers).get("Content-Range"),
                             )
+
+            def _send_hostile(
+                self, serve: str, file: Path, entry: dict[str, Any] | None, head: bool
+            ) -> None:
+                """Answers a media file in a hostile way (a case's `serve`):
+                `stall` sends nothing and holds the connection for
+                `HOSTILE_HOLD_S`; `endless` sends 200 without a length, the
+                file, and holds the connection; `endless-skip` sends the file
+                and then 64 KiB `free` boxes until the client closes."""
+                sent = 0
+                try:
+                    if serve == "stall":
+                        time.sleep(HOSTILE_HOLD_S)
+                        return
+                    self.send_response(200)
+                    self.send_header("Content-Type", self.guess_type(str(file)))
+                    self.send_header("Connection", "close")
+                    self.end_headers()
+                    if head:
+                        return
+                    data = file.read_bytes()
+                    self.wfile.write(data)
+                    self.wfile.flush()
+                    sent = len(data)
+                    if serve == "endless":
+                        time.sleep(HOSTILE_HOLD_S)
+                        return
+                    box = (1 << 16).to_bytes(4, "big") + b"free" + bytes((1 << 16) - 8)
+                    deadline = time.monotonic() + HOSTILE_HOLD_S
+                    while time.monotonic() < deadline:
+                        self.wfile.write(box)
+                        sent += len(box)
+                finally:
+                    if entry is not None:
+                        with server._lock:
+                            entry.update(status=0 if serve == "stall" else 200, sent=sent)
 
             def _serve(self) -> None:
                 try:
@@ -270,6 +325,10 @@ class CaseServer:
             httpd.server_close()
 
 
+HOSTILE_HOLD_S = 60.0
+"""How long a hostile answer (`serve`: `stall`, `endless`, `endless-skip`)
+holds its connection or sends its filler at most."""
+
 _JAVASCRIPT_TYPE = "text/javascript"
 _LINK_ABOVE = 8 << 20
 """Case files above this size (bytes) are linked into the case folder, not
@@ -336,6 +395,9 @@ def _serve_case(case: Case, number: int, directory: Path, server: CaseServer) ->
     if case.http:
         server.media_folders.add(folder)
     server.ranges[folder] = case.ranges
+    if case.serve is not None:
+        server.serve[folder] = case.serve
+    server.answered.pop(folder, None)
     for resource in case.resources:
         text = server.substitute(resource.text, folder)
         (case_dir / resource.name).write_text(text, encoding="utf-8")

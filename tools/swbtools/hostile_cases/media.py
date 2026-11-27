@@ -145,6 +145,7 @@ FIXTURE_VIDEO = Path(__file__).resolve().parents[3] / "fixtures/media/mp4-h264-h
     rss_limit_mib=1536,
     swb_args=virtual_run(3000),
     expect_log="videos 100",
+    media=True,
 )
 def media_100_autoplay_videos() -> Page:
     videos = "<video src=a.mp4 muted autoplay loop width=120 height=90></video>" * 100
@@ -164,6 +165,7 @@ def media_100_autoplay_videos() -> Page:
     rss_limit_mib=1536,
     swb_args=virtual_run(1500),
     expect_log="huge boxes 2",
+    media=True,
 )
 def media_huge_object_fit_none_box() -> Page:
     css = (
@@ -190,6 +192,7 @@ def media_huge_object_fit_none_box() -> Page:
     rss_limit_mib=1536,
     swb_args=virtual_run(1500),
     expect_log="reload loop",
+    media=True,
 )
 def media_reload_loop_screenshot() -> Page:
     body = (
@@ -213,6 +216,7 @@ def media_reload_loop_screenshot() -> Page:
     swb_args=("--js", "--frame-loop-ms", "6000"),
     expect_log="frame loop ok",
     forbid_log="frame loop slow",
+    media=True,
 )
 def media_1000_playing_videos_frame_loop() -> Page:
     videos = "<video src=a.mp4 muted autoplay loop width=320 height=240></video>" * 1000
@@ -230,6 +234,7 @@ def media_1000_playing_videos_frame_loop() -> Page:
     rss_limit_mib=1536,
     swb_args=steps_args([{"click": [24, 192]}] * 2000 + [{"wait": 6000}]),
     expect_log="control clicks ok events",
+    media=True,
 )
 def media_controls_click_flood() -> Page:
     script = (
@@ -256,6 +261,7 @@ def media_controls_click_flood() -> Page:
         + [{"wait": 1000}]
     ),
     expect_log="controls moves ok",
+    media=True,
 )
 def media_1000_videos_with_controls_under_a_moving_pointer() -> Page:
     videos = "<video src=a.mp4 controls width=320 height=240></video>" * 1000
@@ -277,6 +283,7 @@ FIXTURE_AUDIO = Path(__file__).resolve().parents[3] / "fixtures/media/m4a-aac.m4
     rss_limit_mib=1536,
     swb_args=virtual_run(3000),
     expect_log="audio elements 100",
+    media=True,
 )
 def media_100_playing_audio_elements() -> Page:
     videos = "<video src=a.m4a muted autoplay loop></video>" * 100
@@ -298,6 +305,7 @@ def media_100_playing_audio_elements() -> Page:
     rss_limit_mib=1536,
     swb_args=virtual_run(3000),
     expect_log="toggles 20000 timer",
+    media=True,
 )
 def media_play_pause_volume_toggle_loop() -> Page:
     script = (
@@ -313,3 +321,240 @@ def media_play_pause_volume_toggle_loop() -> Page:
         doc(f"<video src=a.m4a muted></video>{script}"),
         {"a.m4a": FIXTURE_AUDIO.read_bytes()},
     )
+
+
+# --- M14 feature 10a: hostile media files and servers (ADR 0047 section 11 and the notes of
+# feature 10a). The media files come from `tools/media/generate.py`; Chromium's behaviour for
+# each is in `tools/probes/media-hostile.json`.
+
+MEDIA = Path(__file__).resolve().parents[3] / "fixtures/media"
+
+
+def _fixture(name: str) -> bytes:
+    return (MEDIA / name).read_bytes()
+
+
+def _report(expr: str, label: str, at_ms: int) -> str:
+    """A script that logs `label` and the value of `expr` at `at_ms` of page time."""
+    return f"<script>setTimeout(()=>console.warn('{label} '+({expr})),{at_ms});</script>"
+
+
+_STATES = (
+    "[...document.querySelectorAll('video,audio')].map(m=>m.error?'e'+m.error.code:m.readyState)"
+)
+"""The state of each media element: `eN` for an error of code N, else its `readyState`."""
+
+
+@case(
+    "16 muted `autoplay loop` videos at the frame size limit (8192 x 4352, 142.6 MB per RGBA "
+    "frame; M14 feature 10a, ADR 0047 notes of feature 10a): the frame budget of the process "
+    "(2 GiB) holds three such runs (713 MB each: a queue of 2 and 3 pixmaps); the others wait "
+    "with their place and without pending work, and FFmpeg decodes such frames on 2 threads. "
+    "Before feature 10a the page passed 16 GB and was killed; now about 2.4 GiB. The limit "
+    "(3 GiB) fails every run without the 2-thread rule (3.2 to 3.7 GiB measured)",
+    time_limit_s=30,
+    rss_limit_mib=3072,
+    swb_args=virtual_run(3000),
+    expect_log="frame size limit videos 16",
+    media_only=True,
+)
+def media_16_videos_at_the_frame_size_limit() -> Page:
+    videos = "<video src=a.webm muted autoplay loop width=160 height=85></video>" * 16
+    script = _report("document.querySelectorAll('video').length", "frame size limit videos", 2500)
+    return Page(doc(videos + script), {"a.webm": _fixture("webm-vp9-8192x4352.webm")})
+
+
+@case(
+    "16 muted `autoplay loop` videos of a 86 KB WebM that declares 16 x 16 and switches in the "
+    "stream to 8192 x 4352 (M14 feature 10a, review fixes): a run reserves frame bytes for the "
+    "declared size, and a larger decoded frame grows the reservation at once or fails the run "
+    "(code 3). Three runs get the 713 MB of the large frames, the other 13 fail; 2.0 to 2.2 "
+    "GiB measured. Before the fix one such video held 643 MiB on a reservation for 16 x 16 "
+    "frames, and 16 passed 4 GiB. Chromium plays the file (`resize`, `videoWidth` 8192; probe "
+    "`media-hostile.json`)",
+    time_limit_s=30,
+    rss_limit_mib=3072,
+    swb_args=virtual_run(3000),
+    expect_log="size switch failed 13",
+    media_only=True,
+)
+def media_16_videos_that_switch_to_the_frame_size_limit() -> Page:
+    videos = "<video src=a.webm muted autoplay loop width=160 height=85></video>" * 16
+    failed = "[...document.querySelectorAll('video')].filter(m=>m.error&&m.error.code===3).length"
+    script = _report(failed, "size switch failed", 2500)
+    return Page(doc(videos + script), {"a.webm": _fixture("webm-vp8-16x16-to-8192x4352.webm")})
+
+
+@case(
+    "Videos whose frames are above the size limits of ADR 0047 section 11 (16400 x 16, wider "
+    "than 16,384 pixels; 8192 x 4416, more than 8192 x 4352 pixels): each fails at the "
+    "metadata with code 4 and allocates no frame. Chromium differs (probe "
+    "`media-hostile.json`): it plays 8192 x 4416 and fails 16400 x 16 with code 3 after "
+    "`loadedmetadata`",
+    time_limit_s=20,
+    swb_args=virtual_run(2000),
+    expect_log="above the limit e4,e4",
+    media=True,
+)
+def media_frame_size_above_the_limit() -> Page:
+    videos = "<video src=a.webm preload=auto></video><video src=b.webm preload=auto></video>"
+    files = {
+        "a.webm": _fixture("webm-vp9-16400x16.webm"),
+        "b.webm": _fixture("webm-vp9-8192x4416.webm"),
+    }
+    return Page(doc(videos + _report(_STATES, "above the limit", 1500)), files)
+
+
+@case(
+    "A server that sends a valid 2 s MP4 file (55 KB) in a 200 without a length and then holds "
+    "the connection open (an endless body; M14 feature 10a; real time: a request in flight "
+    "holds virtual time): the byte source makes a block readable only when its 64 KiB are in, "
+    "so the demuxer gets no byte and the pipeline fails with code 3 after the no-progress "
+    "limit (10 s). Chromium plays 0.88 s and waits (`waiting`, `stalled`; probe "
+    "`media-hostile.json`; a departure in the backlog)",
+    time_limit_s=30,
+    server="endless",
+    swb_args=("--js", "--settle-ms", "13000"),
+    expect_log="endless body 0,false,3,0",
+    media_only=True,
+)
+def media_endless_body() -> Page:
+    body = "<video src=http://127.0.0.1:__PORT__/a.mp4 muted autoplay></video>"
+    state = "[v.readyState,v.ended,v.error&&v.error.code,Math.round(v.currentTime*10)/10]"
+    script = "<script>const v=document.querySelector('video');</script>"
+    return Page(
+        doc(body + script + _report(state, "endless body", 12000)),
+        {"a.mp4": FIXTURE_VIDEO.read_bytes()},
+    )
+
+
+@case(
+    "A server that sends a valid MP4 file and then MP4 `free` boxes without end (bytes that the "
+    "demuxer skips; M14 feature 10a; real time): the skipped bytes count as progress, so the "
+    "no-progress limit does not fail the pipeline, and the byte budget bounds the memory of "
+    "the endless body. Measured (fix round of 10a, also before it): the video plays to 1.0 s "
+    "and waits there (`readyState` 2, no error) from 1.5 s to at least 8 s; Chromium plays to "
+    "1.98 s and waits (a departure in the backlog)",
+    time_limit_s=30,
+    server="endless-skip",
+    swb_args=("--js", "--settle-ms", "4000"),
+    expect_log="endless skip 2,false,,1",
+    media_only=True,
+)
+def media_endless_skip_body() -> Page:
+    body = "<video src=http://127.0.0.1:__PORT__/a.mp4 muted autoplay></video>"
+    state = "[v.readyState,v.ended,v.error&&v.error.code,Math.round(v.currentTime*10)/10]"
+    script = "<script>const v=document.querySelector('video');</script>"
+    return Page(
+        doc(body + script + _report(state, "endless skip", 3500)),
+        {"a.mp4": FIXTURE_VIDEO.read_bytes()},
+    )
+
+
+def _range_lie_page() -> Page:
+    # A 10 s file (302 KB): the server closes each answer after 64 KiB, so the byte source asks
+    # again for the rest during the load and meets the lie; the seek to 9 s asks once more.
+    body = "<video src=http://127.0.0.1:__PORT__/a.mp4 preload=metadata></video>"
+    script = (
+        "<script>const v=document.querySelector('video');"
+        "v.addEventListener('loadedmetadata',()=>setTimeout(()=>{v.currentTime=9;},200));</script>"
+    )
+    state = "[v.readyState,v.error&&v.error.code,v.currentTime]"
+    return Page(
+        doc(body + script + _report(state, "range lie", 2500)),
+        {"a.mp4": _fixture("mp4-h264-aac-long.mp4")},
+    )
+
+
+@case(
+    "A server whose `Content-Range` starts one byte after the requested start from its second "
+    "answer on, and that closes each answer after 64 KiB (`video-range-lies`, M14 feature 10a): "
+    "the byte source fails the resource at the second request and the demuxer ends the stream "
+    "there, without an error event: after the seek to 9 s the element has `readyState` 4, no "
+    "error, `currentTime` 9; no crash or hang. Chromium fails such a resource with code 4 "
+    "(probe `media-hostile.json`; a departure in the backlog)",
+    time_limit_s=20,
+    server="lie-range",
+    swb_args=virtual_run(3000),
+    expect_log="range lie 4,,9",
+    media_only=True,
+)
+def media_range_lie_start() -> Page:
+    return _range_lie_page()
+
+
+@case(
+    "A server whose `Content-Range` total grows by one at each answer and that closes each "
+    "answer after 64 KiB (`video-range-lies`, M14 feature 10a): the byte source fails the "
+    "resource at the second request and the stream ends there, without an error event (after "
+    "the seek to 9 s: `readyState` 4, no error, `currentTime` 9). Chromium plays on (probe "
+    "`media-hostile.json`)",
+    time_limit_s=20,
+    server="lie-total",
+    swb_args=virtual_run(3000),
+    expect_log="range lie 4,,9",
+    media_only=True,
+)
+def media_range_lie_total() -> Page:
+    return _range_lie_page()
+
+
+@case(
+    "1,000 `<video preload=metadata>` elements of a 1280 x 720 file that all decode their "
+    "first frame (M14 feature 10a): 16 pipelines run at a time (16 places; each suspends 15 s "
+    "after its load, 1,000 s of virtual time), their frames stay within the frame budget, and "
+    "the frames that the suspended ones keep stay within the budget of retained frames (256 "
+    "MiB; 1,000 such frames are 3.7 GB). The same page with a 1080p file held 10 GB before "
+    "feature 10a and 2.6 GB after",
+    time_limit_s=40,
+    rss_limit_mib=2048,
+    swb_args=virtual_run(1_001_000),
+    expect_log="decoded 1000",
+    media_only=True,
+)
+def media_1000_videos_that_decode() -> Page:
+    videos = "<video src=a.mp4 preload=metadata width=32 height=18></video>" * 1000
+    script = (
+        "<script>let n=0;document.addEventListener('loadeddata',()=>n++,true);"
+        "setTimeout(()=>console.warn('decoded '+n),1000000);</script>"
+    )
+    return Page(doc(videos + script), {"a.mp4": _fixture("mp4-h264-untagged-bt709-1280x720.mp4")})
+
+
+@case(
+    "Files with 100 streams (one video and 99 audio streams in MP4 and WebM; 100 Opus streams "
+    "in Ogg; M14 feature 10a): the Matroska demuxer keeps the first 16 and the video plays; the "
+    "MOV and Ogg demuxers fail the open at the 17th stream (code 4). Chromium plays all three "
+    "(probe `media-hostile.json`; a departure in the backlog)",
+    time_limit_s=20,
+    swb_args=virtual_run(2000),
+    expect_log="streams e4,4,e4",
+    media_only=True,
+)
+def media_100_streams() -> Page:
+    body = (
+        "<video src=a.mp4 preload=auto></video><video src=b.webm preload=auto></video>"
+        "<audio src=c.ogg preload=auto></audio>"
+    )
+    files = {
+        "a.mp4": _fixture("mp4-h264-aac-100-streams.mp4"),
+        "b.webm": _fixture("webm-vp8-opus-100-streams.webm"),
+        "c.ogg": _fixture("ogg-opus-100-streams.ogg"),
+    }
+    return Page(doc(body + _report(_STATES, "streams", 1500)), files)
+
+
+@case(
+    "A media server that never sends a byte (a stalled open, M14 feature 10a): the pipeline "
+    "needs the metadata and makes no progress, so it fails with code 3 after the no-progress "
+    "limit (10 s of real time); virtual time waits for it meanwhile. Chromium fires `stalled` "
+    "after 3 s and waits (probe `media-hostile.json`; a departure in the backlog)",
+    time_limit_s=30,
+    server="never",
+    swb_args=virtual_run(2000),
+    expect_log="stalled open e3",
+    media_only=True,
+)
+def media_stalled_open() -> Page:
+    body = "<video src=http://127.0.0.1:__PORT__/a.mp4 preload=auto></video>"
+    return Page(doc(body + _report(_STATES, "stalled open", 1500)))

@@ -51,7 +51,7 @@ use tiny_skia::Pixmap;
 
 pub use opener::SourceOpener;
 pub use shared::Notify;
-pub use slots::{MAX_DETACHED_THREADS, MAX_OPEN_PIPELINES, PipelineSlots};
+pub use slots::{FRAME_BUDGET_BYTES, MAX_DETACHED_THREADS, MAX_OPEN_PIPELINES, PipelineSlots};
 
 use self::shared::{MAX_PACKET_BYTES, STALL_LIMIT, SeekCmd, Settings, Shared, State, ThreadEvent};
 use crate::clock::{ClockSource, MediaClock};
@@ -236,6 +236,14 @@ pub struct PipelineStats {
     pub late_frames: u64,
     /// Pixmaps allocated for frames.
     pub pixmaps_allocated: u64,
+    /// Pixmaps of the current run that are alive now (in the queue,
+    /// current, held by paint, free in the pool; M14 feature 10a).
+    pub pixmaps_live: usize,
+    /// The bytes of those pixmaps (review of 10a).
+    pub pixmap_bytes: u64,
+    /// Frames that were not converted because the run held its share of
+    /// the frame budget (M14 feature 10a).
+    pub frames_over_budget: u64,
 }
 
 /// Where the pipeline is.
@@ -279,6 +287,9 @@ pub struct Pipeline {
     output: AudioOutput,
     current: Option<CurrentFrame>,
     last_image: Option<Arc<Pixmap>>,
+    /// The size of the full image while the image is a reduced copy
+    /// ([`Pipeline::reduce_retained_image`]).
+    reduced_from: Option<(u32, u32)>,
     generation: u64,
     first_frame_reported: bool,
     next_timeupdate: Option<i64>,
@@ -326,6 +337,7 @@ impl Pipeline {
             output,
             current: None,
             last_image: None,
+            reduced_from: None,
             generation: 0,
             first_frame_reported: false,
             next_timeupdate: None,
@@ -394,6 +406,7 @@ impl Pipeline {
             st.ring_base = None;
             st.audio_end_us = None;
             st.watch.needs_data = false;
+            st.frame_wait = false;
             let place = st.place.take();
             // In the same critical section as the end of the run: no
             // waiter's owner sees the run ended and the place not yet in
@@ -406,8 +419,10 @@ impl Pipeline {
         drop(frames);
         // The threads hold the place until they end.
         drop(place);
-        // A run that still waits for a place leaves the queue.
+        // A run that still waits for a place or for frame bytes leaves the
+        // queue.
         self.shared.slots.forget(self.shared.id);
+        self.shared.slots.forget_frames(self.shared.id);
         // A suspended pipeline keeps only its current frame.
         self.shared.pool.clear();
         if let Some(cancel) = &self.shared.cancel {
@@ -476,10 +491,19 @@ impl Pipeline {
         self.phase == Phase::Failed
     }
 
-    /// Whether the pipeline waits for a place among the open pipelines.
+    /// Whether the pipeline waits for a place among the open pipelines, or
+    /// for its share of the frame budget (M14 feature 10a: its run has a
+    /// place and the metadata, and waits until other runs give frame bytes
+    /// back; see [`PipelineSlots`]).
     pub fn is_waiting(&self) -> bool {
         let st = self.shared.lock();
-        self.phase == Phase::Running && st.active_run != st.run
+        self.phase == Phase::Running && waits(&st)
+    }
+
+    /// Whether the pipeline waits for frame bytes (M14 feature 10a).
+    pub fn waits_for_frame_budget(&self) -> bool {
+        let st = self.shared.lock();
+        self.phase == Phase::Running && st.frame_wait
     }
 
     /// Whether the pipeline waits for a place while a place is in transit
@@ -529,6 +553,101 @@ impl Pipeline {
         self.last_image.as_ref()
     }
 
+    /// The bytes of the frame image that the pipeline keeps while it holds
+    /// no place (suspended, waiting, failed or closed: the frame budget of
+    /// the slots no longer counts it; M14 feature 10a): `None` while a run
+    /// holds a place, or without an image.
+    pub fn retained_image_bytes(&self) -> Option<u64> {
+        if self.holds_place() {
+            return None;
+        }
+        let image = self
+            .current
+            .as_ref()
+            .and_then(|c| c.image.as_ref())
+            .or(self.last_image.as_ref())?;
+        Some(u64::from(image.width()) * u64::from(image.height()) * 4)
+    }
+
+    /// Drops the frame image that the pipeline keeps while it holds no
+    /// place (the owner's budget of retained frames, M14 feature 10a); the
+    /// frame keeps its time, so the image comes back through the quiet seek
+    /// of [`Pipeline::set_painted`] when the video is painted again. False
+    /// when a run holds a place (its frames are in the slots' budget) or
+    /// there is no image.
+    pub fn drop_retained_image(&mut self) -> bool {
+        if self.holds_place() {
+            return false;
+        }
+        self.reduced_from = None;
+        let had = self.last_image.take().is_some();
+        let current = self.current.as_mut().and_then(|c| c.image.take()).is_some();
+        had || current
+    }
+
+    /// Replaces the frame image that the pipeline keeps while it holds no
+    /// place by `image`, a reduced copy of it (the owner's budget of
+    /// retained frames keeps a copy at the size of the element's box; M14
+    /// feature 10a, review fixes). The frame keeps its time;
+    /// [`Pipeline::reduced_from`] gives the size of the full image until a
+    /// new frame comes. False when a run holds a place (its frames are in
+    /// the slots' budget) or there is no image.
+    pub fn reduce_retained_image(&mut self, image: Arc<Pixmap>) -> bool {
+        if self.holds_place() {
+            return false;
+        }
+        let current = self.current.as_ref().and_then(|c| c.image.as_ref());
+        let Some(full) = current.or(self.last_image.as_ref()) else {
+            return false;
+        };
+        let full = (full.width(), full.height());
+        if let Some(c) = self.current.as_mut()
+            && c.image.is_some()
+        {
+            c.image = Some(Arc::clone(&image));
+        }
+        if self.last_image.is_some() {
+            self.last_image = Some(image);
+        }
+        self.reduced_from = Some(self.reduced_from.unwrap_or(full));
+        true
+    }
+
+    /// The size of the full frame image while the image is a reduced copy
+    /// ([`Pipeline::reduce_retained_image`]).
+    pub fn reduced_from(&self) -> Option<(u32, u32)> {
+        self.reduced_from
+    }
+
+    /// The image is a reduced copy that is too small now (the element's box
+    /// grew): the frame at the position is decoded again at full size by
+    /// the quiet seek of [`Pipeline::set_painted`] (a suspended pipeline
+    /// opens again); the copy shows until the frame comes. A playing video
+    /// shows its next frame anyway. Does nothing for a full image or a video
+    /// that is not painted.
+    pub fn restore_full_image(&mut self) {
+        if self.reduced_from.is_some() && self.shared.lock().painted {
+            self.quiet_seek();
+        }
+    }
+
+    /// Decodes the frame at the position again without a report, when the
+    /// pipeline is paused, not seeking, and has its metadata.
+    fn quiet_seek(&mut self) {
+        if !self.playing
+            && self.seeking.is_none()
+            && matches!(self.phase, Phase::Running | Phase::Suspended)
+            && self.metadata.is_some()
+        {
+            self.start_seek(self.position, false, self.ended);
+        }
+    }
+
+    /// Whether a run of the pipeline holds a place (its threads may run).
+    fn holds_place(&self) -> bool {
+        self.phase == Phase::Running && !waits(&self.shared.lock())
+    }
+
     /// The media time ranges that the demuxer read.
     pub fn buffered(&self) -> Vec<(i64, i64)> {
         self.shared.lock().buffered.clone()
@@ -554,7 +673,16 @@ impl Pipeline {
             frames_converted: c.frames_converted.load(Ordering::Relaxed),
             late_frames: c.late_frames.load(Ordering::Relaxed),
             pixmaps_allocated: self.shared.pool.allocated(),
+            pixmaps_live: self.shared.pool.live(),
+            pixmap_bytes: self.shared.pool.live_bytes(),
+            frames_over_budget: c.frames_over_budget.load(Ordering::Relaxed),
         }
+    }
+
+    /// The frame cap of the current run (the most frames in its queue; 2 to
+    /// 6, fewer when the frame budget is short).
+    pub fn frame_cap(&self) -> usize {
+        self.shared.lock().frame_cap
     }
 
     /// The sample ring of the audio track while a run is open (the audio
@@ -648,21 +776,15 @@ impl Pipeline {
     /// (it was decoded while the video was not painted) and that is not
     /// playing seeks to its position and shows the frame there, without a
     /// `SeekDone` report and without a change of the position or of `ended`
-    /// (the seek that the element does not see). A playing video shows its
-    /// next frame; a suspended one has to be opened first (the owner's
-    /// `play` or `seek`).
+    /// (the seek that the element does not see). A suspended pipeline opens
+    /// again for it (M14 feature 10a: the owner may have dropped its image,
+    /// [`Pipeline::drop_retained_image`]; [`Pipeline::is_suspended`] then
+    /// turns false). A playing video shows its next frame.
     pub fn set_painted(&mut self, painted: bool) {
         let was = std::mem::replace(&mut self.shared.lock().painted, painted);
         let stale = self.current.as_ref().is_some_and(|c| c.image.is_none());
-        if painted
-            && !was
-            && stale
-            && !self.playing
-            && self.seeking.is_none()
-            && self.phase == Phase::Running
-            && self.metadata.is_some()
-        {
-            self.start_seek(self.position, false, self.ended);
+        if painted && !was && stale {
+            self.quiet_seek();
         }
     }
 
@@ -1041,7 +1163,7 @@ impl Pipeline {
     pub fn has_enough_data(&self) -> bool {
         let mut st = self.shared.lock();
         let live = self.phase == Phase::Running
-            && st.active_run == st.run
+            && !waits(&st)
             && self.first_frame_reported
             && self.seeking.is_none()
             && !self.underrun
@@ -1090,7 +1212,7 @@ impl Pipeline {
 
     /// See [`Pipeline::has_pending_work`].
     fn pending(&self, st: &State) -> bool {
-        if self.phase != Phase::Running || st.active_run != st.run || !st.events.is_empty() {
+        if self.phase != Phase::Running || waits(st) || !st.events.is_empty() {
             return false;
         }
         let needs = if st.info.is_none() {
@@ -1289,10 +1411,14 @@ impl Pipeline {
     fn show(&mut self, frame: shared::QueuedFrame) {
         self.generation += 1;
         self.quality.total_frames += 1;
-        if let Some(image) = &frame.image
-            && let Some(old) = self.last_image.replace(Arc::clone(image))
-        {
-            self.shared.pool.give(old);
+        if let Some(image) = &frame.image {
+            // A reduced copy is not the pool's: it goes.
+            let reduced = self.reduced_from.take().is_some();
+            if let Some(old) = self.last_image.replace(Arc::clone(image))
+                && !reduced
+            {
+                self.shared.pool.give(old);
+            }
         }
         self.current = Some(CurrentFrame {
             pts_us: frame.pts_us,
@@ -1459,6 +1585,11 @@ impl Drop for Pipeline {
 /// 0.25 s before the place of swb's decoder in the probe rows
 /// `late-failure-damage-*`).
 const READY_AHEAD_US: i64 = 200_000;
+
+/// Whether the current run waits for a place, or for its frame bytes.
+fn waits(st: &State) -> bool {
+    st.active_run != st.run || st.frame_wait
+}
 
 /// Whether the data for the media time `t` is decoded, and a little more
 /// ([`READY_AHEAD_US`]): the frame that is current at `t` and the samples up

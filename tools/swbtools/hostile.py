@@ -50,6 +50,19 @@ LOG_READ_LIMIT = 8 << 20
 OK, SLOW, MEMORY, PANIC, ERROR, INACTIVE = "ok", "slow", "memory", "panic", "error", "inactive"
 KNOWN = "known failure"
 UNEXPECTED_PASS = "unexpected pass"
+SKIPPED = "skipped"
+
+
+def has_media(binary: Path) -> bool:
+    """Whether `binary` is a build with the Cargo feature `media` (its
+    `--version` names FFmpeg)."""
+    try:
+        result = subprocess.run(
+            [str(binary), "--version"], capture_output=True, text=True, timeout=30, check=False
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return "FFmpeg" in result.stdout
 
 
 @dataclass(frozen=True)
@@ -195,20 +208,72 @@ class StallServer:
     `ok` (with `Access-Control-Allow-Origin: *`) after `SLOW_S` seconds. It
     runs on daemon threads until `close`. In mode `big` it answers every
     request with a body of `BIG_MIB` MiB. The page finds its port in the
-    text `__PORT__`."""
+    text `__PORT__`.
+
+    The media modes (M14 feature 10a) serve the file of the request's path
+    from the case's directory: `endless` answers 200 without a length, sends
+    the file and holds the connection open; `endless-skip` sends the file and
+    then 64 KiB MP4 `free` boxes (which a demuxer skips) for `HOLD_S`;
+    `lie-range` and `lie-total` answer `Range` requests with 206, and from the
+    second answer on with a `Content-Range` that starts one byte late, or with
+    a total that grows by one at each answer; each answer closes after
+    `LIE_CHUNK` bytes of its body, so that a client asks again."""
 
     SLOW_S = 2.0
     BIG_MIB = 60
+    HOLD_S = 120.0
+    LIE_CHUNK = 64 << 10
 
-    def __init__(self, mode: str) -> None:
+    def __init__(self, mode: str, directory: Path | None = None) -> None:
         server = self
+        self.answers = 0
+        lock = threading.Lock()
+
+        def serve_media(handler: socketserver.StreamRequestHandler, request: list[str]) -> None:
+            path = request[0].split(" ")[1].split("?")[0].lstrip("/") if request else ""
+            file = (directory or Path()) / path
+            data = file.read_bytes() if path and file.is_file() else b""
+            if mode in ("endless", "endless-skip"):
+                head = "HTTP/1.1 200 OK\r\nContent-Type: video/mp4\r\nConnection: close\r\n\r\n"
+                handler.wfile.write(head.encode() + data)
+                handler.wfile.flush()
+                deadline = time.monotonic() + server.HOLD_S
+                box = (1 << 16).to_bytes(4, "big") + b"free" + bytes((1 << 16) - 8)
+                while time.monotonic() < deadline:
+                    if mode == "endless":
+                        time.sleep(1.0)
+                    else:
+                        handler.wfile.write(box)
+                return
+            with lock:
+                earlier = server.answers
+                server.answers += 1
+            ranges = [line for line in request if line.lower().startswith("range:")]
+            first, _, last = (ranges[0].split("=", 1)[1].strip() if ranges else "0-").partition("-")
+            start = int(first or 0)
+            end = min(int(last), len(data) - 1) if last else len(data) - 1
+            shown_start = start + int(mode == "lie-range" and earlier > 0)
+            shown_total = len(data) + (earlier if mode == "lie-total" else 0)
+            body = data[start : end + 1]
+            head = (
+                "HTTP/1.1 206 Partial Content\r\nContent-Type: video/mp4\r\n"
+                "Accept-Ranges: bytes\r\n"
+                f"Content-Range: bytes {shown_start}-{end}/{shown_total}\r\n"
+                f"Content-Length: {len(body)}\r\nConnection: close\r\n\r\n"
+            )
+            # Each answer closes after `LIE_CHUNK` bytes of its body, so that
+            # the client asks again (and meets the lie) even for a small file.
+            handler.wfile.write(head.encode() + body[: server.LIE_CHUNK])
 
         class Handler(socketserver.StreamRequestHandler):
             def handle(self) -> None:
                 try:
-                    while self.rfile.readline().strip():
-                        pass
-                    if mode == "big":
+                    request = []
+                    while line := self.rfile.readline().strip():
+                        request.append(line.decode("latin-1"))
+                    if mode in ("endless", "endless-skip", "lie-range", "lie-total"):
+                        serve_media(self, request)
+                    elif mode == "big":
                         size = server.BIG_MIB << 20
                         head = (
                             "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\n"
@@ -270,7 +335,7 @@ def write_case(case: Case, directory: Path, port: int = 0) -> Path:
 
 def run_case(case: Case, binary: Path, root: Path) -> RunResult:
     """Writes and runs one case in `root/NAME/`."""
-    stall = StallServer(case.server) if case.server else None
+    stall = StallServer(case.server, root / case.name) if case.server else None
     try:
         return _run_case(case, binary, root, stall.port if stall else 0)
     finally:
@@ -303,11 +368,11 @@ def format_line(case: Case, run: RunResult, result: str) -> str:
     return f"{case.name:34} {run.wall_s:6.2f} s {run.peak_mib:7.0f} MiB  {result}"
 
 
-def select(names: list[str]) -> list[Case] | None:
-    """Returns the cases for `names` (all if empty), or None if a name is
-    unknown."""
+def select(names: list[str], media: bool = False) -> list[Case] | None:
+    """Returns the cases for `names` (all if empty; with `media`, all that
+    need a media build), or None if a name is unknown."""
     if not names:
-        return list(CASES)
+        return [case for case in CASES if case.media or not media]
     by_name = {case.name: case for case in CASES}
     unknown = [name for name in names if name not in by_name]
     if unknown:
@@ -316,21 +381,28 @@ def select(names: list[str]) -> list[Case] | None:
     return [by_name[name] for name in names]
 
 
-def list_cases() -> int:
-    """Prints the cases with their limits and descriptions."""
+def list_cases(media: bool = False) -> int:
+    """Prints the cases (with `media`, those that need a media build) with
+    their limits and descriptions."""
     for case in CASES:
+        if media and not case.media:
+            continue
         note = f"  [known failure: {case.known_failure}]" if case.known_failure else ""
+        note += "  [media build]" if case.media else ""
         print(f"{case.name:34} {case.time_limit_s:4g} s {case.rss_limit_mib:5g} MiB  ", end="")
         print(f"{case.description}{note}")
     return 0
 
 
-def hostile(names: list[str], swb_path: Path | None, list_only: bool, keep: bool) -> int:
-    """Runs the cases and prints one line per case and a summary. Returns 1
-    if a case fails that is not a known failure, or a known failure passes."""
+def hostile(
+    names: list[str], swb_path: Path | None, list_only: bool, keep: bool, media: bool = False
+) -> int:
+    """Runs the cases (with `media` and no names: the cases that need a media
+    build) and prints one line per case and a summary. Returns 1 if a case
+    fails that is not a known failure, or a known failure passes."""
     if list_only:
-        return list_cases()
-    cases = select(names)
+        return list_cases(media)
+    cases = select(names, media)
     if cases is None:
         return 2
     binary = swb.find_swb(swb_path)
@@ -343,7 +415,12 @@ def hostile(names: list[str], swb_path: Path | None, list_only: bool, keep: bool
     failed: list[str] = []
     counts: dict[str, int] = {}
     total = 0.0
+    with_media = has_media(binary)
     for case in cases:
+        if case.media_only and not with_media:
+            print(f"{case.name:34} skipped (needs a media build: just hostile-media)")
+            counts[SKIPPED] = counts.get(SKIPPED, 0) + 1
+            continue
         run = run_case(case, binary, root)
         result, passed = verdict(case, classify(case, run))
         print(format_line(case, run, result), flush=True)

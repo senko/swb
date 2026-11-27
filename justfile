@@ -158,6 +158,10 @@ perf *NAMES: build
 hostile *NAMES: build
     uv run --project tools swbtools hostile {{NAMES}}
 
+# Build the release binary with media and run the hostile cases that play media (default: all of them; M14 feature 10a). The release binary is then a media build; `just hostile` builds it again without media.
+hostile-media *NAMES: build-media
+    uv run --project tools swbtools hostile --media --swb target/release/swb {{NAMES}}
+
 # Write tests/layout/*.boxes.json with Chromium (default: all layout tests).
 layout-refs *NAMES:
     uv run --project tools swbtools layout-refs {{NAMES}}

@@ -92,6 +92,19 @@ class Case:
     `Accept-Ranges` (a server that cannot seek). `"ignore"` makes it ignore
     `Range` but send `Accept-Ranges: bytes` and `Content-Length` (a server
     that claims ranges and answers 200)."""
+    serve: str | None = None
+    """A hostile way to serve the media `files` (M14 feature 10a; see
+    `SERVE_MODES` and `probe_server.py`)."""
+
+
+SERVE_MODES = ("stall", "endless", "endless-skip", "lie-range", "lie-total")
+"""The values of a case's `serve`: `stall` holds each request of a media file
+without an answer; `endless` answers 200 without a length, sends the file and
+then holds the connection open; `endless-skip` sends the file and then
+`free` boxes of 64 KiB (an MP4 demuxer skips them) until the client closes;
+`lie-range` answers the `Range` requests after the first with a
+`Content-Range` that starts one byte later than asked; `lie-total` gives
+them a total that grows by one at each answer."""
 
 
 def _parse_viewport(value: Any, where: str) -> tuple[int, int]:
@@ -218,6 +231,11 @@ def _parse_case(
     ranges = item.get("ranges", True)
     if ranges != "ignore":
         ranges = _parse_flag(ranges, where, "ranges")
+    serve = item.get("serve")
+    if serve is not None and serve not in SERVE_MODES:
+        raise ProbeError(f"{where}: serve must be one of {', '.join(SERVE_MODES)}")
+    if serve is not None and not http:
+        raise ProbeError(f"{where}: serve needs http")
     return Case(
         name,
         html,
@@ -231,6 +249,7 @@ def _parse_case(
         animations,
         http,
         ranges,
+        serve,
     )
 
 

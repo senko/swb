@@ -450,7 +450,11 @@ server cannot serve ranges), and `cancel()` from any thread. Behind it:
   video thread;
 - a **video thread**: decodes and converts frames to RGBA (section 9),
   with FFmpeg's own frame and slice threads: one thread below 1280 x 720,
-  else `min(available cores, 8)`. FFmpeg's automatic count (all 20
+  else `min(available cores, 8)`, and at most 2 above the 4K frame (3840 x
+  2160; M14 feature 10a: each frame thread holds a decoded frame, 53.5 MB at
+  the size limit; the count follows the size that the container declares,
+  so a stream that grows past it in the stream keeps its threads).
+  FFmpeg's automatic count (all 20
   cores) costs 16 % against 11 % for 1080p and is not needed for real
   time.
 
@@ -466,6 +470,22 @@ selected tracks of HTML); the demuxer discards the others
   reused, so playback does not allocate per frame; the current frame, the
   frame being converted and the image that paint holds come on top of the
   queue (about 3 pixmaps; see the implementation notes of feature 5);
+- **the frame budget of the process** (M14 feature 10a): the queues and
+  the 3 pixmaps of all open runs together stay within 2 GiB. A run reserves
+  its share when it knows the frame size (a shorter queue when the budget is
+  short, never below 2 frames); when even that does not fit, it waits with
+  its place as a pipeline that waits for a place (the no-progress limit does
+  not apply while it waits). A decoded frame larger than the size of the
+  reservation (the stream changes its frame size) grows the reservation at
+  once, or fails the run with code 3. Sixteen 1080p runs (75 MB each) and
+  twelve 4K runs (166 MB) fit; three at the size limit (713 MB). See
+  "Implementation notes (M14 feature 10a)";
+- **retained frames** (M14 feature 10a): the current frame that an element
+  keeps while its pipeline holds no place (suspended, waiting, failed) counts
+  against a budget of 256 MiB per document; over it, the frames of elements
+  without a box go, then frames are kept as reduced copies at the size of
+  their box, then frames go (the notes of feature 10a); a dropped frame comes
+  back when the video is painted again, a reduced one when its box grows;
 - samples: a ring of 1 s per element (384 KB).
 
 **A bound on pipelines.** At most 16 open pipelines per process (an open
@@ -752,18 +772,39 @@ probe rows (`format-metadata-table`).
 
 - **Demuxer**: `probesize` 5 MB and `max_analyze_duration` 5 s (FFmpeg's
   defaults, set explicitly), at most 16 streams (`max_streams`; FFmpeg's
-  default is 1,000); the rest are discarded.
+  default is 1,000); the rest are discarded. Measured in feature 10a with
+  100 streams: the Matroska demuxer keeps the first 16; the MOV and Ogg
+  demuxers fail the open at the 17th (code 4). Chromium plays all three
+  files (a departure, backlog).
 - **Frames**: at most 16,384 px in each dimension and at most 8192 x
   4352 pixels in all (`max_pixels` of the decoder); a larger stream fails
-  at the metadata with code 4. Swb's choice; feature 10 measures
-  Chromium with a hostile file.
+  at the metadata with code 4. Swb's choice. Chromium, measured in feature
+  10a (`tools/probes/media-hostile.json`): it plays frames up to at least
+  16384 x 8192 (8192 x 4416, 8192 x 8192, 16384 x 16 too) and fails a width
+  of 16,400 with code 3 after `loadedmetadata`. swb keeps its limit (a
+  departure): at 16384 x 8192 one RGBA frame is 512 MiB, and the smallest
+  share of a run (2 queued frames and 3 pixmaps) would be 2.5 GiB, more than
+  the frame budget of the process (2 GiB, section 6). A stream whose frames
+  grow in the stream past the size that the container declares (the review
+  of 10a: a 86 KB WebM that declares 16 x 16 and switches to 8192 x 4352)
+  grows its share of the frame budget at once when the bytes are free, else
+  it fails with code 3 (`MEDIA_ERR_DECODE`); FFmpeg's `max_pixels` bounds
+  the frames in the stream too. Chromium plays that file (`resize`,
+  `videoWidth` 8192).
 - **Audio**: at most 8 channels (mixed down to stereo by
   `swresample`), 8 kHz to 384 kHz.
 - **Allocation**: `av_max_alloc` 512 MiB per allocation (FFmpeg's default
   is `INT_MAX`); a larger one fails, and the element gets an error.
 - **Memory** in total: the queues and budgets of sections 5 and 6, the
-  pipeline bound (16), so that the 4K file stays below 1.5 GiB and many
-  elements stay bounded.
+  pipeline bound (16), the frame budget of the process (2 GiB of decoded
+  frames) and the budget of retained frames (256 MiB per document; both
+  M14 feature 10a), so that the 4K file stays below 1.5 GiB and many
+  elements stay bounded. Measured (feature 10a): 16 videos at the size
+  limit 2.2 to 2.6 GiB (before: killed at a 16 GiB cap), 1,000 paused 1080p
+  videos 2.5 GiB (before: 9.8 GiB), 16 videos that switch from 16 x 16 to
+  the size limit 2.0 to 2.2 GiB (before the review fix: over 4 GiB). The
+  budget of retained frames holds per document: each frame document and
+  each tab has its own (a backlog item).
 - **Duration**: no limit; a stream without a known duration has
   `duration` `Infinity` and plays until its end (the byte budget bounds
   its memory).
@@ -780,11 +821,16 @@ probe rows (`format-metadata-table`).
   no progress for 10 s while the element needs data gets code 3, and its
   threads are detached (at most 16 detached threads per process; beyond
   that, new media loads fail with code 3). A blocked read returns at
-  cancellation.
+  cancellation. An open that gets no byte fails the same way after 10 s;
+  Chromium fires `stalled` after 3 s and waits (no error after 14 s;
+  measured in feature 10a, a departure in the backlog).
 - The hostile-page set gets the hostile files of `fixtures/media/` plus
   new ones made by the generator (feature 10): a frame size above the
   limit, an endless stream (a server that never ends the body), 1,000
-  media elements, a file with 100 streams.
+  media elements, a file with 100 streams. Done in feature 10a, with the
+  frame size limit itself, range lies and a stalled open; `just
+  hostile-media` runs them with a media build (see the notes of feature
+  10a).
 
 ### 12. Updates of ADR 0003 and ADR 0020
 
@@ -3105,3 +3151,305 @@ boxes, the views), the hooks in `crates/engine/src/page/` (`input.rs`,
   `<audio controls autoplay>`), and swb does not either. (3) The video time
   label "0:00 0:10" with the slider open stays a listed departure (the glyph
   rectangle's reason and the caps).
+
+## Implementation notes (M14 feature 10a)
+
+Hostile media and bounded memory (works item 6). The two gaps of the backlog
+of feature 5 are closed: decoded frames have a bound for the whole process,
+and the frames that elements keep have a bound per document.
+
+**Measured before** (release build with media, headless, `--virtual-time`,
+under `systemd-run --scope -p MemoryMax=16G`; peak RSS; an empty page is
+72 MiB):
+
+| Page | Before | After |
+|---|---|---|
+| 1 video at the size limit (8192 x 4352, 10 fps), playing | 1,280 MiB | 792 MiB |
+| 4 such videos, playing | 4,297 MiB | 2,230 MiB |
+| 16 such videos, playing / `preload=auto` paused | killed at the 16 GiB cap / 16,131 MiB | 2,292 / 2,170 MiB |
+| 32 such videos, playing / paused | killed at the 16 GiB cap / 16,128 MiB | 2,475 / 2,191 MiB |
+| 300 paused 320 x 240 videos (`preload=metadata`, 320 s) | 349 MiB | 361 MiB |
+| 1,000 paused 320 x 240 videos (1,000 s) | 586 MiB | 562 MiB |
+| 300 paused 1080p videos | 4,380 MiB | 2,461 MiB |
+| 1,000 paused 1080p videos | 10,057 MiB | 2,547 MiB |
+| 1,000 `<video preload=auto>` (320 x 240) | 583 MiB | 554 MiB |
+
+"After" is the final code under a 4 GiB cap; the hostile runs of the case
+with 16 videos at the limit gave 2.3 to 2.6 GiB.
+
+Before, each pipeline at the size limit held about 1.1 to 1.2 GiB (its
+pixmaps and FFmpeg's frames: 8 frame threads); every pipeline of the 16
+places ran at once. The paused 1080p pages held one 8.3 MB frame per element
+that had decoded one (the retained frames).
+
+**The frame budget of the process** (`swb_media::pipeline::slots`,
+`FRAME_BUDGET_BYTES` = 2 GiB; `PipelineSlots::with_frame_budget` for tests).
+Weighting the 16 places by frame size was the starting point; a byte budget
+in the same structure is simpler and exact: the frame size is known only
+after the open, so a weight would have to be added to a place that a run
+already holds. Instead:
+
+- A run reserves bytes when its demux thread knows the coded frame size,
+  before the metadata goes to the owner: it wants its queue (2 to 6 frames
+  within 96 MiB) plus the 3 pixmaps besides the queue (the current frame,
+  the frame being converted, the one that paint holds), and takes less when
+  the budget is short (never fewer than 2 queued frames). The frame cap and
+  the limit of the run's pixmap pool follow the reservation.
+- When even the minimum does not fit, or another run waits before it, the
+  run waits in a FIFO, with its place. The pipeline then waits as one that
+  waits for a place (`Pipeline::is_waiting`, `waits_for_frame_budget`): no
+  pending work, no metadata at the first open, and it cannot suspend. The
+  no-progress limit does not apply while it waits: the demux thread clears
+  the owner's need of data when the wait begins and notifies the owner, and
+  the watchdog's check ends for a waiter (review fix 1 below; before it, an
+  owner that had asked for pending work once while the run opened got code 3
+  after 10 s of waiting). A run that holds bytes never waits for anything of the
+  budget's, so there is no cycle; a waiter gets its bytes when a run that
+  holds some ends (suspend after 15 s idle, close, failure), as a pipeline
+  waits for a place.
+- The bytes belong to the run's place and go back when the place does (when
+  the run's threads have ended, or at a detach), so the handover happens in
+  the place's transit: an owner in virtual time sees the waiter's new
+  pending work before the transit ends (`awaits_handover` covers frame
+  waiters). The grant is made by the thread that frees the bytes, under the
+  slots' lock, and the waiter's flag is cleared before the transit ends.
+- The pool (`pool.rs`) keeps a reference to each pixmap of the run (free
+  when only the pool holds it; the video thread takes it out to convert into
+  it and gives it back), and allocates no pixmap that would take the bytes of
+  the run's pixmaps over the run's reservation (bytes, not pixmaps: review
+  fix 2). At the limit (something holds more frames than the queue, the
+  current one and paint's; not seen in the tests) a frame is decoded and not
+  converted, as for a hidden video (`PipelineStats::frames_over_budget`).
+- The reservation is for the coded size that the container declares. A
+  decoded frame to convert that is larger (the stream changes its frame size)
+  grows the reservation at once to the share of the new size, from the bytes
+  that are free, without a wait in the FIFO (`RunPlace::grow_frames`; a run in
+  the middle of its playback does not wait); when the free bytes do not hold
+  its minimum, the run fails with code 3 and a `warn!` (review fix 2). A
+  minimum above the whole budget is refused at the reservation (code 3; with
+  the process's budget and the frame size limit it does not happen).
+- Worst case of the process: 2 GiB of RGBA pixmaps in open runs (three runs
+  at the size limit, 713 MB each; twelve 4K runs, 166 MB; sixteen 1080p
+  runs, 75 MB, so 1080p is never limited), plus at most one pixmap per
+  ending or detached run (being converted when the run ended), plus FFmpeg's
+  own decoded frames, which the budget does not count. For those, videos
+  above the 4K frame now decode on 2 FFmpeg threads, not 8 (each frame
+  thread holds a frame: 53.5 MB of YUV at the size limit): one pipeline at the
+  limit went from 1,280 to 792 MiB, 16 such videos from 3.2 to 3.7 GiB (budget
+  only) to 2.2 to 2.6 GiB. The 4K file (3840 x 2160) keeps its 8 threads.
+  The thread count follows the declared size: a stream that grows past the
+  4K frame in the stream keeps the count of its declared size (FFmpeg's own
+  frames are outside the budget, an existing backlog item).
+- Normal playback does not change: the budget does not limit 1080p, and up to
+  twelve 4K runs get their whole queue. Test: a 1080p video that plays while
+  15 others hold their frames keeps its cap of 6 and drops no frame.
+
+**Retained frames** (`crates/engine/src/media/retained.rs`,
+`RETAINED_FRAME_BUDGET` = 256 MiB per document). The frame of an element
+whose pipeline holds no place (suspended, waiting, failed;
+`Pipeline::retained_image_bytes`) is a retained frame; the frames of open
+runs are in the budget above. 256 MiB holds thirty 1080p frames, seven 4K
+frames, one at the size limit and 870 of 320 x 240, so the visible videos of
+a page keep theirs; with the frame budget the media of one document hold
+about 2.3 GiB of frames at most (plus FFmpeg's). The budget is per document:
+the worst case holds for one document, and each frame document and each tab
+adds 256 MiB (a backlog item: a bound for the process). 512 MiB would double
+the part that many paused 1080p videos keep without a need on the target
+pages.
+
+- The document keeps the bytes of each element for the elements that its sync
+  looks at (the touched ones; all at a paint), so a page with thousands of
+  elements does not count all of them after each unit of media work.
+- Over the budget, in three steps (review fix 3; before it, frames went in
+  the order of step 3 at once): (1) the frames of elements without a painted
+  box go (also `visibility: hidden` has a box; `display: none` and removed
+  elements have none); (2) the frames of elements with a box, least recently
+  painted first (a tick of each update of the painted flags), then the oldest
+  retained frame, are replaced by a reduced copy for the box, when the copy
+  is smaller; (3) while the total is still over the budget, frames go in the
+  order of step 2. In headless mode every video with a box is painted, so the
+  order there is no box, then the oldest.
+- A sync converts at most 8 Mpx of source pixels in step 2
+  (`REDUCE_PIXELS_PER_SYNC`; fix round 2: `swb_paint::reduced_copy` costs
+  about 3.5 to 4 ms for a 1080p frame and 14.5 ms for a 4K frame in a release
+  build, measured; 15 to 20 ms and 62 to 71 ms in the test profile, so 100
+  large frames blocked the page thread for 0.4 s to 2 s in one sync). The
+  cap is a count of pixels, not a time, so virtual time stays deterministic;
+  the first conversion of a sync always runs, so a frame larger than the cap
+  goes alone, and each capped sync converts at least one frame. A sync that
+  stops at the cap with the total over the budget leaves a backlog:
+  `Media::next_due` reports a due time 10 ms of page time later, so the
+  frame loop, the event loop and headless virtual time run the next sync
+  without another trigger (a sync that reduces nothing is not progress for
+  the pump, so the pump does not spin: one sync per wake-up). While the
+  backlog waits, step 3 keeps the total within the budget plus a margin of
+  64 MiB (`RETAINED_MARGIN`, two syncs' worth of frame bytes: 2 x 8 Mpx x 4
+  bytes) and does not drop reduced frames (they free little); past the
+  margin frames go in the order of step 2, so the memory stays bounded at
+  budget + margin. A frame that nothing converts (box too large, `object-fit:
+  none`) does not count against the cap and does not make a backlog. Tests
+  (`media_retained.rs`): 24 visible 1080p frames over the budget: no sync
+  passes the cap, later syncs finish without a paint or another trigger,
+  the counts are equal on two runs; over the margin, frames go after the
+  first sync.
+- The reduced copy (`swb_paint::reduced_copy`, `Pipeline::reduce_retained_image`)
+  is the level of paint's averaged halvings (ADR 0024) for the box's size in
+  device pixels (the bounds of its border box after the document's transforms,
+  times the device pixel ratio), at the one scale that covers the box in both
+  axes: paint draws the frame into the box (`fill`), into a rectangle inside
+  it (`contain`, the default of `video`; `scale-down`) or at that scale
+  (`cover`), so it would draw the full frame from this level or a smaller one,
+  and the smaller levels of the copy are the same halvings. The picture
+  differs from paint's own drawing of the full frame by at most 1 in a color
+  channel (the rounding of an average when the halvings take the axes in
+  another order at odd sizes; the paint test `a_reduced_copy_draws_like_its_source`,
+  and the engine test of 100 videos against a lone one). Not reduced: a box
+  with `object-fit: none` (the frame is drawn at its natural size), and a
+  frame whose scale to the box is 0.5 or more (paint draws the frame itself).
+  A frame document inside a scaled ancestor of its parent may get a copy that
+  paint enlarges (the scale of the parent's transforms is not seen).
+  100 visible paused 1080p videos in boxes of 120 x 68 keep full frames up to
+  the budget and copies of 240 x 135 (130 KB) for the others, and all show
+  their frame (before: about 64 showed nothing; Chromium shows all).
+- A reduced copy whose box grows past it (the copy's size is less than the
+  frame at the scale that covers the new box), or whose box no longer bounds
+  the image, is decoded again at full size by the quiet seek of the painted
+  flag (`Pipeline::restore_full_image`; a suspended pipeline opens again); the
+  copy shows until the frame comes. A box that the copy still covers keeps
+  the copy. A new frame (play, seek) ends the copy.
+- A dropped frame (`Pipeline::drop_retained_image`: the image goes, the
+  frame keeps its time) comes back through the painted flag's quiet seek when
+  the video is painted again; `set_painted` now also opens a suspended
+  pipeline for it (the 7a backlog item "a suspended pipeline that gets a box
+  shows nothing until `play()` or a seek" is closed with it). A frame dropped
+  while its video stays painted (more painted videos than the budget holds
+  even as reduced copies, or boxes too large for a copy) comes back only when
+  the video is painted again, plays or seeks, so the budget never makes a
+  cycle of drops and seeks. Such videos show their poster or nothing.
+
+**Chromium's behaviour for each hostile file** (`tools/probes/media-hostile.json`,
+helpers `media-hostile.js`, three runs; the case server got a `serve` option
+with `stall`, `endless`, `endless-skip`, `lie-range` and `lie-total`):
+
+| Case | Chromium 148 | swb |
+|---|---|---|
+| 16400 x 16 (width over 16,384) | `loadedmetadata` (16400 x 16), then `error` code 3 (`PIPELINE_ERROR_DECODE`); `play()` stays pending | code 4 at the metadata (`DEMUXER_ERROR_NO_SUPPORTED_STREAMS`) |
+| 8192 x 4416 (more than 8192 x 4352 pixels) | plays (also 8192 x 8192, 16384 x 8192 and 16384 x 16, local files in `out/media-local/`) | code 4 at the metadata (kept: section 11) |
+| 8192 x 4352 (the limit) | plays | plays (within the frame budget) |
+| 16 x 16 declared, 8192 x 4352 in the stream from 0.2 s (VP8 WebM, 86 KB; review fixes) | plays to the end; `resize` at the metadata (16 x 16) and again during the playback; `videoWidth` 8192 at the end | the run grows its reservation to 713 MB, or fails with code 3 when the budget has not the bytes free (16 such videos: three play, 13 fail); no `resize` and `videoWidth` stays 16 (backlog) |
+| 640 x 360, then 1280 x 720 in the stream (VP8 WebM; review fixes) | plays; `resize` during the playback, `videoWidth` 1280 at the end | plays to the end (the reservation grows from 8.3 to 33 MB); no `resize`, `videoWidth` stays 640 (backlog) |
+| 100 streams: MP4 (1 video, 99 AAC), WebM (1 video, 99 Opus), Ogg (100 Opus) | plays all three | WebM plays (16 streams kept); MP4 and Ogg fail the open (code 4) |
+| Endless body: the 55 KB file in a 200 without a length, then the connection stays open | plays to 0.88 s, `waiting`, `stalled` at 6 s; no error | no byte reaches the demuxer (a block is readable only when its 64 KiB are in), code 3 after 10 s |
+| Endless skip: the file, then MP4 `free` boxes without end | reads about 9 GB in a few seconds (it asks again with `Range` at 4 MB and 8.9 GB), plays to 1.98 s and waits; no error | the skipped bytes count as progress; reads on within the byte budget (174 MiB peak); plays to 1.0 s and waits there (`readyState` 2, no error; measured in the review fixes from 1.5 s to 8 s, the same with the code before them; backlog) |
+| Stalled open: no byte | `loadstart`, `stalled` after 3 s, no error after 14 s (`networkState` 2, `readyState` 0); a `play()` stays pending (`waiting`) | code 3 after 10 s (the no-progress limit) |
+| A stalled video in a frame | the frame's `load` event comes after 3 s (the stall delays it) | media do not delay `load` (backlog of 6a) |
+| `Content-Range` that starts one byte late from the 2nd answer | code 4 `MEDIA_ELEMENT_ERROR: Format error` (the 12.8 MB 1080p file, whose second request comes at the load) | the byte source fails the resource (`NetError::Range`); the demuxer ends the stream there, no error event (the hostile case: `readyState` 4, no error, `currentTime` 9 after a seek to 9 s) |
+| `Content-Range` total that grows at each answer | plays and seeks (ignores the total) | the byte source fails the resource; the stream ends there (the same state as the row above) |
+
+The endless-skip and growing-total rows differ between Chromium's runs only
+in the number and times of the requests and `progress` events; the states
+are equal. The stalled open: Chromium differs, and the change (no failure
+while the byte source has asked and got nothing, `stalled` after 3 s) is not
+small: the no-progress limit cannot tell a slow network from a stuck FFmpeg
+call without the byte source's view, so it is a backlog item.
+
+**Hostile cases** (`tools/swbtools/hostile_cases/media.py`; `just
+hostile-media` builds the media release binary and runs the 18 cases that
+play media; `media_only` cases are skipped by a binary without the feature):
+`media-16-videos-at-the-frame-size-limit` (3,072 MiB limit, review fix 4:
+2.4 to 2.6 GiB measured, 3.2 to 3.7 GiB without the 2-thread rule, so a
+regression fails every run), `media-16-videos-that-switch-to-the-frame-size-limit`
+(review fix 2; 3,072 MiB limit, 2.0 to 2.2 GiB measured; 13 runs fail with
+code 3), `media-frame-size-above-the-limit`, `media-endless-body` (code 3,
+read at 12 s) and `media-endless-skip-body` (real time: a request in flight
+holds virtual time), `media-range-lie-start`, `media-range-lie-total` (the
+runner's server closes each answer after 64 KiB, so the byte source asks
+again during the load; the cases check the final state),
+`media-1000-videos-that-decode` (1280 x 720, 1,000 s of virtual time; 1.6
+GiB, 7.6 s), `media-100-streams`, `media-stalled-open` (10 s). The runner's
+server has the modes `endless`, `endless-skip`, `lie-range` and `lie-total`,
+which serve the case's files.
+
+**Tests.** `crates/media/tests/frame_budget.rs` (three runs reserve within a
+budget of two full queues and a short one, the others wait without pending
+work, the bytes never pass the budget, the pixmaps of each run stay within
+its share; a suspended waiter leaves the FIFO; a 1080p video beside 15 others
+keeps its cap of 6 and drops no frame), the pool's unit tests,
+`crates/engine/tests/media_retained.rs` (1,000 paused videos within the
+default budget; a dropped frame comes back when its video is painted again,
+through a suspended pipeline; the order of the drops), the 100-stream files in
+`files.rs`, `sources.rs` and `media_element.rs`. Each fails with its change
+reverted: the budget granted always (two `frame_budget` tests), the wait flag
+ignored by `waits` (the first `frame_budget` test), the pool's limit ignored
+(the pool test), no trim (the three `media_retained` tests), the box ignored in
+the order (the order test), `set_painted` only for running pipelines (the
+comes-back test).
+
+**Found, not changed (backlog):** MOV and Ogg with more than 16 streams fail
+where Chromium plays; Chromium's frame size limit is larger; a stalled open
+fails at 10 s and fires no `stalled`; an endless body smaller than a block
+never reaches the demuxer; a byte source that fails after the open ends the
+stream without an error (Chromium: code 4 for a shifted range, plays on for a
+changing total); a page with more painted videos than the retained budget
+holds even as reduced copies shows some without a frame.
+
+### Review fixes of feature 10a
+
+1. A frame-budget waiter was failed by the no-progress limit when its owner
+   had asked for pending work once while the run opened (which arms the
+   limit) and not again: setting the wait flag neither cleared the owner's
+   need of data nor notified the owner. Now the demux thread clears the need
+   and notifies the owner when the wait begins, and the watchdog's check
+   ends for a pipeline whose run waits for frame bytes; the limit counts
+   again from the owner's next need after the wait. Test
+   `a_waiter_for_frame_bytes_is_not_failed_by_the_no_progress_limit` (a
+   stall limit of 200 ms, a wait of 1 s).
+2. The reservation used the container's declared size and decoded frames
+   were not checked against it; the pool's limit counted pixmaps. An 86 KB
+   (85,858 B) WebM that declared 16 x 16 and switched to 8192 x 4352 held 643 MiB per
+   video, and 16 of them passed 4 GiB. Now a decoded frame larger than the
+   reservation's frame size grows the reservation at once or fails the run
+   with code 3 (see the frame budget above), and the pool's limit counts
+   bytes. Chromium measured with the switching file (probe cases
+   `hostile-size-switch-*`, three equal runs: it plays both files and fires
+   `resize`). New test media `webm-vp8-16x16-to-8192x4352.webm` (86 KB) and
+   `webm-vp8-640x360-to-1280x720.webm` (75 KB; the generator joins parts
+   with the concat demuxer and stream copy), the hostile case of 16 such
+   videos, and the tests `a_video_whose_frames_grow_grows_its_reservation_and_plays_on`,
+   `a_video_whose_frames_grow_past_the_free_budget_fails`, the pool test
+   `the_limit_counts_bytes_when_the_frame_size_grows` and the slots test
+   `reservations_are_refused_above_the_budget_and_grow_from_free_bytes`.
+3. With 100 visible paused 1080p videos in boxes of 120 x 68, about 64
+   showed nothing: 256 MiB holds about 30 full frames. Now the budget keeps
+   reduced copies for the boxes before it drops frames (the steps above).
+   Tests: 100 such videos all show their frame and look like a lone video
+   within 1 in a color channel; a reduced frame comes back at full size when
+   its box grows (and stays reduced for a box that the copy covers); the
+   order of the three steps; the 1,000-video test now keeps every frame as a
+   copy of 40 x 30. The pages under the budget do not change (the pixel tests
+   of `media_frames.rs` and `media_video_paint.rs` pass unchanged).
+4. The hostile cases check what they say: `media-endless-body` reads the
+   state at 12 s (code 3); the range-lie and endless-skip cases check the
+   measured final state (they are `media_only` now); the limit of
+   `media-16-videos-at-the-frame-size-limit` is 3,072 MiB.
+5. `RunPlace::reserve_frames` refuses a minimum above the whole budget
+   (`Reserve::Refused`, the run fails with code 3) instead of granting less
+   than the minimum; with the process's budget and the frame size limit it
+   does not happen.
+6. Docs: the retained budget is per document (section 11 and above).
+
+Fix round 2: the reductions of one sync are capped (the retained-frames
+bullet above); the switching file is 86 KB (item 2 said 143 KB).
+
+Found in fix round 2, not changed (backlog): a running video whose frames
+grow (640 x 360 to 1280 x 720) fails with code 3 when the free frame budget
+is below the new minimum (other runs hold the 2 GiB); Chromium plays it.
+Decoding without converting until bytes are free (the `frames_over_budget`
+path) would play it, but the decoder's own frames are outside the budget (the
+16 declared-16x16 hostile videos each decode 8192 x 4352 frames on FFmpeg's
+automatic thread count), so a hostile file could hold them; measure before
+changing.
+
+Found in the fix round, not changed: the endless-skip case plays to 1.0 s
+and waits (also with the code before the fixes); swb has no `resize` event
+and no new `videoWidth` for a size change in the stream.

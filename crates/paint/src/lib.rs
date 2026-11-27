@@ -67,6 +67,7 @@ pub use raster::{
     CacheStats, FrameContent, ImageSource, PixelRect, RasterCache, RasterParams, RasterReport,
     rasterize, rasterize_in_strips, rasterize_region,
 };
+pub use reduce::reduced_copy;
 pub use scroll_indicator::scroll_indicators;
 pub use svg::{CountBudget, VectorCache};
 pub use tiny_skia::Pixmap;

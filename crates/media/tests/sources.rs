@@ -249,6 +249,22 @@ fn at_most_16_streams() {
     assert_eq!(file.info().stream_count, 16);
 }
 
+/// M14 feature 10a: with 100 streams the Matroska demuxer keeps the first
+/// 16 (the video and 15 audio streams); the MOV and Ogg demuxers fail the
+/// open at the 17th (`max_streams`), which the element reports as code 4.
+#[test]
+fn files_with_100_streams_keep_16_or_fail_by_demuxer() {
+    let file = open("webm-vp8-opus-100-streams.webm").expect("opens");
+    assert_eq!(file.info().stream_count, 16);
+    assert!(file.info().video.is_some() && file.info().audio.is_some());
+    for name in ["mp4-h264-aac-100-streams.mp4", "ogg-opus-100-streams.ogg"] {
+        match open(name) {
+            Err(e @ MediaError::NotMedia(_)) => assert_eq!(e.element_code(), Some(4)),
+            other => panic!("{name}: {:?}", other.map(|f| f.info().clone())),
+        }
+    }
+}
+
 #[test]
 fn empty_and_tiny_sources_are_not_media() {
     for bytes in [Vec::new(), vec![0u8; 1], b"<html>".to_vec()] {

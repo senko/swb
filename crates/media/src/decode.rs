@@ -287,12 +287,18 @@ impl Demux {
             return Ok(None);
         };
         let (w, h) = track.coded_size;
-        let threads = if u64::from(w) * u64::from(h) < limits::ONE_THREAD_BELOW_PIXELS {
+        let pixels = u64::from(w) * u64::from(h);
+        let threads = if pixels < limits::ONE_THREAD_BELOW_PIXELS {
             1
         } else {
+            let most = if pixels > limits::FEW_THREADS_ABOVE_PIXELS {
+                limits::FEW_DECODE_THREADS
+            } else {
+                limits::MAX_DECODE_THREADS
+            };
             std::thread::available_parallelism()
                 .map_or(1, |n| u32::try_from(n.get()).unwrap_or(1))
-                .min(limits::MAX_DECODE_THREADS)
+                .min(most)
         };
         let decoder = self
             .demuxer

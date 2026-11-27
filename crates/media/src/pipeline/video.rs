@@ -8,8 +8,9 @@
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 
-use super::demux::PanicGuard;
-use super::shared::{Counters, QueuedFrame, Shared, VideoItem, VideoWait};
+use super::demux::{PanicGuard, apply_share, over_budget};
+use super::pool::Taken;
+use super::shared::{Counters, FrameShare, QueuedFrame, Shared, State, VideoItem, VideoWait};
 use super::slots::PlaceGuard;
 use crate::MediaError;
 use crate::decode::{Output, Packet, RawVideoFrame, VideoDecoder};
@@ -193,6 +194,32 @@ impl Worker {
         }
     }
 
+    /// A frame to convert that is larger than the frame size of the run's
+    /// reservation (the stream changed its frame size; the reservation used
+    /// the container's): the reservation grows at once to the share of the
+    /// new size, or the run fails with a decode error when the budget has
+    /// not the bytes free (review of 10a). Under the pipeline's lock.
+    fn fit_frame_size(&self, st: &mut State, size: (u32, u32)) -> Result<(), MediaError> {
+        let share = FrameShare::of(size.0, size.1);
+        if share.frame <= st.frame_size {
+            return Ok(());
+        }
+        let granted = match &st.place {
+            Some((run, place)) if *run == self.run => place.grow_frames(share.min(), share.want()),
+            _ => None,
+        };
+        let Some(granted) = granted else {
+            return Err(over_budget(size));
+        };
+        log::debug!(
+            "media pipeline: the frames grow to {} x {}; {granted} bytes reserved",
+            size.0,
+            size.1
+        );
+        apply_share(&self.shared, st, share, granted);
+        Ok(())
+    }
+
     /// Converts and queues a decoded frame; `false` when the run ended.
     fn push(&mut self, raw: &RawVideoFrame) -> Result<bool, MediaError> {
         let shared = Arc::clone(&self.shared);
@@ -229,24 +256,40 @@ impl Worker {
                 Counters::add(&shared.counters.late_frames);
                 return Ok(true);
             }
+            if st.painted {
+                self.fit_frame_size(&mut st, raw.size())?;
+            }
             st.painted
         };
         let image = if painted {
             let (w, h) = raw.size();
-            let mut image = shared
-                .pool
-                .take(w, h)
-                .ok_or_else(|| MediaError::Decode(format!("no image of {w} x {h} pixels")))?;
-            match Arc::get_mut(&mut image) {
-                Some(pixmap) => self.decoder.convert(raw, pixmap)?,
-                None => {
-                    return Err(MediaError::Decode(
-                        "a pooled image is still in use".to_owned(),
-                    ));
+            match shared.pool.take(w, h) {
+                Taken::Pixmap(mut image) => {
+                    match Arc::get_mut(&mut image) {
+                        Some(pixmap) => self.decoder.convert(raw, pixmap)?,
+                        None => {
+                            return Err(MediaError::Decode(
+                                "a pooled image is still in use".to_owned(),
+                            ));
+                        }
+                    }
+                    Counters::add(&shared.counters.frames_converted);
+                    shared.pool.track(&image);
+                    Some(image)
+                }
+                // The run holds all the pixmaps of its share of the frame
+                // budget (something holds more frames than the queue, the
+                // current one and paint's): the frame shows as one that is
+                // not painted (the last converted frame stays).
+                Taken::AtLimit => {
+                    Counters::add(&shared.counters.frames_over_budget);
+                    log::debug!("media pipeline: a frame of {w} x {h} over the frame budget");
+                    None
+                }
+                Taken::Failed => {
+                    return Err(MediaError::Decode(format!("no image of {w} x {h} pixels")));
                 }
             }
-            Counters::add(&shared.counters.frames_converted);
-            Some(image)
         } else {
             None
         };

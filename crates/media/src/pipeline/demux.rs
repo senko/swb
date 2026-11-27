@@ -17,10 +17,10 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 
 use super::shared::{
-    DemuxWait, MAX_FRAME_BYTES, MAX_FRAMES, MAX_PACKETS, MIN_FRAMES, Progress, RING_FRAMES,
-    SeekCmd, Shared, State, ThreadEvent, VideoItem,
+    DemuxWait, FrameShare, MAX_PACKETS, Progress, RING_FRAMES, SeekCmd, Shared, State, ThreadEvent,
+    VideoItem,
 };
-use super::slots::{RunPlace, Slot};
+use super::slots::{FrameWake, Reserve, RunPlace, Slot};
 use super::video;
 use crate::decode::{AudioChunk, AudioDecoder, Demux, Output, Packet, VideoDecoder};
 use crate::file::seek_demux;
@@ -142,6 +142,97 @@ fn main(shared: &Arc<Shared>, run: u64, place: &Arc<RunPlace>) {
     // Dropping the worker ends and joins the video thread.
 }
 
+/// Reserves the frames of the run in the frame budget of the slots (M14
+/// feature 10a, `slots.rs`) and sets the frame cap and the pool's limit for
+/// a video of `size` (coded) pixels: the queue that its bounds want (2 to 6
+/// frames within 96 MiB) and [`EXTRA_PIXMAPS`], or a shorter queue when the
+/// budget is short, never below [`MIN_FRAMES`]. When even that does not fit,
+/// the thread waits (the pipeline waits as for a place, without pending
+/// work) until the bytes come or the run ends.
+fn reserve_frames(
+    shared: &Arc<Shared>,
+    run: u64,
+    place: &Arc<RunPlace>,
+    size: (u32, u32),
+) -> Result<(), MediaError> {
+    let share = FrameShare::of(size.0, size.1);
+    let weak = Arc::downgrade(shared);
+    let wake: FrameWake = Box::new(move || {
+        if let Some(shared) = weak.upgrade() {
+            let mut st = shared.lock();
+            if st.run == run {
+                st.frame_wait = false;
+            }
+            drop(st);
+            shared.demux_cv.notify_all();
+        }
+    });
+    let closed = || MediaError::Source("the pipeline closed".to_owned());
+    let mut st = shared.lock();
+    if st.run != run {
+        return Err(closed());
+    }
+    // Under the pipeline's lock: an owner never sees the wait flag of a
+    // reservation that is granted at once.
+    let answer = place.reserve_frames(
+        shared.id,
+        share.min(),
+        share.want(),
+        Arc::clone(&shared.notify),
+        wake,
+    );
+    let granted = if let Reserve::Granted(bytes) = answer {
+        bytes
+    } else if answer == Reserve::Refused {
+        return Err(over_budget(size));
+    } else {
+        st.frame_wait = true;
+        // The run waits as for a place: the no-progress limit does not
+        // apply (the owner may have seen pending work and armed it before
+        // the wait began), and the owner learns that it has no pending work
+        // now (review of 10a).
+        st.watch.needs_data = false;
+        st.watch.lost = None;
+        drop(st);
+        (shared.notify)();
+        st = shared.lock();
+        loop {
+            if st.run != run {
+                return Err(closed());
+            }
+            if let Some(bytes) = place.take_frame_grant() {
+                st.frame_wait = false;
+                break bytes;
+            }
+            st = shared
+                .demux_cv
+                .wait(st)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
+    };
+    apply_share(shared, &mut st, share, granted);
+    Ok(())
+}
+
+/// Sets the frame cap, the reserved frame size and the pool's limit of a
+/// run that holds `granted` bytes for frames of `share` (under the
+/// pipeline's lock).
+pub(crate) fn apply_share(shared: &Shared, st: &mut State, share: FrameShare, granted: u64) {
+    st.frame_cap = share.cap(granted);
+    st.frame_size = share.frame;
+    shared.pool.set_limit(granted);
+}
+
+/// The error of a run whose frames of `size` do not fit in the frame
+/// budget.
+pub(crate) fn over_budget(size: (u32, u32)) -> MediaError {
+    let (w, h) = size;
+    log::warn!("media pipeline: frames of {w} x {h} pixels do not fit in the frame budget");
+    MediaError::Decode(format!(
+        "frames of {w} x {h} pixels do not fit in the frame budget"
+    ))
+}
+
 /// The demux thread's state.
 struct Worker {
     shared: Arc<Shared>,
@@ -201,6 +292,14 @@ impl Worker {
         let video_stream = video_decoder.as_ref().map(VideoDecoder::stream);
         let audio_stream = audio.as_ref().map(AudioDecoder::stream);
         let ring = audio_stream.map(|_| Arc::new(SampleRing::new(RING_FRAMES)));
+        // Before the metadata goes to the owner: a pipeline that waits for
+        // its frame bytes then looks like one that waits for a place (no
+        // metadata at the first open, no pending work).
+        if video_decoder.is_some()
+            && let Some(v) = &info.video
+        {
+            reserve_frames(shared, run, place, v.coded_size)?;
+        }
         let (epoch, max_packet_bytes) = {
             let mut st = shared.lock();
             if st.run != run {
@@ -212,13 +311,6 @@ impl Worker {
                 r.set_gain(st.gain);
             }
             st.ring.clone_from(&ring);
-            st.frame_cap = info.video.as_ref().map_or(MIN_FRAMES, |v| {
-                let (w, h) = v.coded_size;
-                let bytes = u64::from(w.max(1)) * u64::from(h.max(1)) * 4;
-                usize::try_from(MAX_FRAME_BYTES / bytes)
-                    .unwrap_or(MAX_FRAMES)
-                    .clamp(MIN_FRAMES, MAX_FRAMES)
-            });
             // The data from here on belongs to the current epoch; a seek
             // that is waiting starts the next one.
             let epoch = st.epoch;

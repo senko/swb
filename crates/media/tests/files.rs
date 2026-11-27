@@ -69,6 +69,9 @@ fn table() -> Vec<(&'static str, Expect)> {
         ("mp4-h264-322x242-444.mp4", ok(V, Complete, 10)),
         ("mp4-h264-322x242.mp4", ok(V, Complete, 10)),
         ("mp4-h264-854x480.mp4", ok(V, Complete, 10)),
+        // M14 feature 10a: 100 streams (one video, 99 AAC; 0.4 s): the MOV
+        // demuxer fails at the 17th stream (`max_streams`), the open fails.
+        ("mp4-h264-aac-100-streams.mp4", Err(not_media)),
         // M14 feature 6a: rows for the timeline rules.
         (
             "mp4-h264-aac-bframes-no-edit-list.mp4",
@@ -116,14 +119,25 @@ fn table() -> Vec<(&'static str, Expect)> {
         ("mp4-h264-video-only.mp4", ok(V, Complete, 50)),
         ("mp4-opus.mp4", ok(A, Complete, 0)),
         ("ogg-flac.oga", ok(A, Complete, 0)),
+        // M14 feature 10a: 100 Opus streams: the Ogg demuxer fails at the
+        // 17th stream, the open fails.
+        ("ogg-opus-100-streams.ogg", Err(not_media)),
         ("ogg-opus.opus", ok(A, Complete, 0)),
         ("ogg-vorbis.ogg", ok(A, Complete, 0)),
         ("poster-200x100.png", Err(not_media)),
         ("poster-320x240.png", Err(not_media)),
         ("wav-pcm-s16.wav", ok(A, Complete, 0)),
+        // M14 feature 10a, review fixes: the frame size changes in the
+        // stream (16 x 16 for 0.2 s, then 8192 x 4352 for 1 s at 10 fps).
+        ("webm-vp8-16x16-to-8192x4352.webm", ok(V, Complete, 12)),
         ("webm-vp8-320x241.webm", ok(V, Complete, 10)),
         ("webm-vp8-321x240.webm", ok(V, Complete, 10)),
         ("webm-vp8-321x241.webm", ok(V, Complete, 50)),
+        // The same: 640 x 360, then 1280 x 720 (0.4 s each at 25 fps).
+        ("webm-vp8-640x360-to-1280x720.webm", ok(V, Complete, 20)),
+        // M14 feature 10a: 100 streams (one video, 99 Opus; 0.4 s): the
+        // Matroska demuxer keeps the first 16.
+        ("webm-vp8-opus-100-streams.webm", ok(AV, Complete, HOSTILE)),
         ("webm-vp8-video-only.webm", ok(V, Complete, 50)),
         ("webm-vp8-vorbis-corrupt.webm", ok(AV, Complete, HOSTILE)),
         ("webm-vp8-vorbis-start1500.webm", ok(AV, Complete, 50)),
@@ -131,6 +145,8 @@ fn table() -> Vec<(&'static str, Expect)> {
         ("webm-vp8-vorbis.webm", ok(AV, Complete, 50)),
         ("webm-vp9-16400x16.webm", Err(unsupported)),
         ("webm-vp9-321x241.webm", ok(V, Complete, 50)),
+        // M14 feature 10a: at the frame size limit (1 s at 10 fps).
+        ("webm-vp9-8192x4352.webm", ok(V, Complete, 10)),
         ("webm-vp9-8192x4416.webm", Err(unsupported)),
         ("webm-vp9-opus.webm", ok(AV, Complete, 50)),
     ]

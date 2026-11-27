@@ -4,6 +4,41 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-27: M14 feature 10a, hostile media and bounded memory
+
+- Feature 10 (the exit of M14) did not fit one session: it is now 10a
+  (hostile media and bounded memory), 10b (the budgets in the GUI) and
+  10c (the exit test).
+- Measured first: 16 videos at the frame size limit passed 16 GiB (the
+  scope's cap killed them), and 1,000 paused 1080p videos held 10 GB.
+- The open pipelines share 2 GiB for their decoded frames. A run
+  reserves its queue and 3 pixmaps when it knows the frame size, takes a
+  shorter queue when the budget is short, and waits with its place when
+  even 2 frames do not fit; the bytes go back with its place. A frame that
+  grows in the stream past the declared size grows the run's share or
+  fails the run. Videos above the 4K frame decode on 2 FFmpeg threads.
+- The frames that elements keep while their pipelines hold no place have
+  256 MiB per document: elements without a box lose theirs first, then
+  painted frames become reduced copies at their box size, then frames go.
+  16 videos at the frame size limit now need 2.3 GiB, 1,000 paused 1080p
+  videos 2.6 GB, and 100 visible paused 1080p videos all show their
+  frame.
+- Chromium was measured for each hostile file: it plays larger frames (up
+  to 16384 x 8192), 100-stream MP4 and Ogg files and a frame size that
+  changes in the stream; it waits on a stalled open with `stalled` after
+  3 s and fails a shifted `Content-Range` with code 4. swb keeps its frame
+  limit (one such run would pass the budget); the other departures are in
+  the backlog. Ten new hostile cases, and `just hostile-media` runs the 18
+  cases that play media with the media release binary.
+- The review found that a waiter for frame bytes was failed by the 10 s
+  no-progress limit, that a file could declare a small frame and then
+  switch to the largest one (16 such videos passed 4 GiB), and that the
+  first retained budget left 64 of 100 visible videos black. All fixed.
+  A second review checked the fixes and found that the reduced copies ran
+  without a bound on the page thread; one sync now converts at most 8 Mpx
+  (about 15 ms in a release build) and later syncs continue.
+- Next: feature 10b, the budgets in the GUI.
+
 ## 2026-11-27: M14 feature 9, the default controls respond
 
 - The default controls of `<video>` and `<audio>` work by mouse: play and

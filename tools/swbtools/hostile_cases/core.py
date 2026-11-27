@@ -58,7 +58,19 @@ class Case:
     server: str | None = None
     """`never` or `slow`: the runner starts a local server that holds each
     request without an answer, or answers it after 2 s; the page reaches it
-    at `http://127.0.0.1:__PORT__/` (feature 10a)."""
+    at `http://127.0.0.1:__PORT__/` (feature 10a of M8). The media modes of
+    M14 feature 10a serve the case's files from that server: `endless` (the
+    file, then the connection stays open), `endless-skip` (the file, then
+    MP4 `free` boxes without end), `lie-range` and `lie-total` (206 answers
+    whose `Content-Range` lies from the second answer on); see
+    `hostile.StallServer`."""
+    media: bool = False
+    """The case plays media: `just hostile-media` runs it with a build that
+    has the Cargo feature `media` (M14 feature 10a). A default build runs it
+    too (each load fails at once), unless `media_only`."""
+    media_only: bool = False
+    """The case shows nothing without the feature `media` (its log needs
+    decoded media): a binary without it skips the case."""
 
 
 CASES: list[Case] = []
@@ -75,6 +87,8 @@ def case(
     url: str | None = None,
     server: str | None = None,
     forbid_log: str | None = None,
+    media: bool = False,
+    media_only: bool = False,
 ) -> Callable[[Callable[[], Page]], Callable[[], Page]]:
     """Registers the decorated generator as a case."""
 
@@ -93,6 +107,8 @@ def case(
                 url,
                 forbid_log,
                 server,
+                media or media_only,
+                media_only,
             )
         )
         return build

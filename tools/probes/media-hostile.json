@@ -1,0 +1,139 @@
+{
+  "javascript": true,
+  "viewport": [800, 600],
+  "cases": [
+    {
+      "name": "hostile-limit-16400x16",
+      "http": true,
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.webm": "fixtures/media/webm-vp9-16400x16.webm"},
+      "html": "<!DOCTYPE html><script src=h.js></script><video id=v src=a.webm preload=auto></video><script>watch(v)</script>",
+      "measure": [{"js": "loadPlay(v, 2000, 3000)"}]
+    },
+    {
+      "name": "hostile-limit-8192x4416",
+      "http": true,
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.webm": "fixtures/media/webm-vp9-8192x4416.webm"},
+      "html": "<!DOCTYPE html><script src=h.js></script><video id=v src=a.webm preload=auto></video><script>watch(v)</script>",
+      "measure": [{"js": "loadPlay(v, 2000, 3000)"}]
+    },
+    {
+      "name": "hostile-limit-8192x4352",
+      "http": true,
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.webm": "fixtures/media/webm-vp9-8192x4352.webm"},
+      "html": "<!DOCTYPE html><script src=h.js></script><video id=v src=a.webm preload=auto></video><script>watch(v)</script>",
+      "measure": [{"js": "loadPlay(v, 3000, 4000)"}]
+    },
+    {
+      "name": "hostile-size-switch-16x16-to-8192x4352",
+      "http": true,
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.webm": "fixtures/media/webm-vp8-16x16-to-8192x4352.webm"},
+      "html": "<!DOCTYPE html><script src=h.js></script><video id=v src=a.webm preload=auto></video><script>watch(v)</script>",
+      "measure": [{"js": "loadPlay(v, 3000, 4000)"}]
+    },
+    {
+      "name": "hostile-size-switch-640x360-to-1280x720",
+      "http": true,
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.webm": "fixtures/media/webm-vp8-640x360-to-1280x720.webm"},
+      "html": "<!DOCTYPE html><script src=h.js></script><video id=v src=a.webm preload=auto></video><script>watch(v)</script>",
+      "measure": [{"js": "loadPlay(v, 2000, 3000)"}]
+    },
+    {
+      "name": "hostile-limit-local-16384x16",
+      "http": true,
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.webm": "out/media-local/webm-vp9-16384x16.webm"},
+      "html": "<!DOCTYPE html><script src=h.js></script><video id=v src=a.webm preload=auto></video><script>watch(v)</script>",
+      "measure": [{"js": "loadPlay(v, 2000, 3000)"}]
+    },
+    {
+      "name": "hostile-limit-local-8192x8192",
+      "http": true,
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.webm": "out/media-local/webm-vp9-8192x8192.webm"},
+      "html": "<!DOCTYPE html><script src=h.js></script><video id=v src=a.webm preload=auto></video><script>watch(v)</script>",
+      "measure": [{"js": "loadPlay(v, 3000, 4000)"}]
+    },
+    {
+      "name": "hostile-limit-local-16384x8192",
+      "http": true,
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.webm": "out/media-local/webm-vp9-16384x8192.webm"},
+      "html": "<!DOCTYPE html><script src=h.js></script><video id=v src=a.webm preload=auto></video><script>watch(v)</script>",
+      "measure": [{"js": "loadPlay(v, 3000, 4000)"}]
+    },
+    {
+      "name": "hostile-streams-100-mp4",
+      "http": true,
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.mp4": "fixtures/media/mp4-h264-aac-100-streams.mp4"},
+      "html": "<!DOCTYPE html><script src=h.js></script><video id=v src=a.mp4 preload=auto></video><script>watch(v)</script>",
+      "measure": [{"js": "loadPlay(v, 2000, 3000)"}]
+    },
+    {
+      "name": "hostile-streams-100-webm",
+      "http": true,
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.webm": "fixtures/media/webm-vp8-opus-100-streams.webm"},
+      "html": "<!DOCTYPE html><script src=h.js></script><video id=v src=a.webm preload=auto></video><script>watch(v)</script>",
+      "measure": [{"js": "loadPlay(v, 2000, 3000)"}]
+    },
+    {
+      "name": "hostile-streams-100-ogg",
+      "http": true,
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.ogg": "fixtures/media/ogg-opus-100-streams.ogg"},
+      "html": "<!DOCTYPE html><script src=h.js></script><audio id=v src=a.ogg preload=auto></audio><script>watch(v)</script>",
+      "measure": [{"js": "loadPlay(v, 2000, 3000)"}]
+    },
+    {
+      "name": "hostile-endless-body",
+      "http": true,
+      "serve": "endless",
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.mp4": "fixtures/media/mp4-h264-high-aac.mp4"},
+      "html": "<!DOCTYPE html><script src=h.js></script>",
+      "measure": [{"js": "loadPlay(lateVideo('a.mp4', 'auto'), 3000, 5000).then(async r => ({...r, ev: evt(), log: await log()}))"}]
+    },
+    {
+      "name": "hostile-endless-skip",
+      "http": true,
+      "serve": "endless-skip",
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.mp4": "fixtures/media/mp4-h264-high-aac.mp4"},
+      "html": "<!DOCTYPE html><script src=h.js></script>",
+      "measure": [{"js": "loadPlay(lateVideo('a.mp4', 'auto'), 3000, 5000).then(async r => ({...r, ev: evt(), log: await log()}))"}]
+    },
+    {
+      "name": "hostile-stalled-open",
+      "http": true,
+      "serve": "stall",
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.mp4": "fixtures/media/mp4-h264-high-aac.mp4"},
+      "html": "<!DOCTYPE html><script src=h.js></script>",
+      "measure": [{"js": "(() => { const m = lateVideo('a.mp4', 'auto'); return sleep(14000).then(async () => ({ev: evt(), s: S(m), log: await log()})); })()"}]
+    },
+    {
+      "name": "hostile-stalled-open-play",
+      "http": true,
+      "serve": "stall",
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.mp4": "fixtures/media/mp4-h264-high-aac.mp4"},
+      "html": "<!DOCTYPE html><script src=h.js></script>",
+      "measure": [{"js": "(async () => { const m = lateVideo('a.mp4', 'auto'); await sleep(500); m.muted = true; const play = Promise.race([m.play().then(() => 'resolved', e => e.name), sleep(14000).then(() => 'pending')]); await sleep(14000); return {play: await play, ev: evt(), s: S(m), log: await log()}; })()"}]
+    },
+    {
+      "name": "hostile-stalled-load-event",
+      "http": true,
+      "serve": "stall",
+      "files": {"h.js": "tools/probes/media-hostile.js", "frame.html": "tools/probes/media-hostile-frame.html", "a.mp4": "fixtures/media/mp4-h264-high-aac.mp4"},
+      "html": "<!DOCTYPE html><script src=h.js></script>",
+      "measure": [{"js": "(async () => { const f = document.createElement('iframe'); let loaded = 'no'; const t0 = performance.now(); f.onload = () => { loaded = Math.round((performance.now() - t0) / 500) / 2; }; f.src = 'frame.html'; document.body.append(f); await sleep(12000); return {loaded}; })()"}]
+    },
+    {
+      "name": "hostile-range-lie-start",
+      "http": true,
+      "serve": "lie-range",
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.mp4": "fixtures/js/media/mux-1080p30-20s.mp4"},
+      "html": "<!DOCTYPE html><script src=h.js></script><video id=v src=a.mp4 preload=metadata></video><script>watch(v)</script>",
+      "measure": [{"js": "sleep(2000).then(async () => { const n = EVO.length; v.currentTime = 18; await Promise.race([once(v, 'seeked', 5000), once(v, 'error', 5000)]); await sleep(500); return {after: evs().slice(n), s: S(v), log: await log()}; })"}]
+    },
+    {
+      "name": "hostile-range-lie-total",
+      "http": true,
+      "serve": "lie-total",
+      "files": {"h.js": "tools/probes/media-hostile.js", "a.mp4": "fixtures/js/media/mux-1080p30-20s.mp4"},
+      "html": "<!DOCTYPE html><script src=h.js></script><video id=v src=a.mp4 preload=metadata></video><script>watch(v)</script>",
+      "measure": [{"js": "sleep(2000).then(async () => { const n = EVO.length; v.currentTime = 18; await Promise.race([once(v, 'seeked', 5000), once(v, 'error', 5000)]); await sleep(500); return {after: evs().slice(n), s: S(v), log: await log()}; })"}]
+    }
+  ]
+}

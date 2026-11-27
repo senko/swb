@@ -72,6 +72,57 @@ pub(crate) const MAX_FRAMES: usize = 6;
 pub(crate) const MIN_FRAMES: usize = 2;
 /// The most bytes of decoded frames in the queue.
 pub(crate) const MAX_FRAME_BYTES: u64 = 96 << 20;
+/// The pixmaps of a run besides its frame queue (M14 feature 10a): the
+/// current frame, the frame being converted, and the one that paint holds
+/// until it takes the next.
+pub(crate) const EXTRA_PIXMAPS: usize = 3;
+/// The share of the frame budget of a video of one frame size (M14 feature
+/// 10a): the queue that its bounds want (2 to 6 frames within 96 MiB) and
+/// [`EXTRA_PIXMAPS`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct FrameShare {
+    /// The bytes of one RGBA frame.
+    pub(crate) frame: u64,
+    /// The frames of the queue that the bounds want.
+    pub(crate) queue: usize,
+}
+
+impl FrameShare {
+    /// The share of frames of `width` x `height` pixels.
+    pub(crate) fn of(width: u32, height: u32) -> FrameShare {
+        let frame = u64::from(width.max(1)) * u64::from(height.max(1)) * 4;
+        let queue = usize::try_from(MAX_FRAME_BYTES / frame)
+            .unwrap_or(MAX_FRAMES)
+            .clamp(MIN_FRAMES, MAX_FRAMES);
+        FrameShare { frame, queue }
+    }
+
+    /// The bytes of a queue of `frames` and the extra pixmaps.
+    fn bytes(self, frames: usize) -> u64 {
+        self.frame
+            .saturating_mul(u64::try_from(frames + EXTRA_PIXMAPS).unwrap_or(u64::MAX))
+    }
+
+    /// The fewest bytes that playback needs.
+    pub(crate) fn min(self) -> u64 {
+        self.bytes(MIN_FRAMES)
+    }
+
+    /// The bytes of the whole queue.
+    pub(crate) fn want(self) -> u64 {
+        self.bytes(self.queue)
+    }
+
+    /// The frame cap that `granted` bytes allow (at least [`MIN_FRAMES`]: a
+    /// grant is never below [`FrameShare::min`]).
+    pub(crate) fn cap(self, granted: u64) -> usize {
+        usize::try_from(granted / self.frame)
+            .unwrap_or(usize::MAX)
+            .saturating_sub(EXTRA_PIXMAPS)
+            .clamp(MIN_FRAMES, self.queue)
+    }
+}
+
 /// Audio that the ring holds before the time bound of the video packet
 /// queue holds: below it, the video packets may span more than 2 s (up to
 /// their byte bound), so a file whose video runs ahead of its audio does
@@ -334,6 +385,10 @@ pub(crate) struct State {
     pub(crate) max_packet_bytes: usize,
     pub(crate) frames: FrameQueue,
     pub(crate) frame_cap: usize,
+    /// The bytes of one RGBA frame that the run's reservation of frame
+    /// bytes is for (0 before it reserved): a larger decoded frame grows the
+    /// reservation (`video.rs`).
+    pub(crate) frame_size: u64,
     /// The end (media time) of the last queued frame of the current epoch.
     pub(crate) video_end_us: Option<i64>,
     /// The epoch whose frames are all decoded (the decoder drained).
@@ -378,6 +433,10 @@ pub(crate) struct State {
     /// `Failed` event.
     pub(crate) failed_at: Option<i64>,
     pub(crate) watch: Watch,
+    /// The demux thread of the current run waits for bytes of the frame
+    /// budget (M14 feature 10a): the pipeline waits as for a place, without
+    /// pending work.
+    pub(crate) frame_wait: bool,
 }
 
 /// Counters for tests and measurements.
@@ -388,6 +447,9 @@ pub(crate) struct Counters {
     pub(crate) frames_decoded: AtomicU64,
     pub(crate) frames_converted: AtomicU64,
     pub(crate) late_frames: AtomicU64,
+    /// Frames that were not converted because the run held its share of
+    /// the frame budget.
+    pub(crate) frames_over_budget: AtomicU64,
 }
 
 impl Counters {
@@ -481,6 +543,7 @@ impl Shared {
                 max_packet_bytes: settings.max_packet_bytes.max(1),
                 frames: FrameQueue::new(Arc::clone(&video_cv)),
                 frame_cap: MIN_FRAMES,
+                frame_size: 0,
                 video_end_us: None,
                 video_drained: None,
                 audio_drained: None,
@@ -505,6 +568,7 @@ impl Shared {
                     armed: false,
                     lost: None,
                 },
+                frame_wait: false,
             }),
             demux_cv,
             video_cv,
@@ -609,6 +673,7 @@ impl Shared {
         st.failed_at = at_us;
         st.events.push_back(ThreadEvent::Failed(error));
         st.run += 1;
+        st.frame_wait = false;
         if let Some((r, place)) = &st.place
             && *r == run
         {
@@ -632,8 +697,14 @@ impl Shared {
     /// when the same holds a limit later with no progress meanwhile.
     pub(crate) fn check_progress(&self, now: Instant) -> Option<Instant> {
         let mut st = self.lock();
-        if !st.watch.needs_data {
+        // A run that waits for frame bytes waits as for a place: no limit
+        // (M14 feature 10a). The limit counts again from the owner's next
+        // need after the wait.
+        if !st.watch.needs_data || st.frame_wait {
+            // The disarmed watchdog is safe with a pending entry because
+            // `note_needs` arms it again at the owner's next need.
             st.watch.armed = false;
+            st.watch.needs_data = false;
             st.watch.lost = None;
             return None;
         }

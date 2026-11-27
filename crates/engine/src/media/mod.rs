@@ -59,6 +59,7 @@ pub(crate) mod controls;
 mod frames;
 mod load;
 mod playback;
+mod retained;
 mod select;
 mod step;
 
@@ -72,6 +73,7 @@ pub(crate) use backend::MediaContext;
 use backend::{Failure, Fetch, Preload};
 pub use backend::{MediaCounters, MediaSync};
 pub(crate) use frames::VideoView;
+pub(crate) use retained::RETAINED_FRAME_BUDGET;
 pub(crate) use select::Cx;
 
 /// `networkState` values (HTML "network states").
@@ -290,6 +292,18 @@ pub(crate) struct Element {
     /// The element has a box (`false`: `display: none`, or not in the
     /// document): its frames are not converted (ADR 0047 section 6).
     pub(crate) painted: bool,
+    /// The element has a painted box anywhere (in the GUI also outside the
+    /// window of the videos); for the budget of retained frames (M14
+    /// feature 10a, `retained.rs`).
+    pub(crate) has_box: bool,
+    /// The size of that box in device pixels (the bounds of its border box
+    /// with the document's transforms), when its image is drawn no larger
+    /// than the box (`object-fit` other than `none`): a retained frame may
+    /// then be kept at that size (`retained.rs`).
+    pub(crate) box_size: Option<(f32, f32)>,
+    /// The last update of the painted flags at which the element was
+    /// painted ([`Media::paint_tick`]).
+    pub(crate) painted_at: u64,
     // ----- The default controls (feature 9) -----
     /// The state of the pointer and the auto-hide of the default controls.
     pub(crate) controls: controls::Controls,
@@ -338,6 +352,9 @@ impl Element {
             frozen: None,
             show_poster: true,
             painted: true,
+            has_box: true,
+            box_size: None,
+            painted_at: 0,
             controls: controls::Controls::default(),
         }
     }
@@ -488,6 +505,11 @@ pub(crate) struct Media {
     pub(super) resync_all: bool,
     /// The pointer's side of the default controls (feature 9).
     pub(crate) ui: controls::PointerState,
+    /// The frames that elements keep while their pipelines hold no place,
+    /// and their budget (M14 feature 10a, `retained.rs`).
+    pub(crate) retained: retained::Retained,
+    /// The number of updates of the painted flags (`Element::painted_at`).
+    pub(super) paint_tick: u64,
 }
 
 impl Media {
@@ -504,6 +526,8 @@ impl Media {
             touched: BTreeSet::new(),
             resync_all: false,
             ui: controls::PointerState::default(),
+            retained: retained::Retained::default(),
+            paint_tick: 0,
         }
     }
 
@@ -512,6 +536,7 @@ impl Media {
     pub(crate) fn clear(&mut self) {
         self.elements.clear();
         self.events.clear();
+        self.retained.clear();
         self.resync_all = true;
         self.ui = controls::PointerState::default();
     }
@@ -700,6 +725,7 @@ impl Media {
         self.elements
             .values()
             .filter_map(|e| e.next_due(coarse, now_us))
+            .chain(self.reduce_due(now_us))
             .reduce(f64::min)
     }
 

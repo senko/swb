@@ -1797,7 +1797,7 @@ page's) or for a fixture scrolled to `Y`.
 
 ### Media: test files, real files and probes (M14)
 
-**Test media** (`fixtures/media/`, committed, about 2.8 MB, 68 files).
+**Test media** (`fixtures/media/`, committed, about 3.5 MB, 74 files).
 `tools/media/generate.py` makes them with the static `ffmpeg` CLI of the
 development machine (`python3 tools/media/generate.py [--out DIR]
 [NAME...]`; the exact command of each file is printed; the files are made
@@ -1835,7 +1835,16 @@ the start and at the end of the video); the timeline rows (M14 feature 6a:
 `mp4-opus.mp4`); late failures (M14 feature 6b:
 `mp4-h264-high-aac-damaged-30.mp4`, `-60`, `-80`, `-90`, 600 bytes of a
 fixed generator at that percentage of `mp4-h264-high-aac.mp4`, made by
-`damage()`).
+`damage()`); since M14 feature 10a a gray VP9 video at the frame size
+limit (`webm-vp9-8192x4352.webm`, 1 s at 10 fps, 5.7 KB), three files with
+100 streams (`mp4-h264-aac-100-streams.mp4`: one H.264 video and 99 AAC
+streams; `webm-vp8-opus-100-streams.webm`: one VP8 video and 99 Opus
+streams; `ogg-opus-100-streams.ogg`: 100 Opus streams; 0.4 s each, 470 KB
+together) and two VP8 files whose frame size changes in the stream
+(`webm-vp8-16x16-to-8192x4352.webm`, gray, 0.2 s at 16 x 16 then 1 s at
+8192 x 4352, 86 KB; `webm-vp8-640x360-to-1280x720.webm`, 0.4 s at each
+size, 75 KB; the generator makes the parts and joins them with the concat
+demuxer and stream copy, so the container declares the first size).
 
 **Real files** (local only, never committed): `fixtures/js/media/`
 (git-ignored with `fixtures/js/`): `mux-highest.mp4` (Mux's `highest.mp4`
@@ -1862,7 +1871,19 @@ row of `media-playback` decided), `media-api-edges` (6b), `media-autoplay`,
 `media-fetch`, `media-frames` (68 cases since M14 feature 7a: 14 untagged
 sizes, natural sizes, dense rows, the last columns of 854 x 480 and
 322 x 242), `media-poster` (24 cases),
-`media-controls` and (local files) `media-real-files`. They
+`media-controls`, `media-hostile` (M14 feature 10a: the frame size
+limits, a frame size that changes in the stream, 100 streams, an endless
+body, endless skipped bytes, a stalled open, a stalled video in a frame and
+its `load` event, `Content-Range` lies; 18 cases, helpers in
+`tools/probes/media-hostile.js` and `media-hostile-frame.html`; equal
+except the request counts of `hostile-endless-skip` and
+`hostile-range-lie-total`; its cases `hostile-limit-local-*` need local
+files in `out/media-local/`, made by `ffmpeg -f lavfi -i
+color=c=black:size=WxH:rate=25:duration=0.04 -frames:v 1 -c:v libvpx-vp9
+-b:v 0 -crf 36 -pix_fmt yuv420p -an webm-vp9-WxH.webm` for 16384x16,
+8192x8192 and 16384x8192, and `hostile-range-lie-*` need
+`fixtures/js/media/mux-1080p30-20s.mp4`) and (local files)
+`media-real-files`. They
 use `javascript: true` and these probe features, added in M14 step 1:
 
 - `http: true` (case): the page loads over HTTP from the case server even
@@ -1875,6 +1896,16 @@ use `javascript: true` and these probe features, added in M14 step 1:
   files also have `status`, `sent` (body bytes written; absent while the
   request runs) and `content_range`. A case file above 8 MiB is linked into
   the case folder, not copied.
+- `serve` (case, with `http: true`; M14 feature 10a): a hostile way to
+  serve the case's media files (`.mp4`, `.webm`, `.ogg`, `.m4a`, `.mp3`,
+  `.opus`; other files as usual): `stall` (no answer; the connection is
+  held for 60 s), `endless` (200 without a length, the file, then the
+  connection is held), `endless-skip` (the file, then 64 KiB MP4 `free`
+  boxes until the client closes), `lie-range` (from the second answer on, a
+  `Content-Range` that starts one byte after the requested start),
+  `lie-total` (from the second answer on, a total that grows by one at each
+  answer). A video that stalls delays the page's `load` event, which the
+  tool waits for: such a case makes the element in its first query.
 - step `{"shot": "name"}` (Chromium only; `--with-swb` leaves it out):
   saves a PNG of the viewport (scale 1, animations on) as
   `SHOTS/CASE-name.png`; `--shots-dir DIR` (default `out/probe-shots/`).
@@ -2239,6 +2270,34 @@ symbols that use the next, a symbol that uses itself, a cycle of two),
 the limit of clip paths that need a layer) and `inline-svg-huge-symbols`
 (sizes, view boxes and percentages of 1e38 and 1e-38 in nested viewports).
 
+**Media builds of the set** (M14 feature 10a). The set builds without the
+feature `media` by default (`just hostile`): media loads fail at once
+there. `just hostile-media [NAME...]` builds the media release binary
+(`just build-media`) and runs the cases that play media (`Case.media`;
+default: all 18 of them) with `swbtools hostile --media --swb
+target/release/swb`. The release binary is then a media build until the
+next `just build`. Cases with `media_only` (their log needs decoded media)
+are skipped by a binary whose `--version` does not name FFmpeg, with a
+line `skipped (needs a media build: just hostile-media)`. `swbtools
+hostile --list --media` lists them. The cases of feature 10a:
+`media-16-videos-at-the-frame-size-limit` (the frame budget: 3 of 16 runs
+at 8192 x 4352 hold frames, the others wait; limit 3,072 MiB, 2.4 to 2.6
+GiB measured, 3.2 to 3.7 GiB without the 2-thread rule, over 16 GB before
+10a), `media-16-videos-that-switch-to-the-frame-size-limit` (a WebM that
+declares 16 x 16 and switches to 8192 x 4352: three runs grow their
+reservation, 13 fail with code 3; limit 3,072 MiB, 2.0 to 2.2 GiB
+measured), `media-frame-size-above-the-limit` (16400 x 16 and 8192 x 4416:
+code 4), `media-endless-body` (the file in a 200 without a length, then an
+open connection: code 3 after 10 s, read at 12 s; real time),
+`media-endless-skip-body` (the file, then endless MP4 `free` boxes: within
+the byte budget), `media-range-lie-start` and `media-range-lie-total`
+(`Content-Range` lies from the second answer on; the cases check the
+final state), `media-1000-videos-that-decode` (1,000 paused 1280 x 720
+videos through the 16 places in 1,000 s of virtual time: both budgets
+hold; 1.6 GiB), `media-100-streams` (MP4 and Ogg fail, WebM keeps 16
+streams), `media-stalled-open` (a server that never sends a byte: code 3
+after 10 s).
+
 The limits depend on the machine, so the set is not part of `just check`.
 Implementers run `just hostile` after a change to layout, style, paint or
 the DOM, and reviewers run it as part of the review checklist. A failing case
@@ -2258,7 +2317,17 @@ that must show that events keep working uses it), `swb_args` (for example `--ful
 fixture and pass `--replay {dir}`), `url` (the URL to open instead of
 `index.html`, for a page that needs an `http:` origin, with a replayed
 fixture whose `manifest.json` the case writes; `replay_page` in
-`hostile_cases/dom.py` makes one) and
+`hostile_cases/dom.py` makes one), `server` (the runner starts a local
+server and the page reaches it at `http://127.0.0.1:__PORT__/`: `never`
+holds each request without an answer, `slow` answers after 2 s; the media
+modes of M14 feature 10a serve the case's files: `endless` (200 without a
+length, the file, then the connection stays open for 120 s),
+`endless-skip` (the file, then 64 KiB MP4 `free` boxes for 120 s),
+`lie-range` and `lie-total` (206 answers to `Range` requests; from the
+second answer on the `Content-Range` starts one byte late, or its total
+grows by one at each answer; every answer closes after 64 KiB of its body,
+so that a client asks again)), `media` and `media_only` (the case plays
+media; with `media_only` its log needs a media build) and
 `known_failure="reason"` for an open bug. Put the bug in the backlog in
 `docs/roadmap.md`; when it is fixed, `just hostile` reports `unexpected pass`
 and the mark goes.

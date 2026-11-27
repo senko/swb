@@ -5,7 +5,7 @@
 //! ([`crate::DocumentState::sync_media_images`]); the display list does not
 //! change when a frame does.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use swb_dom::NodeId;
@@ -112,23 +112,49 @@ impl Media {
             .collect()
     }
 
-    /// Tells the video elements which of them have a box after a layout
-    /// (`boxes`): the others convert no frame ([`swb_media`]'s hidden
-    /// elements, ADR 0047 section 6), and an element that has a box again
-    /// shows the frame at its position. Returns true if one changed.
-    pub(crate) fn set_painted(&mut self, boxes: &HashSet<NodeId>) -> bool {
+    /// Tells the video elements which of them are painted after a layout
+    /// (`painted`): the others convert no frame ([`swb_media`]'s hidden
+    /// elements, ADR 0047 section 6), and an element that is painted again
+    /// shows the frame at its position. `boxed` (when known) are the ones
+    /// that have a painted box anywhere, with the size of the box for a
+    /// retained frame ([`Element::box_size`]), for the budget of retained
+    /// frames (M14 feature 10a); an element whose reduced frame is smaller
+    /// than its box now gets its full frame again. Returns true if one
+    /// changed.
+    pub(crate) fn set_painted(
+        &mut self,
+        painted_set: &HashSet<NodeId>,
+        boxed: Option<&HashMap<NodeId, Option<(f32, f32)>>>,
+    ) -> bool {
+        self.paint_tick += 1;
+        let tick = self.paint_tick;
         let mut changed = false;
         for (node, element) in &mut self.elements {
             if !element.video {
                 continue;
             }
-            let painted = boxes.contains(node);
+            let painted = painted_set.contains(node);
+            if painted {
+                element.painted_at = tick;
+            }
+            if let Some(boxed) = boxed {
+                element.has_box = boxed.contains_key(node);
+                element.box_size = boxed.get(node).copied().flatten();
+            }
             if element.painted != painted {
                 element.painted = painted;
                 if let Some(fetch) = element.fetch.as_mut() {
                     fetch.set_painted(painted);
                 }
+                // A suspended pipeline may open again (its retained frame).
+                self.touched.insert(*node);
                 changed = true;
+            }
+            if painted && element.reduced_frame_too_small() {
+                if let Some(fetch) = element.fetch.as_mut() {
+                    fetch.restore_full_frame();
+                }
+                self.touched.insert(*node);
             }
         }
         changed

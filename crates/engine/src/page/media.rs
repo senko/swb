@@ -575,6 +575,57 @@ impl Page {
         self.doc.as_deref()?.media_frames_converted(node)
     }
 
+    /// The bytes of the frames that the videos of the top-level document
+    /// keep while their pipelines hold no place, and the number of frames
+    /// that the budget of retained frames dropped (M14 feature 10a). For
+    /// tests; `(0, 0)` without a document.
+    pub fn media_retained_frames(&self) -> (u64, u64) {
+        self.doc
+            .as_deref()
+            .map_or((0, 0), DocumentState::media_retained)
+    }
+
+    /// Whether the `<video>` `node` of the top-level document shows a frame
+    /// of its video now (not its poster, not nothing). For tests.
+    pub fn media_shows_frame(&self, node: NodeId) -> bool {
+        self.doc
+            .as_deref()
+            .is_some_and(|doc| doc.media_shows_frame(node))
+    }
+
+    /// The pixel size of the frame that the `<video>` `node` of the
+    /// top-level document shows now: the frame's, or that of a reduced copy
+    /// that the budget of retained frames made for its box (M14 feature
+    /// 10a). For tests; `None` without a frame.
+    pub fn media_frame_size(&self, node: NodeId) -> Option<(u32, u32)> {
+        self.doc.as_deref()?.media_frame_size(node)
+    }
+
+    /// The frames of the top-level document that the budget of retained
+    /// frames replaced by a reduced copy so far (M14 feature 10a). For
+    /// tests.
+    pub fn media_reduced_frames(&self) -> u64 {
+        self.doc
+            .as_deref()
+            .map_or(0, DocumentState::media_reduced_frames)
+    }
+
+    /// The most source pixels that one sync of the top-level document
+    /// reduced for the budget of retained frames, and the number of syncs
+    /// that reduced a frame (M14 feature 10a). For tests.
+    pub fn media_reduce_work(&self) -> (u64, u64) {
+        self.doc
+            .as_deref()
+            .map_or((0, 0), DocumentState::media_reduce_work)
+    }
+
+    /// Exists for tests only (the product never calls it). Sets the budget
+    /// of retained frames of each document of the page (M14 feature 10a;
+    /// default `RETAINED_FRAME_BUDGET`, 256 MiB).
+    pub fn set_retained_frame_budget(&mut self, bytes: u64) {
+        self.maker.media.set_retained_budget(bytes);
+    }
+
     /// What the media element `node` of the top-level document reports (the
     /// state that scripts read), for the tests and the automation of the
     /// media element. `None` without a document.
