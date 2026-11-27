@@ -227,6 +227,38 @@ class XDisplay:
             raise XError("XTEST refused a button event")
         self._x11.XFlush(self._handle())
 
+    def cover(self, width: int, height: int) -> int:
+        """Maps an opaque window of that size at the top left of the screen,
+        above all others, and returns it. Xvfb has no window manager, so this
+        is how a window gets `VisibilityNotify` `FullyObscured` (winit reports
+        it as `Occluded`)."""
+        x11 = self._x11
+        x11.XCreateSimpleWindow.restype = ctypes.c_ulong
+        x11.XCreateSimpleWindow.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_ulong,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_uint,
+            ctypes.c_uint,
+            ctypes.c_uint,
+            ctypes.c_ulong,
+            ctypes.c_ulong,
+        ]
+        x11.XMapRaised.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+        window = x11.XCreateSimpleWindow(
+            self._handle(), self.root, 0, 0, width, height, 0, 0, 0x202020
+        )
+        x11.XMapRaised(self._handle(), window)
+        self.sync()
+        return int(window)
+
+    def unmap(self, window: int) -> None:
+        """Unmaps a window (it stays, not visible)."""
+        self._x11.XUnmapWindow.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+        self._x11.XUnmapWindow(self._handle(), window)
+        self.sync()
+
     def sync(self) -> None:
         """Waits until the server handled all requests."""
         self._x11.XSync(self._handle(), 0)

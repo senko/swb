@@ -55,6 +55,15 @@ STATE_NAME = "daemon.json"
 FORBIDDEN_PREFIXES = ("api.alsa", "api.bluez5", "api.v4l2")
 # Values of `device.api` that show one.
 FORBIDDEN_APIS = ("alsa", "bluez5", "v4l2")
+# Variables of the owner's environment that name another PipeWire or Pulse
+# server or its configuration. No client of the private daemon may have them.
+OTHER_SERVER_NAMES = (
+    "PIPEWIRE_REMOTE",
+    "PIPEWIRE_CORE",
+    "PIPEWIRE_CONFIG_DIR",
+    "PIPEWIRE_CONFIG_NAME",
+    "PULSE_SERVER",
+)
 
 _CONFIG = """\
 # A private PipeWire daemon for swb's measurements (tools/swbtools/pw_private.py).
@@ -197,7 +206,7 @@ def client_env(directory: Path) -> dict[str, str]:
     `pw-record`): both variables point to the private runtime directory, and
     nothing that names another server survives."""
     env = dict(os.environ)
-    for name in ("PIPEWIRE_REMOTE", "PIPEWIRE_CORE", "PIPEWIRE_CONFIG_DIR", "PIPEWIRE_CONFIG_NAME"):
+    for name in OTHER_SERVER_NAMES:
         env.pop(name, None)
     env["PIPEWIRE_RUNTIME_DIR"] = str(directory)
     env["XDG_RUNTIME_DIR"] = str(directory)
@@ -222,7 +231,9 @@ def daemon_env(directory: Path) -> dict[str, str]:
 
 
 def env_lines(directory: Path) -> list[str]:
-    """`NAME=VALUE` lines for a client's environment (`env -u ... NAME=VALUE swb`)."""
+    """`NAME=VALUE` lines for a client's environment (`env -u ... NAME=VALUE swb`).
+    The caller must unset the names of `OTHER_SERVER_NAMES` (`env -u`): these
+    lines only set the three variables of the private daemon."""
     return [
         f"PIPEWIRE_RUNTIME_DIR={directory}",
         f"XDG_RUNTIME_DIR={directory}",

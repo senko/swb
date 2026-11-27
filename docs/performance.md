@@ -240,8 +240,9 @@ costs.
 Release build with media, GUI on a private Xvfb, `--no-audio-output` with
 an empty `PIPEWIRE_RUNTIME_DIR`, window 1280 x 720, `mux-1080p30-20s.mp4`
 muted, `autoplay`, `loop`, in a 640 x 360 box; 4 s of warm-up (6 s for the
-cases with a still pointer) and 10 s measured; one run each (the driver
-script is not in the repository; the numbers come from the frame log):
+cases with a still pointer) and 10 s measured; one run each (with a script
+before `swbtools media-gui` existed; the numbers come from the frame log;
+the tool's controls cases repeat them in "M14 exit: media budgets"):
 
 | Case | CPU % | Frames/s | Dropped | Wake-ups/s |
 |---|---|---|---|---|
@@ -288,6 +289,49 @@ frame in a release build, at most 8 Mpx of source pixels per sync, about
 15 ms), FFmpeg's own frames on top (at most 2 frame threads above the 4K
 frame, by the declared size). ADR 0047 "Implementation notes (M14 feature
 10a)".
+
+## M14 exit: media budgets (feature 10b)
+
+`swbtools media-gui --suite budgets --runs 3 --check` (docs/testing.md
+"Media in the GUI"), release build with media, GUI on a private Xvfb, window
+1280 x 720, idle machine (load 0.3), silent (`--no-audio-output`); the M4A
+and the sync also on the private PipeWire daemon. Chromium:
+`docs/media-diagnosis.md` section 6 (CPU of all its processes). The limit
+is the worst of three idle runs plus 25 %, rounded up (26 to 31 % above
+the worst; 1 % of a core at least for a file that plays; twice the worst
+for the start times; 0.2 % for the idle states). Limits in `BUDGETS` of
+`tools/swbtools/media_gui.py`.
+
+| Budget | Chromium | swb, 3 runs | Limit |
+|---|---|---|---|
+| 1080p 30 fps playing, CPU % of one core | 24.9 | 42.6, 41.8, 41.7 | 55 (was 150) |
+| 1080p: RSS above the idle page, MiB | 537 (all processes) | 166.5, 168.8, 168.3 | 220 (was 600) |
+| 1080p: frames a second, dropped | 30.0, 0 | 29.99, 29.98, 29.98; 0 | 0.98 of the rate; 0 |
+| Wikimedia 2558 x 1626, 25 fps: CPU % | 21.6 | 50.8, 50.8, 50.4 | 65 (was 150) |
+| Wikimedia: RSS above idle, MiB; dropped | 510; 0 | 239.8, 242.0, 227.3; 0 | 310 (was 600); 0 |
+| 4K 24 fps: peak RSS, MiB; CPU %; dropped | 984; 93.2; 0 | 515.2, 516.1, 511.6; 109.3, 108.3, 109.4; 0 | 650 (was 1,536); no CPU budget |
+| paused, ended (1080p, Wikimedia, 4K): CPU % | 0.0, 0.1 | 0.0 (all runs) | 0.2 |
+| `display: none` paused; hidden window paused: CPU % | not measured | 0.0 (all runs) | 0.2 |
+| hidden window, playing: CPU % | not measured | 11.6, 11.8, 11.4 | 15 |
+| M4A playing: CPU %, silent / on the private daemon | not measured | 0.1, 0.2, 0.2 / 0.3, 0.4, 0.4 | 1 (was 3) |
+| 1080p: `loadedmetadata`, ms | not measured | 14, 18, 13 | 40 (was 300) |
+| 1080p: first frame, ms | not measured | 49.7, 48.6, 45.4 | 100 (was 500) |
+| 1080p: seek to its frame (paused), ms | not measured | 58.8, 61.1, 65.1 | 85 (was 250) |
+| controls: CPU with / without (moving pointer; still) | not measured | 1.053; 1.0 (medians) | 1.10 |
+| controls paused: CPU % | not measured | 0.0 | 0.2 |
+| 1080p, 180 s + 10 seeks: `media - video`, ms | at most 33.3 | 0.06 to 17.0; after seeks 0.06 to 16.9 (7 runs; one line of 37,000 at 33.98) | 33.3 (one period) |
+
+Wake-ups a second while a painted video plays: 64.0 (1080p 30 fps), 52.5
+(Wikimedia 25 fps), 51.8 (4K); with controls and a moving pointer 70.5 to
+71.5 against 67.0. Two turns of the loop per frame (the due time, then
+winit's redraw turn 8 to 15 microseconds later); drawing in
+`about_to_wait` halves them (34.6) at the same CPU. CPU by thread for the
+Wikimedia file: main thread 35 to 37 % (the page raster of each frame),
+the video thread (conversion) 8.5 to 8.9 %, eight decode threads 0.7 to
+0.9 % each. A second set of three runs with another process (the owner's
+video capture) at 10 % of a core: CPU 8 to 17 % higher, within the limits;
+the one line of the sync over a frame period was in a run with that
+process. ADR 0047 "Implementation notes (M14 feature 10b)".
 
 ## Baseline
 

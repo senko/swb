@@ -3453,3 +3453,168 @@ changing.
 Found in the fix round, not changed: the endless-skip case plays to 1.0 s
 and waits (also with the code before the fixes); swb has no `resize` event
 and no new `videoWidth` for a size change in the stream.
+
+## Implementation notes (M14 feature 10b)
+
+The budgets in the GUI (works items 4 and 5): a committed tool, the budgets
+measured on the release build with media, the audio-video sync trace on the
+private daemon, the wake-ups per frame, and the share of the frame
+conversion. No Rust or C code changed. Code: `tools/swbtools/media_gui.py`
+(`swbtools media-gui`), `tools/swbtools/xinput.py` (`cover`, `unmap`),
+`tools/tests/test_media_gui.py`.
+
+**The tool** replaces the scripts of 7b and 9 and feature 8's sync driver.
+Per case it starts its own `Xvfb` (a free display) and a fresh swb in a
+`systemd-run --scope` with `MemoryMax=4G`, and measures a window after a
+settle time: the CPU of the process (all threads, `/proc`), the CPU by
+thread name, the peak (`VmHWM`) and settled RSS, the frames shown and
+dropped and the wake-ups (the frame log's `media` lines), the presented
+frames, and the `sync` lines. A case is `FILE:STATE:LAYOUT[:SECONDS]` (files
+`idle`, `1080p`, `wiki`, `4k`, `m4a`, `small`; layouts `full` and `box`).
+The states: `playing`, `paused`, `ended`, `out` (scrolled away),
+`display-none` (paused), `hidden` (playing, window covered) and
+`hidden-paused`, `unmapped`, `seek` (paused) and `seek-playing` (ten seeks),
+`moving` and `still` (the pointer in a box, no controls) with the
+`controls-` versions, `controls-paused`, `sync`. The page is a script that
+makes the element and records `Date.now()` at `src` and at the events; a
+silent run (`--no-audio-output`, `PIPEWIRE_RUNTIME_DIR` and
+`XDG_RUNTIME_DIR` on an empty directory, the automation server) reads these
+marks and the element's state after the window, so a case that did not
+reach its state (a media error, not paused, not ended, a script error)
+fails instead of showing a low CPU. The start times are from the `src`
+assignment (a local file: the bytes are there) to `loadedmetadata` and to
+the first frame presented after `loadeddata`; a seek is timed from the
+assignment of `currentTime` to the first frame with pixels that follows it
+(paused element) or follows `seeked` (playing). With `--audio pw-private`
+the tool runs the isolation proof of `swbtools pw-private start` (a failed
+proof stops it, exit 3), starts the daemon, links swb's stream as `watch`
+does, runs swb with the client variables, and stops the daemon by its PID.
+A run with sound has no automation server (it keeps swb silent), so no
+marks: its numbers come from the frame log and the output's log. The
+budgets are in `BUDGETS` (one list); `--check` compares the worst of the
+runs (the median for a ratio) and exits 1 on a failure or on a case that
+did not reach its state. The tests (no GUI) cover the log parser, the
+counters, the sync statistics, the marks, the state check, the command line
+and the environment of swb in both audio modes (a fake swb that prints its
+environment), the pages and the budget compare.
+
+Review fixes of this feature: no variable of the owner that names another
+PipeWire or Pulse server (`PIPEWIRE_REMOTE`, `PIPEWIRE_CORE`,
+`PIPEWIRE_CONFIG_DIR`, `PIPEWIRE_CONFIG_NAME`, `PULSE_SERVER`; one constant in
+`pw_private.py`) reaches swb in either mode; SIGTERM to the tool stops Xvfb,
+swb, the link watcher and the private daemon by PID, as Ctrl+C does; the tool
+warns when it runs without the memory cap; `--check` prints how many budgets
+it checked and skipped; `dropped` and `shown` have a resolution of 0.5 s (the
+`media` lines; the JSON has `counters_step_s`): the first line after the window
+is not used, since at the end of a run it is the pipeline's flush at the close
+(a paused run showed one); `--seconds` sets the window and the seek
+schedule of a `sync` case together; the "sync max" column shows only runs with
+sound (the value stays in the JSON); swb's stdout is drained after the address
+line.
+
+**The margin of the limits.** The limits are 26 to 31 % above the worst of the
+three runs. `--check` therefore catches a regression of about 30 % or more on
+a quiet machine (a 25 % regression of the typical run passes). The same
+margin absorbs the 8 to 17 % that a loaded machine adds (the second set of
+runs above).
+
+**The budgets measured** (release build with media, window 1280 x 720,
+three runs of each, `--check`; the machine was idle: `uptime` load 0.3 at
+the start). A second set of three runs followed 25 minutes later while the
+owner's Edge had started a video-capture process (10 % of a core): the CPU
+numbers were 8 to 17 % higher (1080p 47.9, Wikimedia 57.3, 4K 118.7, hidden
+13.8), all still within the limits.
+The rule for the limits: the worst of the three idle runs plus 25 %,
+rounded up (CPU and ms to 5, MiB to 10), 1 % of a core at least for a file
+that plays, twice the worst for the start times (they are 4 to 60 ms), 0.2 %
+(two ticks of `/proc` in the 5 s window) for the idle states.
+
+| Budget | Diagnosis ceiling | Chromium | swb, 3 runs | Limit now |
+|---|---|---|---|---|
+| 1080p playing: CPU % of a core | 150 | 24.9 | 42.6, 41.8, 41.7 | 55 |
+| 1080p: RSS above the idle page (MiB) | 600 | 537 (all processes) | 166.5, 168.8, 168.3 | 220 |
+| 1080p: frames shown a second (20 s window), dropped | 30.0, 0 | 30.0, 0 | 29.99, 29.98, 29.98; 0, 0, 0 | at least 0.98 of the rate; 0 |
+| Wikimedia (2558 x 1626, 25 fps): CPU % | 150 | 21.6 | 50.8, 50.8, 50.4 | 65 |
+| Wikimedia: RSS above idle (MiB); dropped | 600; 0 | 510; 0 | 239.8, 242.0, 227.3; 0, 0, 0 | 310; 0 |
+| 4K (24 fps): peak RSS (MiB); CPU %; dropped | 1,536; none; allowed | 984; 93.2; 0 | 515.2, 516.1, 511.6; 109.3, 108.3, 109.4; 0, 0, 0 | 650; none; none |
+| paused, ended (1080p, Wikimedia, 4K): CPU % in 5 s | 0.0 | 0.0, 0.1 | 0.0 in every run | 0.2 |
+| `display: none` paused; hidden window paused (1080p) | 0.0 | not measured | 0.0 in every run | 0.2 |
+| hidden window, playing (1080p) | 0.0 | not measured | 11.6, 11.8, 11.4 (12 wake-ups a second) | 15 |
+| M4A playing: CPU %, silent / on the private daemon | 3 | not measured | 0.1, 0.2, 0.2 / 0.3, 0.4, 0.4 | 1 |
+| 1080p: `loadedmetadata` (ms) | 300 | not measured | 14, 18, 13 | 40 |
+| 1080p: first frame after `loadeddata` (ms) | 500 | not measured | 49.7, 48.6, 45.4 | 100 |
+| 1080p: seek to its frame, paused (ms; to `seeked` 48 to 51) | 250 | not measured | 58.8, 61.1, 65.1 | 85 |
+| 1080p, seek while playing: to the frame after `seeked` (ms) | | | 65.3, 64.0, 66.2 | none |
+
+Not in the diagnosis' list, measured: the idle page (84.4 to 87.9 MiB, 0.0 %,
+0 wake-ups; the baseline of the RSS rows), a playing video scrolled out of
+view (1080p 10.7 %, 12 wake-ups a second; Wikimedia 6.5 to 6.9 %: the
+decoder only), the 4K file ended (first frame 458 to 477 ms after the seek
+to the end). The default controls (feature 9's cases again, 640 x 360 box,
+pointer): controls moving 36.7, 35.4, 36.7 % against 34.8, 34.0, 35.3 % without
+(ratio of the medians 1.053, budget 1.10), 70.5 to 71.5 wake-ups a second
+against 67.0; controls and pointer still 35.3, 34.2, 35.2 against 35.3, 36.0,
+35.1 (64.0 wake-ups both); paused controls 0.0 % and 0 wake-ups; 30 frames a
+second and 0 dropped in all. The frame log shows 29.98 to 30.07 frames a
+second for 1080p, 24.9 for Wikimedia and 23.98 for 4K, all 0 dropped.
+
+Against Chromium (diagnosis section 6; its CPU is the sum of the browser,
+renderer and GPU processes, the GPU process being SwiftShader): swb needs
+1.7 times the CPU for the 1080p file, 2.4 times for the Wikimedia file and
+1.17 times for the 4K file, and half to two thirds of the memory (swb has
+one process). By thread, the 1080p file: the main thread 28 to 31 % (the page
+raster of every frame: `render` 8.3 to 10.4 ms, `full=1`, 870,400 px), the
+video thread 2.3 to 2.8 % (the conversion) and eight FFmpeg frame threads
+1.5 to 1.9 % each. The hidden window is the one budget of the diagnosis that
+swb does not meet as written ("a hidden tab, 0.0 %"): a playing video in a
+covered window keeps decoding without converting (12 wake-ups a second,
+11.6 %), as the audio must go on; paused it is 0.0 %. Chromium's number for
+a hidden tab with a playing video is not measured (it may pause a muted
+video; behavior to decide, backlog). The tool's `unmapped` state (the window
+unmapped) changes nothing in the GUI (winit gets no `Occluded`: 40 % in the
+one run made), and
+the `hidden` state covers the window with an opaque window, which winit
+reports as `Occluded(true)`.
+
+**Item 4, sync** (private daemon, null sink, `1080p:sync:full`, unmuted,
+`loop`, started by a click, 1280 x 720): 180 s of playing, then ten seeks 3 s
+apart (to 10, 2.5, 17, 6, 13, 0.5, 19, 8, 4 and 15 s), 35 s in all. Seven
+runs (the first, then three, then three, with the tool as it was):
+`media - video` 0.06 to 17.0 ms over the 180 s (5,341 lines a run, mean 10.3,
+the clock is the audio clock in 99.7 % of the lines: the rest is the first
+frames before the stream) and 0.06 to 16.9 ms after the seeks (1,126
+lines); 0 dropped, 29.94 frames a second, CPU 43 to 48 % (the machine was
+busier in the later runs). One line of one run was 33.98 ms (0.7 ms over
+the frame period, 33.3 ms; 1 of 37,000 lines): a frame drawn one period
+late, in a run that overlapped the owner's video capture; the three runs
+after it (the tool then also gave the time of the maximum, `max_at_s`) had
+none above 16.9 ms. The frame on screen is at most one frame period from the
+audio clock, also after seeks and over 180 s (works item 4).
+
+**Wake-ups per frame** (backlog of 7b). Traced with temporary prints in
+`new_events`, `window_event`, `user_event` and `about_to_wait` (not kept).
+Each painted frame is two turns of the loop: (1) `ResumeTimeReached` at the
+due time, the page's task runs, `about_to_wait` finds a frame wanted and
+calls `request_redraw`; (2) 8 to 15 microseconds later `new_events
+WaitCancelled` and `RedrawRequested` alone (no input, no network event, no
+other event): the redraw turn of winit. `about_to_wait` of the second turn
+finds nothing to do and waits for the next due time (23 to 24 ms ahead).
+Not changed. A test change (drawing in `about_to_wait` instead of
+`request_redraw`, undone) gave 34.6 wake-ups a second instead of 64.0
+(Wikimedia 28.9 instead of 52.5) with no frame lost (29.96 to 29.99
+frames a second, 0 dropped), the same CPU (42.1 % against 41.7 to 42.5) and the same sync
+(15.2 ms against 14.6). The second turn costs about nothing; the change would
+bypass the compositor's frame callback on Wayland (section 3 of ADR 0040:
+at most one frame per display refresh, none while the window is hidden),
+which cannot be tested here, so it would need an X11-only branch for no
+measurable gain.
+
+**The frame conversion at 2558 x 1626** (backlog of 7a): by thread on the
+Wikimedia file (three runs of 20 s): main thread 35.1 to 36.7 %, the video
+thread (the conversion, and the packet hand-off to the decoder) 8.5 to
+8.9 %, eight FFmpeg threads 0.7 to 0.9 % each. 25 frames a second at 2.8 to
+3.5 ms is 7 to 9 %, which is the video thread. A conversion in bands
+(0.9 ms) would save at most about 5.6 % of a core of 50.8 %, 11 % of the
+total. The Wikimedia budget does not need it, so `ffmpeg.c` is unchanged.
+The larger cost is the main thread (the page raster of a scaled 2558 x 1626
+frame).

@@ -4,6 +4,34 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-27: M14 feature 10b, the budgets in the GUI
+
+- `swbtools media-gui` (a private Xvfb and a capped scope per case, the
+  states of 7b and 9, the start, seek and sync times, `--audio
+  pw-private`, `--check`) replaces the measurement scripts of features 7b,
+  8 and 9, which were not in the repository.
+- Measured on the release build with media, three runs each, idle
+  machine: 1080p 42 % of a core and 169 MiB above the idle page (Chromium
+  24.9 %), Wikimedia 51 % and 242 MiB (21.6 %), 4K 516 MiB and 109 %
+  (93 %), no dropped frame, the idle states 0.0 %, the M4A 0.2 %,
+  `loadedmetadata` 18 ms, first frame 50 ms, a seek 65 ms. The limits are
+  the worst of the runs plus 25 %: the 150 % ceiling is now 55 %.
+- A covered window with a playing video costs 11.6 %: the one budget of
+  the diagnosis that swb does not meet as written (paused: 0.0 %).
+- Sync on the private daemon: `media - video` at most 17 ms over 180 s and
+  after ten seeks (one line of 37,000 at 34 ms, while another process
+  used 10 % of a core).
+- The two wake-ups per frame are winit's redraw turn; drawing at once
+  halves them at no CPU gain and bypasses the Wayland frame callback, so
+  it stays. The conversion at 2558 x 1626 is 9 % of a core: no C change.
+  The main thread's page raster of each frame is the larger cost
+  (backlog).
+- Review: the tool passed the owner's `PIPEWIRE_REMOTE` and `PULSE_SERVER`
+  (if set) to swb in the sound mode, and a SIGTERM left Xvfb and swb
+  running; both fixed and tested. The variables were not set on the
+  development machine, so no run reached the owner's daemon.
+- Next: 10c, the exit test of M14.
+
 ## 2026-11-27: M14 feature 10a, hostile media and bounded memory
 
 - Feature 10 (the exit of M14) did not fit one session: it is now 10a

@@ -656,15 +656,16 @@ def markdown(report: dict) -> str:
     return "\n".join(lines)
 
 
-def _exit_on_sigterm(signum: int, _frame: object) -> None:
+def exit_on_sigterm(signum: int, _frame: object) -> None:
     """SIGTERM ends the tool like Ctrl-C: the `finally` blocks stop Xvfb
-    and the GUI (the default action would leave them running)."""
+    and the GUI (the default action would leave them running). Also used by
+    `media_gui`."""
     raise SystemExit(128 + signum)
 
 
 def gui_latency(options: Options, as_json: bool) -> int:
     """Runs a measurement and prints the report."""
-    previous = signal.signal(signal.SIGTERM, _exit_on_sigterm)
+    previous = signal.signal(signal.SIGTERM, exit_on_sigterm)
     try:
         report = run(options)
     except (XError, RuntimeError, FileNotFoundError) as error:

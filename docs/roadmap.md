@@ -7462,6 +7462,37 @@ Steps:
         ceiling lowered to what swb reaches, the audio-video sync trace of
         item 4 on the private daemon, the wake-ups per frame, the cost of
         the frame conversion at 2558 x 1626.
+        Done (2026-11-27, ADR 0047 "Implementation notes (M14 feature
+        10b)"):
+        - `swbtools media-gui` (`tools/swbtools/media_gui.py`, tests in
+          `tools/tests/test_media_gui.py`, no GUI in them): a private Xvfb
+          and a capped scope per case; the files, states and layouts of 7b
+          and 9; the start, seek and sync times; `--audio pw-private` with
+          the isolation proof; `--check` against `BUDGETS`. docs/testing.md
+          "Media in the GUI".
+        - Budgets measured (three runs, idle machine) and set to the worst
+          plus 25 %: 1080p 42.6 % CPU and 169 MiB above the idle page (was
+          150 % and 600 MiB; Chromium 24.9 %), Wikimedia 50.8 % and 242 MiB
+          (Chromium 21.6 %), 4K 516 MiB and 109 % (Chromium 93 %), 0
+          dropped in all, paused/ended/display-none/hidden-paused 0.0 %, the
+          M4A 0.2 % (0.4 % with sound), `loadedmetadata` 18 ms, first frame
+          50 ms, a seek 65 ms. docs/performance.md "M14 exit: media
+          budgets".
+        - Item 4: 180 s and ten seeks on the private daemon: `media -
+          video` at most 17.0 ms (one line in 37,000 at 33.98, with another
+          process at 10 % of a core).
+        - Wake-ups traced: two turns per frame (the due time and winit's
+          redraw turn); not changed (same CPU; the change bypasses the
+          Wayland frame callback). The conversion at 2558 x 1626 is 8.5 to
+          8.9 % of a core of 50.8 %: the C code is unchanged.
+        - One budget of the diagnosis is not met as written: a covered
+          window with a playing video is 11.6 % (12 wake-ups a second), not
+          0.0 % (paused: 0.0 %). Backlog.
+        - Review fixes (one round): no variable that names another PipeWire
+          or Pulse server (`PIPEWIRE_REMOTE`, `PULSE_SERVER`, ...) reaches
+          swb; SIGTERM stops Xvfb, swb and the private daemon; a warning
+          without the memory cap; tests of swb's environment on a fake
+          binary; `--check` counts the skipped budgets.
       - 10c. The exit test (`implementer`): each works item against
         Chromium in one test file, with the tests of the features that
         already cover an item named and the gaps filled (every format
@@ -7592,6 +7623,33 @@ Source Extensions, AV1 (dav1d), YouTube.
   frames only after about 100 s: paused pipelines with their frame hold
   their place for the 15 s idle time, so the first frames come in
   batches of 16 (older than 10a; Chromium not measured).
+- Media paint (feature 10b): the main thread is the largest CPU cost of a
+  playing video: 28 to 31 % of a core for the 1080p file (the page raster
+  of every frame, 8.3 to 10.4 ms for a scaled frame in 1280 x 680,
+  `full=1`), 35 to 37 % for the Wikimedia file. swb needs 1.7 times
+  (1080p) and 2.4 times (Wikimedia) Chromium's CPU. A raster limited to
+  the video's rectangle, or a cheaper scaled blit, is the next gain.
+- Media (feature 10b): a playing video in a covered window (`Occluded`)
+  keeps decoding: 11.6 % of a core and 12 wake-ups a second for 1080p, as
+  it must when it has sound. Chromium's number for a hidden tab with a
+  playing muted video is not measured (it may pause the video). Measure
+  it with a probe; pausing a muted video of a hidden window is a behavior
+  change (events, ADR).
+- Media (feature 10b): a window unmapped by the X client gives swb no
+  event: the video plays and converts as for a visible window (40 % of a
+  core, one run).
+- Tools (feature 10b): the numbers of `swbtools media-gui` are 8 to 17 %
+  higher with another process at 10 % of a core (the second run set of
+  10b). The limits are 26 to 31 % above the worst quiet run, so a
+  regression below about 30 % passes `--check`.
+- Tools (feature 10b): the runs with sound have no marks (the automation
+  server keeps swb silent), so no start or seek times with sound, and the
+  page's state is not checked; a debug-only way for the page to hand its
+  marks to the tool (for example the `console` log at the debug level)
+  would close it.
+- Tools (feature 10b): the link watcher of `--audio pw-private` runs
+  `pw-link` 20 times a second for 10 s at the start of each run (30 % of
+  a core of the tool in that time), which loads the machine a little.
 - Media controls (feature 9): a change of the controls (the time text
   once a second, the thumb, a hover, 60 Hz in a fade) builds the whole
   display list again (0.54 ms at 1,943 elements). Splice the controls'
@@ -7683,11 +7741,16 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Media (feature 7a): a change of the frame size in the stream fires no
   `resize` and gives no new layout (no fixture has one); frames are
   drawn into the natural size of the metadata.
-- Media pipeline (feature 7b, for feature 10): a painted video wakes the
-  loop twice per frame (64 wake-ups a second at 30 fps: the due time and,
-  it seems, the redraw turn that winit delivers after `request_redraw`;
-  not traced). A playing video that nobody sees wakes 12 to 13 times a
-  second (a batch of three frames, and the `timeupdate` points); fewer
+- GUI (features 7b, 10b): a painted video is two turns of the loop per
+  frame (64 wake-ups a second at 30 fps). Traced in 10b: the due time,
+  then winit's `RedrawRequested` alone 8 to 15 microseconds later (no
+  other event). Drawing in `about_to_wait` instead of `request_redraw`
+  gave 34.6 wake-ups a second instead of 64.0 (1080p), 28.9 instead of
+  52.5 (Wikimedia), no frame lost, the same CPU and sync; it bypasses the
+  compositor's frame callback on Wayland (ADR 0040 section 3), which
+  cannot be tested on the development machine, and would be an X11-only
+  branch for no measurable gain. A playing video that nobody sees wakes
+  12 to 13 times a second (a batch of three frames, and the `timeupdate` points); fewer
   needs a longer frame queue for unpainted pipelines (it is 6 frames,
   and the owner must take them before it runs dry).
 - Media paint (feature 7b): the first converted frame of a video that
@@ -7718,10 +7781,7 @@ Source Extensions, AV1 (dav1d), YouTube.
   the counters of the pipelines instead. The frames that a real-time page
   passes over for an unpainted video (it takes them in batches) count as
   shown, not dropped; Chromium's numbers for an offscreen video are not
-  measured. The GUI measurements of 7b used
-  a script that is not committed (`out/m14-f7b-measure.py` on the
-  development machine: its own Xvfb, a page per file and state, CPU from
-  `/proc`); feature 10 makes a tool of it for the budgets in the GUI.
+  measured. `swbtools media-gui` (feature 10b) reads these lines.
 - Media (feature 7a): Chromium's rows `poster-play-pause-at-start`,
   `poster-play-and-run` and two cases of
   `frames-color-untagged-bt709-1280x7xx` vary between its runs under
@@ -7733,13 +7793,16 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Probe tool (feature 7a): the static server has no delay option, so a
   row of a poster during a slow first frame cannot be recorded; a Rust
   test over a slow link covers it.
-- Media paint (feature 7a): a frame whose width is not a multiple of 64
-  costs 2.8 to 3.5 ms to convert at 2558 x 1626 (0.9 ms direct): the
-  padded source 0.5 ms, the copy out of the 16 MB scratch 1.1 ms, and
+- Media paint (features 7a, 10b): a frame whose width is not a multiple
+  of 64 costs 2.8 to 3.5 ms to convert at 2558 x 1626 (0.9 ms direct):
+  the padded source 0.5 ms, the copy out of the 16 MB scratch 1.1 ms, and
   cache misses from the second 16 MB buffer. Proposal of the review:
   convert in bands of 64 rows (even start row) into a scratch of about
   0.6 MB that stays in the L2 cache, and copy each band out; this is
-  local to `ffmpeg.c`. Measure in feature 10.
+  local to `ffmpeg.c`. Measured in 10b: the video thread (the
+  conversion) is 8.5 to 8.9 % of a core of the Wikimedia file's 50.8 %;
+  bands would save at most 5.6 % of a core. The budget (65 %) does not
+  need it.
 - Media paint (feature 7a): the reviewer's row
   `x-poster-attr-set-after-play` differs by 6 levels at one point (not
   investigated). The row `poster-play-audio-only` (an audio-only file in

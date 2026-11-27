@@ -478,6 +478,14 @@ development machine, window 1280 x 720):
 - The frame queue and the sample queue are bounded in bytes (the ADR sets
   the numbers): decoded frames at most 6; samples at most 1 s.
 
+M14 feature 10b measured these budgets on swb and set the limits to what
+swb reaches (`docs/performance.md` "M14 exit: media budgets"; for example
+the 150 % ceiling of the 1080p file is now 55 %). "A hidden tab" applies to
+a paused video: swb has no tabs, and a covered window with a paused video
+costs 0.0 %. A covered window with a playing video costs 11.6 % (swb keeps
+decoding, as it must for the sound); Chromium's number for a playing muted
+video in a hidden tab is not measured (roadmap backlog).
+
 ## 7. Frames at paused times
 
 `media-frames.json`: seek, wait for `seeked` and a presented frame, then read

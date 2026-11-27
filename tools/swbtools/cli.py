@@ -29,6 +29,10 @@ from swbtools.manifest import FILES_DIR, read_manifest
 from swbtools.measure import MEASUREMENTS, SLOW_MEASUREMENTS, measure
 from swbtools.media_cpu import media_cpu
 from swbtools.media_fixture import media_fixture
+from swbtools.media_gui import SUITES as MEDIA_GUI_SUITES
+from swbtools.media_gui import Options as MediaGuiOptions
+from swbtools.media_gui import find_binary as media_gui_binary
+from swbtools.media_gui import media_gui
 from swbtools.module_cases import SUBCOMMANDS as PROBE_NET_CASES
 from swbtools.module_cases import write_cases
 from swbtools.pages import list_fixtures, list_js_fixtures, read_meta
@@ -282,6 +286,28 @@ def cmd_pw_private(args: argparse.Namespace) -> int:
         log.error("isolation: %s", e)
         return 3
     return 0
+
+
+def cmd_media_gui(args: argparse.Namespace) -> int:
+    binary = media_gui_binary(args.swb)
+    if binary is None:
+        log.error("swb binary not found; build it (`just build-media`) or pass --swb PATH")
+        return 1
+    cases = list(args.cases)
+    if args.suite:
+        cases += MEDIA_GUI_SUITES[args.suite]
+    if not cases:
+        log.error("give cases (FILE:STATE:LAYOUT[:SECONDS]) or --suite")
+        return 2
+    options = MediaGuiOptions(
+        binary=binary,
+        runs=args.runs,
+        audio=args.audio,
+        seconds=args.seconds,
+        daemon_dir=Path(args.dir) if args.dir else None,
+        log_dir=args.log_dir,
+    )
+    return media_gui(cases, options, args.check, args.json)
 
 
 def cmd_media_fixture(args: argparse.Namespace) -> int:
@@ -767,6 +793,44 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--out", help="record: the WAV file (32-bit float, stereo, 48 kHz)")
     p.set_defaults(func=cmd_pw_private)
+
+    p = commands.add_parser(
+        "media-gui",
+        help="measure media playback in swb's GUI on a private Xvfb (CPU, memory, frames, sync)",
+        description=(
+            "Runs the release media binary (`just build-media`) on its own Xvfb, one case at a "
+            "time, in a memory-capped scope, and reports per case the CPU, the peak and settled "
+            "RSS, the frames shown and dropped, the wake-ups, the start, seek and sync times "
+            "(docs/testing.md, 'Media in the GUI'). A case is FILE:STATE:LAYOUT[:SECONDS]: "
+            "FILE one of idle, 1080p, wiki, 4k, m4a, small; STATE one of idle, playing, paused, "
+            "ended, out, display-none, hidden, unmapped, seek, seek-playing, moving, still, "
+            "controls-moving, controls-still, controls-paused, sync; LAYOUT full or box. Without "
+            "--audio the run is silent (--no-audio-output, empty runtime directories); with "
+            "--audio pw-private it uses the private daemon of `pw-private` after its isolation "
+            "proof. --check compares the worst of the runs with the budgets of the tool and "
+            "exits 1 on a failure."
+        ),
+    )
+    p.add_argument("cases", nargs="*", metavar="CASE")
+    p.add_argument(
+        "--suite", choices=sorted(MEDIA_GUI_SUITES), help="add the cases of a standard set"
+    )
+    p.add_argument("--runs", type=int, default=1, help="runs of each case (default 1)")
+    p.add_argument(
+        "--audio",
+        choices=["none", "pw-private"],
+        default="none",
+        help="none: silent; pw-private: sound on the private daemon's null sink",
+    )
+    p.add_argument("--seconds", type=float, help="measured seconds of every case without its own")
+    p.add_argument(
+        "--check", action="store_true", help="compare with the budgets; exit 1 on a failure"
+    )
+    p.add_argument("--json", type=Path, metavar="FILE", help="write the results as JSON")
+    p.add_argument("--swb", type=Path, help="path of the swb binary (a release build with media)")
+    p.add_argument("--log-dir", type=Path, help="write the frame log of each run to a file here")
+    p.add_argument("--dir", help="the private daemon's runtime directory (default tmp/pw-private)")
+    p.set_defaults(func=cmd_media_gui)
 
     p = commands.add_parser(
         "media-fixture",

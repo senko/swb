@@ -2021,6 +2021,91 @@ each presented frame of a playing painted video (`media - video` is at most
 a frame period plus the time to draw). `just media-asan` builds the
 PipeWire C file with the sanitizers too.
 
+### Media in the GUI (M14 feature 10b)
+
+`swbtools media-gui` measures media playback in the GUI on a private
+`Xvfb` (a free display; it never uses the desktop's) with the release
+binary with media (`just build-media`). One fresh swb per case, in a
+`systemd-run --scope` with `MemoryMax=4G` (without a working systemd user
+manager the tool warns and runs swb without the cap). It replaces the
+scripts of M14 features 7b, 8 and 9.
+
+```
+just build-media
+just tools media-gui --suite budgets --runs 3 --check --json out/media-gui.json
+just tools media-gui 1080p:playing:full:20 wiki:paused:full --runs 3
+just tools media-gui --suite audio --audio pw-private --runs 3 --check
+just tools media-gui --suite sync --audio pw-private --check
+```
+
+A case is `FILE:STATE:LAYOUT[:SECONDS]`. Files: `idle` (no media, the
+baseline of the memory budgets: `idle:idle:full:5`), `1080p`, `wiki`, `4k`,
+`m4a` (the real files of `fixtures/js/media/`) and `small`
+(`fixtures/media/mp4-h264-aac-long.mp4`). Layouts: `full` (the video fills
+the window) and `box` (640 x 360 at 100, 100 on a gray page). States:
+`playing`; `paused` (paused 0.5 s after it plays); `ended` (seeks to 0.5 s
+before the end); `out` (scrolled out of view); `display-none` (paused);
+`hidden` (playing, the window covered by an opaque window, which winit
+reports as `Occluded`) and `hidden-paused`; `unmapped` (the window
+unmapped: swb sees nothing); `seek` (paused) and `seek-playing` (ten seeks,
+1 s apart); `moving` and `still` (the pointer moves in the box every 0.3 s,
+or moves in once; no controls) and `controls-moving`, `controls-still`,
+`controls-paused` (the default controls); `sync` (with sound, 180 s then ten
+seeks 3 s apart). `--suite budgets` runs the 21 cases of the budgets (about
+8 minutes a run), `audio` the idle page, the M4A and the 1080p file for
+`--audio pw-private`, `sync` the 215 s case. `--seconds S` sets the measured
+seconds of the cases without their own (for `sync` also its seek schedule).
+`--log-dir DIR` keeps the frame log of each run.
+
+A case reports (a table with a row per run, JSON with `--json`): `cpu_pct`
+(all threads of the process, `/proc`, % of one core, over the measured
+window after the settle time), `thread_cpu_pct` (by thread name, above
+0.5 %), `rss_peak_mib` (`VmHWM`), `rss_settled_mib`, `rss_above_idle_mib`
+(against the median of the `idle` runs of the same invocation),
+`shown_per_s` and `dropped` (the `media` lines of the frame log, which come
+at most twice a second: the resolution is 0.5 s, `counters_step_s`),
+`presented_per_s`, `wakeups_per_s` (the `wakeups` counter of the `media`
+lines), `loadedmetadata_ms` and `first_frame_ms` (from the `src`
+assignment, where a local file's bytes are there, to the event and to the
+first frame presented after `loadeddata`), `seek_to_seeked_ms` and
+`seek_to_frame_ms` (the largest of the series), and with `--audio
+pw-private` `sync_long` and `sync_seeks` / `sync_all`: the `media - video`
+of the `sync` lines (count, minimum, mean, maximum in ms, the time of the
+maximum, the lines over a frame period, the `jumps` of seeks and loops, the
+share of lines on the audio clock; the table shows them only for runs with
+sound). The page is a script that records `Date.now()` at the events; a
+silent run reads these marks and the element's state through the
+automation server after the window, and fails a case that did not reach
+its state (a media error, not paused, not ended, a script error): a state
+with 0.0 % CPU is only a result when the page was in it.
+
+Silent runs (the default) use `--no-audio-output` and an empty directory
+for `PIPEWIRE_RUNTIME_DIR` and `XDG_RUNTIME_DIR`, and unset every variable
+that names another PipeWire or Pulse server (`pw_private.OTHER_SERVER_NAMES`):
+nothing can reach the owner's PipeWire daemon. `--audio pw-private` starts
+the private daemon of `pw-private` (its isolation proof first: when it
+fails the tool stops with exit 3 and runs nothing), runs swb with the
+client variables (the same names unset), links swb's stream to the null
+sink, and stops the daemon by its PID at the end. The sound cases (`m4a`,
+`sync`, and every case with `--audio pw-private` that has no controls) are
+unmuted and start on a click; a run with sound has no automation server (it
+would keep swb silent), so it has no marks: no start or seek times, and no
+check of the state besides the output's `streaming` line. SIGTERM ends the
+tool like Ctrl+C: Xvfb, swb, the link watcher and the private daemon stop
+by their PIDs.
+
+`--check` compares the worst of the runs (the median for the ratio of the
+controls to no controls) with `BUDGETS` in `tools/swbtools/media_gui.py`
+(the one place for the limits), prints how many budgets it checked and how
+many it skipped (their case did not run), and exits 1 on a failed budget
+or on a case that did not reach its state. A memory budget without an
+`idle` run in the same invocation fails as "missing (needs an idle run)".
+Exit 2: a bad argument or a run that could not start; 3: the isolation
+proof. The limits are 26 to 31 % above the worst of three quiet runs: a
+regression of about 30 % fails; another process at 10 % of a core adds 8 to
+17 %. Run it on an idle machine and say what else ran. Tests (no GUI;
+swb's environment is checked on a fake binary): `tools/tests/test_media_gui.py`.
+
 ## Hostile-page set
 
 swb must never panic, hang or exhaust memory on content from the network.
