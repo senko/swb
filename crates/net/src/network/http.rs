@@ -221,6 +221,36 @@ impl HttpClient {
         }
         Ok((parts.status.as_u16(), headers, body))
     }
+
+    /// Runs `http_request` on `agent` with the limits of `timing`.
+    fn run<S: ureq::AsSendBody>(
+        &self,
+        agent: &ureq::Agent,
+        http_request: http::Request<S>,
+        timing: Timing,
+    ) -> Result<http::Response<ureq::Body>, ureq::Error> {
+        match timing {
+            Timing::Agent => agent.run(http_request),
+            Timing::Stream { body } => http_request
+                .with_agent(agent)
+                .configure()
+                .timeout_global(None)
+                .timeout_recv_response(Some(self.request_timeout))
+                .timeout_recv_body(body)
+                .run(),
+        }
+    }
+
+    /// The agent for `request`: the proxy or the direct one (loopback), the
+    /// pooled one if `pooled`.
+    fn agent_for(&self, request: &Request, pooled: bool) -> &ureq::Agent {
+        match (site::is_loopback(&request.url), pooled) {
+            (true, true) => &self.direct,
+            (false, true) => &self.agent,
+            (true, false) => &self.fresh_direct,
+            (false, false) => &self.fresh,
+        }
+    }
 }
 
 /// Which time limits a request has.
@@ -243,45 +273,11 @@ fn from_start(request: &Request) -> bool {
         .is_none_or(|spec| matches!(spec, crate::range::RangeSpec::From(0)))
 }
 
-impl HttpClient {
-    /// Runs `http_request` on `agent` with the limits of `timing`.
-    fn run<S: ureq::AsSendBody>(
-        &self,
-        agent: &ureq::Agent,
-        http_request: http::Request<S>,
-        timing: Timing,
-    ) -> Result<http::Response<ureq::Body>, ureq::Error> {
-        match timing {
-            Timing::Agent => agent.run(http_request),
-            Timing::Stream { body } => http_request
-                .with_agent(agent)
-                .configure()
-                .timeout_global(None)
-                .timeout_recv_response(Some(self.request_timeout))
-                .timeout_recv_body(body)
-                .run(),
-        }
-    }
-}
-
 /// How many times an idempotent request is repeated after a pooled
 /// connection turned out to be closed. Up to three connections of one host
 /// wait in the pool, so a burst of requests can meet more than one closed
 /// connection.
 const RETRIES: usize = 2;
-
-impl HttpClient {
-    /// The agent for `request`: the proxy or the direct one (loopback), the
-    /// pooled one if `pooled`.
-    fn agent_for(&self, request: &Request, pooled: bool) -> &ureq::Agent {
-        match (site::is_loopback(&request.url), pooled) {
-            (true, true) => &self.direct,
-            (false, true) => &self.agent,
-            (true, false) => &self.fresh_direct,
-            (false, false) => &self.fresh,
-        }
-    }
-}
 
 /// Counts the bytes that a response of `request` holds against the budget
 /// of the request, if it has one.

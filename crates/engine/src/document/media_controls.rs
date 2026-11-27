@@ -205,7 +205,7 @@ impl DocumentState {
 
     /// The page time (ms) of the next change of the controls without input.
     pub(crate) fn media_controls_next_due(&self, now_us: i64) -> Option<f64> {
-        self.media.controls_next_due(now_us)
+        self.media.controls_next_due_ms(now_us)
     }
 
     /// Tells the controls the page time of the next picture.

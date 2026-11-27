@@ -191,7 +191,7 @@ fn the_4k_file_opens_and_seeks_over_the_server_with_a_bounded_cache() {
 
 #[test]
 fn a_pipeline_plays_and_seeks_over_the_server() {
-    use common::driver::{Waker, options, play_virtual, settle_update};
+    use common::driver::{TestWaker, options, play_virtual, settle_update};
     use swb_media::pipeline::{Pipeline, Report, SourceOpener};
 
     let name = "mp4-h264-high-aac-moov-at-end.mp4";
@@ -206,7 +206,7 @@ fn a_pipeline_plays_and_seeks_over_the_server() {
     ));
     let handle = resource.handle();
     drop(resource);
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let slots = swb_media::pipeline::PipelineSlots::new(2);
     let mut o = options(&waker);
     o.slots = slots.clone();

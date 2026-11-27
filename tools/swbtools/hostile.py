@@ -26,6 +26,7 @@ from pathlib import Path
 
 from swbtools import paths, swb
 from swbtools.hostile_cases import CASES, Case
+from swbtools.procfs import status_kib
 
 log = logging.getLogger(__name__)
 
@@ -110,18 +111,6 @@ def verdict(case: Case, outcome: str) -> tuple[str, bool]:
     return KNOWN, True
 
 
-def _status_kib(pid: int, key: str) -> int:
-    """Reads a `kB` field of /proc/PID/status; 0 if it is not readable."""
-    try:
-        with Path(f"/proc/{pid}/status").open() as status:
-            for line in status:
-                if line.startswith(key + ":"):
-                    return int(line.split()[1])
-    except (OSError, ValueError, IndexError):
-        pass
-    return 0
-
-
 def _kill(pid: int) -> None:
     """Kills the process group of `pid` (started with a new session)."""
     with contextlib.suppress(ProcessLookupError, PermissionError):
@@ -161,13 +150,13 @@ def run_limited(
             start_new_session=True,
         )
         pid = process.pid
-        parent_kib = _status_kib(os.getpid(), "VmHWM")
+        parent_kib = status_kib(os.getpid(), "VmHWM")
         try:
             while True:
                 done, status, usage = os.wait4(pid, os.WNOHANG)
                 if done:
                     break
-                sampled_kib = max(sampled_kib, _status_kib(pid, "VmHWM"))
+                sampled_kib = max(sampled_kib, status_kib(pid, "VmHWM"))
                 if killed is None:
                     if sampled_kib / 1024 > max_rss_mib:
                         killed = "memory"

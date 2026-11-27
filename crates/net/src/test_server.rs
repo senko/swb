@@ -116,13 +116,6 @@ impl Route {
         }
     }
 
-    /// Pauses for `time` after `bytes` body bytes of each response, then
-    /// sends the rest.
-    pub fn pausing_after(mut self, bytes: u64, time: Duration) -> Route {
-        self.pause_after = Some((bytes, time));
-        self
-    }
-
     /// Breaks the rules of range requests after the first answer.
     pub fn lying(mut self, lie: Lie) -> Route {
         self.lie = Some(lie);

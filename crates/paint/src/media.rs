@@ -93,8 +93,8 @@ const VIDEO_VOLUME_PLAYED: Rgba = Rgba::new(255, 255, 255, 173);
 const VIDEO_CIRCLE: f32 = 18.0;
 const AUDIO_CIRCLE: f32 = 16.0;
 
-/// The diameter of the thumbs.
-const THUMB: f32 = 12.0;
+/// The diameter of the thumbs (layout's, which maps the hits).
+const THUMB: f32 = swb_layout::THUMB_SIZE;
 
 /// The items that paint the controls of a media element whose content box
 /// is `content` (document coordinates), in the state that `view` tells (the

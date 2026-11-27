@@ -15,14 +15,40 @@ fn main() {
     pipewire::build();
 }
 
+/// The C compiler setup that both C files share: C11, warnings as errors.
+#[cfg(any(feature = "ffmpeg", feature = "pipewire"))]
+fn c_build(file: &str) -> cc::Build {
+    let mut c = cc::Build::new();
+    c.file(file)
+        .std("c11")
+        .warnings(true)
+        .extra_warnings(true)
+        .warnings_into_errors(true)
+        .flag("-Wno-unused-parameter");
+    c
+}
+
+/// With `SWB_MEDIA_ASAN=1`: compiles the C file with AddressSanitizer and
+/// UndefinedBehaviorSanitizer and links their runtimes (the C boundary
+/// only; the libraries are not instrumented). Rust links the runtimes late:
+/// run with `ASAN_OPTIONS=verify_asan_link_order=0`.
+#[cfg(any(feature = "ffmpeg", feature = "pipewire"))]
+fn sanitize(c: &mut cc::Build) {
+    if std::env::var_os("SWB_MEDIA_ASAN").is_some_and(|v| v == "1") {
+        c.flag("-fsanitize=address,undefined")
+            .flag("-fno-sanitize-recover=undefined")
+            .flag("-fno-omit-frame-pointer");
+        println!("cargo:rustc-link-lib=dylib=asan");
+        println!("cargo:rustc-link-lib=dylib=ubsan");
+    }
+}
+
 /// With the feature `pipewire`: compiles `csrc/pipewire.c` (warnings are
 /// errors; with `SWB_MEDIA_ASAN=1` under the sanitizers) against the
 /// headers of libpipewire (`pkg-config libpipewire-0.3 >= 0.3.50`, the
 /// version that has `pw_stream_get_time_n`) and links the shared library.
 #[cfg(feature = "pipewire")]
 mod pipewire {
-    use std::env;
-
     pub(super) fn build() {
         println!("cargo:rerun-if-env-changed=SWB_MEDIA_ASAN");
         println!("cargo:rerun-if-changed=csrc/pipewire.c");
@@ -44,25 +70,13 @@ mod pipewire {
                 std::process::exit(1);
             }
         };
-        let mut c = cc::Build::new();
-        c.file("csrc/pipewire.c")
-            .std("c11")
-            .warnings(true)
-            .extra_warnings(true)
-            .warnings_into_errors(true)
-            // PipeWire's and SPA's macros leave struct fields out.
-            .flag("-Wno-unused-parameter")
-            .flag_if_supported("-Wno-missing-field-initializers");
+        let mut c = super::c_build("csrc/pipewire.c");
+        // PipeWire's and SPA's macros leave struct fields out.
+        c.flag_if_supported("-Wno-missing-field-initializers");
         for path in &library.include_paths {
             c.include(path);
         }
-        if env::var_os("SWB_MEDIA_ASAN").is_some_and(|v| v == "1") {
-            c.flag("-fsanitize=address,undefined")
-                .flag("-fno-sanitize-recover=undefined")
-                .flag("-fno-omit-frame-pointer");
-            println!("cargo:rustc-link-lib=dylib=asan");
-            println!("cargo:rustc-link-lib=dylib=ubsan");
-        }
+        super::sanitize(&mut c);
         c.compile("swb_pipewire");
         for path in &library.link_paths {
             println!("cargo:rustc-link-search=native={}", path.display());
@@ -161,24 +175,10 @@ mod ffmpeg {
             not_built();
         }
 
-        let mut c = cc::Build::new();
-        c.file("csrc/ffmpeg.c")
-            .include(prefix.join("include"))
-            .std("c11")
-            .warnings(true)
-            .extra_warnings(true)
-            .warnings_into_errors(true)
-            .flag("-Wno-unused-parameter");
-        if env::var_os("SWB_MEDIA_ASAN").is_some_and(|v| v == "1") {
-            // The C boundary only; FFmpeg itself is not instrumented. Rust
-            // links the runtimes late: run with
-            // ASAN_OPTIONS=verify_asan_link_order=0.
-            c.flag("-fsanitize=address,undefined")
-                .flag("-fno-sanitize-recover=undefined")
-                .flag("-fno-omit-frame-pointer");
-            println!("cargo:rustc-link-lib=dylib=asan");
-            println!("cargo:rustc-link-lib=dylib=ubsan");
-        }
+        let mut c = super::c_build("csrc/ffmpeg.c");
+        c.include(prefix.join("include"));
+        // FFmpeg itself is not instrumented.
+        super::sanitize(&mut c);
         c.compile("swb_ffmpeg");
 
         println!("cargo:rustc-link-search=native={}", lib.display());

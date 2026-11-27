@@ -38,6 +38,7 @@ from pathlib import Path
 from swbtools import automation, frame_log, paths, swb
 from swbtools.compare import parse_captured
 from swbtools.pages import read_meta
+from swbtools.procfs import process_cpu_s
 from swbtools.traces import KINDS, Trace
 from swbtools.xinput import XDisplay, XError
 
@@ -54,8 +55,6 @@ EVENTS_PER_INPUT = {"wheel": 2}
 """The window events that one injected event makes in the GUI: on X11 a
 wheel notch is the press and the release of button 4 or 5, and the GUI
 counts both as wheel events (so a notch scrolls twice on X11)."""
-
-CLOCK_TICKS = os.sysconf("SC_CLK_TCK")
 
 URL_DELAY_S = 0.4
 """With `urls`, the URL is read this long after a release (before the
@@ -278,14 +277,6 @@ def restyle_paths(restyles: list[tuple[float, str, int]], start: float, end: flo
             paths[path] = paths.get(path, 0) + 1
             elements += count
     return {"paths": paths, "restyled_elements": elements}
-
-
-def process_cpu_s(pid: int) -> float:
-    """The CPU time (user and system, all threads) that a process used, in
-    seconds, from `/proc/PID/stat`."""
-    text = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
-    fields = text[text.rindex(")") + 2 :].split()
-    return (int(fields[11]) + int(fields[12])) / CLOCK_TICKS
 
 
 # ----- Playing a trace -----

@@ -52,14 +52,8 @@ from pathlib import Path
 from typing import Any
 
 from swbtools import automation, paths, pw_private, swb
-from swbtools.gui_latency import (
-    CLOCK_TICKS,
-    exit_on_sigterm,
-    monotonic,
-    process_cpu_s,
-    start_xvfb,
-    stop,
-)
+from swbtools.gui_latency import exit_on_sigterm, monotonic, start_xvfb, stop
+from swbtools.procfs import process_cpu_s, status_value, thread_cpu
 from swbtools.xinput import XDisplay, XError
 
 log = logging.getLogger(__name__)
@@ -687,17 +681,13 @@ def snapshot(pid: int) -> dict[str, Any]:
     status = Path(f"/proc/{pid}/status").read_text(encoding="utf-8")
     task = Path(f"/proc/{pid}/task/{pid}/status").read_text(encoding="utf-8")
 
-    def number(text: str, key: str) -> int:
-        match = re.search(rf"^{key}:\s+(\d+)", text, re.M)
-        return int(match.group(1)) if match else 0
-
     return {
         "t": monotonic(),
         "cpu": process_cpu_s(pid),
-        "rss_kib": number(status, "VmRSS"),
-        "peak_kib": number(status, "VmHWM"),
-        "switches": number(task, "voluntary_ctxt_switches"),
-        "threads": number(status, "Threads"),
+        "rss_kib": status_value(status, "VmRSS"),
+        "peak_kib": status_value(status, "VmHWM"),
+        "switches": status_value(task, "voluntary_ctxt_switches"),
+        "threads": status_value(status, "Threads"),
         "by_thread": thread_cpu(pid),
     }
 
@@ -881,22 +871,6 @@ def _play(
             "thread_cpu_pct": thread_shares(a["by_thread"], b["by_thread"], dt),
         },
     }
-
-
-def thread_cpu(pid: int) -> dict[str, float]:
-    """The CPU seconds of each thread of a process by thread name (the
-    threads of one name are summed)."""
-    totals: dict[str, float] = {}
-    for stat in Path(f"/proc/{pid}/task").glob("*/stat"):
-        try:
-            text = stat.read_text(encoding="utf-8")
-        except OSError:  # the thread ended
-            continue
-        name = text[text.index("(") + 1 : text.rindex(")")]
-        fields = text[text.rindex(")") + 2 :].split()
-        seconds = (int(fields[11]) + int(fields[12])) / CLOCK_TICKS
-        totals[name] = totals.get(name, 0.0) + seconds
-    return totals
 
 
 def thread_shares(a: dict[str, float], b: dict[str, float], dt: float) -> dict[str, float]:
@@ -1303,7 +1277,7 @@ def _run_all(
 
 
 def find_binary(explicit: Path | None) -> Path | None:
-    """The release binary of the checkout (or `explicit`)."""
+    """The binary that `swb.find_swb` picks (release, else debug), or `explicit`."""
     if explicit is not None:
         return explicit if explicit.is_file() else None
     return swb.find_swb(None)

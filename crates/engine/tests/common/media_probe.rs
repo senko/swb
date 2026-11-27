@@ -43,15 +43,28 @@ pub(crate) const FIRST_QUERY_MS: u64 = 1;
 /// The folder of a probe case on the probe's server: `case-N`, N counted
 /// from 1 in the probe file (the URLs of the answers contain it).
 pub(crate) fn folder_of(probe: &str, name: &str) -> String {
-    let text = std::fs::read_to_string(repo_root().join(probe)).unwrap();
-    let file: Value = serde_json::from_str(&text).unwrap();
-    let index = file["cases"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .position(|c| c["name"].as_str() == Some(name))
-        .unwrap();
-    format!("case-{}", index + 1)
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    // The case names of each probe file, read once.
+    static NAMES: OnceLock<Mutex<HashMap<String, Vec<String>>>> = OnceLock::new();
+    let index = {
+        let mut files = NAMES
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock()
+            .unwrap();
+        let names = files.entry(probe.to_owned()).or_insert_with(|| {
+            let text = std::fs::read_to_string(repo_root().join(probe)).unwrap();
+            let file: Value = serde_json::from_str(&text).unwrap();
+            file["cases"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|c| c["name"].as_str().unwrap().to_owned())
+                .collect::<Vec<String>>()
+        });
+        names.iter().position(|n| n == name)
+    };
+    format!("case-{}", index.unwrap() + 1)
 }
 
 /// The simulated server of a probe case.
@@ -180,6 +193,16 @@ pub(crate) fn evaluate(page: &mut Page, js: &str) -> Value {
         Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap_or(Value::String(text)),
         Some(Evaluation::Error(text)) => Value::String(format!("error: {text}")),
         None => Value::String("no runtime".to_owned()),
+    }
+}
+
+/// The value of a query for a test that expects an answer: it gives the
+/// JSON value, and panics on an error, no runtime or a timeout of 60 s
+/// (unlike [`evaluate`], which turns an error into a string).
+pub(crate) fn evaluate_strict(page: &mut Page, js: &str) -> Value {
+    match page.evaluate_with_timeout(js, JsonForm::Strict, Duration::from_secs(60)) {
+        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
+        other => panic!("{js}: {other:?}"),
     }
 }
 

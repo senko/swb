@@ -54,7 +54,7 @@ impl ByteSource for FileSource {
     }
 }
 
-/// Bytes in memory (`data:` and `blob:` URLs, tests).
+/// Bytes in memory (tests; the engine does not use it).
 pub struct MemorySource {
     data: Arc<[u8]>,
     pos: usize,

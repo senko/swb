@@ -15,14 +15,10 @@ mod common;
 use std::sync::Arc;
 use std::time::Duration;
 
-use common::media_site::MediaSite;
-use common::{new_page, node, on_page_thread};
-use serde_json::Value;
-use swb_engine::{ClockMode, Evaluation, JsonForm, Page, PageClock, Size, Url};
-use swb_net::Fetcher;
-
-const FOLDER: &str = "case-1";
-const MP4: &str = "fixtures/media/mp4-h264-high-aac.mp4";
+use common::media_probe::evaluate_strict as evaluate;
+use common::media_site::{FOLDER, MP4, MediaSite, open_page};
+use common::{node, on_page_thread};
+use swb_engine::{ClockMode, Page, Size};
 /// The bytes of one RGBA frame of the test file (320 x 240).
 const FRAME: u64 = 320 * 240 * 4;
 /// Page time in which every pipeline of a few videos loads and suspends
@@ -37,21 +33,10 @@ fn page_for(html: &str) -> (Page, Arc<MediaSite>) {
 fn page_with(html: &str, file: &str, viewport: Size) -> (Page, Arc<MediaSite>) {
     let mut site = MediaSite::new(FOLDER, html);
     site.add_file("a.mp4", file);
-    let site = Arc::new(site);
-    let mut page = new_page(Arc::clone(&site) as Arc<dyn Fetcher>, 2, viewport);
-    page.isolate_media(Duration::ZERO);
-    page.set_javascript(true);
-    page.set_clock(PageClock::new(ClockMode::Virtual, None));
-    page.navigate(Url::parse(&MediaSite::page_url(FOLDER)).unwrap());
-    assert!(page.wait_until_loaded(Duration::from_secs(30)));
-    (page, site)
-}
-
-fn evaluate(page: &mut Page, js: &str) -> Value {
-    match page.evaluate_with_timeout(js, JsonForm::Strict, Duration::from_secs(60)) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
-        other => panic!("{js}: {other:?}"),
-    }
+    open_page(site, viewport, ClockMode::Virtual, |page| {
+        page.isolate_media(Duration::ZERO);
+        page.set_javascript(true);
+    })
 }
 
 /// Runs the page for `time` of page time, then draws it (the paint syncs

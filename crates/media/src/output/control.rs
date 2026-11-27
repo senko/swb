@@ -38,7 +38,8 @@ use std::thread::Thread;
 use std::time::Duration;
 
 use super::source::Source;
-use super::{Backend, Device, DeviceState, MAX_SOURCES, Mix, MonoClock, Reading, Sink, Waker};
+use super::{Backend, Device, DeviceState, MAX_SOURCES, Mix, MonoClock, Reading, Sink};
+use crate::Notify;
 use crate::ring::SampleRing;
 
 /// The device's node latency (frames at 48 kHz; ADR 0047 section 8).
@@ -133,7 +134,7 @@ struct Ctl {
     /// that stopped before that would start again.
     keep_until: u64,
     retired: Vec<Retired>,
-    wakers: Vec<Waker>,
+    wakers: Vec<Notify>,
     connects: u64,
     failures: u64,
     requests: u64,
@@ -225,7 +226,7 @@ impl Inner {
         deadline
     }
 
-    fn tick_locked(&self, ctl: &mut Ctl, now: u64) -> (Option<u64>, Vec<Waker>) {
+    fn tick_locked(&self, ctl: &mut Ctl, now: u64) -> (Option<u64>, Vec<Notify>) {
         let device = decode(self.device_state.load(Ordering::Acquire));
         let mut changed = false;
         match ctl.state {
@@ -513,7 +514,7 @@ impl Output {
     /// 8: the next `play()` after 30 s), and the failure is 30 s ago. It
     /// returns at once; `waker` is called when the state changes to running
     /// or failed (the page then looks at its elements again).
-    pub fn request(&self, waker: Option<&Waker>, retry: bool) {
+    pub fn request(&self, waker: Option<&Notify>, retry: bool) {
         let inner = &self.inner;
         let now = inner.clock.now_ns();
         {
@@ -789,7 +790,7 @@ mod tests {
         r.settle_fades();
         assert_eq!(r.output.phase(), Phase::Parked);
         let woken = Arc::new(AtomicUsize::new(0));
-        let waker: Waker = {
+        let waker: Notify = {
             let woken = Arc::clone(&woken);
             Arc::new(move || {
                 woken.fetch_add(1, Ordering::Relaxed);
@@ -842,7 +843,7 @@ mod tests {
         let r = rig();
         r.device.auto_stream(false);
         let woken = Arc::new(AtomicUsize::new(0));
-        let waker: Waker = {
+        let waker: Notify = {
             let woken = Arc::clone(&woken);
             Arc::new(move || {
                 woken.fetch_add(1, Ordering::Relaxed);
@@ -991,7 +992,7 @@ mod tests {
             Arc::new(super::super::SystemClock),
         );
         let woken = Arc::new(AtomicUsize::new(0));
-        let waker: Waker = {
+        let waker: Notify = {
             let woken = Arc::clone(&woken);
             Arc::new(move || {
                 woken.fetch_add(1, Ordering::Relaxed);

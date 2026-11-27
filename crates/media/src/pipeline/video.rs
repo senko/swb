@@ -13,8 +13,8 @@ use super::pool::Taken;
 use super::shared::{Counters, FrameShare, QueuedFrame, Shared, State, VideoItem, VideoWait};
 use super::slots::PlaceGuard;
 use crate::MediaError;
-use crate::decode::{Output, Packet, RawVideoFrame, VideoDecoder};
-use crate::file::SeekFilter;
+use crate::decode::{Packet, RawVideoFrame, Receive, VideoDecoder};
+use crate::seek::SeekFilter;
 
 /// The duration of a frame without one and without a frame rate.
 const DEFAULT_FRAME_US: i64 = 40_000;
@@ -35,7 +35,7 @@ pub(crate) fn spawn(
         .map_or(DEFAULT_FRAME_US, |(n, d)| {
             (i64::from(d) * 1_000_000 / i64::from(n)).max(1)
         });
-    let mut worker = Worker {
+    let mut worker = VideoWorker {
         shared: Arc::clone(shared),
         run,
         decoder,
@@ -72,7 +72,7 @@ enum Next {
     Stop,
 }
 
-struct Worker {
+struct VideoWorker {
     shared: Arc<Shared>,
     run: u64,
     decoder: VideoDecoder,
@@ -95,7 +95,7 @@ struct Worker {
     drained: bool,
 }
 
-impl Worker {
+impl VideoWorker {
     fn run(&mut self) -> Result<(), MediaError> {
         loop {
             if self.drained {
@@ -110,7 +110,7 @@ impl Worker {
                 continue;
             }
             match self.decoder.receive()? {
-                Output::Ready(raw) => {
+                Receive::Ready(raw) => {
                     let (held, frame) = self.filter.offer(raw);
                     for f in [held, frame].into_iter().flatten() {
                         if !self.push(&f)? {
@@ -118,7 +118,7 @@ impl Worker {
                         }
                     }
                 }
-                Output::Ended => {
+                Receive::Ended => {
                     if let Some(held) = self.filter.finish()
                         && !self.push(&held)?
                     {
@@ -133,7 +133,7 @@ impl Worker {
                     drop(st);
                     self.shared.wake_owner(wants);
                 }
-                Output::NeedsInput => {
+                Receive::NeedsInput => {
                     if let Some(p) = self.pending.take() {
                         self.send(p)?;
                         continue;

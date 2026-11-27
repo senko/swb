@@ -10,7 +10,7 @@ mod common;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use common::driver::{HANG, Waker, open_fixture, settle_update};
+use common::driver::{HANG, TestWaker, open_fixture, open_settled, settle_update};
 use swb_media::ClockSource;
 use swb_media::output::fake::FakeDevice;
 use swb_media::output::{ManualClock, MonoClock, Output, Source, lead_frames};
@@ -45,7 +45,7 @@ fn rig() -> Rig {
 
 /// A pipeline that plays `name` from 0 on the audio clock of a source in the
 /// mixer (what the engine's `Fetch` does at the start of a playback).
-fn playing(rig: &Rig, name: &str, waker: &Arc<Waker>) -> (Pipeline, Source) {
+fn playing(rig: &Rig, name: &str, waker: &Arc<TestWaker>) -> (Pipeline, Source) {
     let mut p = open_fixture(name, waker);
     let mut reports = Vec::new();
     settle_update(&mut p, waker, 0, &mut reports);
@@ -67,7 +67,7 @@ fn us(frames: i64) -> i64 {
 
 #[test]
 fn the_media_time_follows_the_frames_that_the_mixer_took() {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let r = rig();
     let (mut p, source) = playing(&r, "mp3-long.mp3", &waker);
     let start = p.position();
@@ -89,7 +89,7 @@ fn the_media_time_follows_the_frames_that_the_mixer_took() {
 
 #[test]
 fn a_busy_page_thread_does_not_starve_the_ring() {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let r = rig();
     let (p, source) = playing(&r, "mp3-long.mp3", &waker);
     let before = p.stats().demux_wakeups;
@@ -127,7 +127,7 @@ fn a_busy_page_thread_does_not_starve_the_ring() {
 
 #[test]
 fn an_empty_ring_is_an_underrun_and_the_clock_goes_on_from_where_it_stopped() {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let r = rig();
     let (mut p, source) = playing(&r, "mp3-long.mp3", &waker);
     // The device takes frames much faster than real time, so faster than the
@@ -201,10 +201,7 @@ fn the_audio_has_not_finished_after_a_seek_to_the_start() {
         "mp3.mp3",
         "aac-adts.aac",
     ] {
-        let waker = Arc::new(Waker::default());
-        let mut p = open_fixture(name, &waker);
-        let mut reports = Vec::new();
-        settle_update(&mut p, &waker, 0, &mut reports);
+        let (mut p, waker, mut reports) = open_settled(name);
         // Play to the end in virtual time (the silent output consumes the ring).
         let played = common::driver::play_virtual(&mut p, &waker, 0, i64::MAX);
         assert!(played.ended.is_some(), "{name}");
@@ -239,10 +236,7 @@ fn a_looping_file_decodes_as_many_samples_in_the_second_round() {
         "flac.flac",
         "m4a-aac.m4a",
     ] {
-        let waker = Arc::new(Waker::default());
-        let mut p = open_fixture(name, &waker);
-        let mut reports = Vec::new();
-        settle_update(&mut p, &waker, 0, &mut reports);
+        let (mut p, waker, mut reports) = open_settled(name);
         let first = common::driver::play_virtual(&mut p, &waker, 0, i64::MAX);
         assert!(first.ended.is_some(), "{name}");
         let round1 = p.take_captured_audio().len();
@@ -264,7 +258,7 @@ fn a_looping_file_decodes_as_many_samples_in_the_second_round() {
 #[test]
 fn a_seek_to_100_ms_in_an_mp3_lands_at_100_ms() {
     for name in ["mp3-long.mp3", "mp3.mp3", "aac-adts.aac"] {
-        let waker = Arc::new(Waker::default());
+        let waker = Arc::new(TestWaker::default());
         let mut whole = open_fixture(name, &waker);
         let mut reports = Vec::new();
         settle_update(&mut whole, &waker, 0, &mut reports);
@@ -304,7 +298,7 @@ fn a_seek_to_100_ms_in_an_mp3_lands_at_100_ms() {
 
 #[test]
 fn the_end_of_the_audio_track_is_seen_when_the_ring_is_empty() {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let r = rig();
     let (p, source) = playing(&r, "wav-pcm-s16.wav", &waker);
     assert!(!p.audio_finished());

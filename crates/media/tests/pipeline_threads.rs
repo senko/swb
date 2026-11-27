@@ -11,7 +11,10 @@ use std::io;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 
-use common::driver::{HANG, Waker, open_fixture, options, play_virtual, settle, settle_update};
+use common::driver::{
+    HANG, TestWaker, open_fixture, open_settled, options, play_virtual, settle, settle_update,
+    settle_within, wait_until,
+};
 use common::fixture_bytes;
 use swb_media::pipeline::{
     AudioOutput, Pipeline, PipelineSlots, PipelineStats, Report, SourceOpener,
@@ -140,38 +143,12 @@ fn error_code(reports: &[Report]) -> Option<u16> {
     })
 }
 
-/// Waits until `cond` holds, at most `HANG`.
-fn wait_until(what: &str, mut cond: impl FnMut() -> bool) {
-    let started = Instant::now();
-    while !cond() {
-        assert!(started.elapsed() < HANG, "timed out: {what}");
-        std::thread::sleep(Duration::from_millis(5));
-    }
-}
-
-/// Waits until the pipeline has no pending work, at most `limit`; false
-/// when it still has.
-fn settle_within(p: &Pipeline, waker: &Waker, limit: Duration) -> bool {
-    let started = Instant::now();
-    loop {
-        let seen = waker.count();
-        if !p.has_pending_work() {
-            return true;
-        }
-        let left = limit.saturating_sub(started.elapsed());
-        if left.is_zero() {
-            return false;
-        }
-        waker.wait_past(seen, left);
-    }
-}
-
 #[test]
 fn a_stalled_source_underruns_and_resumes() {
     let name = "mp4-h264-high-aac.mp4";
     let size = fixture_bytes(name).len() as u64;
     let gate = Arc::new(Gate::default());
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut p = Pipeline::open(stalling(name, size * 6 / 10, &gate), options(&waker));
     let mut reports = Vec::new();
     settle_update(&mut p, &waker, 0, &mut reports);
@@ -233,7 +210,7 @@ fn closing_ends_threads_that_block_in_the_source() {
         ("ogg-vorbis.ogg", 5_000),
     ] {
         let gate = Arc::new(Gate::default());
-        let waker = Arc::new(Waker::default());
+        let waker = Arc::new(TestWaker::default());
         let slots = PipelineSlots::new(4);
         let mut o = options(&waker);
         o.slots = slots.clone();
@@ -257,7 +234,7 @@ fn closing_ends_threads_that_block_in_the_source() {
 fn a_thousand_pipelines_open_through_sixteen_places() {
     let data: Arc<[u8]> = fixture_bytes("wav-pcm-s16.wav").into();
     let slots = PipelineSlots::new(16);
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut pipelines: Vec<Pipeline> = (0..1000)
         .map(|_| {
             let mut o = options(&waker);
@@ -308,7 +285,7 @@ fn a_thousand_pipelines_open_through_sixteen_places() {
 fn a_suspended_pipeline_keeps_its_frame_and_position_and_reopens() {
     let name = "mp4-h264-high-aac.mp4";
     let slots = PipelineSlots::new(2);
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let open = || {
         let mut o = options(&waker);
         o.slots = slots.clone();
@@ -374,11 +351,8 @@ fn quiet(p: &Pipeline) -> PipelineStats {
 
 #[test]
 fn paused_and_ended_pipelines_do_no_thread_work() {
-    let waker = Arc::new(Waker::default());
     // Paused after the load.
-    let mut p = open_fixture("mp4-h264-aac-long.mp4", &waker);
-    let mut reports = Vec::new();
-    settle_update(&mut p, &waker, 0, &mut reports);
+    let (mut p, waker, _) = open_settled("mp4-h264-aac-long.mp4");
     let before = quiet(&p);
     let notified = waker.count();
     std::thread::sleep(Duration::from_millis(500));
@@ -408,10 +382,7 @@ fn a_seek_drops_the_frame_that_waits_for_room_unconverted() {
     // 240) and the video thread holds the next decoded frame, waiting for
     // room. A seek makes room; that frame is of the old epoch and must not
     // be converted.
-    let waker = Arc::new(Waker::default());
-    let mut p = open_fixture("mp4-h264-aac-long.mp4", &waker);
-    let mut reports = Vec::new();
-    settle_update(&mut p, &waker, 0, &mut reports);
+    let (mut p, waker, mut reports) = open_settled("mp4-h264-aac-long.mp4");
     let before = quiet(&p);
     // The current frame and the queue.
     assert_eq!(before.frames_converted, 7);
@@ -433,7 +404,7 @@ fn a_source_that_stalls_forever_fails_after_the_limit() {
     // Virtual time: the clock does not move while work is pending, and no
     // thread wakes the owner; the watchdog does.
     let gate = Arc::new(Gate::default());
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let slots = PipelineSlots::new(4);
     let mut o = options(&waker);
     o.slots = slots.clone();
@@ -485,7 +456,7 @@ fn stuck_threads_are_detached_and_bounded() {
     // the open after their pipelines failed.
     let name = "mp4-h264-high-aac.mp4";
     let gate = Arc::new(Gate::default());
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let slots = PipelineSlots::new(16);
     let open = || {
         let mut o = options(&waker);
@@ -532,7 +503,7 @@ fn stuck_threads_are_detached_and_bounded() {
 
 #[test]
 fn an_external_consumer_reads_the_ring() {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut o = options(&waker);
     o.output = AudioOutput::External;
     // Audio alone: no video thread wakes the demux thread.
@@ -568,7 +539,7 @@ fn an_external_consumer_that_reads_before_the_owner_looks() {
     // The consumer reads between the owner's `update` and its
     // `has_pending_work`: the demux thread waits for room that is there,
     // and only the owner can wake it.
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut o = options(&waker);
     o.output = AudioOutput::External;
     // The watchdog would wake the thread too, and hide a missing wake-up.
@@ -607,7 +578,7 @@ fn a_pipeline_stalled_on_its_owner_survives_a_busy_owner() {
     // file): waiting for the owner is not a stall.
     let name = "mp4-h264-aac-late-audio.mp4";
     let gate = Arc::new(Gate::default());
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut o = options(&waker);
     o.packet_bytes = 4096;
     o.stall_limit = Duration::from_millis(200);
@@ -632,7 +603,7 @@ fn the_limit_counts_from_when_the_owner_needs_data() {
     let size = fixture_bytes(name).len() as u64;
     let limit = Duration::from_millis(200);
     let gate = Arc::new(Gate::default());
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut o = options(&waker);
     o.video = false;
     o.stall_limit = limit;
@@ -661,7 +632,7 @@ fn a_seek_after_the_end_is_pending_until_its_frame_comes() {
     // not end it without the frame. (Under load the threads may finish the
     // seek before this thread asks; then there is no pending work, and the
     // frame is there.)
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut p = open_fixture("mp4-h264-high-aac.mp4", &waker);
     let played = play_virtual(&mut p, &waker, 0, i64::MAX);
     assert_eq!(played.ended, Some(2_000_000));
@@ -686,7 +657,7 @@ fn a_seek_after_the_end_is_pending_until_its_frame_comes() {
 #[test]
 fn a_dropped_pipeline_gives_its_place_back() {
     let slots = PipelineSlots::new(1);
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut o = options(&waker);
     o.slots = slots.clone();
     let p = open_fixture_with("mp4-h264-high-aac.mp4", o.clone());
@@ -731,8 +702,8 @@ fn a_run_that_fails_hands_its_place_on_through_a_transit() {
     // ends and the place stays in transit while the thread ends.
     let slots = PipelineSlots::new(1);
     slots.set_handover_delay(HANDOVER_DELAY);
-    let waker_a = Arc::new(Waker::default());
-    let waker_b = Arc::new(Waker::default());
+    let waker_a = Arc::new(TestWaker::default());
+    let waker_b = Arc::new(TestWaker::default());
     let mut oa = options(&waker_a);
     oa.slots = slots.clone();
     let mut a = open_fixture_with("garbage.mp4", oa);
@@ -751,8 +722,8 @@ fn a_run_that_fails_hands_its_place_on_through_a_transit() {
 fn a_run_that_the_owner_suspends_hands_its_place_on_through_a_transit() {
     let slots = PipelineSlots::new(1);
     slots.set_handover_delay(HANDOVER_DELAY);
-    let waker_a = Arc::new(Waker::default());
-    let waker_b = Arc::new(Waker::default());
+    let waker_a = Arc::new(TestWaker::default());
+    let waker_b = Arc::new(TestWaker::default());
     let mut oa = options(&waker_a);
     oa.slots = slots.clone();
     let mut a = open_fixture_with("mp4-h264-high-aac.mp4", oa);
@@ -775,14 +746,14 @@ fn a_run_that_the_watchdog_detaches_wakes_every_waiter() {
     let slots = PipelineSlots::new(1);
     slots.set_handover_delay(HANDOVER_DELAY);
     let gate = Arc::new(Gate::default());
-    let waker_a = Arc::new(Waker::default());
-    let waker_b = Arc::new(Waker::default());
-    let waker_c = Arc::new(Waker::default());
+    let waker_a = Arc::new(TestWaker::default());
+    let waker_b = Arc::new(TestWaker::default());
+    let waker_c = Arc::new(TestWaker::default());
     let mut oa = options(&waker_a);
     oa.slots = slots.clone();
     oa.stall_limit = Duration::from_millis(200);
     let a = Pipeline::open(stalling(name, 0, &gate), oa);
-    let open_waiter = |waker: &Arc<Waker>| {
+    let open_waiter = |waker: &Arc<TestWaker>| {
         let mut o = options(waker);
         o.slots = slots.clone();
         open_fixture_with(name, o)

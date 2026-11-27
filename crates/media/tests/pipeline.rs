@@ -10,7 +10,9 @@ mod common;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use common::driver::{HANG, Played, Waker, open_fixture, play_virtual, settle, settle_update};
+use common::driver::{
+    HANG, Played, TestWaker, open_fixture, open_settled, play_virtual, settle, settle_update,
+};
 use common::{fixture_bytes, open};
 use swb_media::pipeline::{Pipeline, PlaybackQuality, Report, SourceOpener};
 use swb_media::{Decoded, timeline};
@@ -88,7 +90,7 @@ const PLAYABLE: &[&str] = &[
 fn every_format_plays_in_virtual_time_like_the_in_order_decode() {
     let mut failures = Vec::new();
     for name in PLAYABLE {
-        let waker = Arc::new(Waker::default());
+        let waker = Arc::new(TestWaker::default());
         let mut p = open_fixture(name, &waker);
         let played = play_virtual(&mut p, &waker, 0, i64::MAX);
         let reference = reference(name);
@@ -154,7 +156,7 @@ fn every_format_plays_in_virtual_time_like_the_in_order_decode() {
 }
 
 /// Seeks `p` (paused) to `target` and waits for the end of the seek.
-fn seek(p: &mut Pipeline, waker: &Waker, target: i64) -> Vec<Report> {
+fn seek(p: &mut Pipeline, waker: &TestWaker, target: i64) -> Vec<Report> {
     p.seek(target);
     assert_eq!(p.position(), target, "the position is the target at once");
     let mut reports = Vec::new();
@@ -191,10 +193,7 @@ fn best_diff(got: &[f32], reference: &[f32], offset: usize, max_shift: usize) ->
 fn seeks_show_the_frame_at_the_target() {
     let name = "mp4-h264-high-aac.mp4";
     let reference = reference(name);
-    let waker = Arc::new(Waker::default());
-    let mut p = open_fixture(name, &waker);
-    let mut reports = Vec::new();
-    settle_update(&mut p, &waker, 0, &mut reports);
+    let (mut p, waker, _) = open_settled(name);
     // Inside a frame: the frame at 1.0 s shows at 1.01 s.
     let r = seek(&mut p, &waker, 1_010_000);
     assert_eq!(
@@ -265,7 +264,7 @@ fn seeks_show_the_frame_at_the_target() {
 
 #[test]
 fn a_seek_before_the_metadata_runs_after_it() {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut p = open_fixture("webm-vp8-vorbis.webm", &waker);
     p.seek(1_000_000);
     let mut reports = Vec::new();
@@ -288,10 +287,7 @@ fn a_seek_before_the_metadata_runs_after_it() {
 
 #[test]
 fn seeks_in_a_file_with_a_start_time() {
-    let waker = Arc::new(Waker::default());
-    let mut p = open_fixture("webm-vp8-vorbis-start1500.webm", &waker);
-    let mut reports = Vec::new();
-    settle_update(&mut p, &waker, 0, &mut reports);
+    let (mut p, waker, _) = open_settled("webm-vp8-vorbis-start1500.webm");
     // The first frame (1.5 s) shows at the start (1.497 s).
     assert_eq!(p.position(), 1_497_000);
     assert_eq!(p.current_frame().map(|f| f.pts_us), Some(1_500_000));
@@ -317,7 +313,7 @@ fn seeks_in_a_file_with_a_start_time() {
 #[test]
 fn a_stream_that_cannot_seek_plays_again_from_the_start() {
     let name = "mp4-h264-high-aac.mp4";
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut p = Pipeline::open(
         SourceOpener::memory(fixture_bytes(name), false),
         common::driver::options(&waker),
@@ -338,7 +334,7 @@ fn a_stream_that_cannot_seek_plays_again_from_the_start() {
 /// Plays `name` to 0.6 s, seeks to 1.3 s while playing, plays to the end;
 /// returns what both parts showed (without the `Buffered` reports).
 fn scenario(name: &str) -> Vec<Played> {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut p = open_fixture(name, &waker);
     let mut first = play_virtual(&mut p, &waker, 0, 600_000);
     p.seek(1_300_000);
@@ -420,7 +416,7 @@ fn hostile_files_play_to_where_they_can_or_fail() {
         ("mka-pcm-17-streams.mka", None),
     ];
     for (name, code) in cases {
-        let waker = Arc::new(Waker::default());
+        let waker = Arc::new(TestWaker::default());
         let mut p = open_fixture(name, &waker);
         let played = play_virtual(&mut p, &waker, 0, i64::MAX);
         let error = played.reports.iter().find_map(|r| match r {
@@ -465,7 +461,7 @@ fn a_decode_failure_has_the_same_place_on_every_run() {
     for name in names {
         let mut seen = Vec::new();
         for _ in 0..12 {
-            let waker = Arc::new(Waker::default());
+            let waker = Arc::new(TestWaker::default());
             let mut p = open_fixture(name, &waker);
             let played = play_virtual(&mut p, &waker, 0, i64::MAX);
             assert!(p.is_failed(), "{name}: {:?}", played.reports);
@@ -492,7 +488,7 @@ fn a_decode_failure_has_the_same_place_on_every_run() {
 
 #[test]
 fn a_video_that_is_not_painted_decodes_without_converting() {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     // Not painted from the open: the threads convert no frame before the
     // test could say so.
     let mut o = common::driver::options(&waker);
@@ -524,7 +520,7 @@ fn a_video_that_is_not_painted_decodes_without_converting() {
 /// both cases.
 #[test]
 fn a_video_that_is_not_painted_wakes_its_owner_in_batches() {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut o = common::driver::options(&waker);
     o.painted = false;
     let mut p = Pipeline::open(
@@ -559,7 +555,7 @@ fn a_video_that_is_not_painted_wakes_its_owner_in_batches() {
 /// and no `SeekDone` comes.
 #[test]
 fn a_paused_video_that_becomes_painted_gets_the_pixels_of_its_frame() {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut o = common::driver::options(&waker);
     o.painted = false;
     let mut p = Pipeline::open(
@@ -596,7 +592,7 @@ fn a_paused_video_that_becomes_painted_gets_the_pixels_of_its_frame() {
 
 #[test]
 fn an_ended_video_that_becomes_painted_stays_ended() {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut o = common::driver::options(&waker);
     o.painted = false;
     let mut p = Pipeline::open(
@@ -620,7 +616,7 @@ fn an_ended_video_that_becomes_painted_stays_ended() {
 
 #[test]
 fn playback_reuses_the_pixmaps() {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut p = open_fixture("mp4-h264-aac-long.mp4", &waker);
     let played = play_virtual(&mut p, &waker, 0, i64::MAX);
     assert_eq!(played.ended, Some(10_000_000));
@@ -641,7 +637,7 @@ const LATE_AUDIO: &str = "mp4-h264-aac-late-audio.mp4";
 const LATE_AUDIO_END: i64 = 4_999_229;
 
 /// Opens `name` with a video packet bound of `packet_bytes`.
-fn open_bounded(name: &str, waker: &Arc<Waker>, packet_bytes: usize) -> Pipeline {
+fn open_bounded(name: &str, waker: &Arc<TestWaker>, packet_bytes: usize) -> Pipeline {
     let mut o = common::driver::options(waker);
     o.packet_bytes = packet_bytes;
     Pipeline::open(SourceOpener::file(common::fixture(name)), o)
@@ -650,7 +646,7 @@ fn open_bounded(name: &str, waker: &Arc<Waker>, packet_bytes: usize) -> Pipeline
 /// What a playback in virtual time shows, without the `Buffered` reports,
 /// with the quality and the samples consumed.
 fn play_bounded(name: &str, packet_bytes: usize) -> (Played, PlaybackQuality, Vec<f32>) {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut p = open_bounded(name, &waker, packet_bytes);
     let mut played = play_virtual(&mut p, &waker, 0, i64::MAX);
     played.reports = without_buffered(std::mem::take(&mut played.reports));
@@ -725,7 +721,7 @@ fn tracks_far_apart_in_the_file_play_in_virtual_time() {
 #[test]
 fn tracks_far_apart_in_the_file_play_in_real_time() {
     for packet_bytes in [4096, 16 << 20] {
-        let waker = Arc::new(Waker::default());
+        let waker = Arc::new(TestWaker::default());
         let mut p = open_bounded(LATE_AUDIO, &waker, packet_bytes);
         let mut reports = Vec::new();
         settle_update(&mut p, &waker, 0, &mut reports);
@@ -764,10 +760,7 @@ fn tracks_far_apart_in_the_file_play_in_real_time() {
 /// while the queue fills).
 #[test]
 fn a_playing_pipeline_with_a_queued_frame_is_not_notified_at_each_frame() {
-    let waker = Arc::new(Waker::default());
-    let mut p = open_fixture("mp4-h264-aac-long.mp4", &waker);
-    let mut reports = Vec::new();
-    settle_update(&mut p, &waker, 0, &mut reports);
+    let (mut p, waker, _) = open_settled("mp4-h264-aac-long.mp4");
     p.play(0);
     let started = Instant::now();
     let micros = || i64::try_from(started.elapsed().as_micros()).expect("fits");
@@ -803,7 +796,7 @@ fn a_playing_pipeline_with_a_queued_frame_is_not_notified_at_each_frame() {
 /// fixes: without it no seek ended).
 #[test]
 fn a_seek_while_playing_ends_for_an_owner_that_waits_for_the_notify() {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut p = open_late_audio_stalling(&waker);
     let mut reports = Vec::new();
     settle_update(&mut p, &waker, 0, &mut reports);
@@ -840,7 +833,7 @@ fn a_seek_while_playing_ends_for_an_owner_that_waits_for_the_notify() {
 /// on the owner: no audio before 3 s in the file) and a no-progress limit
 /// that never comes in a test (the watchdog would wake a thread that missed
 /// a wake-up, and hide the miss).
-fn open_late_audio_stalling(waker: &Arc<Waker>) -> Pipeline {
+fn open_late_audio_stalling(waker: &Arc<TestWaker>) -> Pipeline {
     let mut o = common::driver::options(waker);
     o.packet_bytes = 4096;
     o.stall_limit = Duration::from_secs(3600);
@@ -865,7 +858,7 @@ fn taking_the_first_frame_wakes_the_video_thread() {
     // The owner takes the first frame only after the frame queue (6 frames
     // of 320 x 240) is full and the video thread waits for room with the
     // 7th.
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut p = open_late_audio_stalling(&waker);
     wait_decoded(&p, 7);
     p.play(0);
@@ -880,7 +873,7 @@ fn taking_the_first_frame_wakes_the_video_thread() {
 
 #[test]
 fn ending_a_seek_wakes_the_video_thread() {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut p = open_late_audio_stalling(&waker);
     let mut reports = Vec::new();
     settle_update(&mut p, &waker, 0, &mut reports);
@@ -928,7 +921,7 @@ fn a_video_only_file_plays_past_its_packet_bound() {
 fn many_seeks_while_the_video_thread_works_show_the_last_one() {
     let name = "mp4-h264-aac-long.mp4";
     let reference = reference(name);
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut p = open_fixture(name, &waker);
     let played = play_virtual(&mut p, &waker, 0, 1_000_000);
     p.pause(played.now);
@@ -983,7 +976,7 @@ fn many_seeks_while_the_video_thread_works_show_the_last_one() {
 /// stood still for the length of the file (M14 feature 7b).
 #[test]
 fn a_seek_while_playing_does_not_drop_the_frames_after_the_target_as_late() {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut p = open_fixture("mp4-h264-high-aac.mp4", &waker);
     let played = play_virtual(&mut p, &waker, 0, 1_800_000);
     assert!(p.is_playing());
@@ -1020,10 +1013,7 @@ fn a_seek_while_playing_does_not_drop_the_frames_after_the_target_as_late() {
 /// time, yes from it until an update takes it.
 #[test]
 fn frame_due_tells_when_an_update_shows_a_new_frame() {
-    let waker = Arc::new(Waker::default());
-    let mut p = open_fixture("mp4-h264-high-aac.mp4", &waker);
-    let mut reports = Vec::new();
-    settle_update(&mut p, &waker, 0, &mut reports);
+    let (mut p, waker, mut reports) = open_settled("mp4-h264-high-aac.mp4");
     assert!(!p.frame_due(500_000), "paused");
     p.play(0);
     settle_update(&mut p, &waker, 0, &mut reports);
@@ -1045,10 +1035,7 @@ fn frame_due_tells_when_an_update_shows_a_new_frame() {
 
 #[test]
 fn reports_come_in_order() {
-    let waker = Arc::new(Waker::default());
-    let mut p = open_fixture("mp4-h264-high-aac.mp4", &waker);
-    let mut reports = Vec::new();
-    settle_update(&mut p, &waker, 0, &mut reports);
+    let (p, _, reports) = open_settled("mp4-h264-high-aac.mp4");
     assert!(
         matches!(reports.first(), Some(Report::Metadata(_))),
         "{reports:?}"
@@ -1068,7 +1055,7 @@ fn reports_come_in_order() {
 #[test]
 fn enough_data_comes_when_the_threads_have_settled() {
     for name in PLAYABLE {
-        let waker = Arc::new(Waker::default());
+        let waker = Arc::new(TestWaker::default());
         let mut p = open_fixture(name, &waker);
         assert!(!p.has_enough_data(), "{name}: before anything is decoded");
         let started = Instant::now();
@@ -1100,7 +1087,7 @@ fn enough_data_comes_when_the_threads_have_settled() {
 /// work": `has_unread_reports` is true.
 #[test]
 fn a_report_that_waits_for_the_update_is_visible() {
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let p = open_fixture("mp4-h264-high-aac.mp4", &waker);
     let started = Instant::now();
     // The open ends: a thread event waits for `update`.

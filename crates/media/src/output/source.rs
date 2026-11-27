@@ -49,6 +49,7 @@ fn audible_us(reading: &Reading, now_ns: u64) -> i64 {
     }
     // Never more than the frames that the mixer took.
     let audible = taken.saturating_sub(delay).saturating_add(ahead).min(taken);
+    // Truncating, signed (not `ring::frames_to_us`: that one is unsigned).
     audible.saturating_mul(1_000_000) / i64::from(OUTPUT_RATE)
 }
 

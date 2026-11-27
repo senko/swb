@@ -1,7 +1,11 @@
 //! The media pipeline (ADR 0047 sections 6 and 7): per open media resource
 //! a demux thread and a video thread, bounded queues, the media clock,
 //! audio and video synchronization, seeking, the silent output, virtual
-//! time, and the bound on open pipelines.
+//! time, the bound on open pipelines, the budget of decoded frames
+//! (`slots.rs`) and the pool of pixmaps (`pool.rs`).
+//!
+//! `due.rs` (due times and pending work) and `update.rs` (the update step)
+//! hold parts of `impl Pipeline`.
 //!
 //! The element (in the engine) owns a [`Pipeline`] and drives it from the
 //! page thread: it passes the time of its clock to [`Pipeline::update`],
@@ -36,21 +40,23 @@
 //! ([`Timeline`]), clock times on the owner's clock.
 
 mod demux;
+mod due;
 mod opener;
 mod pool;
 mod shared;
 mod slots;
+mod update;
 mod video;
 mod watchdog;
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use tiny_skia::Pixmap;
 
+pub use crate::Notify;
 pub use opener::SourceOpener;
-pub use shared::Notify;
 pub use slots::{FRAME_BUDGET_BYTES, MAX_DETACHED_THREADS, MAX_OPEN_PIPELINES, PipelineSlots};
 
 use self::shared::{MAX_PACKET_BYTES, STALL_LIMIT, SeekCmd, Settings, Shared, State, ThreadEvent};
@@ -212,7 +218,8 @@ pub struct CurrentFrame {
     pub generation: u64,
 }
 
-/// `getVideoPlaybackQuality()`.
+/// The counters of the shown and the dropped frames (the numbers that
+/// `getVideoPlaybackQuality()` would give; no IDL member reads them yet).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct PlaybackQuality {
     /// Frames that were shown or dropped.
@@ -447,11 +454,6 @@ impl Pipeline {
         self.ended
     }
 
-    /// Whether a seek runs.
-    pub fn is_seeking(&self) -> bool {
-        self.seeking.is_some()
-    }
-
     /// Whether the pipeline ran out of data while playing.
     pub fn is_underrun(&self) -> bool {
         self.underrun
@@ -653,8 +655,8 @@ impl Pipeline {
         self.shared.lock().buffered.clone()
     }
 
-    /// `getVideoPlaybackQuality()`: frames shown and dropped, also those
-    /// that the video thread dropped because they were late.
+    /// The counters of the frames shown and dropped, also those that the
+    /// video thread dropped because they were late.
     pub fn quality(&self) -> PlaybackQuality {
         let late = self.shared.counters.late_frames.load(Ordering::Relaxed);
         PlaybackQuality {
@@ -714,11 +716,6 @@ impl Pipeline {
         self.shared.lock().external = output == AudioOutput::External;
         // A demux thread that waits for room without a timeout looks again.
         self.shared.demux_cv.notify_all();
-    }
-
-    /// The source of the clock time that the owner passes.
-    pub fn clock_source(&self) -> ClockSource {
-        self.clock.source()
     }
 
     /// Whether the media clock runs (playing, with its data, no seek, no
@@ -932,639 +929,6 @@ impl Pipeline {
         self.playing = false;
         self.end_run();
         self.phase = Phase::Closed;
-    }
-
-    /// The end of the media: the duration. Data that ends before it (Opus:
-    /// FFmpeg's duration counts the padding; a file that was cut: the
-    /// truncated WebM and MP3 of the probe `media-states`, M14 feature 6b)
-    /// plays on to the duration, as Chromium's `currentTime` is the
-    /// duration at `ended` (silence, and the last frame, where the data
-    /// ends). Only a duration that the file does not tell makes the end of
-    /// the data the end (never before the position).
-    fn end_time(&self, st: &State) -> i64 {
-        let duration = self
-            .metadata
-            .as_ref()
-            .and_then(|m| m.timeline.duration_us)
-            .unwrap_or(i64::MAX);
-        if duration != i64::MAX || !drained(st) {
-            return duration;
-        }
-        let audio = if st.audio_on && st.demux_epoch == st.epoch {
-            st.audio_end_us
-        } else {
-            None
-        };
-        let video = if st.video_on { st.video_end_us } else { None };
-        audio.max(video).unwrap_or(self.position).max(self.position)
-    }
-
-    /// The media time up to which the decoded data reaches (the audio when
-    /// it plays and is not in a gap, else the video).
-    fn covered(&self, st: &State) -> i64 {
-        if st.audio_on && !self.audio_gap {
-            if st.audio_drained == Some(st.epoch) {
-                return i64::MAX;
-            }
-            if st.demux_epoch != st.epoch {
-                return self.position;
-            }
-            return st.audio_end_us.unwrap_or(self.position);
-        }
-        if st.video_on
-            && st.video_drained != Some(st.epoch)
-            && !st.frames.iter().any(|f| f.epoch == st.epoch)
-        {
-            return self
-                .current
-                .as_ref()
-                .map_or(self.position, |c| c.pts_us.saturating_add(c.duration_us));
-        }
-        i64::MAX
-    }
-
-    /// Whether the mixer has taken every decoded sample and the audio has
-    /// not ended: with the audio clock ([`ClockSource::Audio`]) the clock
-    /// stands still then (the mixer plays silence for the element and counts
-    /// no frame), so the clock never passes the end of the decoded data, and
-    /// this is how an underrun shows. With the page clock the media time
-    /// passes the decoded data, which `covered` compares.
-    fn audio_starved(&self, st: &State) -> bool {
-        self.clock.source() == ClockSource::Audio
-            && st.audio_on
-            && !self.audio_gap
-            && st.demux_epoch == st.epoch
-            && st.audio_drained != Some(st.epoch)
-            && st.ring.as_ref().is_some_and(|r| r.available() == 0)
-    }
-
-    /// Whether the data at the position is there for the first time.
-    fn first_data_ready(&self, st: &State) -> bool {
-        if st.video_on {
-            return self.current.is_some()
-                || st.frames.iter().any(|f| f.epoch == st.epoch)
-                || st.video_drained == Some(st.epoch);
-        }
-        st.audio_drained == Some(st.epoch)
-            || (st.demux_epoch == st.epoch && st.audio_end_us.is_some())
-    }
-
-    /// The next due media time while the clock runs: the next frame, the
-    /// next `timeupdate` point, the end.
-    fn next_due_media(&self, st: &State) -> Option<i64> {
-        self.due_media(st, true)
-    }
-
-    /// [`Pipeline::next_due_media`]; with `exact_frames` false and the
-    /// video not painted, the frame term is the frame in the middle of the
-    /// queue, not the first: nobody sees the frames, so the owner takes
-    /// them in batches (see [`Pipeline::next_wake`]).
-    fn due_media(&self, st: &State, exact_frames: bool) -> Option<i64> {
-        if !self.clock.is_running() {
-            return None;
-        }
-        let mut frames = st.frames.iter().filter(|f| f.epoch == st.epoch);
-        let frame = if exact_frames || st.painted {
-            frames.next()
-        } else {
-            let queued = frames.clone().count();
-            frames.nth(queued / 2)
-        };
-        [
-            frame.map(|f| f.pts_us),
-            self.next_timeupdate,
-            Some(self.end_time(st)),
-        ]
-        .into_iter()
-        .flatten()
-        .min()
-    }
-
-    /// The clock time of the next due item (a frame, a `timeupdate` point,
-    /// the end), while playing; `None` when nothing is due (paused, ended,
-    /// seeking, in an underrun, suspended).
-    pub fn next_due(&self) -> Option<i64> {
-        let mut st = self.shared.lock();
-        self.arm_frame_notify(&mut st);
-        let t = self.next_due_media(&st)?;
-        self.clock.clock_time(t)
-    }
-
-    /// The clock time at which a real-time owner needs to call
-    /// [`Pipeline::update`] next. It is [`Pipeline::next_due`], except that
-    /// a video that is not painted has no frame times: nobody sees its
-    /// frames, so the owner takes the queue in batches, at the frame in the
-    /// middle of it (a wake-up every 3 frames of the 6 queued, not every
-    /// frame; the video thread refills the queue with the room that the
-    /// update makes). The frames passed over are counted as shown, not as
-    /// dropped ([`Pipeline::quality`]). A virtual-time owner uses
-    /// `next_due`: its jumps and its results do not depend on the paint.
-    pub fn next_wake(&self) -> Option<i64> {
-        let mut st = self.shared.lock();
-        self.arm_frame_notify(&mut st);
-        let t = self.due_media(&st, false)?;
-        self.clock.clock_time(t)
-    }
-
-    /// Whether [`Pipeline::update`] at clock time `now` would show a frame
-    /// that has pixels and is not the one shown (M14 feature 7b: the owner's
-    /// frame decision, which runs at each batch of the GUI). It converts and
-    /// takes nothing; it holds the lock for a walk over at most the frame
-    /// queue (6 frames), and none while the clock does not run (paused,
-    /// ended, seeking, in an underrun, suspended, failed) or while the
-    /// queue holds no frame that is due. A due frame that has no pixels (it
-    /// was decoded while the video was not painted) changes nothing that
-    /// paint shows, so it does not count: the video thread converts the
-    /// frames that come after [`Pipeline::set_painted`].
-    pub fn frame_due(&self, now: i64) -> bool {
-        if !self.playing
-            || self.phase != Phase::Running
-            || self.seeking.is_some()
-            || self.underrun
-            || !self.clock.is_running()
-        {
-            return false;
-        }
-        let media = self.clock.media_time(now);
-        let st = self.shared.lock();
-        let mut shown = false;
-        for frame in st.frames.iter() {
-            if frame.epoch != st.epoch {
-                continue;
-            }
-            if frame.pts_us > media {
-                break;
-            }
-            shown = frame.image.is_some();
-        }
-        shown
-    }
-
-    /// While playing without a queued frame, the next due time changes when
-    /// the video thread queues one: it then notifies the owner.
-    fn arm_frame_notify(&self, st: &mut State) {
-        if self.playing
-            && st.video_on
-            && st.video_drained != Some(st.epoch)
-            && !st.frames.iter().any(|f| f.epoch == st.epoch)
-        {
-            st.wants_notify = true;
-        }
-    }
-
-    /// Whether the pipeline has not yet decoded what it needs next: the
-    /// metadata and the first data while it opens, the data at the target
-    /// of a seek, or, while playing, the data for the next due time. A
-    /// pipeline that waits for a place, is paused, ended, suspended or
-    /// failed has none, nor has one that is stalled on its owner (its
-    /// threads wait for room that only the owner's progress frees). When it
-    /// returns true, the pipeline calls the owner's notify once it has made
-    /// progress, is stalled, or failed (also by the no-progress limit).
-    pub fn has_pending_work(&self) -> bool {
-        let mut st = self.shared.lock();
-        self.wake_for_external_room(&st);
-        let pending = self.pending(&st);
-        if pending {
-            st.wants_notify = true;
-        }
-        let watch = self.note_needs(&mut st, pending);
-        drop(st);
-        if let Some(due) = watch {
-            watchdog::watch(&self.shared, due);
-        }
-        pending
-    }
-
-    /// Whether a thread reported something that [`Pipeline::update`] has not
-    /// handled (the open, a failure): while it is true,
-    /// [`Pipeline::has_pending_work`] is false until the owner updates. An
-    /// owner that decides to wait for the pipeline asks this too, so that it
-    /// does not take the moment between the report and its update for "no
-    /// work" (M14 feature 6a).
-    pub fn has_unread_reports(&self) -> bool {
-        !self.reports.is_empty() || !self.shared.lock().events.is_empty()
-    }
-
-    /// Whether the decoded data is enough to play through
-    /// (`HAVE_ENOUGH_DATA`, `canplaythrough`; M14 feature 6a, ADR 0047
-    /// "Implementation notes of feature 6a"): the first data was reported,
-    /// no seek runs and no underrun, and the threads have settled: every
-    /// track is decoded to its end, or each thread waits for room in a
-    /// queue that only the owner frees (the demux thread at its packet
-    /// bound or the sample ring, the video thread at its frame cap) or for
-    /// nothing more to read. So the whole resource is read (a small file),
-    /// or the decoded queues are full (a large one). It depends only on what
-    /// the threads decoded, so it is the same on every run once they have
-    /// settled; the buffered ranges are final then too. While it returns
-    /// false the owner needs data: the pipeline calls the owner's notify
-    /// when a thread makes progress or all wait, and the no-progress limit
-    /// applies (a source that stalls after the first frame fails the
-    /// pipeline with a decode error, as for [`Pipeline::has_pending_work`]).
-    pub fn has_enough_data(&self) -> bool {
-        let mut st = self.shared.lock();
-        let live = self.phase == Phase::Running
-            && !waits(&st)
-            && self.first_frame_reported
-            && self.seeking.is_none()
-            && !self.underrun
-            && st.events.is_empty();
-        let enough = live && (st.stalled_on_owner() || drained(&st));
-        if live && !enough {
-            st.wants_notify = true;
-            let watch = self.note_needs(&mut st, true);
-            drop(st);
-            if let Some(due) = watch {
-                watchdog::watch(&self.shared, due);
-            }
-        }
-        enough
-    }
-
-    /// With an external consumer, which takes samples outside the lock and
-    /// notifies nobody: wakes the demux thread when it waits for room that
-    /// is there now.
-    fn wake_for_external_room(&self, st: &State) {
-        if self.output == AudioOutput::External
-            && st.demux_wait.is_some_and(|(run, _)| run == st.run)
-            && !st.demux_blocked()
-        {
-            self.shared.demux_cv.notify_all();
-        }
-    }
-
-    /// The owner needs data (`needs`): the no-progress limit applies.
-    /// Returns the time of the first check when the watchdog must start to
-    /// watch the pipeline.
-    fn note_needs(&self, st: &mut State, needs: bool) -> Option<Instant> {
-        let needs = needs || (self.underrun && self.playing);
-        if needs && !st.watch.needs_data {
-            // The limit counts from here (also after a long pause).
-            st.watch.since = Instant::now();
-            st.watch.lost = None;
-        }
-        st.watch.needs_data = needs;
-        if needs && !st.watch.armed {
-            st.watch.armed = true;
-            return Some(st.watch.since + self.shared.stall_limit);
-        }
-        None
-    }
-
-    /// See [`Pipeline::has_pending_work`].
-    fn pending(&self, st: &State) -> bool {
-        if self.phase != Phase::Running || waits(st) || !st.events.is_empty() {
-            return false;
-        }
-        let needs = if st.info.is_none() {
-            true
-        } else if self.metadata.is_none() {
-            // The metadata event waits for `update`.
-            false
-        } else if let Some(s) = self.seeking {
-            !seek_ready(st, s)
-        } else if !self.first_frame_reported {
-            !self.first_data_ready(st)
-        } else if self.playing && !self.ended && !self.underrun {
-            let end = self.end_time(st);
-            self.next_due_media(st).is_some_and(|t| {
-                if t >= end {
-                    !end_reached(st, end)
-                } else {
-                    !ready_for(st, t)
-                }
-            })
-        } else {
-            false
-        };
-        needs && !st.stalled_on_owner()
-    }
-
-    /// Ends `update`: while the pipeline has pending work, the threads
-    /// notify the owner when they have made progress, and the no-progress
-    /// limit applies (also in real time, where the owner may never ask
-    /// [`Pipeline::has_pending_work`]).
-    ///
-    /// While the pipeline plays with a frame of the current epoch queued, it
-    /// is "pending" only because less than [`READY_AHEAD_US`] is decoded
-    /// ahead (the queue holds 6 frames, about 200 ms, so each frame taken
-    /// makes it so), and the next push of the video thread changes nothing
-    /// that the owner waits for: its next due time is the queued frame. The
-    /// notify is not armed then (M14 feature 7b, review: it woke the GUI
-    /// once more per frame). A virtual-time owner that waits for the data
-    /// asks [`Pipeline::has_pending_work`], which arms the notify itself; an
-    /// owner in real time does not wait for the pipeline.
-    ///
-    /// The rule needs a running clock and no seek: then the queued frame is
-    /// a due time of [`Pipeline::next_due`]. During a seek while playing the
-    /// clock stops, so no due time comes; the frame at the target can be
-    /// queued while the seek still waits for its audio, and only the notify
-    /// tells a real-time owner that the seek can end (review of the fixes
-    /// of 7b: `SeekDone` never came for `mp4-h264-aac-late-audio.mp4`).
-    fn end_update(&self, mut st: std::sync::MutexGuard<'_, State>) {
-        let pending = self.pending(&st);
-        let queued_frame = self.playing
-            && self.seeking.is_none()
-            && self.clock.is_running()
-            && st.frames.iter().any(|f| f.epoch == st.epoch);
-        if pending && !queued_frame {
-            st.wants_notify = true;
-        }
-        let watch = self.note_needs(&mut st, pending);
-        drop(st);
-        if let Some(due) = watch {
-            watchdog::watch(&self.shared, due);
-        }
-    }
-
-    /// Advances to clock time `now`: handles what the threads reported,
-    /// ends a seek whose data is there, makes the frame at the media time
-    /// current (dropping the frames passed over), lets the silent output
-    /// consume the samples up to it, detects underruns and the end, and
-    /// returns the reports.
-    pub fn update(&mut self, now: i64) -> Vec<Report> {
-        let mut out = std::mem::take(&mut self.reports);
-        let shared = Arc::clone(&self.shared);
-        let mut st = shared.lock();
-        while let Some(event) = st.events.pop_front() {
-            match event {
-                ThreadEvent::Opened(opened) => {
-                    let (info, timeline) = *opened;
-                    if self.seeking.is_none() {
-                        self.position = timeline.start_us;
-                        self.clock.set(timeline.start_us);
-                    }
-                    let metadata = Metadata { info, timeline };
-                    self.metadata = Some(metadata.clone());
-                    out.push(Report::Metadata(Box::new(metadata)));
-                }
-                ThreadEvent::Failed(error) => {
-                    if self.phase == Phase::Running {
-                        self.phase = Phase::Failed;
-                        self.playing = false;
-                        self.clock.stop(now);
-                        out.push(Report::Error(error));
-                    }
-                }
-            }
-        }
-        if self.phase != Phase::Running || self.metadata.is_none() {
-            self.end_update(st);
-            return out;
-        }
-        // A pipeline stalled on its owner goes on with what it has: the
-        // data that is missing lies further on in the file.
-        if let Some(s) = self.seeking {
-            if !seek_ready(&st, s) && !st.stalled_on_owner() {
-                self.end_update(st);
-                return out;
-            }
-            self.finish_seek(&mut st, s, &mut out);
-        }
-        if !self.first_frame_reported {
-            if !self.first_data_ready(&st) && !st.stalled_on_owner() {
-                self.end_update(st);
-                return out;
-            }
-            if self.current.is_none()
-                && let Some(f) = st.frames.pop_front()
-            {
-                self.show(f);
-            }
-            self.first_frame_reported = true;
-            out.push(Report::FirstFrame);
-        }
-        drop(st);
-        self.sync_clock(now);
-        let mut st = shared.lock();
-        // Taking frames notifies the video thread (`FrameQueue`).
-        let consumed = self.advance(now, &mut st, &mut out);
-        if st.buffered_dirty {
-            st.buffered_dirty = false;
-            out.push(Report::Buffered(st.buffered.clone()));
-        }
-        st.media_now = self.position;
-        st.playing = self.playing;
-        if self.underrun {
-            st.wants_notify = true;
-        }
-        self.arm_frame_notify(&mut st);
-        self.wake_for_external_room(&st);
-        self.end_update(st);
-        if consumed {
-            // The silent output made room in the ring.
-            shared.demux_cv.notify_all();
-        }
-        out
-    }
-
-    /// Starts the clock when playback can run, from the current position.
-    fn sync_clock(&mut self, now: i64) {
-        let can_run = self.playing
-            && self.phase == Phase::Running
-            && self.metadata.is_some()
-            && self.seeking.is_none()
-            && !self.underrun
-            && !self.ended;
-        if can_run && !self.clock.is_running() {
-            self.clock.set(self.position);
-            self.clock.start(now);
-            if self.next_timeupdate.is_none() {
-                self.next_timeupdate = Some(self.position.saturating_add(TIMEUPDATE_INTERVAL_US));
-            }
-        }
-    }
-
-    /// Ends the seek `s`: its frame becomes current, the clock is at the
-    /// target.
-    fn finish_seek(&mut self, st: &mut State, s: Seeking, out: &mut Vec<Report>) {
-        if let Some(i) = st
-            .frames
-            .iter()
-            .position(|f| f.epoch == s.epoch && f.at_target)
-        {
-            for f in st.frames.take_front(i) {
-                self.shared.recycle(f);
-            }
-            if let Some(f) = st.frames.pop_front() {
-                self.show(f);
-            }
-        }
-        let seekable = self.metadata.as_ref().is_none_or(|m| m.info.seekable);
-        let position = if seekable {
-            s.target_us
-        } else {
-            self.metadata.as_ref().map_or(0, |m| m.timeline.start_us)
-        };
-        self.seeking = None;
-        self.position = position;
-        self.clock.set(position);
-        self.ended = s.ended;
-        self.underrun = false;
-        self.audio_gap = false;
-        self.next_timeupdate = None;
-        if s.report {
-            out.push(Report::SeekDone { media_us: position });
-        }
-    }
-
-    /// Makes `frame` current.
-    fn show(&mut self, frame: shared::QueuedFrame) {
-        self.generation += 1;
-        self.quality.total_frames += 1;
-        if let Some(image) = &frame.image {
-            // A reduced copy is not the pool's: it goes.
-            let reduced = self.reduced_from.take().is_some();
-            if let Some(old) = self.last_image.replace(Arc::clone(image))
-                && !reduced
-            {
-                self.shared.pool.give(old);
-            }
-        }
-        self.current = Some(CurrentFrame {
-            pts_us: frame.pts_us,
-            duration_us: frame.duration_us,
-            image: frame.image,
-            generation: self.generation,
-        });
-    }
-
-    /// Moves the media time to clock time `now`; returns whether samples
-    /// were taken from the ring.
-    fn advance(&mut self, now: i64, st: &mut State, out: &mut Vec<Report>) -> bool {
-        let end = self.end_time(st);
-        let mut m = self.clock.media_time(now).min(end);
-        // Stalled on the owner: the clock runs on with what is there (an
-        // audio gap is silence), never an underrun.
-        let stalled = st.stalled_on_owner();
-        if stalled && st.audio_on && !audio_covers(st, m) {
-            self.audio_gap = true;
-        } else if self.audio_gap && audio_covers(st, m) {
-            self.audio_gap = false;
-        }
-        if self.clock.is_running() {
-            let covered = self.covered(st);
-            // With the audio clock a starved ring is the underrun itself:
-            // the clock does not pass the data, it stops at it, so `m` is
-            // where the sound stopped (also when the owner looks late).
-            let starved = self.audio_starved(st);
-            if (starved || m > covered) && !stalled {
-                if !starved {
-                    m = covered.max(self.position);
-                }
-                self.clock.set(m);
-                self.underrun = true;
-                out.push(Report::Underrun { media_us: m });
-            }
-        } else if self.underrun && self.playing && (stalled || self.can_resume(st, m)) {
-            self.underrun = false;
-            self.clock.start(now);
-            out.push(Report::Resumed { media_us: m });
-        }
-        self.take_frames(st, m);
-        let consumed = self.consume_samples(st, m);
-        self.position = m;
-        if self.playing && m >= end && end_reached(st, end) {
-            self.position = end;
-            self.clock.set(end);
-            self.playing = false;
-            self.ended = true;
-            self.next_timeupdate = None;
-            out.push(Report::Ended { media_us: end });
-        } else if self.clock.is_running()
-            && m < end
-            && let Some(t) = self.next_timeupdate
-            && m >= t
-        {
-            out.push(Report::TimeUpdate { media_us: m });
-            self.next_timeupdate = Some(m.saturating_add(TIMEUPDATE_INTERVAL_US));
-        }
-        consumed
-    }
-
-    /// Makes the frame with the greatest time at or before `m` current;
-    /// the frames passed over are dropped.
-    fn take_frames(&mut self, st: &mut State, m: i64) {
-        while let Some(f) = st.frames.front() {
-            if f.epoch == st.epoch && f.pts_us > m {
-                break;
-            }
-            let Some(f) = st.frames.pop_front() else {
-                break;
-            };
-            if f.epoch != st.epoch {
-                self.shared.recycle(f);
-                continue;
-            }
-            let next_due = st
-                .frames
-                .front()
-                .is_some_and(|n| n.epoch == st.epoch && n.pts_us <= m);
-            if next_due {
-                self.quality.total_frames += 1;
-                // A video that is not painted takes its frames in batches
-                // ([`Pipeline::next_wake`]): the ones passed over are not
-                // drops that anyone could see.
-                if st.painted {
-                    self.quality.dropped_frames += 1;
-                }
-                self.shared.recycle(f);
-            } else {
-                self.show(f);
-            }
-        }
-    }
-
-    /// Whether playback can go on after an underrun at `m`: the audio has
-    /// `RESUME_AHEAD_US` decoded (or ended, or fills the ring); without
-    /// audio, or in an audio gap, a frame is queued.
-    fn can_resume(&self, st: &State, m: i64) -> bool {
-        if st.audio_on && !self.audio_gap {
-            return st.audio_drained == Some(st.epoch)
-                || (st.demux_epoch == st.epoch
-                    && (st.ring_full()
-                        || st
-                            .audio_end_us
-                            .is_some_and(|e| e >= m.saturating_add(RESUME_AHEAD_US))));
-        }
-        !st.video_on
-            || st.video_drained == Some(st.epoch)
-            || st.frames.iter().any(|f| f.epoch == st.epoch)
-    }
-
-    /// The silent output: consumes the samples up to the media time `m`
-    /// (not with an external consumer).
-    fn consume_samples(&mut self, st: &State, m: i64) -> bool {
-        if self.output != AudioOutput::Silent || !st.audio_on || st.demux_epoch != st.epoch {
-            return false;
-        }
-        let (Some((base_pos, base_us)), Some(ring)) = (st.ring_base, &st.ring) else {
-            return false;
-        };
-        let target = base_pos.saturating_add(demux::us_to_frames(m.saturating_sub(base_us)));
-        let read = ring.read_position();
-        if target <= read {
-            return false;
-        }
-        let n = target - read;
-        match &mut self.capture {
-            Some(buf) => {
-                let mut chunk = vec![0.0f32; 2 * 1024];
-                let mut left = n;
-                while left > 0 {
-                    let want = usize::try_from(left.min(1024)).unwrap_or(1024);
-                    let got = ring.pop(&mut chunk[..want * 2]);
-                    if got == 0 {
-                        break;
-                    }
-                    buf.extend_from_slice(&chunk[..got * 2]);
-                    left -= got as u64;
-                }
-            }
-            None => {
-                ring.skip(n);
-            }
-        }
-        true
     }
 }
 

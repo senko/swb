@@ -15,129 +15,31 @@
 
 mod common;
 
-use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use common::media_site::MediaSite;
-use common::{new_page, node, on_page_thread};
-use serde_json::{Value, json};
-use swb_engine::{ClockMode, Evaluation, JsonForm, Page, PageClock, Pixmap, Point, Size, Url};
-use swb_net::Fetcher;
-
-const FOLDER: &str = "case-1";
-/// 320 x 240, 25 fps, 2 s, H.264 and AAC.
-const MP4: &str = "fixtures/media/mp4-h264-high-aac.mp4";
-const VIEW: Size = Size::new(800.0, 600.0);
-
-const HELPERS: &str = "<script>\
-    const sleep = ms => new Promise(r => setTimeout(r, ms));\
-    const once = (m, n, ms = 8000) => new Promise(r => { const to = setTimeout(() => r('timeout'), ms); m.addEventListener(n, () => { clearTimeout(to); r(n); }, {once: true}); });\
-    </script>";
+use common::frame_loop::drive;
+use common::media_probe::evaluate_strict as evaluate;
+use common::media_site::{
+    FOLDER, JS_HELPERS, MP4, MediaSite, VIEW, open_page, real_page as page_of,
+};
+use common::{node, on_page_thread};
+use serde_json::json;
+use swb_engine::{ClockMode, Page, Pixmap, Point};
 
 /// Waits for the data of `#v`.
 const READY: &str =
     "(async () => { if (v.readyState < 2) await once(v, 'loadeddata'); return v.readyState; })()";
-
-/// A page in real time that paints frames, as the GUI's page does.
-fn page_of(site: MediaSite) -> Page {
-    let site = Arc::new(site);
-    let mut page = new_page(site as Arc<dyn Fetcher>, 2, VIEW);
-    page.set_javascript(true);
-    page.set_paints_frames(true);
-    page.set_clock(PageClock::new(ClockMode::Real, None));
-    page.navigate(Url::parse(&MediaSite::page_url(FOLDER)).unwrap());
-    assert!(page.wait_until_loaded(Duration::from_secs(30)));
-    page
-}
 
 fn site_with(body: &str) -> MediaSite {
     let mut site = MediaSite::new(
         FOLDER,
         &format!(
             "<!DOCTYPE html><style>body{{margin:0;background:#ccc}}video{{display:block}}</style>\
-            {HELPERS}{body}"
+            {JS_HELPERS}{body}"
         ),
     );
     site.add_file("a.mp4", MP4);
     site
-}
-
-fn evaluate(page: &mut Page, js: &str) -> Value {
-    match page.evaluate_with_timeout(js, JsonForm::Strict, Duration::from_secs(60)) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
-        other => panic!("{js}: {other:?}"),
-    }
-}
-
-/// What a drive of the loop did.
-#[derive(Debug, Default)]
-struct Run {
-    /// Frames drawn.
-    renders: usize,
-    /// Different pictures among them.
-    distinct: usize,
-    /// Due times of the page that the loop woke up for (each time once).
-    wakeups: usize,
-    /// Iterations where a due time had passed and nothing changed: the loop
-    /// would have run again at once (a busy loop).
-    spins: usize,
-    /// Frames drawn with their damage, in device pixels.
-    pixels: Vec<u64>,
-}
-
-fn hash_of(data: &[u8]) -> u64 {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    data.hash(&mut hasher);
-    hasher.finish()
-}
-
-/// Drives the page for `duration` as `about_to_wait` does: the pump, the
-/// frame decision, a render of the damage if the frame is outdated, then a
-/// wait until the page's next due time (at most 5 ms: the test polls the
-/// network where the window would be woken).
-fn drive(page: &mut Page, target: &mut Pixmap, duration: Duration) -> Run {
-    let end = Instant::now() + duration;
-    let mut run = Run::default();
-    let mut seen = HashSet::new();
-    // The due time that the loop waits for; a wake-up is the moment it
-    // passes.
-    let mut armed: Option<Instant> = None;
-    while Instant::now() < end {
-        page.process_network();
-        if armed.is_some_and(|t| t <= Instant::now()) {
-            run.wakeups += 1;
-            armed = None;
-        }
-        let pumped = page.pump();
-        let outdated = page.frame_outdated();
-        if outdated {
-            let damage = page.render_update(target);
-            run.renders += 1;
-            run.pixels.push(damage.pixels());
-            seen.insert(hash_of(target.data()));
-        }
-        let now = Instant::now();
-        let next = page.next_task_instant();
-        match next {
-            Some(t) if t <= now => {
-                // Due already: the loop would run again at once.
-                if !pumped.changed && !outdated {
-                    run.spins += 1;
-                } else if armed.is_none() {
-                    run.wakeups += 1;
-                }
-            }
-            Some(t) => {
-                armed = Some(t);
-                std::thread::sleep((t - now).min(Duration::from_millis(5)));
-            }
-            None => std::thread::sleep(Duration::from_millis(5)),
-        }
-    }
-    run.distinct = seen.len();
-    run
 }
 
 /// A page with the video `body` after the first frame of the video is there
@@ -559,13 +461,9 @@ fn renders_without_a_change_walk_no_fragment_tree() {
 #[test]
 fn a_headless_page_converts_the_videos_outside_the_viewport() {
     on_page_thread(|| {
-        let site = site_with(&tall(3000));
-        let site = Arc::new(site);
-        let mut page = new_page(site as Arc<dyn Fetcher>, 2, VIEW);
-        page.set_javascript(true);
-        page.set_clock(PageClock::new(ClockMode::Real, None));
-        page.navigate(Url::parse(&MediaSite::page_url(FOLDER)).unwrap());
-        assert!(page.wait_until_loaded(Duration::from_secs(30)));
+        let (mut page, _site) = open_page(site_with(&tall(3000)), VIEW, ClockMode::Real, |page| {
+            page.set_javascript(true);
+        });
         evaluate(&mut page, READY);
         evaluate(&mut page, "v.play().then(() => 1)");
         let mut target = Pixmap::new(800, 600).unwrap();

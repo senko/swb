@@ -25,7 +25,8 @@ mod common;
 use std::sync::Arc;
 use std::time::Duration;
 
-use common::media_site::{MediaSite, RangeMode, chromium_json};
+use common::media_probe;
+use common::media_site::{MediaSite, RangeMode};
 use common::on_page_threads;
 use common::probe_rows::load_cases;
 use serde_json::{Value, json};
@@ -70,23 +71,11 @@ const DEPARTURES: &[(&str, &str, &str)] = &[
 ];
 
 fn answers() -> &'static str {
-    static TEXT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    TEXT.get_or_init(|| chromium_json(ANSWERS))
+    media_probe::answers(ANSWERS)
 }
 
 fn folder_of(name: &str) -> String {
-    static NAMES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
-    let names = NAMES.get_or_init(|| {
-        let text = std::fs::read_to_string(common::repo_root().join(PROBE)).unwrap();
-        let probe: Value = serde_json::from_str(&text).unwrap();
-        probe["cases"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|c| c["name"].as_str().unwrap().to_owned())
-            .collect()
-    });
-    format!("case-{}", names.iter().position(|n| n == name).unwrap() + 1)
+    media_probe::folder_of(PROBE, name)
 }
 
 /// The numbers of a `buffered` text (`0-2,3-4`; a start can be negative).

@@ -11,12 +11,12 @@ use super::fixture;
 
 /// The owner's wake-up: counts notifications and lets a test wait for one.
 #[derive(Default)]
-pub(crate) struct Waker {
+pub(crate) struct TestWaker {
     count: Mutex<u64>,
     cv: Condvar,
 }
 
-impl Waker {
+impl TestWaker {
     pub(crate) fn notify(&self) {
         *self.count.lock().expect("lock") += 1;
         self.cv.notify_all();
@@ -39,7 +39,7 @@ impl Waker {
 }
 
 /// Options with a wake-up and a bound of their own (tests run in parallel).
-pub(crate) fn options(waker: &Arc<Waker>) -> PipelineOptions {
+pub(crate) fn options(waker: &Arc<TestWaker>) -> PipelineOptions {
     let w = Arc::clone(waker);
     let mut o = PipelineOptions::new(Arc::new(move || w.notify()));
     o.slots = PipelineSlots::new(16);
@@ -48,30 +48,63 @@ pub(crate) fn options(waker: &Arc<Waker>) -> PipelineOptions {
 }
 
 /// Opens a test file of `fixtures/media/`.
-pub(crate) fn open_fixture(name: &str, waker: &Arc<Waker>) -> Pipeline {
+pub(crate) fn open_fixture(name: &str, waker: &Arc<TestWaker>) -> Pipeline {
     Pipeline::open(SourceOpener::file(fixture(name)), options(waker))
+}
+
+/// Opens a test file of `fixtures/media/` and settles it at clock time 0:
+/// the pipeline, its wake-up and the reports so far.
+pub(crate) fn open_settled(name: &str) -> (Pipeline, Arc<TestWaker>, Vec<Report>) {
+    let waker = Arc::new(TestWaker::default());
+    let mut p = open_fixture(name, &waker);
+    let mut reports = Vec::new();
+    settle_update(&mut p, &waker, 0, &mut reports);
+    (p, waker, reports)
 }
 
 /// The longest a test waits for the pipeline's threads (the longest
 /// legitimate wait is about 2 s, under load).
 pub(crate) const HANG: Duration = Duration::from_secs(10);
 
-/// Waits until the pipeline has no pending work; panics after `HANG`.
-pub(crate) fn settle(p: &Pipeline, waker: &Waker) {
+/// Waits until `cond` holds, at most `HANG`; panics with `what` after it.
+pub(crate) fn wait_until(what: &str, mut cond: impl FnMut() -> bool) {
+    let started = Instant::now();
+    while !cond() {
+        assert!(started.elapsed() < HANG, "timed out: {what}");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+
+/// Waits until the pipeline has no pending work, at most `limit`; false
+/// when it still has.
+pub(crate) fn settle_within(p: &Pipeline, waker: &TestWaker, limit: Duration) -> bool {
     let started = Instant::now();
     loop {
         let seen = waker.count();
         if !p.has_pending_work() {
-            return;
+            return true;
         }
-        assert!(started.elapsed() < HANG, "the pipeline does not settle");
-        waker.wait_past(seen, Duration::from_secs(1));
+        let left = limit.saturating_sub(started.elapsed());
+        if left.is_zero() {
+            return false;
+        }
+        // Looks again at least once a second, as the pipeline may become
+        // idle without a notification.
+        waker.wait_past(seen, left.min(Duration::from_secs(1)));
     }
+}
+
+/// Waits until the pipeline has no pending work; panics after `HANG`.
+pub(crate) fn settle(p: &Pipeline, waker: &TestWaker) {
+    assert!(
+        settle_within(p, waker, HANG),
+        "the pipeline does not settle"
+    );
 }
 
 /// Settles and updates at `now` until nothing is pending at `now`;
 /// collects the reports.
-pub(crate) fn settle_update(p: &mut Pipeline, waker: &Waker, now: i64, out: &mut Vec<Report>) {
+pub(crate) fn settle_update(p: &mut Pipeline, waker: &TestWaker, now: i64, out: &mut Vec<Report>) {
     loop {
         settle(p, waker);
         out.extend(p.update(now));
@@ -99,7 +132,7 @@ pub(crate) struct Played {
 
 /// Plays `p` in virtual time from clock time `now` until it ends, fails,
 /// or the media time reaches `until`.
-pub(crate) fn play_virtual(p: &mut Pipeline, waker: &Waker, now: i64, until: i64) -> Played {
+pub(crate) fn play_virtual(p: &mut Pipeline, waker: &TestWaker, now: i64, until: i64) -> Played {
     let mut played = Played {
         now,
         ..Played::default()

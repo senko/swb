@@ -22,9 +22,6 @@ pub enum MediaError {
     /// A seek failed (the source cannot seek, or the demuxer cannot).
     #[error("seek failed: {0}")]
     Seek(String),
-    /// This build has no media support (the `media` feature is off).
-    #[error("this build has no media support")]
-    NotBuilt,
 }
 
 impl MediaError {
@@ -33,7 +30,7 @@ impl MediaError {
     /// error is not reported as such (a failed seek).
     pub fn element_code(&self) -> Option<u16> {
         match self {
-            MediaError::NotMedia(_) | MediaError::Unsupported(_) | MediaError::NotBuilt => Some(4),
+            MediaError::NotMedia(_) | MediaError::Unsupported(_) => Some(4),
             MediaError::Decode(_) => Some(3),
             MediaError::Source(_) => Some(2),
             MediaError::Seek(_) => None,

@@ -242,7 +242,8 @@ an empty `PIPEWIRE_RUNTIME_DIR`, window 1280 x 720, `mux-1080p30-20s.mp4`
 muted, `autoplay`, `loop`, in a 640 x 360 box; 4 s of warm-up (6 s for the
 cases with a still pointer) and 10 s measured; one run each (with a script
 before `swbtools media-gui` existed; the numbers come from the frame log;
-the tool's controls cases repeat them in "M14 exit: media budgets"):
+the tool's controls cases repeat them in "M14 exit: media budgets", which
+supersedes this table):
 
 | Case | CPU % | Frames/s | Dropped | Wake-ups/s |
 |---|---|---|---|---|

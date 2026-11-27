@@ -12,7 +12,7 @@ mod common;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use common::driver::{HANG, Waker, options, play_virtual, settle_update};
+use common::driver::{TestWaker, options, play_virtual, settle_update, wait_until};
 use common::fixture;
 use swb_media::pipeline::{Pipeline, PipelineSlots, Report, SourceOpener};
 
@@ -21,20 +21,11 @@ const SMALL: u64 = 320 * 240 * 4;
 /// The pixmaps of a run besides its frame queue.
 const EXTRA: u64 = 3;
 
-fn open_in(name: &str, slots: &PipelineSlots, waker: &Arc<Waker>) -> Pipeline {
+fn open_in(name: &str, slots: &PipelineSlots, waker: &Arc<TestWaker>) -> Pipeline {
     let mut o = options(waker);
     o.slots = slots.clone();
     o.capture_audio = false;
     Pipeline::open(SourceOpener::file(fixture(name)), o)
-}
-
-/// Waits until `cond` holds, at most `HANG`.
-fn wait_until(what: &str, mut cond: impl FnMut() -> bool) {
-    let started = Instant::now();
-    while !cond() {
-        assert!(started.elapsed() < HANG, "timed out: {what}");
-        std::thread::sleep(Duration::from_millis(5));
-    }
 }
 
 /// Six pipelines over a budget of two full queues (6 frames and 3 pixmaps
@@ -46,7 +37,7 @@ fn wait_until(what: &str, mut cond: impl FnMut() -> bool) {
 fn the_budget_bounds_the_decoded_frames_of_all_pipelines() {
     let budget = 2 * (6 + EXTRA) * SMALL + (3 + EXTRA) * SMALL;
     let slots = PipelineSlots::with_frame_budget(16, budget);
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut pipelines: Vec<Pipeline> = (0..6)
         .map(|_| open_in("mp4-h264-high-aac.mp4", &slots, &waker))
         .collect();
@@ -114,7 +105,7 @@ fn the_budget_bounds_the_decoded_frames_of_all_pipelines() {
 fn a_suspended_waiter_leaves_the_queue_of_frame_bytes() {
     let budget = (6 + EXTRA) * SMALL;
     let slots = PipelineSlots::with_frame_budget(16, budget);
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut a = open_in("mp4-h264-high-aac.mp4", &slots, &waker);
     wait_until("a reserves", || slots.frame_bytes() == budget);
     let mut b = open_in("mp4-h264-high-aac.mp4", &slots, &waker);
@@ -144,7 +135,7 @@ fn a_waiter_for_frame_bytes_is_not_failed_by_the_no_progress_limit() {
     let name = "mp4-h264-high-aac.mp4";
     let budget = (6 + EXTRA) * SMALL;
     let slots = PipelineSlots::with_frame_budget(16, budget);
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut a = open_in(name, &slots, &waker);
     wait_until("a holds the budget", || slots.frame_bytes() == budget);
     // b opens only when the test lets it, so that the owner's one question
@@ -198,7 +189,7 @@ fn a_waiter_for_frame_bytes_is_not_failed_by_the_no_progress_limit() {
 #[test]
 fn a_video_whose_frames_grow_grows_its_reservation_and_plays_on() {
     let slots = PipelineSlots::new(16);
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut p = open_in("webm-vp8-640x360-to-1280x720.webm", &slots, &waker);
     let mut reports = Vec::new();
     settle_update(&mut p, &waker, 0, &mut reports);
@@ -228,7 +219,7 @@ fn a_video_whose_frames_grow_grows_its_reservation_and_plays_on() {
 fn a_video_whose_frames_grow_past_the_free_budget_fails() {
     let budget = 64 << 20;
     let slots = PipelineSlots::with_frame_budget(16, budget);
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut p = open_in("webm-vp8-16x16-to-8192x4352.webm", &slots, &waker);
     let played = play_virtual(&mut p, &waker, 0, i64::MAX);
     assert!(p.is_failed(), "{:?}", played.reports);
@@ -253,7 +244,7 @@ fn a_video_whose_frames_grow_past_the_free_budget_fails() {
 fn a_1080p_video_keeps_its_queue_and_drops_no_frame_while_others_hold_frames() {
     let name = "mp4-h264-untagged-bt709-1920x1080.mp4";
     let slots = PipelineSlots::new(16);
-    let waker = Arc::new(Waker::default());
+    let waker = Arc::new(TestWaker::default());
     let mut reports = Vec::new();
     let mut others: Vec<Pipeline> = (0..15).map(|_| open_in(name, &slots, &waker)).collect();
     for p in &mut others {

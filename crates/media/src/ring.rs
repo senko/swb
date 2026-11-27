@@ -41,14 +41,27 @@ pub struct RingBase {
     pub epoch: u64,
 }
 
+/// Microseconds of `frames` at the output rate (truncated). The signed
+/// conversions of `output` (`lead_frames`, the audible time of a source) keep
+/// their own formulas on purpose: they truncate toward zero on negative
+/// numbers and saturate in `i64`.
+pub(crate) fn frames_to_us(frames: u64) -> i64 {
+    i64::try_from(u128::from(frames) * 1_000_000 / u128::from(OUTPUT_RATE)).unwrap_or(i64::MAX)
+}
+
+/// Output frames in `us` microseconds, rounded (0 for a negative time).
+#[cfg(feature = "ffmpeg")]
+pub(crate) fn us_to_frames(us: i64) -> u64 {
+    let us = u128::try_from(us).unwrap_or(0);
+    u64::try_from((us * u128::from(OUTPUT_RATE) + 500_000) / 1_000_000).unwrap_or(u64::MAX)
+}
+
 impl RingBase {
     /// The media time of the frame at `position` (at or after the base's
     /// position; an earlier one gives the base's time).
     pub fn media_time(&self, position: u64) -> i64 {
         let frames = position.saturating_sub(self.position);
-        let us = u128::from(frames) * 1_000_000 / u128::from(OUTPUT_RATE);
-        self.media_us
-            .saturating_add(i64::try_from(us).unwrap_or(i64::MAX))
+        self.media_us.saturating_add(frames_to_us(frames))
     }
 }
 

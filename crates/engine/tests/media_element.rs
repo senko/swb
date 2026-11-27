@@ -16,13 +16,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use common::media_site::MediaSite;
-use common::{new_page, node, on_page_thread, on_page_threads};
+use common::media_probe::evaluate_strict as evaluate;
+use common::media_site::{FOLDER, MP4, MediaSite, VIEW, open_page};
+use common::{node, on_page_thread, on_page_threads};
 use serde_json::{Value, json};
-use swb_engine::{ClockMode, Evaluation, JsonForm, Page, PageClock, Size, Url};
-use swb_net::Fetcher;
-
-const FOLDER: &str = "case-1";
+use swb_engine::{ClockMode, Page};
 
 fn page_for(site: MediaSite, javascript: bool) -> (Page, Arc<MediaSite>) {
     page_with(site, javascript, ClockMode::Virtual, Duration::ZERO)
@@ -36,18 +34,10 @@ fn page_with(
     mode: ClockMode,
     handover_delay: Duration,
 ) -> (Page, Arc<MediaSite>) {
-    let site = Arc::new(site);
-    let mut page = new_page(
-        Arc::clone(&site) as Arc<dyn Fetcher>,
-        2,
-        Size::new(800.0, 600.0),
-    );
-    page.isolate_media(handover_delay);
-    page.set_javascript(javascript);
-    page.set_clock(PageClock::new(mode, None));
-    page.navigate(Url::parse(&MediaSite::page_url(FOLDER)).unwrap());
-    assert!(page.wait_until_loaded(Duration::from_secs(30)));
-    (page, site)
+    open_page(site, VIEW, mode, |page| {
+        page.isolate_media(handover_delay);
+        page.set_javascript(javascript);
+    })
 }
 
 fn site_with(html: &str, files: &[(&str, &str)]) -> MediaSite {
@@ -63,14 +53,6 @@ fn sorted(mut lines: Vec<String>) -> Vec<String> {
     lines
 }
 
-fn evaluate(page: &mut Page, js: &str) -> Value {
-    match page.evaluate_with_timeout(js, JsonForm::Strict, Duration::from_secs(60)) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
-        other => panic!("{js}: {other:?}"),
-    }
-}
-
-const MP4: &str = "fixtures/media/mp4-h264-high-aac.mp4";
 const LONG_MP4: &str = "fixtures/media/mp4-h264-aac-long.mp4";
 
 #[test]

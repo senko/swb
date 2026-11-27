@@ -306,7 +306,9 @@ pub struct VolumeSlider {
 }
 
 const SLIDER_TRACK_WIDTH: f32 = 52.0;
-const THUMB_SIZE: f32 = 12.0;
+/// The diameter of the thumbs of the timeline and the volume slider (paint
+/// draws them with it).
+pub const THUMB_SIZE: f32 = 12.0;
 
 /// The slider that opens at the mute button `mute` (relative to the content
 /// box) of video or audio controls.

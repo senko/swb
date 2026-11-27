@@ -233,8 +233,8 @@ pub struct MediaCounters {
     /// Frames that were shown (made current).
     pub shown: u64,
     /// Frames that were dropped, because their successor was due as well
-    /// or because they were late when decoded
-    /// (`getVideoPlaybackQuality().droppedVideoFrames`).
+    /// or because they were late when decoded (the number that
+    /// `getVideoPlaybackQuality().droppedVideoFrames` would give).
     pub dropped: u64,
     /// Frames decoded.
     pub decoded: u64,
@@ -779,7 +779,7 @@ mod real {
                         "PipelineStatus::DEMUXER_ERROR_COULD_NOT_OPEN: FFmpegDemuxer: open context failed"
                             .to_owned(),
                     ),
-                    MediaError::Unsupported(_) | MediaError::NotBuilt => (
+                    MediaError::Unsupported(_) => (
                         4,
                         "PipelineStatus::DEMUXER_ERROR_NO_SUPPORTED_STREAMS: FFmpegDemuxer: no supported streams"
                             .to_owned(),

@@ -19,16 +19,14 @@ mod common;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use common::frame_loop::drive;
 use common::media_probe::evaluate;
-use common::media_site::{MediaSite, RangeMode};
-use common::{new_page, node};
-use swb_engine::{ClockMode, Modifiers, MouseButton, Page, PageClock, Pixmap, Size, Url};
-use swb_net::Fetcher;
+use common::media_site::{FOLDER, MediaSite, RangeMode, VIEW, open_page, real_page};
+use common::node;
+use swb_engine::{ClockMode, Modifiers, MouseButton, Page, Pixmap};
 
-const FOLDER: &str = "case-1";
 /// 320 x 240, 25 fps, 10 s, a flat picture, with AAC.
 const FLAT: &str = "fixtures/media/mp4-h264-aac-flat-long.mp4";
-const VIEW: Size = Size::new(800.0, 600.0);
 
 fn site_with(body: &str) -> MediaSite {
     let mut site = MediaSite::new(
@@ -46,12 +44,9 @@ const VIDEO: &str = "<video id=v src=flat.mp4 controls preload=auto></video>";
 
 /// A page in virtual time (JavaScript `js`) whose media have loaded.
 fn page_of(site: MediaSite, js: bool) -> (Page, Arc<MediaSite>) {
-    let site = Arc::new(site);
-    let mut page = new_page(Arc::clone(&site) as Arc<dyn Fetcher>, 2, VIEW);
-    page.set_javascript(js);
-    page.set_clock(PageClock::new(ClockMode::Virtual, None));
-    page.navigate(Url::parse(&MediaSite::page_url(FOLDER)).unwrap());
-    assert!(page.wait_until_loaded(Duration::from_secs(30)));
+    let (mut page, site) = open_page(site, VIEW, ClockMode::Virtual, |page| {
+        page.set_javascript(js);
+    });
     wait(&mut page, 900);
     (page, site)
 }
@@ -517,50 +512,6 @@ fn a_press_on_a_control_moves_the_focus_to_the_element_with_javascript_off() {
 }
 
 // ----- Real time: the GUI's loop -----
-
-fn real_page(site: MediaSite) -> Page {
-    let site = Arc::new(site);
-    let mut page = new_page(site as Arc<dyn Fetcher>, 2, VIEW);
-    page.set_javascript(true);
-    page.set_paints_frames(true);
-    page.set_clock(PageClock::new(ClockMode::Real, None));
-    page.navigate(Url::parse(&MediaSite::page_url(FOLDER)).unwrap());
-    assert!(page.wait_until_loaded(Duration::from_secs(30)));
-    page
-}
-
-/// What a drive of the GUI's loop did.
-#[derive(Debug, Default)]
-struct Run {
-    renders: usize,
-    spins: usize,
-}
-
-/// Drives the page for `duration` as `about_to_wait` does.
-fn drive(page: &mut Page, target: &mut Pixmap, duration: Duration) -> Run {
-    let end = Instant::now() + duration;
-    let mut run = Run::default();
-    while Instant::now() < end {
-        page.process_network();
-        let pumped = page.pump();
-        let outdated = page.frame_outdated();
-        if outdated {
-            page.render_update(target);
-            run.renders += 1;
-        }
-        let now = Instant::now();
-        match page.next_task_instant() {
-            Some(t) if t <= now => {
-                if !pumped.changed && !outdated {
-                    run.spins += 1;
-                }
-            }
-            Some(t) => std::thread::sleep((t - now).min(Duration::from_millis(5))),
-            None => std::thread::sleep(Duration::from_millis(5)),
-        }
-    }
-    run
-}
 
 #[test]
 fn the_time_text_changes_once_a_second_without_a_layout() {

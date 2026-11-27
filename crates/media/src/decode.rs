@@ -14,11 +14,12 @@ use crate::info::{
     AudioTrack, Codec, ColorTags, Conversion, Matrix, MatrixTag, MediaInfo, RangeTag, VideoTrack,
     conversion, natural_size,
 };
+use crate::ring::{frames_to_us, us_to_frames};
 use crate::{ByteSource, MediaError, OUTPUT_CHANNELS, OUTPUT_RATE, limits};
 
-/// The result of a decoder's `receive`.
+/// The result of a decoder's `receive` (it mirrors `ff::Received`).
 #[derive(Debug)]
-pub enum Output<T> {
+pub enum Receive<T> {
     /// A decoded frame or chunk.
     Ready(T),
     /// The decoder needs more packets.
@@ -93,12 +94,18 @@ fn range_tag(r: ff::RangeTag) -> RangeTag {
     }
 }
 
-fn decode_error(e: &ff::Error) -> MediaError {
+/// A failure of the byte source stays a `Source` error; any other error
+/// becomes `other` with the error's text (with its code).
+fn map_error(e: &ff::Error, other: fn(String) -> MediaError) -> MediaError {
     if e.source_failed {
         MediaError::Source(e.message.clone())
     } else {
-        MediaError::Decode(e.to_string())
+        other(e.to_string())
     }
+}
+
+fn decode_error(e: &ff::Error) -> MediaError {
+    map_error(e, MediaError::Decode)
 }
 
 /// Whether a video size is within the limits of ADR 0047 section 11.
@@ -187,6 +194,7 @@ impl Demux {
             probe_bytes: limits::PROBE_BYTES,
             max_analyze_us: limits::MAX_ANALYZE_US,
         };
+        // Not `map_error`: the message of `NotMedia` has no error code.
         let mut demuxer =
             ff::Demuxer::open(Box::new(Input(source)), &demux_limits).map_err(|e| {
                 if e.source_failed {
@@ -271,13 +279,9 @@ impl Demux {
     /// before `target_us`.
     pub fn seek(&mut self, stream: usize, target_us: i64) -> Result<(), MediaError> {
         self.error_at_end = None;
-        self.demuxer.seek(stream, target_us).map_err(|e| {
-            if e.source_failed {
-                MediaError::Source(e.message)
-            } else {
-                MediaError::Seek(e.to_string())
-            }
-        })
+        self.demuxer
+            .seek(stream, target_us)
+            .map_err(|e| map_error(&e, MediaError::Seek))
     }
 
     /// A decoder of the video track (`None` without one), with the threads
@@ -413,11 +417,11 @@ impl VideoDecoder {
 
     /// The next decoded frame. A frame over the size limits is a decode
     /// error (the stream's header can differ from its frames).
-    pub fn receive(&mut self) -> Result<Output<RawVideoFrame>, MediaError> {
+    pub fn receive(&mut self) -> Result<Receive<RawVideoFrame>, MediaError> {
         let frame = match self.decoder.receive() {
             Ok(ff::Received::Frame(f)) => f,
-            Ok(ff::Received::NeedsInput) => return Ok(Output::NeedsInput),
-            Ok(ff::Received::Ended) => return Ok(Output::Ended),
+            Ok(ff::Received::NeedsInput) => return Ok(Receive::NeedsInput),
+            Ok(ff::Received::Ended) => return Ok(Receive::Ended),
             Err(e) => return Err(decode_error(&e)),
         };
         let Some(info) = frame.video() else {
@@ -442,7 +446,7 @@ impl VideoDecoder {
             duration_us: info.duration_us,
             frame,
         };
-        Ok(Output::Ready(raw))
+        Ok(Receive::Ready(raw))
     }
 
     /// The color conversion of a frame of this track (ADR 0047 section 9).
@@ -510,17 +514,6 @@ pub struct AudioDecoder {
     tail_done: bool,
 }
 
-/// Microseconds of `samples` at the output rate.
-fn samples_to_us(samples: u64) -> i64 {
-    i64::try_from(u128::from(samples) * 1_000_000 / u128::from(OUTPUT_RATE)).unwrap_or(i64::MAX)
-}
-
-/// Output samples in `us` microseconds (0 for a negative time).
-fn us_to_samples(us: i64) -> u64 {
-    let us = u128::try_from(us).unwrap_or(0);
-    u64::try_from((us * u128::from(OUTPUT_RATE) + 500_000) / 1_000_000).unwrap_or(u64::MAX)
-}
-
 impl AudioDecoder {
     /// The stream index of the track.
     pub fn stream(&self) -> usize {
@@ -557,11 +550,11 @@ impl AudioDecoder {
     }
 
     /// The next chunk of samples.
-    pub fn receive(&mut self) -> Result<Output<AudioChunk>, MediaError> {
+    pub fn receive(&mut self) -> Result<Receive<AudioChunk>, MediaError> {
         loop {
             let frame = match self.decoder.receive() {
                 Ok(ff::Received::Frame(f)) => f,
-                Ok(ff::Received::NeedsInput) => return Ok(Output::NeedsInput),
+                Ok(ff::Received::NeedsInput) => return Ok(Receive::NeedsInput),
                 Ok(ff::Received::Ended) => {
                     if !self.tail_done {
                         self.tail_done = true;
@@ -571,10 +564,10 @@ impl AudioDecoder {
                             .convert(None, &mut samples)
                             .map_err(|e| decode_error(&e))?;
                         if let Some(chunk) = self.take(samples, n) {
-                            return Ok(Output::Ready(chunk));
+                            return Ok(Receive::Ready(chunk));
                         }
                     }
-                    return Ok(Output::Ended);
+                    return Ok(Receive::Ended);
                 }
                 Err(e) => return Err(decode_error(&e)),
             };
@@ -606,7 +599,7 @@ impl AudioDecoder {
                 .convert(Some(&frame), &mut samples)
                 .map_err(|e| decode_error(&e))?;
             if let Some(chunk) = self.take(samples, n) {
-                return Ok(Output::Ready(chunk));
+                return Ok(Receive::Ready(chunk));
             }
         }
     }
@@ -619,7 +612,7 @@ impl AudioDecoder {
         self.position = self.position.saturating_add(n as u64);
         let mut skip = 0;
         if let Some(start) = self.start_us {
-            let start_pos = us_to_samples(start.saturating_sub(anchor));
+            let start_pos = us_to_frames(start.saturating_sub(anchor));
             if self.position <= start_pos {
                 return None;
             }
@@ -635,7 +628,7 @@ impl AudioDecoder {
             return None;
         }
         Some(AudioChunk {
-            pts_us: anchor.saturating_add(samples_to_us(first + skip)),
+            pts_us: anchor.saturating_add(frames_to_us(first + skip)),
             samples,
         })
     }

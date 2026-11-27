@@ -6613,7 +6613,7 @@ Steps:
    animations, view transitions, anchor positioning (only the highlight
    in the player's settings menu uses it).
 
-## M14: Media playback — planned
+## M14: Media playback — done
 
 Owner decisions (2026-11-20, ground rules): FFmpeg (libavformat,
 libavcodec, libswscale, libswresample) from a pinned source release,
@@ -7568,6 +7568,19 @@ Later (backlog): native HLS (`<video src="x.m3u8">`; libavformat's HLS
 demuxer through swb's loader has no adaptive switching), WebM in Media
 Source Extensions, AV1 (dav1d), YouTube.
 
+## After M15: live audio streams — planned
+
+Owner, 2026-11-27: live audio stutters in swb (target 10,
+https://www.1.fm/station/chilloutlounge, and other sites with live audio,
+for example tunein.com). The page's player starts a live MP3 stream (256
+kbit/s, a body without an end, no `Range`) on a click on play. Likely
+cause, not yet measured: the media byte source hands bytes to the demuxer
+only in complete 64 KiB blocks (backlog of M14 feature 4), which this
+stream fills every 2 s, while the audio queue holds at most 1 s. Plan it
+after M15: a recorded stretch of the stream that replay serves as a live
+stream (no end, no `Range`), the queue level over time on the private
+PipeWire daemon, and what Chromium buffers before and while it plays.
+
 ## Pending decisions
 
 - Clean-room rewrites of the code derived from Chromium (table layout
@@ -7728,6 +7741,34 @@ Source Extensions, AV1 (dav1d), YouTube.
   `media-states.json` `size-video-no-metadata` (the box of a video without
   metadata); the probe-case checks of the exit test prove that each other
   case has data, not that a test runs it.
+- Media (M14 maintenance): `AudioDecoder::flush` (`swb-media`
+  `decode.rs`) keeps the old resampler when `Resampler::new` fails (only
+  out of memory), so samples from before a seek could follow it; and
+  `Demux::select` maps a failure to `Decode` (code 3) where the same call
+  at the open maps it to `NotMedia` (code 4; only for a stream index that
+  does not fit a C `int`). Found by the maintenance review, not fixed
+  there.
+- Media FFI (M14 maintenance): the C side still fills fields that no Rust
+  code reads (`profile`, `level`, the sample format, the packet's DTS, the
+  frame's alpha flag and pixel format name, `color_space_raw`); the Rust
+  wrappers dropped them. Remove them from `ffmpeg.h`, `ffmpeg.c` and
+  `sys.rs` together, with the sanitizers, at the next C change (keep the
+  alpha flag if the alpha work of feature 3's backlog starts first).
+- Media (M14 maintenance): the test-only API of `swb-media` (`MediaFile`
+  and `file.rs`, the memory and file sources, the captured audio, the
+  diagnostics counters) stays: it is the in-order reference decode and the
+  tests' window into the pipeline. `tests/pipeline_bench.rs` (two ignored
+  measurements on the local real files) overlaps `swbtools media-gui`:
+  keep or delete when one of them changes.
+- Tools (M14 maintenance): `tools/media/generate.py` `entries()` is 360
+  lines; split it per family of files when it next changes (check that
+  the generated set is byte-equal). `tools/swbtools/media_gui.py` (1,309
+  lines): move the budgets and checks to `media_budgets.py` when it grows.
+  The `lie-range` and `lie-total` rules are written twice (the hostile
+  runner's server and the probe server): change both together.
+- Engine (M14 maintenance): the test-only media methods of `Page` go
+  through three layers each; one `Page::media_diagnostics()` returning a
+  struct would replace nine of them.
 - Media controls (feature 9): a change of the controls (the time text
   once a second, the thumb, a hover, 60 Hz in a fade) builds the whole
   display list again (0.54 ms at 1,943 elements). Splice the controls'
@@ -7752,16 +7793,15 @@ Source Extensions, AV1 (dav1d), YouTube.
   there and does not play). The video menu dots are 1.67 px in radius
   (Chromium about 1.5; kept so that the Wikipedia thumbnail does not
   change).
-- Media controls (feature 9): split `crates/engine/src/media/controls.rs`
-  (about 1,200 lines: state, key, actions, pointer) before the keyboard
-  and focus ring work (M15 with fullscreen and the overflow menu).
 - Media (feature 3): video with alpha (VP8 and VP9 in WebM) shows
   opaque; matrices other than BT.601 and BT.709 (BT.2020, SMPTE 240M)
   and 10-bit formats have no probe; the natural size of a stream with a
   non-square sample aspect ratio is not measured in Chromium.
 - Media (feature 3): no test file reaches the path where a demuxer error
-  ends the stream, or the refusal of `io_open` (a MOV with an external
-  data reference).
+  ends the stream (`End::Early` of `tests/files.rs`, which no row expects),
+  and no file has an external data reference (a MOV), so the refusal of
+  `io_open` is checked only through its callback
+  (`Demuxer::refuses_second_resource`, `media-ffi` `tests/boundary.rs`).
 - CI (feature 3): the job `check-media` has not run on GitHub before the
   commit (the cache key, the packages, the download and the signature
   check on the runner).
@@ -7790,6 +7830,8 @@ Source Extensions, AV1 (dav1d), YouTube.
   its pool place for its whole life; 16 such streams take the pool.
 - Media byte source (feature 4): a block becomes readable only when its
   64 KiB are in, so a slow live-like server shows data up to 64 KiB late.
+  Likely the cause of the stutter of live audio that the owner reported
+  (target 10, "After M15: live audio streams").
 - Media byte source (feature 4): the readers of one handle share the read
   position; one reader at a time is meant to read.
 - Media byte source (feature 4): media requests carry no `Referer` and
@@ -8414,7 +8456,8 @@ Source Extensions, AV1 (dav1d), YouTube.
   features (select, flex and grid).
 - Tests (M12): `script_location::at_most_sixty_four_traversals_wait_and_reloads_are_one`
   (engine) failed once in two full `just check` runs under load (the
-  requests came in another order) and passed alone.
+  requests came in another order) and passed alone. Again once in the
+  `just check` of the M14 maintenance (passed alone 3 of 3).
 - Raster (feature 5): the isolating layer of the OSM tile pane still costs
   about 2 ms of the 8.8 ms frame (a 1280 x 800 layer is allocated and
   cleared in each frame; a layer buffer kept across frames would remove

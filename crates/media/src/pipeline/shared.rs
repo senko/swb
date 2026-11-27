@@ -49,12 +49,7 @@ use super::slots::{PipelineSlots, RunPlace};
 use crate::decode::Packet;
 use crate::origin::Timeline;
 use crate::ring::SampleRing;
-use crate::{MediaError, MediaInfo, OUTPUT_RATE};
-
-/// The owner's wake-up: called from the pipeline's threads when a report
-/// is ready or data that the owner waits for was decoded (like the
-/// network's wake-up of the event loop).
-pub type Notify = Arc<dyn Fn() + Send + Sync>;
+use crate::{MediaError, MediaInfo, Notify, OUTPUT_RATE};
 
 /// The samples of the ring: 1 s at 48 kHz (ADR 0047 section 6).
 pub(crate) const RING_FRAMES: usize = OUTPUT_RATE as usize;

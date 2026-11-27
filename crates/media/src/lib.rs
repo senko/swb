@@ -1,10 +1,11 @@
 //! Media playback (ADR 0047): byte sources, the metadata of a media file,
 //! and its decoding into RGBA frames and 48 kHz stereo `f32` samples.
 //!
-//! With the feature `ffmpeg` (on in `swb --features media`), `MediaFile`
-//! opens a `ByteSource` through FFmpeg (`swb-media-ffi`), reports its
-//! metadata and decodes its frames and samples in order and after a seek.
-//! Its parts, `Demux`, `VideoDecoder` and `AudioDecoder`, are `Send`;
+//! With the feature `ffmpeg` (on in `swb --features media`), `Demux` opens
+//! a `ByteSource` through FFmpeg (`swb-media-ffi`) and reports its
+//! metadata; `MediaFile` is the in-order reference decode of the tests (it
+//! decodes the frames and samples in order and after a seek; the pipeline
+//! does not use it). `Demux`, `VideoDecoder` and `AudioDecoder` are `Send`;
 //! [`pipeline::Pipeline`] runs the demuxer and the audio on one thread and
 //! the video on another, with bounded queues, the media clock,
 //! synchronization, seeking and virtual time (ADR 0047 sections 6 and 7).
@@ -35,6 +36,8 @@ mod decode;
 mod file;
 #[cfg(feature = "ffmpeg")]
 pub mod pipeline;
+#[cfg(feature = "ffmpeg")]
+mod seek;
 
 pub use can_play::{CanPlay, can_play_type};
 pub use clock::{ClockSource, MediaClock};
@@ -51,7 +54,7 @@ pub use source::{ByteSource, FileSource, MemorySource};
 pub use net_source::NetSource;
 
 #[cfg(feature = "ffmpeg")]
-pub use decode::{AudioChunk, AudioDecoder, Demux, Output, Packet, RawVideoFrame, VideoDecoder};
+pub use decode::{AudioChunk, AudioDecoder, Demux, Packet, RawVideoFrame, Receive, VideoDecoder};
 #[cfg(feature = "ffmpeg")]
 pub use file::{Decoded, MediaFile, VideoFrame};
 
@@ -94,6 +97,12 @@ pub mod limits {
 pub const OUTPUT_RATE: u32 = 48_000;
 /// The channels of decoded audio (interleaved).
 pub const OUTPUT_CHANNELS: u32 = 2;
+
+/// The owner's wake-up: called from the threads of a pipeline when a report
+/// is ready or data that the owner waits for was decoded, and from the audio
+/// output when a device streams or failed (like the network's wake-up of the
+/// event loop).
+pub type Notify = std::sync::Arc<dyn Fn() + Send + Sync>;
 
 /// Whether this build has media support (the feature `ffmpeg`).
 pub const ENABLED: bool = cfg!(feature = "ffmpeg");

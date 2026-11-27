@@ -14,45 +14,20 @@
 mod common;
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use common::media_site::MediaSite;
-use common::{new_page, node, on_page_thread, on_page_threads};
-use serde_json::Value;
-use swb_engine::{ClockMode, Evaluation, JsonForm, Page, PageClock, Pixmap, Size, Url};
-use swb_net::Fetcher;
-
-const FOLDER: &str = "case-1";
-const MP4: &str = "fixtures/media/mp4-h264-high-aac.mp4";
+use common::media_probe::evaluate_strict as evaluate;
+use common::media_site::{FOLDER, JS_HELPERS as HELPERS, MP4, MediaSite, VIEW, open_page};
+use common::{node, on_page_thread, on_page_threads, with_busy_threads};
+use swb_engine::{ClockMode, Page, Pixmap};
 
 fn page_for(html: &str) -> (Page, Arc<MediaSite>) {
     let mut site = MediaSite::new(FOLDER, html);
     site.add_file("a.mp4", MP4);
-    let site = Arc::new(site);
-    let mut page = new_page(
-        Arc::clone(&site) as Arc<dyn Fetcher>,
-        2,
-        Size::new(800.0, 600.0),
-    );
-    page.set_javascript(true);
-    page.set_clock(PageClock::new(ClockMode::Virtual, None));
-    page.navigate(Url::parse(&MediaSite::page_url(FOLDER)).unwrap());
-    assert!(page.wait_until_loaded(Duration::from_secs(30)));
-    (page, site)
+    open_page(site, VIEW, ClockMode::Virtual, |page| {
+        page.set_javascript(true);
+    })
 }
-
-fn evaluate(page: &mut Page, js: &str) -> Value {
-    match page.evaluate_with_timeout(js, JsonForm::Strict, Duration::from_secs(60)) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
-        other => panic!("{js}: {other:?}"),
-    }
-}
-
-const HELPERS: &str = "<script>\
-    const sleep = ms => new Promise(r => setTimeout(r, ms));\
-    const once = (m, n, ms = 8000) => new Promise(r => { const to = setTimeout(() => r('timeout'), ms); m.addEventListener(n, () => { clearTimeout(to); r(n); }, {once: true}); });\
-    </script>";
 
 /// `[r, g, b]` of the pixel `(x, y)` of a screenshot (opaque pages).
 fn rgb(shot: &Pixmap, x: u32, y: u32) -> [u8; 3] {
@@ -72,30 +47,6 @@ const PLAYING: &str = "<video id=v src=a.mp4 preload=auto muted loop></video>";
 /// Waits for the data of `#v`.
 const READY: &str =
     "(async () => { if (v.readyState < 2) await once(v, 'loadeddata'); return v.readyState; })()";
-
-/// Runs `f` while a thread per core keeps the machine busy.
-fn with_busy_threads<T>(f: impl FnOnce() -> T) -> T {
-    let stop = Arc::new(AtomicBool::new(false));
-    let cores = std::thread::available_parallelism().map_or(4, usize::from);
-    let busy: Vec<_> = (0..cores)
-        .map(|_| {
-            let stop = Arc::clone(&stop);
-            std::thread::spawn(move || {
-                let mut x = 1u64;
-                while !stop.load(Ordering::Relaxed) {
-                    x = x.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
-                    std::hint::black_box(x);
-                }
-            })
-        })
-        .collect();
-    let out = f();
-    stop.store(true, Ordering::Relaxed);
-    for thread in busy {
-        thread.join().unwrap();
-    }
-    out
-}
 
 /// The screenshot of a playing video after `ms` of page time of playback.
 fn playing_shot(ms: u64) -> Pixmap {
@@ -333,16 +284,7 @@ fn the_poster_shows_until_play_and_the_frame_after_it() {
         );
         site.add_file("a.mp4", MP4);
         site.add_file("p.png", "fixtures/media/poster-320x240.png");
-        let site = Arc::new(site);
-        let mut page = new_page(
-            Arc::clone(&site) as Arc<dyn Fetcher>,
-            2,
-            Size::new(800.0, 600.0),
-        );
-        page.set_javascript(true);
-        page.set_clock(PageClock::new(ClockMode::Virtual, None));
-        page.navigate(Url::parse(&MediaSite::page_url(FOLDER)).unwrap());
-        assert!(page.wait_until_loaded(Duration::from_secs(30)));
+        let mut page = page_of(site, ClockMode::Virtual);
         evaluate(&mut page, READY);
         let poster = page.screenshot(false).unwrap();
         // The poster's flat color (49, 100, 151), not a frame.
@@ -366,13 +308,10 @@ fn the_poster_shows_until_play_and_the_frame_after_it() {
 
 /// A page of `site` in the clock mode `mode`.
 fn page_of(site: MediaSite, mode: ClockMode) -> Page {
-    let site = Arc::new(site);
-    let mut page = new_page(site as Arc<dyn Fetcher>, 2, Size::new(800.0, 600.0));
-    page.set_javascript(true);
-    page.set_clock(PageClock::new(mode, None));
-    page.navigate(Url::parse(&MediaSite::page_url(FOLDER)).unwrap());
-    assert!(page.wait_until_loaded(Duration::from_secs(30)));
-    page
+    open_page(site, VIEW, mode, |page| {
+        page.set_javascript(true);
+    })
+    .0
 }
 
 /// The page of a poster video: `video` is the element's markup.

@@ -41,7 +41,7 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError, Weak};
 use std::time::{Duration, Instant};
 
-use super::shared::Notify;
+use crate::Notify;
 
 /// The most open pipelines per process (ADR 0047 section 6).
 pub const MAX_OPEN_PIPELINES: usize = 16;
@@ -132,6 +132,14 @@ struct State {
     peak_frames: u64,
     /// The runs that wait for frame bytes, in order.
     frame_waiting: VecDeque<FrameWaiter>,
+}
+
+impl State {
+    /// Counts `n` more frame bytes in the places and keeps the peak.
+    fn add_frame_bytes(&mut self, n: u64) {
+        self.frames += n;
+        self.peak_frames = self.peak_frames.max(self.frames);
+    }
 }
 
 impl PipelineSlots {
@@ -306,8 +314,7 @@ impl PipelineSlots {
             let grant = w.want.min(free);
             // A run whose place is gone (detached) gets nothing.
             if w.place.upgrade().is_some_and(|p| p.add_frames(grant, true)) {
-                st.frames += grant;
-                st.peak_frames = st.peak_frames.max(st.frames);
+                st.add_frame_bytes(grant);
                 woken.push((w.wake, w.notify));
             }
         }
@@ -506,8 +513,7 @@ impl RunPlace {
         if st.frame_waiting.is_empty() && free >= min {
             let grant = want.max(min).min(free);
             if self.add_frames(grant, false) {
-                st.frames += grant;
-                st.peak_frames = st.peak_frames.max(st.frames);
+                st.add_frame_bytes(grant);
             }
             return Reserve::Granted(grant);
         }
@@ -543,8 +549,7 @@ impl RunPlace {
             return None;
         }
         slot.frames += extra;
-        st.frames += extra;
-        st.peak_frames = st.peak_frames.max(st.frames);
+        st.add_frame_bytes(extra);
         Some(slot.frames)
     }
 

@@ -22,11 +22,11 @@ use super::shared::{
 };
 use super::slots::{FrameWake, Reserve, RunPlace, Slot};
 use super::video;
-use crate::decode::{AudioChunk, AudioDecoder, Demux, Output, Packet, VideoDecoder};
-use crate::file::seek_demux;
+use crate::decode::{AudioChunk, AudioDecoder, Demux, Packet, Receive, VideoDecoder};
 use crate::origin::{Timeline, timeline};
-use crate::ring::{RingBase, SampleRing};
-use crate::{ByteSource, MediaError, OUTPUT_CHANNELS, OUTPUT_RATE};
+use crate::ring::{RingBase, SampleRing, frames_to_us, us_to_frames};
+use crate::seek::seek_demux;
+use crate::{ByteSource, MediaError, OUTPUT_CHANNELS};
 
 /// A gap or overlap of the audio timestamps up to this size is filled with
 /// silence or cut; a larger one starts a new timeline base (a broken file).
@@ -42,7 +42,7 @@ enum Flow {
     Interrupted,
 }
 
-/// How far [`Worker::pump_audio`] goes.
+/// How far [`DemuxWorker::pump_audio`] goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Pump {
     /// Writes what fits in the ring now.
@@ -128,7 +128,7 @@ fn main(shared: &Arc<Shared>, run: u64, place: &Arc<RunPlace>) {
     if shared.lock().run != run {
         return;
     }
-    let mut worker = match Worker::open(shared, run, place) {
+    let mut worker = match DemuxWorker::open(shared, run, place) {
         Ok(w) => w,
         Err(e) => {
             shared.fail(run, e);
@@ -234,7 +234,7 @@ pub(crate) fn over_budget(size: (u32, u32)) -> MediaError {
 }
 
 /// The demux thread's state.
-struct Worker {
+struct DemuxWorker {
     shared: Arc<Shared>,
     run: u64,
     demux: Demux,
@@ -271,10 +271,14 @@ fn interrupted(st: &State, run: u64) -> bool {
     st.run != run || st.seek.is_some()
 }
 
-impl Worker {
+impl DemuxWorker {
     /// Opens the source, the demuxer and the decoders; reports the
     /// metadata at the first open; starts the video thread.
-    fn open(shared: &Arc<Shared>, run: u64, place: &Arc<RunPlace>) -> Result<Worker, MediaError> {
+    fn open(
+        shared: &Arc<Shared>,
+        run: u64,
+        place: &Arc<RunPlace>,
+    ) -> Result<DemuxWorker, MediaError> {
         let (demux, video_on, audio_on) = open_demux(shared, run)?;
         let info = demux.info().clone();
         let tl = timeline(&info);
@@ -341,7 +345,7 @@ impl Worker {
             )?),
             None => None,
         };
-        Ok(Worker {
+        Ok(DemuxWorker {
             shared: Arc::clone(shared),
             run,
             demux,
@@ -523,13 +527,13 @@ impl Worker {
                 return Ok(Flow::Continue);
             };
             match audio.receive()? {
-                Output::Ready(chunk) => {
+                Receive::Ready(chunk) => {
                     self.shared.progressed();
                     if let Flow::Interrupted = self.place_chunk(chunk) {
                         return Ok(Flow::Interrupted);
                     }
                 }
-                Output::NeedsInput => {
+                Receive::NeedsInput => {
                     if let Some(packet) = self.backlog.pop_front() {
                         self.backlog_bytes = self.backlog_bytes.saturating_sub(packet.size());
                         if !audio.send(&packet)? {
@@ -545,7 +549,7 @@ impl Worker {
                         return Ok(Flow::Continue);
                     }
                 }
-                Output::Ended => {
+                Receive::Ended => {
                     self.audio_done = true;
                     let mut st = self.shared.lock();
                     if st.run == self.run {
@@ -777,7 +781,7 @@ impl Worker {
     }
 }
 
-impl Drop for Worker {
+impl Drop for DemuxWorker {
     /// The video thread ends with the demux thread, also when the demux
     /// thread unwinds from a panic.
     fn drop(&mut self) {
@@ -842,17 +846,6 @@ fn open_demux(shared: &Shared, run: u64) -> Result<(Demux, bool, bool), MediaErr
     let video_on = has_video && (want_video || !audio_on);
     demux.select(video_on, audio_on)?;
     Ok((demux, video_on, audio_on))
-}
-
-/// Microseconds of `frames` at the output rate.
-pub(crate) fn frames_to_us(frames: u64) -> i64 {
-    i64::try_from(u128::from(frames) * 1_000_000 / u128::from(OUTPUT_RATE)).unwrap_or(i64::MAX)
-}
-
-/// Output frames in `us` microseconds, rounded (0 for a negative time).
-pub(crate) fn us_to_frames(us: i64) -> u64 {
-    let us = u128::try_from(us).unwrap_or(0);
-    u64::try_from((us * u128::from(OUTPUT_RATE) + 500_000) / 1_000_000).unwrap_or(u64::MAX)
 }
 
 #[cfg(test)]

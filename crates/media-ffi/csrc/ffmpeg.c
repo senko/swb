@@ -623,7 +623,7 @@ SwbScaler *swb_scaler_new(void) {
  * height (`ensure_padded`), into a scratch buffer, and crops the result.
  * Excluded: packed YUV (uyvy422, yuyv422), RGB, palette and bitstream formats,
  * and formats with fewer than 3 components; the build's decoders (h264, vp8,
- * vp9; tools/ffmpeg/build.sh) output only planar YUV formats. */
+ * vp9; tools/ffmpeg/configure.txt) output only planar YUV formats. */
 static int needs_padding(const AVFrame *fr, const AVPixFmtDescriptor *desc) {
     if (!(desc->flags & AV_PIX_FMT_FLAG_PLANAR) ||
         (desc->flags & (AV_PIX_FMT_FLAG_RGB | AV_PIX_FMT_FLAG_PAL | AV_PIX_FMT_FLAG_BITSTREAM)) ||
@@ -781,7 +781,7 @@ int swb_scaler_rgba(SwbScaler *s, const SwbFrame *f, int matrix, int full_range,
      * pixels (its SIMD paths write up to a vector past the last row, and the
      * vector width depends on the CPU) and no padding is needed. Otherwise it
      * converts into the scaler's scratch buffer (width rounded up to 64, one
-     * slack row) and the visible part is copied. `Decoder::convert` always
+     * slack row) and the visible part is copied. `VideoDecoder::convert` always
      * passes the frame size, so the padded source applies to every frame with
      * subsampled chroma; a scaled destination converts the unpadded frame
      * (and keeps the chroma drift of odd sizes). */

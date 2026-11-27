@@ -5,6 +5,7 @@
 #![allow(dead_code)] // Each test binary uses a different subset.
 
 pub(crate) mod damage;
+pub(crate) mod frame_loop;
 pub(crate) mod media_probe;
 pub(crate) mod media_site;
 pub(crate) mod probe_rows;
@@ -23,6 +24,32 @@ use swb_net::{
     Fetcher, Headers, Method, NetError, NetworkFetcher, ReplayFetcher, Request, Response,
 };
 use swb_paint::{DisplayList, ImageRef, ImageSizes, NoHighlights, Scrolling};
+
+/// Runs `f` while a thread per core keeps the machine busy.
+pub(crate) fn with_busy_threads<T>(f: impl FnOnce() -> T) -> T {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    let stop = Arc::new(AtomicBool::new(false));
+    let cores = std::thread::available_parallelism().map_or(4, usize::from);
+    let busy: Vec<_> = (0..cores)
+        .map(|_| {
+            let stop = Arc::clone(&stop);
+            std::thread::spawn(move || {
+                let mut x = 1u64;
+                while !stop.load(Ordering::Relaxed) {
+                    x = x.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
+                    std::hint::black_box(x);
+                }
+            })
+        })
+        .collect();
+    let out = f();
+    stop.store(true, Ordering::Relaxed);
+    for thread in busy {
+        thread.join().expect("a busy thread does not panic");
+    }
+    out
+}
 
 /// A directory with test pages, removed at the end of the test.
 pub(crate) struct Site {

@@ -76,10 +76,6 @@ impl MonoClock for ManualClock {
     }
 }
 
-/// What the owner wakes when the output changes state (a device that
-/// streams now, or failed): the page's wake-up.
-pub type Waker = Arc<dyn Fn() + Send + Sync>;
-
 /// The state of a device stream, as the backend reports it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeviceState {
@@ -132,6 +128,7 @@ pub fn lead_frames(ring: &SampleRing, media_us: i64) -> i64 {
     };
     let content = base.media_time(ring.read_position());
     let us = content.saturating_sub(media_us);
+    // Signed on purpose (not `ring::us_to_frames`: negative times count).
     let frames = us.saturating_mul(i64::from(OUTPUT_RATE)) / 1_000_000;
     frames.clamp(-2 * i64::from(OUTPUT_RATE), 2 * i64::from(OUTPUT_RATE))
 }

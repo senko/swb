@@ -26,7 +26,7 @@ mod common;
 use std::sync::Arc;
 use std::time::Duration;
 
-use common::media_site::{MediaSite, RangeMode};
+use common::media_site::MediaSite;
 use common::on_page_threads;
 use common::probe_rows::load_cases;
 use serde_json::Value;
@@ -96,44 +96,17 @@ const DEPARTURES: &[(&str, &str, &str)] = &[
 
 /// The answers with `NaN` read as `null`.
 fn answers() -> &'static str {
-    static TEXT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    TEXT.get_or_init(|| common::media_site::chromium_json(ANSWERS))
+    common::media_probe::answers(ANSWERS)
 }
 
-/// The folder of a probe case on the probe's server: `case-N`, N counted
-/// from 1 in the probe file (the URLs of the answers contain it).
+/// The folder of a probe case on the probe's server (`case-N`).
 fn folder_of(name: &str) -> String {
-    static NAMES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
-    let names = NAMES.get_or_init(|| {
-        let text = std::fs::read_to_string(common::repo_root().join(PROBE)).unwrap();
-        let probe: Value = serde_json::from_str(&text).unwrap();
-        probe["cases"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|c| c["name"].as_str().unwrap().to_owned())
-            .collect()
-    });
-    let index = names.iter().position(|n| n == name).unwrap();
-    format!("case-{}", index + 1)
+    common::media_probe::folder_of(PROBE, name)
 }
 
 /// The simulated server of a probe case.
 fn site_of(case: &Value) -> MediaSite {
-    let name = folder_of(case["name"].as_str().unwrap());
-    let mut site = MediaSite::new(&name, case["html"].as_str().unwrap());
-    for (served, path) in case["files"].as_object().into_iter().flatten() {
-        site.add_file(served, path.as_str().unwrap());
-    }
-    for (served, resource) in case["resources"].as_object().into_iter().flatten() {
-        site.add_resource(served, resource);
-    }
-    site.mode = match &case["ranges"] {
-        Value::Bool(false) => RangeMode::Ignore,
-        Value::String(s) if s == "ignore" => RangeMode::ClaimButIgnore,
-        _ => RangeMode::Honor,
-    };
-    site
+    common::media_probe::site_of(PROBE, case)
 }
 
 /// What this test compares for the case: the query of each `js` row and the

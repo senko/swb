@@ -12,17 +12,13 @@
 mod common;
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use common::media_site::MediaSite;
-use common::{new_page, node, on_page_thread, on_page_threads};
+use common::media_probe::evaluate_strict as evaluate;
+use common::media_site::{FOLDER, MP4, MediaSite, VIEW, open_page};
+use common::{node, on_page_thread, on_page_threads, with_busy_threads};
 use serde_json::Value;
-use swb_engine::{ClockMode, Evaluation, JsonForm, Page, PageClock, Size, Url};
-use swb_net::Fetcher;
-
-const FOLDER: &str = "case-1";
-const MP4: &str = "fixtures/media/mp4-h264-high-aac.mp4";
+use swb_engine::{ClockMode, Evaluation, JsonForm, Page};
 const MP3: &str = "fixtures/media/mp3.mp3";
 const WAV: &str = "fixtures/media/wav-pcm-s16.wav";
 const CORRUPT: &str = "fixtures/media/mp4-h264-high-aac-corrupt.mp4";
@@ -33,24 +29,9 @@ fn page_for(html: &str, files: &[(&str, &str)], javascript: bool) -> (Page, Arc<
     for (name, path) in files {
         site.add_file(name, path);
     }
-    let site = Arc::new(site);
-    let mut page = new_page(
-        Arc::clone(&site) as Arc<dyn Fetcher>,
-        2,
-        Size::new(800.0, 600.0),
-    );
-    page.set_javascript(javascript);
-    page.set_clock(PageClock::new(ClockMode::Virtual, None));
-    page.navigate(Url::parse(&MediaSite::page_url(FOLDER)).unwrap());
-    assert!(page.wait_until_loaded(Duration::from_secs(30)));
-    (page, site)
-}
-
-fn evaluate(page: &mut Page, js: &str) -> Value {
-    match page.evaluate_with_timeout(js, JsonForm::Strict, Duration::from_secs(60)) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
-        other => panic!("{js}: {other:?}"),
-    }
+    open_page(site, VIEW, ClockMode::Virtual, |page| {
+        page.set_javascript(javascript);
+    })
 }
 
 /// The helpers of the probe pages: `evs()` (the events of `watch(m)` with
@@ -416,12 +397,9 @@ fn playback_to_the_damage(bytes: Vec<u8>) -> Value {
         ),
     );
     site.add_bytes("a.mp4", bytes);
-    let site = Arc::new(site);
-    let mut page = new_page(site as Arc<dyn Fetcher>, 2, Size::new(800.0, 600.0));
-    page.set_javascript(true);
-    page.set_clock(PageClock::new(ClockMode::Virtual, None));
-    page.navigate(Url::parse(&MediaSite::page_url(FOLDER)).unwrap());
-    assert!(page.wait_until_loaded(Duration::from_secs(30)));
+    let (mut page, _site) = open_page(site, VIEW, ClockMode::Virtual, |page| {
+        page.set_javascript(true);
+    });
     evaluate(
         &mut page,
         "(async () => { \
@@ -562,30 +540,6 @@ fn a_failure_during_the_start_seek_still_gives_the_first_data() {
     for run in &runs {
         check(run);
     }
-}
-
-/// Runs `f` while a thread per core keeps the machine busy.
-fn with_busy_threads<T>(f: impl FnOnce() -> T) -> T {
-    let stop = Arc::new(AtomicBool::new(false));
-    let cores = std::thread::available_parallelism().map_or(4, usize::from);
-    let busy: Vec<_> = (0..cores)
-        .map(|_| {
-            let stop = Arc::clone(&stop);
-            std::thread::spawn(move || {
-                let mut x = 1u64;
-                while !stop.load(Ordering::Relaxed) {
-                    x = x.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
-                    std::hint::black_box(x);
-                }
-            })
-        })
-        .collect();
-    let out = f();
-    stop.store(true, Ordering::Relaxed);
-    for thread in busy {
-        thread.join().unwrap();
-    }
-    out
 }
 
 /// The events of two playing media and a seek in one page, as `evs` shows

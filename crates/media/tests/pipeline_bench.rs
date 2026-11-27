@@ -12,7 +12,7 @@ mod common;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use common::driver::{Waker, options, play_virtual, settle_update};
+use common::driver::{TestWaker, options, play_virtual, settle_update};
 use common::repo_path;
 use swb_media::pipeline::{Pipeline, Report, SourceOpener};
 
@@ -22,7 +22,7 @@ const FILES: [&str; 3] = [
     "fixtures/js/media/mux-highest.mp4",
 ];
 
-fn open(path: &str, waker: &Arc<Waker>) -> Option<Pipeline> {
+fn open(path: &str, waker: &Arc<TestWaker>) -> Option<Pipeline> {
     let path = repo_path(path);
     if !path.exists() {
         eprintln!("skipped: {} is not there", path.display());
@@ -50,7 +50,7 @@ fn cpu_time() -> Duration {
 fn throughput_in_virtual_time() {
     for path in FILES {
         for painted in [true, false] {
-            let waker = Arc::new(Waker::default());
+            let waker = Arc::new(TestWaker::default());
             let Some(mut p) = open(path, &waker) else {
                 continue;
             };
@@ -79,7 +79,7 @@ fn throughput_in_virtual_time() {
 #[ignore = "a measurement with local files; run in release mode"]
 fn real_time_playback_and_paused_cpu() {
     for path in FILES {
-        let waker = Arc::new(Waker::default());
+        let waker = Arc::new(TestWaker::default());
         let Some(mut p) = open(path, &waker) else {
             continue;
         };

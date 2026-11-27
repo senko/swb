@@ -137,7 +137,7 @@ impl Page {
     /// keeps them, so its jumps do not depend on the paint.
     pub(super) fn media_next_due(&self) -> Option<f64> {
         let coarse = !self.clock.is_virtual();
-        let now = crate::media::ms_to_us(self.clock.now());
+        let now = self.media_now_us();
         self.media_frames()
             .into_iter()
             .filter_map(|frame| {
@@ -165,7 +165,7 @@ impl Page {
         if self.lent {
             return false;
         }
-        let now = crate::media::ms_to_us(self.clock.now());
+        let now = self.media_now_us();
         self.media_frames().into_iter().any(|frame| {
             self.doc_of(frame)
                 .is_some_and(|d| d.media_frame_due(now) || d.media_controls_stale(now))
@@ -179,15 +179,15 @@ impl Page {
     /// no wake-up).
     #[doc(hidden)]
     pub fn media_controls_due(&self) -> Option<f64> {
-        let now = self.controls_now();
+        let now = self.media_now_us();
         self.media_frames()
             .into_iter()
             .filter_map(|frame| self.doc_of(frame)?.media_controls_next_due(now))
             .reduce(f64::min)
     }
 
-    /// The page time in microseconds, for the default controls.
-    fn controls_now(&self) -> i64 {
+    /// The page time in microseconds, as the media code counts it.
+    fn media_now_us(&self) -> i64 {
         crate::media::ms_to_us(self.clock.now())
     }
 
@@ -199,21 +199,21 @@ impl Page {
         node: Option<NodeId>,
         point: swb_layout::Point,
     ) -> bool {
-        let now = self.controls_now();
+        let now = self.media_now_us();
         self.parts()
             .is_some_and(|(doc, _)| doc.controls_pointer(node, point, now))
     }
 
     /// The pointer left the active document.
     pub(super) fn controls_leave(&mut self) -> bool {
-        let now = self.controls_now();
+        let now = self.media_now_us();
         self.parts().is_some_and(|(doc, _)| doc.controls_leave(now))
     }
 
     /// A press of the primary button at `point` of the active document: true
     /// if it is on a default control (the page's scripts get no event).
     pub(super) fn controls_down(&mut self, point: swb_layout::Point) -> bool {
-        let now = self.controls_now();
+        let now = self.media_now_us();
         let node = self.hit_doc(point.x, point.y).map(|h| h.node);
         self.parts()
             .is_some_and(|(doc, _)| doc.controls_down(node, point, now))
@@ -255,7 +255,7 @@ impl Page {
     /// The pointer moved to `point` with a press in progress: a drag of the
     /// timeline or the volume slider follows. True if the page changed.
     pub(super) fn controls_drag(&mut self, point: swb_layout::Point) -> bool {
-        let now = self.controls_now();
+        let now = self.media_now_us();
         self.parts()
             .is_some_and(|(doc, _)| doc.controls_drag(point, now))
     }
@@ -264,7 +264,7 @@ impl Page {
     /// on a default control (the page's scripts get no event for the
     /// release).
     pub(super) fn controls_up(&mut self, point: swb_layout::Point) -> bool {
-        let now = self.controls_now();
+        let now = self.media_now_us();
         self.parts()
             .is_some_and(|(doc, _)| doc.controls_up(point, now))
     }
@@ -272,7 +272,7 @@ impl Page {
     /// The `click` on `target` was not canceled: a press on the picture of a
     /// media element plays or pauses it.
     pub(super) fn controls_picture_click(&mut self, target: NodeId) -> bool {
-        let now = self.controls_now();
+        let now = self.media_now_us();
         self.parts()
             .is_some_and(|(doc, _)| doc.controls_picture_click(target, now))
     }
@@ -280,7 +280,7 @@ impl Page {
     /// Tells the documents the page time of the next picture of their
     /// default controls.
     fn set_controls_time(&mut self) {
-        let now = self.controls_now();
+        let now = self.media_now_us();
         for frame in self.media_frames() {
             if let Some(doc) = self.doc_of_mut(frame) {
                 doc.set_controls_time(now);
@@ -320,7 +320,7 @@ impl Page {
         if self.lent {
             return Vec::new();
         }
-        let now = crate::media::ms_to_us(self.clock.now());
+        let now = self.media_now_us();
         let mut samples = Vec::new();
         for frame in self.media_frames() {
             if let Some(doc) = self.doc_of(frame) {
@@ -453,7 +453,7 @@ impl Page {
         if self.lent || (self.clock.is_virtual() && self.media_pending()) {
             return;
         }
-        let now = crate::media::ms_to_us(self.clock.now());
+        let now = self.media_now_us();
         for frame in self.media_frames() {
             if let Some(doc) = self.doc_of_mut(frame) {
                 doc.sync_media_images(Some(now));
@@ -552,13 +552,15 @@ impl Page {
     /// (zero but in the tests of the handover) makes the last thread of a
     /// run that ended wait that long before it hands its place on, as a
     /// slow thread would. Without the feature `media` it does nothing.
+    #[doc(hidden)]
     pub fn isolate_media(&mut self, handover_delay: std::time::Duration) {
         self.maker.media.isolate(handover_delay);
     }
 
     /// The number of media elements of the page whose pipeline runs (not
     /// suspended, failed or waiting for a place): at most 16 run at a time
-    /// (ADR 0047 section 6). For the tests and the automation.
+    /// (ADR 0047 section 6). For the tests.
+    #[doc(hidden)]
     pub fn media_pipelines(&self) -> usize {
         self.media_frames()
             .into_iter()
@@ -571,6 +573,7 @@ impl Page {
     /// top-level document converted to pixels (a hidden video converts
     /// none, ADR 0047 section 6). For tests; `None` for an element without
     /// a pipeline, and without the feature `media`.
+    #[doc(hidden)]
     pub fn media_frames_converted(&self, node: NodeId) -> Option<u64> {
         self.doc.as_deref()?.media_frames_converted(node)
     }
@@ -579,6 +582,7 @@ impl Page {
     /// keep while their pipelines hold no place, and the number of frames
     /// that the budget of retained frames dropped (M14 feature 10a). For
     /// tests; `(0, 0)` without a document.
+    #[doc(hidden)]
     pub fn media_retained_frames(&self) -> (u64, u64) {
         self.doc
             .as_deref()
@@ -587,6 +591,7 @@ impl Page {
 
     /// Whether the `<video>` `node` of the top-level document shows a frame
     /// of its video now (not its poster, not nothing). For tests.
+    #[doc(hidden)]
     pub fn media_shows_frame(&self, node: NodeId) -> bool {
         self.doc
             .as_deref()
@@ -597,6 +602,7 @@ impl Page {
     /// top-level document shows now: the frame's, or that of a reduced copy
     /// that the budget of retained frames made for its box (M14 feature
     /// 10a). For tests; `None` without a frame.
+    #[doc(hidden)]
     pub fn media_frame_size(&self, node: NodeId) -> Option<(u32, u32)> {
         self.doc.as_deref()?.media_frame_size(node)
     }
@@ -604,6 +610,7 @@ impl Page {
     /// The frames of the top-level document that the budget of retained
     /// frames replaced by a reduced copy so far (M14 feature 10a). For
     /// tests.
+    #[doc(hidden)]
     pub fn media_reduced_frames(&self) -> u64 {
         self.doc
             .as_deref()
@@ -613,6 +620,7 @@ impl Page {
     /// The most source pixels that one sync of the top-level document
     /// reduced for the budget of retained frames, and the number of syncs
     /// that reduced a frame (M14 feature 10a). For tests.
+    #[doc(hidden)]
     pub fn media_reduce_work(&self) -> (u64, u64) {
         self.doc
             .as_deref()
@@ -622,13 +630,14 @@ impl Page {
     /// Exists for tests only (the product never calls it). Sets the budget
     /// of retained frames of each document of the page (M14 feature 10a;
     /// default `RETAINED_FRAME_BUDGET`, 256 MiB).
+    #[doc(hidden)]
     pub fn set_retained_frame_budget(&mut self, bytes: u64) {
         self.maker.media.set_retained_budget(bytes);
     }
 
     /// What the media element `node` of the top-level document reports (the
-    /// state that scripts read), for the tests and the automation of the
-    /// media element. `None` without a document.
+    /// state that scripts read), for the tests of the media element. `None`
+    /// without a document.
     pub fn media_info(&mut self, node: NodeId) -> Option<MediaInfo> {
         self.doc.as_deref_mut().map(|doc| doc.media_info(node))
     }

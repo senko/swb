@@ -17,10 +17,11 @@ mod common;
 use std::sync::Arc;
 use std::time::Duration;
 
+use common::media_probe::evaluate_strict as evaluate;
 use common::media_site::{MediaSite, RangeMode};
 use common::{new_page, node, on_page_thread};
-use serde_json::{Value, json};
-use swb_engine::{ClockMode, Evaluation, JsonForm, Page, PageClock, Size, Url};
+use serde_json::json;
+use swb_engine::{ClockMode, Page, PageClock, Size, Url};
 use swb_net::Fetcher;
 
 /// The events and state script reads of the element `v` (and sources `s1`,
@@ -48,13 +49,6 @@ fn page_for(html: &str, javascript: bool) -> (Page, Arc<MediaSite>) {
     assert!(page.wait_until_loaded(Duration::from_secs(20)));
     page.run_event_loop(Duration::from_secs(3), Duration::from_secs(20));
     (page, site)
-}
-
-fn evaluate(page: &mut Page, js: &str) -> Value {
-    match page.evaluate(js, JsonForm::Strict) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
-        other => panic!("{js}: {other:?}"),
-    }
 }
 
 #[test]

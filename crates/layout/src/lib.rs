@@ -83,8 +83,8 @@ pub use fragment::{
 };
 pub use geom::{Edges, KAPPA, Matrix, Point, Rect, Size};
 pub use media::{
-    MediaHit, THUMB_BAND, VolumeSlider, media_hit, media_time_text, time_label, timeline_fraction,
-    volume_fraction, volume_slider,
+    MediaHit, THUMB_BAND, THUMB_SIZE, VolumeSlider, media_hit, media_time_text, time_label,
+    timeline_fraction, volume_fraction, volume_slider,
 };
 pub use paint_restyle::Unsupported;
 pub use positioned::{

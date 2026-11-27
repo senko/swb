@@ -302,10 +302,6 @@ pub struct StreamInfo {
     pub codec: String,
     /// The codec profile's name (`High`, `LC`, ...), or empty.
     pub profile_name: String,
-    /// The codec profile, when known.
-    pub profile: Option<i32>,
-    /// The codec level, when known.
-    pub level: Option<i32>,
     /// Video: the coded width and height.
     pub width: u32,
     /// See `width`.
@@ -324,8 +320,6 @@ pub struct StreamInfo {
     pub sample_rate: u32,
     /// Audio: the number of channels.
     pub channels: u32,
-    /// Audio: FFmpeg's sample format name (`fltp`, `s16`, ...), or empty.
-    pub sample_format: String,
     /// The stream's start time in microseconds, when known.
     pub start_us: Option<i64>,
     /// The stream's duration in microseconds, when known.
@@ -345,8 +339,6 @@ impl StreamInfo {
             has_decoder: s.has_decoder != 0,
             codec: c_string(&s.codec_name),
             profile_name: c_string(&s.profile_name),
-            profile: (s.profile >= 0).then_some(s.profile),
-            level: (s.level >= 0).then_some(s.level),
             width: positive(s.width).unwrap_or(0),
             height: positive(s.height).unwrap_or(0),
             sample_aspect: pair(s.sar_num, s.sar_den),
@@ -356,7 +348,6 @@ impl StreamInfo {
             frame_rate: pair(s.frame_rate_num, s.frame_rate_den),
             sample_rate: positive(s.sample_rate).unwrap_or(0),
             channels: positive(s.channels).unwrap_or(0),
-            sample_format: c_string(&s.sample_format),
             start_us: time(s.start_us),
             duration_us: time(s.duration_us),
         }
@@ -599,8 +590,6 @@ pub struct PacketInfo {
     pub key: bool,
     /// The presentation time, in microseconds.
     pub pts_us: Option<i64>,
-    /// The decode time, in microseconds.
-    pub dts_us: Option<i64>,
     /// The duration, in microseconds.
     pub duration_us: Option<i64>,
     /// The size of the data in bytes.
@@ -630,7 +619,6 @@ impl Packet {
             stream: usize::try_from(i.stream).unwrap_or(usize::MAX),
             key: i.key != 0,
             pts_us: time(i.pts_us),
-            dts_us: time(i.dts_us),
             duration_us: time(i.duration_us),
             size: usize::try_from(i.size).unwrap_or(0),
         };
@@ -733,10 +721,6 @@ pub struct VideoFrameInfo {
     pub matrix: MatrixTag,
     /// The frame's range tag.
     pub range: RangeTag,
-    /// Whether the pixel format has alpha.
-    pub has_alpha: bool,
-    /// FFmpeg's pixel format name.
-    pub pixel_format: String,
     /// The presentation time (best effort), in microseconds.
     pub pts_us: Option<i64>,
     /// The duration, in microseconds.
@@ -784,8 +768,6 @@ impl Frame {
                     height: positive(v.height)?,
                     matrix: MatrixTag::from_c(v.matrix),
                     range: RangeTag::from_c(v.range),
-                    has_alpha: v.has_alpha != 0,
-                    pixel_format: c_string(&v.pixel_format),
                     pts_us: time(v.pts_us),
                     duration_us: time(v.duration_us),
                 })

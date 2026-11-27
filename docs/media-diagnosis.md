@@ -2,6 +2,10 @@
 
 The report of the diagnosis that plans the features of M14 (docs/roadmap.md,
 "M14"), written on 2026-11-24. Base 19d8022 plus the tools of this step.
+
+This is a historical report: the statements about swb ("swb at the base
+commit", section 10, "swb's loader") describe the base commit 19d8022; the
+current state is in ADR 0047 and docs/devlog.md.
 Chromium 148.0.7778.96 (Playwright 1.60, the `chromium-headless-shell`
 build; it has H.264, AAC, VP8, VP9, AV1, Opus, Vorbis, FLAC and MP3). The
 test files come from the static FFmpeg build N-66244 of the development
@@ -14,7 +18,7 @@ the step.
 
 ## Summary
 
-- **Test media and real files.** `fixtures/media/` (37 files, 2.0 MB,
+- **Test media and real files.** `fixtures/media/` (37 files at the base commit, 75 now; 2.0 MB then,
   generator `tools/media/generate.py`, committed) and `fixtures/js/media/`
   (local). **Mux's `highest.mp4` is not 1080p**: H.264 High level 5.2,
   **3840 x 2160**, 24 fps, 36 Mbit/s, 36 s, **161.6 MB**, BT.709. The
@@ -49,7 +53,7 @@ the step.
 - **Budgets** (section 6): Chromium plays the 1080p 30 fps file at 25 % of
   one core (all processes), the 4K file at 93 %, the Wikipedia file at 22 %;
   0 % when paused or ended, no dropped frames.
-- **swb today** (section 10): `<video>` and `<audio>` have the reflected
+- **swb at the base commit** (section 10): `<video>` and `<audio>` have the reflected
   attributes only. No `play()`, no `Audio`, no `MediaSource`, no
   `MediaError`. videojs.org gives its video the HLS URL as `src` and loads
   nothing else.
@@ -617,7 +621,7 @@ pixels from the top left of the video):
 - Keyboard: a click on the video focuses it; Space then pauses; the arrow keys
   did not move in the one test made (not in M14).
 
-## 10. swb today
+## 10. swb at the base commit
 
 Release build of the base commit (`target/release/swb`), `just probe
 --with-swb`:
@@ -752,8 +756,8 @@ Open questions for the ADR:
 Done: items 1 to 8 of the brief. The probe files ran three times with equal
 output (the exceptions: `media-real-files.json`, which cannot, section 5).
 Not done: a headed Chromium (the headless shell gives the same decode and
-the numbers of section 6 include its software compositor); the hour format of
-the time text; the keyboard shortcuts; picture-in-picture, fullscreen,
+the numbers of section 6 include its software compositor); the keyboard
+shortcuts; picture-in-picture, fullscreen,
 text tracks and Media Source Extensions (M15); audio output levels (the
 Playwright Chromium is muted); a color probe with graded patches to find the
 exact BT.709 limited conversion; HEVC and AV1 files.

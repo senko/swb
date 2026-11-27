@@ -9,9 +9,14 @@ video: with the default build each load fails at once; run them with a build tha
 feature `media` (`just build-media`, then `swbtools hostile --swb target/release/swb NAME...`)
 to decode and draw the frames."""
 
-from pathlib import Path
-
+from swbtools import paths
 from swbtools.hostile_cases.core import Page, case, doc, steps_args, virtual_run
+
+
+def _fixture(name: str) -> bytes:
+    """The bytes of a test file of `fixtures/media/`."""
+    return (paths.repo_root() / "fixtures/media" / name).read_bytes()
+
 
 RUNNING = virtual_run(3000)
 """Scripts and 3 s of virtual time: the selections and the events run."""
@@ -132,8 +137,7 @@ def media_seek_and_audio_flood() -> Page:
     return Page(doc(f"<video id=v></video>{script}"))
 
 
-FIXTURE_VIDEO = Path(__file__).resolve().parents[3] / "fixtures/media/mp4-h264-high-aac.mp4"
-"""A 2 s test video (320 x 240, H.264, 55 KB): the cases below play it."""
+# `mp4-h264-high-aac.mp4` is a 2 s test video (320 x 240, H.264, 55 KB): the cases below play it.
 
 
 @case(
@@ -153,7 +157,7 @@ def media_100_autoplay_videos() -> Page:
         "<script>setTimeout(()=>console.warn('videos '+"
         "document.querySelectorAll('video').length),2500);</script>"
     )
-    return Page(doc(videos + script), {"a.mp4": FIXTURE_VIDEO.read_bytes()})
+    return Page(doc(videos + script), {"a.mp4": _fixture("mp4-h264-high-aac.mp4")})
 
 
 @case(
@@ -179,7 +183,7 @@ def media_huge_object_fit_none_box() -> Page:
         "<script>setTimeout(()=>console.warn('huge boxes '+"
         "document.querySelectorAll('video').length),1200);</script>"
     )
-    return Page(doc(body, css), {"a.mp4": FIXTURE_VIDEO.read_bytes()})
+    return Page(doc(body, css), {"a.mp4": _fixture("mp4-h264-high-aac.mp4")})
 
 
 @case(
@@ -201,7 +205,7 @@ def media_reload_loop_screenshot() -> Page:
         "()=>setTimeout(()=>{if(++n<300)v.load();},0));"
         "setTimeout(()=>console.warn('reload loop '+(n>0?'ran':'idle')),1200);</script>"
     )
-    return Page(doc(body), {"a.mp4": FIXTURE_VIDEO.read_bytes()})
+    return Page(doc(body), {"a.mp4": _fixture("mp4-h264-high-aac.mp4")})
 
 
 @case(
@@ -220,7 +224,7 @@ def media_reload_loop_screenshot() -> Page:
 )
 def media_1000_playing_videos_frame_loop() -> Page:
     videos = "<video src=a.mp4 muted autoplay loop width=320 height=240></video>" * 1000
-    return Page(doc(videos), {"a.mp4": FIXTURE_VIDEO.read_bytes()})
+    return Page(doc(videos), {"a.mp4": _fixture("mp4-h264-high-aac.mp4")})
 
 
 @case(
@@ -244,7 +248,7 @@ def media_controls_click_flood() -> Page:
     )
     return Page(
         doc(f"<video id=v src=a.mp4 controls width=320 height=240></video>{script}"),
-        {"a.mp4": FIXTURE_VIDEO.read_bytes()},
+        {"a.mp4": _fixture("mp4-h264-high-aac.mp4")},
     )
 
 
@@ -266,11 +270,10 @@ def media_controls_click_flood() -> Page:
 def media_1000_videos_with_controls_under_a_moving_pointer() -> Page:
     videos = "<video src=a.mp4 controls width=320 height=240></video>" * 1000
     script = "<script>setTimeout(()=>console.warn('controls moves ok'),500);</script>"
-    return Page(doc(videos + script), {"a.mp4": FIXTURE_VIDEO.read_bytes()})
+    return Page(doc(videos + script), {"a.mp4": _fixture("mp4-h264-high-aac.mp4")})
 
 
-FIXTURE_AUDIO = Path(__file__).resolve().parents[3] / "fixtures/media/m4a-aac.m4a"
-"""A 2 s test audio file (AAC in MP4): the cases below play it."""
+# `m4a-aac.m4a` is a 2 s test audio file (AAC in MP4): the cases below play it.
 
 
 @case(
@@ -291,7 +294,7 @@ def media_100_playing_audio_elements() -> Page:
         "<script>setTimeout(()=>console.warn('audio elements '+"
         "document.querySelectorAll('video').length),2500);</script>"
     )
-    return Page(doc(videos + script), {"a.m4a": FIXTURE_AUDIO.read_bytes()})
+    return Page(doc(videos + script), {"a.m4a": _fixture("m4a-aac.m4a")})
 
 
 @case(
@@ -319,19 +322,13 @@ def media_play_pause_volume_toggle_loop() -> Page:
     )
     return Page(
         doc(f"<video src=a.m4a muted></video>{script}"),
-        {"a.m4a": FIXTURE_AUDIO.read_bytes()},
+        {"a.m4a": _fixture("m4a-aac.m4a")},
     )
 
 
 # --- M14 feature 10a: hostile media files and servers (ADR 0047 section 11 and the notes of
 # feature 10a). The media files come from `tools/media/generate.py`; Chromium's behaviour for
 # each is in `tools/probes/media-hostile.json`.
-
-MEDIA = Path(__file__).resolve().parents[3] / "fixtures/media"
-
-
-def _fixture(name: str) -> bytes:
-    return (MEDIA / name).read_bytes()
 
 
 def _report(expr: str, label: str, at_ms: int) -> str:
@@ -424,7 +421,7 @@ def media_endless_body() -> Page:
     script = "<script>const v=document.querySelector('video');</script>"
     return Page(
         doc(body + script + _report(state, "endless body", 12000)),
-        {"a.mp4": FIXTURE_VIDEO.read_bytes()},
+        {"a.mp4": _fixture("mp4-h264-high-aac.mp4")},
     )
 
 
@@ -447,7 +444,7 @@ def media_endless_skip_body() -> Page:
     script = "<script>const v=document.querySelector('video');</script>"
     return Page(
         doc(body + script + _report(state, "endless skip", 3500)),
-        {"a.mp4": FIXTURE_VIDEO.read_bytes()},
+        {"a.mp4": _fixture("mp4-h264-high-aac.mp4")},
     )
 
 

@@ -4,6 +4,33 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-27: M14 maintenance; end of M14
+
+- Two read-only reviews (the media pipeline, `swb-media-ffi`, the byte
+  source and ADR 0047; the engine, layout, paint, GUI, tests, tools and
+  docs) listed 47 items and two minor bugs. 37 are applied, some in part:
+  one sample-to-time conversion; shared helpers of the media tests (the
+  strict `evaluate`, the page builders, the frame-loop driver, the busy
+  threads, the pipeline setup) and of the Python tools (`procfs.py`);
+  `pipeline/mod.rs` (1,727 -> 1,090 lines) and `media/controls.rs`
+  (1,208 lines -> `controls/` with four files) split along their parts;
+  one name for each thing (`Receive`, `Notify`, `DemuxWorker`,
+  `VideoWorker`, the units in `next_due_us` and `controls_next_due_ms`);
+  dead code (`MediaError::NotBuilt`, unused pipeline methods, FFI fields
+  that nothing read); plan text of ADR 0047 that the features made
+  outdated; `media-diagnosis.md` marked as the report of the base commit.
+- Copies that differ in rounding, error kind or message stay separate.
+  The rest, the two bugs and the C side of the FFI fields are in the
+  backlog.
+- Behaviour unchanged: the snapshot of 382 files equals the one of
+  dc2d82e, the JavaScript-on scores are equal, `just check-media` with the
+  sanitizers and the 18 hostile media cases pass.
+- Also: target 10, a live radio stream on 1.fm (owner, after M15; the
+  owner hears live audio stutter), captured with a click on play;
+  targets row 9 has videojs.org's score since M14 feature 6a (the
+  player's error dialog until M15).
+- Next: M15, the videojs.org player (plan in detail first).
+
 ## 2026-11-27: M14 feature 10c, the exit test
 
 - Mapped each works item of M14 to its tests (the module docs of

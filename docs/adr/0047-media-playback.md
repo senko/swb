@@ -174,8 +174,8 @@ line, the build fails with one message: "FFmpeg 9.0.2 is not built (or
 was built with other options): run `just ffmpeg` (ADR 0047), or set
 SWB_FFMPEG_DIR". It never downloads or builds FFmpeg itself (a build
 script must not use the network). It links `avformat`, `avcodec`,
-`swscale`, `swresample` and `avutil` statically and `m`, `pthread`
-dynamically.
+`swscale`, `swresample` and `avutil` statically and `m`, `atomic` and
+`pthread` dynamically.
 
 **CI.** A second job, `check-media`: installs `nasm`, `pkg-config` and
 `libpipewire-0.3-dev`, restores `out/ffmpeg/9.0.2/` from the cache with
@@ -248,7 +248,9 @@ binaries of the media build.
 **The binary tells it.** `swb --version` prints, in a media build, one
 line per component: "FFmpeg 9.0.2 (LGPL-2.1-or-later; configure:
 ...)" from `av_version_info()` and `avcodec_configuration()`, and
-"PipeWire 1.4.2 (MIT)" from `pw_get_library_version()`. `swb --licenses`
+"PipeWire (MIT; the system's libpipewire; headers VERSION)", where VERSION
+is the `pkg-config` version of the headers at build time (not
+`pw_get_library_version()`). `swb --licenses`
 prints `THIRD_PARTY_NOTICES.md` and the license text (embedded with
 `include_str!`), so a binary carries its notices.
 
@@ -288,8 +290,10 @@ country.
 - `just` recipes: `check`, `lint`, `test`, `build`, `run` stay without
   media. New: `ffmpeg` (section 1), `build-media`, `run-media`,
   `test-media` (the workspace tests with `--features swb/media`),
-  `lint-media`, `check-media` (`ffmpeg` + `lint-media` + `test-media` +
-  `deny`), `media-asan` (section 4). The probe tools pass
+  `lint-media`, `check-media` (`ffmpeg` + `lint-media` + `deny` +
+  `media-asan` + `test-media`), `check-media-no-asan` (the same without the
+  sanitizers), `hostile-media` (the hostile set with a media build),
+  `media-asan` (section 4). The probe tools pass
   `--features media` when they build swb for the media probes.
 - CI: the job `check` (default) and the job `check-media` (section 1).
   Locally, a commit that changes media code (the media crates, or code
@@ -317,8 +321,10 @@ narrow C API.** Rust sees opaque handles (`SwbDemuxer`, `SwbPacket`,
 `SwbDecoder`, `SwbFrame`, `SwbScaler`, `SwbResampler`, `SwbAudio`),
 structs of plain integers (stream and frame information, times in
 microseconds) and a few callbacks (read, seek, log, audio fill). No
-FFmpeg or PipeWire struct crosses the boundary. About 30 functions for
-FFmpeg (the spike's `swb_ffmpeg.h` is the draft) and 4 for PipeWire.
+FFmpeg or PipeWire struct crosses the boundary. 27 functions for
+FFmpeg (the spike's `swb_ffmpeg.h` was the draft; the plan said about 30)
+and 3 for PipeWire (`swb_audio_open`, `swb_audio_set_active`,
+`swb_audio_close`; the plan said 4).
 
 Reasons, from the spike: FFmpeg's structs (`AVFrame`, `AVCodecContext`,
 `AVFormatContext`) change their layout between major versions and are
@@ -550,7 +556,7 @@ streams have ended; the media due times join `Page::frame_time()`
 shown from its presentation time (pts) until the next frame's; at a
 paint, the frame with the greatest pts at or before the media time is
 drawn. A frame whose successor is also due at the paint is dropped
-(counted for `getVideoPlaybackQuality()`); the video thread decodes ahead
+(counted in `Pipeline::quality`; no IDL member reads it); the video thread decodes ahead
 and is never waited for while audio plays. When the queue runs dry (no
 frame or no samples for the current time), the element goes to
 `HAVE_CURRENT_DATA`, fires `waiting`, and the clock stops (the anchor is
@@ -657,9 +663,11 @@ probe rows (`format-metadata-table`).
 - **Scale.** Paint draws the native-size frame with `object-fit`,
   `object-position`, clips and transforms like an image (bilinear, as
   Chromium's `object-fit: fill`). The decode thread does not scale.
-  Feature 10 may add a downscale on the video thread (to the device size
+  Feature 10 might add a downscale on the video thread (to the device size
   of the destination rectangle, when it is smaller and axis-aligned) if
-  the budget needs it; `swscale` does 1080p to 1280 x 720 in 1.4 ms.
+  the budget needs it; `swscale` does 1080p to 1280 x 720 in 1.4 ms. Not
+  added (10b: the conversion costs 8.5 to 8.9 % of a core; no code
+  changed).
 - **The display list** does not change when a frame changes: the video's
   `Image` item (`ImageRef::Node`) stays, the `Images` of the document
   return the current frame for the node, and the new frame bumps the
@@ -704,7 +712,7 @@ probe rows (`format-metadata-table`).
 
 ### 10. The element
 
-- **State lives in the engine**: `engine/src/media/`, one `MediaElement`
+- **State lives in the engine**: `engine/src/media/`, one `Element`
   record per `<video>` and `<audio>` node in `DocumentState` (and one per
   `new Audio()` element, which has no document position): the HTML
   algorithms (resource selection with `<source>` `type` and `media`, the
@@ -1331,7 +1339,8 @@ implementation (`crates/media/src/pipeline/`, `clock.rs`, `ring.rs`,
   the target, else the first after it); a suspended pipeline that seeks
   reopens with that seek; a source that cannot seek opens again (when it
   has read packets) and plays from the start: `SeekDone` gives the start.
-  The seek code is `MediaFile`'s (`seek_demux`, `SeekFilter`). A demuxer
+  The seek code (`seek_demux`, `SeekFilter`) is in `crates/media/src/seek.rs`,
+  shared by `MediaFile` and the pipeline. A demuxer
   whose seek fails decodes on from where it is.
 - **The origin** (section 7): `swb_media::timeline` per container. MP3:
   the stream's times are shifted by FFmpeg's start time (the encoder
@@ -1531,7 +1540,7 @@ implementation (`crates/engine/src/media/`, `document/media.rs`,
   (`backend::request_for`); the request carries no referrer (as images:
   `Request` has none). A `blob:` URL fails (the engine holds no blobs;
   backlog).
-- **The 15 s suspend** (`SUSPEND_AFTER_MS`): an element with rs 4 and a
+- **The 15 s suspend** (`SUSPEND_AFTER_US`): an element with rs 4 and a
   running pipeline is idle from the step where it became so; at 15 s of
   page time (`Page::next_task_time` includes the due time, also without
   JavaScript) its pipeline suspends. An element removed from the document
@@ -2914,8 +2923,8 @@ The default controls of `<video>` and `<audio>` respond: play and pause by
 the button and by a click on the picture, seek by a click and by a drag on
 the timeline, mute and the volume slider, the time during playback, the
 auto-hide, and the states that Chromium draws (ADR 0020 "Update:
-playback"). Code: `crates/engine/src/media/controls.rs` (state, key, view,
-actions), `crates/engine/src/document/media_controls.rs` (the places of the
+playback"). Code: `crates/engine/src/media/controls/` (`mod.rs` state,
+`key.rs` key and view, `actions.rs`, `pointer.rs`), `crates/engine/src/document/media_controls.rs` (the places of the
 boxes, the views), the hooks in `crates/engine/src/page/` (`input.rs`,
 `events.rs`, `frame_input.rs`, `media.rs`), `crates/layout/src/media.rs`
 (geometry, hit test, time labels), `crates/paint/src/media.rs` (drawing).
@@ -3107,7 +3116,7 @@ boxes, the views), the hooks in `crates/engine/src/page/` (`input.rs`,
   time text without a layout, a playing audio that repaints its time and
   timeline, and no extra renders with hidden controls; unit tests in `layout/src/media.rs` (the time label with
   Chromium's hour strings, `Infinity` and `NaN`; the mapping of the timeline
-  and the slider; the hit test) and in `controls.rs`. Hostile cases:
+  and the slider; the hit test) and in `controls/`. Hostile cases:
   `media-controls-click-flood` (2,000 clicks on the play button),
   `media-1000-videos-with-controls-under-a-moving-pointer` (300 moves; the
   runner cannot send 10,000: the engine test does).
@@ -3120,8 +3129,8 @@ boxes, the views), the hooks in `crates/engine/src/page/` (`input.rs`,
   (no source of one in the test files); splicing the controls' items into the
   display list; the video time label "0:00 0:10" with the slider open; the audio time text
   of a one-hour file (layout reserves room for "0:00 / 0:00"; Chromium not
-  measured for audio); `controls.rs` (about 1,200 lines) split before the
-  keyboard feature.
+  measured for audio). (`controls.rs`, about 1,200 lines, was split into
+  `controls/` in the M14 maintenance, before the keyboard feature.)
 - **Review fixes** (round 1). (1) A press on a control did not move the
   focus: it does now (`Page::controls_press_focus`, for scripts and without;
   the rule of a press on the picture, `click_focus_target`, with `blur`,
@@ -3721,7 +3730,7 @@ in the engine.
 2. A press on an `<audio>` panel outside the controls' parts (the time label,
    the padding) played or paused (the rule for the picture of a video).
    Chromium gives the page no event and does nothing (`fmt-audio-panel-click`).
-   `controls.rs`: the panel of an audio element is the controls.
+   `controls/`: the panel of an audio element is the controls.
 3. The audio timeline took the pointer in its bar and 6 px around (the video
    rule). Chromium's takes it in a band of 32 px from 16 px left of the bar to
    the mute button's box (x 113.5 to 225.5 and y 11 to 43 at 300 px: clicks at

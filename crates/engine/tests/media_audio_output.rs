@@ -19,21 +19,20 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use common::media_site::MediaSite;
+use common::media_probe::evaluate_strict as evaluate;
+use common::media_site::{MP4, MediaSite, VIEW};
 use common::{new_page, on_page_thread};
-use serde_json::{Value, json};
-use swb_engine::{ClockMode, Evaluation, JsonForm, Page, PageClock, Size, Url};
+use serde_json::json;
+use swb_engine::{ClockMode, Page, PageClock, Url};
 use swb_media::output::fake::FakeDevice;
 use swb_media::output::{DeviceState, ManualClock, MonoClock, Output, Phase, SystemClock};
 use swb_net::Fetcher;
 
 const FOLDER: &str = "audio-1";
-/// 320 x 240, 25 fps, 2 s, H.264 and AAC: a sine of 440 Hz left and 660 Hz
-/// right.
-const MP4: &str = "fixtures/media/mp4-h264-high-aac.mp4";
+// `MP4` (320 x 240, 25 fps, 2 s, H.264 and AAC) is a sine of 440 Hz left and
+// 660 Hz right.
 /// 10 s of the same sines.
 const MP3: &str = "fixtures/media/mp3-long.mp3";
-const VIEW: Size = Size::new(800.0, 600.0);
 
 const HELPERS: &str = "<script>\
     const sleep = ms => new Promise(r => setTimeout(r, ms));\
@@ -203,13 +202,6 @@ fn page_with(device: Option<&Device>, body: &str) -> Page {
     page.navigate(Url::parse(&MediaSite::page_url(FOLDER)).unwrap());
     assert!(page.wait_until_loaded(Duration::from_secs(30)));
     page
-}
-
-fn evaluate(page: &mut Page, js: &str) -> Value {
-    match page.evaluate_with_timeout(js, JsonForm::Strict, Duration::from_secs(60)) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
-        other => panic!("{js}: {other:?}"),
-    }
 }
 
 /// Drives the page as the GUI's loop does, for `duration`.

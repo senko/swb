@@ -17,9 +17,51 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use serde_json::{Value, json};
+use swb_engine::{ClockMode, Page, PageClock, Size, Url};
 use swb_net::{Fetcher, Headers, NetError, Request, Response, StreamResponse};
 
-use super::repo_root;
+use super::{new_page, repo_root};
+
+/// The folder of the page of a case (`http://main.test/case-1/`).
+pub(crate) const FOLDER: &str = "case-1";
+/// 320 x 240, 25 fps, 2 s, H.264 and AAC.
+pub(crate) const MP4: &str = "fixtures/media/mp4-h264-high-aac.mp4";
+/// The viewport of the media pages.
+pub(crate) const VIEW: Size = Size::new(800.0, 600.0);
+/// Script helpers of the media pages: `sleep(ms)` and `once(m, name)`, which
+/// gives the event's name or `timeout` after 8 s.
+pub(crate) const JS_HELPERS: &str = "<script>\
+    const sleep = ms => new Promise(r => setTimeout(r, ms));\
+    const once = (m, n, ms = 8000) => new Promise(r => { const to = setTimeout(() => r('timeout'), ms); m.addEventListener(n, () => { clearTimeout(to); r(n); }, {once: true}); });\
+    </script>";
+
+/// A page of `site` (the folder [`FOLDER`]) in the viewport `view` with the
+/// clock `mode`, loaded (30 s). `configure` runs before the navigation
+/// (JavaScript, `isolate_media`, `set_paints_frames`, ...).
+pub(crate) fn open_page(
+    site: MediaSite,
+    view: Size,
+    mode: ClockMode,
+    configure: impl FnOnce(&mut Page),
+) -> (Page, Arc<MediaSite>) {
+    let site = Arc::new(site);
+    let mut page = new_page(Arc::clone(&site) as Arc<dyn Fetcher>, 2, view);
+    configure(&mut page);
+    page.set_clock(PageClock::new(mode, None));
+    page.navigate(Url::parse(&MediaSite::page_url(FOLDER)).unwrap());
+    assert!(page.wait_until_loaded(Duration::from_secs(30)));
+    (page, site)
+}
+
+/// A page in real time with JavaScript that paints frames, as the GUI's
+/// page does.
+pub(crate) fn real_page(site: MediaSite) -> Page {
+    open_page(site, VIEW, ClockMode::Real, |page| {
+        page.set_javascript(true);
+        page.set_paints_frames(true);
+    })
+    .0
+}
 
 /// How a file answers `Range`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
