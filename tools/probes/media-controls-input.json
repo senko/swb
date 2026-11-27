@@ -1,0 +1,254 @@
+{
+ "javascript": true,
+ "viewport": [400, 300],
+ "cases": [
+  {
+   "name": "in-click-play-button",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4", "a.mp4": "fixtures/media/mp4-h264-high-aac.mp4", "a.mp3": "fixtures/media/mp3.mp3"},
+   "steps": [{"wait": 900}, {"eval": "L.push('--A paused: click play')"}, {"click": [24, 199]}, {"wait": 700}, {"eval": "L.push('--B playing: click play')"}, {"click": [24, 199]}, {"wait": 400}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.muted, v.volume, Math.floor(v.currentTime)]"}]
+  },
+  {
+   "name": "in-click-video",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 900}, {"eval": "L.push('--A click video')"}, {"click": [160, 100]}, {"wait": 700}, {"eval": "L.push('--B click video')"}, {"click": [160, 100]}, {"wait": 400}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.muted, v.volume, Math.floor(v.currentTime)]"}]
+  },
+  {
+   "name": "in-click-timeline-paused",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 900}, {"eval": "L.push('--A click timeline')"}, {"click": [240, 225]}, {"wait": 500}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.muted, v.volume, Math.floor(v.currentTime)]"}]
+  },
+  {
+   "name": "in-click-timeline-playing",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 900}, {"click": [160, 100]}, {"wait": 700}, {"eval": "L.push('--A click timeline while playing')"}, {"click": [240, 225]}, {"wait": 500}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.muted, v.volume, Math.floor(v.currentTime)]"}]
+  },
+  {
+   "name": "in-drag-timeline-playing",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 900}, {"click": [160, 100]}, {"wait": 700}, {"hover": [100, 225]}, {"eval": "L.push('--A down')"}, {"mousedown": "left"}, {"wait": 100}, {"eval": "L.push('--B move 1')"}, {"hover": [120, 225]}, {"wait": 100}, {"eval": "L.push('--C move 2')"}, {"hover": [150, 225]}, {"wait": 100}, {"eval": "L.push('--D move 3')"}, {"hover": [200, 225]}, {"wait": 300}, {"eval": "L.push('--E up')"}, {"mouseup": "left"}, {"wait": 600}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, Math.floor(v.currentTime / 2)]"}]
+  },
+  {
+   "name": "in-drag-timeline-paused",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 900}, {"hover": [100, 225]}, {"eval": "L.push('--A down')"}, {"mousedown": "left"}, {"wait": 100}, {"eval": "L.push('--B move 1')"}, {"hover": [120, 225]}, {"wait": 100}, {"eval": "L.push('--C move 2')"}, {"hover": [150, 225]}, {"wait": 100}, {"eval": "L.push('--D move 3')"}, {"hover": [200, 225]}, {"wait": 300}, {"eval": "L.push('--E up')"}, {"mouseup": "left"}, {"wait": 600}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, Math.floor(v.currentTime / 2)]"}]
+  },
+  {
+   "name": "in-drag-timeline-leaves-video",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 900}, {"hover": [100, 225]}, {"mousedown": "left"}, {"wait": 300}, {"hover": [200, 225]}, {"wait": 300}, {"eval": "L.push('--A move out of the video, right and down')"}, {"hover": [390, 290]}, {"wait": 200}, {"eval": "L.push('--B move far left (before the timeline start)')"}, {"hover": [2, 290]}, {"wait": 200}, {"eval": "L.push('--C up outside')"}, {"mouseup": "left"}, {"wait": 500}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, Math.floor(v.currentTime / 2)]"}]
+  },
+  {
+   "name": "in-click-mute",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 900}, {"eval": "L.push('--A mute')"}, {"click": [200, 191]}, {"wait": 300}, {"eval": "L.push('--B unmute')"}, {"click": [200, 191]}, {"wait": 300}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.muted, v.volume]"}]
+  },
+  {
+   "name": "in-volume-slider",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 900}, {"hover": [200, 191]}, {"wait": 700}, {"eval": "L.push('--A click on the slider at x=150')"}, {"click": [150, 191]}, {"wait": 200}, {"eval": "L.push('vol '+Math.round(v.volume*1000)/1000)"}, {"eval": "L.push('--B drag: down at 170, moves to 140, 126 and 60 (left of the slider)')"}, {"hover": [170, 191]}, {"mousedown": "left"}, {"wait": 100}, {"eval": "L.push('vol '+Math.round(v.volume*1000)/1000)"}, {"hover": [140, 191]}, {"wait": 100}, {"eval": "L.push('vol '+Math.round(v.volume*1000)/1000)"}, {"hover": [126, 191]}, {"wait": 100}, {"eval": "L.push('vol '+Math.round(v.volume*1000)/1000)"}, {"hover": [60, 191]}, {"wait": 100}, {"eval": "L.push('vol '+Math.round(v.volume*1000)/1000+' (outside)')"}, {"hover": [180, 150]}, {"wait": 100}, {"eval": "L.push('vol '+Math.round(v.volume*1000)/1000+' (pointer above the slider, x=180)')"}, {"mouseup": "left"}, {"wait": 300}, {"eval": "L.push('--C after up')"}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.muted, r2(v.volume)]"}]
+  },
+  {
+   "name": "in-replay-after-end",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=a.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"a.mp4": "fixtures/media/mp4-h264-high-aac.mp4"},
+   "steps": [{"wait": 900}, {"click": [160, 100]}, {"wait": 3200}, {"eval": "L.push('--A ended: click the play button')"}, {"click": [24, 199]}, {"wait": 500}, {"eval": "L.push('--B pause, then wait to the end, click video')"}, {"wait": 2600}, {"click": [160, 100]}, {"wait": 500}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.ended, Math.floor(v.currentTime)]"}]
+  },
+  {
+   "name": "in-click-timeline-after-end",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=a.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"a.mp4": "fixtures/media/mp4-h264-high-aac.mp4"},
+   "steps": [{"wait": 900}, {"click": [160, 100]}, {"wait": 3200}, {"eval": "L.push('--A ended: click the timeline at 100')"}, {"click": [100, 225]}, {"wait": 600}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.ended, Math.floor(v.currentTime)]"}]
+  },
+  {
+   "name": "in-preventdefault-click",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v);v.addEventListener('click',e=>e.preventDefault())</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 900}, {"eval": "L.push('--A click video')"}, {"click": [160, 100]}, {"wait": 500}, {"eval": "L.push('--B click play button')"}, {"click": [24, 199]}, {"wait": 500}, {"eval": "L.push('--C click mute')"}, {"click": [200, 191]}, {"wait": 300}, {"eval": "L.push('--D click timeline')"}, {"click": [240, 225]}, {"wait": 300}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.muted, Math.floor(v.currentTime)]"}]
+  },
+  {
+   "name": "in-preventdefault-mousedown",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v);v.addEventListener('mousedown',e=>e.preventDefault());v.addEventListener('pointerdown',e=>e.preventDefault())</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 900}, {"eval": "L.push('--A click video')"}, {"click": [160, 100]}, {"wait": 500}, {"eval": "L.push('--B click play button')"}, {"click": [24, 199]}, {"wait": 500}, {"eval": "L.push('--C drag timeline 100 to 200')"}, {"hover": [100, 225]}, {"mousedown": "left"}, {"wait": 300}, {"hover": [200, 225]}, {"wait": 300}, {"mouseup": "left"}, {"wait": 400}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.muted, Math.floor(v.currentTime)]"}]
+  },
+  {
+   "name": "in-stoppropagation-capture",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v);window.addEventListener('click',e=>e.stopPropagation(),true);window.addEventListener('mousedown',e=>e.stopPropagation(),true);window.addEventListener('pointerdown',e=>e.stopPropagation(),true)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 900}, {"eval": "L.push('--A click video')"}, {"click": [160, 100]}, {"wait": 500}, {"eval": "L.push('--B click play button')"}, {"click": [24, 199]}, {"wait": 500}, {"eval": "L.push('--C click mute')"}, {"click": [200, 191]}, {"wait": 300}, {"eval": "L.push('--D drag timeline 100 to 200')"}, {"hover": [100, 225]}, {"mousedown": "left"}, {"wait": 300}, {"hover": [200, 225]}, {"wait": 300}, {"mouseup": "left"}, {"wait": 400}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.muted, Math.floor(v.currentTime)]"}]
+  },
+  {
+   "name": "in-audio",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><audio id=v src=a.mp3 controls preload=auto></audio><script>watch(v)</script>",
+   "http": true,
+   "files": {"a.mp3": "fixtures/media/mp3-long.mp3"},
+   "steps": [{"wait": 900}, {"eval": "L.push('--A click play')"}, {"click": [26, 27]}, {"wait": 500}, {"eval": "L.push('--B click timeline at 170')"}, {"click": [170, 27]}, {"wait": 500}, {"eval": "L.push('--C click mute')"}, {"click": [244, 27]}, {"wait": 300}, {"eval": "L.push('--D click pause')"}, {"click": [26, 27]}, {"wait": 300}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.muted, Math.floor(v.currentTime), v.duration]"}]
+  },
+  {
+   "name": "in-error",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v width=320 height=240 src=missing.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 900}, {"eval": "L.push('--A click play button')"}, {"click": [24, 199]}, {"wait": 400}, {"eval": "L.push('--B click video')"}, {"click": [160, 100]}, {"wait": 400}, {"eval": "L.push('--C click timeline')"}, {"click": [160, 225]}, {"wait": 300}, {"eval": "L.push('--D click mute')"}, {"click": [200, 191]}, {"wait": 300}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.muted, v.error && v.error.code]"}]
+  },
+  {
+   "name": "in-no-src-click",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v width=320 height=240 controls></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 600}, {"eval": "L.push('--A click play button')"}, {"click": [24, 199]}, {"wait": 300}, {"eval": "L.push('--B click video')"}, {"click": [160, 100]}, {"wait": 300}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.muted, v.networkState, v.readyState]"}]
+  },
+  {
+   "name": "in-preload-none-click",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v width=320 height=240 src=long.mp4 controls preload=none></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 600}, {"eval": "L.push('--A click timeline (no metadata)')"}, {"click": [160, 225]}, {"wait": 300}, {"eval": "L.push('--B click mute (no metadata)')"}, {"click": [200, 191]}, {"wait": 300}, {"eval": "L.push('--C click video')"}, {"click": [160, 100]}, {"wait": 600}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.muted, v.networkState, v.readyState, Math.floor(v.currentTime)]"}]
+  },
+  {
+   "name": "in-preload-none-play-button",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v width=320 height=240 src=long.mp4 controls preload=none></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 600}, {"eval": "L.push('--A click play button (no metadata)')"}, {"click": [24, 199]}, {"wait": 1200}, {"eval": "L.push('--B click video')"}, {"click": [160, 100]}, {"wait": 600}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.muted, v.networkState, v.readyState, Math.floor(v.currentTime)]"}]
+  },
+  {
+   "name": "in-volume-map",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[];</script><video id=v src=long.mp4 controls preload=auto></video>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 900}, {"hover": [200, 191]}, {"wait": 600}, {"click": [124, 191]}, {"eval": "L.push('x=124 v='+v.volume)"}, {"click": [126, 191]}, {"eval": "L.push('x=126 v='+v.volume)"}, {"click": [130, 191]}, {"eval": "L.push('x=130 v='+v.volume)"}, {"click": [140, 191]}, {"eval": "L.push('x=140 v='+v.volume)"}, {"click": [150, 191]}, {"eval": "L.push('x=150 v='+v.volume)"}, {"click": [160, 191]}, {"eval": "L.push('x=160 v='+v.volume)"}, {"click": [168, 191]}, {"eval": "L.push('x=168 v='+v.volume)"}, {"click": [172, 191]}, {"eval": "L.push('x=172 v='+v.volume)"}, {"click": [176, 191]}, {"eval": "L.push('x=176 v='+v.volume)"}, {"click": [184, 191]}, {"eval": "L.push('x=184 v='+v.volume)"}, {"click": [190, 191]}, {"eval": "L.push('x=190 v='+v.volume+' m='+v.muted)"}, {"click": [150, 180]}, {"eval": "L.push('y=180 x=150 v='+v.volume)"}, {"click": [150, 200]}, {"eval": "L.push('y=200 x=150 v='+v.volume)"}, {"click": [150, 210]}, {"eval": "L.push('y=210 x=150 v='+v.volume+' ct='+v.currentTime)"}],
+   "measure": [{"js": "L"}]
+  },
+  {
+   "name": "in-nodur",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[];</script><video id=v src=nodur.webm controls preload=auto></video>",
+   "http": true,
+   "files": {"nodur.webm": "out/media-local/nodur.webm"},
+   "steps": [{"wait": 900}, {"eval": "L.push('dur='+v.duration+' seekable='+v.seekable.length+(v.seekable.length?' '+v.seekable.start(0)+'-'+v.seekable.end(0):''))"}, {"click": [200, 225]}, {"wait": 400}, {"eval": "L.push('after timeline click ct='+v.currentTime+' paused='+v.paused)"}, {"click": [160, 100]}, {"wait": 700}, {"eval": "L.push('playing ct~'+Math.round(v.currentTime*4)/4+' paused='+v.paused)"}, {"click": [200, 225]}, {"wait": 400}, {"eval": "L.push('click timeline playing ct~'+Math.round(v.currentTime*4)/4+' paused='+v.paused+' seeking='+v.seeking)"}, {"shot": "nodur-playing"}],
+   "measure": [{"js": "L"}]
+  },
+  {
+   "name": "in-click-fullscreen-and-menu",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 900}, {"eval": "L.push('--A click fullscreen')"}, {"click": [248, 191]}, {"wait": 400}, {"eval": "L.push('--B click menu')"}, {"click": [296, 191]}, {"wait": 400}, {"eval": "L.push('--C click video')"}, {"click": [160, 100]}, {"wait": 400}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, !!document.fullscreenElement]"}]
+  },
+  {
+   "name": "in-focus-video",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block} #i{position:absolute;left:0;top:240px;width:100px}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><script>for(const t of ['focus','blur','focusin','focusout'])document.addEventListener(t,e=>L.push('F:'+t+'@'+(e.target===document?'doc':e.target.nodeName)+' a='+document.activeElement.nodeName),true)</script><input id=i><video id=v src=long.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4", "a.mp3": "fixtures/media/mp3-long.mp3"},
+   "steps": [{"wait": 900}, {"eval": "i.focus()"}, {"eval": "L.push('--A picture')"}, {"click": [160, 100]}, {"wait": 500}, {"eval": "i.focus()"}, {"eval": "L.push('--B play button')"}, {"click": [24, 199]}, {"wait": 500}, {"eval": "i.focus()"}, {"eval": "L.push('--C timeline')"}, {"click": [240, 225]}, {"wait": 500}, {"eval": "i.focus()"}, {"eval": "L.push('--D mute')"}, {"click": [200, 191]}, {"wait": 500}, {"eval": "i.focus()"}, {"eval": "L.push('--E slider')"}, {"click": [150, 191]}, {"wait": 500}, {"eval": "i.focus()"}, {"eval": "L.push('--F menu')"}, {"click": [296, 191]}, {"wait": 500}],
+   "measure": [{"js": "L"}, {"js": "[document.activeElement.tagName, v.paused, v.muted, Math.round(v.volume*100)/100]"}]
+  },
+  {
+   "name": "in-focus-audio",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block} #i{position:absolute;left:0;top:240px;width:100px}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><script>for(const t of ['focus','blur','focusin','focusout'])document.addEventListener(t,e=>L.push('F:'+t+'@'+(e.target===document?'doc':e.target.nodeName)+' a='+document.activeElement.nodeName),true)</script><input id=i><audio id=v src=a.mp3 controls preload=auto></audio><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4", "a.mp3": "fixtures/media/mp3-long.mp3"},
+   "steps": [{"wait": 900}, {"eval": "i.focus()"}, {"eval": "L.push('--A timeline')"}, {"click": [170, 27]}, {"wait": 500}, {"eval": "i.focus()"}, {"eval": "L.push('--B menu')"}, {"click": [284, 27]}, {"wait": 500}, {"eval": "i.focus()"}, {"eval": "L.push('--C play')"}, {"click": [26, 27]}, {"wait": 500}, {"eval": "i.focus()"}, {"eval": "L.push('--D mute')"}, {"click": [244, 27]}, {"wait": 500}],
+   "measure": [{"js": "L"}, {"js": "[document.activeElement.tagName, v.paused, v.muted, Math.round(v.volume*100)/100]"}]
+  },
+  {
+   "name": "in-focus-sequence",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block} #i{position:absolute;left:0;top:240px;width:100px}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><script>for(const t of ['focus','blur','focusin','focusout'])document.addEventListener(t,e=>L.push('F:'+t+'@'+(e.target===document?'doc':e.target.nodeName)+' a='+document.activeElement.nodeName),true)</script><input id=i><video id=v src=long.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4", "a.mp3": "fixtures/media/mp3-long.mp3"},
+   "steps": [{"wait": 900}, {"eval": "v.focus()"}, {"eval": "L.push('--A the video has the focus: click play')"}, {"click": [24, 199]}, {"wait": 500}, {"eval": "L.push('--B click the input')"}, {"click": [50, 250]}, {"wait": 300}, {"eval": "L.push('--C click the play button')"}, {"click": [24, 199]}, {"wait": 300}],
+   "measure": [{"js": "L"}, {"js": "[document.activeElement.tagName, v.paused, v.muted, Math.round(v.volume*100)/100]"}]
+  },
+  {
+   "name": "in-menu-first",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block} #i{position:absolute;left:0;top:240px;width:100px}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v)</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4"},
+   "steps": [{"wait": 900}, {"eval": "L.push('--A click menu')"}, {"click": [296, 191]}, {"wait": 400}],
+   "measure": [{"js": "L"}, {"js": "[v.paused, v.muted, v.volume, Math.floor(v.currentTime)]"}]
+  },
+  {
+   "name": "in-slider-muted-click",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v);const ST=()=>'m='+(+v.muted)+' vol='+Math.round(v.volume*1000)/1000;</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4", "a.mp3": "fixtures/media/mp3-long.mp3"},
+   "steps": [{"wait": 900}, {"eval": "v.muted=true"}, {"wait": 100}, {"eval": "L.push('--A muted '+ST())"}, {"hover": [200, 191]}, {"wait": 700}, {"click": [150, 191]}, {"wait": 300}, {"eval": "L.push('--B after the click at x=150 '+ST())"}],
+   "measure": [{"js": "L"}, {"js": "[v.muted, Math.round(v.volume*1000)/1000]"}]
+  },
+  {
+   "name": "in-slider-muted-drag",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v);const ST=()=>'m='+(+v.muted)+' vol='+Math.round(v.volume*1000)/1000;</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4", "a.mp3": "fixtures/media/mp3-long.mp3"},
+   "steps": [{"wait": 900}, {"eval": "v.muted=true"}, {"wait": 100}, {"eval": "L.push('--A muted '+ST())"}, {"hover": [200, 191]}, {"wait": 700}, {"hover": [170, 191]}, {"mousedown": "left"}, {"wait": 150}, {"eval": "L.push('--B down at 170 '+ST())"}, {"hover": [140, 191]}, {"wait": 150}, {"eval": "L.push('--C move to 140 '+ST())"}, {"hover": [126, 191]}, {"wait": 150}, {"eval": "L.push('--D move to 126 '+ST())"}, {"hover": [150, 191]}, {"wait": 150}, {"eval": "L.push('--E move to 150 '+ST())"}, {"mouseup": "left"}, {"wait": 200}, {"eval": "L.push('--F up '+ST())"}],
+   "measure": [{"js": "L"}, {"js": "[v.muted, Math.round(v.volume*1000)/1000]"}]
+  },
+  {
+   "name": "in-slider-muted-same-volume",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v);const ST=()=>'m='+(+v.muted)+' vol='+Math.round(v.volume*1000)/1000;</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4", "a.mp3": "fixtures/media/mp3-long.mp3"},
+   "steps": [{"wait": 900}, {"eval": "v.volume=0.5;v.muted=true"}, {"wait": 100}, {"eval": "L.push('--A volume 0.5, muted '+ST())"}, {"hover": [200, 191]}, {"wait": 700}, {"click": [150, 191]}, {"wait": 300}, {"eval": "L.push('--B click at x=150 (0.5) '+ST())"}],
+   "measure": [{"js": "L"}, {"js": "[v.muted, Math.round(v.volume*1000)/1000]"}]
+  },
+  {
+   "name": "in-slider-muted-volume-zero",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><video id=v src=long.mp4 controls preload=auto></video><script>watch(v);const ST=()=>'m='+(+v.muted)+' vol='+Math.round(v.volume*1000)/1000;</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4", "a.mp3": "fixtures/media/mp3-long.mp3"},
+   "steps": [{"wait": 900}, {"eval": "v.volume=0;v.muted=true"}, {"wait": 100}, {"eval": "L.push('--A volume 0, muted '+ST())"}, {"hover": [200, 191]}, {"wait": 700}, {"click": [124, 191]}, {"wait": 300}, {"eval": "L.push('--B click at x=124 (0) '+ST())"}, {"click": [150, 191]}, {"wait": 300}, {"eval": "L.push('--C click at x=150 (0.5) '+ST())"}],
+   "measure": [{"js": "L"}, {"js": "[v.muted, Math.round(v.volume*1000)/1000]"}]
+  },
+  {
+   "name": "in-slider-muted-audio",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const L=[],r2=x=>Math.round(x*100)/100,q=x=>Math.round(x*4)/4;const CT=(m,e)=>e.type=='seeking'||e.type=='seeked'?r2(m.currentTime):Math.floor(m.currentTime);const M=()=>document.querySelector('video,audio');const TG=e=>e.target===document?'doc':e.target===M()?'el':e.target.nodeName;const IN=['click','mousedown','mouseup','pointerdown','pointerup','dblclick'];const ME=['loadstart','error','loadedmetadata','loadeddata','canplay','playing','waiting','seeking','seeked','ended','durationchange','play','pause','ratechange','volumechange'];function log(m,tag,e){L.push((tag?tag+':':'')+e.type+'@'+TG(e)+' t='+(+e.isTrusted)+' p='+(+m.paused)+' ct='+CT(m,e)+(m.muted?' M':'')+' v='+m.volume)}function watch(m){ME.concat(IN).forEach(n=>m.addEventListener(n,e=>log(m,'',e)));IN.forEach(n=>document.addEventListener(n,e=>log(m,'D',e),true))}</script><audio id=v src=a.mp3 controls preload=auto></audio><script>watch(v);const ST=()=>'m='+(+v.muted)+' vol='+Math.round(v.volume*1000)/1000;</script>",
+   "http": true,
+   "files": {"long.mp4": "fixtures/media/mp4-h264-aac-long.mp4", "a.mp3": "fixtures/media/mp3-long.mp3"},
+   "steps": [{"wait": 900}, {"eval": "v.muted=true"}, {"wait": 100}, {"eval": "L.push('--A muted '+ST())"}, {"hover": [244, 27]}, {"wait": 700}, {"click": [200, 27]}, {"wait": 300}, {"eval": "L.push('--B click at x=200 '+ST())"}, {"eval": "v.muted=true"}, {"wait": 100}, {"eval": "L.push('--C muted again '+ST())"}, {"hover": [244, 27]}, {"wait": 500}, {"hover": [190, 27]}, {"mousedown": "left"}, {"wait": 150}, {"hover": [215, 27]}, {"wait": 150}, {"mouseup": "left"}, {"wait": 200}, {"eval": "L.push('--D drag 190 to 215 '+ST())"}],
+   "measure": [{"js": "L"}, {"js": "[v.muted, Math.round(v.volume*1000)/1000]"}]
+  }
+ ]
+}

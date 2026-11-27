@@ -483,6 +483,94 @@ pub struct MediaText {
     pub baseline: f32,
 }
 
+/// The time display of media controls with the metadata: the current time
+/// alone ("0:05") and with the duration ("0:05 / 0:10"). A video shows the
+/// long label when it ends before the mute button (measured: 250 px wide
+/// shows "0:00", 280 px "0:00 / 0:10"); audio controls always do.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MediaTimes {
+    /// The current time.
+    pub current: MediaText,
+    /// The current time and the duration.
+    pub full: MediaText,
+    /// The advance of the long label in px.
+    pub full_width: f32,
+}
+
+/// A button of media controls that has a hover state.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MediaButton {
+    /// Play and pause.
+    Play,
+    /// Mute and unmute.
+    Mute,
+    /// Fullscreen.
+    Fullscreen,
+    /// The overflow menu.
+    Menu,
+}
+
+/// What the controls of a media element show beyond what layout decides
+/// (M14 feature 9, ADR 0047): the state of the playback and of the pointer.
+/// The engine makes it from the element's state and gives it to the display
+/// list builder; without one the controls look as they do before playback
+/// (the play icon, a time of 0:00, the dimmed mute and fullscreen buttons).
+/// Layout decides the parts and their places and does not change when a
+/// view does.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MediaControlsView {
+    /// The pause icon shows (the element plays); else the play icon.
+    pub playing: bool,
+    /// The metadata is known: the fullscreen button of a video is enabled,
+    /// and the mute button of an element that has an audio track.
+    pub metadata: bool,
+    /// The media has an audio track (the mute button is enabled).
+    pub has_audio: bool,
+    /// The shaped time display, if it differs from the one that layout
+    /// shaped (the metadata is known).
+    pub time: Option<MediaTimes>,
+    /// The played part of the timeline, 0 to 1.
+    pub played: f32,
+    /// The timeline shows its thumb (hovered, focused or dragged).
+    pub thumb: bool,
+    /// The button under the pointer (its hover circle shows).
+    pub hover: Option<MediaButton>,
+    /// The volume, 0 to 1.
+    pub volume: f32,
+    /// The element is muted.
+    pub muted: bool,
+    /// The volume slider is open.
+    pub slider: bool,
+    /// The pointer is over the slider (or drags it): its thumb shows.
+    pub slider_thumb: bool,
+    /// The opacity of the video controls (the fade of the auto-hide); 1 for
+    /// audio.
+    pub opacity: f32,
+    /// The rotation (radians) of the loading arc, while it shows.
+    pub spinner: Option<f32>,
+}
+
+impl Default for MediaControlsView {
+    /// The controls before any playback.
+    fn default() -> MediaControlsView {
+        MediaControlsView {
+            playing: false,
+            metadata: false,
+            has_audio: false,
+            time: None,
+            played: 0.0,
+            thumb: false,
+            hover: None,
+            volume: 1.0,
+            muted: false,
+            slider: false,
+            slider_thumb: false,
+            opacity: 1.0,
+            spinner: None,
+        }
+    }
+}
+
 /// What paint needs to know about a form control.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ControlContent {

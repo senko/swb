@@ -7353,6 +7353,48 @@ Steps:
       seek by click and drag, mute and the volume slider, the time
       during playback, auto-hide, the states that Chromium draws
       (`media-controls`); their timers stop when nothing changes.
+
+      Done (2026-11-27, ADR 0047 "Implementation notes (M14 feature 9)"):
+      - Chromium measured first (probe files `media-controls-input`,
+        `-states`, `-fade`, `-hit`, `-sizes`): a press on a control gives
+        the page no pointer or mouse event, but moves the focus to the
+        media element (`blur`, `focus`); a click on the picture plays or
+        pauses in the click's default action (`preventDefault` stops it,
+        a capturing `stopPropagation` does not, nothing without
+        metadata); the volume slider unmutes a muted element; the
+        controls hide 2.5 s after the last pointer move and fade in
+        0.7 s; the thumb shows in the bottom 25 px; the time label is
+        `m:ss` or `h:mm:ss` per number; the audio buttons take the
+        pointer in 32 px boxes.
+      - Play and pause (the button, a click on the picture), seek by a
+        click and a drag on the timeline, mute, the volume slider,
+        replay after the end, all through the script API paths (events,
+        promises, autoplay rules). The states that Chromium draws: the
+        pause icon, the time during playback, the played part, the
+        thumb, the hover circle, the slider's pill, the muted icon, the
+        fade, the loading arc in the GUI, the audio panel.
+      - Cost: a change of the controls builds the display list again
+        and runs no layout (0.54 ms on the ars-technica fixture, 1,943
+        elements); the timers feed `Page::media_next_due`. Budgets
+        (release build, GUI, 1080p muted in 640 x 360): shown controls
+        36.7 % CPU against 33.6 % without controls (+9 %, budget 10 %),
+        0 dropped; hidden controls: the same frames and wake-ups as
+        none; paused with the pointer still: 0 wake-ups.
+      - Tests: 29 probe cases whose events and state equal Chromium's
+        rows (JavaScript on), the 22 pictures against Chromium's
+        screenshots (12 levels outside listed rectangles, a cap of bad
+        pixels per rectangle and state inside them), timer, edge and
+        real-time loop tests in `media_controls_timers.rs` (also
+        JavaScript off), the hostile cases `media-controls-click-flood`
+        and `media-1000-videos-with-controls-under-a-moving-pointer`.
+        `just snapshot` against the base: one difference, the audio mute
+        icon 3 px to the left, as Chromium draws it.
+      - Review fixes (two rounds): a press on a control did not move the
+        focus; the departure rectangles of the picture test had no bound
+        (a wrong icon or digit passed); the audio mute and menu buttons
+        overlapped by 15.5 px (now Chromium's measured 32 px boxes);
+        the volume slider did not unmute a muted element (found while
+        measuring the focus).
    10. The exit test (`implementer`): the list above against Chromium,
       the hostile media (also the new files of ADR 0047 section 11: a
       frame size above the limit, an endless body, 1,000 elements, 100
@@ -7409,6 +7451,33 @@ Source Extensions, AV1 (dav1d), YouTube.
 - Audio output (feature 8): the device delay on real hardware is measured
   only by the spike (512 frames); the private daemon's null sink reports
   0. A measurement on the owner's sound card needs the owner.
+- Media controls (feature 9): a change of the controls (the time text
+  once a second, the thumb, a hover, 60 Hz in a fade) builds the whole
+  display list again (0.54 ms at 1,943 elements). Splice the controls'
+  items into the list instead.
+- Media controls (feature 9): with the volume slider open, Chromium draws
+  the video time as "0:00 0:10" (no slash; the label ends before the
+  pill); swb draws "0:00 / 0:10" and the pill covers its end (states
+  `st-muted*`, `st-volume-*`, a listed departure).
+- Media controls (feature 9): the time text of an audio file of 1 h or
+  more draws over the timeline (layout keeps room for "0:00 / 0:00");
+  Chromium not measured for audio.
+- Media controls (feature 9): the exact fade curve (swb: linear), the
+  loading arc's size and turn (not drawn in headless pictures: the
+  damage oracle renders twice at different times), the audio thumb, the
+  slider's opening (Chromium grows it over about 0.5 s; swb opens it at
+  once), a stream whose duration is `Infinity` (no test file with one).
+  The position moves in quarter seconds (the thumb steps up to 7 px on a
+  10 s clip; Chromium moves smoothly).
+- Media controls (feature 9): a drag of the timeline that starts in a
+  frame document and leaves it; the cursor over the buttons; Chromium's
+  menu popup (a click on the picture after a menu click closes the popup
+  there and does not play). The video menu dots are 1.67 px in radius
+  (Chromium about 1.5; kept so that the Wikipedia thumbnail does not
+  change).
+- Media controls (feature 9): split `crates/engine/src/media/controls.rs`
+  (about 1,200 lines: state, key, actions, pointer) before the keyboard
+  and focus ring work (M15 with fullscreen and the overflow menu).
 - Media (feature 3): video with alpha (VP8 and VP9 in WebM) shows
   opaque; matrices other than BT.601 and BT.709 (BT.2020, SMPTE 240M)
   and 10-bit formats have no probe; the natural size of a stream with a
@@ -7426,9 +7495,9 @@ Source Extensions, AV1 (dav1d), YouTube.
   matrices and ranges by at most 3).
 - Tools (feature 1): `swbtools capture` cannot record media (large
   bodies, `Range` answers); the real files were downloaded by hand.
-- Diagnosis (feature 1), not measured: the hour format of the time text
-  of the default controls, their keyboard shortcuts, HEVC and AV1 files,
-  a headed Chromium.
+- Diagnosis (feature 1), not measured: the keyboard shortcuts of the
+  default controls, HEVC and AV1 files, a headed Chromium (the hour
+  format of the time text was measured in feature 9).
 - videojs.org (feature 1): without `MediaSource`, Video.js sets the
   master playlist as `src` (native HLS). With native HLS (backlog of
   M15) the hero would play without Media Source Extensions. Until then

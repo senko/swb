@@ -1,0 +1,1335 @@
+{
+  "cases": [
+    {
+      "name": "in-click-play-button",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "--A paused: click play",
+            "play@el t=1 p=0 ct=0 v=1",
+            "playing@el t=1 p=0 ct=0 v=1",
+            "--B playing: click play",
+            "pause@el t=1 p=1 ct=0 v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.muted, v.volume, Math.floor(v.currentTime)]",
+          "value": [
+            true,
+            false,
+            1,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-click-video",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "--A click video",
+            "D:pointerdown@el t=1 p=1 ct=0 v=1",
+            "pointerdown@el t=1 p=1 ct=0 v=1",
+            "D:mousedown@el t=1 p=1 ct=0 v=1",
+            "mousedown@el t=1 p=1 ct=0 v=1",
+            "D:pointerup@el t=1 p=1 ct=0 v=1",
+            "pointerup@el t=1 p=1 ct=0 v=1",
+            "D:mouseup@el t=1 p=1 ct=0 v=1",
+            "mouseup@el t=1 p=1 ct=0 v=1",
+            "D:click@el t=1 p=1 ct=0 v=1",
+            "click@el t=1 p=1 ct=0 v=1",
+            "play@el t=1 p=0 ct=0 v=1",
+            "playing@el t=1 p=0 ct=0 v=1",
+            "--B click video",
+            "D:pointerdown@el t=1 p=0 ct=0 v=1",
+            "pointerdown@el t=1 p=0 ct=0 v=1",
+            "D:mousedown@el t=1 p=0 ct=0 v=1",
+            "mousedown@el t=1 p=0 ct=0 v=1",
+            "D:pointerup@el t=1 p=0 ct=0 v=1",
+            "pointerup@el t=1 p=0 ct=0 v=1",
+            "D:mouseup@el t=1 p=0 ct=0 v=1",
+            "mouseup@el t=1 p=0 ct=0 v=1",
+            "D:click@el t=1 p=0 ct=0 v=1",
+            "click@el t=1 p=0 ct=0 v=1",
+            "pause@el t=1 p=1 ct=0 v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.muted, v.volume, Math.floor(v.currentTime)]",
+          "value": [
+            true,
+            false,
+            1,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-click-timeline-paused",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "--A click timeline",
+            "seeking@el t=1 p=1 ct=7.9 v=1",
+            "seeked@el t=1 p=1 ct=7.9 v=1",
+            "canplay@el t=1 p=1 ct=7 v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.muted, v.volume, Math.floor(v.currentTime)]",
+          "value": [
+            true,
+            false,
+            1,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-click-timeline-playing",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "D:pointerdown@el t=1 p=1 ct=0 v=1",
+            "pointerdown@el t=1 p=1 ct=0 v=1",
+            "D:mousedown@el t=1 p=1 ct=0 v=1",
+            "mousedown@el t=1 p=1 ct=0 v=1",
+            "D:pointerup@el t=1 p=1 ct=0 v=1",
+            "pointerup@el t=1 p=1 ct=0 v=1",
+            "D:mouseup@el t=1 p=1 ct=0 v=1",
+            "mouseup@el t=1 p=1 ct=0 v=1",
+            "D:click@el t=1 p=1 ct=0 v=1",
+            "click@el t=1 p=1 ct=0 v=1",
+            "play@el t=1 p=0 ct=0 v=1",
+            "playing@el t=1 p=0 ct=0 v=1",
+            "--A click timeline while playing",
+            "pause@el t=1 p=0 ct=7 v=1",
+            "seeking@el t=1 p=0 ct=7.9 v=1",
+            "play@el t=1 p=0 ct=7 v=1",
+            "waiting@el t=1 p=0 ct=7 v=1",
+            "seeked@el t=1 p=0 ct=7.9 v=1",
+            "canplay@el t=1 p=0 ct=7 v=1",
+            "playing@el t=1 p=0 ct=7 v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.muted, v.volume, Math.floor(v.currentTime)]",
+          "value": [
+            false,
+            false,
+            1,
+            8
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-drag-timeline-playing",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "D:pointerdown@el t=1 p=1 ct=0 v=1",
+            "pointerdown@el t=1 p=1 ct=0 v=1",
+            "D:mousedown@el t=1 p=1 ct=0 v=1",
+            "mousedown@el t=1 p=1 ct=0 v=1",
+            "D:pointerup@el t=1 p=1 ct=0 v=1",
+            "pointerup@el t=1 p=1 ct=0 v=1",
+            "D:mouseup@el t=1 p=1 ct=0 v=1",
+            "mouseup@el t=1 p=1 ct=0 v=1",
+            "D:click@el t=1 p=1 ct=0 v=1",
+            "click@el t=1 p=1 ct=0 v=1",
+            "play@el t=1 p=0 ct=0 v=1",
+            "playing@el t=1 p=0 ct=0 v=1",
+            "--A down",
+            "pause@el t=1 p=1 ct=2 v=1",
+            "seeking@el t=1 p=1 ct=2.83 v=1",
+            "seeked@el t=1 p=1 ct=2.83 v=1",
+            "canplay@el t=1 p=1 ct=2 v=1",
+            "--B move 1",
+            "seeking@el t=1 p=1 ct=3.55 v=1",
+            "seeked@el t=1 p=1 ct=3.55 v=1",
+            "canplay@el t=1 p=1 ct=3 v=1",
+            "--C move 2",
+            "seeking@el t=1 p=1 ct=4.64 v=1",
+            "seeked@el t=1 p=1 ct=4.64 v=1",
+            "canplay@el t=1 p=1 ct=4 v=1",
+            "--D move 3",
+            "seeking@el t=1 p=1 ct=6.45 v=1",
+            "seeked@el t=1 p=1 ct=6.45 v=1",
+            "canplay@el t=1 p=1 ct=6 v=1",
+            "--E up",
+            "play@el t=1 p=0 ct=6 v=1",
+            "playing@el t=1 p=0 ct=6 v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, Math.floor(v.currentTime / 2)]",
+          "value": [
+            false,
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-drag-timeline-paused",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "--A down",
+            "seeking@el t=1 p=1 ct=2.83 v=1",
+            "seeked@el t=1 p=1 ct=2.83 v=1",
+            "canplay@el t=1 p=1 ct=2 v=1",
+            "--B move 1",
+            "seeking@el t=1 p=1 ct=3.55 v=1",
+            "seeked@el t=1 p=1 ct=3.55 v=1",
+            "canplay@el t=1 p=1 ct=3 v=1",
+            "--C move 2",
+            "seeking@el t=1 p=1 ct=4.64 v=1",
+            "seeked@el t=1 p=1 ct=4.64 v=1",
+            "canplay@el t=1 p=1 ct=4 v=1",
+            "--D move 3",
+            "seeking@el t=1 p=1 ct=6.45 v=1",
+            "seeked@el t=1 p=1 ct=6.45 v=1",
+            "canplay@el t=1 p=1 ct=6 v=1",
+            "--E up"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, Math.floor(v.currentTime / 2)]",
+          "value": [
+            true,
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-drag-timeline-leaves-video",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "seeking@el t=1 p=1 ct=2.83 v=1",
+            "seeked@el t=1 p=1 ct=2.83 v=1",
+            "canplay@el t=1 p=1 ct=2 v=1",
+            "seeking@el t=1 p=1 ct=6.45 v=1",
+            "seeked@el t=1 p=1 ct=6.45 v=1",
+            "canplay@el t=1 p=1 ct=6 v=1",
+            "--A move out of the video, right and down",
+            "seeking@el t=1 p=1 ct=10 v=1",
+            "seeked@el t=1 p=1 ct=10 v=1",
+            "canplay@el t=1 p=1 ct=10 v=1",
+            "--B move far left (before the timeline start)",
+            "seeking@el t=1 p=1 ct=0 v=1",
+            "seeked@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "--C up outside"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, Math.floor(v.currentTime / 2)]",
+          "value": [
+            true,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-click-mute",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "--A mute",
+            "volumechange@el t=1 p=1 ct=0 M v=1",
+            "--B unmute",
+            "volumechange@el t=1 p=1 ct=0 v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.muted, v.volume]",
+          "value": [
+            true,
+            false,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-volume-slider",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "--A click on the slider at x=150",
+            "volumechange@el t=1 p=1 ct=0 v=0.5",
+            "vol 0.5",
+            "--B drag: down at 170, moves to 140, 126 and 60 (left of the slider)",
+            "volumechange@el t=1 p=1 ct=0 v=1",
+            "vol 1",
+            "volumechange@el t=1 p=1 ct=0 v=0.25",
+            "vol 0.25",
+            "volumechange@el t=1 p=1 ct=0 v=0",
+            "vol 0",
+            "vol 0 (outside)",
+            "volumechange@el t=1 p=1 ct=0 v=1",
+            "vol 1 (pointer above the slider, x=180)",
+            "--C after up"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.muted, r2(v.volume)]",
+          "value": [
+            true,
+            false,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-replay-after-end",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "D:pointerdown@el t=1 p=1 ct=0 v=1",
+            "pointerdown@el t=1 p=1 ct=0 v=1",
+            "D:mousedown@el t=1 p=1 ct=0 v=1",
+            "mousedown@el t=1 p=1 ct=0 v=1",
+            "D:pointerup@el t=1 p=1 ct=0 v=1",
+            "pointerup@el t=1 p=1 ct=0 v=1",
+            "D:mouseup@el t=1 p=1 ct=0 v=1",
+            "mouseup@el t=1 p=1 ct=0 v=1",
+            "D:click@el t=1 p=1 ct=0 v=1",
+            "click@el t=1 p=1 ct=0 v=1",
+            "play@el t=1 p=0 ct=0 v=1",
+            "playing@el t=1 p=0 ct=0 v=1",
+            "pause@el t=1 p=1 ct=2 v=1",
+            "ended@el t=1 p=1 ct=2 v=1",
+            "--A ended: click the play button",
+            "seeking@el t=1 p=0 ct=0 v=1",
+            "play@el t=1 p=0 ct=0 v=1",
+            "waiting@el t=1 p=0 ct=0 v=1",
+            "seeked@el t=1 p=0 ct=0 v=1",
+            "canplay@el t=1 p=0 ct=0 v=1",
+            "playing@el t=1 p=0 ct=0 v=1",
+            "--B pause, then wait to the end, click video",
+            "pause@el t=1 p=1 ct=2 v=1",
+            "ended@el t=1 p=1 ct=2 v=1",
+            "D:pointerdown@el t=1 p=1 ct=2 v=1",
+            "pointerdown@el t=1 p=1 ct=2 v=1",
+            "D:mousedown@el t=1 p=1 ct=2 v=1",
+            "mousedown@el t=1 p=1 ct=2 v=1",
+            "D:pointerup@el t=1 p=1 ct=2 v=1",
+            "pointerup@el t=1 p=1 ct=2 v=1",
+            "D:mouseup@el t=1 p=1 ct=2 v=1",
+            "mouseup@el t=1 p=1 ct=2 v=1",
+            "D:click@el t=1 p=1 ct=2 v=1",
+            "click@el t=1 p=1 ct=2 v=1",
+            "seeking@el t=1 p=0 ct=0 v=1",
+            "play@el t=1 p=0 ct=0 v=1",
+            "waiting@el t=1 p=0 ct=0 v=1",
+            "seeked@el t=1 p=0 ct=0 v=1",
+            "canplay@el t=1 p=0 ct=0 v=1",
+            "playing@el t=1 p=0 ct=0 v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.ended, Math.floor(v.currentTime)]",
+          "value": [
+            false,
+            false,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-click-timeline-after-end",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "D:pointerdown@el t=1 p=1 ct=0 v=1",
+            "pointerdown@el t=1 p=1 ct=0 v=1",
+            "D:mousedown@el t=1 p=1 ct=0 v=1",
+            "mousedown@el t=1 p=1 ct=0 v=1",
+            "D:pointerup@el t=1 p=1 ct=0 v=1",
+            "pointerup@el t=1 p=1 ct=0 v=1",
+            "D:mouseup@el t=1 p=1 ct=0 v=1",
+            "mouseup@el t=1 p=1 ct=0 v=1",
+            "D:click@el t=1 p=1 ct=0 v=1",
+            "click@el t=1 p=1 ct=0 v=1",
+            "play@el t=1 p=0 ct=0 v=1",
+            "playing@el t=1 p=0 ct=0 v=1",
+            "pause@el t=1 p=1 ct=2 v=1",
+            "ended@el t=1 p=1 ct=2 v=1",
+            "--A ended: click the timeline at 100",
+            "seeking@el t=1 p=1 ct=0.57 v=1",
+            "seeked@el t=1 p=1 ct=0.57 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.ended, Math.floor(v.currentTime)]",
+          "value": [
+            true,
+            false,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-preventdefault-click",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "--A click video",
+            "D:pointerdown@el t=1 p=1 ct=0 v=1",
+            "pointerdown@el t=1 p=1 ct=0 v=1",
+            "D:mousedown@el t=1 p=1 ct=0 v=1",
+            "mousedown@el t=1 p=1 ct=0 v=1",
+            "D:pointerup@el t=1 p=1 ct=0 v=1",
+            "pointerup@el t=1 p=1 ct=0 v=1",
+            "D:mouseup@el t=1 p=1 ct=0 v=1",
+            "mouseup@el t=1 p=1 ct=0 v=1",
+            "D:click@el t=1 p=1 ct=0 v=1",
+            "click@el t=1 p=1 ct=0 v=1",
+            "--B click play button",
+            "play@el t=1 p=0 ct=0 v=1",
+            "playing@el t=1 p=0 ct=0 v=1",
+            "--C click mute",
+            "volumechange@el t=1 p=0 ct=0 M v=1",
+            "--D click timeline",
+            "pause@el t=1 p=0 ct=7 M v=1",
+            "seeking@el t=1 p=0 ct=7.9 M v=1",
+            "play@el t=1 p=0 ct=7 M v=1",
+            "waiting@el t=1 p=0 ct=7 M v=1",
+            "seeked@el t=1 p=0 ct=7.9 M v=1",
+            "canplay@el t=1 p=0 ct=7 M v=1",
+            "playing@el t=1 p=0 ct=7 M v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.muted, Math.floor(v.currentTime)]",
+          "value": [
+            false,
+            true,
+            8
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-preventdefault-mousedown",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "--A click video",
+            "D:pointerdown@el t=1 p=1 ct=0 v=1",
+            "pointerdown@el t=1 p=1 ct=0 v=1",
+            "D:pointerup@el t=1 p=1 ct=0 v=1",
+            "pointerup@el t=1 p=1 ct=0 v=1",
+            "D:click@el t=1 p=1 ct=0 v=1",
+            "click@el t=1 p=1 ct=0 v=1",
+            "play@el t=1 p=0 ct=0 v=1",
+            "playing@el t=1 p=0 ct=0 v=1",
+            "--B click play button",
+            "pause@el t=1 p=1 ct=0 v=1",
+            "--C drag timeline 100 to 200",
+            "seeking@el t=1 p=1 ct=2.83 v=1",
+            "seeked@el t=1 p=1 ct=2.83 v=1",
+            "canplay@el t=1 p=1 ct=2 v=1",
+            "seeking@el t=1 p=1 ct=6.45 v=1",
+            "seeked@el t=1 p=1 ct=6.45 v=1",
+            "canplay@el t=1 p=1 ct=6 v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.muted, Math.floor(v.currentTime)]",
+          "value": [
+            true,
+            false,
+            6
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-stoppropagation-capture",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "--A click video",
+            "D:pointerup@el t=1 p=1 ct=0 v=1",
+            "pointerup@el t=1 p=1 ct=0 v=1",
+            "D:mouseup@el t=1 p=1 ct=0 v=1",
+            "mouseup@el t=1 p=1 ct=0 v=1",
+            "play@el t=1 p=0 ct=0 v=1",
+            "playing@el t=1 p=0 ct=0 v=1",
+            "--B click play button",
+            "pause@el t=1 p=1 ct=0 v=1",
+            "--C click mute",
+            "volumechange@el t=1 p=1 ct=0 M v=1",
+            "--D drag timeline 100 to 200",
+            "seeking@el t=1 p=1 ct=2.83 M v=1",
+            "seeked@el t=1 p=1 ct=2.83 M v=1",
+            "canplay@el t=1 p=1 ct=2 M v=1",
+            "seeking@el t=1 p=1 ct=6.45 M v=1",
+            "seeked@el t=1 p=1 ct=6.45 M v=1",
+            "canplay@el t=1 p=1 ct=6 M v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.muted, Math.floor(v.currentTime)]",
+          "value": [
+            true,
+            true,
+            6
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-audio",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "--A click play",
+            "play@el t=1 p=0 ct=0 v=1",
+            "playing@el t=1 p=0 ct=0 v=1",
+            "--B click timeline at 170",
+            "pause@el t=1 p=0 ct=5 v=1",
+            "seeking@el t=1 p=0 ct=5.05 v=1",
+            "play@el t=1 p=0 ct=5 v=1",
+            "waiting@el t=1 p=0 ct=5 v=1",
+            "seeked@el t=1 p=0 ct=5.05 v=1",
+            "canplay@el t=1 p=0 ct=5 v=1",
+            "playing@el t=1 p=0 ct=5 v=1",
+            "--C click mute",
+            "volumechange@el t=1 p=0 ct=5 M v=1",
+            "--D click pause",
+            "pause@el t=1 p=1 ct=5 M v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.muted, Math.floor(v.currentTime), v.duration]",
+          "value": [
+            true,
+            true,
+            5,
+            10
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-error",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "error@el t=1 p=1 ct=0 v=1",
+            "--A click play button",
+            "--B click video",
+            "D:pointerdown@el t=1 p=1 ct=0 v=1",
+            "pointerdown@el t=1 p=1 ct=0 v=1",
+            "D:mousedown@el t=1 p=1 ct=0 v=1",
+            "mousedown@el t=1 p=1 ct=0 v=1",
+            "D:pointerup@el t=1 p=1 ct=0 v=1",
+            "pointerup@el t=1 p=1 ct=0 v=1",
+            "D:mouseup@el t=1 p=1 ct=0 v=1",
+            "mouseup@el t=1 p=1 ct=0 v=1",
+            "D:click@el t=1 p=1 ct=0 v=1",
+            "click@el t=1 p=1 ct=0 v=1",
+            "--C click timeline",
+            "--D click mute"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.muted, v.error && v.error.code]",
+          "value": [
+            true,
+            false,
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-no-src-click",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "--A click play button",
+            "--B click video",
+            "D:pointerdown@el t=1 p=1 ct=0 v=1",
+            "pointerdown@el t=1 p=1 ct=0 v=1",
+            "D:mousedown@el t=1 p=1 ct=0 v=1",
+            "mousedown@el t=1 p=1 ct=0 v=1",
+            "D:pointerup@el t=1 p=1 ct=0 v=1",
+            "pointerup@el t=1 p=1 ct=0 v=1",
+            "D:mouseup@el t=1 p=1 ct=0 v=1",
+            "mouseup@el t=1 p=1 ct=0 v=1",
+            "D:click@el t=1 p=1 ct=0 v=1",
+            "click@el t=1 p=1 ct=0 v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.muted, v.networkState, v.readyState]",
+          "value": [
+            true,
+            false,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-preload-none-click",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "--A click timeline (no metadata)",
+            "--B click mute (no metadata)",
+            "--C click video",
+            "D:pointerdown@el t=1 p=1 ct=0 v=1",
+            "pointerdown@el t=1 p=1 ct=0 v=1",
+            "D:mousedown@el t=1 p=1 ct=0 v=1",
+            "mousedown@el t=1 p=1 ct=0 v=1",
+            "D:pointerup@el t=1 p=1 ct=0 v=1",
+            "pointerup@el t=1 p=1 ct=0 v=1",
+            "D:mouseup@el t=1 p=1 ct=0 v=1",
+            "mouseup@el t=1 p=1 ct=0 v=1",
+            "D:click@el t=1 p=1 ct=0 v=1",
+            "click@el t=1 p=1 ct=0 v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.muted, v.networkState, v.readyState, Math.floor(v.currentTime)]",
+          "value": [
+            true,
+            false,
+            1,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-preload-none-play-button",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "--A click play button (no metadata)",
+            "play@el t=1 p=0 ct=0 v=1",
+            "waiting@el t=1 p=0 ct=0 v=1",
+            "durationchange@el t=1 p=0 ct=0 v=1",
+            "loadedmetadata@el t=1 p=0 ct=0 v=1",
+            "loadeddata@el t=1 p=0 ct=0 v=1",
+            "canplay@el t=1 p=0 ct=0 v=1",
+            "playing@el t=1 p=0 ct=0 v=1",
+            "--B click video",
+            "D:pointerdown@el t=1 p=0 ct=1 v=1",
+            "pointerdown@el t=1 p=0 ct=1 v=1",
+            "D:mousedown@el t=1 p=0 ct=1 v=1",
+            "mousedown@el t=1 p=0 ct=1 v=1",
+            "D:pointerup@el t=1 p=0 ct=1 v=1",
+            "pointerup@el t=1 p=0 ct=1 v=1",
+            "D:mouseup@el t=1 p=0 ct=1 v=1",
+            "mouseup@el t=1 p=0 ct=1 v=1",
+            "D:click@el t=1 p=0 ct=1 v=1",
+            "click@el t=1 p=0 ct=1 v=1",
+            "pause@el t=1 p=1 ct=1 v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.muted, v.networkState, v.readyState, Math.floor(v.currentTime)]",
+          "value": [
+            true,
+            false,
+            1,
+            4,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-volume-map",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "x=124 v=0",
+            "x=126 v=0",
+            "x=130 v=0",
+            "x=140 v=0.25",
+            "x=150 v=0.5",
+            "x=160 v=0.75",
+            "x=168 v=0.95",
+            "x=172 v=1",
+            "x=176 v=1",
+            "x=184 v=1",
+            "x=190 v=1 m=true",
+            "y=180 x=150 v=0.5",
+            "y=200 x=150 v=0.5",
+            "y=210 x=150 v=0.5 ct=0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-focus-video",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "F:focus@INPUT a=INPUT",
+            "F:focusin@INPUT a=INPUT",
+            "--A picture",
+            "D:pointerdown@el t=1 p=1 ct=0 v=1",
+            "pointerdown@el t=1 p=1 ct=0 v=1",
+            "D:mousedown@el t=1 p=1 ct=0 v=1",
+            "mousedown@el t=1 p=1 ct=0 v=1",
+            "F:blur@INPUT a=BODY",
+            "F:focusout@INPUT a=BODY",
+            "F:focus@VIDEO a=VIDEO",
+            "F:focusin@VIDEO a=VIDEO",
+            "D:pointerup@el t=1 p=1 ct=0 v=1",
+            "pointerup@el t=1 p=1 ct=0 v=1",
+            "D:mouseup@el t=1 p=1 ct=0 v=1",
+            "mouseup@el t=1 p=1 ct=0 v=1",
+            "D:click@el t=1 p=1 ct=0 v=1",
+            "click@el t=1 p=1 ct=0 v=1",
+            "play@el t=1 p=0 ct=0 v=1",
+            "playing@el t=1 p=0 ct=0 v=1",
+            "F:blur@VIDEO a=BODY",
+            "F:focusout@VIDEO a=BODY",
+            "F:focus@INPUT a=INPUT",
+            "F:focusin@INPUT a=INPUT",
+            "--B play button",
+            "F:blur@INPUT a=BODY",
+            "F:focusout@INPUT a=BODY",
+            "F:focus@VIDEO a=VIDEO",
+            "F:focusin@VIDEO a=VIDEO",
+            "pause@el t=1 p=1 ct=0 v=1",
+            "F:blur@VIDEO a=BODY",
+            "F:focusout@VIDEO a=BODY",
+            "F:focus@INPUT a=INPUT",
+            "F:focusin@INPUT a=INPUT",
+            "--C timeline",
+            "F:blur@INPUT a=BODY",
+            "F:focusout@INPUT a=BODY",
+            "F:focus@VIDEO a=VIDEO",
+            "F:focusin@VIDEO a=VIDEO",
+            "seeking@el t=1 p=1 ct=7.9 v=1",
+            "seeked@el t=1 p=1 ct=7.9 v=1",
+            "canplay@el t=1 p=1 ct=7 v=1",
+            "F:blur@VIDEO a=BODY",
+            "F:focusout@VIDEO a=BODY",
+            "F:focus@INPUT a=INPUT",
+            "F:focusin@INPUT a=INPUT",
+            "--D mute",
+            "F:blur@INPUT a=BODY",
+            "F:focusout@INPUT a=BODY",
+            "F:focus@VIDEO a=VIDEO",
+            "F:focusin@VIDEO a=VIDEO",
+            "volumechange@el t=1 p=1 ct=7 M v=1",
+            "F:blur@VIDEO a=BODY",
+            "F:focusout@VIDEO a=BODY",
+            "F:focus@INPUT a=INPUT",
+            "F:focusin@INPUT a=INPUT",
+            "--E slider",
+            "F:blur@INPUT a=BODY",
+            "F:focusout@INPUT a=BODY",
+            "F:focus@VIDEO a=VIDEO",
+            "F:focusin@VIDEO a=VIDEO",
+            "volumechange@el t=1 p=1 ct=7 v=0.5",
+            "volumechange@el t=1 p=1 ct=7 v=0.5",
+            "F:blur@VIDEO a=BODY",
+            "F:focusout@VIDEO a=BODY",
+            "F:focus@INPUT a=INPUT",
+            "F:focusin@INPUT a=INPUT",
+            "--F menu",
+            "F:blur@INPUT a=BODY",
+            "F:focusout@INPUT a=BODY",
+            "F:focus@VIDEO a=VIDEO",
+            "F:focusin@VIDEO a=VIDEO"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[document.activeElement.tagName, v.paused, v.muted, Math.round(v.volume*100)/100]",
+          "value": [
+            "VIDEO",
+            true,
+            false,
+            0.5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-focus-audio",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "F:focus@INPUT a=INPUT",
+            "F:focusin@INPUT a=INPUT",
+            "--A timeline",
+            "F:blur@INPUT a=BODY",
+            "F:focusout@INPUT a=BODY",
+            "F:focus@AUDIO a=AUDIO",
+            "F:focusin@AUDIO a=AUDIO",
+            "seeking@el t=1 p=1 ct=5.05 v=1",
+            "seeked@el t=1 p=1 ct=5.05 v=1",
+            "canplay@el t=1 p=1 ct=5 v=1",
+            "F:blur@AUDIO a=BODY",
+            "F:focusout@AUDIO a=BODY",
+            "F:focus@INPUT a=INPUT",
+            "F:focusin@INPUT a=INPUT",
+            "--B menu",
+            "F:blur@INPUT a=BODY",
+            "F:focusout@INPUT a=BODY",
+            "F:focus@AUDIO a=AUDIO",
+            "F:focusin@AUDIO a=AUDIO",
+            "F:blur@AUDIO a=BODY",
+            "F:focusout@AUDIO a=BODY",
+            "F:focus@INPUT a=INPUT",
+            "F:focusin@INPUT a=INPUT",
+            "--C play",
+            "F:blur@INPUT a=BODY",
+            "F:focusout@INPUT a=BODY",
+            "F:focus@AUDIO a=AUDIO",
+            "F:focusin@AUDIO a=AUDIO",
+            "play@el t=1 p=0 ct=5 v=1",
+            "playing@el t=1 p=0 ct=5 v=1",
+            "F:blur@AUDIO a=BODY",
+            "F:focusout@AUDIO a=BODY",
+            "F:focus@INPUT a=INPUT",
+            "F:focusin@INPUT a=INPUT",
+            "--D mute",
+            "F:blur@INPUT a=BODY",
+            "F:focusout@INPUT a=BODY",
+            "F:focus@AUDIO a=AUDIO",
+            "F:focusin@AUDIO a=AUDIO",
+            "volumechange@el t=1 p=0 ct=5 M v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[document.activeElement.tagName, v.paused, v.muted, Math.round(v.volume*100)/100]",
+          "value": [
+            "AUDIO",
+            false,
+            true,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-focus-sequence",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "F:focus@VIDEO a=VIDEO",
+            "F:focusin@VIDEO a=VIDEO",
+            "--A the video has the focus: click play",
+            "play@el t=1 p=0 ct=0 v=1",
+            "playing@el t=1 p=0 ct=0 v=1",
+            "--B click the input",
+            "D:pointerdown@INPUT t=1 p=0 ct=0 v=1",
+            "D:mousedown@INPUT t=1 p=0 ct=0 v=1",
+            "F:blur@VIDEO a=BODY",
+            "F:focusout@VIDEO a=BODY",
+            "F:focus@INPUT a=INPUT",
+            "F:focusin@INPUT a=INPUT",
+            "D:pointerup@INPUT t=1 p=0 ct=0 v=1",
+            "D:mouseup@INPUT t=1 p=0 ct=0 v=1",
+            "D:click@INPUT t=1 p=0 ct=0 v=1",
+            "--C click the play button",
+            "F:blur@INPUT a=BODY",
+            "F:focusout@INPUT a=BODY",
+            "F:focus@VIDEO a=VIDEO",
+            "F:focusin@VIDEO a=VIDEO",
+            "pause@el t=1 p=1 ct=0 v=1"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[document.activeElement.tagName, v.paused, v.muted, Math.round(v.volume*100)/100]",
+          "value": [
+            "VIDEO",
+            true,
+            false,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-menu-first",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "--A click menu"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.paused, v.muted, v.volume, Math.floor(v.currentTime)]",
+          "value": [
+            true,
+            false,
+            1,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-slider-muted-click",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "volumechange@el t=1 p=1 ct=0 M v=1",
+            "--A muted m=1 vol=1",
+            "volumechange@el t=1 p=1 ct=0 v=0.5",
+            "volumechange@el t=1 p=1 ct=0 v=0.5",
+            "--B after the click at x=150 m=0 vol=0.5"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.muted, Math.round(v.volume*1000)/1000]",
+          "value": [
+            false,
+            0.5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-slider-muted-drag",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "volumechange@el t=1 p=1 ct=0 M v=1",
+            "--A muted m=1 vol=1",
+            "volumechange@el t=1 p=1 ct=0 v=1",
+            "--B down at 170 m=0 vol=1",
+            "volumechange@el t=1 p=1 ct=0 v=0.25",
+            "--C move to 140 m=0 vol=0.25",
+            "volumechange@el t=1 p=1 ct=0 v=0",
+            "--D move to 126 m=0 vol=0",
+            "volumechange@el t=1 p=1 ct=0 v=0.5",
+            "--E move to 150 m=0 vol=0.5",
+            "--F up m=0 vol=0.5"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.muted, Math.round(v.volume*1000)/1000]",
+          "value": [
+            false,
+            0.5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-slider-muted-same-volume",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "volumechange@el t=1 p=1 ct=0 M v=0.5",
+            "volumechange@el t=1 p=1 ct=0 M v=0.5",
+            "--A volume 0.5, muted m=1 vol=0.5",
+            "volumechange@el t=1 p=1 ct=0 v=0.5",
+            "--B click at x=150 (0.5) m=0 vol=0.5"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.muted, Math.round(v.volume*1000)/1000]",
+          "value": [
+            false,
+            0.5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-slider-muted-volume-zero",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "volumechange@el t=1 p=1 ct=0 M v=0",
+            "volumechange@el t=1 p=1 ct=0 M v=0",
+            "--A volume 0, muted m=1 vol=0",
+            "--B click at x=124 (0) m=1 vol=0",
+            "volumechange@el t=1 p=1 ct=0 v=0.5",
+            "volumechange@el t=1 p=1 ct=0 v=0.5",
+            "--C click at x=150 (0.5) m=0 vol=0.5"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.muted, Math.round(v.volume*1000)/1000]",
+          "value": [
+            false,
+            0.5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "in-slider-muted-audio",
+      "viewport": [
+        400,
+        300
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "L",
+          "value": [
+            "loadstart@el t=1 p=1 ct=0 v=1",
+            "durationchange@el t=1 p=1 ct=0 v=1",
+            "loadedmetadata@el t=1 p=1 ct=0 v=1",
+            "loadeddata@el t=1 p=1 ct=0 v=1",
+            "canplay@el t=1 p=1 ct=0 v=1",
+            "volumechange@el t=1 p=1 ct=0 M v=1",
+            "--A muted m=1 vol=1",
+            "volumechange@el t=1 p=1 ct=0 v=0.5",
+            "volumechange@el t=1 p=1 ct=0 v=0.5",
+            "--B click at x=200 m=0 vol=0.5",
+            "volumechange@el t=1 p=1 ct=0 M v=0.5",
+            "--C muted again m=1 vol=0.5",
+            "volumechange@el t=1 p=1 ct=0 v=0.25",
+            "volumechange@el t=1 p=1 ct=0 v=0.25",
+            "volumechange@el t=1 p=1 ct=0 v=0.875",
+            "--D drag 190 to 215 m=0 vol=0.875"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "[v.muted, Math.round(v.volume*1000)/1000]",
+          "value": [
+            false,
+            0.875
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -39,7 +39,7 @@
 //!
 //! Audio controls: a panel with rounded ends behind a row centered
 //! vertically: play (2 px from the left edge), "0:00 / 0:00", the
-//! timeline, mute (centered 55.5 px from the right edge) and the menu
+//! timeline, mute (centered 58.5 px from the right edge) and the menu
 //! (centered 26 px from the right edge), as measured at the default size
 //! (300 × 54 px). The menu is enabled also without a media resource (as
 //! measured). The time shows if the timeline after it stays at least
@@ -49,15 +49,19 @@
 use std::sync::Arc;
 
 use swb_dom::{Document, NodeId, is_html_whitespace, local_name};
-use swb_text::{FamilyName, FontQuery, GenericFamily, ShapeOptions};
+use swb_text::{FamilyName, FontContext, FontQuery, GenericFamily, ShapeOptions};
 
 use crate::LayoutContext;
 use crate::fonts;
-use crate::fragment::{MediaContent, MediaPart, MediaPartKind, MediaText};
-use crate::geom::{Rect, Size};
+use crate::fragment::{MediaButton, MediaContent, MediaPart, MediaPartKind, MediaText};
+use crate::geom::{Point, Rect, Size};
 
 /// The size of the buttons of media controls.
 const BUTTON: f32 = 48.0;
+
+/// The height of the band at the bottom of a video where the pointer shows
+/// the timeline's thumb (measured: y from 215 px in a 240 px video).
+pub const THUMB_BAND: f32 = 25.0;
 
 /// The height of the gradient behind video controls (paint's gradient
 /// stops end at the same height).
@@ -216,13 +220,17 @@ fn video_parts(ctx: &mut LayoutContext<'_>, media: Media, size: Size) -> Vec<Med
 
 /// Audio controls (measured at 300 × 54 px): the play button 2 px from
 /// the left edge, the time at 47 px, the menu and mute buttons centered
-/// 26 px and 55.5 px from the right edge, and the timeline from 16 px
-/// after the time to 90 px from the right edge.
+/// 26 px and 58.5 px from the right edge, and the timeline from 16 px
+/// after the time to 90 px from the right edge. The button rects are 48 px
+/// boxes around the icons; the pointer hits the 32 px box in their center
+/// (`button_hit_area`).
 fn audio_parts(ctx: &mut LayoutContext<'_>, media: Media, size: Size) -> Vec<MediaPart> {
     const PLAY_X: f32 = 2.0;
     const TIME_X: f32 = 47.0;
     const MENU_CENTER_FROM_RIGHT: f32 = 26.0;
-    const MUTE_CENTER_FROM_RIGHT: f32 = 55.5;
+    // The icon spans x = 235 to 248 at 300 px (re-measured in feature 9;
+    // the mute button's box is centered on it).
+    const MUTE_CENTER_FROM_RIGHT: f32 = 58.5;
     const TIMELINE_END_FROM_RIGHT: f32 = 90.0;
     const TIMELINE_GAP: f32 = 16.0;
     const MIN_TIMELINE: f32 = 32.0;
@@ -275,6 +283,217 @@ fn part(kind: MediaPartKind, rect: Rect, enabled: bool) -> MediaPart {
         rect,
         enabled,
     }
+}
+
+/// The geometry of the volume slider (M14 feature 9, measured with Chromium
+/// 148 at device scale 1), relative to the content box.
+///
+/// Video: a dark pill 112 × 36 px whose right edge is 4 px left of the mute
+/// button's, with a 52 px track 16 px from its left end. Audio: a pill 101 ×
+/// 32 px whose right edge is 7.5 px left of the mute button's, the track 17
+/// px from its left end. The thumb (12 px) centers on the track's inner 40
+/// px: the volume is the thumb center's place from 6 px after the track's
+/// start (0) to 6 px before its end (1).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct VolumeSlider {
+    /// The pill.
+    pub pill: Rect,
+    /// The track (4 px high).
+    pub track: Rect,
+    /// The area in which the pointer keeps the slider open: the pill and
+    /// the mute button.
+    pub hover: Rect,
+}
+
+const SLIDER_TRACK_WIDTH: f32 = 52.0;
+const THUMB_SIZE: f32 = 12.0;
+
+/// The slider that opens at the mute button `mute` (relative to the content
+/// box) of video or audio controls.
+pub fn volume_slider(audio: bool, mute: Rect) -> VolumeSlider {
+    let (width, height, gap, inset) = if audio {
+        (101.0, 32.0, 7.5, 17.0)
+    } else {
+        (112.0, 36.0, 4.0, 16.0)
+    };
+    let center = mute.y + mute.height / 2.0;
+    let pill = Rect::new(
+        mute.right() - gap - width,
+        center - height / 2.0,
+        width,
+        height,
+    );
+    let track = Rect::new(
+        pill.x + inset,
+        center - TIMELINE_HEIGHT / 2.0,
+        SLIDER_TRACK_WIDTH,
+        TIMELINE_HEIGHT,
+    );
+    // Open at the pill's left edge less 2 px (measured: 108 opens, 105 does
+    // not) and over the button's whole box (for audio, its 32 px hit box).
+    let left = pill.x - 2.0;
+    let button = button_hit_area(audio, mute);
+    let hover = Rect::new(left, button.y, button.right() - left, button.height);
+    VolumeSlider { pill, track, hover }
+}
+
+/// The side of the box in which an audio button takes the pointer (measured
+/// with Chromium 148 in feature 9: hover circles and clicks on the play,
+/// mute and menu buttons of a 300 x 54 px panel; the boxes are 32 px, the
+/// mute box ends at the menu's start). Video buttons take the pointer in
+/// their 48 px box.
+const AUDIO_BUTTON_HIT: f32 = 32.0;
+
+/// The box of `button` that takes the pointer.
+fn button_hit_area(audio: bool, button: Rect) -> Rect {
+    if !audio {
+        return button;
+    }
+    let (cx, cy) = (
+        button.x + button.width / 2.0,
+        button.y + button.height / 2.0,
+    );
+    Rect::new(
+        cx - AUDIO_BUTTON_HIT / 2.0,
+        cy - AUDIO_BUTTON_HIT / 2.0,
+        AUDIO_BUTTON_HIT,
+        AUDIO_BUTTON_HIT,
+    )
+}
+
+/// The volume (0 to 1) at the x place `x` of the slider's thumb center.
+pub fn volume_fraction(slider: &VolumeSlider, x: f32) -> f64 {
+    fraction(
+        slider.track.x + THUMB_SIZE / 2.0,
+        slider.track.right() - THUMB_SIZE / 2.0,
+        x,
+    )
+}
+
+/// The place (0 to 1) on a timeline `rect` at `x`: the thumb center runs
+/// from 6 px after the start to 6 px before the end (measured: a click at
+/// x = 100 on the 288 px timeline of a 320 px video seeks to 28.3 % of the
+/// duration, 22 px is 0, 298 px is the end).
+pub fn timeline_fraction(rect: Rect, x: f32) -> f64 {
+    fraction(
+        rect.x + THUMB_SIZE / 2.0,
+        rect.right() - THUMB_SIZE / 2.0,
+        x,
+    )
+}
+
+fn fraction(from: f32, to: f32, x: f32) -> f64 {
+    if to <= from || x.is_nan() {
+        return 0.0;
+    }
+    f64::from(((x - from) / (to - from)).clamp(0.0, 1.0))
+}
+
+/// What a point of the controls is over.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MediaHit {
+    /// The element outside its controls (the picture).
+    None,
+    /// A button.
+    Button(MediaButton),
+    /// The timeline (its area is taller than the 4 px bar: a click 5 px
+    /// below it counts).
+    Timeline,
+    /// The volume slider (its track and pill).
+    Slider,
+}
+
+/// The part of the controls `content` that the point `local` (relative to the
+/// content box) is over; the volume slider counts when `slider` is open.
+pub fn media_hit(content: &MediaContent, local: Point, slider: bool) -> MediaHit {
+    let part = |kind: fn(&MediaPartKind) -> bool| content.parts.iter().find(|p| kind(&p.kind));
+    for (kind, button) in [
+        (MediaPartKind::Play, MediaButton::Play),
+        (MediaPartKind::Mute, MediaButton::Mute),
+        (MediaPartKind::Fullscreen, MediaButton::Fullscreen),
+        (MediaPartKind::Menu, MediaButton::Menu),
+    ] {
+        if content
+            .parts
+            .iter()
+            .any(|p| p.kind == kind && button_hit_area(content.audio, p.rect).contains(local))
+        {
+            return MediaHit::Button(button);
+        }
+    }
+    if slider
+        && let Some(mute) = part(|k| matches!(k, MediaPartKind::Mute))
+        && volume_slider(content.audio, mute.rect)
+            .hover
+            .contains(local)
+    {
+        return MediaHit::Slider;
+    }
+    if let Some(timeline) = part(|k| matches!(k, MediaPartKind::Timeline))
+        && timeline_hit_area(timeline.rect).contains(local)
+    {
+        return MediaHit::Timeline;
+    }
+    MediaHit::None
+}
+
+/// The area of a timeline that takes the pointer: its bar and 9 px above
+/// and below, 6 px (the thumb's radius) left and right.
+pub(crate) fn timeline_hit_area(bar: Rect) -> Rect {
+    Rect::new(
+        bar.x - THUMB_SIZE / 2.0,
+        bar.y - 9.0,
+        bar.width + THUMB_SIZE,
+        bar.height + 18.0,
+    )
+}
+
+/// The label of the time display: Chromium's `m:ss` (floor of the seconds;
+/// `h:mm:ss` from one hour) of the current time, and for audio and for a
+/// video wide enough ("m:ss / m:ss") the duration. `current` and `duration`
+/// are seconds; a duration that is not finite or negative has no part
+/// (Chromium shows `0:00` and the current time).
+pub fn time_label(current: f64, duration: f64, with_duration: bool) -> String {
+    let current = format_time(current);
+    if with_duration && duration.is_finite() && duration >= 0.0 {
+        format!("{current} / {}", format_time(duration))
+    } else {
+        current
+    }
+}
+
+/// `m:ss` of `seconds` (floor), or `h:mm:ss` from 3600 s; 0:00 for a value
+/// that is negative or not finite.
+fn format_time(seconds: f64) -> String {
+    let total = if seconds.is_finite() && seconds > 0.0 {
+        seconds.floor() as u64
+    } else {
+        0
+    };
+    let (hours, minutes, secs) = (total / 3600, total / 60 % 60, total % 60);
+    if hours > 0 {
+        format!("{hours}:{minutes:02}:{secs:02}")
+    } else {
+        format!("{}:{secs:02}", total / 60)
+    }
+}
+
+/// The shaped text of a time display, with the font and the metrics of the
+/// controls (the pen is at the left of the part's area, the baseline is
+/// [`MediaText::baseline`] below its top). The engine shapes the time once a
+/// second without a layout.
+pub fn media_time_text(fonts: &mut FontContext, text: &str) -> (MediaText, f32) {
+    let families = [FamilyName::Generic(GenericFamily::SansSerif)];
+    let font = fonts.select(&FontQuery::new(&families));
+    let run = fonts.shape(font, TEXT_SIZE, text, &ShapeOptions::default());
+    let metrics = fonts::line_metrics(fonts, font, TEXT_SIZE);
+    let text = MediaText {
+        font,
+        size: TEXT_SIZE,
+        glyphs: Arc::from(fonts::positioned_glyphs(&run)),
+        baseline: metrics.ascent,
+    };
+    (text, run.advance)
 }
 
 /// The time display `text` with its pen at `x` on the baseline at
@@ -481,6 +700,80 @@ mod tests {
         assert!(audio.parts.len() > 1);
     }
 
+    /// Chromium 148's strings (probe `media-controls-sizes.json`, a 1 h 2 min
+    /// 5 s file): `m:ss`, and `h:mm:ss` from one hour, for each number.
+    #[test]
+    fn the_time_label_is_chromiums() {
+        let at = |t: f64| time_label(t, 3725.0, true);
+        assert_eq!(at(0.0), "0:00 / 1:02:05");
+        assert_eq!(at(3700.0), "1:01:40 / 1:02:05");
+        assert_eq!(at(610.0), "10:10 / 1:02:05");
+        assert_eq!(at(3599.5), "59:59 / 1:02:05");
+        assert_eq!(time_label(1.9, 10.0, true), "0:01 / 0:10");
+        assert_eq!(time_label(1.9, 10.0, false), "0:01");
+        assert_eq!(time_label(9.99, 10.0, true), "0:09 / 0:10");
+        // A duration that is not a finite number has no part; a position that
+        // is negative or not a number is 0:00.
+        assert_eq!(time_label(5.0, f64::INFINITY, true), "0:05");
+        assert_eq!(time_label(5.0, f64::NAN, true), "0:05");
+        assert_eq!(time_label(f64::NAN, 10.0, true), "0:00 / 0:10");
+        assert_eq!(time_label(-3.0, 10.0, true), "0:00 / 0:10");
+        assert_eq!(time_label(f64::INFINITY, 10.0, true), "0:00 / 0:10");
+        // A huge number does not panic (it saturates).
+        assert!(time_label(1e300, 1e300, true).contains(" / "));
+    }
+
+    /// The thumb's center maps 6 px inside the bar's ends (measured: a click
+    /// at x = 100, 120, 150, 200, 240 on a 320 px video gives 2.83, 3.55,
+    /// 4.64, 6.45 and 7.9 s of 10).
+    #[test]
+    fn the_timeline_maps_the_thumb_center() {
+        let bar = Rect::new(16.0, 216.0, 288.0, 4.0);
+        let seconds = |x: f32| (timeline_fraction(bar, x) * 10.0 * 100.0).round() / 100.0;
+        assert_eq!(seconds(100.0), 2.83);
+        assert_eq!(seconds(120.0), 3.55);
+        assert_eq!(seconds(150.0), 4.64);
+        assert_eq!(seconds(200.0), 6.45);
+        assert_eq!(seconds(240.0), 7.90);
+        assert_eq!(seconds(0.0), 0.0);
+        assert_eq!(seconds(390.0), 10.0);
+        assert_eq!(timeline_fraction(bar, f32::NAN), 0.0);
+        // A bar narrower than the thumb has no range.
+        assert_eq!(timeline_fraction(Rect::new(0.0, 0.0, 10.0, 4.0), 5.0), 0.0);
+    }
+
+    /// The volume slider of a 320 px video (measured: 126 and less is 0, 140
+    /// is 0.25, 150 is 0.5, 160 is 0.75, 170 and more is 1) and what the
+    /// pointer is over.
+    #[test]
+    fn the_volume_slider_maps_and_hits() {
+        let c = media_content("<video width=320 height=240 src=v.webm></video>", "video");
+        let mute = c
+            .parts
+            .iter()
+            .find(|p| p.kind == MediaPartKind::Mute)
+            .unwrap();
+        let s = volume_slider(false, mute.rect);
+        assert_eq!(s.pill, Rect::new(108.0, 174.0, 112.0, 36.0));
+        assert_eq!(s.track, Rect::new(124.0, 190.0, 52.0, 4.0));
+        let v = |x: f32| (volume_fraction(&s, x) * 100.0).round() / 100.0;
+        assert_eq!(
+            [v(126.0), v(140.0), v(150.0), v(160.0), v(172.0)],
+            [0.0, 0.25, 0.5, 0.75, 1.0]
+        );
+        let hit = |x: f32, y: f32, open: bool| media_hit(&c, Point::new(x, y), open);
+        assert_eq!(
+            hit(200.0, 192.0, false),
+            MediaHit::Button(MediaButton::Mute)
+        );
+        assert_eq!(hit(150.0, 192.0, false), MediaHit::None);
+        assert_eq!(hit(150.0, 192.0, true), MediaHit::Slider);
+        assert_eq!(hit(105.0, 192.0, true), MediaHit::None);
+        assert_eq!(hit(24.0, 192.0, true), MediaHit::Button(MediaButton::Play));
+        assert_eq!(hit(160.0, 225.0, false), MediaHit::Timeline);
+        assert_eq!(hit(160.0, 100.0, false), MediaHit::None);
+    }
+
     #[test]
     fn audio_controls_at_the_default_size() {
         let c = media_content("<audio controls src=a.mp3></audio>", "audio");
@@ -491,7 +784,7 @@ mod tests {
         assert_eq!(parts[1], ("play", Rect::new(2.0, 3.0, 48.0, 48.0), true));
         assert_eq!(parts[2].0, "time");
         assert_eq!(parts[3].0, "timeline");
-        assert_eq!(parts[4], ("mute", Rect::new(220.5, 3.0, 48.0, 48.0), false));
+        assert_eq!(parts[4], ("mute", Rect::new(217.5, 3.0, 48.0, 48.0), false));
         assert_eq!(parts[5], ("menu", Rect::new(250.0, 3.0, 48.0, 48.0), true));
         let timeline = parts[3].1;
         assert_eq!(timeline.right(), 210.0);
@@ -503,5 +796,42 @@ mod tests {
         let c = media_content("<audio controls></audio>", "audio");
         assert!(!c.parts[1].enabled, "play without a source");
         assert!(c.parts.last().is_some_and(|p| p.enabled), "the menu");
+    }
+
+    /// The 32 px hit boxes of the audio buttons (Chromium 148: clicks on
+    /// `hit-audio-mute-clicks` and `hit-audio-play-clicks`, hover circles of
+    /// `hit-audio-hover` in `tools/probes/media-controls-hit.json`).
+    #[test]
+    fn audio_buttons_take_the_pointer_in_boxes_of_32_px() {
+        let c = media_content("<audio controls src=a.mp3></audio>", "audio");
+        let hit = |x: f32, y: f32, open: bool| media_hit(&c, Point::new(x, y), open);
+        let (play, mute, menu) = (
+            MediaHit::Button(MediaButton::Play),
+            MediaHit::Button(MediaButton::Mute),
+            MediaHit::Button(MediaButton::Menu),
+        );
+        // Play: x 10 to 42 and y 11 to 43.
+        assert_eq!(hit(9.0, 27.0, false), MediaHit::None);
+        assert_eq!([hit(10.0, 27.0, false), hit(41.0, 27.0, false)], [play; 2]);
+        assert_eq!(hit(42.0, 27.0, false), MediaHit::None);
+        assert_eq!(hit(26.0, 10.0, false), MediaHit::None);
+        assert_eq!([hit(26.0, 11.0, false), hit(26.0, 42.0, false)], [play; 2]);
+        assert_eq!(hit(26.0, 43.0, false), MediaHit::None);
+        // Mute: x 225.5 to 257.5; the menu starts at 258 (no overlap).
+        assert_eq!(hit(222.0, 27.0, false), MediaHit::None);
+        assert_eq!(
+            [hit(226.0, 27.0, false), hit(257.0, 27.0, false)],
+            [mute; 2]
+        );
+        assert_eq!(
+            [hit(258.0, 27.0, false), hit(289.0, 27.0, false)],
+            [menu; 2]
+        );
+        assert_eq!(hit(290.0, 27.0, false), MediaHit::None);
+        assert_eq!(hit(241.0, 10.0, false), MediaHit::None);
+        assert_eq!(hit(241.0, 43.0, false), MediaHit::None);
+        // The open slider's area ends at the mute box too.
+        assert_eq!(hit(180.0, 27.0, true), MediaHit::Slider);
+        assert_eq!(hit(258.0, 27.0, true), menu);
     }
 }

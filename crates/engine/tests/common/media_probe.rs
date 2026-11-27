@@ -24,7 +24,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::Value;
-use swb_engine::{ClockMode, Evaluation, JsonForm, Key, Modifiers, Page, PageClock, Size, Url};
+use swb_engine::{
+    ClockMode, Evaluation, JsonForm, Key, Modifiers, MouseButton, Page, PageClock, Size, Url,
+};
 use swb_net::Fetcher;
 
 use super::media_site::{MediaSite, RangeMode};
@@ -112,6 +114,15 @@ pub(crate) fn run_steps(page: &mut Page, case: &Value) {
                 let (x, y) = point(argument);
                 page.mouse_move(x, y);
             }
+            "mousedown" | "mouseup" => {
+                // At the pointer's place (the `hover` before it).
+                let p = page.pointer_position().unwrap();
+                if kind == "mousedown" {
+                    page.mouse_down(p.x, p.y, MouseButton::Primary, Modifiers::NONE, 1);
+                } else {
+                    page.mouse_up(p.x, p.y, MouseButton::Primary);
+                }
+            }
             "key" => {
                 let key = Key::Character(argument.as_str().unwrap().to_owned());
                 page.key_down(&key, Modifiers::NONE);
@@ -124,6 +135,9 @@ pub(crate) fn run_steps(page: &mut Page, case: &Value) {
             "eval" => {
                 evaluate(page, argument.as_str().unwrap());
             }
+            // Chromium's screenshot of that moment: the pixel tests take
+            // swb's at the end of the steps.
+            "shot" => {}
             other => panic!("the step {other} is not supported"),
         }
         // The events that the input queued.

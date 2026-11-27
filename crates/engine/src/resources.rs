@@ -20,6 +20,7 @@ use swb_style::Length;
 use swb_style::cssom::sheet::{SheetRef, StyleMemory, StyleSheet};
 
 use crate::image_source::SelectedImage;
+use crate::media::controls::ControlsKey;
 
 /// What an in-flight request of a document's subresource is for. (The
 /// page tracks the request of a navigation's document itself.)
@@ -588,6 +589,11 @@ pub(crate) struct Images {
     /// natural size of its stream and its current frame (M14 feature 7a;
     /// [`Images::set_video`]).
     videos: HashMap<NodeId, VideoImage>,
+    /// The views of the default controls of the media elements whose state
+    /// differs from the one before any playback, with the key that each was
+    /// made for (M14 feature 9). The display list builder reads them; a
+    /// change drops the list, not the layout.
+    controls: HashMap<NodeId, (ControlsKey, Arc<swb_layout::MediaControlsView>)>,
 }
 
 /// What a `<video>` element shows (ADR 0047 section 9).
@@ -875,9 +881,53 @@ impl Images {
     pub(crate) fn no_videos(&self) -> bool {
         self.videos.is_empty()
     }
+
+    /// True if no media element has a view of its controls.
+    pub(crate) fn no_controls(&self) -> bool {
+        self.controls.is_empty()
+    }
+
+    /// The key of the view that the controls of `node` have (the key of the
+    /// state before any playback if there is none).
+    pub(crate) fn controls_key(&self, node: NodeId) -> ControlsKey {
+        self.controls
+            .get(&node)
+            .map_or_else(ControlsKey::default, |(key, _)| *key)
+    }
+
+    /// Gives the controls of `node` the view made for `key` (`None`: the
+    /// default look). A key that differs from the old one means the look
+    /// changed.
+    pub(crate) fn set_controls(
+        &mut self,
+        node: NodeId,
+        key: ControlsKey,
+        view: Option<Arc<swb_layout::MediaControlsView>>,
+    ) {
+        match view {
+            Some(view) => {
+                self.controls.insert(node, (key, view));
+            }
+            None => {
+                self.controls.remove(&node);
+            }
+        }
+    }
+
+    /// Forgets the views of the nodes that `keep` does not accept (their
+    /// media state is gone). True if one went.
+    pub(crate) fn retain_controls(&mut self, mut keep: impl FnMut(NodeId) -> bool) -> bool {
+        let before = self.controls.len();
+        self.controls.retain(|&node, _| keep(node));
+        self.controls.len() != before
+    }
 }
 
 impl ImageSizes for Images {
+    fn media_controls(&self, node: NodeId) -> Option<Arc<swb_layout::MediaControlsView>> {
+        self.controls.get(&node).map(|(_, view)| Arc::clone(view))
+    }
+
     /// The natural size of an image. For the image of an element, it is
     /// the density-corrected natural size
     /// (<https://html.spec.whatwg.org/multipage/images.html#density-corrected-natural-width-and-height>),

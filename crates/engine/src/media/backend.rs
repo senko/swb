@@ -187,6 +187,9 @@ pub(crate) struct Meta {
     pub(crate) size: Option<(u32, u32)>,
     /// Whether `seekable` is the whole timeline.
     pub(crate) seekable: bool,
+    /// Whether the media has an audio track that this build decodes (the
+    /// default mute button needs one).
+    pub(crate) has_audio: bool,
 }
 
 /// A failed load or a failed pipeline.
@@ -682,6 +685,7 @@ mod real {
                             start: timeline.start_us as f64 / 1e6,
                             size: m.natural_size().filter(|&(w, h)| w > 0 && h > 0),
                             seekable: m.info.seekable,
+                            has_audio: m.info.audio.is_some(),
                         }));
                     }
                     Report::FirstFrame => {

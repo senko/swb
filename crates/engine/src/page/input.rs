@@ -300,7 +300,10 @@ impl Page {
         }
         // Listeners may have changed the page.
         let changed = generation != self.dom_generation();
-        changed | (moved && self.drag_press(point))
+        // A drag on a default control follows the pointer, also outside the
+        // media element.
+        let dragged = moved && self.controls_drag(point);
+        changed | dragged | (moved && self.drag_press(point))
     }
 
     /// The count of selection replacements if the document has a selection
@@ -386,6 +389,7 @@ impl Page {
                 .and_then(|h| self.element_of(h.node))
                 .or_else(|| self.root_element());
             changed |= self.update_states(|s| s.hover = hover);
+            changed |= self.controls_pointer(hit.as_ref().map(|h| h.node), pointer);
         }
         // After the restyle: a `:hover` rule can change the cursor.
         self.input.cursor = self.cursor_for(hit.as_ref());
@@ -402,6 +406,7 @@ impl Page {
         self.input.cursor = Cursor::Auto;
         let mut changed = self.input.hovered_link.take().is_some();
         changed |= self.clear_frame_hover();
+        changed |= self.controls_leave();
         changed | self.update_states(|s| s.hover = None)
     }
 
@@ -466,6 +471,14 @@ impl Page {
         allowed: bool,
     ) -> bool {
         self.input.pointer = Some(point);
+        // Without scripts the controls take the press here (with scripts,
+        // `scripted_down` did). They give the press no selection; the focus
+        // goes to the element.
+        if !scripted && self.controls_down(point) {
+            self.controls_press_focus(point, false);
+            self.update_hover(true);
+            return true;
+        }
         let hit = self.hit_doc(point.x, point.y);
         let element = hit.as_ref().and_then(|h| self.element_of(h.node));
         if !scripted {
@@ -670,7 +683,11 @@ impl Page {
             return (dismissed, false);
         }
         let press = self.input.press.take();
-        let changed = self.update_states(|s| s.active = None) | dismissed;
+        let mut changed = self.update_states(|s| s.active = None) | dismissed;
+        // The release of a press on a default control of a media element.
+        if self.controls_up(point) {
+            return (true, false);
+        }
         let Some(press) = press.filter(|p| !p.dragging) else {
             return (changed, false);
         };
@@ -684,6 +701,9 @@ impl Page {
             }
             _ => false,
         };
+        if !activated && let Some(origin) = origin {
+            changed |= self.controls_picture_click(origin);
+        }
         (changed, activated)
     }
 
@@ -712,11 +732,18 @@ impl Page {
             && self
                 .parts()
                 .is_some_and(|(doc, fonts)| !doc.selected_text(fonts).is_empty());
+        let on_control = button == MouseButton::Primary && self.controls_pressed();
         let up = self.scripted_up(point, button, dragging);
         changed |= generation != self.dom_generation();
         let Some((target, proceed)) = up else {
-            return (changed, false);
+            // A press on a control ended here: its picture changed.
+            return (changed || on_control, false);
         };
+        // A click on the picture of a media element plays or pauses it
+        // unless a listener canceled the click.
+        if proceed && button == MouseButton::Primary {
+            changed |= self.controls_picture_click(target);
+        }
         let mut activated = false;
         if proceed && button == MouseButton::Primary {
             let activation = self.activation_target(target, point);

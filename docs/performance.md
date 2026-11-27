@@ -235,6 +235,32 @@ these lines. Together with `RUST_LOG=swb_engine::document::pipeline=debug`
 (the style, layout and display list stages) they show what a burst of input
 costs.
 
+## Default media controls (M14 feature 9)
+
+Release build with media, GUI on a private Xvfb, `--no-audio-output` with
+an empty `PIPEWIRE_RUNTIME_DIR`, window 1280 x 720, `mux-1080p30-20s.mp4`
+muted, `autoplay`, `loop`, in a 640 x 360 box; 4 s of warm-up (6 s for the
+cases with a still pointer) and 10 s measured; one run each (the driver
+script is not in the repository; the numbers come from the frame log):
+
+| Case | CPU % | Frames/s | Dropped | Wake-ups/s |
+|---|---|---|---|---|
+| Controls, the pointer moves every 0.3 s (controls shown) | 36.7 | 33.3 | 0 | 77.4 |
+| No controls, the same pointer | 33.6 | 30.0 | 0 | 69.5 |
+| Controls, the pointer still (hidden after 2.5 s) | 34.9 | 30.0 | 0 | 64.5 |
+| No controls, the pointer still | 34.1 | 30.0 | 0 | 64.7 |
+| Controls, paused, the pointer in the video | 0.0 | 0 | 0 | 0 |
+
+Shown controls cost 9 % more CPU than none (budget 10 %): about three
+extra frames a second for the hover and the quarter-second steps of the
+position, each with a build of the display list. Hidden controls cost
+nothing (the same frames and wake-ups), and so do paused controls with a
+still pointer. A change of the controls runs no layout (tested with the
+layout counter) but builds the whole display list again: 0.54 ms on the
+ars-technica fixture (1,943 elements; layout 6.5 ms), at 4 Hz while the
+controls show and at 60 Hz during the 0.7 s fade (backlog: splice the
+controls' items into the list).
+
 ## Baseline
 
 2026-10-09, M5 (commit 1cbcadb). Release build, Linux, Intel Core i5-13500,

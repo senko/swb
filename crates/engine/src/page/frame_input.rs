@@ -479,7 +479,9 @@ impl Page {
                 let element = node
                     .and_then(|n| p.element_of(n))
                     .or_else(|| p.root_element());
-                p.update_states(|s| s.hover = element)
+                let changed = p.update_states(|s| s.hover = element);
+                // The hover state of the default controls of media elements.
+                p.controls_pointer(node, point) | changed
             };
             changed |= self.in_frame(step.frame, hover).unwrap_or(false);
         }
@@ -507,7 +509,8 @@ impl Page {
             }
             p.input.pointer = None;
             p.input.cursor = swb_style::Cursor::Auto;
-            p.update_states(|s| s.hover = None)
+            let left = p.controls_leave();
+            p.update_states(|s| s.hover = None) | left
         })
         .unwrap_or(false)
     }

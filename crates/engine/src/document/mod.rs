@@ -45,6 +45,7 @@ mod inner_text;
 mod lazy;
 mod loads;
 mod media;
+mod media_controls;
 pub use frame_damage::FrameDamage;
 #[cfg(debug_assertions)]
 mod paint_check;

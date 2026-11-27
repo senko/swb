@@ -74,6 +74,8 @@ fn table() -> Vec<(&'static str, Expect)> {
             "mp4-h264-aac-bframes-no-edit-list.mp4",
             ok(AV, Complete, 50),
         ),
+        // M14 feature 9: a flat picture for the pixel tests of the controls.
+        ("mp4-h264-aac-flat-long.mp4", ok(AV, Complete, 250)),
         ("mp4-h264-aac-fragmented.mp4", ok(AV, Complete, 50)),
         ("mp4-h264-aac-late-audio.mp4", ok(AV, Complete, 50)),
         ("mp4-h264-aac-long.mp4", ok(AV, Complete, 250)),

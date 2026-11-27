@@ -880,6 +880,11 @@ impl DocumentState {
             self.display_list = None;
             self.list_composited = composited;
         }
+        // The default controls of media elements: a change of what they show
+        // builds the list again, not the layout (M14 feature 9).
+        if self.fragments.is_some() {
+            self.update_media_controls(fonts);
+        }
         if self.display_list.is_some() || self.fragments.is_none() {
             // A scroll or a resize keeps the list.
             self.update_animation_visibility();

@@ -2861,3 +2861,247 @@ that makes the measurements safe. Code: `crates/media-ffi/csrc/pipewire.{c,h}`,
   sink's volume and mute of the desktop apply on top of the element's gain
   (PipeWire's; nothing to do). (5) `playbackRate` other than 1, Web Audio and
   `setSinkId` are not in feature 8.
+
+## Implementation notes (M14 feature 9)
+
+The default controls of `<video>` and `<audio>` respond: play and pause by
+the button and by a click on the picture, seek by a click and by a drag on
+the timeline, mute and the volume slider, the time during playback, the
+auto-hide, and the states that Chromium draws (ADR 0020 "Update:
+playback"). Code: `crates/engine/src/media/controls.rs` (state, key, view,
+actions), `crates/engine/src/document/media_controls.rs` (the places of the
+boxes, the views), the hooks in `crates/engine/src/page/` (`input.rs`,
+`events.rs`, `frame_input.rs`, `media.rs`), `crates/layout/src/media.rs`
+(geometry, hit test, time labels), `crates/paint/src/media.rs` (drawing).
+
+- **What Chromium does** (probes `tools/probes/media-controls-input.json`
+  (events, 31 cases, 29 of them recorded: `in-nodur` needs a local file and
+  `in-click-fullscreen-and-menu` changed the page in Chromium), `-states.json`
+  (22 pictures), `-fade.json`, `-hit.json`, `-sizes.json`; three runs each,
+  equal apart from `ct` within 0.04 s). (1) A
+  press, a release or a click on a control (play, mute, fullscreen, menu,
+  the timeline, the volume slider; enabled or not) gives the page **no**
+  `pointerdown`, `mousedown`, `pointerup`, `mouseup` or `click`, at the
+  element or at the document (also not in the capture phase; the menu
+  too: `in-menu-first`, a click on it pauses nothing and logs nothing). A
+  press on a control **moves the focus to the media element** as a press on
+  the picture does (`activeElement` is the `VIDEO` or `AUDIO`; `blur` and
+  `focusout` go to the old element, then `focus` and `focusin` to the media
+  element, before the action; `in-focus-video`, `in-focus-audio`,
+  `in-focus-sequence`: the play button, the timeline, the slider, mute and
+  the menu, with a text input focused before; a press on the element that
+  has the focus gives no focus event). A click on
+  the picture gives all of them at the video (trusted), and then toggles
+  play and pause **in the default action**: a capturing `stopPropagation` on
+  the window does not stop it, a `preventDefault()` of the `click` does, a
+  canceled `pointerdown` (no `mousedown`) does not. (2) With no metadata
+  (`preload=none`, an error, no source) the picture does nothing, the timeline
+  and the mute button do nothing, and the play button works only with a
+  source and no error (it starts a load that `preload=none` held back). The
+  mute button also needs an audio track. (3) Events: a click on the
+  timeline of a paused element is `seeking`, `seeked`, `canplay`; of a
+  playing one `pause`, `seeking`, `play`, `waiting`, `seeked`, `canplay`,
+  `playing` (pause, seek, play in one task). A drag: `pause` at the press of a
+  playing element, one `seeking` and `seeked` for each move (a move that
+  comes before the seek ends supersedes it), `play` and `playing` at the
+  release. The drag follows the pointer outside the element and the window
+  (clamped to 0 and the duration). A click after the end plays from 0
+  (`seeking`, `play`, `waiting`, `seeked`, `canplay`, `playing`); a click on the
+  timeline after the end seeks and stays paused. (4) The thumb's center maps 6
+  px inside the bar's ends (a click at x = 100 on the 288 px bar of a 320
+  px video seeks to 2.83 s of 10: (x - 22) / 276). The volume slider maps
+  x = 130 to 0 and 170 to 1 (thumb centers inside the 52 px track from 124).
+  (5) The volume slider opens over the mute button and stays open over its
+  pill (x from 106 and the button's height), **and after a click on the mute
+  button or the slider (it has the focus) until the next press elsewhere**.
+  The timeline's thumb shows while the pointer is in the bottom 25 px of a
+  video (the whole width), over the audio timeline, while it has the focus
+  (a press on it) and while it is dragged. (6) Auto-hide: the controls of a
+  playing video fade out 2.5 s after the last pointer move inside it or the
+  start of the playback, in about 0.7 s (the opacity of the gradient at the
+  bottom: 0.98 at 15 ms, 0.92 at 50 ms, 0.80 at 120 ms, 0.43 at 320 ms, 0.16 at
+  540 ms, 0 at 1 s after the start of the fade; swb: linear in 0.7 s); a
+  leave fades them at once; a move fades them in within 0.1 s. A paused or
+  ended video keeps them. (7) The loading arc shows between about 0.1 s and
+  1.1 s after a load starts (also for `preload=none` and for an error; not
+  without a source). (8) The time label is `m:ss`, or `h:mm:ss` from an
+  hour, for each number ("0:00 / 1:02:05", "1:01:40 / 1:02:05", "10:10 /
+  1:02:05", "59:59 / 1:02:05"); a video shows "/ duration" when the label
+  ends before the mute button (250 px wide: "0:00", 280 px: "0:00 /
+  0:10"); audio always. (9) The audio buttons take the pointer in boxes of
+  32 px (`hit-audio-mute-clicks`, `-play-clicks`, `-hover`, `-slider-hover` in
+  `-hit.json`): play x 10 to 42, mute x 225.5 to 257.5, menu x 258 to 290, all
+  y 11 to 43 of the 300 x 54 px panel (the boxes do not overlap; the 48 px
+  boxes of the layout are the icons' places). The hover circle shows on play
+  and the menu, the slider opens over mute only; a click at the menu's x
+  range does not mute. Video buttons keep their 48 px boxes. (10) A press or
+  drag on the volume slider of a **muted** element sets the volume and
+  unmutes it: one `volumechange` for the volume if it changed and one for
+  `muted = false` (both listeners read the final `muted` and `volume`, so the
+  order of the two changes cannot be seen; swb sets the volume first). A press
+  at the current volume gives only the unmute event; a press at 0 on a muted
+  element does nothing (still muted, no event); a drag that goes on after
+  the unmute gives one event per move; the same for `<audio>`
+  (`in-slider-muted-click`, `-drag`, `-same-volume`, `-volume-zero`, `-audio`).
+  An unmuted element dragged to 0 stays unmuted.
+- **The state** is `Controls` in each media `Element` (the part under the
+  pointer, whether it is inside, the time of the last move and of the leave,
+  a drag, the focus of the timeline or the volume, the fade, the time of the
+  load) and `PointerState` in `Media` (the hovered element, the press in
+  progress, the shaped labels, the places of the boxes). It is the engine's, as the
+  rest of the element's state; layout and paint hold nothing of it.
+- **The key and the view.** `Element::controls_key(now)` gathers what decides
+  the picture without shaping text: playing, enabled buttons, whole seconds
+  of the position and the duration, the position in quarters of a second
+  (the `timeupdate` points), the hover, the thumb, the volume, the slider, the
+  opacity in 64 steps, the arc in 64 steps. Equal keys give the same
+  picture. A key makes a `MediaControlsView` (`swb_layout::MediaControlsView`)
+  with the shaped time labels (two strings, cached by text, shaped with the
+  document's fonts in `update_display_list`). Hidden controls (opacity 0, no
+  arc) have one key whatever the position: a playing video with hidden
+  controls causes no repaint. An element without default controls (no
+  `controls` attribute with scripting on) has the key of the state before
+  playback.
+- **The display list** builder reads the view of an element
+  (`ImageSizes::media_controls`) and draws the controls from it; with none it
+  draws the state before playback, as before. A change of a key makes
+  `update_display_list` build the list again (`display_list = None`); the
+  layout does not run (test `a_change_of_the_controls_does_not_lay_the_page_out_again`:
+  0 layouts for hover, play, 40 renders of a playing video, thumb, mute). The
+  damage is the list diff, which finds the controls' items. Not done
+  (backlog): splicing the new items into the old list instead of building it
+  again (a page with a 10,000-box tree pays its display list time for each
+  change of the controls: once a second, at the hover and at the fade's 60 Hz).
+- **Timers feed the page's due times.** `Page::media_next_due` takes the
+  controls' due times too (`Element::controls_next_due`): the auto-hide's
+  deadline while a playing video shows its controls, the fade's 16 ms ticks
+  while it runs, the arc's steps in its window. Nothing else: a paused video
+  with a still pointer, and a playing one with hidden controls, return `None`
+  (test `the_controls_cause_no_wake_up_when_nothing_changes`;
+  `Page::media_controls_due`). `frame_outdated` compares the keys with those
+  of the views that the list was built with (`media_controls_stale`). The
+  loading arc turns only on a page that paints frames (the GUI): a headless
+  screenshot has none, so that the oracle of the damage (which renders twice
+  at different times) and the references do not depend on a clock.
+- **Input** (the hooks): hover through `update_hover_route` and
+  `update_hover_in_document` (also in frame documents), press in
+  `scripted_down` (JavaScript on) and `press_in_document` (off), moves in
+  `move_top` (a drag), release in `scripted_up` and `release_in_document`,
+  leave in `mouse_leave` and `clear_hover`. A press on a control returns
+  "not allowed" to the callers (no selection) and fires no pointer event; it
+  moves the focus to the media element first (`controls_press_focus`: the
+  rule of a press on the picture, with the focus events when scripts run).
+  The places come from one walk of the fragment tree for all media boxes
+  (`refresh_controls_boxes`), kept while the layout serial, the scroll
+  offsets of the scroll containers and the viewport scroll stay; the pointer
+  maps through the inverse of the box's transform. The click of the picture
+  runs after the `click` event (`scripted_release`, `release_in_document`):
+  `ui_picture_click` toggles if no listener canceled it. A repeated hover at
+  the same place is no move (it does not show hidden controls).
+- **The actions** use the playback API: `play` (without a promise's use: the
+  promise has no listener), `pause`, `seek`, `set_volume`, `set_muted`, so
+  the events, the autoplay rules and the pending promises are the script's
+  (the press is a user activation: `note_activation` ran before). A press on
+  the timeline pauses a playing element, seeks and starts the drag; the
+  moves seek again; the release plays what played. Fullscreen and the menu
+  do nothing. A stream without a finite positive duration (`Infinity`, `NaN`)
+  or that is not seekable does not seek (`Element::can_seek`; Chromium was
+  measured only with a duration: its `nodur.webm` carries one).
+- **The drawing.** Measured at scale 1: the pause icon (two bars: x 6 to 10
+  and 14 to 18 of the 24 unit grid), the hover circle (radius 18, audio 16,
+  #202124 at 70 %, audio black at 5.5 %) of play, mute, fullscreen and menu
+  (not under the pill), the pill (112 x 36, audio 101 x 32, same fills; a
+  track of 52 px, played white at 68 %, rest white at 30 %; audio black at
+  63 % and 20 %), the bars (the played part is a fraction of the whole bar:
+  at the end it reaches the end), the thumbs (12 px; none at volume 1 unless
+  the pointer is over the slider), the muted icon (the speaker and a slash),
+  the video timeline white at 68 % once the metadata is known (30 % before;
+  audio black at 63 % after, 20 % before), the loading arc (a ring of about
+  31 px radius, 270 degrees, black, turning once in 1.4 s), the opacity of the
+  fade (all video controls; audio does not fade), the pill under the mute icon
+  and over the time text, the audio timeline shortening to 15 px before the
+  pill. The audio mute button moved from 55.5 to 58.5 px from the right edge
+  (re-measured; the icon spans x 235 to 248 at 300 px).
+- **Departures** (listed in `crates/engine/tests/media_controls.rs` with
+  their reasons as **rectangles** (icon and text boxes), not pixel lists;
+  every pixel outside them is within 12 levels of Chromium's, and inside
+  each rectangle the count of pixels beyond 12 levels has a **cap per state**
+  (`PIXEL_CAPS`: the measured count plus 10 % and 2 pixels), so an icon that
+  moves by a pixel or two, a wrong icon or a wrong digit fails though it
+  stays inside its rectangle): the anti-aliasing of the time glyphs (up to
+  40 levels) and of
+  the icons' edges; the round ends of the bars; the thumb's edge (Chromium
+  centers it 0.5 px higher); Chromium plays in real time and starts after
+  several hundred ms, so its position at a picture differs from swb's
+  (the time digit and the played part's end); the loading arc is not drawn in
+  headless pictures; the audio thumb (Chromium draws it smaller and lighter);
+  the muted icon's slash is heavier than Chromium's; the fade's curve (linear
+  against Chromium's slightly eased). **Found in the review fixes** (hidden by
+  the whole-rectangle departure of the time text until the caps): in the
+  states with the volume slider open (`st-muted*`, `st-volume-*`) Chromium
+  draws the video's time as "0:00 0:10" (no slash, and the label is shorter,
+  so it ends before the pill); swb draws "0:00 / 0:10" and the pill covers
+  its end. Their cap (335 pixels against 141 to 201 elsewhere) holds this; it
+  is a departure to fix (backlog).
+- **Tests.** `tests/media_controls.rs`: the 29 event and state cases of
+  `media-controls-input.json` against Chromium's rows (the page's event log
+  for clicks, drags, mute, the slider, replay, `preventDefault` and capturing
+  `stopPropagation`, audio, an error, `preload=none`, the menu, the focus
+  events of a press on each control; the numbers in the log strings (`ct=`,
+  `v=`, `vol`) may differ by 0.26, as in the other media rows, unless a
+  string has `rs=` or `ns=`), and the 22 pictures of
+  `media-controls-states.json` pixel by pixel against Chromium's screenshots
+  (`tests/data/media-controls/`; 12 levels outside the departure rectangles,
+  caps inside); `tests/media_controls_timers.rs`: the
+  auto-hide, the leave, paused and ended controls, no wake-up, no layout,
+  the drags (outside the video, 10,000 moves, an element that goes, a
+  source that changes), an error, a stream that cannot seek, no metadata,
+  JavaScript off, a canceled click, no event for a press on a control, the
+  focus after a press on a control with JavaScript off, and in real time the
+  time text without a layout, a playing audio that repaints its time and
+  timeline, and no extra renders with hidden controls; unit tests in `layout/src/media.rs` (the time label with
+  Chromium's hour strings, `Infinity` and `NaN`; the mapping of the timeline
+  and the slider; the hit test) and in `controls.rs`. Hostile cases:
+  `media-controls-click-flood` (2,000 clicks on the play button),
+  `media-1000-videos-with-controls-under-a-moving-pointer` (300 moves; the
+  runner cannot send 10,000: the engine test does).
+- **Open (backlog).** The keyboard (Space, arrows), the overflow menu,
+  fullscreen (M15), captions and picture-in-picture buttons, right-to-left
+  controls, device scales other than 1, the focus ring, touch; a drag that
+  starts in a frame document and leaves it; a cursor over the buttons; the
+  fade's exact curve; the arc's turn and exact size (only its existence and
+  window were measured); a stream with `duration` `Infinity` in Chromium
+  (no source of one in the test files); splicing the controls' items into the
+  display list; the video time label "0:00 0:10" with the slider open; the audio time text
+  of a one-hour file (layout reserves room for "0:00 / 0:00"; Chromium not
+  measured for audio); `controls.rs` (about 1,200 lines) split before the
+  keyboard feature.
+- **Review fixes** (round 1). (1) A press on a control did not move the
+  focus: it does now (`Page::controls_press_focus`, for scripts and without;
+  the rule of a press on the picture, `click_focus_target`, with `blur`,
+  `focusout`, `focus`, `focusin`); the probe cases `in-focus-*` and a test
+  with JavaScript off. (2) The departure rectangles had no bound inside:
+  each has a cap per state now (`PIXEL_CAPS`, set from the counts of the
+  run; mutations that fail: the audio mute center at 55.5 px, the play icon
+  for the pause icon, the muted icon for the unmuted one, the time one
+  second ahead). (3) The audio mute box (48 px) overlapped the menu box by
+  15.5 px and mute won a click on the menu's left part: the audio buttons
+  take the pointer in 32 px boxes now, as measured (point 9 above; the
+  slider's hover area ends at the mute box). (4) The case count is 26 with
+  24 recorded; `in-menu-first` is recorded. (5) The dead field
+  `ControlsKey.play_enabled` (and the view's `play_enabled`) is gone,
+  `Doc` is `PointerState`, the 25 px thumb band `THUMB_BAND` is in layout, a
+  primary release with no target reports a repaint only after a press on a
+  control. (6) A test checks that a playing audio repaints its time text and
+  timeline in the frame loop.
+- **Review fixes** (round 2). (1) The volume slider unmutes a muted element
+  (point 10 above; `controls_set_volume` sets the volume, then `set_muted(false)`
+  when the value is above 0, both through the playback API). Five probe cases
+  `in-slider-muted-*` in the data (29 recorded cases); `in-focus-video` has its
+  natural order again (mute, then slider). Mutation (no unmute): the probe
+  rows and the JavaScript-off test `the_volume_slider_unmutes_a_muted_element_with_javascript_off`
+  fail. (2) Measured, not changed: Chromium 148 does not autoplay
+  `<audio muted autoplay>` (also without `controls`; `paused` stays true, as does
+  `<audio controls autoplay>`), and swb does not either. (3) The video time
+  label "0:00 0:10" with the slider open stays a listed departure (the glyph
+  rectangle's reason and the caps).

@@ -140,7 +140,18 @@ impl Page {
         let now = crate::media::ms_to_us(self.clock.now());
         self.media_frames()
             .into_iter()
-            .filter_map(|frame| self.doc_of(frame)?.media_next_due(coarse, now))
+            .filter_map(|frame| {
+                let doc = self.doc_of(frame)?;
+                // The media's own due times, and the changes of the default
+                // controls that time brings (the auto-hide, the fade).
+                [
+                    doc.media_next_due(coarse, now),
+                    doc.media_controls_next_due(now),
+                ]
+                .into_iter()
+                .flatten()
+                .reduce(f64::min)
+            })
             .reduce(f64::min)
     }
 
@@ -155,9 +166,126 @@ impl Page {
             return false;
         }
         let now = crate::media::ms_to_us(self.clock.now());
+        self.media_frames().into_iter().any(|frame| {
+            self.doc_of(frame)
+                .is_some_and(|d| d.media_frame_due(now) || d.media_controls_stale(now))
+        })
+    }
+
+    /// The page time (ms) of the next change of the default controls'
+    /// picture that time brings (the auto-hide, a fade, the loading arc):
+    /// `None` when nothing changes without input (tests: a paused video
+    /// with a still pointer, and a playing one with hidden controls, cause
+    /// no wake-up).
+    #[doc(hidden)]
+    pub fn media_controls_due(&self) -> Option<f64> {
+        let now = self.controls_now();
         self.media_frames()
             .into_iter()
-            .any(|frame| self.doc_of(frame).is_some_and(|d| d.media_frame_due(now)))
+            .filter_map(|frame| self.doc_of(frame)?.media_controls_next_due(now))
+            .reduce(f64::min)
+    }
+
+    /// The page time in microseconds, for the default controls.
+    fn controls_now(&self) -> i64 {
+        crate::media::ms_to_us(self.clock.now())
+    }
+
+    /// The pointer is at `point` (the active document's viewport) over
+    /// `node`: the hover state of the default controls (M14 feature 9).
+    /// True if a state changed.
+    pub(super) fn controls_pointer(
+        &mut self,
+        node: Option<NodeId>,
+        point: swb_layout::Point,
+    ) -> bool {
+        let now = self.controls_now();
+        self.parts()
+            .is_some_and(|(doc, _)| doc.controls_pointer(node, point, now))
+    }
+
+    /// The pointer left the active document.
+    pub(super) fn controls_leave(&mut self) -> bool {
+        let now = self.controls_now();
+        self.parts().is_some_and(|(doc, _)| doc.controls_leave(now))
+    }
+
+    /// A press of the primary button at `point` of the active document: true
+    /// if it is on a default control (the page's scripts get no event).
+    pub(super) fn controls_down(&mut self, point: swb_layout::Point) -> bool {
+        let now = self.controls_now();
+        let node = self.hit_doc(point.x, point.y).map(|h| h.node);
+        self.parts()
+            .is_some_and(|(doc, _)| doc.controls_down(node, point, now))
+    }
+
+    /// A press on a default control moves the focus as a press on the
+    /// element's picture does (measured in Chromium 148: `activeElement` is
+    /// the media element after a press on any control, with `blur` and
+    /// `focusout` on the old element, then `focus` and `focusin` on the media
+    /// element, before the action; probes `in-focus-*` of
+    /// `tools/probes/media-controls-input.json`), without events to the page
+    /// for the press itself and without a selection change. `scripted`: the
+    /// document's scripts see the focus events.
+    pub(super) fn controls_press_focus(&mut self, point: swb_layout::Point, scripted: bool) {
+        let focus = self
+            .hit_doc(point.x, point.y)
+            .and_then(|h| self.doc.as_ref()?.click_focus_target(h.node));
+        if focus.is_some() && focus != self.focused_element() {
+            self.set_keyboard_modality(false);
+        }
+        if scripted {
+            if focus.is_none() {
+                self.regain_window_focus();
+            }
+            self.scripted_focus(focus, false);
+        } else {
+            self.update_states(|s| {
+                s.focus = focus;
+                s.focus_visible = false;
+            });
+        }
+    }
+
+    /// True if a press on a default control is in progress.
+    pub(super) fn controls_pressed(&self) -> bool {
+        self.doc.as_ref().is_some_and(|d| d.controls_pressed())
+    }
+
+    /// The pointer moved to `point` with a press in progress: a drag of the
+    /// timeline or the volume slider follows. True if the page changed.
+    pub(super) fn controls_drag(&mut self, point: swb_layout::Point) -> bool {
+        let now = self.controls_now();
+        self.parts()
+            .is_some_and(|(doc, _)| doc.controls_drag(point, now))
+    }
+
+    /// The release of the primary button at `point`: true if the press was
+    /// on a default control (the page's scripts get no event for the
+    /// release).
+    pub(super) fn controls_up(&mut self, point: swb_layout::Point) -> bool {
+        let now = self.controls_now();
+        self.parts()
+            .is_some_and(|(doc, _)| doc.controls_up(point, now))
+    }
+
+    /// The `click` on `target` was not canceled: a press on the picture of a
+    /// media element plays or pauses it.
+    pub(super) fn controls_picture_click(&mut self, target: NodeId) -> bool {
+        let now = self.controls_now();
+        self.parts()
+            .is_some_and(|(doc, _)| doc.controls_picture_click(target, now))
+    }
+
+    /// Tells the documents the page time of the next picture of their
+    /// default controls.
+    fn set_controls_time(&mut self) {
+        let now = self.controls_now();
+        for frame in self.media_frames() {
+            if let Some(doc) = self.doc_of_mut(frame) {
+                doc.set_controls_time(now);
+            }
+        }
     }
 
     /// How many walks of a fragment tree the window test of the videos ran,
@@ -319,6 +447,9 @@ impl Page {
     /// poll then would report an underrun that virtual time never has
     /// (`Page::screenshot` settles first).
     pub(super) fn sync_media_frames(&mut self) {
+        if !self.lent {
+            self.set_controls_time();
+        }
         if self.lent || (self.clock.is_virtual() && self.media_pending()) {
             return;
         }

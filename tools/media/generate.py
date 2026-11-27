@@ -382,6 +382,24 @@ def entries() -> dict[str, list[str]]:
     e["mp4-opus.mp4"] = [*a_only(2), *OPUS, "-strict", "-2", "-movflags", "+faststart"]
     # Longer files for seeking: 10 s, a key frame every second.
     e["mp4-h264-aac-long.mp4"] = [*av(10), *H264_HIGH, *AAC, "-movflags", "+faststart"]
+    # A flat picture, so that the pixels behind the default controls are the
+    # same at every time (M14 feature 9: the pixel tests of the controls).
+    e["mp4-h264-aac-flat-long.mp4"] = [
+        "-f",
+        "lavfi",
+        "-i",
+        f"color=c=0x336699:size={W}x{H}:rate={FPS}:duration=10",
+        "-filter_complex",
+        audio_graph(10),
+        "-map",
+        "0:v",
+        "-map",
+        "[a]",
+        *H264_HIGH,
+        *AAC,
+        "-movflags",
+        "+faststart",
+    ]
     e["mp3-long.mp3"] = [
         *a_only(10),
         "-c:a",

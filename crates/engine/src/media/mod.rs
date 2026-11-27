@@ -55,6 +55,7 @@
 //! pipeline again.
 
 mod backend;
+pub(crate) mod controls;
 mod frames;
 mod load;
 mod playback;
@@ -289,6 +290,9 @@ pub(crate) struct Element {
     /// The element has a box (`false`: `display: none`, or not in the
     /// document): its frames are not converted (ADR 0047 section 6).
     pub(crate) painted: bool,
+    // ----- The default controls (feature 9) -----
+    /// The state of the pointer and the auto-hide of the default controls.
+    pub(crate) controls: controls::Controls,
 }
 
 impl Element {
@@ -334,6 +338,7 @@ impl Element {
             frozen: None,
             show_poster: true,
             painted: true,
+            controls: controls::Controls::default(),
         }
     }
 
@@ -481,6 +486,8 @@ pub(crate) struct Media {
     /// The states of elements went (the table purged, the document left):
     /// the next sync looks at all of them.
     pub(super) resync_all: bool,
+    /// The pointer's side of the default controls (feature 9).
+    pub(crate) ui: controls::PointerState,
 }
 
 impl Media {
@@ -496,6 +503,7 @@ impl Media {
             warned: false,
             touched: BTreeSet::new(),
             resync_all: false,
+            ui: controls::PointerState::default(),
         }
     }
 
@@ -505,6 +513,7 @@ impl Media {
         self.elements.clear();
         self.events.clear();
         self.resync_all = true;
+        self.ui = controls::PointerState::default();
     }
 
     /// Notes that the images of the element `node` may have changed.

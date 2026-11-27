@@ -874,7 +874,9 @@ impl Builder<'_> {
         if !m.audio {
             self.replaced_image(m.node, &b.style, content);
         }
-        self.list.extend(media::controls(m, content));
+        let view = self.images.media_controls(m.node);
+        self.list
+            .extend(media::controls(m, content, view.as_deref()));
         if rounded.is_some() {
             self.list.push(unclip_item(rounded));
         }

@@ -64,7 +64,7 @@ fn video_window(scroll: Point, viewport: Size) -> Rect {
 impl DocumentState {
     /// Runs `f` on the media state with the context of the document at page
     /// time `now_ms`.
-    fn with_media<R>(
+    pub(super) fn with_media<R>(
         &mut self,
         now_ms: f64,
         f: impl FnOnce(&mut crate::media::Media, &Cx<'_>) -> R,

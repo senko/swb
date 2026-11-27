@@ -77,10 +77,15 @@ pub use box_tree::transform_text;
 pub use control::{Control, ControlKind, FormControls, MAX_SELECT_OPTIONS, NoFormControls};
 pub use fragment::{
     BoxContent, BoxFragment, CanvasBackground, Caret, CellPaint, CollapsedEdge, ControlContent,
-    Fragment, FragmentRef, FragmentTree, MediaContent, MediaPart, MediaPartKind, MediaText,
-    PartBackground, PositionedGlyph, TablePaint, TextFragment,
+    Fragment, FragmentRef, FragmentTree, MediaButton, MediaContent, MediaControlsView, MediaPart,
+    MediaPartKind, MediaText, MediaTimes, PartBackground, PositionedGlyph, TablePaint,
+    TextFragment,
 };
 pub use geom::{Edges, KAPPA, Matrix, Point, Rect, Size};
+pub use media::{
+    MediaHit, THUMB_BAND, VolumeSlider, media_hit, media_time_text, time_label, timeline_fraction,
+    volume_fraction, volume_slider,
+};
 pub use paint_restyle::Unsupported;
 pub use positioned::{
     Ancestry, GroupTransform, Placeholder, StickyCache, StickyConstraints, clip_property_area,

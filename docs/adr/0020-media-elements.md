@@ -185,4 +185,17 @@ What changes in this ADR:
   by click and drag, mute and the volume slider, the time during
   playback, auto-hide) and draws the states that Chromium draws during
   and after playback (diagnosis section 9). Before playback they look as
-  described above.
+  described above. Layout still decides only the parts and their places
+  (`MediaContent`); what they show beyond that is a `MediaControlsView`
+  that the engine makes from the element's state and the pointer's, and
+  that the display list builder reads (`ImageSizes::media_controls`): the
+  pause icon, the shaped time "m:ss / m:ss" (whole seconds, `h:mm:ss`
+  from an hour), the played part and the thumb, the hover circle, the
+  volume pill, the muted icon, the fade of the auto-hide, the loading arc
+  (a GUI page only). A change of a view rebuilds the display list and not
+  the layout. A press, release or click on a control gives the page no
+  pointer event (measured); a click on the picture plays or pauses after
+  its `click` event unless a listener canceled it. The fullscreen button
+  and the overflow menu draw as before and do nothing (M15 and later).
+  Details and measurements: ADR 0047 "Implementation notes (M14 feature
+  9)".

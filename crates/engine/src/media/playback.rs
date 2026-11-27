@@ -139,6 +139,7 @@ impl Media {
             self.do_seek(node, 0.0);
         }
         let now_ms = self.now_ms();
+        let now_us = self.now_us;
         let Some(element) = self.elements.get_mut(&node) else {
             return;
         };
@@ -148,6 +149,9 @@ impl Media {
         if element.paused {
             element.paused = false;
             element.muted_exempt = exempt;
+            // The auto-hide of the default controls counts from the start.
+            element.controls.activity_us = Some(now_us);
+            element.controls.left_us = None;
             // The run of playback that `played` records starts here, also
             // before the metadata (Chromium: a media with a start time of
             // 1.5 s has `played` 0-3.5 when `play()` came first).

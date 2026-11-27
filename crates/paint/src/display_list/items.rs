@@ -520,6 +520,13 @@ pub(super) const SELECTION_TEXT: Rgba = Rgba::WHITE;
 pub trait ImageSizes {
     /// The natural dimensions of an image, if it is loaded.
     fn size(&self, image: &ImageRef) -> Option<NaturalSize>;
+
+    /// The state of the default controls of the media element `node` (M14
+    /// feature 9), if it has one beyond the state before playback. The
+    /// default has none.
+    fn media_controls(&self, _node: NodeId) -> Option<Arc<swb_layout::MediaControlsView>> {
+        None
+    }
 }
 
 /// A list of drawing commands.

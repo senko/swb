@@ -497,6 +497,16 @@ impl Page {
         if self.input.last_point != Some(point) {
             self.scripted_move(point, false);
         }
+        // A press on a default control of a media element gives the page no
+        // event at all (measured in Chromium 148, probe
+        // `tools/probes/media-controls-input.json`): the controls act on it.
+        if button == MouseButton::Primary && self.controls_down(point) {
+            self.input.buttons |= button_bit(button);
+            self.input.down = None;
+            // The focus moves to the element (events: focus only).
+            self.controls_press_focus(point, true);
+            return false;
+        }
         let Some(target) = self.target_at(point) else {
             return true;
         };
@@ -588,6 +598,13 @@ impl Page {
     ) -> Option<(NodeId, bool)> {
         if self.input.last_point != Some(point) {
             self.scripted_move(point, false);
+        }
+        // The release of a press on a default control: no event either, and
+        // the control acts.
+        if button == MouseButton::Primary && self.controls_up(point) {
+            self.input.down = None;
+            self.input.buttons &= !button_bit(button);
+            return None;
         }
         let down = self.input.down.take().filter(|d| d.button == button);
         self.input.buttons &= !button_bit(button);

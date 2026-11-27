@@ -11,7 +11,7 @@ to decode and draw the frames."""
 
 from pathlib import Path
 
-from swbtools.hostile_cases.core import Page, case, doc, virtual_run
+from swbtools.hostile_cases.core import Page, case, doc, steps_args, virtual_run
 
 RUNNING = virtual_run(3000)
 """Scripts and 3 s of virtual time: the selections and the events run."""
@@ -217,6 +217,50 @@ def media_reload_loop_screenshot() -> Page:
 def media_1000_playing_videos_frame_loop() -> Page:
     videos = "<video src=a.mp4 muted autoplay loop width=320 height=240></video>" * 1000
     return Page(doc(videos), {"a.mp4": FIXTURE_VIDEO.read_bytes()})
+
+
+@case(
+    "2,000 clicks on the play button of the default controls of one video (M14 feature 9, ADR "
+    "0047 notes of feature 9): each click toggles play and pause through the playback API, so "
+    "the events queue at the element (the queue keeps at most 65,536) and every promise "
+    "settles; the page stays responsive and the controls' picture is made once for the last "
+    "state (a media build plays the video, the default build fails the load and the clicks do "
+    "nothing)",
+    time_limit_s=40,
+    rss_limit_mib=1536,
+    swb_args=steps_args([{"click": [24, 192]}] * 2000 + [{"wait": 6000}]),
+    expect_log="control clicks ok events",
+)
+def media_controls_click_flood() -> Page:
+    script = (
+        "<script>let n=0;for(const e of ['play','pause'])v.addEventListener(e,()=>n++);"
+        "setTimeout(()=>console.warn('control clicks ok '+(n>1000?'events':'none '+n)),5000);"
+        "</script>"
+    )
+    return Page(
+        doc(f"<video id=v src=a.mp4 controls width=320 height=240></video>{script}"),
+        {"a.mp4": FIXTURE_VIDEO.read_bytes()},
+    )
+
+
+@case(
+    "1,000 `<video controls>` elements of 320 x 240 under a pointer that moves over 300 places "
+    "(M14 feature 9): each move updates the hover state of one element and the one it left; "
+    "the places of the controls' boxes come from one walk of the fragment tree for all 1,000 "
+    "(kept while the layout, the scroll and the display list do not change), not one walk for "
+    "each move; time and memory stay bounded",
+    time_limit_s=40,
+    rss_limit_mib=1536,
+    swb_args=steps_args(
+        [{"hover": [20 + (i * 37) % 1500, 20 + (i * 53) % 700]} for i in range(300)]
+        + [{"wait": 1000}]
+    ),
+    expect_log="controls moves ok",
+)
+def media_1000_videos_with_controls_under_a_moving_pointer() -> Page:
+    videos = "<video src=a.mp4 controls width=320 height=240></video>" * 1000
+    script = "<script>setTimeout(()=>console.warn('controls moves ok'),500);</script>"
+    return Page(doc(videos + script), {"a.mp4": FIXTURE_VIDEO.read_bytes()})
 
 
 FIXTURE_AUDIO = Path(__file__).resolve().parents[3] / "fixtures/media/m4a-aac.m4a"

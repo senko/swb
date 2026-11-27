@@ -4,6 +4,35 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-27: M14 feature 9, the default controls respond
+
+- The default controls of `<video>` and `<audio>` work by mouse: play and
+  pause (the button and a click on the picture), seek by a click or a
+  drag on the timeline, mute, the volume slider, replay after the end. The
+  actions go through the script API paths, so the events, the promises
+  and the autoplay rules are the same as for a script.
+- Chromium was measured before the code (five probe files). Facts that
+  changed the design: a press on a control gives the page no pointer or
+  mouse event at all, but moves the focus to the media element; a click
+  on the picture plays or pauses in the click's default action, so
+  `preventDefault()` stops it and a capturing `stopPropagation()` does
+  not; the controls hide 2.5 s after the last move and fade in 0.7 s.
+- Cost: a change of the controls builds the display list again without a
+  layout, and their timers join the next due time of the frame loop.
+  Shown controls cost 9 % more CPU (budget 10 %); hidden controls and
+  paused controls under a still pointer cost nothing.
+- The review found that a press on a control did not move the focus, that
+  the picture test's departure rectangles had no bound (a wrong icon or a
+  wrong digit passed; each rectangle now has a cap of bad pixels per
+  state), and that the audio mute and menu buttons overlapped (Chromium's
+  are 32 px boxes, measured). While measuring the focus, the fix round
+  found that Chromium's volume slider unmutes a muted element; swb now
+  does the same.
+- The tighter picture test showed one departure that the old rectangles
+  hid: with the volume slider open, Chromium drops the slash of the time
+  text. It is a listed departure and a backlog item.
+- Next: feature 10, the exit test of M14.
+
 ## 2026-11-26: fewer and faster check runs
 
 - Feature 8 ran the full checks about six times (the implementer, the fix

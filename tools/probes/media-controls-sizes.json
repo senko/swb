@@ -1,0 +1,14 @@
+{
+ "javascript": true,
+ "viewport": [400, 300],
+ "cases": [
+  {"name": "sz-250x159", "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><video id=v width=250 height=159 src=flat.mp4 controls preload=auto></video>", "http": true, "files": {"flat.mp4": "fixtures/media/mp4-h264-aac-flat-long.mp4"},
+   "steps": [{"wait": 900}, {"shot": "p"}], "measure": [{"js": "[v.duration]"}]},
+  {"name": "sz-280x159", "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><video id=v width=280 height=159 src=flat.mp4 controls preload=auto></video>", "http": true, "files": {"flat.mp4": "fixtures/media/mp4-h264-aac-flat-long.mp4"},
+   "steps": [{"wait": 900}, {"shot": "p"}], "measure": [{"js": "[v.duration]"}]},
+  {"name": "sz-380x159", "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><video id=v width=380 height=159 src=flat.mp4 controls preload=auto></video>", "http": true, "files": {"flat.mp4": "fixtures/media/mp4-h264-aac-flat-long.mp4"},
+   "steps": [{"wait": 900}, {"shot": "p"}], "measure": [{"js": "[v.duration]"}]},
+  {"name": "sz-hour", "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><video id=v width=380 height=159 src=hour.mp4 controls preload=auto></video>", "http": true, "files": {"hour.mp4": "out/media-local/hour.mp4"},
+   "steps": [{"wait": 1500}, {"shot": "a-start"}, {"eval": "v.currentTime = 3700"}, {"wait": 800}, {"shot": "b-at-3700"}, {"eval": "v.currentTime = 610"}, {"wait": 800}, {"shot": "c-at-610"}, {"eval": "v.currentTime = 3599.5"}, {"wait": 800}, {"shot": "d-at-3599"}], "measure": [{"js": "[v.duration]"}]}
+ ]
+}

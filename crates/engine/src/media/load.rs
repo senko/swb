@@ -75,6 +75,7 @@ impl Media {
     /// `src` was set or changed on `node`, or `load()` was called
     /// (`forced`): the media element load algorithm.
     pub(crate) fn load_algorithm(&mut self, cx: &Cx<'_>, node: NodeId, forced: bool) {
+        let now_us = self.now_us;
         let Some(element) = self.element_mut(cx, node) else {
             return;
         };
@@ -120,6 +121,11 @@ impl Media {
         element.emulation = None;
         element.frozen = None;
         element.show_poster = true;
+        // The loading arc of the default controls counts from here.
+        element.controls.loading_us = Some(now_us);
+        element.controls.drag = None;
+        element.controls.focus_timeline = false;
+        element.controls.focus_volume = false;
         element.rate = element.default_rate;
         element.pending_upto = None;
         let unsettled = (element.play_last > element.play_delivered).then_some(element.play_last);
@@ -214,6 +220,14 @@ impl Media {
     /// its data.
     pub(crate) fn removed(&mut self, node: NodeId) {
         self.pause_steps(node, PlayRejection::Pause);
+        // A drag on its controls ends without an action (its media is no
+        // longer in the page).
+        self.ui_element_gone(node);
+        if let Some(element) = self.elements.get_mut(&node) {
+            element.controls.drag = None;
+            element.controls.inside = false;
+            element.controls.hit = swb_layout::MediaHit::None;
+        }
         let now = self.now_us;
         if let Some(element) = self.elements.get_mut(&node)
             && element.ready_state == HAVE_ENOUGH_DATA

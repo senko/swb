@@ -1,0 +1,22 @@
+{
+ "javascript": true,
+ "viewport": [400, 300],
+ "cases": [
+  {
+   "name": "fade-leave",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const T=[],P=(n)=>T.push(n+' '+Math.round(performance.now()));document.addEventListener('mouseout',e=>{if(!e.relatedTarget)P('leave')})</script><video id=v src=flat.mp4 controls preload=auto></video>",
+   "http": true,
+   "files": {"flat.mp4": "fixtures/media/mp4-h264-aac-flat-long.mp4"},
+   "steps": [{"wait": 900}, {"click": [160, 100]}, {"wait": 600}, {"hover": [395, 295]}, {"eval": "P('b0')"}, {"shot": "b0"}, {"eval": "P('b1')"}, {"shot": "b1"}, {"eval": "P('b2')"}, {"shot": "b2"}, {"eval": "P('b3')"}, {"shot": "b3"}, {"eval": "P('b4')"}, {"shot": "b4"}, {"eval": "P('b5')"}, {"shot": "b5"}, {"eval": "P('b6')"}, {"shot": "b6"}, {"wait": 100}, {"eval": "P('b7')"}, {"shot": "b7"}, {"wait": 200}, {"eval": "P('b8')"}, {"shot": "b8"}],
+   "measure": [{"js": "T"}]
+  },
+  {
+   "name": "fade-idle",
+   "html": "<!DOCTYPE html><style>html,body{margin:0;background:#fff} video,audio{display:block}</style><script>const T=[],P=(n)=>T.push(n+' '+Math.round(performance.now()));</script><video id=v src=flat.mp4 controls preload=auto></video><script>v.addEventListener('playing',()=>P('playing'));document.addEventListener('mousemove',()=>P('move'))</script>",
+   "http": true,
+   "files": {"flat.mp4": "fixtures/media/mp4-h264-aac-flat-long.mp4"},
+   "steps": [{"wait": 900}, {"click": [160, 100]}, {"wait": 600}, {"hover": [200, 120]}, {"wait": 2000}, {"eval": "P('s0')"}, {"shot": "s00"}, {"eval": "P('s1')"}, {"shot": "s01"}, {"eval": "P('s2')"}, {"shot": "s02"}, {"eval": "P('s3')"}, {"shot": "s03"}, {"eval": "P('s4')"}, {"shot": "s04"}, {"eval": "P('s5')"}, {"shot": "s05"}, {"eval": "P('s6')"}, {"shot": "s06"}, {"eval": "P('s7')"}, {"shot": "s07"}, {"eval": "P('s8')"}, {"shot": "s08"}, {"eval": "P('s9')"}, {"shot": "s09"}, {"eval": "P('s10')"}, {"shot": "s10"}, {"eval": "P('s11')"}, {"shot": "s11"}, {"eval": "P('s12')"}, {"shot": "s12"}, {"eval": "P('s13')"}, {"shot": "s13"}, {"eval": "P('s14')"}, {"shot": "s14"}, {"eval": "P('s15')"}, {"shot": "s15"}, {"eval": "P('s16')"}, {"shot": "s16"}, {"eval": "P('s17')"}, {"shot": "s17"}, {"eval": "P('s18')"}, {"shot": "s18"}, {"eval": "P('s19')"}, {"shot": "s19"}, {"eval": "P('s20')"}, {"shot": "s20"}, {"eval": "P('s21')"}, {"shot": "s21"}, {"eval": "P('s22')"}, {"shot": "s22"}, {"eval": "P('s23')"}, {"shot": "s23"}, {"eval": "P('s24')"}, {"shot": "s24"}, {"eval": "P('s25')"}, {"shot": "s25"}, {"eval": "P('s26')"}, {"shot": "s26"}, {"eval": "P('s27')"}, {"shot": "s27"}, {"eval": "P('s28')"}, {"shot": "s28"}, {"eval": "P('s29')"}, {"shot": "s29"}, {"eval": "P('s30')"}, {"shot": "s30"}, {"eval": "P('s31')"}, {"shot": "s31"}, {"eval": "P('s32')"}, {"shot": "s32"}, {"eval": "P('s33')"}, {"shot": "s33"}, {"eval": "P('s34')"}, {"shot": "s34"}, {"eval": "P('s35')"}, {"shot": "s35"}, {"eval": "P('s36')"}, {"shot": "s36"}, {"eval": "P('s37')"}, {"shot": "s37"}, {"eval": "P('s38')"}, {"shot": "s38"}, {"eval": "P('s39')"}, {"shot": "s39"}],
+   "measure": [{"js": "T"}]
+  }
+ ]
+}
